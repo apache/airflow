@@ -1,39 +1,38 @@
-# -*- coding: utf-8 -*-
 #
-# See the NOTICE file distributed with this work for additional information
-# regarding copyright ownership.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
 #   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-import flask_login
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+import logging
 
+import flask_login
+from flask import redirect, request, url_for
 # Need to expose these downstream
 # flake8: noqa: F401
-from flask_login import current_user, logout_user, login_required, login_user
-
-from flask import url_for, redirect, request
-
+from flask_login import current_user, login_required, login_user, logout_user
 from flask_oauthlib.client import OAuth
 
-from airflow import models, configuration
-from airflow.configuration import AirflowConfigException
-from airflow.utils.db import provide_session
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow import models
+from airflow.configuration import AirflowConfigException, conf
+from airflow.utils.session import provide_session
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 def get_config_param(param):
-    return str(configuration.conf.get('github_enterprise', param))
+    return str(conf.get('github_enterprise', param))
 
 
 class GHEUser(models.User):
@@ -41,14 +40,17 @@ class GHEUser(models.User):
     def __init__(self, user):
         self.user = user
 
+    @property
     def is_active(self):
         """Required by flask_login"""
         return True
 
+    @property
     def is_authenticated(self):
         """Required by flask_login"""
         return True
 
+    @property
     def is_anonymous(self):
         """Required by flask_login"""
         return False
@@ -70,7 +72,7 @@ class AuthenticationError(Exception):
     pass
 
 
-class GHEAuthBackend(object):
+class GHEAuthBackend:
 
     def __init__(self):
         self.ghe_host = get_config_param('host')

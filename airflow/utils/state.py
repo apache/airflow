@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,20 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import unicode_literals
-
-from builtins import object
 
 
-class State(object):
+class State:
     """
     Static class with task instance states constants and color method to
     avoid hardcoding.
     """
 
     # scheduler
-    NONE = None
+    NONE = None  # type: None
     REMOVED = "removed"
     SCHEDULED = "scheduled"
 
@@ -43,6 +38,7 @@ class State(object):
     SHUTDOWN = "shutdown"  # External request to shut down
     FAILED = "failed"
     UP_FOR_RETRY = "up_for_retry"
+    UP_FOR_RESCHEDULE = "up_for_reschedule"
     UPSTREAM_FAILED = "upstream_failed"
     SKIPPED = "skipped"
 
@@ -51,7 +47,9 @@ class State(object):
         RUNNING,
         FAILED,
         UPSTREAM_FAILED,
+        SKIPPED,
         UP_FOR_RETRY,
+        UP_FOR_RESCHEDULE,
         QUEUED,
         NONE,
         SCHEDULED,
@@ -70,6 +68,7 @@ class State(object):
         SHUTDOWN: 'blue',
         FAILED: 'red',
         UP_FOR_RETRY: 'gold',
+        UP_FOR_RESCHEDULE: 'turquoise',
         UPSTREAM_FAILED: 'orange',
         SKIPPED: 'pink',
         REMOVED: 'lightgrey',
@@ -79,18 +78,20 @@ class State(object):
 
     @classmethod
     def color(cls, state):
-        if state in cls.state_color:
-            return cls.state_color[state]
-        else:
-            return 'white'
+        """
+        Returns color for a state.
+        """
+        return cls.state_color.get(state, 'white')
 
     @classmethod
     def color_fg(cls, state):
+        """
+        Black&white colors for a state.
+        """
         color = cls.color(state)
         if color in ['green', 'red']:
             return 'white'
-        else:
-            return 'black'
+        return 'black'
 
     @classmethod
     def finished(cls):
@@ -117,5 +118,6 @@ class State(object):
             cls.QUEUED,
             cls.RUNNING,
             cls.SHUTDOWN,
-            cls.UP_FOR_RETRY
+            cls.UP_FOR_RETRY,
+            cls.UP_FOR_RESCHEDULE
         ]

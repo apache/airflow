@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,10 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from tempfile import NamedTemporaryFile
-import shutil
-import gzip
 import bz2
+import gzip
+import shutil
+from tempfile import NamedTemporaryFile
 
 
 def uncompress_file(input_file_name, file_extension, dest_dir):

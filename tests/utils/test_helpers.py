@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,19 +19,25 @@
 import logging
 import multiprocessing
 import os
-import psutil
 import signal
 import time
 import unittest
+from datetime import datetime
 
+import psutil
+
+from airflow import DAG
+from airflow.models import TaskInstance
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import helpers
+from airflow.utils.helpers import merge_dicts
 
 
 class TestHelpers(unittest.TestCase):
 
     @staticmethod
     def _ignores_sigterm(child_pid, child_setup_done):
-        def signal_handler(signum, frame):
+        def signal_handler(unused_signum, unused_frame):
             pass
 
         signal.signal(signal.SIGTERM, signal_handler)
@@ -43,7 +48,7 @@ class TestHelpers(unittest.TestCase):
 
     @staticmethod
     def _parent_of_ignores_sigterm(parent_pid, child_pid, setup_done):
-        def signal_handler(signum, frame):
+        def signal_handler(unused_signum, unused_frame):
             pass
         os.setsid()
         signal.signal(signal.SIGTERM, signal_handler)
@@ -56,6 +61,28 @@ class TestHelpers(unittest.TestCase):
         setup_done.release()
         while True:
             time.sleep(1)
+
+    def test_render_log_filename(self):
+        try_number = 1
+        dag_id = 'test_render_log_filename_dag'
+        task_id = 'test_render_log_filename_task'
+        execution_date = datetime(2016, 1, 1)
+
+        dag = DAG(dag_id, start_date=execution_date)
+        task = DummyOperator(task_id=task_id, dag=dag)
+        ti = TaskInstance(task=task, execution_date=execution_date)
+
+        filename_template = "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log"
+
+        ts = ti.get_template_context()['ts']
+        expected_filename = "{dag_id}/{task_id}/{ts}/{try_number}.log".format(dag_id=dag_id,
+                                                                              task_id=task_id,
+                                                                              ts=ts,
+                                                                              try_number=try_number)
+
+        rendered_filename = helpers.render_log_filename(ti, try_number, filename_template)
+
+        self.assertEqual(rendered_filename, expected_filename)
 
     def test_reap_process_group(self):
         """
@@ -88,15 +115,14 @@ class TestHelpers(unittest.TestCase):
 
     def test_chunks(self):
         with self.assertRaises(ValueError):
-            [i for i in helpers.chunks([1, 2, 3], 0)]
+            list(helpers.chunks([1, 2, 3], 0))
 
         with self.assertRaises(ValueError):
-            [i for i in helpers.chunks([1, 2, 3], -3)]
+            list(helpers.chunks([1, 2, 3], -3))
 
-        self.assertEqual([i for i in helpers.chunks([], 5)], [])
-        self.assertEqual([i for i in helpers.chunks([1], 1)], [[1]])
-        self.assertEqual([i for i in helpers.chunks([1, 2, 3], 2)],
-                         [[1, 2], [3]])
+        self.assertEqual(list(helpers.chunks([], 5)), [])
+        self.assertEqual(list(helpers.chunks([1], 1)), [[1]])
+        self.assertEqual(list(helpers.chunks([1, 2, 3], 2)), [[1, 2], [3]])
 
     def test_reduce_in_chunks(self):
         self.assertEqual(helpers.reduce_in_chunks(lambda x, y: x + [y],
@@ -116,45 +142,26 @@ class TestHelpers(unittest.TestCase):
                                                   2),
                          14)
 
-    def test_is_in(self):
-        obj = ["list", "object"]
-        # Check for existence of a list object within a list
-        self.assertTrue(
-            helpers.is_in(obj, [obj])
-        )
-
-        # Check that an empty list returns false
-        self.assertFalse(
-            helpers.is_in(obj, [])
-        )
-
-        # Check to ensure it handles None types
-        self.assertFalse(
-            helpers.is_in(None, [obj])
-        )
-
-        # Check to ensure true will be returned of multiple objects exist
-        self.assertTrue(
-            helpers.is_in(obj, [obj, obj])
-        )
-
     def test_is_container(self):
         self.assertFalse(helpers.is_container("a string is not a container"))
         self.assertTrue(helpers.is_container(["a", "list", "is", "a", "container"]))
 
+        self.assertTrue(helpers.is_container(['test_list']))
+        self.assertFalse(helpers.is_container('test_str_not_iterable'))
+        # Pass an object that is not iter nor a string.
+        self.assertFalse(helpers.is_container(10))
+
     def test_as_tuple(self):
-        self.assertEquals(
+        self.assertEqual(
             helpers.as_tuple("a string is not a container"),
             ("a string is not a container",)
         )
 
-        self.assertEquals(
+        self.assertEqual(
             helpers.as_tuple(["a", "list", "is", "a", "container"]),
             ("a", "list", "is", "a", "container")
         )
 
-
-class HelpersTest(unittest.TestCase):
     def test_as_tuple_iter(self):
         test_list = ['test_str']
         as_tup = helpers.as_tuple(test_list)
@@ -165,50 +172,47 @@ class HelpersTest(unittest.TestCase):
         as_tup = helpers.as_tuple(test_str)
         self.assertTupleEqual((test_str,), as_tup)
 
-    def test_is_in(self):
-        from airflow.utils import helpers
-        # `is_in` expects an object, and a list as input
+    def test_convert_camel_to_snake(self):
+        self.assertEqual(helpers.convert_camel_to_snake('LocalTaskJob'), 'local_task_job')
+        self.assertEqual(helpers.convert_camel_to_snake('somethingVeryRandom'),
+                         'something_very_random')
 
-        test_dict = {'test': 1}
-        test_list = ['test', 1, dict()]
-        small_i = 3
-        big_i = 2 ** 31
-        test_str = 'test_str'
-        test_tup = ('test', 'tuple')
+    def test_merge_dicts(self):
+        """
+        Test _merge method from JSONFormatter
+        """
+        dict1 = {'a': 1, 'b': 2, 'c': 3}
+        dict2 = {'a': 1, 'b': 3, 'd': 42}
+        merged = merge_dicts(dict1, dict2)
+        self.assertDictEqual(merged, {'a': 1, 'b': 3, 'c': 3, 'd': 42})
 
-        test_container = [test_dict, test_list, small_i, big_i, test_str, test_tup]
+    def test_merge_dicts_recursive_overlap_l1(self):
+        """
+        Test merge_dicts with recursive dict; one level of nesting
+        """
+        dict1 = {'a': 1, 'r': {'a': 1, 'b': 2}}
+        dict2 = {'a': 1, 'r': {'c': 3, 'b': 0}}
+        merged = merge_dicts(dict1, dict2)
+        self.assertDictEqual(merged, {'a': 1, 'r': {'a': 1, 'b': 0, 'c': 3}})
 
-        # Test that integers are referenced as the same object
-        self.assertTrue(helpers.is_in(small_i, test_container))
-        self.assertTrue(helpers.is_in(3, test_container))
+    def test_merge_dicts_recursive_overlap_l2(self):
+        """
+        Test merge_dicts with recursive dict; two levels of nesting
+        """
 
-        # python caches small integers, so i is 3 will be True,
-        # but `big_i is 2 ** 31` is False.
-        self.assertTrue(helpers.is_in(big_i, test_container))
-        self.assertFalse(helpers.is_in(2 ** 31, test_container))
+        dict1 = {'a': 1, 'r': {'a': 1, 'b': {'a': 1}}}
+        dict2 = {'a': 1, 'r': {'c': 3, 'b': {'b': 1}}}
+        merged = merge_dicts(dict1, dict2)
+        self.assertDictEqual(merged, {'a': 1, 'r': {'a': 1, 'b': {'a': 1, 'b': 1}, 'c': 3}})
 
-        self.assertTrue(helpers.is_in(test_dict, test_container))
-        self.assertFalse(helpers.is_in({'test': 1}, test_container))
-
-        self.assertTrue(helpers.is_in(test_list, test_container))
-        self.assertFalse(helpers.is_in(['test', 1, dict()], test_container))
-
-        self.assertTrue(helpers.is_in(test_str, test_container))
-        self.assertTrue(helpers.is_in('test_str', test_container))
-        bad_str = 'test_'
-        bad_str += 'str'
-        self.assertFalse(helpers.is_in(bad_str, test_container))
-
-        self.assertTrue(helpers.is_in(test_tup, test_container))
-        self.assertFalse(helpers.is_in(('test', 'tuple'), test_container))
-        bad_tup = ('test', 'tuple', 'hello')
-        self.assertFalse(helpers.is_in(bad_tup[:2], test_container))
-
-    def test_is_container(self):
-        self.assertTrue(helpers.is_container(['test_list']))
-        self.assertFalse(helpers.is_container('test_str_not_iterable'))
-        # Pass an object that is not iter nor a string.
-        self.assertFalse(helpers.is_container(10))
+    def test_merge_dicts_recursive_right_only(self):
+        """
+        Test merge_dicts with recursive when dict1 doesn't have any nested dict
+        """
+        dict1 = {'a': 1}
+        dict2 = {'a': 1, 'r': {'c': 3, 'b': 0}}
+        merged = merge_dicts(dict1, dict2)
+        self.assertDictEqual(merged, {'a': 1, 'r': {'b': 0, 'c': 3}})
 
 
 if __name__ == '__main__':

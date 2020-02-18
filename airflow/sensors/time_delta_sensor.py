@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -35,7 +34,7 @@ class TimeDeltaSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(self, delta, *args, **kwargs):
-        super(TimeDeltaSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.delta = delta
 
     def poke(self, context):

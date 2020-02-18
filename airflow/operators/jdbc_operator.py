@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,43 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module is deprecated. Please use `airflow.providers.jdbc.operators.jdbc`."""
 
-from airflow.hooks.jdbc_hook import JdbcHook
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
+import warnings
 
+# pylint: disable=unused-import
+from airflow.providers.jdbc.operators.jdbc import JdbcOperator  # noqa
 
-class JdbcOperator(BaseOperator):
-    """
-    Executes sql code in a database using jdbc driver.
-
-    Requires jaydebeapi.
-
-    :param jdbc_conn_id: reference to a predefined database
-    :type jdbc_conn_id: str
-    :param sql: the sql code to be executed. (templated)
-    :type sql: Can receive a str representing a sql statement,
-        a list of str (sql statements), or reference to a template file.
-        Template reference are recognized by str ending in '.sql'
-    """
-
-    template_fields = ('sql',)
-    template_ext = ('.sql',)
-    ui_color = '#ededed'
-
-    @apply_defaults
-    def __init__(
-            self, sql,
-            jdbc_conn_id='jdbc_default', autocommit=False, parameters=None,
-            *args, **kwargs):
-        super(JdbcOperator, self).__init__(*args, **kwargs)
-        self.parameters = parameters
-
-        self.sql = sql
-        self.jdbc_conn_id = jdbc_conn_id
-        self.autocommit = autocommit
-
-    def execute(self, context):
-        self.log.info('Executing: %s', self.sql)
-        self.hook = JdbcHook(jdbc_conn_id=self.jdbc_conn_id)
-        self.hook.run(self.sql, self.autocommit, parameters=self.parameters)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.jdbc.operators.jdbc`.",
+    DeprecationWarning, stacklevel=2
+)

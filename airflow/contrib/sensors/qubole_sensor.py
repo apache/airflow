@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,73 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module is deprecated. Please use `airflow.providers.qubole.sensors.qubole`."""
 
-from qds_sdk.qubole import Qubole
-from qds_sdk.sensors import FileSensor, PartitionSensor
+import warnings
 
-from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
+# pylint: disable=unused-import
+from airflow.providers.qubole.sensors.qubole import (  # noqa
+    QuboleFileSensor, QubolePartitionSensor, QuboleSensor,
+)
 
-
-class QuboleSensor(BaseSensorOperator):
-    """
-    Base class for all Qubole Sensors
-
-    :param qubole_conn_id: The qubole connection to run the sensor against
-    :type qubole_conn_id: str
-    :param data: a JSON object containing payload, whose presence needs to be checked
-    :type data: a JSON object
-
-    .. note:: Both ``data`` and ``qubole_conn_id`` fields are template-supported. You can
-    also use ``.txt`` files for template driven use cases.
-    """
-
-    template_fields = ('data', 'qubole_conn_id')
-
-    template_ext = ('.txt',)
-
-    @apply_defaults
-    def __init__(self, data, qubole_conn_id="qubole_default", *args, **kwargs):
-        self.data = data
-        self.qubole_conn_id = qubole_conn_id
-
-        if 'poke_interval' in kwargs and kwargs['poke_interval'] < 5:
-            raise AirflowException("Sorry, poke_interval can't be less than 5 sec for "
-                                   "task '{0}' in dag '{1}'."
-                                   .format(kwargs['task_id'], kwargs['dag'].dag_id))
-
-        super(QuboleSensor, self).__init__(*args, **kwargs)
-
-    def poke(self, context):
-
-        conn = BaseHook.get_connection(self.qubole_conn_id)
-        Qubole.configure(api_token=conn.password, api_url=conn.host)
-
-        self.log.info('Poking: %s', self.data)
-
-        status = False
-        try:
-            status = self.sensor_class.check(self.data)
-        except Exception as e:
-            self.log.exception(e)
-            status = False
-
-        self.log.info('Status of this Poke: %s', status)
-
-        return status
-
-
-class QuboleFileSensor(QuboleSensor):
-    @apply_defaults
-    def __init__(self, *args, **kwargs):
-        self.sensor_class = FileSensor
-        super(QuboleFileSensor, self).__init__(*args, **kwargs)
-
-
-class QubolePartitionSensor(QuboleSensor):
-    @apply_defaults
-    def __init__(self, *args, **kwargs):
-        self.sensor_class = PartitionSensor
-        super(QubolePartitionSensor, self).__init__(*args, **kwargs)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.qubole.sensors.qubole`.",
+    DeprecationWarning, stacklevel=2
+)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,39 +15,60 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Delete DAGs APIs."""
+import logging
 
 from sqlalchemy import or_
 
-from airflow import models, settings
-from airflow.exceptions import DagNotFound, DagFileExists
+from airflow import models
+from airflow.exceptions import DagNotFound
+from airflow.models import DagModel, TaskFail
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.settings import STORE_SERIALIZED_DAGS
+from airflow.utils.session import provide_session
+
+log = logging.getLogger(__name__)
 
 
-def delete_dag(dag_id):
-    session = settings.Session()
-
-    DM = models.DagModel
-    dag = session.query(DM).filter(DM.dag_id == dag_id).first()
+@provide_session
+def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> int:
+    """
+    :param dag_id: the dag_id of the DAG to delete
+    :param keep_records_in_log: whether keep records of the given dag_id
+        in the Log table in the backend database (for reasons like auditing).
+        The default value is True.
+    :param session: session used
+    :return count of deleted dags
+    """
+    log.info("Deleting DAG: %s", dag_id)
+    dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
     if dag is None:
         raise DagNotFound("Dag id {} not found".format(dag_id))
 
-    dagbag = models.DagBag()
-    if dag_id in dagbag.dags:
-        raise DagFileExists("Dag id {} is still in DagBag. "
-                            "Remove the DAG file first.".format(dag_id))
+    # Scheduler removes DAGs without files from serialized_dag table every dag_dir_list_interval.
+    # There may be a lag, so explicitly removes serialized DAG here.
+    if STORE_SERIALIZED_DAGS and SerializedDagModel.has_dag(dag_id=dag_id, session=session):
+        SerializedDagModel.remove_dag(dag_id=dag_id, session=session)
 
     count = 0
 
     # noinspection PyUnresolvedReferences,PyProtectedMember
-    for m in models.Base._decl_class_registry.values():
-        if hasattr(m, "dag_id"):
-            cond = or_(m.dag_id == dag_id, m.dag_id.like(dag_id + ".%"))
-            count += session.query(m).filter(cond).delete(synchronize_session='fetch')
-
+    for model in models.base.Base._decl_class_registry.values():  # pylint: disable=protected-access
+        if hasattr(model, "dag_id"):
+            if keep_records_in_log and model.__name__ == 'Log':
+                continue
+            cond = or_(model.dag_id == dag_id, model.dag_id.like(dag_id + ".%"))
+            count += session.query(model).filter(cond).delete(synchronize_session='fetch')
     if dag.is_subdag:
-        p, c = dag_id.rsplit(".", 1)
-        for m in models.DagRun, models.TaskFail, models.TaskInstance:
-            count += session.query(m).filter(m.dag_id == p, m.task_id == c).delete()
+        parent_dag_id, task_id = dag_id.rsplit(".", 1)
+        for model in models.DagRun, TaskFail, models.TaskInstance:
+            count += session.query(model).filter(model.dag_id == parent_dag_id,
+                                                 model.task_id == task_id).delete()
 
-    session.commit()
+    # Delete entries in Import Errors table for a deleted DAG
+    # This handles the case when the dag_id is changed in the file
+    session.query(models.ImportError).filter(
+        models.ImportError.filename == dag.fileloc
+    ).delete(synchronize_session='fetch')
 
     return count

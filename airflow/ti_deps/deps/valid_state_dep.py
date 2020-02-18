@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,7 +18,7 @@
 
 from airflow.exceptions import AirflowException
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 
 
 class ValidStateDep(BaseTIDep):
@@ -35,7 +34,7 @@ class ValidStateDep(BaseTIDep):
     :return: whether or not the task instance's state is valid
     """
     def __init__(self, valid_states):
-        super(ValidStateDep, self).__init__()
+        super().__init__()
 
         if not valid_states:
             raise AirflowException(

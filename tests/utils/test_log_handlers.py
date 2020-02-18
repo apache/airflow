@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,17 +20,16 @@ import logging
 import logging.config
 import os
 import unittest
-import six
 
-from airflow.models import TaskInstance, DAG, DagRun
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import PythonOperator
-from airflow.utils.timezone import datetime
-from airflow.utils.log.logging_mixin import set_context
+from airflow.operators.python import PythonOperator
 from airflow.utils.log.file_task_handler import FileTaskHandler
-from airflow.utils.db import create_session
+from airflow.utils.log.logging_mixin import set_context
+from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.utils.timezone import datetime
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 TASK_LOGGER = 'airflow.task'
@@ -40,21 +38,21 @@ FILE_TASK_HANDLER = 'task'
 
 class TestFileTaskLogHandler(unittest.TestCase):
 
-    def cleanUp(self):
+    def clean_up(self):
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TaskInstance).delete()
 
     def setUp(self):
-        super(TestFileTaskLogHandler, self).setUp()
+        super().setUp()
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         logging.root.disabled = False
-        self.cleanUp()
+        self.clean_up()
         # We use file task handler by default.
 
     def tearDown(self):
-        self.cleanUp()
-        super(TestFileTaskLogHandler, self).tearDown()
+        self.clean_up()
+        super().tearDown()
 
     def test_default_task_logging_setup(self):
         # file task handler is used by default.
@@ -72,7 +70,6 @@ class TestFileTaskLogHandler(unittest.TestCase):
             task_id='task_for_testing_file_log_handler',
             dag=dag,
             python_callable=task_callable,
-            provide_context=True
         )
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
 
@@ -107,8 +104,7 @@ class TestFileTaskLogHandler(unittest.TestCase):
 
         # We should expect our log line from the callable above to appear in
         # the logs we read back
-        six.assertRegex(
-            self,
+        self.assertRegex(
             logs[0],
             target_re,
             "Logs were " + str(logs)
@@ -125,7 +121,6 @@ class TestFileTaskLogHandler(unittest.TestCase):
             task_id='task_for_testing_file_log_handler',
             dag=dag,
             python_callable=task_callable,
-            provide_context=True
         )
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.try_number = 2
@@ -169,14 +164,18 @@ class TestFilenameRendering(unittest.TestCase):
         self.ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
 
     def test_python_formatting(self):
-        expected_filename = 'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/%s/42.log' % DEFAULT_DATE.isoformat()
+        expected_filename = \
+            'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/%s/42.log' \
+            % DEFAULT_DATE.isoformat()
 
         fth = FileTaskHandler('', '{dag_id}/{task_id}/{execution_date}/{try_number}.log')
         rendered_filename = fth._render_filename(self.ti, 42)
         self.assertEqual(expected_filename, rendered_filename)
 
     def test_jinja_rendering(self):
-        expected_filename = 'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/%s/42.log' % DEFAULT_DATE.isoformat()
+        expected_filename = \
+            'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/%s/42.log' \
+            % DEFAULT_DATE.isoformat()
 
         fth = FileTaskHandler('', '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log')
         rendered_filename = fth._render_filename(self.ti, 42)

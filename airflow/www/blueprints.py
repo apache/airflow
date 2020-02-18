@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,21 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from flask import (
-    url_for, Markup, Blueprint, redirect,
-)
-import markdown
+from flask import Blueprint, redirect, url_for
 
 routes = Blueprint('routes', __name__)
 
 
 @routes.route('/')
 def index():
-    return redirect(url_for('admin.index'))
-
-
-@routes.route('/health')
-def health():
-    """ We can add an array of tests here to check the server's health """
-    content = Markup(markdown.markdown("The server is healthy!"))
-    return content
+    return redirect(url_for('Airflow.index'))

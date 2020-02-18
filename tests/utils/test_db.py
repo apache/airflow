@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,17 +16,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import inspect
+import re
 import unittest
 
-from airflow.models import Base as airflow_base
-
-from airflow.settings import engine
 from alembic.autogenerate import compare_metadata
+from alembic.config import Config
 from alembic.migration import MigrationContext
+from alembic.script import ScriptDirectory
 from sqlalchemy import MetaData
 
+from airflow.models import Base as airflow_base
+from airflow.settings import engine
+from airflow.utils.db import create_default_connections
 
-class DbTest(unittest.TestCase):
+
+class TestDb(unittest.TestCase):
 
     def test_database_schema_and_sqlalchemy_model_are_in_sync(self):
         all_meta_data = MetaData()
@@ -35,30 +39,23 @@ class DbTest(unittest.TestCase):
             all_meta_data._add_table(table_name, table.schema, table)
 
         # create diff between database schema and SQLAlchemy model
-        mc = MigrationContext.configure(engine.connect())
-        diff = compare_metadata(mc, all_meta_data)
+        mctx = MigrationContext.configure(engine.connect())
+        diff = compare_metadata(mctx, all_meta_data)
 
         # known diffs to ignore
         ignores = [
-            # users.password is not part of User model,
-            # otherwise it would show up in (old) UI
-            lambda t: (t[0] == 'remove_column' and
-                       t[2] == 'users' and
-                       t[3].name == 'password'),
-            # ignore tables created by other tests
-            lambda t: (t[0] == 'remove_table' and
-                       t[1].name == 't'),
-            lambda t: (t[0] == 'remove_table' and
-                       t[1].name == 'test_airflow'),
-            lambda t: (t[0] == 'remove_table' and
-                       t[1].name == 'test_postgres_to_postgres'),
-            lambda t: (t[0] == 'remove_table' and
-                       t[1].name == 'test_mysql_to_mysql'),
             # ignore tables created by celery
             lambda t: (t[0] == 'remove_table' and
                        t[1].name == 'celery_taskmeta'),
             lambda t: (t[0] == 'remove_table' and
                        t[1].name == 'celery_tasksetmeta'),
+
+            # ignore indices created by celery
+            lambda t: (t[0] == 'remove_index' and
+                       t[1].name == 'task_id'),
+            lambda t: (t[0] == 'remove_index' and
+                       t[1].name == 'taskset_id'),
+
             # Ignore all the fab tables
             lambda t: (t[0] == 'remove_table' and
                        t[1].name == 'ab_permission'),
@@ -76,6 +73,23 @@ class DbTest(unittest.TestCase):
                        t[1].name == 'ab_user'),
             lambda t: (t[0] == 'remove_table' and
                        t[1].name == 'ab_view_menu'),
+
+            # Ignore all the fab indices
+            lambda t: (t[0] == 'remove_index' and
+                       t[1].name == 'permission_id'),
+            lambda t: (t[0] == 'remove_index' and
+                       t[1].name == 'name'),
+            lambda t: (t[0] == 'remove_index' and
+                       t[1].name == 'user_id'),
+            lambda t: (t[0] == 'remove_index' and
+                       t[1].name == 'username'),
+            lambda t: (t[0] == 'remove_index' and
+                       t[1].name == 'field_string'),
+            lambda t: (t[0] == 'remove_index' and
+                       t[1].name == 'email'),
+            lambda t: (t[0] == 'remove_index' and
+                       t[1].name == 'permission_view_id'),
+
             # from test_security unit test
             lambda t: (t[0] == 'remove_table' and
                        t[1].name == 'some_model'),
@@ -83,4 +97,22 @@ class DbTest(unittest.TestCase):
         for ignore in ignores:
             diff = [d for d in diff if not ignore(d)]
 
-        self.assertFalse(diff, 'Database schema and SQLAlchemy model are not in sync')
+        self.assertFalse(
+            diff,
+            'Database schema and SQLAlchemy model are not in sync: ' + str(diff)
+        )
+
+    def test_only_single_head_revision_in_migrations(self):
+        config = Config()
+        config.set_main_option("script_location", "airflow:migrations")
+        script = ScriptDirectory.from_config(config)
+
+        # This will raise if there are multiple heads
+        # To resolve, use the command `alembic merge`
+        script.get_current_head()
+
+    def test_default_connections_sort(self):
+        pattern = re.compile('conn_id=[\"|\'](.*?)[\"|\']', re.DOTALL)
+        source = inspect.getsource(create_default_connections)
+        src = pattern.findall(source)
+        self.assertListEqual(sorted(src), src)

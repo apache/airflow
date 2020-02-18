@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,44 +15,43 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-import psutil
-
-from builtins import input
-from past.builtins import basestring
-from datetime import datetime
-from functools import reduce
+import errno
 import os
 import re
 import signal
+import subprocess
+from datetime import datetime
+from functools import reduce
 
+import psutil
 from jinja2 import Template
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 
 # When killing processes, time to wait after issuing a SIGTERM before issuing a
 # SIGKILL.
-DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = configuration.conf.getint(
+DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = conf.getint(
     'core', 'KILLED_TASK_CLEANUP_TIME'
 )
 
+KEY_REGEX = re.compile(r'^[\w.-]+$')
+
 
 def validate_key(k, max_length=250):
-    if not isinstance(k, basestring):
+    """
+    Validates value used as a key.
+    """
+    if not isinstance(k, str):
         raise TypeError("The key has to be a string")
     elif len(k) > max_length:
         raise AirflowException(
             "The key has to be less than {0} characters".format(max_length))
-    elif not re.match(r'^[A-Za-z0-9_\-\.]+$', k):
+    elif not KEY_REGEX.match(k):
         raise AirflowException(
             "The key ({k}) has to be made of alphanumeric characters, dashes, "
-            "dots and underscores exclusively".format(**locals()))
+            "dots and underscores exclusively".format(k=k))
     else:
         return True
 
@@ -64,18 +62,21 @@ def alchemy_to_dict(obj):
     """
     if not obj:
         return None
-    d = {}
-    for c in obj.__table__.columns:
-        value = getattr(obj, c.name)
-        if type(value) == datetime:
+    output = {}
+    for col in obj.__table__.columns:
+        value = getattr(obj, col.name)
+        if isinstance(value, datetime):
             value = value.isoformat()
-        d[c.name] = value
-    return d
+        output[col.name] = value
+    return output
 
 
 def ask_yesno(question):
-    yes = set(['yes', 'y'])
-    no = set(['no', 'n'])
+    """
+    Helper to get yes / no answer from user.
+    """
+    yes = {'yes', 'y'}
+    no = {'no', 'n'}  # pylint: disable=invalid-name
 
     done = False
     print(question)
@@ -89,23 +90,11 @@ def ask_yesno(question):
             print("Please respond by yes or no.")
 
 
-def is_in(obj, l):
-    """
-    Checks whether an object is one of the item in the list.
-    This is different from ``in`` because ``in`` uses __cmp__ when
-    present. Here we change based on the object itself
-    """
-    for item in l:
-        if item is obj:
-            return True
-    return False
-
-
 def is_container(obj):
     """
     Test if an object is a container (iterable) but not a string
     """
-    return hasattr(obj, '__iter__') and not isinstance(obj, basestring)
+    return hasattr(obj, '__iter__') and not isinstance(obj, str)
 
 
 def as_tuple(obj):
@@ -151,29 +140,13 @@ def as_flattened_list(iterable):
     return [e for i in iterable for e in i]
 
 
-def chain(*tasks):
-    """
-    Given a number of tasks, builds a dependency chain.
-
-    chain(task_1, task_2, task_3, task_4)
-
-    is equivalent to
-
-    task_1.set_downstream(task_2)
-    task_2.set_downstream(task_3)
-    task_3.set_downstream(task_4)
-    """
-    for up_task, down_task in zip(tasks[:-1], tasks[1:]):
-        up_task.set_downstream(down_task)
-
-
 def pprinttable(rows):
     """Returns a pretty ascii table from tuples
 
     If namedtuple are used, the table will have headers
     """
     if not rows:
-        return
+        return None
     if hasattr(rows[0], '_fields'):  # if namedtuple
         headers = rows[0]._fields
     else:
@@ -196,63 +169,147 @@ def pprinttable(rows):
     pattern = " | ".join(formats)
     hpattern = " | ".join(hformats)
     separator = "-+-".join(['-' * n for n in lens])
-    s = ""
-    s += separator + '\n'
-    s += (hpattern % tuple(headers)) + '\n'
-    s += separator + '\n'
+    tab = ""
+    tab += separator + '\n'
+    tab += (hpattern % tuple(headers)) + '\n'
+    tab += separator + '\n'
 
-    def f(t):
-        return "{}".format(t) if isinstance(t, basestring) else t
+    def _format(t):
+        return "{}".format(t) if isinstance(t, str) else t
 
     for line in rows:
-        s += pattern % tuple(f(t) for t in line) + '\n'
-    s += separator + '\n'
-    return s
+        tab += pattern % tuple(_format(t) for t in line) + '\n'
+    tab += separator + '\n'
+    return tab
 
 
-def reap_process_group(pid, log, sig=signal.SIGTERM,
+def reap_process_group(pgid, log, sig=signal.SIGTERM,
                        timeout=DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM):
     """
-    Tries really hard to terminate all children (including grandchildren). Will send
+    Tries really hard to terminate all processes in the group (including grandchildren). Will send
     sig (SIGTERM) to the process group of pid. If any process is alive after timeout
     a SIGKILL will be send.
 
     :param log: log handler
-    :param pid: pid to kill
+    :param pgid: process group id to kill
     :param sig: signal type
     :param timeout: how much time a process has to terminate
     """
 
+    returncodes = {}
+
     def on_terminate(p):
         log.info("Process %s (%s) terminated with exit code %s", p, p.pid, p.returncode)
+        returncodes[p.pid] = p.returncode
 
-    if pid == os.getpid():
+    def signal_procs(sig):
+        try:
+            os.killpg(pgid, sig)
+        except OSError as err:
+            # If operation not permitted error is thrown due to run_as_user,
+            # use sudo -n(--non-interactive) to kill the process
+            if err.errno == errno.EPERM:
+                subprocess.check_call(
+                    ["sudo", "-n", "kill", "-" + str(sig)] + [str(p.pid) for p in children]
+                )
+            else:
+                raise
+
+    if pgid == os.getpgid(0):
         raise RuntimeError("I refuse to kill myself")
 
-    parent = psutil.Process(pid)
+    try:
+        parent = psutil.Process(pgid)
 
-    children = parent.children(recursive=True)
-    children.append(parent)
+        children = parent.children(recursive=True)
+        children.append(parent)
+    except psutil.NoSuchProcess:
+        # The process already exited, but maybe it's children haven't.
+        children = []
+        for proc in psutil.process_iter():
+            try:
+                if os.getpgid(proc.pid) == pgid and proc.pid != 0:
+                    children.append(proc)
+            except OSError:
+                pass
 
-    log.info("Sending %s to GPID %s", sig, os.getpgid(pid))
-    os.killpg(os.getpgid(pid), sig)
+    log.info("Sending %s to GPID %s", sig, pgid)
+    try:
+        signal_procs(sig)
+    except OSError as err:
+        # No such process, which means there is no such process group - our job
+        # is done
+        if err.errno == errno.ESRCH:
+            return returncodes
 
-    gone, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
+    _, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
 
     if alive:
-        for p in alive:
-            log.warn("process %s (%s) did not respond to SIGTERM. Trying SIGKILL", p, pid)
+        for proc in alive:
+            log.warning("process %s did not respond to SIGTERM. Trying SIGKILL", proc)
 
-        os.killpg(os.getpgid(pid), signal.SIGKILL)
+        try:
+            signal_procs(signal.SIGKILL)
+        except OSError as err:
+            if err.errno != errno.ESRCH:
+                raise
 
-        gone, alive = psutil.wait_procs(alive, timeout=timeout, callback=on_terminate)
+        _, alive = psutil.wait_procs(alive, timeout=timeout, callback=on_terminate)
         if alive:
-            for p in alive:
-                log.error("Process %s (%s) could not be killed. Giving up.", p, p.pid)
+            for proc in alive:
+                log.error("Process %s (%s) could not be killed. Giving up.", proc, proc.pid)
+    return returncodes
 
 
 def parse_template_string(template_string):
+    """
+    Parses Jinja template string.
+    """
     if "{{" in template_string:  # jinja mode
         return None, Template(template_string)
     else:
         return template_string, None
+
+
+def render_log_filename(ti, try_number, filename_template):
+    """
+    Given task instance, try_number, filename_template, return the rendered log
+    filename
+
+    :param ti: task instance
+    :param try_number: try_number of the task
+    :param filename_template: filename template, which can be jinja template or
+        python string template
+    """
+    filename_template, filename_jinja_template = parse_template_string(filename_template)
+    if filename_jinja_template:
+        jinja_context = ti.get_template_context()
+        jinja_context['try_number'] = try_number
+        return filename_jinja_template.render(**jinja_context)
+
+    return filename_template.format(dag_id=ti.dag_id,
+                                    task_id=ti.task_id,
+                                    execution_date=ti.execution_date.isoformat(),
+                                    try_number=try_number)
+
+
+def convert_camel_to_snake(camel_str):
+    """
+    Converts CamelCase to snake_case.
+    """
+    return re.sub('(?!^)([A-Z]+)', r'_\1', camel_str).lower()
+
+
+def merge_dicts(dict1, dict2):
+    """
+    Merge two dicts recursively, returning new dict (input dict is not mutated).
+
+    Lists are not concatenated. Items in dict2 overwrite those also found in dict1.
+    """
+    merged = dict1.copy()
+    for k, v in dict2.items():
+        if k in merged and isinstance(v, dict):
+            merged[k] = merge_dicts(merged.get(k, {}), v)
+        else:
+            merged[k] = v
+    return merged

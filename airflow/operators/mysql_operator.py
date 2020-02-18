@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,46 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module is deprecated. Please use `airflow.providers.mysql.operators.mysql`."""
 
-from airflow.hooks.mysql_hook import MySqlHook
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
+import warnings
 
+# pylint: disable=unused-import
+from airflow.providers.mysql.operators.mysql import MySqlOperator  # noqa
 
-class MySqlOperator(BaseOperator):
-    """
-    Executes sql code in a specific MySQL database
-
-    :param mysql_conn_id: reference to a specific mysql database
-    :type mysql_conn_id: str
-    :param sql: the sql code to be executed. (templated)
-    :type sql: Can receive a str representing a sql statement,
-        a list of str (sql statements), or reference to a template file.
-        Template reference are recognized by str ending in '.sql'
-    :param database: name of database which overwrite defined one in connection
-    :type database: str
-    """
-
-    template_fields = ('sql',)
-    template_ext = ('.sql',)
-    ui_color = '#ededed'
-
-    @apply_defaults
-    def __init__(
-            self, sql, mysql_conn_id='mysql_default', parameters=None,
-            autocommit=False, database=None, *args, **kwargs):
-        super(MySqlOperator, self).__init__(*args, **kwargs)
-        self.mysql_conn_id = mysql_conn_id
-        self.sql = sql
-        self.autocommit = autocommit
-        self.parameters = parameters
-        self.database = database
-
-    def execute(self, context):
-        self.log.info('Executing: %s', self.sql)
-        hook = MySqlHook(mysql_conn_id=self.mysql_conn_id,
-                         schema=self.database)
-        hook.run(
-            self.sql,
-            autocommit=self.autocommit,
-            parameters=self.parameters)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.mysql.operators.mysql`.",
+    DeprecationWarning, stacklevel=2
+)

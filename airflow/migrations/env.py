@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,12 +16,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import with_statement
-from alembic import context
 from logging.config import fileConfig
 
-from airflow import settings
-from airflow.jobs import models
+from alembic import context
+
+from airflow import models, settings
+from airflow.models.serialized_dag import SerializedDagModel  # noqa
+
+
+def include_object(_, name, type_, *args):
+    """Filter objects for autogenerating revisions"""
+    # Ignore _anything_ to do with Flask AppBuilder's tables
+    if type_ == "table" and name.startswith("ab_"):
+        return False
+    else:
+        return True
+
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -36,7 +45,7 @@ fileConfig(config.config_file_name, disable_existing_loggers=False)
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = models.Base.metadata
+target_metadata = models.base.Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -59,8 +68,11 @@ def run_migrations_offline():
 
     """
     context.configure(
-        url=settings.SQL_ALCHEMY_CONN, target_metadata=target_metadata,
-        literal_binds=True, compare_type=COMPARE_TYPE)
+        url=settings.SQL_ALCHEMY_CONN,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        compare_type=COMPARE_TYPE,
+        render_as_batch=True)
 
     with context.begin_transaction():
         context.run_migrations()
@@ -78,8 +90,11 @@ def run_migrations_online():
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
+            transaction_per_migration=True,
             target_metadata=target_metadata,
             compare_type=COMPARE_TYPE,
+            include_object=include_object,
+            render_as_batch=True
         )
 
         with context.begin_transaction():

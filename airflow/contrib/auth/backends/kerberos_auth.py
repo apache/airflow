@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,47 +15,54 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Kerberos authentication module"""
 import logging
-import flask_login
-from flask_login import current_user
-from flask import flash
-from wtforms import Form, PasswordField, StringField
-from wtforms.validators import InputRequired
 
+import flask_login
 # pykerberos should be used as it verifies the KDC, the "kerberos" module does not do so
 # and make it possible to spoof the KDC
 import kerberos
-from airflow.security import utils
-
-from flask import url_for, redirect
+from flask import flash, redirect, url_for
+from flask_login import current_user
+from wtforms import Form, PasswordField, StringField
+from wtforms.validators import InputRequired
 
 from airflow import models
-from airflow import configuration
-from airflow.utils.db import provide_session
+from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
+from airflow.security import utils
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 
-login_manager = flask_login.LoginManager()
-login_manager.login_view = 'airflow.login'  # Calls login() below
-login_manager.login_message = None
+# pylint: disable=c-extension-no-member
+LOGIN_MANAGER = flask_login.LoginManager()
+LOGIN_MANAGER.login_view = 'airflow.login'  # Calls login() below
+LOGIN_MANAGER.login_message = None
 
 
 class AuthenticationError(Exception):
-    pass
+    """Error raised when authentication error occurs"""
 
 
 class KerberosUser(models.User, LoggingMixin):
+    """User authenticated with Kerberos"""
     def __init__(self, user):
         self.user = user
 
     @staticmethod
     def authenticate(username, password):
         service_principal = "%s/%s" % (
-            configuration.conf.get('kerberos', 'principal'),
+            conf.get('kerberos', 'principal'),
             utils.get_fqdn()
         )
-        realm = configuration.conf.get("kerberos", "default_realm")
-        user_principal = utils.principal_from_username(username)
+        realm = conf.get("kerberos", "default_realm")
+
+        try:
+            user_realm = conf.get("security", "default_realm")
+        except AirflowConfigException:
+            user_realm = realm
+
+        user_principal = utils.principal_from_username(username, user_realm)
 
         try:
             # this is pykerberos specific, verify = True is needed to prevent KDC spoofing
@@ -66,19 +72,23 @@ class KerberosUser(models.User, LoggingMixin):
                 raise AuthenticationError()
         except kerberos.KrbError as e:
             logging.error(
-                'Password validation for principal %s failed %s', user_principal, e)
+                'Password validation for user '
+                '%s in realm %s failed %s', user_principal, realm, e)
             raise AuthenticationError(e)
 
         return
 
+    @property
     def is_active(self):
         """Required by flask_login"""
         return True
 
+    @property
     def is_authenticated(self):
         """Required by flask_login"""
         return True
 
+    @property
     def is_anonymous(self):
         """Required by flask_login"""
         return False
@@ -96,7 +106,7 @@ class KerberosUser(models.User, LoggingMixin):
         return True
 
 
-@login_manager.user_loader
+@LOGIN_MANAGER.user_loader
 @provide_session
 def load_user(userid, session=None):
     if not userid or userid == 'None':
@@ -108,7 +118,7 @@ def load_user(userid, session=None):
 
 @provide_session
 def login(self, request, session=None):
-    if current_user.is_authenticated():
+    if current_user.is_authenticated:
         flash("You are already logged in")
         return redirect(url_for('index'))
 

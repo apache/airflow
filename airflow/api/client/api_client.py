@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Client for all the API clients."""
 
 
-class Client(object):
+class Client:
     """Base API client for all API clients."""
 
     def __init__(self, api_base_url, auth):
@@ -67,5 +67,14 @@ class Client(object):
         """Delete pool.
 
         :param name: pool name
+        """
+        raise NotImplementedError()
+
+    def get_lineage(self, dag_id: str, execution_date: str):
+        """
+        Return the lineage information for the dag on this execution date
+        :param dag_id:
+        :param execution_date:
+        :return:
         """
         raise NotImplementedError()

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,32 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.contrib.hooks.redis_hook import RedisHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
+"""This module is deprecated. Please use `airflow.providers.redis.sensors.redis_key`."""
 
+import warnings
 
-class RedisKeySensor(BaseSensorOperator):
-    """
-    Checks for the existence of a key in a Redis database
-    """
-    template_fields = ('key',)
-    ui_color = '#f0eee4'
+# pylint: disable=unused-import
+from airflow.providers.redis.sensors.redis_key import RedisKeySensor  # noqa
 
-    @apply_defaults
-    def __init__(self, key, redis_conn_id, *args, **kwargs):
-        """
-        Create a new RedisKeySensor
-
-        :param key: The key to be monitored
-        :type key: str
-        :param redis_conn_id: The connection ID to use when connecting to Redis DB.
-        :type redis_conn_id: str
-        """
-        super(RedisKeySensor, self).__init__(*args, **kwargs)
-        self.redis_conn_id = redis_conn_id
-        self.key = key
-
-    def poke(self, context):
-        self.log.info('Sensor check existence of key: %s', self.key)
-        return RedisHook(self.redis_conn_id).key_exists(self.key)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.redis.sensors.redis_key`.",
+    DeprecationWarning, stacklevel=2
+)

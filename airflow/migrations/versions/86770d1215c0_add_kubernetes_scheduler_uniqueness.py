@@ -1,5 +1,3 @@
-# flake8: noqa
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -25,8 +23,8 @@ Revises: 27c6a30d7c24
 Create Date: 2018-04-03 15:31:20.814328
 
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '86770d1215c0'
@@ -38,12 +36,29 @@ RESOURCE_TABLE = "kube_worker_uuid"
 
 
 def upgrade():
+
+    columns_and_constraints = [
+        sa.Column("one_row_id", sa.Boolean, server_default=sa.true(), primary_key=True),
+        sa.Column("worker_uuid", sa.String(255))
+    ]
+
+    conn = op.get_bind()
+
+    # alembic creates an invalid SQL for mssql and mysql dialects
+    if conn.dialect.name in {"mysql"}:
+        columns_and_constraints.append(
+            sa.CheckConstraint("one_row_id<>0", name="kube_worker_one_row_id")
+        )
+    elif conn.dialect.name not in {"mssql"}:
+        columns_and_constraints.append(
+            sa.CheckConstraint("one_row_id", name="kube_worker_one_row_id")
+        )
+
     table = op.create_table(
         RESOURCE_TABLE,
-        sa.Column("one_row_id", sa.Boolean, server_default=sa.true(), primary_key=True),
-        sa.Column("worker_uuid", sa.String(255)),
-        sa.CheckConstraint("one_row_id", name="kube_worker_one_row_id")
+        *columns_and_constraints
     )
+
     op.bulk_insert(table, [
         {"worker_uuid": ""}
     ])
