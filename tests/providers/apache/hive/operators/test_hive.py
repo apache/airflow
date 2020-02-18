@@ -24,7 +24,6 @@ from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.providers.apache.hdfs.sensors.hdfs import HdfsSensor
 from airflow.providers.apache.hive.operators.hive import HiveOperator
-from airflow.providers.apache.hive.operators.hive_to_mysql import HiveToMySqlTransfer
 from airflow.providers.apache.hive.operators.hive_to_samba import Hive2SambaOperator
 from airflow.providers.apache.hive.sensors.metastore_partition import MetastorePartitionSensor
 from airflow.providers.mysql.operators.presto_to_mysql import PrestoToMySqlTransfer
@@ -193,25 +192,5 @@ class TestHivePresto(TestHiveEnvironment):
             hql="SELECT * FROM airflow.static_babynames LIMIT 10000",
             destination_filepath='test_airflow.csv',
             dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-               ignore_ti_state=True)
-
-    def test_hive_to_mysql(self):
-        op = HiveToMySqlTransfer(
-            mysql_conn_id='airflow_db',
-            task_id='hive_to_mysql_check',
-            create=True,
-            sql="""
-                SELECT name
-                FROM airflow.static_babynames
-                LIMIT 100
-                """,
-            mysql_table='test_static_babynames',
-            mysql_preoperator=[
-                'DROP TABLE IF EXISTS test_static_babynames;',
-                'CREATE TABLE test_static_babynames (name VARCHAR(500))',
-            ],
-            dag=self.dag)
-        op.clear(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                ignore_ti_state=True)
