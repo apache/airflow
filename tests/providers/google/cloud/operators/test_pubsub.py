@@ -36,7 +36,6 @@ TEST_MESSAGES = [
     },
     {'data': b'Knock, knock'},
     {'attributes': {'foo': ''}}]
-TEST_POKE_INTERVAl = 0
 
 
 class TestPubSubTopicCreateOperator(unittest.TestCase):
