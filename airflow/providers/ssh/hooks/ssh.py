@@ -27,7 +27,7 @@ from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import 
+from airflow.hooks.base_hook import BaseHook
 
 
 class SSHHook(BaseHook):
@@ -162,7 +162,8 @@ class SSHHook(BaseHook):
         user_ssh_config_filename = os.path.expanduser('~/.ssh/config')
         if os.path.isfile(user_ssh_config_filename):
             ssh_conf = paramiko.SSHConfig()
-            ssh_conf.parse(open(user_ssh_config_filename))
+            with open(user_ssh_config_filename) as config_fd:
+                ssh_conf.parse(config_fd)
             host_info = ssh_conf.lookup(self.remote_host)
             if host_info and host_info.get('proxycommand'):
                 self.host_proxy = paramiko.ProxyCommand(host_info.get('proxycommand'))
@@ -173,7 +174,7 @@ class SSHHook(BaseHook):
 
         self.port = self.port or SSH_PORT
 
-    def get_conn(self):
+    def get_conn(self) -> paramiko.SSHClient:
         """
         Opens a ssh connection to the remote host.
         :rtype: paramiko.client.SSHClient
@@ -247,7 +248,7 @@ class SSHHook(BaseHook):
         tunnel_kwargs = dict(
             ssh_port=self.port,
             ssh_username=self.username,
-            ssh_pkey=self.pkey,
+            ssh_pkey=self.key_file or self.pkey,
             ssh_proxy=self.host_proxy,
             local_bind_address=local_bind_address,
             remote_bind_address=(remote_host, remote_port),
@@ -268,7 +269,19 @@ class SSHHook(BaseHook):
 
         return client
 
-    def create_tunnel(self, local_port, remote_port=None, remote_host="localhost"):
+    def create_tunnel(
+        self,
+        local_port: int,
+        remote_port: Optional[int] = None,
+        remote_host: str = "localhost"
+    ) -> SSHTunnelForwarder:
+        """
+        Creates tunnel for SSH connection [Deprecated].
+        :param local_port: local port number
+        :param remote_port: remote port number
+        :param remote_host: remote host
+        :return:
+        """
         warnings.warn('SSHHook.create_tunnel is deprecated, Please'
                       'use get_tunnel() instead. But please note that the'
                       'order of the parameters have changed'
