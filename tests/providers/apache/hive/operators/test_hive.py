@@ -23,7 +23,6 @@ from unittest import mock
 from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.providers.apache.hive.operators.hive import HiveOperator
-from airflow.providers.apache.hive.operators.hive_to_samba import Hive2SambaOperator
 from airflow.providers.apache.hive.sensors.metastore_partition import MetastorePartitionSensor
 from airflow.providers.mysql.operators.presto_to_mysql import PrestoToMySqlTransfer
 from airflow.providers.presto.operators.presto_check import PrestoCheckOperator
@@ -172,16 +171,6 @@ class TestHivePresto(TestHiveEnvironment):
             task_id='hive_partition_check',
             table='airflow.static_babynames_partitioned',
             partition_name='ds={}'.format(DEFAULT_DATE_DS),
-            dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-               ignore_ti_state=True)
-
-    def test_hive2samba(self):
-        op = Hive2SambaOperator(
-            task_id='hive2samba_check',
-            samba_conn_id='tableau_samba',
-            hql="SELECT * FROM airflow.static_babynames LIMIT 10000",
-            destination_filepath='test_airflow.csv',
             dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                ignore_ti_state=True)
