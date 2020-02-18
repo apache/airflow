@@ -43,7 +43,7 @@ Extra (optional)
     * ``key_type`` - The type of key that is being used. Can be RSA, ED25519, or ECDSA. Default is ``RSA``.
     * ``key_file`` - Full Path of the private SSH Key file that will be used to connect to the remote_host.
     * ``private_key`` - Content of the private key used to connect to the remote_host.
-    * ``cert_file`` - Full Path of the certificate or public key file that will be used to connect to the remote host. 
+    * ``cert_file`` - Full Path of the certificate or public key file that will be used to connect to the remote host.
     * ``cert_key`` - Content of the certificate or public key key used to connect to the remote_host.
     * ``timeout`` - An optional timeout (in seconds) for the TCP connect. Default is ``10``.
     * ``compress`` - ``true`` to ask the remote client/server to compress traffic; ``false`` to refuse compression. Default is ``true``.
