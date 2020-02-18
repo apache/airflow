@@ -83,7 +83,7 @@ class WebHDFSHook(BaseHook):
                                   connection.host, hdfs_error)
             else:
                 self.log.info("Could not connect to %s:%s", connection.host, connection.port)
-        host_socket.close()
+        return None
 
     def _get_client(self, connection):
         connection_str = 'http://{host}:{port}'.format(host=connection.host, port=connection.port)
