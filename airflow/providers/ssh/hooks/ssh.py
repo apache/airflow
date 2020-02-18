@@ -118,11 +118,15 @@ class SSHHook(BaseHook):
                         self.pkey = paramiko.RSAKey.from_private_key(StringIO(private_key))
                     elif key_type == 'ed25519':
                         self.pkey = paramiko.Ed25519Key.from_private_key(StringIO(private_key))
+                    elif key_type == 'ecdsa':
+                        self.pkey = paramiko.ecdsakey.from_private_key(StringIO(private_key))
                 elif key_file:
                     if key_type == 'rsa':
                         self.pkey = paramiko.RSAKey.from_private_key_file(key_file)
                     elif key_type == 'ed25519':
                         self.pkey = paramiko.Ed25519Key.from_private_key_file(key_file)
+                    elif key_type == 'ecdsa':
+                        self.pkey = paramiko.ecdsakey.from_private_key_file(key_file)
                 if cert_key:
                     self.pkey.load_certificate(StringIO(cert_key))
                 elif cert_file:
