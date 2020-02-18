@@ -517,7 +517,8 @@ class PubSubHook(CloudBaseHook):
     def acknowledge(
         self,
         subscription: str,
-        ack_ids: List[str],
+        ack_ids: Optional[List[str]] = None,
+        messages: Optional[List[ReceivedMessage]] = None,
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -529,9 +530,12 @@ class PubSubHook(CloudBaseHook):
         :param subscription: the Pub/Sub subscription name to delete; do not
             include the 'projects/{project}/topics/' prefix.
         :type subscription: str
-        :param ack_ids: List of ReceivedMessage ackIds from a previous pull
-            response
+        :param ack_ids: List of ReceivedMessage ackIds from a previous pull response.
+            Mutually exclusive with `messages` argument.
         :type ack_ids: list
+        :param messages: List of ReceivedMessage objects to acknowledge.
+            Mutually exclusive with `messages` argument.
+        :type messages: list
         :param project_id: Optional, the GCP project name or ID in which to create the topic
             If set to None or missing, the default project_id from the GCP connection is used.
         :type project_id: str
@@ -545,8 +549,22 @@ class PubSubHook(CloudBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]]
         """
+
         if not project_id:
             raise ValueError("Project ID should be set.")
+
+        if ack_ids is not None and messages is not None:
+            raise ValueError("'ack_ids' and 'messages' arguments are mutually exclusive.")
+
+        if ack_ids is None:
+            if messages is None:
+                raise ValueError("Either 'ack_ids' or 'messages' argument have to be provided.")
+            else:
+                ack_ids = [
+                    message.ack_id
+                    for message in messages
+                ]
+
         subscriber = self.subscriber_client
         subscription_path = SubscriberClient.subscription_path(project_id, subscription)  # noqa E501 # pylint: disable=no-member,line-too-long
 
