@@ -28,7 +28,7 @@ from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.api_core.retry import Retry
 from google.cloud.exceptions import NotFound
 from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
-from google.cloud.pubsub_v1.types import Duration, MessageStoragePolicy, PushConfig
+from google.cloud.pubsub_v1.types import Duration, MessageStoragePolicy, PushConfig, ReceivedMessage
 from googleapiclient.errors import HttpError
 
 from airflow.providers.google.cloud.hooks.base import CloudBaseHook
@@ -460,7 +460,7 @@ class PubSubHook(CloudBaseHook):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
-    ) -> List[Dict]:
+    ) -> List[ReceivedMessage]:
         """
         Pulls up to ``max_messages`` messages from Pub/Sub subscription.
 
