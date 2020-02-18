@@ -16,9 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-#
-# Asserts that you are actually in container
-#
 function assert_in_container() {
     if [[ ! -f /.dockerenv ]]; then
         echo >&2
@@ -38,6 +35,14 @@ function in_container_script_start() {
 }
 
 function in_container_script_end() {
+    #shellcheck disable=2181
+    EXIT_CODE=$?
+    if [[ ${EXIT_CODE} != 0 ]]; then
+        echo "###########################################################################################"
+        echo "                   EXITING ${0} WITH STATUS CODE ${EXIT_CODE}"
+        echo "###########################################################################################"
+
+    fi
     if [[ ${AIRFLOW_CI_VERBOSE:="false"} == "true" ]]; then
         set +x
     fi
@@ -100,8 +105,8 @@ function in_container_fix_ownership() {
     print_in_container_info "Changing ownership of root-owned files to ${HOST_USER_ID}.${HOST_GROUP_ID}"
     print_in_container_info
     set +o pipefail
-    sudo find . -user root | sudo xargs chown -v "${HOST_USER_ID}.${HOST_GROUP_ID}" | wc -l | \
-        xargs -n 1 echo "Number of files with changed ownership:"
+    sudo find . -user root | sudo xargs chown -v "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference | \
+        wc -l | xargs -n 1 echo "Number of files with changed ownership:"
     set -o pipefail
     print_in_container_info
     print_in_container_info
@@ -227,4 +232,76 @@ function setup_kerberos() {
         echo
         sudo chmod 0644 "${KRB5_KTNAME}"
     fi
+}
+
+
+function dump_container_logs() {
+    echo "###########################################################################################"
+    echo "                   Dumping logs from all the containers"
+    echo "###########################################################################################"
+    echo "  Docker processes:"
+    echo "###########################################################################################"
+    docker ps --no-trunc
+    echo "###########################################################################################"
+    for CONTAINER in $(docker ps -qa)
+    do
+        CONTAINER_NAME=$(docker inspect --format "{{.Name}}" "${CONTAINER}")
+        echo "-------------------------------------------------------------------------------------------"
+        echo " Docker inspect: ${CONTAINER_NAME}"
+        echo "-------------------------------------------------------------------------------------------"
+        echo
+        docker inspect "${CONTAINER}"
+        echo
+        echo "-------------------------------------------------------------------------------------------"
+        echo " Docker logs: ${CONTAINER_NAME}"
+        echo "-------------------------------------------------------------------------------------------"
+        echo
+        docker logs "${CONTAINER}"
+        echo
+        echo "###########################################################################################"
+    done
+}
+
+
+function send_docker_logs_to_file_io() {
+    echo "##############################################################################"
+    echo
+    echo "   DUMPING LOG FILES FROM CONTAINERS AND SENDING THEM TO file.io"
+    echo
+    echo "##############################################################################"
+    DUMP_FILE=/tmp/$(date "+%Y-%m-%d")_docker_${TRAVIS_BUILD_ID:="default"}_${TRAVIS_JOB_ID:="default"}.log.gz
+    dump_container_logs 2>&1 | gzip >"${DUMP_FILE}"
+    echo
+    echo "   Logs saved to ${DUMP_FILE}"
+    echo
+    echo "##############################################################################"
+    curl -F "file=@${DUMP_FILE}" https://file.io
+}
+
+
+function dump_kind_logs() {
+    echo "###########################################################################################"
+    echo "                   Dumping logs from KIND"
+    echo "###########################################################################################"
+
+    FILE_NAME="${1}"
+    kind --name "${CLUSTER_NAME}" export logs "${FILE_NAME}"
+}
+
+
+function send_kubernetes_logs_to_file_io() {
+    echo "##############################################################################"
+    echo
+    echo "   DUMPING LOG FILES FROM KIND AND SENDING THEM TO file.io"
+    echo
+    echo "##############################################################################"
+    DUMP_DIR_NAME=$(date "+%Y-%m-%d")_kind_${TRAVIS_BUILD_ID:="default"}_${TRAVIS_JOB_ID:="default"}
+    DUMP_DIR=/tmp/${DUMP_DIR_NAME}
+    dump_kind_logs "${DUMP_DIR}"
+    tar -cvzf "${DUMP_DIR}.tar.gz" -C /tmp "${DUMP_DIR_NAME}"
+    echo
+    echo "   Logs saved to ${DUMP_DIR}.tar.gz"
+    echo
+    echo "##############################################################################"
+    curl -F "file=@${DUMP_DIR}.tar.gz" https://file.io
 }

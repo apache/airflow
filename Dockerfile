@@ -362,11 +362,7 @@ RUN ln -sf /usr/bin/dumb-init /usr/local/bin/dumb-init
 # Rather than after setup.py is added.
 COPY airflow/www/yarn.lock airflow/www/package.json ${AIRFLOW_SOURCES}/airflow/www/
 
-WORKDIR ${AIRFLOW_SOURCES}/airflow/www
-
-RUN yarn install --frozen-lockfile
-
-WORKDIR ${AIRFLOW_SOURCES}
+RUN yarn --cwd airflow/www install --frozen-lockfile --no-cache
 
 # Note! We are copying everything with airflow:airflow user:group even if we use root to run the scripts
 # This is fine as root user will be able to use those dirs anyway.
@@ -386,13 +382,13 @@ COPY airflow/bin/airflow ${AIRFLOW_SOURCES}/airflow/bin/airflow
 # In non-CI optimized build this will install all dependencies before installing sources.
 RUN pip install -e ".[${AIRFLOW_EXTRAS}]"
 
-WORKDIR ${AIRFLOW_SOURCES}/airflow/www
+# Copy all the www/ files we need to compile assets. Done as two separate COPY
+# commands so as otherwise it copies the _contents_ of static/ in to www/
+COPY airflow/www/webpack.config.js ${AIRFLOW_SOURCES}/airflow/www/
+COPY airflow/www/static ${AIRFLOW_SOURCES}/airflow/www/static/
 
-# Copy all www files here so that we can run yarn building for production
-COPY airflow/www/ ${AIRFLOW_SOURCES}/airflow/www/
-
-# Package NPM for production
-RUN yarn run prod
+# Package JS/css for production
+RUN yarn --cwd airflow/www run prod
 
 COPY scripts/docker/entrypoint.sh /entrypoint.sh
 

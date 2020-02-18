@@ -16,24 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This is only an example DAG to highlight usage of QuboleOperator in various scenarios,
-some of these tasks may or may not work based on your Qubole account setup.
-
-Run a shell command from Qubole Analyze against your Airflow cluster with following to
-trigger it manually `airflow dags trigger example_qubole_operator`.
-
-*Note: Make sure that connection `qubole_default` is properly set before running this
-example. Also be aware that it might spin up clusters to run these examples.*
-"""
-
 import filecmp
 import random
+import textwrap
 
 from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import BranchPythonOperator, PythonOperator
 from airflow.providers.qubole.operators.qubole import QuboleOperator
+from airflow.providers.qubole.sensors.qubole import QuboleFileSensor, QubolePartitionSensor
 from airflow.utils.dates import days_ago
 
 default_args = {
@@ -51,6 +42,18 @@ with DAG(
     schedule_interval=None,
     tags=['example'],
 ) as dag:
+    dag.doc_md = textwrap.dedent(
+        """
+        This is only an example DAG to highlight usage of QuboleOperator in various scenarios,
+        some of these tasks may or may not work based on your Qubole account setup.
+
+        Run a shell command from Qubole Analyze against your Airflow cluster with following to
+        trigger it manually `airflow dags trigger example_qubole_operator`.
+
+        *Note: Make sure that connection `qubole_default` is properly set before running this
+        example. Also be aware that it might spin up clusters to run these examples.*
+        """
+    )
 
     def compare_result(**kwargs):
         """
@@ -228,3 +231,54 @@ with DAG(
 
     t11 << t10 << branching
     t11 >> join
+
+with DAG(
+    dag_id='example_qubole_sensor',
+    default_args=default_args,
+    schedule_interval=None,
+    doc_md=__doc__,
+    tags=['example'],
+) as dag2:
+    dag2.doc_md = textwrap.dedent(
+        """
+        This is only an example DAG to highlight usage of QuboleSensor in various scenarios,
+        some of these tasks may or may not work based on your QDS account setup.
+
+        Run a shell command from Qubole Analyze against your Airflow cluster with following to
+        trigger it manually `airflow dags trigger example_qubole_sensor`.
+
+        *Note: Make sure that connection `qubole_default` is properly set before running
+        this example.*
+        """
+    )
+
+    t1 = QuboleFileSensor(
+        task_id='check_s3_file',
+        qubole_conn_id='qubole_default',
+        poke_interval=60,
+        timeout=600,
+        data={
+            "files":
+                [
+                    "s3://paid-qubole/HadoopAPIExamples/jars/hadoop-0.20.1-dev-streaming.jar",
+                    "s3://paid-qubole/HadoopAPITests/data/{{ ds.split('-')[2] }}.tsv"
+                ]  # will check for availability of all the files in array
+        }
+    )
+
+    t2 = QubolePartitionSensor(
+        task_id='check_hive_partition',
+        poke_interval=10,
+        timeout=60,
+        data={"schema": "default",
+              "table": "my_partitioned_table",
+              "columns": [
+                  {"column": "month", "values":
+                      ["{{ ds.split('-')[1] }}"]},
+                  {"column": "day", "values":
+                      ["{{ ds.split('-')[2] }}", "{{ yesterday_ds.split('-')[2] }}"]}
+              ]  # will check for partitions like [month=12/day=12,month=12/day=13]
+              }
+    )
+
+    t1 >> t2

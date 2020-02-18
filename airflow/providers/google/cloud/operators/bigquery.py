@@ -79,8 +79,8 @@ class BigQueryCheckOperator(CheckOperator):
     :type use_legacy_sql: bool
     """
 
-    template_fields = ('sql', 'gcp_conn_id', )
-    template_ext = ('.sql', )
+    template_fields = ('sql', 'gcp_conn_id',)
+    template_ext = ('.sql',)
 
     @apply_defaults
     def __init__(self,
@@ -121,8 +121,8 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
     :type bigquery_conn_id: str
     """
 
-    template_fields = ('sql', 'gcp_conn_id', 'pass_value', )
-    template_ext = ('.sql', )
+    template_fields = ('sql', 'gcp_conn_id', 'pass_value',)
+    template_ext = ('.sql',)
 
     @apply_defaults
     def __init__(self, sql: str,
@@ -179,7 +179,7 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
     :type bigquery_conn_id: str
     """
 
-    template_fields = ('table', 'gcp_conn_id', )
+    template_fields = ('table', 'gcp_conn_id',)
 
     @apply_defaults
     def __init__(self,
@@ -1387,3 +1387,68 @@ class BigQueryDeleteTableOperator(BaseOperator):
         hook.run_table_delete(
             deletion_dataset_table=self.deletion_dataset_table,
             ignore_if_missing=self.ignore_if_missing)
+
+
+class BigQueryUpsertTableOperator(BaseOperator):
+    """
+    Upsert BigQuery table
+
+    :param dataset_id: A dotted
+        ``(<project>.|<project>:)<dataset>`` that indicates which dataset
+        will be updated. (templated)
+    :type dataset_id: str
+    :param table_resource: a table resource. see
+        https://cloud.google.com/bigquery/docs/reference/v2/tables#resource
+    :type table_resource: dict
+    :param project_id: The name of the project where we want to update the dataset.
+        Don't need to provide, if projectId in dataset_reference.
+    :type project_id: str
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud Platform.
+        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
+    :type bigquery_conn_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have domain-wide
+        delegation enabled.
+    :type delegate_to: str
+    :param location: The location used for the operation.
+    :type location: str
+    """
+    template_fields = ('dataset_id', 'table_resource',)
+
+    @apply_defaults
+    def __init__(self,
+                 dataset_id: str,
+                 table_resource: dict,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 bigquery_conn_id: Optional[str] = None,
+                 delegate_to: Optional[str] = None,
+                 location: Optional[str] = None,
+                 *args,
+                 **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        if bigquery_conn_id:
+            warnings.warn(
+                "The bigquery_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+            gcp_conn_id = bigquery_conn_id
+
+        self.dataset_id = dataset_id
+        self.table_resource = table_resource
+        self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+        self.location = location
+
+    def execute(self, context):
+        self.log.info('Upserting Dataset: %s with table_resource: %s', self.dataset_id, self.table_resource)
+        hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
+                            delegate_to=self.delegate_to,
+                            location=self.location)
+        hook.run_table_upsert(
+            dataset_id=self.dataset_id,
+            table_resource=self.table_resource,
+            project_id=self.project_id)

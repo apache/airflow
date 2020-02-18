@@ -354,6 +354,9 @@ After you run Breeze for the first time, you will have an empty directory ``file
 which will be mapped to ``/files`` in your Docker container. You can pass there any files you need to
 configure and run Docker. They will not be removed between Docker runs.
 
+If you wish to add local DAGs that can be run by Breeze, you can add the dags to ``/files/dags`` and then
+run ``export AIRFLOW__CORE__DAGS_FOLDER="/files/dags"`` once the container has started.
+
 Adding/Modifying Dependencies
 -----------------------------
 
@@ -407,7 +410,12 @@ You can connect to these ports/databases using:
 * Mysql: ``jdbc:mysql://localhost:23306/airflow?user=root``
 
 Start the webserver manually with the ``airflow webserver`` command if you want to connect
-to the webserver. You can use ``tmux`` to multiply terminals.
+to the webserver. You can use ``tmux`` to multiply terminals. You may need to create a user prior to
+running the webserver in order to log in. This can be done with the following command:
+
+.. code-block:: bash
+
+    airflow users create --role Admin --username admin --password admin --email admin@example.com --firstname foo --lastname bar
 
 For databases, you need to run ``airflow db reset`` at least once (or run some tests) after you started
 Airflow Breeze to get the database/tables created. You can connect to databases with IDE or any other

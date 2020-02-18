@@ -262,6 +262,9 @@ Let's run a few commands to validate this script further.
 
 .. code-block:: bash
 
+    # initialize the database tables
+    airflow initdb
+
     # print the list of active DAGs
     airflow dags list
 

@@ -371,9 +371,9 @@ This is done using ``./scripts/ci/in_container/kubernetes/app/deploy_app.sh`` sc
 4. The script will wait until all the applications are ready and reachable
 
 After the deployment is finished you can run Kubernetes tests immediately in the same way as other tests.
-The Kubernetes tests are in ``tests/integration/kubernetes`` folder.
+The Kubernetes tests are in ``tests/runtime/kubernetes`` folder.
 
-You can run all the integration tests for Kubernetes with ``pytest tests/integration/kubernetes``.
+You can run all the integration tests for Kubernetes with ``pytest tests/runtime/kubernetes``.
 
 
 Running runtime-specific tests
@@ -545,6 +545,13 @@ It will run a backfill job:
 Additionally ``DebugExecutor`` can be used in a fail-fast mode that will make
 all other running or scheduled tasks fail immediately. To enable this option set
 ``AIRFLOW__DEBUG__FAIL_FAST=True`` or adjust ``fail_fast`` option in your ``airflow.cfg``.
+
+Also, with the Airflow CLI command ``airflow dags test`` you can execute one complete run of a DAG:
+
+.. code-block:: bash
+
+    # airflow dags test [dag_id] [execution_date]
+    airflow dags test example_branch_operator 2018-01-01
 
 
 BASH unit testing (BATS)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -22,10 +21,10 @@ This module contains AWS CloudFormation Hook
 """
 from botocore.exceptions import ClientError
 
-from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AWSCloudFormationHook(AwsHook):
+class AWSCloudFormationHook(AwsBaseHook):
     """
     Interact with AWS CloudFormation.
     """

@@ -36,7 +36,7 @@ import botocore.waiter
 from typing_extensions import Protocol, runtime_checkable
 
 from airflow import AirflowException, LoggingMixin
-from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 # Add exceptions to pylint for the boto3 protocol only; ideally the boto3 library could provide
 # protocols for all their dynamically generated classes (try to migrate this to a PR on botocore).
@@ -218,19 +218,19 @@ class AwsBatchClient(LoggingMixin):
         self.status_retries = status_retries or self.STATUS_RETRIES
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
-        self._hook = None  # type: Union[AwsHook, None]
+        self._hook = None  # type: Union[AwsBaseHook, None]
         self._client = None  # type: Union[AwsBatchProtocol, botocore.client.BaseClient, None]
 
     @property
-    def hook(self) -> AwsHook:
+    def hook(self) -> AwsBaseHook:
         """
         An AWS API connection manager (wraps boto3)
 
         :return: the connected hook to AWS
-        :rtype: AwsHook
+        :rtype: AwsBaseHook
         """
         if self._hook is None:
-            self._hook = AwsHook(aws_conn_id=self.aws_conn_id)
+            self._hook = AwsBaseHook(aws_conn_id=self.aws_conn_id)
         return self._hook
 
     @property

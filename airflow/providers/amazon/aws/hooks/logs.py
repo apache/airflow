@@ -21,10 +21,10 @@ This module contains a hook (AwsLogsHook) with some very basic
 functionality for interacting with AWS CloudWatch.
 """
 
-from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AwsLogsHook(AwsHook):
+class AwsLogsHook(AwsBaseHook):
     """
     Interact with AWS CloudWatch Logs
 

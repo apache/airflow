@@ -117,6 +117,9 @@ def git_version(version_: str) -> str:
         except git.NoSuchPathError:
             logger.warning('.git directory not found: Cannot compute the git version')
             return ''
+        except git.InvalidGitRepositoryError:
+            logger.warning('Invalid .git directory not found: Cannot compute the git version')
+            return ''
     except ImportError:
         logger.warning('gitpython not found: Cannot compute the git version.')
         return ''
@@ -158,6 +161,7 @@ aws = [
 azure = [
     'azure-cosmos>=3.0.1',
     'azure-datalake-store>=0.0.45',
+    'azure-kusto-data>=0.0.43',
     'azure-mgmt-containerinstance>=1.5.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
@@ -202,8 +206,9 @@ druid = [
     'pydruid>=0.4.1',
 ]
 elasticsearch = [
-    'elasticsearch>=5.0.0,<6.0.0',
-    'elasticsearch-dsl>=5.0.0,<6.0.0',
+    'elasticsearch>7',
+    'elasticsearch-dbapi==0.1.0',
+    'elasticsearch-dsl>=5.0.0',
 ]
 flask_oauth = [
     'Flask-OAuthlib>=0.9.1',
@@ -223,6 +228,7 @@ gcp = [
     'google-cloud-dlp>=0.11.0',
     'google-cloud-kms>=1.2.1',
     'google-cloud-language>=1.1.1',
+    'google-cloud-logging>=1.14.0',
     'google-cloud-pubsub>=1.0.0',
     'google-cloud-redis>=0.3.0',
     'google-cloud-spanner>=1.10.0',
@@ -357,6 +363,9 @@ webhdfs = [
 winrm = [
     'pywinrm~=0.4',
 ]
+yandexcloud = [
+    'yandexcloud>=0.22.0',
+]
 zendesk = [
     'zdesk',
 ]
@@ -413,7 +422,7 @@ devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + datadog + devel 
              doc + docker + druid + elasticsearch + gcp + grpc + jdbc + jenkins +
              kerberos + kubernetes + ldap + odbc + oracle + pagerduty + papermill +
              password + pinot + redis + salesforce + samba + segment + sendgrid +
-             sentry + slack + snowflake + ssh + statsd + virtualenv + webhdfs + zendesk)
+             sentry + slack + snowflake + ssh + statsd + virtualenv + webhdfs + yandexcloud + zendesk)
 
 # Snakebite are not Python 3 compatible :'(
 if PY3:
@@ -491,6 +500,7 @@ def do_setup():
             'typing-extensions>=3.7.4;python_version<"3.8"',
             'tzlocal>=1.4,<2.0.0',
             'unicodecsv>=0.14.1',
+            'werkzeug<1.0.0',
             'zope.deprecation>=4.0, <5.0',
         ],
         #####################################################################################################
@@ -499,7 +509,7 @@ def do_setup():
         # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
         #####################################################################################################
         setup_requires=[
-            'docutils>=0.14, <1.0',
+            'docutils>=0.14, <0.16'
             'gitpython>=2.0.2',
         ],
         extras_require={
@@ -561,6 +571,7 @@ def do_setup():
             'vertica': vertica,
             'webhdfs': webhdfs,
             'winrm': winrm,
+            'yandexcloud': yandexcloud,
         },
         classifiers=[
             'Development Status :: 5 - Production/Stable',

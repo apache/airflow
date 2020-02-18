@@ -682,6 +682,88 @@ class TestMLEngineHook(unittest.TestCase):
 
         self.assertEqual(create_job_response, my_job)
 
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
+    def test_cancel_mlengine_job(self, mock_get_conn):
+        project_id = "test-project"
+        job_id = 'test-job-id'
+        job_path = 'projects/{}/jobs/{}'.format(project_id, job_id)
+
+        job_cancelled = {}
+
+        (
+            mock_get_conn.return_value.
+            projects.return_value.
+            jobs.return_value.
+            cancel.return_value.
+            execute.return_value
+        ) = job_cancelled
+
+        cancel_job_response = self.hook.cancel_job(job_id=job_id, project_id=project_id)
+
+        self.assertEqual(cancel_job_response, job_cancelled)
+        mock_get_conn.assert_has_calls([
+            mock.call().projects().jobs().cancel(name=job_path),
+        ], any_order=True)
+
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
+    def test_cancel_mlengine_job_nonexistent_job(self, mock_get_conn):
+        project_id = "test-project"
+        job_id = 'test-job-id'
+        job_cancelled = {}
+
+        error_job_does_not_exist = HttpError(resp=mock.MagicMock(status=404), content=b'Job does not exist')
+
+        (
+            mock_get_conn.return_value.
+            projects.return_value.
+            jobs.return_value.
+            cancel.return_value.
+            execute.side_effect
+        ) = error_job_does_not_exist
+        (
+            mock_get_conn.return_value.
+            projects.return_value.
+            jobs.return_value.
+            cancel.return_value.
+            execute.return_value
+        ) = job_cancelled
+
+        with self.assertRaises(HttpError):
+            self.hook.cancel_job(job_id=job_id, project_id=project_id)
+
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
+    def test_cancel_mlengine_job_completed_job(self, mock_get_conn):
+        project_id = "test-project"
+        job_id = 'test-job-id'
+        job_path = 'projects/{}/jobs/{}'.format(project_id, job_id)
+        job_cancelled = {}
+
+        error_job_already_completed = HttpError(
+            resp=mock.MagicMock(status=400),
+            content=b'Job already completed')
+
+        (
+            mock_get_conn.return_value.
+            projects.return_value.
+            jobs.return_value.
+            cancel.return_value.
+            execute.side_effect
+        ) = error_job_already_completed
+        (
+            mock_get_conn.return_value.
+            projects.return_value.
+            jobs.return_value.
+            cancel.return_value.
+            execute.return_value
+        ) = job_cancelled
+
+        cancel_job_response = self.hook.cancel_job(job_id=job_id, project_id=project_id)
+
+        self.assertEqual(cancel_job_response, job_cancelled)
+        mock_get_conn.assert_has_calls([
+            mock.call().projects().jobs().cancel(name=job_path),
+        ], any_order=True)
+
 
 class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
     def setUp(self) -> None:
@@ -987,6 +1069,33 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
             mock.call().projects().jobs().get().execute()
         ], any_order=True)
 
+    @mock.patch(
+        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
+    def test_cancel_mlengine_job(self, mock_get_conn, mock_project_id):
+        job_id = 'test-job-id'
+        job_path = 'projects/{}/jobs/{}'.format(GCP_PROJECT_ID_HOOK_UNIT_TEST, job_id)
+
+        job_cancelled = {}
+
+        (
+            mock_get_conn.return_value.
+            projects.return_value.
+            jobs.return_value.
+            cancel.return_value.
+            execute.return_value
+        ) = job_cancelled
+
+        cancel_job_response = self.hook.cancel_job(job_id=job_id)
+
+        self.assertEqual(cancel_job_response, job_cancelled)
+        mock_get_conn.assert_has_calls([
+            mock.call().projects().jobs().cancel(name=job_path),
+        ], any_order=True)
+
 
 class TestMLEngineHookWithoutProjectId(unittest.TestCase):
     def setUp(self) -> None:
@@ -1110,3 +1219,15 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
 
         with self.assertRaises(AirflowException):
             self.hook.create_job(job=new_job)
+
+    @mock.patch(
+        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
+    def test_cancel_mlengine_job(self, mock_get_conn, mock_project_id):
+        job_id = 'test-job-id'
+
+        with self.assertRaises(AirflowException):
+            self.hook.cancel_job(job_id=job_id)

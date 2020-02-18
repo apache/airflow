@@ -21,10 +21,10 @@
 This module contains the AWS DynamoDB hook
 """
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AwsDynamoDBHook(AwsHook):
+class AwsDynamoDBHook(AwsBaseHook):
     """
     Interact with AWS DynamoDB.
 

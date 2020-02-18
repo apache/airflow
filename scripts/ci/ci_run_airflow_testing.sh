@@ -15,18 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-set -euo pipefail
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
-
 export VERBOSE=${VERBOSE:="true"}
 
-basic_sanity_checks
-
-script_start
+# shellcheck source=scripts/ci/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
 if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
     echo
@@ -59,12 +51,6 @@ fi
 echo
 echo "Using docker image: ${AIRFLOW_CI_IMAGE} for docker compose runs"
 echo
-
-HOST_USER_ID="$(id -ur)"
-export HOST_USER_ID
-
-HOST_GROUP_ID="$(id -gr)"
-export HOST_GROUP_ID
 
 INTEGRATIONS=()
 
@@ -111,5 +97,3 @@ else
          # and bash -c starts passing parameters from $0. TODO: fixme
     set -u
 fi
-
-script_end

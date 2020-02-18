@@ -132,7 +132,7 @@ class TestTransferJobPreprocessor(unittest.TestCase):
         self.assertEqual(body, {})
 
     @unittest.skipIf(boto3 is None, "Skipping test because boto3 is not available")
-    @mock.patch('airflow.providers.google.cloud.operators.cloud_storage_transfer_service.AwsHook')
+    @mock.patch('airflow.providers.google.cloud.operators.cloud_storage_transfer_service.AwsBaseHook')
     def test_should_inject_aws_credentials(self, mock_hook):
         mock_hook.return_value.get_credentials.return_value = Credentials(
             TEST_AWS_ACCESS_KEY_ID, TEST_AWS_ACCESS_SECRET, None
@@ -246,7 +246,7 @@ class TestGcpStorageTransferJobCreateOperator(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook'
     )
-    @mock.patch('airflow.providers.google.cloud.operators.cloud_storage_transfer_service.AwsHook')
+    @mock.patch('airflow.providers.google.cloud.operators.cloud_storage_transfer_service.AwsBaseHook')
     def test_job_create_aws(self, aws_hook, mock_hook):
         mock_hook.return_value.create_transfer_job.return_value = VALID_TRANSFER_JOB_AWS_RAW
         aws_hook.return_value.get_credentials.return_value = Credentials(
@@ -267,7 +267,7 @@ class TestGcpStorageTransferJobCreateOperator(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook'
     )
-    @mock.patch('airflow.providers.google.cloud.operators.cloud_storage_transfer_service.AwsHook')
+    @mock.patch('airflow.providers.google.cloud.operators.cloud_storage_transfer_service.AwsBaseHook')
     def test_job_create_multiple(self, aws_hook, gcp_hook):
         aws_hook.return_value.get_credentials.return_value = Credentials(
             TEST_AWS_ACCESS_KEY_ID, TEST_AWS_ACCESS_SECRET, None
@@ -665,7 +665,7 @@ class TestS3ToGoogleCloudStorageTransferOperator(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook'
     )
-    @mock.patch('airflow.providers.google.cloud.operators.cloud_storage_transfer_service.AwsHook')
+    @mock.patch('airflow.providers.google.cloud.operators.cloud_storage_transfer_service.AwsBaseHook')
     def test_execute(self, mock_aws_hook, mock_transfer_hook):
         mock_aws_hook.return_value.get_credentials.return_value = Credentials(
             TEST_AWS_ACCESS_KEY_ID, TEST_AWS_ACCESS_SECRET, None
@@ -690,7 +690,7 @@ class TestS3ToGoogleCloudStorageTransferOperator(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook'
     )
-    @mock.patch('airflow.providers.google.cloud.operators.cloud_storage_transfer_service.AwsHook')
+    @mock.patch('airflow.providers.google.cloud.operators.cloud_storage_transfer_service.AwsBaseHook')
     def test_execute_skip_wait(self, mock_aws_hook, mock_transfer_hook):
         mock_aws_hook.return_value.get_credentials.return_value = Credentials(
             TEST_AWS_ACCESS_KEY_ID, TEST_AWS_ACCESS_SECRET, None

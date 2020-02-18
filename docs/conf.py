@@ -53,6 +53,7 @@ autodoc_mock_imports = [
     'azure',
     'azure.cosmos',
     'azure.datalake',
+    'azure.kusto',
     'azure.mgmt',
     'boto3',
     'botocore',
@@ -196,6 +197,7 @@ exclude_patterns: List[str] = [
     "_api/airflow/providers/microsoft/index.rst",
     "_api/airflow/providers/google/index.rst",
     "_api/airflow/providers/apache/index.rst",
+    "_api/airflow/providers/yandex/index.rst",
     "_api/airflow/providers/cncf/index.rst",
     # Utils for internal use
     '_api/airflow/providers/google/cloud/utils',
@@ -506,22 +508,27 @@ html_context = {
     # For more information look at:
     # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/layout.html#L222-L232
     'theme_analytics_id': 'UA-140539454-1',
-    # Variables used to build a button for editing the source code
-    #
-    # The path is created according to the following template:
-    #
-    # https://{{ github_host|default("github.com") }}/{{ github_user }}/{{ github_repo }}/
-    # {{ theme_vcs_pageview_mode|default("blob") }}/{{ github_version }}{{ conf_py_path }}
-    # {{ pagename }}{{ suffix }}
-    #
-    # More information:
-    # https://github.com/readthedocs/readthedocs.org/blob/master/readthedocs/doc_builder/templates/doc_builder/conf.py.tmpl#L100-L103
-    # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/breadcrumbs.html#L45
-    #
-    'theme_vcs_pageview_mode': 'edit',
-    'conf_py_path': '/docs/',
-    'github_user': 'apache',
-    'github_repo': 'airflow',
-    'github_version': os.environ.get('GITHUB_TREE', None),
-    'display_github': os.environ.get('GITHUB_TREE', None) is not None,
 }
+if airflow_theme_is_available:
+    html_context = {
+        # Variables used to build a button for editing the source code
+        #
+        # The path is created according to the following template:
+        #
+        # https://{{ github_host|default("github.com") }}/{{ github_user }}/{{ github_repo }}/
+        # {{ theme_vcs_pageview_mode|default("blob") }}/{{ github_version }}{{ conf_py_path }}
+        # {{ pagename }}{{ suffix }}
+        #
+        # More information:
+        # https://github.com/readthedocs/readthedocs.org/blob/master/readthedocs/doc_builder/templates/doc_builder/conf.py.tmpl#L100-L103
+        # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/breadcrumbs.html#L45
+        # https://github.com/apache/airflow-site/blob/91f760c/sphinx_airflow_theme/sphinx_airflow_theme/suggest_change_button.html#L36-L40
+        #
+        'theme_vcs_pageview_mode': 'edit',
+        'conf_py_path': '/docs/',
+        'github_user': 'apache',
+        'github_repo': 'airflow',
+        'github_version': 'master',
+        'display_github': 'master',
+        'suffix': '.rst',
+    }

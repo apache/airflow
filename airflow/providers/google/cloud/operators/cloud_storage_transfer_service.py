@@ -35,9 +35,9 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
 from airflow.utils.decorators import apply_defaults
 
 try:
-    from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 except ImportError:  # pragma: no cover
-    AwsHook = None  # type: ignore
+    AwsBaseHook = None  # type: ignore
 
 
 class TransferJobPreprocessor:
@@ -52,7 +52,7 @@ class TransferJobPreprocessor:
 
     def _inject_aws_credentials(self):
         if TRANSFER_SPEC in self.body and AWS_S3_DATA_SOURCE in self.body[TRANSFER_SPEC]:
-            aws_hook = AwsHook(self.aws_conn_id)
+            aws_hook = AwsBaseHook(self.aws_conn_id)
             aws_credentials = aws_hook.get_credentials()
             aws_access_key_id = aws_credentials.access_key
             aws_secret_access_key = aws_credentials.secret_key

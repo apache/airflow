@@ -21,7 +21,7 @@ import unittest
 
 import boto3
 
-from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.redshift import RedshiftHook
 
 try:
@@ -53,7 +53,7 @@ class TestRedshiftHook(unittest.TestCase):
     @mock_redshift
     def test_get_client_type_returns_a_boto3_client_of_the_requested_type(self):
         self._create_clusters()
-        hook = AwsHook(aws_conn_id='aws_default')
+        hook = AwsBaseHook(aws_conn_id='aws_default')
         client_from_hook = hook.get_client_type('redshift')
 
         clusters = client_from_hook.describe_clusters()['Clusters']

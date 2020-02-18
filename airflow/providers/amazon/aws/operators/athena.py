@@ -57,7 +57,7 @@ class AWSAthenaOperator(BaseOperator):
         output_location,
         aws_conn_id="aws_default",
         client_request_token=None,
-        workgroup="default",
+        workgroup="primary",
         query_execution_context=None,
         result_configuration=None,
         sleep_time=30,

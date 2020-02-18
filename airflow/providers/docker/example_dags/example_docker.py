@@ -15,12 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-from airflow.utils.dates import days_ago
-from airflow import DAG
-from airflow.operators import BashOperator
 from datetime import timedelta
+
+from airflow import DAG
+from airflow.operators.bash import BashOperator
 from airflow.providers.docker.operators.docker import DockerOperator
+from airflow.utils.dates import days_ago
 
 default_args = {
     'owner': 'airflow',
@@ -47,13 +47,15 @@ t2 = BashOperator(
     retries=3,
     dag=dag)
 
-t3 = DockerOperator(api_version='1.19',
-    docker_url='tcp://localhost:2375', #Set your docker URL
+t3 = DockerOperator(
+    api_version='1.19',
+    docker_url='tcp://localhost:2375',  # Set your docker URL
     command='/bin/sleep 30',
     image='centos:latest',
     network_mode='bridge',
     task_id='docker_op_tester',
-    dag=dag)
+    dag=dag
+)
 
 
 t4 = BashOperator(
@@ -62,7 +64,6 @@ t4 = BashOperator(
     dag=dag)
 
 
-t1.set_downstream(t2)
-t1.set_downstream(t3)
-t3.set_downstream(t4)
-"""
+t1 >> t2
+t1 >> t3
+t3 >> t4
