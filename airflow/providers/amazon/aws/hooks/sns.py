@@ -71,7 +71,7 @@ class AwsSnsHook(AwsBaseHook):
             - int, float = Number
             - iterable = String.Array
 
-        :type message_attributes: mapping
+        :type message_attributes: dict
         """
 
         conn = self.get_conn()

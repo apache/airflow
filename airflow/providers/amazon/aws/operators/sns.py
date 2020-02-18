@@ -37,7 +37,7 @@ class SnsPublishOperator(BaseOperator):
     :type subject: str
     :param message_attributes: the message attributes you want to send as a flat dict (data type will be
         determined automatically)
-    :type message_attributes: mapping
+    :type message_attributes: dict
     """
     template_fields = ['message', 'subject', 'message_attributes']
     template_ext = ()
