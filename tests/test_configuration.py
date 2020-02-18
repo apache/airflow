@@ -455,9 +455,10 @@ AIRFLOW_HOME = /root/airflow
     def test_deprecated_funcs(self):
         for func in ['load_test_config', 'get', 'getboolean', 'getfloat', 'getint', 'has_option',
                      'remove_option', 'as_dict', 'set']:
-            with mock.patch('airflow.configuration.{}'.format(func)):
+            with mock.patch('airflow.configuration.conf.{}'.format(func)) as mock_method:
                 with self.assertWarns(DeprecationWarning):
                     getattr(configuration, func)()
+                mock_method.assert_called_once()
 
     def test_command_from_env(self):
         test_cmdenv_config = '''[testcmdenv]

@@ -32,7 +32,6 @@ from typing import Dict, Tuple
 
 import yaml
 from cryptography.fernet import Fernet
-from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException
 
@@ -619,24 +618,113 @@ if not os.path.isfile(WEBSERVER_CONFIG):
 if conf.getboolean('core', 'unit_test_mode'):
     conf.load_test_config()
 
+
 # Historical convenience functions to access config entries
+def load_test_config():
+    warnings.warn(
+        "Accessing configuration method 'load_test_config' directly from the configuration module is "
+        "deprecated. Please access the configuration from the 'configuration.conf' object via "
+        "'conf.load_test_config'",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    conf.load_test_config()
 
-load_test_config = conf.load_test_config
-get = conf.get
-getboolean = conf.getboolean
-getfloat = conf.getfloat
-getint = conf.getint
-getsection = conf.getsection
-has_option = conf.has_option
-remove_option = conf.remove_option
-as_dict = conf.as_dict
-set = conf.set  # noqa
 
-for func in [load_test_config, get, getboolean, getfloat, getint, has_option,
-             remove_option, as_dict, set]:
-    deprecated(
-        func.__name__,
-        "Accessing configuration method '{f.__name__}' directly from "
-        "the configuration module is deprecated. Please access the "
-        "configuration from the 'configuration.conf' object via "
-        "'conf.{f.__name__}'".format(f=func))
+def get(*args, **kwargs):
+    warnings.warn(
+        "Accessing configuration method 'get' directly from the configuration module is "
+        "deprecated. Please access the configuration from the 'configuration.conf' object via "
+        "'conf.get'",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return conf.get(*args, **kwargs)
+
+
+def getboolean(*args, **kwargs):
+    warnings.warn(
+        "Accessing configuration method 'getboolean' directly from the configuration module is "
+        "deprecated. Please access the configuration from the 'configuration.conf' object via "
+        "'conf.getboolean'",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return conf.getboolean(*args, **kwargs)
+
+
+def getfloat(*args, **kwargs):
+    warnings.warn(
+        "Accessing configuration method 'getfloat' directly from the configuration module is "
+        "deprecated. Please access the configuration from the 'configuration.conf' object via "
+        "'conf.getfloat'",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return conf.getfloat(*args, **kwargs)
+
+
+def getint(*args, **kwargs):
+    warnings.warn(
+        "Accessing configuration method 'getint' directly from the configuration module is "
+        "deprecated. Please access the configuration from the 'configuration.conf' object via "
+        "'conf.getint'",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return conf.getint(*args, **kwargs)
+
+
+def getsection(*args, **kwargs):
+    warnings.warn(
+        "Accessing configuration method 'getsection' directly from the configuration module is "
+        "deprecated. Please access the configuration from the 'configuration.conf' object via "
+        "'conf.getsection'",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return conf.getint(*args, **kwargs)
+
+
+def has_option(*args, **kwargs):
+    warnings.warn(
+        "Accessing configuration method 'has_option' directly from the configuration module is "
+        "deprecated. Please access the configuration from the 'configuration.conf' object via "
+        "'conf.has_option'",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return conf.has_option(*args, **kwargs)
+
+
+def remove_option(*args, **kwargs):
+    warnings.warn(
+        "Accessing configuration method 'remove_option' directly from the configuration module is "
+        "deprecated. Please access the configuration from the 'configuration.conf' object via "
+        "'conf.remove_option'",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return conf.remove_option(*args, **kwargs)
+
+
+def as_dict(*args, **kwargs):
+    warnings.warn(
+        "Accessing configuration method 'as_dict' directly from the configuration module is "
+        "deprecated. Please access the configuration from the 'configuration.conf' object via "
+        "'conf.as_dict'",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return conf.as_dict(*args, **kwargs)
+
+
+def set(*args, **kwargs):
+    warnings.warn(
+        "Accessing configuration method 'set' directly from the configuration module is "
+        "deprecated. Please access the configuration from the 'configuration.conf' object via "
+        "'conf.set'",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return conf.set(*args, **kwargs)
