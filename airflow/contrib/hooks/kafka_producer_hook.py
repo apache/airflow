@@ -16,11 +16,11 @@ from kafka import KafkaProducer
 
 class KafkaProducerHook(BaseHook):
 
-    default_host = 'localhost'
-    default_port = 9092
+    DEFAULT_HOST = 'localhost'
+    DEFAULT_PORT = 9092
 
     def __init__(self, conn_id, topic):
-        super(KafkaConsumerHook, self).__init__(None)
+        super(KafkaProducerHook, self).__init__(None)
         self.conn = self.get_connection(conn_id)
         self.server = None
         self.consumer = None
@@ -29,21 +29,23 @@ class KafkaProducerHook(BaseHook):
 
     def get_conn(self):
         conf = self.conn.extra_dejson
-        host = self.conn.host or self.default_host
-        port = self.conn.port or self.default_port
+        host = self.conn.host or self.DEFAULT_HOST
+        port = self.conn.port or self.DEFAULT_PORT
 
         conf['enable_auto_commit'] = False
-        self.server = '{host}:{port}'.format(**locals())
+        self.server = f"""{host}:{port}"""
         self.producer = KafkaProducer(
             bootstrap_servers=self.server, **conf)
 
         return self.producer
 
-    def send_message(self, topic, value=None, key=None, headers=None, partition=None, timestamp_ms=None):
-        producer = self.get_pub()
-        future_record_metadata = producer.send(topic, value=value, key=key, headers=headers, partition=partition,
-                                               timestamp_ms=timestamp_ms)
-        producer.close()
+    def send_message(self, topic, value=None, key=None, partition=None, timestamp_ms=None):
+        producer = self.get_conn()
+        try:
+            future_record_metadata = producer.send(topic, value=value, key=key, partition=partition,
+                                                   timestamp_ms=timestamp_ms)
+        finally:
+            producer.close()
         return future_record_metadata
 
     def __repr__(self):
