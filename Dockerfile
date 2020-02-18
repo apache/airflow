@@ -311,7 +311,7 @@ RUN mkdir -pv ${AIRFLOW_HOME} \
     mkdir -pv ${AIRFLOW_HOME}/logs
 
 # Increase the value here to force reinstalling Apache Airflow pip dependencies
-ARG PIP_DEPENDENCIES_EPOCH_NUMBER="2"
+ARG PIP_DEPENDENCIES_EPOCH_NUMBER="3"
 ENV PIP_DEPENDENCIES_EPOCH_NUMBER=${PIP_DEPENDENCIES_EPOCH_NUMBER}
 
 # Optimizing installation of Cassandra driver
