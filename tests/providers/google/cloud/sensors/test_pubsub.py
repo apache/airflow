@@ -17,6 +17,7 @@
 # under the License.
 
 import unittest
+from typing import List, Any, Dict
 
 import mock
 from google.cloud.pubsub_v1.types import ReceivedMessage
@@ -105,3 +106,44 @@ class TestPubSubPullSensor(unittest.TestCase):
                 max_messages=5,
                 return_immediately=False
             )
+
+    @mock.patch('airflow.providers.google.cloud.sensors.pubsub.PubSubHook')
+    def test_execute_with_messages_callback(self, mock_hook):
+        generated_messages = self._generate_messages(5)
+        messages_callback_return_value = 'asdfg'
+
+        def messages_callback(
+            pulled_messages: List[ReceivedMessage],
+            context: Dict[str, Any],
+        ):
+            assert pulled_messages == generated_messages
+
+            assert isinstance(context, dict)
+            for key in context.keys():
+                assert isinstance(key, str)
+
+            return messages_callback_return_value
+
+        messages_callback = mock.Mock(side_effect=messages_callback)
+
+        operator = PubSubPullSensor(
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            poke_interval=0,
+            messages_callback=messages_callback,
+        )
+
+        mock_hook.return_value.pull.return_value = generated_messages
+
+        response = operator.execute({})
+        mock_hook.return_value.pull.assert_called_once_with(
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            max_messages=5,
+            return_immediately=False
+        )
+
+        messages_callback.assert_called_once()
+
+        assert response == messages_callback_return_value

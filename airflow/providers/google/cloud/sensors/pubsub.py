@@ -19,8 +19,9 @@
 This module contains a Google PubSub sensor.
 """
 import warnings
-from typing import Optional
+from typing import Optional, List, Callable, Any, Dict
 
+from google.cloud.pubsub_v1.types import ReceivedMessage
 from google.protobuf.json_format import MessageToDict
 
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
@@ -34,6 +35,9 @@ class PubSubPullSensor(BaseSensorOperator):
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:PubSubPullSensor`
+
+    .. seealso::
+        :class:`airflow.providers.google.cloud.operators.PubSubPullOperator`
 
     This sensor operator will pull up to ``max_messages`` messages from the
     specified PubSub subscription. When the subscription returns messages,
@@ -57,6 +61,14 @@ class PubSubPullSensor(BaseSensorOperator):
     :type max_messages: int
     :param return_immediately: If True, instruct the PubSub API to return
         immediately if no messages are available for delivery.
+        This will cause Airflow to retry/reschedule the Sensor task
+        until a message comes.
+        If False, the waiting will be done by PubSub `SubscriberClient`.
+        If None (default), it calls PubSub API with return_immediately=True
+        when running in reschedule mode and return_immediately=False when running in poke mode.
+        If you don't want to wait for messages at all, please use
+        :class:`airflow.providers.google.cloud.sensors.PubSubPullOperator`
+        instead.
     :type return_immediately: bool
     :param ack_messages: If True, each message will be acknowledged
         immediately rather than by any downstream tasks
@@ -68,6 +80,12 @@ class PubSubPullSensor(BaseSensorOperator):
         For this to work, the service account making the request
         must have domain-wide delegation enabled.
     :type delegate_to: str
+    :param messages_callback: (Optional) Callback to process received messages.
+        It's return value will be saved to XCom.
+        If you are pulling large messages, you probably want to provide a custom callback.
+        If not provided, the default implementation will convert `ReceivedMessage` objects
+            into JSON-serializable dicts using `google.protobuf.json_format.MessageToDict` function.
+    :type messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]]
     """
     template_fields = ['project_id', 'subscription']
     ui_color = '#ff7f50'
@@ -78,11 +96,12 @@ class PubSubPullSensor(BaseSensorOperator):
             project_id: str,
             subscription: str,
             max_messages: int = 5,
-            return_immediately: bool = False,
+            return_immediately: Optional[bool] = None,
             ack_messages: bool = False,
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
             project: Optional[str] = None,
+            messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]] = None,
             *args,
             **kwargs
     ) -> None:
@@ -102,13 +121,14 @@ class PubSubPullSensor(BaseSensorOperator):
         self.max_messages = max_messages
         self.return_immediately = return_immediately
         self.ack_messages = ack_messages
+        self.messages_callback = messages_callback
 
-        self._messages = None
+        self._return_value = None
 
     def execute(self, context):
         """Overridden to allow messages to be passed"""
         super().execute(context)
-        return self._messages
+        return self._return_value
 
     def poke(self, context):
         hook = PubSubHook(
@@ -116,19 +136,48 @@ class PubSubPullSensor(BaseSensorOperator):
             delegate_to=self.delegate_to,
         )
 
+        return_immediately = self.return_immediately
+        if return_immediately is None:
+            return_immediately = self.reschedule
+
         pulled_messages = hook.pull(
             project_id=self.project_id,
             subscription=self.subscription,
             max_messages=self.max_messages,
-            return_immediately=self.return_immediately,
+            return_immediately=return_immediately,
         )
 
-        self._messages = [MessageToDict(m) for m in pulled_messages]
+        handle_messages = self.messages_callback or self._default_message_callback
 
-        if self._messages and self.ack_messages:
-            ack_ids = [
-                m['ackId'] for m in self._messages if m.get('ackId')
-            ]
-            hook.acknowledge(project_id=self.project_id, subscription=self.subscription, ack_ids=ack_ids)
+        self._return_value = handle_messages(pulled_messages, context)
 
-        return self._messages
+        if pulled_messages and self.ack_messages:
+            hook.acknowledge(
+                project_id=self.project_id,
+                subscription=self.subscription,
+                messages=pulled_messages,
+            )
+
+        return bool(pulled_messages)
+
+    def _default_message_callback(
+            self,
+            pulled_messages: List[ReceivedMessage],
+            context: Dict[str, Any],
+    ):
+        """
+        This method can be overridden by subclasses or by `messages_callback` constructor argument.
+        This default implementation converts `ReceivedMessage` objects into JSON-serializable dicts.
+
+        :param pulled_messages: messages received from the topic.
+        :type pulled_messages: List[ReceivedMessage]
+        :param context: same as in `execute`
+        :return: value to be saved to XCom.
+        """
+
+        messages_json = [
+            MessageToDict(m)
+            for m in pulled_messages
+        ]
+
+        return messages_json
