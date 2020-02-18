@@ -31,7 +31,6 @@ MISSING_TEST_FILES = {
     'tests/providers/apache/cassandra/sensors/test_table.py',
     'tests/providers/apache/hdfs/sensors/test_web_hdfs.py',
     'tests/providers/apache/hive/operators/test_vertica_to_hive.py',
-    'tests/providers/apache/hive/sensors/test_hive_partition.py',
     'tests/providers/apache/hive/sensors/test_metastore_partition.py',
     'tests/providers/apache/pig/operators/test_pig.py',
     'tests/providers/apache/spark/hooks/test_spark_jdbc_script.py',

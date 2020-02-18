@@ -26,7 +26,6 @@ from airflow.providers.apache.hdfs.sensors.hdfs import HdfsSensor
 from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.providers.apache.hive.operators.hive_to_mysql import HiveToMySqlTransfer
 from airflow.providers.apache.hive.operators.hive_to_samba import Hive2SambaOperator
-from airflow.providers.apache.hive.sensors.hive_partition import HivePartitionSensor
 from airflow.providers.apache.hive.sensors.metastore_partition import MetastorePartitionSensor
 from airflow.providers.mysql.operators.presto_to_mysql import PrestoToMySqlTransfer
 from airflow.providers.presto.operators.presto_check import PrestoCheckOperator
@@ -174,14 +173,6 @@ class TestHivePresto(TestHiveEnvironment):
             task_id='hdfs_sensor_check',
             conn_id='presto_default',
             sql="SELECT 'x' FROM airflow.static_babynames LIMIT 1;",
-            dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-               ignore_ti_state=True)
-
-    def test_hive_partition_sensor(self):
-        op = HivePartitionSensor(
-            task_id='hive_partition_check',
-            table='airflow.static_babynames_partitioned',
             dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                ignore_ti_state=True)
