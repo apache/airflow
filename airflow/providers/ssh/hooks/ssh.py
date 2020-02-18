@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,18 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Hook for SSH connections."""
 import getpass
 import os
 import warnings
 from io import StringIO
+from typing import Optional
 
 import paramiko
 from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base_hook import 
 
 
 class SSHHook(BaseHook):
@@ -33,6 +35,7 @@ class SSHHook(BaseHook):
     Hook for ssh remote execution using Paramiko.
     ref: https://github.com/paramiko/paramiko
     This hook also lets you create ssh tunnel and serve as basis for SFTP file transfer
+
     :param ssh_conn_id: connection id from airflow Connections from where all the required
         parameters can be fetched like username, password or key_file.
         Thought the priority is given to the param passed during init
@@ -68,11 +71,11 @@ class SSHHook(BaseHook):
                  timeout=10,
                  keepalive_interval=30
                  ):
-        super(SSHHook, self).__init__(ssh_conn_id)
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
         self.username = username
         self.password = password
+        self.key_file = key_file
         self.pkey = None
         self.port = port
         self.timeout = timeout
