@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,17 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import print_function
 
 import json
 import os
+from typing import Dict
 
-manifest = dict()
+from flask import url_for
+
+manifest = dict()  # type: Dict[str, str]
 
 
 def configure_manifest_files(app):
     """
     Loads the manifest file and register the `url_for_asset_` template tag.
+
     :param app:
     :return:
     """
@@ -37,22 +39,23 @@ def configure_manifest_files(app):
             global manifest
             manifest_file = os.path.join(os.path.dirname(__file__),
                                          'static/dist/manifest.json')
-            with open(manifest_file, 'r') as f:
-                manifest.update(json.load(f))
+            with open(manifest_file, 'r') as file:
+                manifest.update(json.load(file))
+
+                for k in manifest.keys():
+                    manifest[k] = os.path.join("dist", manifest[k])
         except Exception:
-            print("Please make sure to build the frontend in "
-                  "static/ directory and restart the server")
-            pass
+            print("Please make sure to build the frontend in static/ directory and restart the server")
 
     def get_asset_url(filename):
         if app.debug:
             parse_manifest_json()
-        return '/static/dist/{}'.format(manifest.get(filename, ''))
+        return url_for('static', filename=manifest.get(filename, ''))
 
     parse_manifest_json()
 
     @app.context_processor
-    def get_url_for_asset():
+    def get_url_for_asset():  # pylint: disable=unused-variable
         """
         Template tag to return the asset URL.
         WebPack renders the assets after minification and modification

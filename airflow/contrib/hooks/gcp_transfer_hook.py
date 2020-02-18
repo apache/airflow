@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,92 +15,33 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module is deprecated. Please use `airflow.providers.google.cloud.hooks.cloud_storage_transfer_service`.
+"""
 
-import json
-import time
-import datetime
-from googleapiclient.discovery import build
+import warnings
 
-from airflow.exceptions import AirflowException
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import CloudDataTransferServiceHook
 
-# Time to sleep between active checks of the operation results
-TIME_TO_SLEEP_IN_SECONDS = 10
+warnings.warn(
+    "This module is deprecated. "
+    "Please use `airflow.providers.google.cloud.hooks.cloud_storage_transfer_service`",
+    DeprecationWarning, stacklevel=2
+)
 
 
-# noinspection PyAbstractClass
-class GCPTransferServiceHook(GoogleCloudBaseHook):
+class GCPTransferServiceHook(CloudDataTransferServiceHook):
     """
-    Hook for GCP Storage Transfer Service.
+    This class is deprecated. Please use
+    `airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.CloudDataTransferServiceHook`.
     """
-    _conn = None
 
-    def __init__(self,
-                 api_version='v1',
-                 gcp_conn_id='google_cloud_default',
-                 delegate_to=None):
-        super(GCPTransferServiceHook, self).__init__(gcp_conn_id, delegate_to)
-        self.api_version = api_version
-
-    def get_conn(self):
-        """
-        Retrieves connection to Google Storage Transfer service.
-
-        :return: Google Storage Transfer service object
-        :rtype: dict
-        """
-        if not self._conn:
-            http_authorized = self._authorize()
-            self._conn = build('storagetransfer', self.api_version,
-                               http=http_authorized, cache_discovery=False)
-        return self._conn
-
-    def create_transfer_job(self, description, schedule, transfer_spec, project_id=None):
-        transfer_job = {
-            'status': 'ENABLED',
-            'projectId': project_id or self.project_id,
-            'description': description,
-            'transferSpec': transfer_spec,
-            'schedule': schedule or self._schedule_once_now(),
-        }
-        return self.get_conn().transferJobs().create(body=transfer_job).execute()
-
-    def wait_for_transfer_job(self, job):
-        while True:
-            result = self.get_conn().transferOperations().list(
-                name='transferOperations',
-                filter=json.dumps({
-                    'project_id': job['projectId'],
-                    'job_names': [job['name']],
-                }),
-            ).execute()
-            if self._check_operations_result(result):
-                return True
-            time.sleep(TIME_TO_SLEEP_IN_SECONDS)
-
-    def _check_operations_result(self, result):
-        operations = result.get('operations', [])
-        if len(operations) == 0:
-            return False
-        for operation in operations:
-            if operation['metadata']['status'] in {'FAILED', 'ABORTED'}:
-                raise AirflowException('Operation {} {}'.format(
-                    operation['name'], operation['metadata']['status']))
-            if operation['metadata']['status'] != 'SUCCESS':
-                return False
-        return True
-
-    def _schedule_once_now(self):
-        now = datetime.datetime.utcnow()
-        return {
-            'scheduleStartDate': {
-                'day': now.day,
-                'month': now.month,
-                'year': now.year,
-            },
-            'scheduleEndDate': {
-                'day': now.day,
-                'month': now.month,
-                'year': now.year,
-            }
-        }
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.google.cloud.hooks.cloud_storage_transfer_service
+            .CloudDataTransferServiceHook`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

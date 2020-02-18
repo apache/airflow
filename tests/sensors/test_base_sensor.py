@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,24 +17,21 @@
 # under the License.
 
 import unittest
-from mock import Mock
+from datetime import timedelta
+from time import sleep
+from unittest.mock import Mock, patch
 
-from airflow import DAG, configuration, settings
-from airflow.exceptions import (AirflowSensorTimeout, AirflowException,
-                                AirflowRescheduleException)
-from airflow.models import DagRun, TaskInstance
-from airflow.models.taskreschedule import TaskReschedule
+from freezegun import freeze_time
+
+from airflow import DAG, settings
+from airflow.exceptions import AirflowException, AirflowRescheduleException, AirflowSensorTimeout
+from airflow.models import DagRun, TaskInstance, TaskReschedule
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
-from datetime import timedelta
-from time import sleep
-from freezegun import freeze_time
-
-configuration.load_test_config()
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_dag'
@@ -45,16 +41,15 @@ SENSOR_OP = 'sensor_op'
 
 class DummySensor(BaseSensorOperator):
     def __init__(self, return_value=False, **kwargs):
-        super(DummySensor, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.return_value = return_value
 
     def poke(self, context):
         return self.return_value
 
 
-class BaseSensorTest(unittest.TestCase):
+class TestBaseSensor(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
@@ -367,10 +362,15 @@ class BaseSensorTest(unittest.TestCase):
             if ti.task_id == DUMMY_OP:
                 self.assertEqual(ti.state, State.NONE)
 
-    def test_should_include_ready_to_reschedule_dep(self):
+    def test_should_include_ready_to_reschedule_dep_in_reschedule_mode(self):
+        sensor = self._make_sensor(True, mode='reschedule')
+        deps = sensor.deps
+        self.assertIn(ReadyToRescheduleDep(), deps)
+
+    def test_should_not_include_ready_to_reschedule_dep_in_poke_mode(self):
         sensor = self._make_sensor(True)
         deps = sensor.deps
-        self.assertTrue(ReadyToRescheduleDep() in deps)
+        self.assertNotIn(ReadyToRescheduleDep(), deps)
 
     def test_invalid_mode(self):
         with self.assertRaises(AirflowException):
@@ -449,8 +449,8 @@ class BaseSensorTest(unittest.TestCase):
         # poke returns False and AirflowRescheduleException is raised
         date1 = timezone.utcnow()
         with freeze_time(date1):
-            for dt in self.dag.date_range(DEFAULT_DATE, end_date=DEFAULT_DATE):
-                TaskInstance(sensor, dt).run(
+            for date in self.dag.date_range(DEFAULT_DATE, end_date=DEFAULT_DATE):
+                TaskInstance(sensor, date).run(
                     ignore_ti_state=True,
                     test_mode=True)
         tis = dr.get_task_instances()
@@ -464,3 +464,78 @@ class BaseSensorTest(unittest.TestCase):
                 self.assertEqual(len(task_reschedules), 0)
             if ti.task_id == DUMMY_OP:
                 self.assertEqual(ti.state, State.NONE)
+
+    def test_sensor_with_invalid_poke_interval(self):
+        negative_poke_interval = -10
+        non_number_poke_interval = "abcd"
+        positive_poke_interval = 10
+        with self.assertRaises(AirflowException):
+            self._make_sensor(
+                return_value=None,
+                poke_interval=negative_poke_interval,
+                timeout=25)
+
+        with self.assertRaises(AirflowException):
+            self._make_sensor(
+                return_value=None,
+                poke_interval=non_number_poke_interval,
+                timeout=25)
+
+        self._make_sensor(
+            return_value=None,
+            poke_interval=positive_poke_interval,
+            timeout=25)
+
+    def test_sensor_with_invalid_timeout(self):
+        negative_timeout = -25
+        non_number_timeout = "abcd"
+        positive_timeout = 25
+        with self.assertRaises(AirflowException):
+            self._make_sensor(
+                return_value=None,
+                poke_interval=10,
+                timeout=negative_timeout)
+
+        with self.assertRaises(AirflowException):
+            self._make_sensor(
+                return_value=None,
+                poke_interval=10,
+                timeout=non_number_timeout)
+
+        self._make_sensor(
+            return_value=None,
+            poke_interval=10,
+            timeout=positive_timeout)
+
+    def test_sensor_with_exponential_backoff_off(self):
+        sensor = self._make_sensor(
+            return_value=None,
+            poke_interval=5,
+            timeout=60,
+            exponential_backoff=False)
+
+        started_at = timezone.utcnow() - timedelta(seconds=10)
+        self.assertEqual(sensor._get_next_poke_interval(started_at, 1), sensor.poke_interval)
+        self.assertEqual(sensor._get_next_poke_interval(started_at, 2), sensor.poke_interval)
+
+    def test_sensor_with_exponential_backoff_on(self):
+
+        sensor = self._make_sensor(
+            return_value=None,
+            poke_interval=5,
+            timeout=60,
+            exponential_backoff=True)
+
+        with patch('airflow.utils.timezone.utcnow') as mock_utctime:
+            mock_utctime.return_value = DEFAULT_DATE
+
+            started_at = timezone.utcnow() - timedelta(seconds=10)
+            print(started_at)
+
+            interval1 = sensor._get_next_poke_interval(started_at, 1)
+            interval2 = sensor._get_next_poke_interval(started_at, 2)
+
+            self.assertTrue(interval1 >= 0)
+            self.assertTrue(interval1 <= sensor.poke_interval)
+            self.assertTrue(interval2 >= sensor.poke_interval)
+            self.assertTrue(interval2 > interval1)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,7 +19,7 @@
 # A collection of fake models used for unit testing
 
 
-class FakeTI(object):
+class FakeTI:
 
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
@@ -29,34 +28,34 @@ class FakeTI(object):
         # Allow users of this fake to set pool_filled in the constructor to make this
         # return True
         try:
-            return self.pool_filled
+            return self.pool_filled  # pylint: disable=no-member
         except AttributeError:
             # If pool_filled was not set default to false
             return False
 
     def get_dagrun(self, _):
-        return self.dagrun
+        return self.dagrun  # pylint: disable=no-member
 
-    def are_dependents_done(self, session):
-        return self.dependents_done
+    def are_dependents_done(self, session):  # pylint: disable=unused-argument
+        return self.dependents_done  # pylint: disable=no-member
 
 
-class FakeTask(object):
+class FakeTask:
 
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
 
 
-class FakeDag(object):
+class FakeDag:
 
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
 
     def get_running_dagruns(self, _):
-        return self.running_dagruns
+        return self.running_dagruns  # pylint: disable=no-member
 
 
-class FakeContext(object):
+class FakeContext:
 
     def __init__(self, **kwds):
         self.__dict__.update(kwds)

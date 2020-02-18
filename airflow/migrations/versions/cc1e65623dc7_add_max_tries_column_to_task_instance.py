@@ -1,5 +1,3 @@
-# flake8: noqa
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -25,14 +23,14 @@ Create Date: 2017-06-19 16:53:12.851141
 
 """
 
-from alembic import op
 import sqlalchemy as sa
-from airflow import settings
-from airflow.models import DagBag
-
+from alembic import op
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.ext.declarative import declarative_base
+
+from airflow import settings
+from airflow.models import DagBag
 
 # revision identifiers, used by Alembic.
 revision = 'cc1e65623dc7'

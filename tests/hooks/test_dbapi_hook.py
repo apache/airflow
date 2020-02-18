@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,16 +17,17 @@
 # under the License.
 #
 
-import mock
 import unittest
+from unittest import mock
 
 from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.models import Connection
 
 
 class TestDbApiHook(unittest.TestCase):
 
     def setUp(self):
-        super(TestDbApiHook, self).setUp()
+        super().setUp()
 
         self.cur = mock.MagicMock()
         self.conn = mock.MagicMock()
@@ -51,8 +51,8 @@ class TestDbApiHook(unittest.TestCase):
 
         self.assertEqual(rows, self.db_hook.get_records(statement))
 
-        self.conn.close.assert_called_once()
-        self.cur.close.assert_called_once()
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement)
 
     def test_get_records_parameters(self):
@@ -65,8 +65,8 @@ class TestDbApiHook(unittest.TestCase):
 
         self.assertEqual(rows, self.db_hook.get_records(statement, parameters))
 
-        self.conn.close.assert_called_once()
-        self.cur.close.assert_called_once()
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement, parameters)
 
     def test_get_records_exception(self):
@@ -76,8 +76,8 @@ class TestDbApiHook(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.db_hook.get_records(statement)
 
-        self.conn.close.assert_called_once()
-        self.cur.close.assert_called_once()
+        self.conn.close.call_count == 1
+        self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement)
 
     def test_insert_rows(self):
@@ -87,8 +87,8 @@ class TestDbApiHook(unittest.TestCase):
 
         self.db_hook.insert_rows(table, rows)
 
-        self.conn.close.assert_called_once()
-        self.cur.close.assert_called_once()
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
 
         commit_count = 2  # The first and last commit
         self.assertEqual(commit_count, self.conn.commit.call_count)
@@ -104,8 +104,8 @@ class TestDbApiHook(unittest.TestCase):
 
         self.db_hook.insert_rows(table, rows, replace=True)
 
-        self.conn.close.assert_called_once()
-        self.cur.close.assert_called_once()
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
 
         commit_count = 2  # The first and last commit
         self.assertEqual(commit_count, self.conn.commit.call_count)
@@ -122,8 +122,8 @@ class TestDbApiHook(unittest.TestCase):
 
         self.db_hook.insert_rows(table, rows, target_fields)
 
-        self.conn.close.assert_called_once()
-        self.cur.close.assert_called_once()
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
 
         commit_count = 2  # The first and last commit
         self.assertEqual(commit_count, self.conn.commit.call_count)
@@ -140,8 +140,8 @@ class TestDbApiHook(unittest.TestCase):
 
         self.db_hook.insert_rows(table, rows, commit_every=commit_every)
 
-        self.conn.close.assert_called_once()
-        self.cur.close.assert_called_once()
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
 
         commit_count = 2 + divmod(len(rows), commit_every)[0]
         self.assertEqual(commit_count, self.conn.commit.call_count)
@@ -149,3 +149,25 @@ class TestDbApiHook(unittest.TestCase):
         sql = "INSERT INTO {}  VALUES (%s)".format(table)
         for row in rows:
             self.cur.execute.assert_any_call(sql, row)
+
+    def test_get_uri_schema_not_none(self):
+        self.db_hook.get_connection = mock.MagicMock(return_value=Connection(
+            conn_type="conn_type",
+            host="host",
+            login="login",
+            password="password",
+            schema="schema",
+            port=1
+        ))
+        self.assertEqual("conn_type://login:password@host:1/schema", self.db_hook.get_uri())
+
+    def test_get_uri_schema_none(self):
+        self.db_hook.get_connection = mock.MagicMock(return_value=Connection(
+            conn_type="conn_type",
+            host="host",
+            login="login",
+            password="password",
+            schema=None,
+            port=1
+        ))
+        self.assertEqual("conn_type://login:password@host:1/", self.db_hook.get_uri())

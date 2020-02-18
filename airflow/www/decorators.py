@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,13 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import gzip
 import functools
-import pendulum
+import gzip
 from io import BytesIO as IO
-from flask import after_this_request, redirect, request, url_for, g
-from airflow.models.log import Log
-from airflow.utils.db import create_session
+
+import pendulum
+from flask import after_this_request, flash, g, redirect, request, url_for
+
+from airflow.models import Log
+from airflow.utils.session import create_session
 
 
 def action_logging(f):
@@ -43,13 +44,13 @@ def action_logging(f):
                 event=f.__name__,
                 task_instance=None,
                 owner=user,
-                extra=str(list(request.args.items())),
-                task_id=request.args.get('task_id'),
-                dag_id=request.args.get('dag_id'))
+                extra=str(list(request.values.items())),
+                task_id=request.values.get('task_id'),
+                dag_id=request.values.get('dag_id'))
 
-            if 'execution_date' in request.args:
+            if 'execution_date' in request.values:
                 log.execution_date = pendulum.parse(
-                    request.args.get('execution_date'))
+                    request.values.get('execution_date'))
 
             session.add(log)
 
@@ -65,7 +66,7 @@ def gzipped(f):
     @functools.wraps(f)
     def view_func(*args, **kwargs):
         @after_this_request
-        def zipper(response):
+        def zipper(response):  # pylint: disable=unused-variable
             accept_encoding = request.headers.get('Accept-Encoding', '')
 
             if 'gzip' not in accept_encoding.lower():
@@ -102,7 +103,7 @@ def has_dag_access(**dag_kwargs):
         @functools.wraps(f)
         def wrapper(self, *args, **kwargs):
             has_access = self.appbuilder.sm.has_access
-            dag_id = request.args.get('dag_id')
+            dag_id = request.values.get('dag_id')
             # if it is false, we need to check whether user has write access on the dag
             can_dag_edit = dag_kwargs.get('can_dag_edit', False)
 
@@ -120,6 +121,7 @@ def has_dag_access(**dag_kwargs):
                                                                    dag_id)))):
                 return f(self, *args, **kwargs)
             else:
+                flash("Access is Denied", "danger")
                 return redirect(url_for(self.appbuilder.sm.auth_view.
                                         __class__.__name__ + ".login"))
         return wrapper

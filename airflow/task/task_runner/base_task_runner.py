@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,19 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import unicode_literals
-
+"""Base task runner"""
 import getpass
 import os
 import subprocess
 import threading
 
-from airflow.utils.log.logging_mixin import LoggingMixin
-
-from airflow import configuration as conf
+from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
 from airflow.utils.configuration import tmp_configuration_copy
-
+from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.net import get_hostname
 
 PYTHONPATH_VAR = 'PYTHONPATH'
 
@@ -37,16 +34,15 @@ class BaseTaskRunner(LoggingMixin):
     """
     Runs Airflow task instances by invoking the `airflow run` command with raw
     mode enabled in a subprocess.
+
+    :param local_task_job: The local task job associated with running the
+        associated task instance.
+    :type local_task_job: airflow.jobs.LocalTaskJob
     """
 
     def __init__(self, local_task_job):
-        """
-        :param local_task_job: The local task job associated with running the
-        associated task instance.
-        :type local_task_job: airflow.jobs.LocalTaskJob
-        """
         # Pass task instance context into log handlers to setup the logger.
-        super(BaseTaskRunner, self).__init__(local_task_job.task_instance)
+        super().__init__(local_task_job.task_instance)
         self._task_instance = local_task_job.task_instance
 
         popen_prepend = []
@@ -55,16 +51,19 @@ class BaseTaskRunner(LoggingMixin):
         else:
             try:
                 self.run_as_user = conf.get('core', 'default_impersonation')
-            except conf.AirflowConfigException:
+            except AirflowConfigException:
                 self.run_as_user = None
-
-        # Always provide a copy of the configuration file settings
-        cfg_path = tmp_configuration_copy()
 
         # Add sudo commands to change user if we need to. Needed to handle SubDagOperator
         # case using a SequentialExecutor.
         self.log.debug("Planning to run as the %s user", self.run_as_user)
         if self.run_as_user and (self.run_as_user != getpass.getuser()):
+            # We want to include any environment variables now, as we won't
+            # want to have to specify them in the sudo call - they would show
+            # up in `ps` that way! And run commands now, as the other user
+            # might not be able to run the cmds to get credentials
+            cfg_path = tmp_configuration_copy(chmod=0o600)
+
             # Give ownership of file to user; only they can read and write
             subprocess.call(
                 ['sudo', 'chown', self.run_as_user, cfg_path],
@@ -77,6 +76,13 @@ class BaseTaskRunner(LoggingMixin):
 
             if pythonpath_value:
                 popen_prepend.append('{}={}'.format(PYTHONPATH_VAR, pythonpath_value))
+
+        else:
+            # Always provide a copy of the configuration file settings. Since
+            # we are running as the same user, and can pass through environment
+            # variables then we don't need to include those in the config copy
+            # - the runner can read/execute those values as it needs
+            cfg_path = tmp_configuration_copy(chmod=0o600)
 
         self._cfg_path = cfg_path
         self._command = popen_prepend + self._task_instance.command_as_list(
@@ -94,30 +100,27 @@ class BaseTaskRunner(LoggingMixin):
             line = stream.readline()
             if isinstance(line, bytes):
                 line = line.decode('utf-8')
-            if len(line) == 0:
+            if not line:
                 break
             self.log.info('Job %s: Subtask %s %s',
                           self._task_instance.job_id, self._task_instance.task_id,
                           line.rstrip('\n'))
 
-    def run_command(self, run_with=None, join_args=False):
+    def run_command(self, run_with=None):
         """
-        Run the task command
+        Run the task command.
 
-        :param run_with: list of tokens to run the task command with
-        E.g. ['bash', '-c']
+        :param run_with: list of tokens to run the task command with e.g. ``['bash', '-c']``
         :type run_with: list
-        :param join_args: whether to concatenate the list of command tokens
-        E.g. ['airflow', 'run'] vs ['airflow run']
-        :param join_args: bool
         :return: the process that was run
         :rtype: subprocess.Popen
         """
         run_with = run_with or []
-        cmd = [" ".join(self._command)] if join_args else self._command
-        full_cmd = run_with + cmd
+        full_cmd = run_with + self._command
 
+        self.log.info("Running on host: %s", get_hostname())
         self.log.info('Running: %s', full_cmd)
+        # pylint: disable=subprocess-popen-preexec-fn
         proc = subprocess.Popen(
             full_cmd,
             stdout=subprocess.PIPE,
@@ -146,7 +149,7 @@ class BaseTaskRunner(LoggingMixin):
     def return_code(self):
         """
         :return: The return code associated with running the task instance or
-        None if the task is not yet done.
+            None if the task is not yet done.
         :rtype: int
         """
         raise NotImplementedError()
@@ -162,4 +165,7 @@ class BaseTaskRunner(LoggingMixin):
         A callback that should be called when this is done running.
         """
         if self._cfg_path and os.path.isfile(self._cfg_path):
-            subprocess.call(['sudo', 'rm', self._cfg_path], close_fds=True)
+            if self.run_as_user:
+                subprocess.call(['sudo', 'rm', self._cfg_path], close_fds=True)
+            else:
+                os.remove(self._cfg_path)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,16 +19,17 @@
 from airflow.ti_deps.deps.dag_ti_slots_available_dep import DagTISlotsAvailableDep
 from airflow.ti_deps.deps.dag_unpaused_dep import DagUnpausedDep
 from airflow.ti_deps.deps.dagrun_exists_dep import DagrunRunningDep
+from airflow.ti_deps.deps.dagrun_id_dep import DagrunIdDep
 from airflow.ti_deps.deps.exec_date_after_start_date_dep import ExecDateAfterStartDateDep
-from airflow.ti_deps.deps.not_running_dep import NotRunningDep
-from airflow.ti_deps.deps.not_skipped_dep import NotSkippedDep
+from airflow.ti_deps.deps.pool_slots_available_dep import PoolSlotsAvailableDep
 from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
-from airflow.ti_deps.deps.valid_state_dep import ValidStateDep
 from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
+from airflow.ti_deps.deps.task_not_running_dep import TaskNotRunningDep
+from airflow.ti_deps.deps.valid_state_dep import ValidStateDep
 from airflow.utils.state import State
 
 
-class DepContext(object):
+class DepContext:
     """
     A base class for contexts that specifies which dependencies should be evaluated in
     the context for a task instance to satisfy the requirements of the context. Also
@@ -37,6 +37,7 @@ class DepContext(object):
 
     For example there could be a SomeRunContext that subclasses this class which has
     dependencies for:
+
     - Making sure there are slots available on the infrastructure to run the task instance
     - A task-instance's task-specific dependencies are met (e.g. the previous task
       instance completed successfully)
@@ -65,6 +66,8 @@ class DepContext(object):
     :type ignore_task_deps: bool
     :param ignore_ti_state: Ignore the task instance's previous failure/success
     :type ignore_ti_state: bool
+    :param finished_tasks: A list of all the finished tasks of this run
+    :type finished_tasks: list[airflow.models.TaskInstance]
     """
     def __init__(
             self,
@@ -75,7 +78,8 @@ class DepContext(object):
             ignore_in_retry_period=False,
             ignore_in_reschedule_period=False,
             ignore_task_deps=False,
-            ignore_ti_state=False):
+            ignore_ti_state=False,
+            finished_tasks=None):
         self.deps = deps or set()
         self.flag_upstream_failed = flag_upstream_failed
         self.ignore_all_deps = ignore_all_deps
@@ -84,46 +88,93 @@ class DepContext(object):
         self.ignore_in_reschedule_period = ignore_in_reschedule_period
         self.ignore_task_deps = ignore_task_deps
         self.ignore_ti_state = ignore_ti_state
+        self.finished_tasks = finished_tasks
 
 
 # In order to be able to get queued a task must have one of these states
-QUEUEABLE_STATES = {
-    State.FAILED,
+SCHEDULEABLE_STATES = {
     State.NONE,
-    State.QUEUED,
-    State.SCHEDULED,
-    State.SKIPPED,
-    State.UPSTREAM_FAILED,
     State.UP_FOR_RETRY,
     State.UP_FOR_RESCHEDULE,
 }
 
-# Context to get the dependencies that need to be met in order for a task instance to
-# be backfilled.
-QUEUE_DEPS = {
-    NotRunningDep(),
-    NotSkippedDep(),
-    RunnableExecDateDep(),
-    ValidStateDep(QUEUEABLE_STATES),
+RUNNABLE_STATES = {
+    # For cases like unit tests and run manually
+    State.NONE,
+    State.UP_FOR_RETRY,
+    State.UP_FOR_RESCHEDULE,
+    # For normal scheduler/backfill cases
+    State.QUEUED,
 }
 
-# Dependencies that need to be met for a given task instance to be able to get run by an
-# executor. This class just extends QueueContext by adding dependencies for resources.
-RUN_DEPS = QUEUE_DEPS | {
+QUEUEABLE_STATES = {
+    State.SCHEDULED,
+}
+
+BACKFILL_QUEUEABLE_STATES = {
+    # For cases like unit tests and run manually
+    State.NONE,
+    State.UP_FOR_RESCHEDULE,
+    State.UP_FOR_RETRY,
+    # For normal backfill cases
+    State.SCHEDULED,
+}
+
+# Context to get the dependencies that need to be met in order for a task instance to be
+# set to 'scheduled' state.
+SCHEDULED_DEPS = {
+    RunnableExecDateDep(),
+    ValidStateDep(SCHEDULEABLE_STATES),
+    TaskNotRunningDep(),
+}
+
+# Dependencies that if met, task instance should be re-queued.
+REQUEUEABLE_DEPS = {
     DagTISlotsAvailableDep(),
     TaskConcurrencyDep(),
+    PoolSlotsAvailableDep(),
 }
 
-# TODO(aoen): SCHEDULER_DEPS is not coupled to actual execution in any way and
-# could easily be modified or removed from the scheduler causing this dependency to become
-# outdated and incorrect. This coupling should be created (e.g. via a dag_deps analog of
-# ti_deps that will be used in the scheduler code) to ensure that the logic here is
-# equivalent to the logic in the scheduler.
+# Dependencies that need to be met for a given task instance to be set to 'RUNNING' state.
+RUNNING_DEPS = {
+    RunnableExecDateDep(),
+    ValidStateDep(RUNNABLE_STATES),
+    DagTISlotsAvailableDep(),
+    TaskConcurrencyDep(),
+    PoolSlotsAvailableDep(),
+    TaskNotRunningDep(),
+}
 
-# Dependencies that need to be met for a given task instance to get scheduled by the
-# scheduler, then queued by the scheduler, then run by an executor.
-SCHEDULER_DEPS = RUN_DEPS | {
+BACKFILL_QUEUED_DEPS = {
+    RunnableExecDateDep(),
+    ValidStateDep(BACKFILL_QUEUEABLE_STATES),
     DagrunRunningDep(),
+    TaskNotRunningDep(),
+}
+
+# TODO(aoen): SCHEDULER_QUEUED_DEPS is not coupled to actual scheduling/execution
+# in any way and could easily be modified or removed from the scheduler causing
+# this dependency to become outdated and incorrect. This coupling should be created
+# (e.g. via a dag_deps analog of ti_deps that will be used in the scheduler code,
+# or allow batch deps checks) to ensure that the logic here is equivalent to the logic
+# in the scheduler.
+# Right now there's one discrepancy between this context and how scheduler schedule tasks:
+# Scheduler will check if the executor has the task instance--it is not possible
+# to check the executor outside scheduler main process.
+
+# Dependencies that need to be met for a given task instance to be set to 'queued' state
+# by the scheduler.
+# This context has more DEPs than RUNNING_DEPS, as we can have task triggered by
+# components other than scheduler, e.g. webserver.
+SCHEDULER_QUEUED_DEPS = {
+    RunnableExecDateDep(),
+    ValidStateDep(QUEUEABLE_STATES),
+    DagTISlotsAvailableDep(),
+    TaskConcurrencyDep(),
+    PoolSlotsAvailableDep(),
+    DagrunRunningDep(),
+    DagrunIdDep(),
     DagUnpausedDep(),
     ExecDateAfterStartDateDep(),
+    TaskNotRunningDep(),
 }

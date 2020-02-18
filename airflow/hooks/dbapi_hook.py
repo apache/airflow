@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,16 +16,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import str
-from past.builtins import basestring
-from datetime import datetime
 from contextlib import closing
-import sys
+from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import create_engine
 
-from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
+from airflow.typing_compat import Protocol
+
+
+class ConnectorProtocol(Protocol):
+    def connect(host, port, username, schema):
+        ...
 
 
 class DbApiHook(BaseHook):
@@ -34,13 +37,13 @@ class DbApiHook(BaseHook):
     Abstract base class for sql hooks.
     """
     # Override to provide the connection name.
-    conn_name_attr = None
+    conn_name_attr = None  # type: Optional[str]
     # Override to have a default connection id for a particular dbHook
     default_conn_name = 'default_conn_id'
     # Override if this db supports autocommit.
     supports_autocommit = False
     # Override with the object that exposes the connect method
-    connector = None
+    connector = None  # type: Optional[ConnectorProtocol]
 
     def __init__(self, *args, **kwargs):
         if not self.conn_name_attr:
@@ -70,8 +73,11 @@ class DbApiHook(BaseHook):
         host = conn.host
         if conn.port is not None:
             host += ':{port}'.format(port=conn.port)
-        return '{conn.conn_type}://{login}{host}/{conn.schema}'.format(
+        uri = '{conn.conn_type}://{login}{host}/'.format(
             conn=conn, login=login, host=host)
+        if conn.schema:
+            uri += conn.schema
+        return uri
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         if engine_kwargs is None:
@@ -88,8 +94,6 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :type parameters: mapping or iterable
         """
-        if sys.version_info[0] < 3:
-            sql = sql.encode('utf-8')
         import pandas.io.sql as psql
 
         with closing(self.get_conn()) as conn:
@@ -105,9 +109,6 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :type parameters: mapping or iterable
         """
-        if sys.version_info[0] < 3:
-            sql = sql.encode('utf-8')
-
         with closing(self.get_conn()) as conn:
             with closing(conn.cursor()) as cur:
                 if parameters is not None:
@@ -126,9 +127,6 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :type parameters: mapping or iterable
         """
-        if sys.version_info[0] < 3:
-            sql = sql.encode('utf-8')
-
         with closing(self.get_conn()) as conn:
             with closing(conn.cursor()) as cur:
                 if parameters is not None:
@@ -152,7 +150,7 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :type parameters: mapping or iterable
         """
-        if isinstance(sql, basestring):
+        if isinstance(sql, str):
             sql = [sql]
 
         with closing(self.get_conn()) as conn:
@@ -161,8 +159,6 @@ class DbApiHook(BaseHook):
 
             with closing(conn.cursor()) as cur:
                 for s in sql:
-                    if sys.version_info[0] < 3:
-                        s = s.encode('utf-8')
                     if parameters is not None:
                         self.log.info("{} with parameters {}".format(s, parameters))
                         cur.execute(s, parameters)
@@ -180,10 +176,10 @@ class DbApiHook(BaseHook):
         Sets the autocommit flag on the connection
         """
         if not self.supports_autocommit and autocommit:
-            self.log.warn(
-                ("%s connection doesn't support "
-                 "autocommit but autocommit activated."),
-                getattr(self, self.conn_name_attr))
+            self.log.warning(
+                "%s connection doesn't support autocommit but autocommit activated.",
+                getattr(self, self.conn_name_attr)
+            )
         conn.autocommit = autocommit
 
     def get_autocommit(self, conn):
@@ -256,12 +252,11 @@ class DbApiHook(BaseHook):
                     if commit_every and i % commit_every == 0:
                         conn.commit()
                         self.log.info(
-                            "Loaded {i} into {table} rows so far".format(**locals())
+                            "Loaded %s into %s rows so far", i, table
                         )
 
             conn.commit()
-        self.log.info(
-            "Done loading. Loaded a total of {i} rows".format(**locals()))
+        self.log.info("Done loading. Loaded a total of %s rows", i)
 
     @staticmethod
     def _serialize_cell(cell, conn=None):

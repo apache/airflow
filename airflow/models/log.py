@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from sqlalchemy import Column, Integer, String, Text, Index
+from sqlalchemy import Column, Index, Integer, String, Text
 
-from airflow.models.base import Base, ID_LEN
+from airflow.models.base import ID_LEN, Base
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 

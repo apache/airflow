@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,11 +18,12 @@
 import os
 import shutil
 
-from airflow import configuration
-from airflow.contrib.hooks.wasb_hook import WasbHook
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.log.file_task_handler import FileTaskHandler
 from azure.common import AzureHttpError
+from cached_property import cached_property
+
+from airflow.configuration import conf
+from airflow.utils.log.file_task_handler import FileTaskHandler
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class WasbTaskHandler(FileTaskHandler, LoggingMixin):
@@ -35,7 +35,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
 
     def __init__(self, base_log_folder, wasb_log_folder, wasb_container,
                  filename_template, delete_local_copy):
-        super(WasbTaskHandler, self).__init__(base_log_folder, filename_template)
+        super().__init__(base_log_folder, filename_template)
         self.wasb_container = wasb_container
         self.remote_base = wasb_log_folder
         self.log_relative_path = ''
@@ -44,9 +44,14 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         self.upload_on_close = True
         self.delete_local_copy = delete_local_copy
 
-    def _build_hook(self):
-        remote_conn_id = configuration.get('core', 'REMOTE_LOG_CONN_ID')
+    @cached_property
+    def hook(self):
+        """
+        Returns WasbHook.
+        """
+        remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
+            from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
             return WasbHook(remote_conn_id)
         except AzureHttpError:
             self.log.error(
@@ -55,14 +60,8 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
                 'the Wasb connection exists.', remote_conn_id
             )
 
-    @property
-    def hook(self):
-        if self._hook is None:
-            self._hook = self._build_hook()
-        return self._hook
-
     def set_context(self, ti):
-        super(WasbTaskHandler, self).set_context(ti)
+        super().set_context(ti)
         # Local location and remote location is needed to open and
         # upload local log file to Wasb remote storage.
         self.log_relative_path = self._render_filename(ti, ti.try_number)
@@ -79,7 +78,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         if self.closed:
             return
 
-        super(WasbTaskHandler, self).close()
+        super().close()
 
         if not self.upload_on_close:
             return
@@ -101,6 +100,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         """
         Read logs of given task instance and try_number from Wasb remote storage.
         If failed, read the log from task instance host machine.
+
         :param ti: task instance object
         :param try_number: task instance try_number to read logs from
         :param metadata: log metadata,
@@ -121,17 +121,18 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
                 remote_loc, remote_log)
             return log, {'end_of_log': True}
         else:
-            return super(WasbTaskHandler, self)._read(ti, try_number)
+            return super()._read(ti, try_number)
 
     def wasb_log_exists(self, remote_log_location):
         """
         Check if remote_log_location exists in remote storage
+
         :param remote_log_location: log's location in remote storage
         :return: True if location exists else False
         """
         try:
             return self.hook.check_for_blob(self.wasb_container, remote_log_location)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             pass
         return False
 
@@ -139,6 +140,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         """
         Returns the log found at the remote_log_location. Returns '' if no
         logs are found or there is an error.
+
         :param remote_log_location: the log's location in remote storage
         :type remote_log_location: str (path)
         :param return_error: if True, returns a string error message if an
@@ -158,6 +160,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         """
         Writes the log to the remote_log_location. Fails silently if no hook
         was created.
+
         :param log: the log to write to the remote_log_location
         :type log: str
         :param remote_log_location: the log's location in remote storage

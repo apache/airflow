@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,25 +15,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from airflow.models.connection import Connection
-from airflow.utils import timezone
+import json
 
+from flask_appbuilder.fieldwidgets import (
+    BS3PasswordFieldWidget, BS3TextAreaFieldWidget, BS3TextFieldWidget, DateTimePickerWidget, Select2Widget,
+)
 from flask_appbuilder.forms import DynamicForm
-from flask_appbuilder.fieldwidgets import (BS3TextFieldWidget, BS3TextAreaFieldWidget,
-                                           BS3PasswordFieldWidget, Select2Widget,
-                                           DateTimePickerWidget)
 from flask_babel import lazy_gettext
 from flask_wtf import FlaskForm
-
 from wtforms import validators
-from wtforms.fields import (IntegerField, SelectField, TextAreaField, PasswordField,
-                            StringField, DateTimeField, BooleanField)
+from wtforms.fields import (
+    BooleanField, DateTimeField, IntegerField, PasswordField, SelectField, StringField, TextAreaField,
+)
+
+from airflow.models import Connection
+from airflow.utils import timezone
+from airflow.www.validators import ValidJson
 
 
 class DateTimeForm(FlaskForm):
@@ -75,6 +72,7 @@ class DagRunForm(DynamicForm):
         widget=DateTimePickerWidget())
     run_id = StringField(
         lazy_gettext('Run Id'),
+        validators=[validators.DataRequired()],
         widget=BS3TextFieldWidget())
     state = SelectField(
         lazy_gettext('State'),
@@ -85,6 +83,18 @@ class DagRunForm(DynamicForm):
         widget=DateTimePickerWidget())
     external_trigger = BooleanField(
         lazy_gettext('External Trigger'))
+    conf = TextAreaField(
+        lazy_gettext('Conf'),
+        validators=[ValidJson(), validators.Optional()],
+        widget=BS3TextAreaFieldWidget())
+
+    def populate_obj(self, item):
+        # TODO: This is probably better done as a custom field type so we can
+        # set TZ at parse time
+        super().populate_obj(item)
+        item.execution_date = timezone.make_aware(item.execution_date)
+        if item.conf:
+            item.conf = json.loads(item.conf)
 
 
 class ConnectionForm(DynamicForm):
@@ -138,3 +148,47 @@ class ConnectionForm(DynamicForm):
     extra__google_cloud_platform__scope = StringField(
         lazy_gettext('Scopes (comma separated)'),
         widget=BS3TextFieldWidget())
+    extra__google_cloud_platform__num_retries = IntegerField(
+        lazy_gettext('Number of Retries'),
+        validators=[validators.NumberRange(min=0)],
+        widget=BS3TextFieldWidget(),
+        default=5)
+    extra__grpc__auth_type = StringField(
+        lazy_gettext('Grpc Auth Type'),
+        widget=BS3TextFieldWidget())
+    extra__grpc__credential_pem_file = StringField(
+        lazy_gettext('Credential Keyfile Path'),
+        widget=BS3TextFieldWidget())
+    extra__grpc__scopes = StringField(
+        lazy_gettext('Scopes (comma separated)'),
+        widget=BS3TextFieldWidget())
+    extra__yandexcloud__service_account_json = PasswordField(
+        lazy_gettext('Service account auth JSON'),
+        widget=BS3PasswordFieldWidget(),
+        description='Service account auth JSON. Looks like '
+                    '{"id", "...", "service_account_id": "...", "private_key": "..."}. '
+                    'Will be used instead of OAuth token and SA JSON file path field if specified.',
+    )
+    extra__yandexcloud__service_account_json_path = StringField(
+        lazy_gettext('Service account auth JSON file path'),
+        widget=BS3TextFieldWidget(),
+        description='Service account auth JSON file path. File content looks like '
+                    '{"id", "...", "service_account_id": "...", "private_key": "..."}. '
+                    'Will be used instead of OAuth token if specified.',
+    )
+    extra__yandexcloud__oauth = PasswordField(
+        lazy_gettext('OAuth Token'),
+        widget=BS3PasswordFieldWidget(),
+        description='User account OAuth token. Either this or service account JSON must be specified.',
+    )
+    extra__yandexcloud__folder_id = StringField(
+        lazy_gettext('Default folder ID'),
+        widget=BS3TextFieldWidget(),
+        description='Optional. This folder will be used to create all new clusters and nodes by default',
+    )
+    extra__yandexcloud__public_ssh_key = StringField(
+        lazy_gettext('Public SSH key'),
+        widget=BS3TextFieldWidget(),
+        description='Optional. This key will be placed to all created Compute nodes'
+        'to let you have a root shell there',
+    )

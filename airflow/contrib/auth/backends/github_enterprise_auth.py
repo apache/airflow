@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,26 +15,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import flask_login
+import logging
 
+import flask_login
+from flask import redirect, request, url_for
 # Need to expose these downstream
 # flake8: noqa: F401
-from flask_login import current_user, logout_user, login_required, login_user
-
-from flask import url_for, redirect, request
-
+from flask_login import current_user, login_required, login_user, logout_user
 from flask_oauthlib.client import OAuth
 
-from airflow import models, configuration
-from airflow.configuration import AirflowConfigException
-from airflow.utils.db import provide_session
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow import models
+from airflow.configuration import AirflowConfigException, conf
+from airflow.utils.session import provide_session
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 def get_config_param(param):
-    return str(configuration.conf.get('github_enterprise', param))
+    return str(conf.get('github_enterprise', param))
 
 
 class GHEUser(models.User):
@@ -75,7 +72,7 @@ class AuthenticationError(Exception):
     pass
 
 
-class GHEAuthBackend(object):
+class GHEAuthBackend:
 
     def __init__(self):
         self.ghe_host = get_config_param('host')

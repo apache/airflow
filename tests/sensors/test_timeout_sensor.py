@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,19 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
-
 import time
+import unittest
 from datetime import timedelta
 
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.exceptions import AirflowSensorTimeout, AirflowSkipException
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.timezone import datetime
-
-configuration.load_test_config()
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_dag'
@@ -48,7 +44,7 @@ class TimeoutTestSensor(BaseSensorOperator):
                  *args,
                  **kwargs):
         self.return_value = return_value
-        super(TimeoutTestSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def poke(self, context):
         return self.return_value
@@ -68,9 +64,8 @@ class TimeoutTestSensor(BaseSensorOperator):
         self.log.info("Success criteria met. Exiting.")
 
 
-class SensorTimeoutTest(unittest.TestCase):
+class TestSensorTimeout(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
@@ -78,7 +73,7 @@ class SensorTimeoutTest(unittest.TestCase):
         self.dag = DAG(TEST_DAG_ID, default_args=args)
 
     def test_timeout(self):
-        t = TimeoutTestSensor(
+        op = TimeoutTestSensor(
             task_id='test_timeout',
             execution_timeout=timedelta(days=2),
             return_value=False,
@@ -88,6 +83,6 @@ class SensorTimeoutTest(unittest.TestCase):
         )
         self.assertRaises(
             AirflowSensorTimeout,
-            t.run,
+            op.run,
             start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
         )

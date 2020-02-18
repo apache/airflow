@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,16 +18,18 @@
 
 import json
 import unittest
+from unittest.mock import patch
 
 from freezegun import freeze_time
-from mock import patch
 
-from airflow import AirflowException
+from airflow import AirflowException, models
 from airflow.api.client.local_client import Client
-from airflow import models
-from airflow import settings
+from airflow.example_dags import example_bash_operator
+from airflow.models import DagBag, DagModel
 from airflow.utils import timezone
+from airflow.utils.session import create_session
 from airflow.utils.state import State
+from tests.test_utils.db import clear_db_pools
 
 EXECDATE = timezone.utcnow()
 EXECDATE_NOFRACTIONS = EXECDATE.replace(microsecond=0)
@@ -39,36 +40,30 @@ class TestLocalClient(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        super(TestLocalClient, cls).setUpClass()
-        session = settings.Session()
-        session.query(models.Pool).delete()
-        session.commit()
-        session.close()
+        super().setUpClass()
+        DagBag(example_bash_operator.__file__).get_dag("example_bash_operator").sync_to_db()
 
     def setUp(self):
-        super(TestLocalClient, self).setUp()
+        super().setUp()
+        clear_db_pools()
         self.client = Client(api_base_url=None, auth=None)
-        self.session = settings.Session()
 
     def tearDown(self):
-        self.session.query(models.Pool).delete()
-        self.session.commit()
-        self.session.close()
-        super(TestLocalClient, self).tearDown()
+        clear_db_pools()
+        super().tearDown()
 
     @patch.object(models.DAG, 'create_dagrun')
     def test_trigger_dag(self, mock):
-        client = self.client
         test_dag_id = "example_bash_operator"
         models.DagBag(include_examples=True)
 
         # non existent
         with self.assertRaises(AirflowException):
-            client.trigger_dag(dag_id="blablabla")
+            self.client.trigger_dag(dag_id="blablabla")
 
         with freeze_time(EXECDATE):
             # no execution date, execution date should be set automatically
-            client.trigger_dag(dag_id=test_dag_id)
+            self.client.trigger_dag(dag_id=test_dag_id)
             mock.assert_called_once_with(run_id="manual__{0}".format(EXECDATE_ISO),
                                          execution_date=EXECDATE_NOFRACTIONS,
                                          state=State.RUNNING,
@@ -77,7 +72,7 @@ class TestLocalClient(unittest.TestCase):
             mock.reset_mock()
 
             # execution date with microseconds cutoff
-            client.trigger_dag(dag_id=test_dag_id, execution_date=EXECDATE)
+            self.client.trigger_dag(dag_id=test_dag_id, execution_date=EXECDATE)
             mock.assert_called_once_with(run_id="manual__{0}".format(EXECDATE_ISO),
                                          execution_date=EXECDATE_NOFRACTIONS,
                                          state=State.RUNNING,
@@ -87,7 +82,7 @@ class TestLocalClient(unittest.TestCase):
 
             # run id
             run_id = "my_run_id"
-            client.trigger_dag(dag_id=test_dag_id, run_id=run_id)
+            self.client.trigger_dag(dag_id=test_dag_id, run_id=run_id)
             mock.assert_called_once_with(run_id=run_id,
                                          execution_date=EXECDATE_NOFRACTIONS,
                                          state=State.RUNNING,
@@ -97,7 +92,7 @@ class TestLocalClient(unittest.TestCase):
 
             # test conf
             conf = '{"name": "John"}'
-            client.trigger_dag(dag_id=test_dag_id, conf=conf)
+            self.client.trigger_dag(dag_id=test_dag_id, conf=conf)
             mock.assert_called_once_with(run_id="manual__{0}".format(EXECDATE_ISO),
                                          execution_date=EXECDATE_NOFRACTIONS,
                                          state=State.RUNNING,
@@ -107,16 +102,16 @@ class TestLocalClient(unittest.TestCase):
 
     def test_delete_dag(self):
         key = "my_dag_id"
-        session = settings.Session()
-        DM = models.DagModel
-        self.assertEqual(session.query(DM).filter(DM.dag_id == key).count(), 0)
 
-        session.add(DM(dag_id=key))
-        session.commit()
-        self.assertEqual(session.query(DM).filter(DM.dag_id == key).count(), 1)
+        with create_session() as session:
+            self.assertEqual(session.query(DagModel).filter(DagModel.dag_id == key).count(), 0)
+            session.add(DagModel(dag_id=key))
 
-        self.client.delete_dag(dag_id=key)
-        self.assertEqual(session.query(DM).filter(DM.dag_id == key).count(), 0)
+        with create_session() as session:
+            self.assertEqual(session.query(DagModel).filter(DagModel.dag_id == key).count(), 1)
+
+            self.client.delete_dag(dag_id=key)
+            self.assertEqual(session.query(DagModel).filter(DagModel.dag_id == key).count(), 0)
 
     def test_get_pool(self):
         self.client.create_pool(name='foo', slots=1, description='')
@@ -127,15 +122,19 @@ class TestLocalClient(unittest.TestCase):
         self.client.create_pool(name='foo1', slots=1, description='')
         self.client.create_pool(name='foo2', slots=2, description='')
         pools = sorted(self.client.get_pools(), key=lambda p: p[0])
-        self.assertEqual(pools, [('foo1', 1, ''), ('foo2', 2, '')])
+        self.assertEqual(pools, [('default_pool', 128, 'Default pool'),
+                                 ('foo1', 1, ''), ('foo2', 2, '')])
 
     def test_create_pool(self):
         pool = self.client.create_pool(name='foo', slots=1, description='')
         self.assertEqual(pool, ('foo', 1, ''))
-        self.assertEqual(self.session.query(models.Pool).count(), 1)
+        with create_session() as session:
+            self.assertEqual(session.query(models.Pool).count(), 2)
 
     def test_delete_pool(self):
         self.client.create_pool(name='foo', slots=1, description='')
-        self.assertEqual(self.session.query(models.Pool).count(), 1)
+        with create_session() as session:
+            self.assertEqual(session.query(models.Pool).count(), 2)
         self.client.delete_pool(name='foo')
-        self.assertEqual(self.session.query(models.Pool).count(), 0)
+        with create_session() as session:
+            self.assertEqual(session.query(models.Pool).count(), 1)

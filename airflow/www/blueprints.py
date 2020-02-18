@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,11 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from flask import Blueprint, redirect
+from flask import Blueprint, redirect, url_for
 
 routes = Blueprint('routes', __name__)
 
 
 @routes.route('/')
 def index():
-    return redirect('/home')
+    return redirect(url_for('Airflow.index'))
