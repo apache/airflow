@@ -113,20 +113,19 @@ class SSHHook(BaseHook):
                 key_file = extra_options.get('key_file')
                 cert_file = extra_options.get('cert_file')
 
-                if private_key:
-                    if key_type == 'rsa':
-                        self.pkey = paramiko.RSAKey.from_private_key(StringIO(private_key))
-                    elif key_type == 'ed25519':
-                        self.pkey = paramiko.Ed25519Key.from_private_key(StringIO(private_key))
-                    elif key_type == 'ecdsa':
-                        self.pkey = paramiko.ECDSAKey.from_private_key(StringIO(private_key))
-                elif key_file:
-                    if key_type == 'rsa':
-                        self.pkey = paramiko.RSAKey.from_private_key_file(key_file)
-                    elif key_type == 'ed25519':
-                        self.pkey = paramiko.Ed25519Key.from_private_key_file(key_file)
-                    elif key_type == 'ecdsa':
-                        self.pkey = paramiko.ECDSAKey.from_private_key_file(key_file)
+                if private_key and key_type == 'rsa':
+                     self.pkey = paramiko.RSAKey.from_private_key(StringIO(private_key))
+                elif private_key and key_type == 'ed25519':
+                    self.pkey = paramiko.Ed25519Key.from_private_key(StringIO(private_key))
+                elif private_key and key_type == 'ecdsa':
+                    self.pkey = paramiko.ECDSAKey.from_private_key(StringIO(private_key))
+                elif key_file and key_type == 'rsa':
+                    self.pkey = paramiko.RSAKey.from_private_key_file(key_file)
+                elif key_file and key_type == 'ed25519':
+                    self.pkey = paramiko.Ed25519Key.from_private_key_file(key_file)
+                elif key_file and key_type == 'ecdsa':
+                    self.pkey = paramiko.ECDSAKey.from_private_key_file(key_file)
+                
                 if cert_key:
                     self.pkey.load_certificate(StringIO(cert_key))
                 elif cert_file:
