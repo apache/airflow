@@ -81,9 +81,11 @@ class TestLivyHook(unittest.TestCase):
                 jars=['jar1', 'jar2'],
                 files=['file1', 'file2'],
                 py_files=['py1', 'py2'],
+                archives=['arch1', 'arch2'],
                 queue='queue',
                 name='name',
                 conf={'a': 'b'},
+                driver_cores=2,
                 driver_memory='1M',
                 executor_memory='1m',
                 executor_cores='1',
@@ -98,9 +100,11 @@ class TestLivyHook(unittest.TestCase):
                 'jars': ['jar1', 'jar2'],
                 'files': ['file1', 'file2'],
                 'pyFiles': ['py1', 'py2'],
+                'archives': ['arch1', 'arch2'],
                 'queue': 'queue',
                 'name': 'name',
                 'conf': {'a': 'b'},
+                'driverCores': 2,
                 'driverMemory': '1M',
                 'executorMemory': '1m',
                 'executorCores': '1',
@@ -149,6 +153,49 @@ class TestLivyHook(unittest.TestCase):
         with self.subTest('None'):
             # noinspection PyTypeChecker
             self.assertTrue(LivyHook._validate_size_format(None))
+
+    def test_validate_list_of_stringables(self):
+        with self.subTest('valid list'):
+            try:
+                LivyHook._validate_list_of_stringables([1, 'string'])
+            except ValueError:
+                self.fail("Exception raised")
+
+        with self.subTest('valid tuple'):
+            try:
+                LivyHook._validate_list_of_stringables((1, 'string'))
+            except ValueError:
+                self.fail("Exception raised")
+
+        with self.subTest('empty list'):
+            try:
+                LivyHook._validate_list_of_stringables([])
+            except ValueError:
+                self.fail("Exception raised")
+
+        with self.subTest('dict'):
+            with self.assertRaises(ValueError):
+                LivyHook._validate_list_of_stringables({'a': 'a'})
+
+        with self.subTest('invalid element'):
+            with self.assertRaises(ValueError):
+                LivyHook._validate_list_of_stringables([1, {}])
+
+        with self.subTest('dict'):
+            with self.assertRaises(ValueError):
+                LivyHook._validate_list_of_stringables([1, None])
+
+        with self.subTest('None'):
+            with self.assertRaises(ValueError):
+                LivyHook._validate_list_of_stringables(None)
+
+        with self.subTest('int'):
+            with self.assertRaises(ValueError):
+                LivyHook._validate_list_of_stringables(1)
+
+        with self.subTest('string'):
+            with self.assertRaises(ValueError):
+                LivyHook._validate_list_of_stringables('string')
 
     def test_validate_extra_conf(self):
         with self.subTest('valid'):
@@ -262,8 +309,8 @@ class TestLivyHook(unittest.TestCase):
     def test_get_batch_fail(self, mock):
         mock.register_uri(
             'GET', '//livy:8998/batches/{}'.format(BATCH_ID),
-            json={},
-            status_code=400,
+            json={'msg': 'Unable to find batch'},
+            status_code=404,
             reason='ERROR'
         )
 

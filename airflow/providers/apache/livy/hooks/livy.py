@@ -106,6 +106,8 @@ class LivyHook(HttpHook, LoggingMixin):
         """
         if method not in ('GET', 'POST', 'PUT', 'DELETE', 'HEAD'):
             raise ValueError("Invalid http method '{}'".format(method))
+        if extra_options is None:
+            extra_options = {'check_response': False}
 
         back_method = self.method
         self.method = method
@@ -183,7 +185,7 @@ class LivyHook(HttpHook, LoggingMixin):
         :param session_id: identifier of the batch sessions
         :type session_id: Union[int, str]
         :return: batch state
-        :rtype: str
+        :rtype: BatchState
         """
         self._validate_session_id(session_id)
 
@@ -288,28 +290,28 @@ class LivyHook(HttpHook, LoggingMixin):
         :param class_name: Application Java/Spark main class string.
         :type class_name: str
         :param args: Command line arguments for the application s.
-        :type args: list
+        :type args: Sequence[Union[str, int, float]]
         :param jars: jars to be used in this sessions.
-        :type jars: list
+        :type jars: Sequence[str]
         :param py_files: Python files to be used in this session.
-        :type py_files: list
+        :type py_files: Sequence[str]
         :param files: files to be used in this session.
-        :type files: list
+        :type files: Sequence[str]
         :param driver_memory: Amount of memory to use for the driver process  string.
         :type driver_memory: str
         :param driver_cores: Number of cores to use for the driver process int.
-        :type driver_cores: str
+        :type driver_cores: Union[str, int]
         :param executor_memory: Amount of memory to use per executor process  string.
         :type executor_memory: str
         :param executor_cores: Number of cores to use for each executor  int.
-        :type executor_cores: str
+        :type executor_cores: Union[int, str]
         :param num_executors: Number of executors to launch for this session  int.
-        :type num_executors: str
+        :type num_executors: Union[str, int]
         :param archives: Archives to be used in this session.
-        :type archives: list
+        :type archives: Sequence[str]
         :param queue: The name of the YARN queue to which submitted string.
         :type queue: str
-        :param name: The name of this session  string.
+        :param name: The name of this session string.
         :type name: str
         :param conf: Spark configuration properties.
         :type conf: dict
@@ -332,7 +334,7 @@ class LivyHook(HttpHook, LoggingMixin):
             body['pyFiles'] = py_files
         if files and LivyHook._validate_list_of_stringables(files):
             body['files'] = files
-        if driver_memory and LivyHook._validate_list_of_stringables(driver_memory):
+        if driver_memory and LivyHook._validate_size_format(driver_memory):
             body['driverMemory'] = driver_memory
         if driver_cores:
             body['driverCores'] = driver_cores
@@ -373,11 +375,13 @@ class LivyHook(HttpHook, LoggingMixin):
         Check the values in the provided list can be converted to strings.
 
         :param vals: list to validate
-        :type vals: Union[str, int, float]
+        :type vals: Sequence[Union[str, int, float]]
         :return: true if valid
         :rtype: bool
         """
-        if vals and any(1 for val in vals if not isinstance(val, (str, int, float))):
+        if vals is None or \
+           not isinstance(vals, (tuple, list)) or \
+           any(1 for val in vals if not isinstance(val, (str, int, float))):
             raise ValueError("List of strings expected")
         return True
 
