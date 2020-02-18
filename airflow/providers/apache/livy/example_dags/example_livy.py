@@ -22,7 +22,7 @@ using the Java and Python executables provided in the example library.
 """
 
 from airflow import DAG
-from airflow.providers.apache.livy.operators.livy_operator import LivyOperator
+from airflow.providers.apache.livy.operators.livy import LivyOperator
 from airflow.utils.dates import days_ago
 
 args = {

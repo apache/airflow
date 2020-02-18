@@ -21,8 +21,8 @@ from unittest.mock import patch
 
 from airflow import DAG
 from airflow.models import Connection
-from airflow.providers.apache.livy.hooks.livy_hook import BatchState, LivyHook
-from airflow.providers.apache.livy.sensors.livy_sensor import LivySensor
+from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
+from airflow.providers.apache.livy.sensors.livy import LivySensor
 from airflow.utils import db, timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -41,7 +41,7 @@ class TestLivySensor(unittest.TestCase):
             host='http://localhost:8998'
         ))
 
-    @patch('airflow.providers.apache.livy.hooks.livy_hook.LivyHook.get_batch_state')
+    @patch('airflow.providers.apache.livy.hooks.livy.LivyHook.get_batch_state')
     def test_poke(self, mock_state):
         sensor = LivySensor(
             livy_conn_id='livyunittest',

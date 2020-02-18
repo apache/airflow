@@ -24,7 +24,7 @@ from requests.exceptions import RequestException
 
 from airflow import AirflowException
 from airflow.models import Connection
-from airflow.providers.apache.livy.hooks.livy_hook import BatchState, LivyHook
+from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.utils import db
 
 BATCH_ID = 100
@@ -109,7 +109,7 @@ class TestLivyHook(unittest.TestCase):
 
     def test_parameters_validation(self):
         with self.subTest('not a size'):
-            with self.assertRaises(AirflowException):
+            with self.assertRaises(ValueError):
                 LivyHook.build_post_batch_body(file='appname', executor_memory='xxx')
 
         with self.subTest('list of stringables'):
@@ -135,60 +135,64 @@ class TestLivyHook(unittest.TestCase):
             self.assertTrue(LivyHook._validate_size_format('1Gb'))
 
         with self.subTest('fullmatch'):
-            with self.assertRaises(AirflowException):
+            with self.assertRaises(ValueError):
                 self.assertTrue(LivyHook._validate_size_format('1Gb foo'))
 
         with self.subTest('missing size'):
-            with self.assertRaises(AirflowException):
+            with self.assertRaises(ValueError):
                 self.assertTrue(LivyHook._validate_size_format('10'))
 
         with self.subTest('numeric'):
-            with self.assertRaises(AirflowException):
+            with self.assertRaises(ValueError):
                 LivyHook._validate_size_format(1)
 
         with self.subTest('None'):
+            # noinspection PyTypeChecker
             self.assertTrue(LivyHook._validate_size_format(None))
 
     def test_validate_extra_conf(self):
         with self.subTest('valid'):
             try:
                 LivyHook._validate_extra_conf({'k1': 'v1', 'k2': 0})
-            except AirflowException:
+            except ValueError:
                 self.fail("Exception raised")
 
         with self.subTest('empty dict'):
             try:
                 LivyHook._validate_extra_conf({})
-            except AirflowException:
+            except ValueError:
                 self.fail("Exception raised")
 
         with self.subTest('none'):
             try:
+                # noinspection PyTypeChecker
                 LivyHook._validate_extra_conf(None)
-            except AirflowException:
+            except ValueError:
                 self.fail("Exception raised")
 
         with self.subTest('not a dict 1'):
-            with self.assertRaises(AirflowException):
+            with self.assertRaises(ValueError):
+                # noinspection PyTypeChecker
                 LivyHook._validate_extra_conf('k1=v1')
 
         with self.subTest('not a dict 2'):
-            with self.assertRaises(AirflowException):
+            with self.assertRaises(ValueError):
+                # noinspection PyTypeChecker
                 LivyHook._validate_extra_conf([('k1', 'v1'), ('k2', 0)])
 
         with self.subTest('nested dict'):
-            with self.assertRaises(AirflowException):
+            with self.assertRaises(ValueError):
                 LivyHook._validate_extra_conf({'outer': {'inner': 'val'}})
 
         with self.subTest('empty items'):
-            with self.assertRaises(AirflowException):
+            with self.assertRaises(ValueError):
                 LivyHook._validate_extra_conf({'has_val': 'val', 'no_val': None})
 
         with self.subTest('empty string'):
-            with self.assertRaises(AirflowException):
+            with self.assertRaises(ValueError):
                 LivyHook._validate_extra_conf({'has_val': 'val', 'no_val': ''})
 
-    @patch('airflow.providers.apache.livy.hooks.livy_hook.LivyHook.run_method')
+    @patch('airflow.providers.apache.livy.hooks.livy.LivyHook.run_method')
     def test_post_batch_arguments(self, mock_request):
 
         mock_request.return_value.status_code = 201
@@ -370,7 +374,7 @@ class TestLivyHook(unittest.TestCase):
         # make sure blocked by validation
         for val in [None, 'one', {'a': 'b'}]:
             with self.subTest('get_batch {}'.format(val)):
-                with self.assertRaises(AirflowException):
+                with self.assertRaises(TypeError):
                     # noinspection PyTypeChecker
                     hook.get_batch(val)
 
@@ -388,7 +392,7 @@ class TestLivyHook(unittest.TestCase):
 
         for val in [None, 'one', {'a': 'b'}]:
             with self.subTest('get_batch {}'.format(val)):
-                with self.assertRaises(AirflowException):
+                with self.assertRaises(TypeError):
                     # noinspection PyTypeChecker
                     hook.get_batch_state(val)
 
@@ -406,7 +410,7 @@ class TestLivyHook(unittest.TestCase):
 
         for val in [None, 'one', {'a': 'b'}]:
             with self.subTest('get_batch {}'.format(val)):
-                with self.assertRaises(AirflowException):
+                with self.assertRaises(TypeError):
                     # noinspection PyTypeChecker
                     hook.delete_batch(val)
 
@@ -414,21 +418,21 @@ class TestLivyHook(unittest.TestCase):
         with self.subTest('valid 00'):
             try:
                 LivyHook._validate_session_id(100)
-            except AirflowException:
+            except TypeError:
                 self.fail("")
 
         with self.subTest('valid 01'):
             try:
                 LivyHook._validate_session_id(0)
-            except AirflowException:
+            except TypeError:
                 self.fail("")
 
         with self.subTest('None'):
-            with self.assertRaises(AirflowException):
+            with self.assertRaises(TypeError):
                 LivyHook._validate_session_id(None)
 
         with self.subTest('random string'):
-            with self.assertRaises(AirflowException):
+            with self.assertRaises(TypeError):
                 LivyHook._validate_session_id('asd')
 
 

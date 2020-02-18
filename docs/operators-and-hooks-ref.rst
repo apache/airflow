@@ -98,11 +98,11 @@ Foundation.
        :mod:`airflow.providers.apache.hive.sensors.hive_partition`,
        :mod:`airflow.providers.apache.hive.sensors.metastore_partition`
 
-   * - `Apache Livy <https://livy.apache.org//>`__
+   * - `Apache Livy <https://livy.apache.org/>`__
      -
-     - :mod:`airflow.providers.apache.hooks.livy_hook`
-     - :mod:`airflow.providers.apache.operators.livy_operator`
-     - :mod:`airflow.providers.apache.sensors.livy_sensor`
+     - :mod:`airflow.providers.apache.livy.hooks.livy`
+     - :mod:`airflow.providers.apache.livy.operators.livy`
+     - :mod:`airflow.providers.apache.livy.sensors.livy`
 
    * - `Apache Pig <https://pig.apache.org/>`__
      -

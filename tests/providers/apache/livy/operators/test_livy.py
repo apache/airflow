@@ -21,8 +21,8 @@ from unittest.mock import MagicMock, patch
 
 from airflow import DAG, AirflowException
 from airflow.models import Connection
-from airflow.providers.apache.livy.hooks.livy_hook import BatchState, LivyHook
-from airflow.providers.apache.livy.operators.livy_operator import LivyOperator
+from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
+from airflow.providers.apache.livy.operators.livy import LivyOperator
 from airflow.utils import db, timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -43,7 +43,7 @@ class TestLivyOperator(unittest.TestCase):
             host='localhost:8998', port='8998', schema='http'
         ))
 
-    @patch('airflow.contrib.operators.livy_operator.LivyHook.get_batch_state')
+    @patch('airflow.providers.apache.livy.operators.livy.LivyHook.get_batch_state')
     def test_poll_for_termination(self, mock_livy):
 
         state_list = 2 * [BatchState.RUNNING] + [BatchState.SUCCESS]
@@ -68,7 +68,7 @@ class TestLivyOperator(unittest.TestCase):
         mock_livy.assert_called_with(BATCH_ID)
         self.assertEqual(mock_livy.call_count, 3)
 
-    @patch('airflow.contrib.operators.livy_operator.LivyHook.get_batch_state')
+    @patch('airflow.providers.apache.livy.operators.livy.LivyHook.get_batch_state')
     def test_poll_for_termination_fail(self, mock_livy):
 
         state_list = 2 * [BatchState.RUNNING] + [BatchState.ERROR]
@@ -95,9 +95,9 @@ class TestLivyOperator(unittest.TestCase):
         mock_livy.assert_called_with(BATCH_ID)
         self.assertEqual(mock_livy.call_count, 3)
 
-    @patch('airflow.contrib.operators.livy_operator.LivyHook.get_batch_state',
+    @patch('airflow.providers.apache.livy.operators.livy.LivyHook.get_batch_state',
            return_value=BatchState.SUCCESS)
-    @patch('airflow.contrib.operators.livy_operator.LivyHook.post_batch', return_value=BATCH_ID)
+    @patch('airflow.providers.apache.livy.operators.livy.LivyHook.post_batch', return_value=BATCH_ID)
     def test_execution(self, mock_post, mock_get):
         task = LivyOperator(
             livy_conn_id='livyunittest',
@@ -112,8 +112,8 @@ class TestLivyOperator(unittest.TestCase):
         self.assertEqual(call_args, {'file': 'sparkapp'})
         mock_get.assert_called_once_with(BATCH_ID)
 
-    @patch('airflow.contrib.operators.livy_operator.LivyHook.delete_batch')
-    @patch('airflow.contrib.operators.livy_operator.LivyHook.post_batch', return_value=BATCH_ID)
+    @patch('airflow.providers.apache.livy.operators.livy.LivyHook.delete_batch')
+    @patch('airflow.providers.apache.livy.operators.livy.LivyHook.post_batch', return_value=BATCH_ID)
     def test_deletion(self, mock_post, mock_delete):
         task = LivyOperator(
             livy_conn_id='livyunittest',

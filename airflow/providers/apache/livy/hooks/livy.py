@@ -23,6 +23,8 @@ import json
 import re
 from enum import Enum
 
+import requests
+
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -103,7 +105,7 @@ class LivyHook(HttpHook, LoggingMixin):
         :rtype: requests.Response
         """
         if method not in ('GET', 'POST', 'PUT', 'DELETE', 'HEAD'):
-            raise AirflowException("Invalid http method '{}'".format(method))
+            raise ValueError("Invalid http method '{}'".format(method))
 
         back_method = self.method
         self.method = method
@@ -134,12 +136,17 @@ class LivyHook(HttpHook, LoggingMixin):
         )
         self.log.debug("Got response: %s", response.text)
 
-        if response.status_code != 201:
-            raise AirflowException("Could not submit batch. Status code: {}".format(response.status_code))
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            raise AirflowException("Could not submit batch. Status code: {}. Message: '{}'".format(
+                err.response.status_code,
+                err.response.text
+            ))
 
         batch_id = self._parse_post_response(response.json())
         if batch_id is None:
-            raise AirflowException("Unable to parse a batch session id")
+            raise AirflowException("Unable to parse the batch session id")
         self.log.info("Batch submitted with session id: %d", batch_id)
 
         return batch_id
@@ -158,9 +165,14 @@ class LivyHook(HttpHook, LoggingMixin):
         self.log.debug("Fetching info for batch session %d", session_id)
         response = self.run_method(endpoint='/batches/{}'.format(session_id))
 
-        if response.status_code != 200:
-            self.log.warning("Got status code {} for session {}".format(response.status_code, session_id))
-            raise AirflowException("Unable to fetch batch with id: %d", session_id)
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
+            raise AirflowException("Unable to fetch batch with id: {}. Message: {}".format(
+                session_id,
+                err.response.text
+            ))
 
         return response.json()
 
@@ -178,9 +190,14 @@ class LivyHook(HttpHook, LoggingMixin):
         self.log.debug("Fetching info for batch session %d", session_id)
         response = self.run_method(endpoint='/batches/{}/state'.format(session_id))
 
-        if response.status_code != 200:
-            self.log.warning("Got status code {} for session {}".format(response.status_code, session_id))
-            raise AirflowException("Unable to fetch state for batch id: %d", session_id)
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
+            raise AirflowException("Unable to fetch batch with id: {}. Message: {}".format(
+                session_id,
+                err.response.text
+            ))
 
         jresp = response.json()
         if 'state' not in jresp:
@@ -204,9 +221,14 @@ class LivyHook(HttpHook, LoggingMixin):
             endpoint='/batches/{}'.format(session_id)
         )
 
-        if response.status_code != 200:
-            self.log.warning("Got status code {} for session {}".format(response.status_code, session_id))
-            raise AirflowException("Could not kill the batch with session id: %d", session_id)
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
+            raise AirflowException("Could not kill the batch with session id: {}. Message: {}".format(
+                session_id,
+                err.response.text
+            ))
 
         return response.json()
 
@@ -356,7 +378,7 @@ class LivyHook(HttpHook, LoggingMixin):
         :rtype: bool
         """
         if vals and any(1 for val in vals if not isinstance(val, (str, int, float))):
-            raise AirflowException("List of strings expected")
+            raise ValueError("List of strings expected")
         return True
 
     @staticmethod
@@ -371,7 +393,7 @@ class LivyHook(HttpHook, LoggingMixin):
         """
         if conf:
             if not isinstance(conf, dict):
-                raise AirflowException("'conf' argument must be a dict")
+                raise ValueError("'conf' argument must be a dict")
             if any(True for k, v in conf.items() if not (v and isinstance(v, str) or isinstance(v, int))):
-                raise AirflowException("'conf' values must be either strings or ints")
+                raise ValueError("'conf' values must be either strings or ints")
         return True

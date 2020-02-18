@@ -19,7 +19,7 @@
 This module contains the Apache Livy sensor.
 """
 
-from airflow.providers.apache.livy.hooks.livy_hook import LivyHook
+from airflow.providers.apache.livy.hooks.livy import LivyHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 

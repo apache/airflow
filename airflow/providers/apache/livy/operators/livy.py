@@ -23,7 +23,7 @@ from time import sleep
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.apache.livy.hooks.livy_hook import BatchState, LivyHook
+from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.utils.decorators import apply_defaults
 
 
@@ -158,7 +158,7 @@ class LivyOperator(BaseOperator):
             state = hook.get_batch_state(batch_id)
         self.log.info("Batch with id %s terminated with state: %s", batch_id, state.value)
         if state != BatchState.SUCCESS:
-            raise AirflowException("Batch %s did not succeed", batch_id)
+            raise AirflowException("Batch {} did not succeed".format(batch_id))
 
     def on_kill(self):
         self.kill()
