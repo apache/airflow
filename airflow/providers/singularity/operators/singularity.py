@@ -76,7 +76,7 @@ class SingularityOperator(BaseOperator):
             options: Optional[List[str]] = None,
             auto_remove: Optional[bool] = False,
             *args,
-            **kwargs) -> None:
+            **kwargs) -> None:  # pylint: disable=too-many-arguments
 
         super(SingularityOperator, self).__init__(*args, **kwargs)
         self.auto_remove = auto_remove
