@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 import unittest
 from unittest import mock
 
@@ -24,14 +25,16 @@ from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.sensors.sql_sensor import SqlSensor
 from airflow.utils.timezone import datetime
+from tests.providers.apache.hive import TestHiveEnvironment
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_sql_dag'
 
 
-class TestSqlSensor(unittest.TestCase):
+class TestSqlSensor(TestHiveEnvironment):
 
     def setUp(self):
+        super().setUp()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
@@ -243,3 +246,15 @@ class TestSqlSensor(unittest.TestCase):
 
         mock_get_records.return_value = [[1]]
         self.assertRaises(AirflowException, op.poke, None)
+
+    @unittest.skipIf(
+        'AIRFLOW_RUNALL_TESTS' not in os.environ,
+        "Skipped because AIRFLOW_RUNALL_TESTS is not set")
+    def test_sql_sensor_presto(self):
+        op = SqlSensor(
+            task_id='hdfs_sensor_check',
+            conn_id='presto_default',
+            sql="SELECT 'x' FROM airflow.static_babynames LIMIT 1;",
+            dag=self.dag)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+               ignore_ti_state=True)
