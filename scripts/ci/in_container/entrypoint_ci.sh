@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-if [[ ${AIRFLOW_CI_VERBOSE:="false"} == "true" ]]; then
+if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
     set -x
 fi
 
@@ -30,7 +30,6 @@ PYTHON_VERSION=${PYTHON_VERSION:=3.6}
 BACKEND=${BACKEND:=sqlite}
 KUBERNETES_MODE=${KUBERNETES_MODE:=""}
 KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
-RECREATE_KIND_CLUSTER=${RECREATE_KIND_CLUSTER:="true"}
 ENABLE_KIND_CLUSTER=${ENABLE_KIND_CLUSTER:="false"}
 RUNTIME=${RUNTIME:=""}
 

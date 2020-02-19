@@ -70,16 +70,10 @@ function check_integration {
     echo "-----------------------------------------------------------------------------------------------"
 }
 
-echo
-echo "Check CI environment sanity!"
-echo
-
 export EXIT_CODE=0
 
 if [[ -n ${BACKEND:=} ]]; then
-    echo "==============================================================================================="
-    echo "             Checking backend: ${BACKEND}"
-    echo "==============================================================================================="
+    echo "Checking backend: ${BACKEND}"
 
     set +e
     if [[ ${BACKEND} == "mysql" ]]; then
@@ -92,9 +86,7 @@ if [[ -n ${BACKEND:=} ]]; then
             exit 1
         fi
         MAX_CHECK=60
-        echo
         echo "Checking if MySQL is ready for connections (double restarts in the logs)"
-        echo
         while true
         do
             CONNECTION_READY_MESSAGES=$(docker logs "${MYSQL_CONTAINER}" 2>&1 | \
@@ -155,12 +147,6 @@ if [[ -n ${BACKEND:=} ]]; then
         fi
     done
     set -e
-    if [[ ${RES} == 0 ]]; then
-        echo "==============================================================================================="
-        echo "             Backend database is sane"
-        echo "==============================================================================================="
-        echo
-    fi
     export EXIT_CODE=${RES}
 else
     echo "==============================================================================================="
@@ -169,11 +155,6 @@ else
     echo
 fi
 
-echo "==============================================================================================="
-echo "             Checking integrations"
-echo "==============================================================================================="
-
-
 check_integration kerberos "nc -zvv kerberos 88" 30
 check_integration mongo "nc -zvv mongo 27017" 20
 check_integration redis "nc -zvv redis 6379" 20
@@ -181,13 +162,9 @@ check_integration rabbitmq "nc -zvv rabbitmq 5672" 20
 check_integration cassandra "nc -zvv cassandra 9042" 20
 check_integration openldap "nc -zvv openldap 389" 20
 
-echo "==============================================================================================="
-echo "             Finished checking integrations"
-echo "==============================================================================================="
-
 if [[ ${EXIT_CODE} != 0 ]]; then
     echo
-    echo "CI environment is not sane!"
+    echo "Error: some of the CI environment failed to initialize!"
     echo
     exit ${EXIT_CODE}
 fi
@@ -196,11 +173,6 @@ if [[ ${DISABLED_INTEGRATIONS} != "" ]]; then
     echo
     echo "Disabled integrations:${DISABLED_INTEGRATIONS}"
     echo
-    echo "You can enable an integration by adding --integration <INTEGRATION_NAME>"
-    echo "You can enable all integrations by adding --integration all"
+    echo "Enable them via --integration <INTEGRATION_NAME> flags (you can use 'all' for all)"
     echo
 fi
-
-echo
-echo "CI environment is sane!"
-echo
