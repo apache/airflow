@@ -89,7 +89,8 @@ class DAG(BaseDag, LoggingMixin):
     DAGs essentially act as namespaces for tasks. A task_id can only be
     added once to a DAG.
 
-    :param dag_id: The id of the DAG
+    :param dag_id: The id of the DAG; must consist exclusively of alphanumeric
+        characters, dashes, dots and underscores (all ASCII) exclusively
     :type dag_id: str
     :param description: The description for the DAG to e.g. be shown on the webserver
     :type description: str
