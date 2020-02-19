@@ -138,19 +138,19 @@ If you wish to only run tests and not to drop into shell, you can do this by pro
 
 .. code-block:: bash
 
-     ./breeze --test-target tests/hooks/test_druid_hook.py -- --logging-level=DEBUG
+     ./breeze test-target tests/hooks/test_druid_hook.py -- --logging-level=DEBUG
 
 You can run the whole test suite with a special '.' test target:
 
 .. code-block:: bash
 
-    ./breeze --test-target .
+    ./breeze test-target .
 
 You can also specify individual tests or a group of tests:
 
 .. code-block:: bash
 
-    ./breeze --test-target tests/test_core.py::TestCore
+    ./breeze test-target tests/test_core.py::TestCore
 
 
 Airflow Integration Tests

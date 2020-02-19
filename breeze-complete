@@ -27,25 +27,44 @@ _BREEZE_DEFAULT_DOCKERHUB_USER="apache"
 _BREEZE_DEFAULT_DOCKERHUB_REPO="airflow"
 
 _BREEZE_SHORT_OPTIONS="
-h P: B: I: K Z X
+h P: B: I:
 M: V:
-s b O N
-v y n q C A
+s N
+v y n
 r p R L u
-c D: H: e a
-t: d: k x: S: F:
+c D: H:
 "
 
 _BREEZE_LONG_OPTIONS="
-help python: backend: integration: start-kind-cluster recreate-kind-cluster stop-kind-cluster
+help python: backend: integration:
 kubernetes-mode: kubernetes-version:
-skip-mounting-local-sources build-only build-docs
-verbose assume-yes assume-no assume-quit toggle-suppress-cheatsheet toggle-suppress-asciiart
+skip-mounting-local-sources
+verbose assume-yes assume-no
 force-build-images force-pull-images force-clean-images use-local-cache push-images
-cleanup-image dockerhub-user: dockerhub-repo: initialize-local-virtualenv setup-autocomplete
-test-target: docker-compose: stop-environment execute-command: static-check: static-check-all-files:
+cleanup-images dockerhub-user: dockerhub-repo:
 "
 
+_BREEZE_COMMANDS="
+O build-docs
+b build-only
+e initialize-local-virtualenv
+a setup-autocomplete
+k stop-environment
+h help
+K start-kind-cluster
+Z recreate-kind-cluster
+X stop-kind-cluster
+toggle-suppress-cheatsheet
+toggle-suppress-asciiart
+"
+
+_BREEZE_EXTRA_ARG_COMMANDS="
+S static-check
+F static-check-all-files
+t test-target
+d docker-compose
+x execute-command
+"
 # Note on OSX bash has no associative arrays (Bash 3.2) so we have to fake it
 
 _BREEZE_KNOWN_VALUES=""
@@ -62,11 +81,11 @@ function _get_known_values_breeze {
             _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_KUBERNETES_MODES} ;;
         -V | --kubernetes-version )
             _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_KUBERNETES_VERSIONS} ;;
-        -S | --static-check )
+        S | static-check )
             _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_STATIC_CHECKS} ;;
-        -F | --static-check-all-files )
+        F | static-check-all-files )
             _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_STATIC_CHECKS} ;;
-        -d | --docker-compose )
+        d | docker-compose )
             # shellcheck disable=SC2034
             if typeset -f "_docker_compose" > /dev/null; then
               _docker_compose
@@ -137,6 +156,9 @@ function _comp_breeze {
             EXTRA_ARG_OPTIONS="${EXTRA_ARG_OPTIONS} ${GETOPT_OPTION}"
         fi
     done
+
+    ALL_OPTIONS="${ALL_OPTIONS} ${_BREEZE_COMMANDS} ${_BREEZE_EXTRA_ARG_COMMANDS}"
+    EXTRA_ARG_OPTIONS="${EXTRA_ARG_OPTIONS} ${_BREEZE_EXTRA_ARG_COMMANDS}"
 
     LAST_COMMAND_PREFIX="${COMP_WORDS[${#COMP_WORDS[@]}-1]}"
     if [[ ${#COMP_WORDS[@]} -gt 1 ]]; then

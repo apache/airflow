@@ -474,27 +474,6 @@ function parse_arguments() {
           fi
           echo
           shift 2 ;;
-        -K|--start-kind-cluster)
-          export RUNTIME=kubernetes
-          export ENABLE_KIND_CLUSTER="true"
-          export KIND_CLUSTER_OPERATION="start"
-          echo "Starting kubernetes cluster"
-          echo
-          shift ;;
-        -z|--recreate-kind-cluster)
-          export RUNTIME=kubernetes
-          export ENABLE_KIND_CLUSTER="true"
-          export KIND_CLUSTER_OPERATION="recreate"
-          echo "Recreating kind cluster"
-          echo
-          shift ;;
-        -X|--stop-kind-cluster)
-          export RUNTIME=kubernetes
-          export ENABLE_KIND_CLUSTER="true"
-          export KIND_CLUSTER_OPERATION="stop"
-          echo "Stop kind cluster"
-          echo
-          shift ;;
         -M|--kubernetes-mode)
           export KUBERNETES_MODE="${2}";
           echo "Kubernetes mode: ${KUBERNETES_MODE}"
@@ -508,15 +487,6 @@ function parse_arguments() {
         -s|--skip-mounting-local-sources)
           SKIP_MOUNTING_LOCAL_SOURCES="true"
           echo "Skip mounting local sources: ${SKIP_MOUNTING_LOCAL_SOURCES}"
-          echo
-          shift ;;
-        -b|--build-only)
-          COMMAND_TO_RUN="build_ci_images_only"
-          # if you want to build an image - assume you want to build it :)
-          export FORCE_ANSWER_TO_QUESTIONS="yes"
-          # and assume you want to build it no matter if it is needed
-          export FORCE_BUILD_IMAGES="true"
-          echo "Only build. Do not enter airflow-testing container"
           echo
           shift ;;
         -v|--verbose)
@@ -537,24 +507,6 @@ function parse_arguments() {
         -q|--assume-quit)
           export FORCE_ANSWER_TO_QUESTIONS="quit"
           echo "Assuming 'quit' answer to all questions."
-          echo
-          shift ;;
-        -C|--toggle-suppress-cheatsheet)
-          if [[ -f "${SUPPRESS_CHEATSHEET_FILE}" ]]; then
-            rm -f "${SUPPRESS_CHEATSHEET_FILE}"
-          else
-            touch "${SUPPRESS_CHEATSHEET_FILE}"
-          fi
-          echo "Toggle suppress cheatsheet"
-          echo
-          shift ;;
-        -A|--toggle-suppress-asciiart)
-          if [[ -f "${SUPPRESS_ASCIIART_FILE}" ]]; then
-            rm -f "${SUPPRESS_ASCIIART_FILE}"
-          else
-            touch "${SUPPRESS_ASCIIART_FILE}"
-          fi
-          echo "Toggle suppress asciiart"
           echo
           shift ;;
         -r|--force-build-images)
@@ -601,56 +553,6 @@ function parse_arguments() {
           export PUSH_IMAGES="true"
           export FORCE_BUILD_IMAGES="true"
           shift ;;
-        -c|--cleanup-image)
-          echo "Cleanup the image"
-          echo
-          COMMAND_TO_RUN="cleanup_image"
-          shift ;;
-        -e|--initialize-local-virtualenv)
-          echo "Initializing local virtualenv"
-          echo
-          COMMAND_TO_RUN="perform_initialize_local_virtualenv"
-          shift ;;
-        -a|--setup-autocomplete)
-          echo "Setting up autocomplete"
-          echo
-          COMMAND_TO_RUN="perform_setup_autocomplete"
-          shift ;;
-        -t|--test-target)
-          if [[ "${TEST_TARGET}" == "." ]]; then
-              export TEST_TARGET=""
-          fi
-          COMMAND_TO_RUN="run_tests"
-          shift 2 ;;
-        -d|--docker-compose)
-          DOCKER_COMPOSE_COMMAND="${2}"
-          COMMAND_TO_RUN="run_docker_compose"
-          shift 2 ;;
-        -k|--stop-environment)
-          COMMAND_TO_RUN="run_docker_compose"
-          DOCKER_COMPOSE_COMMAND="down"
-          export EXTRA_DC_OPTIONS+=("--remove-orphans")
-          shift ;;
-        -x|--execute-command)
-          COMMAND_TO_RUN="run_in_bash"
-          shift 2 ;;
-        -S|--static-check )
-          COMMAND_TO_RUN="perform_static_checks"
-          export PYTHON_VERSION=${STATIC_CHECK_PYTHON_VERSION}
-          export STATIC_CHECK="${2}"
-          export STATIC_CHECK_ALL_FILES="false"
-          export EXTRA_STATIC_CHECK_OPTIONS=("--show-diff-on-failure")
-          shift 2 ;;
-        -F|--static-check-all-files)
-          COMMAND_TO_RUN="perform_static_checks"
-          export PYTHON_VERSION=${STATIC_CHECK_PYTHON_VERSION}
-          export STATIC_CHECK="${2}"
-          export STATIC_CHECK_ALL_FILES="true"
-          export EXTRA_STATIC_CHECK_OPTIONS=("--all-files" "--show-diff-on-failure")
-          shift 2 ;;
-        -O|--build-docs)
-          COMMAND_TO_RUN="build_docs"
-          shift 1 ;;
         --)
           shift ;
           break ;;
@@ -663,6 +565,131 @@ function parse_arguments() {
           ;;
       esac
     done
+    # Parse commaands
+    if [[ "$#" -ne 0 ]]; then
+      case "${1}" in
+        help)
+          usage;
+          exit 0 ;;
+        start-kind-cluster)
+          export RUNTIME=kubernetes
+          export ENABLE_KIND_CLUSTER="true"
+          export KIND_CLUSTER_OPERATION="start"
+          echo "Starting kubernetes cluster"
+          echo
+          shift ;;
+        recreate-kind-cluster)
+          export RUNTIME=kubernetes
+          export ENABLE_KIND_CLUSTER="true"
+          export KIND_CLUSTER_OPERATION="recreate"
+          echo "Recreating kind cluster"
+          echo
+          shift ;;
+        stop-kind-cluster)
+          export RUNTIME=kubernetes
+          export ENABLE_KIND_CLUSTER="true"
+          export KIND_CLUSTER_OPERATION="stop"
+          echo "Stop kind cluster"
+          echo
+          shift ;;
+        build-only)
+          COMMAND_TO_RUN="build_ci_images_only"
+          # if you want to build an image - assume you want to build it :)
+          export FORCE_ANSWER_TO_QUESTIONS="yes"
+          # and assume you want to build it no matter if it is needed
+          export FORCE_BUILD_IMAGES="true"
+          echo "Only build. Do not enter airflow-testing container"
+          echo
+          shift ;;
+        toggle-suppress-cheatsheet)
+          if [[ -f "${SUPPRESS_CHEATSHEET_FILE}" ]]; then
+            rm -f "${SUPPRESS_CHEATSHEET_FILE}"
+          else
+            touch "${SUPPRESS_CHEATSHEET_FILE}"
+          fi
+          echo "Toggle suppress cheatsheet"
+          echo
+          shift ;;
+        toggle-suppress-asciiart)
+          if [[ -f "${SUPPRESS_ASCIIART_FILE}" ]]; then
+            rm -f "${SUPPRESS_ASCIIART_FILE}"
+          else
+            touch "${SUPPRESS_ASCIIART_FILE}"
+          fi
+          echo "Toggle suppress asciiart"
+          echo
+          shift ;;
+        cleanup-image)
+          echo "Cleanup the image"
+          echo
+          COMMAND_TO_RUN="cleanup_image"
+          shift ;;
+        initialize-local-virtualenv)
+          echo "Initializing local virtualenv"
+          echo
+          COMMAND_TO_RUN="perform_initialize_local_virtualenv"
+          shift ;;
+        setup-autocomplete)
+          echo "Setting up autocomplete"
+          echo
+          COMMAND_TO_RUN="perform_setup_autocomplete"
+          shift ;;
+        test-target)
+          if [[ "${TEST_TARGET}" == "." ]]; then
+              export TEST_TARGET=""
+          fi
+          COMMAND_TO_RUN="run_tests"
+          shift 2 ;;
+        docker-compose)
+          DOCKER_COMPOSE_COMMAND="${2}"
+          COMMAND_TO_RUN="run_docker_compose"
+          shift 2 ;;
+        stop-environment)
+          COMMAND_TO_RUN="run_docker_compose"
+          DOCKER_COMPOSE_COMMAND="down"
+          export EXTRA_DC_OPTIONS+=("--remove-orphans")
+          shift ;;
+        execute-command)
+          COMMAND_TO_RUN="run_in_bash"
+          shift ;;
+        static-check )
+          COMMAND_TO_RUN="perform_static_checks"
+          if [[ "$#" -lt 2 ]]; then
+            echo "You should specify static check that you would like to run or 'all' to run all checks."
+            echo "One of [${_BREEZE_ALLOWED_STATIC_CHECKS:=}]."
+            echo
+            echo "For example:"
+            echo "${CMDNAME} static-check mypy"
+            exit 1
+          fi
+          export PYTHON_VERSION=${STATIC_CHECK_PYTHON_VERSION}
+          export STATIC_CHECK="${2}"
+          export STATIC_CHECK_ALL_FILES="false"
+          export EXTRA_STATIC_CHECK_OPTIONS=("--show-diff-on-failure")
+          shift 2 ;;
+        static-check-all-files)
+          if [[ "$#" -lt 2 ]]; then
+            echo "You should specify static check that you would like to run or 'all' to run all checks."
+            echo "One of [${_BREEZE_ALLOWED_STATIC_CHECKS:=}]."
+            echo
+            echo "For example:"
+            echo "${CMDNAME} static-check-all-files mypy"
+            exit 1
+          fi
+          COMMAND_TO_RUN="perform_static_checks"
+          export PYTHON_VERSION=${STATIC_CHECK_PYTHON_VERSION}
+          export STATIC_CHECK="${2}"
+          export STATIC_CHECK_ALL_FILES="true"
+          export EXTRA_STATIC_CHECK_OPTIONS=("--all-files" "--show-diff-on-failure")
+          shift 2 ;;
+        build-docs)
+          COMMAND_TO_RUN="build_docs"
+          shift 1 ;;
+      esac
+    else
+      :
+      # By default, start interactive terminal
+    fi
     REMAINING_ARGS+=("$@")
 }
 
@@ -671,96 +698,90 @@ usage() {
 
 *********************************************************************************************************
 
-Usage: ${CMDNAME} [FLAGS] -- <EXTRA_ARGS>
+Usage: ${CMDNAME} [COMMAND] [FLAGS] -- <EXTRA_ARGS>
 
 The swiss-knife-army tool for Airflow testings. It allows to perform various test tasks:
 
-  * Enter interactive environment when no command flags are specified (default behaviour)
+  * Enter interactive environment when no command are specified (default behaviour)
   * Start integrations if specified as extra flags
   * Start Kind Kubernetes cluster for Kubernetes tests if specified
-  * Stop the interactive environment with -k, --stop-environment command
+  * Stop the interactive environment with \"${CMDNAME} stop-environment\" command
   * Run static checks - either for currently staged change or for all files with
-    -S, --static-check or -F, --static-check-all-files command
-  * Build documentation with -O, --build-docs command
-  * Setup local virtualenv with -e, --setup-virtualenv command
-  * Setup autocomplete for itself with -a, --setup-autocomplete command
-  * Build docker image with -b, --build-only command
-  * Run test target specified with -t, --test-target command
-  * Execute arbitrary command in the test environment with -x, --execute-command command
-  * Execute arbitrary docker-compose command with -d, --docker-compose command
+    \"${CMDNAME} static-check\" or \"${CMDNAME} static-check-all-files\" command
+  * Build documentation with \"${CMDNAME} build-docs\" command
+  * Setup local virtualenv with \"${CMDNAME} setup-virtualenv\" command
+  * Setup autocomplete for itself with \"${CMDNAME} setup-autocomplete\" command
+  * Build docker image with \"${CMDNAME} build-only\" command
+  * Run test target specified with \"${CMDNAME} test-target\" command
+  * Execute arbitrary command in the test environment with \"${CMDNAME} execute-command\" command
+  * Execute arbitrary docker-compose command with \"${CMDNAME} docker-compose\" command
 
 *********************************************************************************************************
 **
-** Command to run
+** Commands
 **
 *********************************************************************************************************
 
   By default the script enters IT environment and drops you to bash shell,
   but you can choose one of the commands to run specific actions instead:
 
--O, --build-docs
-       Build documentation.
+build-docs
+        Build documentation.
 
--b, --build-only
+build-only
         Only build docker images but do not enter the airflow-testing docker container.
 
--e, --initialize-local-virtualenv
+initialize-local-virtualenv
         Initializes locally created virtualenv installing all dependencies of Airflow.
         This local virtualenv can be used to aid autocompletion and IDE support as
         well as run unit tests directly from the IDE. You need to have virtualenv
         activated before running this command.
 
--a, --setup-autocomplete
+setup-autocomplete
         Sets up autocomplete for breeze commands. Once you do it you need to re-enter the bash
         shell and when typing breeze command <TAB> will provide autocomplete for parameters and values.
 
--k, --stop-environment
+stop-environment
         Bring down running docker compose environment. When you start the environment, the docker
         containers will continue running so that startup time is shorter. But they take quite a lot of
         memory and CPU. This command stops all running containers from the environment.
 
--S, --static-check <STATIC_CHECK>
+static-check <STATIC_CHECK>
         Run selected static checks for currently changed files. You should specify static check that
         you would like to run or 'all' to run all checks. One of
         [${_BREEZE_ALLOWED_STATIC_CHECKS:=}].
         You can pass extra arguments including options to to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
 
-        '${0}  --static-check mypy' or
-        '${0}  --static-check mypy -- --files tests/core.py'
+        '${CMDNAME} static-check mypy' or
+        '${CMDNAME} static-check mypy -- --files tests/core.py'
 
         You can see all the options by adding --help EXTRA_ARG:
 
-        '${0}  --static-check mypy -- --help'
+        '${CMDNAME} static-check mypy -- --help'
 
--F, --static-check-all-files <STATIC_CHECK>
+static-check-all-files <STATIC_CHECK>
         Run selected static checks for all applicable files. You should specify static check that
         you would like to run or 'all' to run all checks. One of
         [${_BREEZE_ALLOWED_STATIC_CHECKS:=}].
         You can pass extra arguments including options to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
 
-        '${0} --static-check-all-files mypy' or
-        '${0} --static-check-all-files mypy -- --verbose'
+        '${CMDNAME} static-check-all-files mypy' or
+        '${CMDNAME} static-check-all-files mypy -- --verbose'
 
         You can see all the options by adding --help EXTRA_ARG:
 
-        '${0} --static-check-all-files mypy -- --help'
+        '${CMDNAME} static-check-all-files mypy -- --help'
 
--t, --test-target <TARGET>
+test-target <TARGET>
         Run the specified unit test target. There might be multiple
         targets specified separated with comas. The <EXTRA_ARGS> passed after -- are treated
         as additional options passed to pytest. For example:
 
-        '${0} --test-target tests/test_core.py -- --logging-level=DEBUG'
+        '${CMDNAME} test-target tests/test_core.py -- --logging-level=DEBUG'
 
-*********************************************************************************************************
-**
-** Print help message
-**
-*********************************************************************************************************
-
--h, --help
+help
         Shows this help message.
 
 *********************************************************************************************************
@@ -789,22 +810,26 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
 **
 *********************************************************************************************************
 
--K, --start-kind-cluster
+Commands:
+
+start-kind-cluster
         Starts kind Kubernetes cluster after entering the environment. The cluster is started using
         Kubernetes Mode selected and Kubernetes version specifed via --kubernetes-mode and
         --kubernetes-version flags.
 
--Z, --recreate-kind-cluster
+recreate-kind-cluster
         Recreates kind Kubernetes cluster if one has already been created. By default, if you do not stop
         environment, the Kubernetes cluster created for testing is continuously running and when
         you start Kubernetes testing again it will be reused. You can force deletion and recreation
         of such cluster with this flag.
 
--X, --stop-kind-cluster
+stop-kind-cluster
         Stops kind Kubernetes cluster if one has already been created. By default, if you do not stop
         environment, the Kubernetes cluster created for testing is continuously running and when
         you start Kubernetes testing again it will be reused. You can force deletion and recreation
         of such cluster with this flag.
+
+Flags:
 
 -M, --kubernetes-mode <KUBERNETES_MODE>
         Kubernetes mode - only used in case --start-kind-cluster flag is specified.
@@ -851,10 +876,10 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
 **
 *********************************************************************************************************
 
--C, --toggle-suppress-cheatsheet
+toggle-suppress-cheatsheet
         Toggles on/off cheatsheet displayed before starting bash shell
 
--A, --toggle-suppress-asciiart
+toggle-suppress-asciiart
         Toggles on/off asciiart displayed before starting bash shell
 
 *********************************************************************************************************
@@ -914,21 +939,21 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
 **
 *********************************************************************************************************
 
--d, --docker-compose <COMMAND>
+d, docker-compose <COMMAND>
         Run docker-compose command instead of entering the environment. Use 'help' command
         to see available commands. The <EXTRA_ARGS> passed after -- are treated
         as additional options passed to docker-compose. For example
 
-        '${0} --docker-compose pull -- --ignore-pull-failures'
+        '${CMDNAME} docker-compose pull -- --ignore-pull-failures'
 
--x, --execute-command <COMMAND>
+x, execute-command <COMMAND>
         Run chosen command instead of entering the environment. The command is run using
         'bash -c \"<command with args>\" if you need to pass arguments to your command, you need
         to pass them together with command surrounded with \" or '. Alternatively you can pass arguments as
          <EXTRA_ARGS> passed after --. For example:
 
-        '${0} --execute-command \"ls -la\"' or
-        '${0} --execute-command ls -- --la'
+        '${CMDNAME} execute-command \"ls -la\"' or
+        '${CMDNAME} execute-command ls -- --la'
 
 *********************************************************************************************************
 
@@ -1061,15 +1086,15 @@ function print_setup_instructions {
     if ! typeset -f "_comp_breeze" > /dev/null; then
         print_line
         echo
-        echo "  You can setup autocomplete by running '$0 --setup-autocomplete'"
+        echo "  You can setup autocomplete by running '${CMDNAME} setup-autocomplete'"
         echo
         echo
     fi
     print_line
     echo
     echo "  You can toggle ascii/cheatsheet by adding this flag:"
-    echo "      * --toggle-suppress-cheatsheet"
-    echo "      * --toggle-suppress-asciiart"
+    echo "      * ${CMDNAME} toggle-suppress-cheatsheet"
+    echo "      * ${CMDNAME} toggle-suppress-asciiart"
     echo
     print_line
     echo

@@ -172,23 +172,25 @@ environment.
 
 Breeze script allows performing the following tasks:
 
-* Enter an interactive environment when no command flags are specified (default behaviour).
-* Stop the interactive environment with ``-k``, ``--stop-environment`` command.
-* Build a Docker image with ``-b``, ``--build-only`` command.
-* Set up autocomplete for itself with ``-a``, ``--setup-autocomplete`` command.
-* Build documentation with ``-O``, ``--build-docs`` command.
-* Run static checks either for currently staged change or for all files with ``-S``, ``--static-check``
-  or ``-F``, ``--static-check-all-files`` commands.
-* Set up local virtualenv with ``-e``, ``--setup-virtualenv`` command.
-* Run a test target specified with ``-t``, ``--test-target`` command.
-* Execute an arbitrary command in the test environment with ``-x``, ``--execute-command`` command.
-* Execute an arbitrary docker-compose command with ``-d``, ``--docker-compose`` command.
+    * Enter interactive environment when no command are specified (default behaviour)
+    * Start integrations if specified as extra flags
+    * Start Kind Kubernetes cluster for Kubernetes tests if specified
+    * Stop the interactive environment with "breeze stop-environment" command
+    * Run static checks - either for currently staged change or for all files with
+      "breeze static-check" or "breeze static-check-all-files" command
+    * Build documentation with "breeze build-docs" command
+    * Setup local virtualenv with "breeze setup-virtualenv" command
+    * Setup autocomplete for itself with "breeze setup-autocomplete" command
+    * Build docker image with "breeze build-only" command
+    * Run test target specified with "breeze test-target" command
+    * Execute arbitrary command in the test environment with "breeze execute-command" command
+    * Execute arbitrary docker-compose command with "breeze docker-compose" command
 
 Entering Breeze
 ---------------
 
 You enter the Breeze test environment by running the ``./breeze`` script. You can run it with
-the ``--help`` option to see the list of available flags. See `Airflow Breeze flags <#airflow-breeze-flags>`_
+the ``help`` command to see the list of available options. See `Breeze Command-Line Interface Reference`_
 for details.
 
 .. code-block:: bash
@@ -252,7 +254,7 @@ to start more than one integration at a time.
 Finally you can specify ``--integration all`` to start all integrations.
 
 Once integration is started, it will continue to run until the environment is stopped with
-``breeze --stop-environment`` flag.
+``breeze stop-environment`` command.
 
 Note that running integrations uses significant resources - CPU and memory - by your docker engine.
 
@@ -265,7 +267,7 @@ them, you may end up with some unused image data.
 
 To clean up the Docker environment:
 
-1. `Stop Breeze <#stopping-breeze>`_ with ``./breeze --stop-environment``.
+1. `Stop Breeze <#stopping-breeze>`_ with ``./breeze stop-environment``.
 
 2. Run the ``docker system prune`` command.
 
@@ -286,7 +288,7 @@ You can manually trigger building the local images using the script:
 
 .. code-block::
 
-  ./breeze --build-only
+  ./breeze build-only
 
 The scripts that build the images are optimized to minimize the time needed to rebuild the image when
 the source code of Airflow evolves. This means that if you already have the image locally downloaded and
@@ -308,7 +310,7 @@ To manually force pulling the images for static checks, use the script:
 
 .. code-block::
 
-  ./breeze --build-only --force-pull-images
+  ./breeze build-only --force-pull-images
 
 In the future Breeze will warn you when you are recommended to pull images.
 
@@ -316,28 +318,28 @@ Running Arbitrary Commands in the Breeze Environment
 -------------------------------------------------------
 
 To run other commands/executables inside the Breeze Docker-based environment, use the
-``-x``, ``--execute-command`` flag. To add arguments, specify them
+``./breeze execute-command`` command. To add arguments, specify them
 together with the command surrounded with either ``"`` or ``'``, or pass them after ``--`` as extra arguments.
 
 .. code-block:: bash
 
-     ./breeze --execute-command "ls -la"
+     ./breeze execute-command "ls -la"
 
 .. code-block:: bash
 
-     ./breeze --execute-command ls -- --la
+     ./breeze execute-command ls -- --la
 
 
 Running Docker Compose Commands
 -------------------------------
 
 To run Docker Compose commands (such as ``help``, ``pull``, etc), use the
-``-d``, ``--docker-compose`` flag. To add extra arguments, specify them
+``docker-compose`` command. To add extra arguments, specify them
 after ``--`` as extra arguments.
 
 .. code-block:: bash
 
-     ./breeze --docker-compose pull -- --ignore-pull-failures
+     ./breeze docker-compose pull -- --ignore-pull-failures
 
 
 Mounting Local Sources to Breeze
@@ -380,8 +382,8 @@ You can add dependencies to the ``Dockerfile``, ``setup.py`` or ``package.json``
 should happen automatically if you modify any of these files.
 After you exit the container and re-run ``breeze``, Breeze detects changes in dependencies,
 asks you to confirm rebuilding the image and proceeds with rebuilding if you confirm (or skip it
-if you do not confirm). After rebuilding is done, Breeze drops you to shell. You may also provide the
-``--build-only`` flag to only rebuild images and not to go into shell.
+if you do not confirm). After rebuilding is done, Breeze drops you to shell. You may also use the
+``build-only`` command to only rebuild images and not to go into shell.
 
 Changing apt Dependencies in the Dockerfile
 ............................................
@@ -436,7 +438,7 @@ If you set these variables, next time when you enter the environment the new por
 Setting Up Autocompletion
 -------------------------
 
-The ``breeze`` command comes with a built-in bash/zsh autocomplete option for its flags. When you start typing
+The ``breeze`` command comes with a built-in bash/zsh autocomplete option for its options. When you start typing
 the command, you can use <TAB> to show all the available switches and get autocompletion on typical
 values of parameters that you can use.
 
@@ -444,12 +446,12 @@ You can set up the autocomplete option automatically by running:
 
 .. code-block:: bash
 
-   ./breeze --setup-autocomplete
+   ./breeze setup-autocomplete
 
 You get the autocompletion working when you re-enter the shell.
 
-Zsh autocompletion is currently limited to only autocomplete flags. Bash autocompletion also completes
-flag values (for example, Python version or static check name).
+Zsh autocompletion is currently limited to only autocomplete options. Bash autocompletion also completes
+options values (for example, Python version or static check name).
 
 Setting Defaults for User Interaction
 --------------------------------------
@@ -485,11 +487,11 @@ If more than one variable is set, ``yes`` takes precedence over ``no``, which ta
 Building the Documentation
 --------------------------
 
-To build documentation in Breeze, use the ``-O``, ``--build-docs`` command:
+To build documentation in Breeze, use the ``build-docs`` command:
 
 .. code-block:: bash
 
-     ./breeze --build-docs
+     ./breeze build-docs
 
 Results of the build can be found in the ``docs/_build`` folder.
 
@@ -521,7 +523,7 @@ To use your host IDE with Breeze:
 
 3. Initialize the created local virtualenv:
 
-   ``./breeze --initialize-local-virtualenv``
+   ``./breeze initialize-local-virtualenv``
 
 4. Select the virtualenv you created as the project's default virtualenv in your IDE.
 
@@ -560,96 +562,90 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   *********************************************************************************************************
 
-  Usage: breeze [FLAGS] -- <EXTRA_ARGS>
+  Usage: breeze [COMMAND] [FLAGS] -- <EXTRA_ARGS>
 
   The swiss-knife-army tool for Airflow testings. It allows to perform various test tasks:
 
-    * Enter interactive environment when no command flags are specified (default behaviour)
+    * Enter interactive environment when no command are specified (default behaviour)
     * Start integrations if specified as extra flags
     * Start Kind Kubernetes cluster for Kubernetes tests if specified
-    * Stop the interactive environment with -k, --stop-environment command
+    * Stop the interactive environment with "breeze stop-environment" command
     * Run static checks - either for currently staged change or for all files with
-      -S, --static-check or -F, --static-check-all-files command
-    * Build documentation with -O, --build-docs command
-    * Setup local virtualenv with -e, --setup-virtualenv command
-    * Setup autocomplete for itself with -a, --setup-autocomplete command
-    * Build docker image with -b, --build-only command
-    * Run test target specified with -t, --test-target command
-    * Execute arbitrary command in the test environment with -x, --execute-command command
-    * Execute arbitrary docker-compose command with -d, --docker-compose command
+      "breeze static-check" or "breeze static-check-all-files" command
+    * Build documentation with "breeze build-docs" command
+    * Setup local virtualenv with "breeze setup-virtualenv" command
+    * Setup autocomplete for itself with "breeze setup-autocomplete" command
+    * Build docker image with "breeze build-only" command
+    * Run test target specified with "breeze test-target" command
+    * Execute arbitrary command in the test environment with "breeze execute-command" command
+    * Execute arbitrary docker-compose command with "breeze docker-compose" command
 
   *********************************************************************************************************
   **
-  ** Command to run
+  ** Commands
   **
   *********************************************************************************************************
 
     By default the script enters IT environment and drops you to bash shell,
     but you can choose one of the commands to run specific actions instead:
 
-  -O, --build-docs
-         Build documentation.
+  build-docs
+          Build documentation.
 
-  -b, --build-only
+  build-only
           Only build docker images but do not enter the airflow-testing docker container.
 
-  -e, --initialize-local-virtualenv
+  initialize-local-virtualenv
           Initializes locally created virtualenv installing all dependencies of Airflow.
           This local virtualenv can be used to aid autocompletion and IDE support as
           well as run unit tests directly from the IDE. You need to have virtualenv
           activated before running this command.
 
-  -a, --setup-autocomplete
+  setup-autocomplete
           Sets up autocomplete for breeze commands. Once you do it you need to re-enter the bash
           shell and when typing breeze command <TAB> will provide autocomplete for parameters and values.
 
-  -k, --stop-environment
+  stop-environment
           Bring down running docker compose environment. When you start the environment, the docker
           containers will continue running so that startup time is shorter. But they take quite a lot of
           memory and CPU. This command stops all running containers from the environment.
 
-  -S, --static-check <STATIC_CHECK>
+  static-check <STATIC_CHECK>
           Run selected static checks for currently changed files. You should specify static check that
           you would like to run or 'all' to run all checks. One of
           [ all all-but-pylint bat-tests check-apache-license check-executables-have-shebangs check-hooks-apply check-merge-conflict check-xml debug-statements doctoc detect-private-key end-of-file-fixer flake8 forbid-tabs insert-license lint-dockerfile mixed-line-ending mypy pylint pylint-test setup-order shellcheck].
           You can pass extra arguments including options to to the pre-commit framework as
           <EXTRA_ARGS> passed after --. For example:
 
-          './breeze  --static-check mypy' or
-          './breeze  --static-check mypy -- --files tests/core.py'
+          'breeze static-check mypy' or
+          'breeze static-check mypy -- --files tests/core.py'
 
           You can see all the options by adding --help EXTRA_ARG:
 
-          './breeze  --static-check mypy -- --help'
+          'breeze static-check mypy -- --help'
 
-  -F, --static-check-all-files <STATIC_CHECK>
+  static-check-all-files <STATIC_CHECK>
           Run selected static checks for all applicable files. You should specify static check that
           you would like to run or 'all' to run all checks. One of
           [ all all-but-pylint bat-tests check-apache-license check-executables-have-shebangs check-hooks-apply check-merge-conflict check-xml debug-statements doctoc detect-private-key end-of-file-fixer flake8 forbid-tabs insert-license lint-dockerfile mixed-line-ending mypy pylint pylint-test setup-order shellcheck].
           You can pass extra arguments including options to the pre-commit framework as
           <EXTRA_ARGS> passed after --. For example:
 
-          './breeze --static-check-all-files mypy' or
-          './breeze --static-check-all-files mypy -- --verbose'
+          'breeze static-check-all-files mypy' or
+          'breeze static-check-all-files mypy -- --verbose'
 
           You can see all the options by adding --help EXTRA_ARG:
 
-          './breeze --static-check-all-files mypy -- --help'
+          'breeze static-check-all-files mypy -- --help'
 
-  -t, --test-target <TARGET>
+  test-target <TARGET>
           Run the specified unit test target. There might be multiple
           targets specified separated with comas. The <EXTRA_ARGS> passed after -- are treated
           as additional options passed to pytest. For example:
 
-          './breeze --test-target tests/test_core.py -- --logging-level=DEBUG'
+          'breeze test-target tests/test_core.py -- --logging-level=DEBUG'
 
-  *********************************************************************************************************
-  **
-  ** Print help message
-  **
-  *********************************************************************************************************
-
-  -h, --help
+  help
           Shows this help message.
 
   *********************************************************************************************************
@@ -678,22 +674,26 @@ This is the current syntax for  `./breeze <./breeze>`_:
   **
   *********************************************************************************************************
 
-  -K, --start-kind-cluster
+  Commands:
+
+  start-kind-cluster
           Starts kind Kubernetes cluster after entering the environment. The cluster is started using
           Kubernetes Mode selected and Kubernetes version specifed via --kubernetes-mode and
           --kubernetes-version flags.
 
-  -Z, --recreate-kind-cluster
+  recreate-kind-cluster
           Recreates kind Kubernetes cluster if one has already been created. By default, if you do not stop
           environment, the Kubernetes cluster created for testing is continuously running and when
           you start Kubernetes testing again it will be reused. You can force deletion and recreation
           of such cluster with this flag.
 
-  -X, --stop-kind-cluster
+  stop-kind-cluster
           Stops kind Kubernetes cluster if one has already been created. By default, if you do not stop
           environment, the Kubernetes cluster created for testing is continuously running and when
           you start Kubernetes testing again it will be reused. You can force deletion and recreation
           of such cluster with this flag.
+
+  Flags:
 
   -M, --kubernetes-mode <KUBERNETES_MODE>
           Kubernetes mode - only used in case --start-kind-cluster flag is specified.
@@ -740,10 +740,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
   **
   *********************************************************************************************************
 
-  -C, --toggle-suppress-cheatsheet
+  toggle-suppress-cheatsheet
           Toggles on/off cheatsheet displayed before starting bash shell
 
-  -A, --toggle-suppress-asciiart
+  toggle-suppress-asciiart
           Toggles on/off asciiart displayed before starting bash shell
 
   *********************************************************************************************************
@@ -803,21 +803,21 @@ This is the current syntax for  `./breeze <./breeze>`_:
   **
   *********************************************************************************************************
 
-  -d, --docker-compose <COMMAND>
+  d, docker-compose <COMMAND>
           Run docker-compose command instead of entering the environment. Use 'help' command
           to see available commands. The <EXTRA_ARGS> passed after -- are treated
           as additional options passed to docker-compose. For example
 
-          './breeze --docker-compose pull -- --ignore-pull-failures'
+          'breeze docker-compose pull -- --ignore-pull-failures'
 
-  -x, --execute-command <COMMAND>
+  x, execute-command <COMMAND>
           Run chosen command instead of entering the environment. The command is run using
           'bash -c "<command with args>" if you need to pass arguments to your command, you need
           to pass them together with command surrounded with " or '. Alternatively you can pass arguments as
            <EXTRA_ARGS> passed after --. For example:
 
-          './breeze --execute-command "ls -la"' or
-          './breeze --execute-command ls -- --la'
+          'breeze execute-command "ls -la"' or
+          'breeze execute-command ls -- --la'
 
   *********************************************************************************************************
 
@@ -844,7 +844,7 @@ If you are having problems with the Breeze environment, try the steps below. Aft
 can check whether your problem is fixed.
 
 1. If you are on macOS, check if you have enough disk space for Docker.
-2. Stop Breeze with ``./breeze --stop-environment``.
+2. Stop Breeze with ``./breeze stop-environment``.
 3. Delete the ``.build`` directory and run ``./breeze --force-pull-images``.
 4. `Clean up Docker images <#cleaning-up-the-images>`_.
 5. Restart your Docker Engine and try again.
