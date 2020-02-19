@@ -32,34 +32,19 @@ class AwsDynamoDBHook(AwsBaseHook):
     :type table_keys: list
     :param table_name: target DynamoDB table
     :type table_name: str
-    :param region_name: aws region name (example: us-east-1)
-    :type region_name: str
     """
 
-    def __init__(self,
-                 table_keys=None,
-                 table_name=None,
-                 region_name=None,
-                 *args, **kwargs):
+    def __init__(self, *args, table_keys=None, table_name=None, **kwargs):
         self.table_keys = table_keys
         self.table_name = table_name
-        self.region_name = region_name
-        self.conn = None
-        super().__init__(*args, **kwargs)
-
-    def get_conn(self):
-        self.conn = self.get_resource_type('dynamodb', self.region_name)
-        return self.conn
+        super().__init__(resource_type='dynamodb', *args, **kwargs)
 
     def write_batch_data(self, items):
         """
         Write batch items to DynamoDB table with provisioned throughout capacity.
         """
-
-        dynamodb_conn = self.get_conn()
-
         try:
-            table = dynamodb_conn.Table(self.table_name)
+            table = self.get_conn().Table(self.table_name)
 
             with table.batch_writer(overwrite_by_pkeys=self.table_keys) as batch:
                 for item in items:

@@ -130,9 +130,8 @@ class SageMakerHook(AwsBaseHook):
                                     'RollingBack', 'Deleting'}
     failed_states = {'Failed'}
 
-    def __init__(self,
-                 *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(client_type='sagemaker', *args, **kwargs)
         self.s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
         self.logs_hook = AwsLogsHook(aws_conn_id=self.aws_conn_id)
 
@@ -227,14 +226,6 @@ class SageMakerHook(AwsBaseHook):
         """
         for channel in tuning_config['TrainingJobDefinition']['InputDataConfig']:
             self.check_s3_url(channel['DataSource']['S3DataSource']['S3Uri'])
-
-    def get_conn(self):
-        """
-        Establish an AWS connection for SageMaker
-
-        :rtype: :py:class:`SageMaker.Client`
-        """
-        return self.get_client_type('sagemaker')
 
     def get_log_conn(self):
         """

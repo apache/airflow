@@ -32,17 +32,8 @@ class AwsLogsHook(AwsBaseHook):
     :type region_name: str
     """
 
-    def __init__(self, region_name=None, *args, **kwargs):
-        self.region_name = region_name
-        super().__init__(*args, **kwargs)
-
-    def get_conn(self):
-        """
-        Establish an AWS connection for retrieving logs.
-
-        :rtype: CloudWatchLogs.Client
-        """
-        return self.get_client_type('logs', region_name=self.region_name)
+    def __init__(self, *args, **kwargs):
+        super().__init__(client_type='logs', *args, **kwargs)
 
     def get_log_events(self, log_group, log_stream_name, start_time=0, skip=0, start_from_head=True):
         """

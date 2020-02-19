@@ -29,6 +29,7 @@ import logging
 
 import boto3
 from botocore.config import Config
+from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -49,9 +50,19 @@ class AwsBaseHook(BaseHook):
     :type verify: str or bool
     """
 
-    def __init__(self, aws_conn_id="aws_default", verify=None):
+    def __init__(
+            self,
+            aws_conn_id="aws_default",
+            verify=None,
+            region_name=None,
+            client_type=None,
+            resource_type=None
+    ):
         self.aws_conn_id = aws_conn_id
         self.verify = verify
+        self.client_type = client_type
+        self.resource_type = resource_type
+        self.region_name = region_name
         self.config = None
 
     def _get_credentials(self, region_name):
@@ -231,6 +242,23 @@ class AwsBaseHook(BaseHook):
         return session.resource(
             resource_type, endpoint_url=endpoint_url, config=config, verify=self.verify
         )
+
+    @cached_property
+    def conn(self):
+        "Get the underlying boto3 client (cached)"
+        if self.client_type:
+            return self.get_client_type(self.client_type, region_name=self.region_name)
+        elif self.resource_type:
+            return self.get_resource_type(self.resource_type, region_name=self.region_name)
+        else:
+            raise AirflowException(
+                'Either self.client_type or self.resource_type'
+                ' must be specified in the subclass')
+
+    def get_conn(self):
+        "Get the underlying boto3 client (cached)"
+        # Compat shim
+        return self.conn
 
     def get_session(self, region_name=None):
         """Get the underlying boto3.session."""

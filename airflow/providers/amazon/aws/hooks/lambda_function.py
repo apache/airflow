@@ -41,30 +41,22 @@ class AwsLambdaHook(AwsBaseHook):
     :type config: botocore.client.Config
     """
 
-    def __init__(self, function_name, region_name=None,
+    def __init__(self, function_name,
                  log_type='None', qualifier='$LATEST',
                  invocation_type='RequestResponse', config=None, *args, **kwargs):
         self.function_name = function_name
-        self.region_name = region_name
         self.log_type = log_type
         self.invocation_type = invocation_type
         self.qualifier = qualifier
-        self.conn = None
         self.config = config
-        super().__init__(*args, **kwargs)
-
-    def get_conn(self):
-        self.conn = self.get_client_type('lambda', self.region_name, config=self.config)
-        return self.conn
+        super().__init__(client_type='lambda', *args, **kwargs)
 
     def invoke_lambda(self, payload):
         """
         Invoke Lambda Function
         """
 
-        awslambda_conn = self.get_conn()
-
-        response = awslambda_conn.invoke(
+        response = self.get_conn().invoke(
             FunctionName=self.function_name,
             InvocationType=self.invocation_type,
             LogType=self.log_type,

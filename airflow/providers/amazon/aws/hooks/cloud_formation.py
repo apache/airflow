@@ -29,26 +29,18 @@ class AWSCloudFormationHook(AwsBaseHook):
     Interact with AWS CloudFormation.
     """
 
-    def __init__(self, region_name=None, *args, **kwargs):
-        self.region_name = region_name
-        self.conn = None
-        super().__init__(*args, **kwargs)
-
-    def get_conn(self):
-        if not self.conn:
-            self.conn = self.get_client_type('cloudformation', self.region_name)
-        return self.conn
+    def __init__(self, *args, **kwargs):
+        super().__init__(client_type='cloudformation', *args, **kwargs)
 
     def get_stack_status(self, stack_name):
         """
         Get stack status from CloudFormation.
         """
-        cloudformation = self.get_conn()
 
         self.log.info('Poking for stack %s', stack_name)
 
         try:
-            stacks = cloudformation.describe_stacks(StackName=stack_name)['Stacks']
+            stacks = self.get_conn().describe_stacks(StackName=stack_name)['Stacks']
             return stacks[0]['StackStatus']
         except ClientError as e:
             if 'does not exist' in str(e):
