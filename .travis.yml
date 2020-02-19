@@ -18,6 +18,7 @@
 ---
 dist: bionic
 language: python
+os: linux
 env:
   global:
     - BUILD_ID=${TRAVIS_BUILD_ID}
@@ -30,6 +31,8 @@ python: "3.6"
 stages:
   - pre-test
   - test
+services:
+  - docker
 jobs:
   include:
     - name: "Static checks"
@@ -107,8 +110,6 @@ jobs:
         PYTHON_VERSION=3.7
         ENABLED_INTEGRATIONS="kerberos"
       stage: test
-  services:
-    - docker
 before_install:
   - ./scripts/ci/ci_before_install.sh
 script: ./scripts/ci/ci_run_airflow_testing.sh
