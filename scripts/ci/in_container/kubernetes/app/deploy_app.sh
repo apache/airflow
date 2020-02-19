@@ -49,9 +49,9 @@ export BUILD_DIRNAME="${MY_DIR}/build"
 
 # Source branch will be set in DockerHub
 SOURCE_BRANCH=${SOURCE_BRANCH:=${DEFAULT_BRANCH}}
-# if AIRFLOW_CONTAINER_BRANCH_NAME is not set it will be set to either SOURCE_BRANCH (if overridden)
+# if BRANCH_NAME is not set it will be set to either SOURCE_BRANCH (if overridden)
 # or default branch for the sources
-AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${SOURCE_BRANCH}}
+BRANCH_NAME=${BRANCH_NAME:=${SOURCE_BRANCH}}
 
 if [[ ! -d "${BUILD_DIRNAME}" ]]; then
     mkdir -p "${BUILD_DIRNAME}"
@@ -73,7 +73,7 @@ else
     CONFIGMAP_DAGS_VOLUME_CLAIM=
 fi
 
-if [[ ${TRAVIS_PULL_REQUEST} != "" && ${TRAVIS_PULL_REQUEST} != "false" ]]; then
+if [[ ${TRAVIS_PULL_REQUEST:=} != "" && ${TRAVIS_PULL_REQUEST} != "false" ]]; then
     CONFIGMAP_GIT_REPO=${TRAVIS_PULL_REQUEST_SLUG}
     CONFIGMAP_BRANCH=${TRAVIS_PULL_REQUEST_BRANCH}
 else
