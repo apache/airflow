@@ -127,7 +127,7 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def find(dag_id=None, run_id=None, execution_date=None,
              state=None, external_trigger=None, no_backfills=False,
-             session=None):
+             session=None, execution_start_date=None, execution_end_date=None):
         """
         Returns a set of dag runs for the given search criteria.
 
@@ -136,7 +136,7 @@ class DagRun(Base, LoggingMixin):
         :param run_id: defines the run id for this dag run
         :type run_id: str
         :param execution_date: the execution date
-        :type execution_date: datetime.datetime
+        :type execution_date: datetime.datetime or list[datetime.datetime]
         :param state: the state of the dag run
         :type state: str
         :param external_trigger: whether this dag run is externally triggered
@@ -146,6 +146,10 @@ class DagRun(Base, LoggingMixin):
         :type no_backfills: bool
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
+        :param execution_start_date: dag run that was executed from this date
+        :type execution_start_date: datetime.datetime
+        :param execution_end_date: dag run that was executed until this date
+        :type execution_end_date: datetime.datetime
         """
         DR = DagRun
 
@@ -159,6 +163,12 @@ class DagRun(Base, LoggingMixin):
                 qry = qry.filter(DR.execution_date.in_(execution_date))
             else:
                 qry = qry.filter(DR.execution_date == execution_date)
+        if execution_start_date and execution_end_date:
+            qry = qry.filter(DR.execution_date.between(execution_start_date, execution_end_date))
+        elif execution_start_date:
+            qry = qry.filter(DR.execution_date >= execution_start_date)
+        elif execution_end_date:
+            qry = qry.filter(DR.execution_date <= execution_end_date)
         if state:
             qry = qry.filter(DR.state == state)
         if external_trigger is not None:

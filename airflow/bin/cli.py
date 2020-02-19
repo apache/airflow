@@ -597,8 +597,12 @@ class CLIFactory:
             'help': "List dag runs given a DAG id. If state option is given, it will only "
                     "search for all the dagruns with the given state. "
                     "If no_backfill option is given, it will filter out "
-                    "all backfill dagruns for given dag id",
-            'args': ('dag_id', 'no_backfill', 'state', 'output',),
+                    "all backfill dagruns for given dag id. "
+                    "If start_date is given, it will filter out "
+                    "all the dagruns that were executed before this date. "
+                    "If end_date is given, it will filter out "
+                    "all the dagruns that were executed after this date. ",
+            'args': ('dag_id_opt', 'no_backfill', 'state', 'output', "start_date", "end_date"),
         },
         {
             'func': lazy_load_command('airflow.cli.commands.dag_command.dag_list_jobs'),

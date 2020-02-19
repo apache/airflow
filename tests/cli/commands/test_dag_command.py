@@ -309,9 +309,15 @@ class TestCliDags(unittest.TestCase):
     def test_cli_list_dag_runs(self):
         dag_command.dag_trigger(self.parser.parse_args([
             'dags', 'trigger', 'example_bash_operator', ]))
-        args = self.parser.parse_args(['dags', 'list_runs',
+        args = self.parser.parse_args(['dags',
+                                       'list_runs',
+                                       '--dag_id',
                                        'example_bash_operator',
-                                       '--no_backfill'])
+                                       '--no_backfill',
+                                       '--start_date',
+                                       DEFAULT_DATE.isoformat(),
+                                       '--end_date',
+                                       timezone.make_aware(datetime.max).isoformat()])
         dag_command.dag_list_dag_runs(args)
 
     def test_cli_list_jobs_with_args(self):
