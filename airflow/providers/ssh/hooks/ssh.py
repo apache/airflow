@@ -19,9 +19,9 @@
 import getpass
 import os
 import warnings
+from collections import defaultdict
 from io import StringIO
 from typing import Optional
-from collections import defaultdict
 
 import paramiko
 from paramiko.config import SSH_PORT
