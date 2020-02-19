@@ -23,12 +23,11 @@ from unittest import mock
 from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.providers.apache.hive.operators.hive import HiveOperator
-from airflow.providers.apache.hive.sensors.metastore_partition import MetastorePartitionSensor
 from airflow.providers.mysql.operators.presto_to_mysql import PrestoToMySqlTransfer
 from airflow.providers.presto.operators.presto_check import PrestoCheckOperator
 from airflow.sensors.sql_sensor import SqlSensor
 from airflow.utils import timezone
-from tests.providers.apache.hive import DEFAULT_DATE, DEFAULT_DATE_DS, TestHiveEnvironment
+from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
 
 
 class HiveOperatorConfigTest(TestHiveEnvironment):
@@ -162,15 +161,6 @@ class TestHivePresto(TestHiveEnvironment):
             task_id='hdfs_sensor_check',
             conn_id='presto_default',
             sql="SELECT 'x' FROM airflow.static_babynames LIMIT 1;",
-            dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-               ignore_ti_state=True)
-
-    def test_hive_metastore_sql_sensor(self):
-        op = MetastorePartitionSensor(
-            task_id='hive_partition_check',
-            table='airflow.static_babynames_partitioned',
-            partition_name='ds={}'.format(DEFAULT_DATE_DS),
             dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                ignore_ti_state=True)
