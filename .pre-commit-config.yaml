@@ -279,8 +279,8 @@ repos:
         language: system
         entry: "./scripts/ci/pre_commit_mypy.sh"
         files: \.py$
-        exclude: ^airflow/_vendor/.*$|^dev/
-        pass_filenames: false
+        exclude: ^airflow/_vendor/.*$|^dev
+        require_serial: true
       - id: flake8
         name: Run flake8
         language: system
