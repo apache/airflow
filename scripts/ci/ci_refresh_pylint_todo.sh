@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="false"}
 export FORCE_ANSWER_TO_QUESTIONS=quit
 
 # shellcheck source=scripts/ci/_script_init.sh
@@ -24,8 +23,8 @@ export FORCE_ANSWER_TO_QUESTIONS=quit
 function refresh_pylint_todo() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --env PYTHONDONTWRITEBYTECODE \
-        --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
-        --env AIRFLOW_CI_SILENT \
+        --env VERBOSE \
+        --env VERBOSE_COMMANDS \
         --env HOST_USER_ID="$(id -ur)" \
         --env HOST_GROUP_ID="$(id -gr)" \
         --rm \

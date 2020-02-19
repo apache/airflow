@@ -22,6 +22,7 @@ _BREEZE_ALLOWED_BACKENDS="sqlite mysql postgres"
 _BREEZE_ALLOWED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis all"
 _BREEZE_ALLOWED_KUBERNETES_MODES="persistent_mode git_mode"
 _BREEZE_ALLOWED_KUBERNETES_VERSIONS="v1.15.3 v1.16.2"
+
 _BREEZE_ALLOWED_INSTALL_AIRFLOW_VERSIONS=$(cat <<-EOF
 current
 1.10.9
@@ -35,6 +36,7 @@ current
 1.10.1
 EOF
 )
+
 _BREEZE_ALLOWED_STATIC_CHECKS=$(cat <<-EOF
 all
 all-but-pylint
@@ -60,28 +62,54 @@ setup-order
 shellcheck
 EOF
 )
+
 _BREEZE_DEFAULT_DOCKERHUB_USER="apache"
 _BREEZE_DEFAULT_DOCKERHUB_REPO="airflow"
 
 _BREEZE_SHORT_OPTIONS="
-h P: B: I: K Z X
-M: V:
-s N: b O
-v y n q C A f
-r p R L u
-c D: H: e a
-t: d: k x: S: F:
+h p: b: i:
+K: V:
+s x r
+l a:
+v y n q f
+F P C L
+D: R:
 "
 
 _BREEZE_LONG_OPTIONS="
-help python: backend: integration: start-kind-cluster recreate-kind-cluster stop-kind-cluster
+help python: backend: integration:
 kubernetes-mode: kubernetes-version:
-skip-mounting-local-sources install-airflow-version: build-only build-docs
-verbose assume-yes assume-no assume-quit toggle-suppress-cheatsheet toggle-suppress-asciiart forward-credentials
-force-build-images force-pull-images force-clean-images use-local-cache push-images
-cleanup-image dockerhub-user: dockerhub-repo: initialize-local-virtualenv setup-autocomplete
-test-target: docker-compose: stop-environment execute-command: static-check: static-check-all-files:
+kind-cluster-start kind-cluster-stop kind-cluster-recreate
+skip-mounting-local-sources install-airflow-version:
+verbose assume-yes assume-no assume-quit forward-credentials
+force-build-images force-pull-images force-clean-images use-local-cache
+dockerhub-user: dockerhub-repo:
 "
+
+export BREEZE_COMMANDS="
+shell
+build-docs
+build-only
+cleanup-images
+initialize-local-virtualenv
+setup-autocomplete
+stop-environment
+toggle-suppress-cheatsheet
+toggle-suppress-asciiart"
+
+export BREEZE_EXTRA_ARG_COMMANDS="
+docker-compose
+execute-command
+static-check
+static-check-all-files
+test-target"
+
+export BREEZE_HELP_COMMANDS="
+flags
+help
+help-all"
+
+export ALL_BREEZE_COMMANDS="${BREEZE_COMMANDS} ${BREEZE_EXTRA_ARG_COMMANDS} ${BREEZE_HELP_COMMANDS}"
 
 # Note on OSX bash has no associative arrays (Bash 3.2) so we have to fake it
 
@@ -89,31 +117,31 @@ _BREEZE_KNOWN_VALUES=""
 
 function _get_known_values_breeze() {
     case "$1" in
-    -P | --python)
+    -p | --python)
         _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_PYTHON_VERSIONS}
         ;;
-    -B | --backend)
+    -b | --backend)
         _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_BACKENDS}
         ;;
-    -I | --integration)
+    -i | --integration)
         _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_INTEGRATIONS}
         ;;
-    -M | --kubernetes-mode)
+    -K | --kubernetes-mode)
         _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_KUBERNETES_MODES}
         ;;
     -V | --kubernetes-version)
         _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_KUBERNETES_VERSIONS}
         ;;
-    -S | --static-check)
+    static-check)
         _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_STATIC_CHECKS}
         ;;
-    -F | --static-check-all-files)
+    static-check-all-files)
         _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_STATIC_CHECKS}
         ;;
-    -N | --install-airflow-version)
+    -A | --install-airflow-version)
         _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_INSTALL_AIRFLOW_VERSIONS}
         ;;
-    -d | --docker-compose)
+    docker-compose)
         # shellcheck disable=SC2034
         if typeset -f "_docker_compose" >/dev/null; then
             _docker_compose
@@ -123,7 +151,7 @@ function _get_known_values_breeze() {
     -D | --dockerhub-user)
         _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_DOCKERHUB_USER}"
         ;;
-    -H | --dockerhub-repo)
+    -R | --dockerhub-repo)
         _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_DOCKERHUB_REPO}"
         ;;
     *)
@@ -189,6 +217,9 @@ function _comp_breeze {
         fi
     done
 
+    ALL_OPTIONS="${ALL_OPTIONS} ${ALL_BREEZE_COMMANDS}"
+    EXTRA_ARG_OPTIONS="${EXTRA_ARG_OPTIONS} ${BREEZE_EXTRA_ARG_COMMANDS}"
+
     LAST_COMMAND_PREFIX="${COMP_WORDS[${#COMP_WORDS[@]} - 1]}"
     if [[ ${#COMP_WORDS[@]} -gt 1 ]]; then
         PREVIOUS_COMMAND="${COMP_WORDS[${#COMP_WORDS[@]} - 2]}"
@@ -211,3 +242,4 @@ function _comp_breeze {
 _build_options_breeze
 
 complete -F _comp_breeze breeze
+complete -F _comp_breeze ./breeze

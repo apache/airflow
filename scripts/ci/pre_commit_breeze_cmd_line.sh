@@ -19,7 +19,6 @@
 set -euo pipefail
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
 TMP_FILE=$(mktemp)
 TMP_OUTPUT=$(mktemp)
 
@@ -29,9 +28,23 @@ echo "
 .. code-block:: text
 " >"${TMP_FILE}"
 
-export SEPARATOR_WIDTH=80
-export AIRFLOW_CI_SILENT="true"
-./breeze --help | sed 's/^/  /' | sed 's/ *$//' >>"${TMP_FILE}"
+export MAX_SCREEN_WIDTH=100
+export FORCE_SCREEN_WIDTH="true"
+export VERBOSE="false"
+
+./breeze help-all | sed 's/^/  /' | sed 's/ *$//' >>"${TMP_FILE}"
+
+MAX_LEN=$(awk '{ print length($0); }' "${TMP_FILE}" | sort -n | tail -1 )
+
+# 2 spaces added in front of the width for .rst formatting
+if (( MAX_LEN > MAX_SCREEN_WIDTH + 2 )); then
+    cat "${TMP_FILE}"
+    echo
+    echo "ERROR! Some lines in genereate breeze help-all command are too long. See above ^^"
+    echo
+    echo
+    exit 1
+fi
 
 BREEZE_RST_FILE="${MY_DIR}/../../BREEZE.rst"
 

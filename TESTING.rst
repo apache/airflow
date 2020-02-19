@@ -135,19 +135,19 @@ If you wish to only run tests and not to drop into shell, apply the
 
 .. code-block:: bash
 
-     ./breeze --test-target tests/hooks/test_druid_hook.py -- --logging-level=DEBUG
+     ./breeze test-target tests/hooks/test_druid_hook.py -- --logging-level=DEBUG
 
 You can run the whole test suite with a special '.' test target:
 
 .. code-block:: bash
 
-    ./breeze --test-target .
+    ./breeze test-target .
 
 You can also specify individual tests or a group of tests:
 
 .. code-block:: bash
 
-    ./breeze --test-target tests/test_core.py::TestCore
+    ./breeze test-target tests/test_core.py::TestCore
 
 
 Airflow Integration Tests
@@ -318,11 +318,11 @@ Running Tests with Kubernetes
 Starting Kubernetes Cluster when Starting Breeze
 ................................................
 
-To run Kubernetes in Breeze, you can start Breeze with the ``--start-kind-cluster`` switch. This
+To run Kubernetes in Breeze, you can start Breeze with the ``--kind-cluster-start`` switch. This
 automatically creates a Kind Kubernetes cluster in the same ``docker`` engine that is used to run Breeze.
 Setting up the Kubernetes cluster takes some time so the cluster continues running
-until the it is stopped with the ``--stop-kind-cluster`` switch or until the ``--recreate-kind-cluster``
-switch is used rather than ``--start-kind-cluster``. Starting Breeze with the Kind Cluster automatically
+until the it is stopped with the ``--kind-cluster-stop`` switch or until the ``--kind-cluster-recreate``
+switch is used rather than ``--kind-cluster-start``. Starting Breeze with the Kind Cluster automatically
 sets ``runtime`` to ``kubernetes`` (see below).
 
 The cluster name follows the pattern ``airflow-python-X.Y.Z-vA.B.C`` where X.Y.Z is a Python version
@@ -355,7 +355,7 @@ Use the script ``./scripts/ci/in_container/kubernetes/docker/rebuild_airflow_ima
 3. Loads the image to the Kind Cluster using the ``kind load`` command.
 
 Deploying the Airflow Application in the Kubernetes Cluster
-.......................................................
+...........................................................
 
 Use the script ``./scripts/ci/in_container/kubernetes/app/deploy_app.sh`` that does the following:
 
@@ -381,7 +381,7 @@ Running Runtime-Specific Tests
 
 Tests using a specific runtime are marked with a custom pytest marker ``pytest.mark.runtime``.
 The marker has a single parameter - the name of a runtime. At the moment the only supported runtime is
-``kubernetes``. This runtime is set when you run Breeze with the ``--start-kind-cluster`` option.
+``kubernetes``. This runtime is set when you run Breeze with one of the ``--kind-cluster-*`` flags.
 Runtime-specific tests run only when the selectd runtime is started.
 
 
