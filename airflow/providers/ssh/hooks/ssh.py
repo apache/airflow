@@ -21,6 +21,7 @@ import os
 import warnings
 from io import StringIO
 from typing import Optional
+from collections import defaultdict
 
 import paramiko
 from paramiko.config import SSH_PORT
@@ -61,7 +62,6 @@ class SSHHook(BaseHook):
     :type keepalive_interval: int
     """
 
-    # pylint: disable=R0912, R0915
     def __init__(self,
                  ssh_conn_id=None,
                  remote_host=None,
@@ -115,12 +115,13 @@ class SSHHook(BaseHook):
                 cert_file = extra_options.get('cert_file')
 
                 # Which key type?
-                if key_type == 'rsa':
-                    paramiko_key_tool = paramiko.RSAKey
-                if key_type == 'ed25519':
-                    paramiko_key_tool = paramiko.Ed25519Key
-                if key_type == 'ecdsa':
-                    paramiko_key_tool = paramiko.ECDSAKey
+                key_options = defaultdict(lambda: 4, {
+                    'rsa': paramiko.RSAKey,
+                    'ed25519': paramiko.Ed25519Key,
+                    'ecdsa': paramiko.ECDSAKey
+                    }
+                )
+                paramiko_key_tool = key_options[key_type]
 
                 if private_key:
                     self.pkey = paramiko_key_tool.from_private_key(StringIO(private_key))
