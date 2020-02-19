@@ -17,6 +17,7 @@
 # under the License.
 
 function assert_in_container() {
+    AIRFLOW_CI_VERBOSE=${AIRFLOW_CI_VERBOSE:="false"}
     if [[ ! -f /.dockerenv ]]; then
         echo >&2
         echo >&2 "You are not inside the Airflow docker container!"
@@ -29,7 +30,7 @@ function assert_in_container() {
 }
 
 function in_container_script_start() {
-    if [[ ${AIRFLOW_CI_VERBOSE:="false"} == "true" ]]; then
+    if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
         set -x
     fi
 }
