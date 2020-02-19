@@ -61,6 +61,7 @@ class SSHHook(BaseHook):
     :type keepalive_interval: int
     """
 
+    # pylint: disable=R0912, R0915
     def __init__(self,
                  ssh_conn_id=None,
                  remote_host=None,
@@ -113,18 +114,18 @@ class SSHHook(BaseHook):
                 key_file = extra_options.get('key_file')
                 cert_file = extra_options.get('cert_file')
 
-                if private_key and key_type == 'rsa':
-                    self.pkey = paramiko.RSAKey.from_private_key(StringIO(private_key))
-                elif private_key and key_type == 'ed25519':
-                    self.pkey = paramiko.Ed25519Key.from_private_key(StringIO(private_key))
-                elif private_key and key_type == 'ecdsa':
-                    self.pkey = paramiko.ECDSAKey.from_private_key(StringIO(private_key))
-                elif key_file and key_type == 'rsa':
-                    self.pkey = paramiko.RSAKey.from_private_key_file(key_file)
-                elif key_file and key_type == 'ed25519':
-                    self.pkey = paramiko.Ed25519Key.from_private_key_file(key_file)
-                elif key_file and key_type == 'ecdsa':
-                    self.pkey = paramiko.ECDSAKey.from_private_key_file(key_file)
+                # Which key type?
+                if key_type == 'rsa':
+                    paramiko_key_tool = paramiko.RSAKey
+                if key_type == 'ed25519':
+                    paramiko_key_tool = paramiko.Ed25519Key
+                if key_type == 'ecdsa':
+                    paramiko_key_tool = paramiko.ECDSAKey
+
+                if private_key:
+                    self.pkey = paramiko_key_tool.from_private_key(StringIO(private_key))
+                elif key_file:
+                    self.pkey = paramiko_key_tool.from_private_key_file(key_file)
 
                 if cert_key:
                     self.pkey.load_certificate(StringIO(cert_key))
