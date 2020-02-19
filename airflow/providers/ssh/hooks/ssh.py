@@ -119,8 +119,7 @@ class SSHHook(BaseHook):
                     'rsa': paramiko.RSAKey,
                     'ed25519': paramiko.Ed25519Key,
                     'ecdsa': paramiko.ECDSAKey
-                    }
-                )
+                })
                 paramiko_key_tool = key_options[key_type]
 
                 if private_key:
