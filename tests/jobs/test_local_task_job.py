@@ -116,6 +116,9 @@ class TestLocalTaskJob(unittest.TestCase):
             self.assertEqual(invalid_ti.state, State.FAILED)
             self.assertIsNotNone(invalid_ti.pid)
 
+            # job state should be FAILED
+            self.assertEqual(invalid_job.state, State.FAILED)
+
             valid_task = dag.get_task(valid_task_id)
             valid_ti = TI(task=valid_task, execution_date=DEFAULT_DATE)
             valid_ti.refresh_from_db()
@@ -132,6 +135,9 @@ class TestLocalTaskJob(unittest.TestCase):
             # task that returns valid return code should succeed.
             self.assertEqual(valid_ti.state, State.SUCCESS)
             self.assertIsNotNone(valid_ti.pid)
+
+            # job state should be SUCCESS
+            self.assertEqual(valid_job.state, State.SUCCESS)
 
     def test_invalid_return_code_with_python_operator(self):
         with create_session() as session:
@@ -167,6 +173,8 @@ class TestLocalTaskJob(unittest.TestCase):
             # task that returns invalid return code should fail.
             self.assertEqual(invalid_ti.state, State.FAILED)
             self.assertIsNotNone(invalid_ti.pid)
+            # job state should be FAILED
+            self.assertEqual(invalid_job.state, State.FAILED)
 
             valid_task = dag.get_task(valid_task_id)
             valid_ti = TI(task=valid_task, execution_date=DEFAULT_DATE)
@@ -184,6 +192,8 @@ class TestLocalTaskJob(unittest.TestCase):
             # task that returns valid return code should succeed.
             self.assertEqual(valid_ti.state, State.RUNNING)
             self.assertIsNotNone(valid_ti.pid)
+            # job state should be SUCCESS
+            self.assertEqual(valid_job.state, State.SUCCESS)
 
     @patch('os.getpid')
     def test_localtaskjob_heartbeat(self, mock_pid):
