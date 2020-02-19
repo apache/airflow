@@ -23,7 +23,6 @@ from unittest import mock
 from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.providers.apache.hive.operators.hive import HiveOperator
-from airflow.providers.mysql.operators.presto_to_mysql import PrestoToMySqlTransfer
 from airflow.providers.presto.operators.presto_check import PrestoCheckOperator
 from airflow.sensors.sql_sensor import SqlSensor
 from airflow.utils import timezone
@@ -139,20 +138,6 @@ class TestHivePresto(TestHiveEnvironment):
             """
         op = PrestoCheckOperator(
             task_id='presto_check', sql=sql, dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-               ignore_ti_state=True)
-
-    def test_presto_to_mysql(self):
-        op = PrestoToMySqlTransfer(
-            task_id='presto_to_mysql_check',
-            sql="""
-                SELECT name, count(*) as ccount
-                FROM airflow.static_babynames
-                GROUP BY name
-                """,
-            mysql_table='test_static_babynames',
-            mysql_preoperator='TRUNCATE TABLE test_static_babynames;',
-            dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                ignore_ti_state=True)
 
