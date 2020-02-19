@@ -62,7 +62,7 @@ class SingularityOperator(BaseOperator):
     template_ext = ('.sh', '.bash',)
 
     @apply_defaults
-    def __init__(
+    def __init__( # pylint: disable=too-many-arguments
             self,
             image: str,
             command: Union[int, List[str]],
@@ -76,7 +76,7 @@ class SingularityOperator(BaseOperator):
             options: Optional[List[str]] = None,
             auto_remove: Optional[bool] = False,
             *args,
-            **kwargs) -> None:  # pylint: disable=too-many-arguments
+            **kwargs) -> None:
 
         super(SingularityOperator, self).__init__(*args, **kwargs)
         self.auto_remove = auto_remove
