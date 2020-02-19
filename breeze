@@ -27,6 +27,8 @@ declare -a EXTRA_DC_OPTIONS
 declare -a INTEGRATIONS
 # This is where remaining args are passed
 declare -a REMAINING_ARGS
+# This is where static check options are defined
+declare -a EXTRA_STATIC_CHECK_OPTIONS
 
 function setup_default_breeze_variables() {
     # Whether to actually run docker compose with the command set given
@@ -121,6 +123,8 @@ EOF
     _BREEZE_DEFAULT_BACKEND="sqlite"
     _BREEZE_DEFAULT_KUBERNETES_MODE="git_mode"
     _BREEZE_DEFAULT_KUBERNETES_VERSION="v1.15.3"
+
+    STATIC_CHECK_PYTHON_VERSION=3.6
 }
 # End of initialisation here
 
@@ -421,6 +425,7 @@ function prepare_command_files() {
 }
 
 function parse_arguments() {
+    set -u
     if ! PARAMS=$(getopt \
         -o "${_BREEZE_GETOPT_SHORT_OPTIONS:=}" \
         -l "${_BREEZE_GETOPT_LONG_OPTIONS:=}" \
@@ -776,7 +781,7 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
         Integration to start during tests - it determines which integrations are started for integration
         tests. There can be more than one integration started, or all to start all integrations.
         Selected integrations are not saved for future execution.
-        One of [${_BREEZE_ALLOWED_INTEGRATIONS:=}]. Default: ${_BREEZE_DEFAULT_INTEGRATIONS:=}
+        One of [${_BREEZE_ALLOWED_INTEGRATIONS:=}].
 
 *********************************************************************************************************
 **
@@ -1195,6 +1200,7 @@ script_start
 
 trap script_end EXIT
 
+set +u
 parse_arguments "${@}"
 
 print_header_line
