@@ -22,7 +22,7 @@ env:
   global:
     - BUILD_ID=${TRAVIS_BUILD_ID}
     - MOUNT_LOCAL_SOURCES="false"
-    - AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS="true"
+    - MOUNT_HOST_AIRFLOW_VOLUME="true"
     - FORCE_ANSWER_TO_QUESTIONS="yes"
     - AIRFLOW_CI_SILENT="true"
     - CI="true"

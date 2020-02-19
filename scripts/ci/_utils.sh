@@ -19,7 +19,7 @@
 # Assume all the scripts are sourcing the _utils.sh from the scripts/ci directory
 # and MY_DIR variable is set to this directory. It can be overridden however
 
-declare -a AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS
+declare -a EXTRA_DOCKER_FLAGS
 
 function check_verbose_setup {
     if [[ ${VERBOSE:=} == "true" ]]; then
@@ -55,7 +55,7 @@ function initialize_breeze_environment {
     . "${AIRFLOW_SOURCES}/common/_files_for_rebuild_check.sh"
 
     # Default branch name for triggered builds is the one configured in default branch
-    export AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${DEFAULT_BRANCH}}
+    export BRANCH_NAME=${BRANCH_NAME:=${DEFAULT_BRANCH}}
 
     # Default port numbers for forwarded ports
     export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}
@@ -63,22 +63,22 @@ function initialize_breeze_environment {
     export MYSQL_HOST_PORT=${MYSQL_HOST_PORT:="23306"}
 
     # Do not push images from here by default (push them directly from the build script on Dockerhub)
-    export AIRFLOW_CONTAINER_PUSH_IMAGES=${AIRFLOW_CONTAINER_PUSH_IMAGES:="false"}
+    export PUSH_IMAGES=${PUSH_IMAGES:="false"}
 
     # Disable writing .pyc files - slightly slower imports but not messing around when switching
     # Python version and avoids problems with root-owned .pyc files in host
     export PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE:="true"}
 
     # By default we assume the kubernetes cluster is not being started
-    export ENABLE_KIND_CLUSTER=${ENABLE_KIND_CLUSTER:="false"}
+   export ENABLE_KIND_CLUSTER=${ENABLE_KIND_CLUSTER:="false"}
     #
     # Sets mounting of host volumes to container for static checks
-    # unless AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS is not true
+    # unless MOUNT_HOST_AIRFLOW_VOLUME is not true
     #
-    # Note that this cannot be function because we need the AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS array variable
+    # Note that this cannot be function because we need the EXTRA_DOCKER_FLAGS array variable
     #
-    AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS=${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS:="true"}
-    export AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS
+    MOUNT_HOST_AIRFLOW_VOLUME=${MOUNT_HOST_AIRFLOW_VOLUME:="true"}
+    export MOUNT_HOST_AIRFLOW_VOLUME
 
     # If this variable is set, we mount the whole sources directory to the host rather than
     # selected volumes
@@ -97,30 +97,30 @@ function initialize_breeze_environment {
         print_info
         print_info "Mount whole airflow source directory for static checks (make sure all files are in container)"
         print_info
-        AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=( \
+        EXTRA_DOCKER_FLAGS=( \
           "-v" "${AIRFLOW_SOURCES}:/opt/airflow" \
           "--env" "PYTHONDONTWRITEBYTECODE" \
         )
-    elif [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
+    elif [[ ${MOUNT_HOST_AIRFLOW_VOLUME} == "true" ]]; then
         print_info
         print_info "Mounting necessary host volumes to Docker"
         print_info
 
-        AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=()
+        EXTRA_DOCKER_FLAGS=()
 
         while IFS= read -r LINE; do
-            AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS+=( "${LINE}")
+            EXTRA_DOCKER_FLAGS+=( "${LINE}")
         done < <(convert_docker_mounts_to_docker_params)
     else
         print_info
         print_info "Skip mounting host volumes to Docker"
         print_info
-        AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=( \
+        EXTRA_DOCKER_FLAGS=( \
             "--env" "PYTHONDONTWRITEBYTECODE" \
         )
     fi
 
-    export AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS
+    export EXTRA_DOCKER_FLAGS
 }
 
 function print_info() {
@@ -284,12 +284,8 @@ function update_all_md5_files() {
     do
         move_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"
     done
-    local SUFFIX=""
-    if [[ -n ${PYTHON_VERSION:=""} ]]; then
-        SUFFIX="_${PYTHON_VERSION}"
-    fi
     mkdir -pv "${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}"
-    touch "${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/.built_${THE_IMAGE_TYPE}${SUFFIX}"
+    touch "${BUILT_IMAGE_FLAG_FILE}"
 }
 
 #
@@ -316,7 +312,7 @@ function check_if_docker_build_is_needed() {
     print_info "Checking if docker image build is needed for ${THE_IMAGE_TYPE} image."
     print_info
     local IMAGE_BUILD_NEEDED="false"
-    if [[ ${AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD:=""} == "true" ]]; then
+    if [[ ${FORCE_BUILD_IMAGES:=""} == "true" ]]; then
         print_info "Docker image build is forced for ${THE_IMAGE_TYPE} image"
         set +e
         for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
@@ -326,20 +322,20 @@ function check_if_docker_build_is_needed() {
         done
         set -e
         IMAGES_TO_REBUILD+=("${THE_IMAGE_TYPE}")
-        export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
+        export NEEDS_DOCKER_BUILD="true"
     else
         set +e
         for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
         do
             if ! check_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"; then
-                export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
+                export NEEDS_DOCKER_BUILD="true"
                 IMAGE_BUILD_NEEDED=true
             fi
         done
         set -e
         if [[ ${IMAGE_BUILD_NEEDED} == "true" ]]; then
             IMAGES_TO_REBUILD+=("${THE_IMAGE_TYPE}")
-            export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
+            export NEEDS_DOCKER_BUILD="true"
             print_info "Docker image build is needed for ${THE_IMAGE_TYPE} image!"
         else
             print_info "Docker image build is not needed for ${THE_IMAGE_TYPE} image!"
@@ -462,17 +458,17 @@ function confirm_image_rebuild() {
     set +e
     if [[ ${CI:="false"} == "true" ]]; then
         print_info
-        print_info "CI environment - forcing ${ACTION} for ${THE_IMAGE_TYPE} image."
+        print_info "CI environment - forcing build for ${THE_IMAGE_TYPE} image."
         print_info
         RES="0"
     elif [[ -c /dev/tty ]]; then
         # Make sure to use /dev/tty first rather than stdin/stdout when available - this way confirm
         # will works also in case of pre-commits (git does not pass stdin/stdout to pre-commit hooks)
-        "${AIRFLOW_SOURCES}/confirm" "${ACTION} ${THE_IMAGE_TYPE}" </dev/tty >/dev/tty
+        "${AIRFLOW_SOURCES}/confirm" "build ${THE_IMAGE_TYPE}" </dev/tty >/dev/tty
         RES=$?
     elif [[ -t 0 ]]; then
         # Check if this script is run interactively with stdin open and terminal attached
-        "${AIRFLOW_SOURCES}/confirm" "${ACTION} ${THE_IMAGE_TYPE}"
+        "${AIRFLOW_SOURCES}/confirm" "build ${THE_IMAGE_TYPE}"
         RES=$?
     else
         # No terminal, no stdin - quitting!
@@ -481,7 +477,7 @@ function confirm_image_rebuild() {
     set -e
     if [[ ${RES} == "1" ]]; then
         print_info
-        print_info "Skipping ${ACTION} for ${THE_IMAGE_TYPE}"
+        print_info "Skipping build for ${THE_IMAGE_TYPE}"
         print_info
         SKIP_REBUILD="true"
         # Force "no" also to subsequent questions so that if you answer it once, you are not asked
@@ -490,8 +486,8 @@ function confirm_image_rebuild() {
         echo 'export FORCE_ANSWER_TO_QUESTIONS="no"' > "${LAST_FORCE_ANSWER_FILE}"
     elif [[ ${RES} == "2" ]]; then
         echo >&2
-        echo >&2 "ERROR: The image needs ${ACTION} for ${THE_IMAGE_TYPE} - it is outdated. "
-        echo >&2 "   Make sure you build the images bu running run one of:"
+        echo >&2 "ERROR: The image needs to be byilt for ${THE_IMAGE_TYPE} - it is outdated. "
+        echo >&2 "   Make sure you build the images by running run one of:"
         echo >&2 "         * ./breeze --build-only"
         echo >&2 "         * ./breeze --build-only --force-pull-images"
         echo >&2
@@ -513,14 +509,9 @@ print(version.replace("+",""))
 EOF
     )
     export AIRFLOW_VERSION
+    export BUILT_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_VERSION}"
 
-    if [[ ${AIRFLOW_CONTAINER_CLEANUP_IMAGES:="false"} == "true" ]]; then
-        print_info
-        print_info "Clean up ${THE_IMAGE_TYPE} image. Just cleanup no pull of images happen."
-        print_info
-        export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="false"
-        export AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD="true"
-    elif [[ -f "${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/.built_${THE_IMAGE_TYPE}_${PYTHON_VERSION}" ]]; then
+    if [[ -f "${BUILT_IMAGE_FLAG_FILE}" ]]; then
         print_info
         print_info "${THE_IMAGE_TYPE} image already built locally."
         print_info
@@ -528,20 +519,15 @@ EOF
         print_info
         print_info "${THE_IMAGE_TYPE} image not built locally: pulling and building"
         print_info
-        export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
-        export AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD="true"
+        export FORCE_PULL_IMAGES="true"
+        export FORCE_BUILD_IMAGES="true"
     fi
 
-    AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="false"
+    NEEDS_DOCKER_BUILD="false"
     IMAGES_TO_REBUILD=()
     check_if_docker_build_is_needed
-    if [[ "${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED}" == "true" ]]; then
+    if [[ "${NEEDS_DOCKER_BUILD}" == "true" ]]; then
         SKIP_REBUILD="false"
-        if [[ ${AIRFLOW_CONTAINER_CLEANUP_IMAGES} == "true" ]]; then
-            export ACTION="clean"
-        else
-            export ACTION="rebuild"
-        fi
         if [[ ${CI:=} != "true" && "${FORCE_BUILD:=}" != "true" ]]; then
             confirm_image_rebuild
         fi
@@ -551,13 +537,13 @@ EOF
                 ./scripts/ci/ci_fix_ownership.sh
             fi
             print_info
-            print_info "${ACTION} start: ${THE_IMAGE_TYPE} image."
+            print_info "Build start: ${THE_IMAGE_TYPE} image."
             print_info
             # shellcheck source=hooks/build
             ./hooks/build | tee -a "${OUTPUT_LOG}"
             update_all_md5_files
             print_info
-            print_info "${ACTION} completed: ${THE_IMAGE_TYPE} image."
+            print_info "Build completed: ${THE_IMAGE_TYPE} image."
             print_info
         fi
     else
@@ -571,10 +557,7 @@ EOF
 # Rebuilds the image for tests if needed.
 #
 function rebuild_ci_image_if_needed() {
-    export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="false"
-
     export THE_IMAGE_TYPE="CI"
-
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci"
 
     rebuild_image_if_needed
@@ -655,7 +638,7 @@ function basic_sanity_checks() {
 
 
 function rebuild_all_images_if_needed_and_confirmed() {
-    AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="false"
+    NEEDS_DOCKER_BUILD="false"
     IMAGES_TO_REBUILD=()
 
     for THE_IMAGE_TYPE in "${IMAGES_TO_CHECK[@]}"
@@ -663,7 +646,7 @@ function rebuild_all_images_if_needed_and_confirmed() {
         check_if_docker_build_is_needed
     done
 
-    if [[ ${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED} == "true" ]]; then
+    if [[ ${NEEDS_DOCKER_BUILD} == "true" ]]; then
         print_info
         print_info "Docker image build is needed for ${IMAGES_TO_REBUILD[*]}!"
         print_info
@@ -673,7 +656,7 @@ function rebuild_all_images_if_needed_and_confirmed() {
         print_info
     fi
 
-    if [[ "${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED}" == "true" ]]; then
+    if [[ "${NEEDS_DOCKER_BUILD}" == "true" ]]; then
         echo
         echo "Some of your images need to be rebuild because important files (like package list) has changed."
         echo
@@ -687,9 +670,6 @@ function rebuild_all_images_if_needed_and_confirmed() {
         echo "   The first command works incrementally from your last local build."
         echo "   The second command you use if you want to completely refresh your images from dockerhub."
         echo
-        export ACTION="rebuild"
-        export THE_IMAGE_TYPE="${IMAGES_TO_REBUILD[*]}"
-
         SKIP_REBUILD="false"
         confirm_image_rebuild
 
@@ -748,7 +728,7 @@ function build_image_on_ci() {
         echo
     fi
 
-    export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
+    export FORCE_PULL_IMAGES="true"
     export FORCE_BUILD="true"
     export VERBOSE="${VERBOSE:="false"}"
 
@@ -787,7 +767,7 @@ function build_image_on_ci() {
     fi
 
     # Disable force pulling forced above
-    unset AIRFLOW_CONTAINER_FORCE_PULL_IMAGES
+    unset FORCE_PULL_IMAGES
     unset FORCE_BUILD
 }
 
@@ -800,7 +780,7 @@ function save_to_file {
     echo "$(eval echo "\$$1")" > "${BUILD_CACHE_DIR}/.$1"
 }
 
-function check_for_allowed_params {
+function check_and_save_allowed_param {
     _VARIABLE_NAME="${1}"
     _VARIABLE_DESCRIPTIVE_NAME="${2}"
     _FLAG="${3}"

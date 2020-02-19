@@ -32,7 +32,7 @@ teardown() {
 @test "Test missing value for a parameter" {
   load bats_utils
   export _BREEZE_ALLOWED_TEST_PARAMS=" a b c "
-  run check_for_allowed_params "TEST_PARAM"  "Test Param" "--message"
+  run check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
   diff <(echo "${output}") - <<EOF
 
 ERROR:  Allowed Test Param: [ a b c ]. Is: ''.
@@ -50,7 +50,7 @@ EOF
   export _BREEZE_ALLOWED_TEST_PARAMS=" a b c "
   export TEST_PARAM=x
   echo "a" > "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
-  run check_for_allowed_params "TEST_PARAM"  "Test Param" "--message"
+  run check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
   diff <(echo "${output}") - <<EOF
 
 ERROR:  Allowed Test Param: [ a b c ]. Is: 'x'.
@@ -70,7 +70,7 @@ EOF
   export _BREEZE_ALLOWED_TEST_PARAMS=" a b c "
   export TEST_PARAM=x
   echo "x" > "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
-  run check_for_allowed_params "TEST_PARAM"  "Test Param" "--message"
+  run check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
   diff <(echo "${output}") - <<EOF
 
 ERROR:  Allowed Test Param: [ a b c ]. Is: 'x'.
@@ -91,7 +91,7 @@ EOF
 
   export _BREEZE_ALLOWED_TEST_PARAMS=" a b c "
   export TEST_PARAM=a
-  run check_for_allowed_params "TEST_PARAM"  "Test Param" "--message"
+  run check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
   diff <(echo "${output}") <(echo "")
   [ -f "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" ]
   diff <(echo "a") <(cat "${AIRFLOW_SOURCES}/.build/.TEST_PARAM")
