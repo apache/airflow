@@ -23,7 +23,6 @@ from unittest import mock
 from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.providers.apache.hive.operators.hive import HiveOperator
-from airflow.providers.presto.operators.presto_check import PrestoCheckOperator
 from airflow.sensors.sql_sensor import SqlSensor
 from airflow.utils import timezone
 from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
@@ -129,15 +128,6 @@ class TestHivePresto(TestHiveEnvironment):
         op = HiveOperator(
             task_id='beeline_hql', hive_cli_conn_id='hive_cli_default',
             hql=self.hql, dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-               ignore_ti_state=True)
-
-    def test_presto(self):
-        sql = """
-            SELECT count(1) FROM airflow.static_babynames_partitioned;
-            """
-        op = PrestoCheckOperator(
-            task_id='presto_check', sql=sql, dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                ignore_ti_state=True)
 

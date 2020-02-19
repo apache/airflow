@@ -47,7 +47,6 @@ MISSING_TEST_FILES = {
     'tests/providers/microsoft/mssql/hooks/test_mssql.py',
     'tests/providers/microsoft/mssql/operators/test_mssql.py',
     'tests/providers/oracle/operators/test_oracle.py',
-    'tests/providers/presto/operators/test_presto_check.py',
     'tests/providers/qubole/hooks/test_qubole.py',
     'tests/providers/samba/hooks/test_samba.py',
     'tests/providers/sqlite/operators/test_sqlite.py',
