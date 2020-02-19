@@ -17,6 +17,7 @@
 # under the License.
 
 import unittest
+from unittest.mock import Mock
 from datetime import datetime
 from unittest.mock import Mock
 
@@ -241,9 +242,10 @@ class TestTriggerRuleDep(unittest.TestCase):
             failed=0,
             upstream_failed=0,
             done=2,
-            flag_upstream_failed=False,
-            session="Fake Session"))
+            flag_upstream_failed=True,
+            session=Mock()))
         self.assertEqual(len(dep_statuses), 0)
+        self.assertEqual(ti.state, State.NONE)
 
     def test_none_failed_tr_failure(self):
         """
