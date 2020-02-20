@@ -32,8 +32,8 @@ class TestWebHDFSHook(unittest.TestCase):
 
     @patch('airflow.providers.apache.hdfs.hooks.webhdfs.InsecureClient')
     @patch('airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_connections', return_value=[
-        Connection(host='localhost', port=123),
-        Connection(host='localhost', port=321, login='user')
+        Connection(host='localhost', port=50070),
+        Connection(host='localhost', port=50071, login='user')
     ])
     def test_get_conn(self, mock_get_connections, mock_insecure_client):
         mock_insecure_client.side_effect = [HdfsError('Error'), mock_insecure_client.return_value]
@@ -49,7 +49,7 @@ class TestWebHDFSHook(unittest.TestCase):
 
     @patch('airflow.providers.apache.hdfs.hooks.webhdfs.KerberosClient', create=True)
     @patch('airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_connections', return_value=[
-        Connection(host='localhost', port=123)
+        Connection(host='localhost', port=50070)
     ])
     @patch('airflow.providers.apache.hdfs.hooks.webhdfs._kerberos_security_mode', return_value=True)
     def test_get_conn_kerberos_security_mode(self,
