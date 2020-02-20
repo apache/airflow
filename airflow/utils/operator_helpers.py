@@ -31,6 +31,8 @@ AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
                                   'env_var_format': 'AIRFLOW_CTX_DAG_OWNER'},
     'AIRFLOW_CONTEXT_DAG_EMAIL': {'default': 'airflow.ctx.dag_email',
                                   'env_var_format': 'AIRFLOW_CTX_DAG_EMAIL'},
+    'AIRFLOW_CONTEXT_DAGRUN_EXECUTION_DATE': {'default': 'airflow.ctx.dag_run.execution_date',
+                                              'env_var_format': 'AIRFLOW_CTX_DAGRUN_EXECUTION_DATE'},
 }
 
 
@@ -84,4 +86,8 @@ def context_to_airflow_vars(context, in_env_var_format=False):
     if dag_run and dag_run.run_id:
         params[AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_RUN_ID'][
             name_format]] = dag_run.run_id
+    if dag_run and dag_run.execution_date:
+        params[
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAGRUN_EXECUTION_DATE'][
+                name_format]] = dag_run.execution_date.isoformat()
     return params
