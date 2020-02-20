@@ -4254,9 +4254,6 @@ class CLIFactory(object):
             ('role',),
             help='The name of a role',
             nargs='*'),
-        'autoscale': Arg(
-            ('-a', '--autoscale'),
-            help="Minimum and Maximum number of worker to autoscale"),
     }
     subparsers = (
         {
