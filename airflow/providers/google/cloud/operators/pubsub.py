@@ -732,9 +732,9 @@ class PubSubPullOperator(BaseOperator):
             subscription: str,
             max_messages: int = 5,
             ack_messages: bool = False,
+            messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]] = None,
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
-            messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]] = None,
             *args,
             **kwargs
     ) -> None:

@@ -99,9 +99,9 @@ class PubSubPullSensor(BaseSensorOperator):
             return_immediately: Optional[bool] = None,
             ack_messages: bool = False,
             gcp_conn_id: str = 'google_cloud_default',
+            messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]] = None,
             delegate_to: Optional[str] = None,
             project: Optional[str] = None,
-            messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]] = None,
             *args,
             **kwargs
     ) -> None:
