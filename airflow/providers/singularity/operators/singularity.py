@@ -48,6 +48,8 @@ class SingularityOperator(BaseOperator):
     :type start_command: string or list
     :param environment: Environment variables to set in the container. (templated)
     :type environment: dict
+    :param working_dir: Set a working directory for the instance.
+    :type working_dir: str
     :param force_pull: Pull the image on every run. Default is False.
     :type force_pull: bool
     :param volumes: List of volumes to mount into the container, e.g.
@@ -103,16 +105,20 @@ class SingularityOperator(BaseOperator):
         # Pull the container if asked, and ensure not a binary file
         if self.force_pull and not os.path.exists(self.image):
             self.log.info('Pulling container %s', self.image)
-            print(self.cli)
-            print(self.cli.pull(self.image, stream=True))
-            image, lines = self.cli.pull(self.image, stream=True)
-            for line in lines:
-                self.log.info(line)
+            image = self.cli.pull(self.image, stream=True)
+
+            # If we need to stream result for the user, returns lines
+            if isinstance(image, list):
+                lines = image.pop()
+                image = image[0]
+                for line in lines:
+                    self.log.info(line)
 
             # Move the container to where it's desired
             if self.pull_folder is not None:
                 self.image = os.path.join(self.pull_folder, os.path.basename(image))
-                shutil.move(image, self.image)
+                if not os.path.exists(self.image):
+                    shutil.move(image, self.image)
 
         # Prepare list of binds
         for bind in self.volumes:
