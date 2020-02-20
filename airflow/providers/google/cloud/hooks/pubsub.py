@@ -534,7 +534,7 @@ class PubSubHook(CloudBaseHook):
             Mutually exclusive with `messages` argument.
         :type ack_ids: list
         :param messages: List of ReceivedMessage objects to acknowledge.
-            Mutually exclusive with `messages` argument.
+            Mutually exclusive with ``ack_ids`` argument.
         :type messages: list
         :param project_id: Optional, the GCP project name or ID in which to create the topic
             If set to None or missing, the default project_id from the GCP connection is used.
