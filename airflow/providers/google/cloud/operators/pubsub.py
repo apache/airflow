@@ -672,7 +672,7 @@ class PubSubPublishMessageOperator(BaseOperator):
 class PubSubPullOperator(BaseOperator):
     """Pulls messages from a PubSub subscription and passes them through XCom.
 
-    This Operator always calls PubSub API with return_immediately=True.
+    This Operator always calls PubSub API with ``return_immediately`` equal True.
     This means that the graph execution will continue regardless of
         whether there are any messages awaiting in the topic.
         If you need to wait for messages, please use
