@@ -909,7 +909,7 @@ class TaskInstance(Base, LoggingMixin):
                 # with single process executor, thus we change the mode to`reschedule`
                 # to allow parallel task being scheduled and executed
                 if isinstance(task_copy, BaseSensorOperator) and \
-                        conf.get('core', 'executor') == "DebugExecutor":
+                        conf.get('core', 'executor') in ["DebugExecutor", "SequentialExecutor"]:
                     self.log.warning("DebugExecutor changes sensor mode to 'reschedule'.")
                     task_copy.mode = 'reschedule'
 
