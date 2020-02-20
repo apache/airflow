@@ -776,7 +776,7 @@ class PubSubPullOperator(BaseOperator):
     def _default_message_callback(
             self,
             pulled_messages: List[ReceivedMessage],
-            context: Dict[str, Any],
+            context: Dict[str, Any],  # pylint: disable=unused-argument
     ):
         """
         This method can be overridden by subclasses or by `messages_callback` constructor argument.
