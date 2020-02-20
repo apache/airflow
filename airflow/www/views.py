@@ -529,7 +529,7 @@ class Airflow(AirflowBaseView):
             html_code = highlight(
                 code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
         except OSError as e:
-            html_code = str(e)
+            html_code = 'Failed to load file.<br/> Details: ' + str(e)
 
         return self.render_template(
             'airflow/dag_code.html', html_code=html_code, dag=dag, title=dag_id,
