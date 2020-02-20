@@ -62,7 +62,7 @@ class WebHDFSHook(BaseHook):
         """
         connection = self._find_valid_server()
         if connection is None:
-            raise AirflowException("Failed to locate the valid server.")
+            raise AirflowWebHDFSHookException("Failed to locate the valid server.")
         return connection
 
     def _find_valid_server(self):
