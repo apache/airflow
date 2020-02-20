@@ -531,7 +531,7 @@ class PubSubHook(CloudBaseHook):
             include the 'projects/{project}/topics/' prefix.
         :type subscription: str
         :param ack_ids: List of ReceivedMessage ackIds from a previous pull response.
-            Mutually exclusive with `messages` argument.
+            Mutually exclusive with ``messages`` argument.
         :type ack_ids: list
         :param messages: List of ReceivedMessage objects to acknowledge.
             Mutually exclusive with ``ack_ids`` argument.
