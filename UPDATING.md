@@ -25,6 +25,7 @@ assists users migrating to a new version.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Airflow 1.10.10](#airflow-11010)
 - [Airflow 1.10.9](#airflow-1109)
 - [Airflow 1.10.8](#airflow-1108)
 - [Airflow 1.10.7](#airflow-1107)
@@ -41,6 +42,12 @@ assists users migrating to a new version.
 - [Airflow 1.7.1.2](#airflow-1712)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## Airflow 1.10.10
+
+### Success Callback will be called when a task in marked as success from UI
+
+When a task is marked as success by a user from Airflow UI - `on_success_callback` will be called
 
 ## Airflow 1.10.9
 
