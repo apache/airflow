@@ -66,7 +66,6 @@ class SimpleDag(BaseDag):
         self._dag_id: str = dag.dag_id
         self._task_ids: List[str] = [task.task_id for task in dag.tasks]
         self._full_filepath: str = dag.full_filepath
-        self._is_paused: bool = dag.is_paused
         self._concurrency: int = dag.concurrency
         self._pickle_id: Optional[str] = pickle_id
         self._task_special_args: Dict[str, Any] = {}
@@ -108,14 +107,6 @@ class SimpleDag(BaseDag):
         :rtype: int
         """
         return self._concurrency
-
-    @property
-    def is_paused(self) -> bool:    # pylint: disable=invalid-overridden-method
-        """
-        :return: whether this DAG is paused or not
-        :rtype: bool
-        """
-        return self._is_paused
 
     @property
     def pickle_id(self) -> Optional[str]:    # pylint: disable=invalid-overridden-method

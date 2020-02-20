@@ -39,7 +39,7 @@ from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
-from airflow.models import DAG, SlaMiss, errors
+from airflow.models import DAG, DagModel, SlaMiss, errors
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
 from airflow.stats import Stats
@@ -697,11 +697,6 @@ class DagFileProcessor(LoggingMixin):
         check_slas = conf.getboolean('core', 'CHECK_SLAS', fallback=True)
         # pylint: disable=too-many-nested-blocks
         for dag in dags:
-
-            if dag.is_paused:
-                self.log.info("Not processing DAG %s since it's paused", dag.dag_id)
-                continue
-
             self.log.info("Processing %s", dag.dag_id)
 
             # Only creates DagRun for DAGs that are not subdag since
@@ -816,7 +811,12 @@ class DagFileProcessor(LoggingMixin):
         # Save individual DAGs in the ORM and update DagModel.last_scheduled_time
         dagbag.sync_to_db()
 
-        paused_dag_ids = {dag.dag_id for dag in dagbag.dags.values() if dag.is_paused}
+        paused_dag_ids = (
+            session.query(DagModel.dag_id)
+            .filter(DagModel.is_paused.is_(True))
+            .filter(DagModel.dag_id.in_(dagbag.dag_ids))
+            .all()
+        )
 
         # Pickle the DAGs (if necessary) and put them into a SimpleDag
         for dag_id, dag in dagbag.dags.items():
