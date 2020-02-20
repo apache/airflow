@@ -103,6 +103,8 @@ class SingularityOperator(BaseOperator):
         # Pull the container if asked, and ensure not a binary file
         if self.force_pull and not os.path.exists(self.image):
             self.log.info('Pulling container %s', self.image)
+            print(self.cli)
+            print(self.cli.pull(self.image, stream=True))
             image, lines = self.cli.pull(self.image, stream=True)
             for line in lines:
                 self.log.info(line)
