@@ -17,7 +17,7 @@
 # under the License.
 
 import unittest
-from typing import List, Any, Dict
+from typing import Any, Dict, List
 
 import mock
 from google.cloud.pubsub_v1.types import ReceivedMessage

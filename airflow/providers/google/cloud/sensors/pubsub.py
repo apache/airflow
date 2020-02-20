@@ -19,7 +19,7 @@
 This module contains a Google PubSub sensor.
 """
 import warnings
-from typing import Optional, List, Callable, Any, Dict
+from typing import Any, Callable, Dict, List, Optional
 
 from google.cloud.pubsub_v1.types import ReceivedMessage
 from google.protobuf.json_format import MessageToDict

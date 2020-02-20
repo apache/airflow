@@ -17,21 +17,16 @@
 # under the License.
 
 import unittest
-from typing import List, Any, Dict
+from typing import Any, Dict, List
 
 import mock
 from google.cloud.pubsub_v1.types import ReceivedMessage
-from google.protobuf.json_format import ParseDict, MessageToDict
+from google.protobuf.json_format import MessageToDict, ParseDict
 
 from airflow.providers.google.cloud.operators.pubsub import (
-    PubSubCreateSubscriptionOperator,
-    PubSubCreateTopicOperator,
-    PubSubDeleteSubscriptionOperator,
-    PubSubDeleteTopicOperator,
-    PubSubPublishMessageOperator,
-    PubSubPullOperator,
+    PubSubCreateSubscriptionOperator, PubSubCreateTopicOperator, PubSubDeleteSubscriptionOperator,
+    PubSubDeleteTopicOperator, PubSubPublishMessageOperator, PubSubPullOperator,
 )
-
 
 TASK_ID = 'test-task-id'
 TEST_PROJECT = 'test-project'

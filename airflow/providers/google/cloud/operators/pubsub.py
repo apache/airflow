@@ -19,7 +19,7 @@
 This module contains Google PubSub operators.
 """
 import warnings
-from typing import Dict, List, Optional, Sequence, Tuple, Union, Any, Callable
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.pubsub_v1.types import Duration, MessageStoragePolicy, PushConfig, ReceivedMessage
