@@ -58,7 +58,7 @@ CONVERSION = {
     "kind": "dfareporting#conversion",
     "floodlightActivityId": FLOODLIGHT_ACTIVITY_ID,
     "floodlightConfigurationId": FLOODLIGHT_CONFIGURATION_ID,
-    "mobileDeviceId": "E95AE36E-A242-4A20-AB40-CA85BBBDA915",
+    "mobileDeviceId": DEVICE_ID,
     "ordinal": "0",
     "quantity": 42,
     "value": 123.4,
