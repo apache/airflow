@@ -71,7 +71,6 @@ class SingularityOperator(BaseOperator):
             pull_folder: Optional[str] = None,
             working_dir: Optional[str] = None,
             force_pull: Optional[bool] = False,
-            task_id: Optional[str] = None,
             volumes: Optional[List[str]] = None,
             options: Optional[List[str]] = None,
             auto_remove: Optional[bool] = False,
