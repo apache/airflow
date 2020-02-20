@@ -455,3 +455,10 @@ class DagBag(BaseDagBag, LoggingMixin):
             task_num=sum([o.task_num for o in stats]),
             table=pprinttable(stats),
         )
+
+    def sync_to_db(self):
+        """
+        Save attributes about list of DAG to the DB.
+        """
+        from airflow.models.dag import DAG
+        DAG.bulk_sync_to_db(self.dags.values())

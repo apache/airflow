@@ -821,8 +821,7 @@ class DagFileProcessor(LoggingMixin):
             return [], len(dagbag.import_errors)
 
         # Save individual DAGs in the ORM and update DagModel.last_scheduled_time
-        for dag in dagbag.dags.values():
-            dag.sync_to_db()
+        dagbag.sync_to_db()
 
         paused_dag_ids = {dag.dag_id for dag in dagbag.dags.values() if dag.is_paused}
 
