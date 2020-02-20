@@ -31,12 +31,14 @@ from airflow.utils.decorators import apply_defaults
 
 class PubSubPullSensor(BaseSensorOperator):
     """Pulls messages from a PubSub subscription and passes them through XCom.
+    Always waits for at least one message to be returned from the subscription.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:PubSubPullSensor`
 
     .. seealso::
+        If you don't want to wait for at least one message to come, use Operator instead:
         :class:`airflow.providers.google.cloud.operators.PubSubPullOperator`
 
     This sensor operator will pull up to ``max_messages`` messages from the

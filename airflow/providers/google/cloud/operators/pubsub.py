@@ -671,6 +671,7 @@ class PubSubPublishMessageOperator(BaseOperator):
 
 class PubSubPullOperator(BaseOperator):
     """Pulls messages from a PubSub subscription and passes them through XCom.
+    If there are no messages available, returns empty list.
 
     This Operator always calls PubSub API with ``return_immediately`` equal True.
     This means that the graph execution will continue regardless of
@@ -684,6 +685,7 @@ class PubSubPullOperator(BaseOperator):
         :ref:`howto/operator:PubSubPullSensor`
 
     .. seealso::
+        If you want to wait for new messages, use Sensor instead:
         :class:`airflow.providers.google.cloud.sensors.PubSubPullSensor`
 
     This sensor operator will pull up to ``max_messages`` messages from the
