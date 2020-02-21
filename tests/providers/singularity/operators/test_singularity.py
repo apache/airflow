@@ -74,9 +74,8 @@ class SingularityOperatorTestCase(unittest.TestCase):
         with six.assertRaisesRegex(self, AirflowException, "You must define a command."):
             task.execute({})
 
-    @mock.patch('airflow.providers.singularity.operators.singularity.os.path.exists')
     @mock.patch('airflow.providers.singularity.operators.singularity.Client')
-    def test_image_should_be_pulled_when_not_exists(self, client_mock, exists_mock):
+    def test_image_should_be_pulled_when_not_exists(self, client_mock):
         instance = mock.Mock(autospec=Instance, **{
             'start.return_value': 0,
             'stop.return_value': 0,
@@ -86,7 +85,6 @@ class SingularityOperatorTestCase(unittest.TestCase):
         client_mock.instance.return_value = instance
         client_mock.execute.return_value = {'return_code': 0,
                                             'message': 'message'}
-        exists_mock.return_value = False
 
         task = SingularityOperator(
             task_id='task-id',
