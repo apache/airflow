@@ -142,6 +142,11 @@ these guidelines:
     It will help you make sure you do not break the build with your PR and
     that you help increase coverage.
 
+-   Follow our project's `Coding style and best practices`_.
+
+    These are things that aren't currently enforced programtically (either because they are two hard or just
+    not yet done.)
+
 -   `Rebase your fork <http://stackoverflow.com/a/7244456/1110993>`__, squash
     commits, and resolve all conflicts.
 
@@ -320,6 +325,47 @@ We check our code quality via static code checks. See
 Your code must pass all the static code checks in Travis CI in order to be eligible for Code Review.
 The easiest way to make sure your code is good before pushing is to use pre-commit checks locally
 as described in the static code checks documentation.
+
+.. _coding_style:
+
+Coding style and best practices
+===============================
+
+Most of your coding style rules are enforced programmatically by flake8 and pylint (which are run automatically
+on every pull request), but there are some rules that are not yet automated and are more Airflow specific or
+semantic than style
+
+Database Session Handling
+-------------------------
+
+**Explicit is better than implicit.** If a function accepts a ``session`` parameter it should not commit the
+transaction itself. Session management is up to the caller.
+
+To make this easier there is the ``create_session`` helper:
+
+.. code-block:: python
+
+    from airflow.utils.db import create_session
+
+    def my_call(*args, session):
+      ...
+      # You MUST not commit the session here.
+
+    with create_session() as session:
+        my_call(*args, session=session)
+
+If this function is designed to be called by "end-users" (i.e. DAG authors) then using the ``@provide_session`` wrapper is okay:
+
+.. code-block:: python
+
+    from airflow.utils.db import provide_session
+
+    ...
+
+    @session
+    def my_method(arg, arg, session=None)
+      ...
+      # You SHOULD not commit the session here. The wrapper will take care of commit()/rollback() if exception
 
 Test Infrastructure
 ===================
