@@ -22,9 +22,6 @@ from airflow.utils.session import provide_session
 
 
 class ValidStateDep(BaseTIDep):
-    NAME = "Task Instance State"
-    IGNOREABLE = True
-
     """
     Ensures that the task instance's state is in a given set of valid states.
 
@@ -33,6 +30,9 @@ class ValidStateDep(BaseTIDep):
     :type valid_states: set(str)
     :return: whether or not the task instance's state is valid
     """
+    NAME = "Task Instance State"
+    IGNOREABLE = True
+
     def __init__(self, valid_states):
         super().__init__()
 
@@ -42,7 +42,7 @@ class ValidStateDep(BaseTIDep):
         self._valid_states = valid_states
 
     def __eq__(self, other):
-        return type(self) == type(other) and self._valid_states == other._valid_states
+        return isinstance(self, type(other)) and self._valid_states == other._valid_states
 
     def __hash__(self):
         return hash((type(self), tuple(self._valid_states)))

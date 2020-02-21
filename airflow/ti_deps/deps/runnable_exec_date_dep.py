@@ -22,6 +22,9 @@ from airflow.utils.session import provide_session
 
 
 class RunnableExecDateDep(BaseTIDep):
+    """
+    Determines whether a task's execution date is valid.
+    """
     NAME = "Execution Date"
     IGNOREABLE = True
 

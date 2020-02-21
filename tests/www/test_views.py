@@ -47,7 +47,7 @@ from airflow.models import DAG, Connection, DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
-from airflow.ti_deps.dep_context import QUEUEABLE_STATES, RUNNABLE_STATES
+from airflow.ti_deps.dependencies import QUEUEABLE_STATES, RUNNABLE_STATES
 from airflow.utils import dates, timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State

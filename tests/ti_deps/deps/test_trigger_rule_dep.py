@@ -465,16 +465,13 @@ class TestTriggerRuleDep(unittest.TestCase):
 
         # check handling with cases that tasks are triggered from backfill with no finished tasks
         finished_tasks = DepContext().ensure_finished_tasks(ti_op2.task.dag, ti_op2.execution_date, session)
-        self.assertEqual(get_states_count_upstream_ti(finished_tasks=finished_tasks,
-                                                      ti=ti_op2, session=session),
+        self.assertEqual(get_states_count_upstream_ti(finished_tasks=finished_tasks, ti=ti_op2),
                          (1, 0, 0, 0, 1))
         finished_tasks = dr.get_task_instances(state=State.finished() + [State.UPSTREAM_FAILED],
                                                session=session)
-        self.assertEqual(get_states_count_upstream_ti(finished_tasks=finished_tasks, ti=ti_op4,
-                                                      session=session),
+        self.assertEqual(get_states_count_upstream_ti(finished_tasks=finished_tasks, ti=ti_op4),
                          (1, 0, 1, 0, 2))
-        self.assertEqual(get_states_count_upstream_ti(finished_tasks=finished_tasks, ti=ti_op5,
-                                                      session=session),
+        self.assertEqual(get_states_count_upstream_ti(finished_tasks=finished_tasks, ti=ti_op5),
                          (2, 0, 1, 0, 3))
 
         dr.update_state()

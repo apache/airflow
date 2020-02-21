@@ -50,7 +50,8 @@ from airflow.models.variable import Variable
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.sentry import Sentry
 from airflow.stats import Stats
-from airflow.ti_deps.dep_context import REQUEUEABLE_DEPS, RUNNING_DEPS, DepContext
+from airflow.ti_deps.dep_context import DepContext
+from airflow.ti_deps.dependencies import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.utils import timezone
 from airflow.utils.email import send_email
 from airflow.utils.helpers import is_container

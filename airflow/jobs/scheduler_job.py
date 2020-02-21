@@ -42,7 +42,8 @@ from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagRun, SlaMiss, errors
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.stats import Stats
-from airflow.ti_deps.dep_context import SCHEDULED_DEPS, DepContext
+from airflow.ti_deps.dep_context import DepContext
+from airflow.ti_deps.dependencies import SCHEDULED_DEPS
 from airflow.ti_deps.deps.pool_slots_available_dep import STATES_TO_COUNT_AS_RUNNING
 from airflow.utils import asciiart, helpers, timezone
 from airflow.utils.dag_processing import (
