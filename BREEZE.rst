@@ -245,7 +245,7 @@ that are started in the same docker-compose command. Those are required by some 
 as described in `TESTING.rst <TESTING.rst#airflow-integration-tests>`_.
 
 By default Breeze starts only airflow-testing container without any integration enabled. If you selected
-``postgres` or ``mysql`` backend, also container with the selected backend is started (but only the one
+``postgres`` or ``mysql`` backend, the container for the selected backend is also started (but only the one
 that is selected). You can start the additional integrations by passing ``--integration`` flag
 with appropriate integration name when starting Breeze. You can specify several ``--integration`` flags
 to start more than one integration at a time.
