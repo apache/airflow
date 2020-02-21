@@ -84,7 +84,6 @@ function setup_default_breeze_variables() {
 
     # If true, the docker images are rebuilt locally.
     export NEEDS_DOCKER_BUILD="false"
-    export NEEDS_DOCKER_BUILD="false"
 
     # By default we only pull images if we do not have them locally.
     # This can be overridden by -p flag
