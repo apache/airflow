@@ -1010,7 +1010,7 @@ class BaseOperator(Operator, LoggingMixin):
             self,
             start_date: Optional[datetime] = None,
             end_date: Optional[datetime] = None,
-            ignore_first_depends_on_past: bool = False,
+            ignore_first_depends_on_past: bool = True,
             ignore_ti_state: bool = False,
             mark_success: bool = False) -> None:
         """

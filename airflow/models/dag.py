@@ -1331,7 +1331,7 @@ class DAG(BaseDag, LoggingMixin):
             executor=None,
             donot_pickle=conf.getboolean('core', 'donot_pickle'),
             ignore_task_deps=False,
-            ignore_first_depends_on_past=False,
+            ignore_first_depends_on_past=True,
             pool=None,
             delay_on_limit_secs=1.0,
             verbose=False,

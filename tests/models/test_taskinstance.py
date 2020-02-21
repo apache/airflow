@@ -784,7 +784,7 @@ class TestTaskInstance(unittest.TestCase):
         ti = TI(task, run_date)
 
         # depends_on_past prevents the run
-        task.run(start_date=run_date, end_date=run_date)
+        task.run(start_date=run_date, end_date=run_date, ignore_first_depends_on_past=False)
         ti.refresh_from_db()
         self.assertIs(ti.state, None)
 

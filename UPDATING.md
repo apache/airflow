@@ -61,6 +61,11 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Deprecating ignore_first_depends_on_past on backfill command and default it to True
+
+When doing backfill with `depends_on_past` dags, users will need to pass `ignore_first_depends_on_past`.
+We should default it as `true` to avoid confusion
+
 ### Custom executors is loaded using full import path
 
 In previous versions of Airflow it was possible to use plugins to load custom executors. It is still
