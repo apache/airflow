@@ -34,7 +34,6 @@ class TestExampleDags(unittest.TestCase):
             with self.subTest(f"File {relative_filepath} should contain dags"):
                 dagbag = DagBag(
                     dag_folder=filepath,
-                    executor=None,
                     include_examples=False,
                 )
                 self.assertEqual(0, len(dagbag.import_errors), f"import_errors={str(dagbag.import_errors)}")

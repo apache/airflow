@@ -89,22 +89,16 @@ class DagBag(BaseDagBag, LoggingMixin):
     def __init__(
             self,
             dag_folder=None,
-            executor=None,
             include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
             safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
             store_serialized_dags=False,
     ):
 
-        # do not use default arg in signature, to fix import cycle on plugin load
-        if executor is None:
-            from airflow.executors.executor_loader import ExecutorLoader
-            executor = ExecutorLoader.get_default_executor()
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
         self.dags = {}
         # the file's last modified timestamp when we last read it
         self.file_last_changed = {}
-        self.executor = executor
         self.import_errors = {}
         self.has_logged = False
         self.store_serialized_dags = store_serialized_dags
