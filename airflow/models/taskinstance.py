@@ -43,7 +43,6 @@ from airflow.exceptions import (
 )
 from airflow.models.base import ID_LEN, Base
 from airflow.models.log import Log
-from airflow.models.pool import Pool
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
@@ -697,27 +696,6 @@ class TaskInstance(Base, LoggingMixin):
         """
         return (self.state == State.UP_FOR_RETRY and
                 self.next_retry_datetime() < timezone.utcnow())
-
-    @provide_session
-    def pool_full(self, session):
-        """
-        Returns a boolean as to whether the slot pool has room for this
-        task to run
-        """
-        if not self.task.pool:
-            return False
-
-        pool = (
-            session
-            .query(Pool)
-            .filter(Pool.pool == self.task.pool)
-            .first()
-        )
-        if not pool:
-            return False
-        open_slots = pool.open_slots(session=session)
-
-        return open_slots <= 0
 
     @provide_session
     def get_dagrun(self, session):

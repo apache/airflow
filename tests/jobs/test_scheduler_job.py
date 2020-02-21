@@ -2324,13 +2324,10 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertEqual(
             len(session.query(TI).filter(TI.dag_id == dag_id).all()), 0)
 
-    @patch.object(TI, 'pool_full')
-    def test_scheduler_verify_pool_full(self, mock_pool_full):
+    def test_scheduler_verify_pool_full(self):
         """
         Test task instances not queued when pool is full
         """
-        mock_pool_full.return_value = False
-
         dag = DAG(
             dag_id='test_scheduler_verify_pool_full',
             start_date=DEFAULT_DATE)
