@@ -105,7 +105,7 @@ class SingularityOperator(BaseOperator):
         # Pull the container if asked, and ensure not a binary file
         if self.force_pull and not os.path.exists(self.image):
             self.log.info('Pulling container %s', self.image)
-            image = self.cli.pull(self.image, stream=True)
+            image = self.cli.pull(self.image, stream=True, pull_folder=self.pull_folder)
 
             # If we need to stream result for the user, returns lines
             if isinstance(image, list):
@@ -114,11 +114,8 @@ class SingularityOperator(BaseOperator):
                 for line in lines:
                     self.log.info(line)
 
-            # Move the container to where it's desired
-            if self.pull_folder is not None:
-                self.image = os.path.join(self.pull_folder, os.path.basename(image))
-                if not os.path.exists(self.image):
-                    shutil.move(image, self.image)
+            # Update the image to be a filepath on the system
+            self.image = image
 
         # Prepare list of binds
         for bind in self.volumes:
