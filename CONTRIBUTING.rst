@@ -331,7 +331,7 @@ as described in the static code checks documentation.
 Coding style and best practices
 ===============================
 
-Most of your coding style rules are enforced programmatically by flake8 and pylint (which are run automatically
+Most of our coding style rules are enforced programmatically by flake8 and pylint (which are run automatically
 on every pull request), but there are some rules that are not yet automated and are more Airflow specific or
 semantic than style
 
@@ -345,7 +345,7 @@ To make this easier there is the ``create_session`` helper:
 
 .. code-block:: python
 
-    from airflow.utils.db import create_session
+    from airflow.utils.session import create_session
 
     def my_call(*args, session):
       ...
@@ -358,11 +358,11 @@ If this function is designed to be called by "end-users" (i.e. DAG authors) then
 
 .. code-block:: python
 
-    from airflow.utils.db import provide_session
+    from airflow.utils.session import provide_session
 
     ...
 
-    @session
+    @provide_session
     def my_method(arg, arg, session=None)
       ...
       # You SHOULD not commit the session here. The wrapper will take care of commit()/rollback() if exception
