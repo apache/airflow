@@ -553,17 +553,15 @@ class PubSubHook(CloudBaseHook):
         if not project_id:
             raise ValueError("Project ID should be set.")
 
-        if ack_ids is not None and messages is not None:
-            raise ValueError("'ack_ids' and 'messages' arguments are mutually exclusive.")
-
-        if ack_ids is None:
-            if messages is None:
-                raise ValueError("Either 'ack_ids' or 'messages' argument have to be provided.")
-            else:
-                ack_ids = [
-                    message.ack_id
-                    for message in messages
-                ]
+        if ack_ids is not None and messages is None:
+            pass
+        elif ack_ids is None and messages is not None:
+            ack_ids = [
+                message.ack_id
+                for message in messages
+            ]
+        else:
+            raise ValueError("One and only one of 'ack_ids' and 'messages' arguments have to be provided")
 
         subscriber = self.subscriber_client
         subscription_path = SubscriberClient.subscription_path(project_id, subscription)  # noqa E501 # pylint: disable=no-member,line-too-long
