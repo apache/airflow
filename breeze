@@ -629,7 +629,7 @@ function parse_arguments() {
         -k|--stop-environment)
           COMMAND_TO_RUN="run_docker_compose"
           DOCKER_COMPOSE_COMMAND="down"
-          export EXTRA_DC_OPTIONS+=("--remove-orphans")
+          EXTRA_DC_OPTIONS+=("--remove-orphans")
           shift ;;
         -x|--execute-command)
           COMMAND_TO_RUN="run_in_bash"
