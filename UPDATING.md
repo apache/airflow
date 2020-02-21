@@ -25,6 +25,7 @@ assists users migrating to a new version.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Airflow 1.10.12](#airflow-11012)
 - [Airflow 1.10.11](#airflow-11011)
 - [Airflow 1.10.10](#airflow-11010)
 - [Airflow 1.10.9](#airflow-1109)
@@ -59,6 +60,12 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+## Airflow 1.10.12
+
+### Clearing tasks skipped by SkipMixin will skip them
+
+Previously, when tasks skipped by SkipMixin (such as BranchPythonOperator, BaseBranchOperator and ShortCircuitOperator) are cleared, they execute. Since 1.10.12, when such skipped tasks are cleared,
+they will be skipped again by the newly introduced NotPreviouslySkippedDep.
 
 ## Airflow 1.10.11
 
