@@ -25,7 +25,7 @@ from unittest import mock
 import pandas as pd
 
 import airflow.providers.amazon.aws.operators.hive_to_dynamodb
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.aws_dynamodb import AwsDynamoDBHook
 
 DEFAULT_DATE = datetime.datetime(2015, 1, 1)

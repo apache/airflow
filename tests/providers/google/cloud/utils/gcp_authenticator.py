@@ -20,7 +20,8 @@ import os
 import subprocess
 from typing import Optional  # noqa: W0611
 
-from airflow import AirflowException, settings
+from airflow import settings
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 # Please keep these variables in alphabetical order.

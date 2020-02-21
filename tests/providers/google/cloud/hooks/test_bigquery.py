@@ -22,7 +22,7 @@ from unittest import mock
 from googleapiclient.errors import HttpError
 from parameterized import parameterized
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks import bigquery as hook
 from airflow.providers.google.cloud.hooks.bigquery import (
     _api_resource_configs_duplication_check, _cleanse_time_partitioning, _validate_src_fmt_configs,

@@ -20,7 +20,7 @@ This module contains Google Translate operators.
 """
 from typing import List, Union
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook
 from airflow.utils.decorators import apply_defaults

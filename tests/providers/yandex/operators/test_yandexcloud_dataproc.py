@@ -20,7 +20,7 @@ import datetime
 from unittest import TestCase
 from unittest.mock import MagicMock, call, patch
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.providers.yandex.operators.yandexcloud_dataproc import (
     DataprocCreateClusterOperator, DataprocCreateHiveJobOperator, DataprocCreateMapReduceJobOperator,
     DataprocCreatePysparkJobOperator, DataprocCreateSparkJobOperator, DataprocDeleteClusterOperator,

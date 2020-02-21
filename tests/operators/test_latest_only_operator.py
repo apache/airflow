@@ -21,8 +21,9 @@ import unittest
 
 from freezegun import freeze_time
 
-from airflow import DAG, settings
+from airflow import settings
 from airflow.models import DagRun, TaskInstance
+from airflow.models.dag import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.latest_only_operator import LatestOnlyOperator
 from airflow.utils import db, timezone

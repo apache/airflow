@@ -21,8 +21,8 @@ from unittest import mock
 
 import pytest
 
-from airflow import DAG
 from airflow.exceptions import AirflowException
+from airflow.models.dag import DAG
 from airflow.sensors.sql_sensor import SqlSensor
 from airflow.utils.timezone import datetime
 from tests.providers.apache.hive import TestHiveEnvironment

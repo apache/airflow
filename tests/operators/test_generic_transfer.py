@@ -20,7 +20,7 @@ import unittest
 
 import pytest
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.operators.generic_transfer import GenericTransfer
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook

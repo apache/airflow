@@ -20,7 +20,7 @@ import datetime
 import unittest
 from unittest import mock
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.providers.mysql.operators.vertica_to_mysql import VerticaToMySqlTransfer
 
 

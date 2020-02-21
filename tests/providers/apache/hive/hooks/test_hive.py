@@ -28,9 +28,9 @@ from unittest import mock
 import pandas as pd
 from hmsclient import HMSClient
 
-from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
+from airflow.models.dag import DAG
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
 from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.utils import timezone

@@ -21,7 +21,7 @@ This module contains Google Search Ads operators.
 from tempfile import NamedTemporaryFile
 from typing import Any, Dict, Optional
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.search_ads import GoogleSearchAdsHook

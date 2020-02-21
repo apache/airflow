@@ -21,7 +21,7 @@ import unittest
 from collections import OrderedDict
 from unittest.mock import patch
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollectionOperator
 from tests.providers.apache.hive import DEFAULT_DATE, DEFAULT_DATE_DS, TestHiveEnvironment
 

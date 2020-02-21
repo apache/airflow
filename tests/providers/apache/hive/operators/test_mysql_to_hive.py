@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
 from airflow.providers.apache.hive.operators.mysql_to_hive import MySqlToHiveTransfer
 from airflow.providers.mysql.hooks.mysql import MySqlHook

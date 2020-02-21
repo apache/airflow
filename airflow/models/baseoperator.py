@@ -676,7 +676,7 @@ class BaseOperator(Operator, LoggingMixin):
 
         if not self._dag:
             return self.priority_weight
-        from airflow import DAG
+        from airflow.models.dag import DAG
         dag: DAG = self._dag
         return self.priority_weight + sum(
             map(lambda task_id: dag.task_dict[task_id].priority_weight,
@@ -1003,7 +1003,7 @@ class BaseOperator(Operator, LoggingMixin):
         """
         if not self._dag:
             return set()
-        from airflow import DAG
+        from airflow.models.dag import DAG
         dag: DAG = self._dag
         return list(map(lambda task_id: dag.task_dict[task_id],
                         self.get_flat_relative_ids(upstream)))

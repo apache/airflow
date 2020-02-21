@@ -34,7 +34,7 @@ from google.cloud.dlp_v2.types import (
     RiskAnalysisJobConfig, StoredInfoType, StoredInfoTypeConfig,
 )
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 DLP_JOB_PATH_PATTERN = "^projects/[^/]+/dlpJobs/(?P<job>.*?)$"

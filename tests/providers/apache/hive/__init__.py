@@ -19,7 +19,7 @@
 from datetime import datetime
 from unittest import TestCase
 
-from airflow import DAG
+from airflow.models.dag import DAG
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()

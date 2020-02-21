@@ -28,10 +28,11 @@ import sqlalchemy
 from mock import Mock, patch
 from parameterized import parameterized
 
-from airflow import AirflowException, settings
+from airflow import settings
 from airflow.bin import cli
 from airflow.exceptions import (
-    AirflowTaskTimeout, DagConcurrencyLimitReached, NoAvailablePoolSlot, TaskConcurrencyLimitReached,
+    AirflowException, AirflowTaskTimeout, DagConcurrencyLimitReached, NoAvailablePoolSlot,
+    TaskConcurrencyLimitReached,
 )
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.jobs.scheduler_job import DagFileProcessor

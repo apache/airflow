@@ -26,7 +26,7 @@ You can trigger this manually with `airflow dags trigger example_cosmosdb_sensor
 this example.*
 """
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.providers.microsoft.azure.operators.azure_cosmos import AzureCosmosInsertDocumentOperator
 from airflow.providers.microsoft.azure.sensors.azure_cosmos import AzureCosmosDocumentSensor
 from airflow.utils import dates

@@ -27,8 +27,8 @@ import sqlalchemy_jsonfield
 from sqlalchemy import Column, Index, Integer, String, and_
 from sqlalchemy.sql import exists
 
-from airflow import DAG
 from airflow.models.base import ID_LEN, Base
+from airflow.models.dag import DAG
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import json
 from airflow.utils import timezone

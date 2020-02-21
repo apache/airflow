@@ -44,7 +44,7 @@ import mock
 import pytest
 from moto import mock_batch, mock_ec2, mock_ecs, mock_iam, mock_logs
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_waiters import AwsBatchWaiters
 
 # Use dummy AWS credentials

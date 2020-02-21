@@ -22,8 +22,8 @@ from typing import Any, Dict, Optional
 from distributed import Client, Future, as_completed
 from distributed.security import Security
 
-from airflow import AirflowException
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, BaseExecutor, CommandType
 from airflow.models.taskinstance import TaskInstanceKeyType
 

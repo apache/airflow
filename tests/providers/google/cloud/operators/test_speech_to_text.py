@@ -20,7 +20,7 @@ import unittest
 
 from mock import Mock, patch
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.speech_to_text import CloudSpeechToTextRecognizeSpeechOperator
 
 PROJECT_ID = "project-id"

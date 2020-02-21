@@ -61,6 +61,19 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Removed sub-package imports from `airflow/__init__.py`
+
+The imports `LoggingMixin`, `conf`, `AirflowException`, and `DAG` have been removed from `airflow/__init__.py`.
+All implicit references of these objects will no longer be valid. To migrate, all usages of each old path must be
+replaced with its corresponding new path.
+
+| Old Path (Implicit Import)   | New Path (Explicit Import)                       |
+|------------------------------|--------------------------------------------------|
+| ``airflow.LoggingMixin``     | ``airflow.utils.log.logging_mixin.LoggingMixin`` |
+| ``airflow.conf``             | ``airflow.configuration.conf``                   |
+| ``airflow.AirflowException`` | ``airflow.exceptions.AirflowException``          |
+| ``airflow.DAG``              | ``airflow.models.dag.DAG``                  |
+
 ### Success Callback will be called when a task in marked as success from UI
 
 When a task is marked as success by a used from Airflow UI - on_success_callback will be called
@@ -1703,7 +1716,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>> from airflow.settings import *
 >>>
 >>> from datetime import datetime
->>> from airflow import DAG
+>>> from airflow.models.dag import DAG
 >>> from airflow.operators.dummy_operator import DummyOperator
 >>>
 >>> dag = DAG('simple_dag', start_date=datetime(2017, 9, 1))

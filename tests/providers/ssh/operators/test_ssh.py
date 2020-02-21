@@ -21,7 +21,7 @@ from base64 import b64encode
 
 from parameterized import parameterized
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import DAG, TaskInstance
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils import timezone

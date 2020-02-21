@@ -20,8 +20,8 @@ import random
 import unittest
 from datetime import timedelta
 
-from airflow import DAG
 from airflow.exceptions import AirflowSensorTimeout
+from airflow.models.dag import DAG
 from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
 from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.providers.apache.hive.sensors.named_hive_partition import NamedHivePartitionSensor

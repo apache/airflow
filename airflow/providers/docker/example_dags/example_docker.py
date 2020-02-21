@@ -17,7 +17,7 @@
 # under the License.
 from datetime import timedelta
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.utils.dates import days_ago

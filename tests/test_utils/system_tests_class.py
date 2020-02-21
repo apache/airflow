@@ -23,8 +23,9 @@ from shutil import move
 from tempfile import mkdtemp
 from unittest import TestCase
 
-from airflow import AirflowException, models
 from airflow.configuration import AIRFLOW_HOME, AirflowConfigParser, get_airflow_config
+from airflow.exceptions import AirflowException
+from airflow.models.dagbag import DagBag
 from airflow.utils.file import mkdirs
 from airflow.utils.log.logging_mixin import LoggingMixin
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
@@ -212,7 +213,7 @@ class SystemTest(TestCase, LoggingMixin):
             dag_folder = temp_dir
             self.correct_imports_for_airflow_1_10(temp_dir)
         self.log.info("Looking for DAG: %s in %s", dag_id, dag_folder)
-        dag_bag = models.DagBag(dag_folder=dag_folder, include_examples=False)
+        dag_bag = DagBag(dag_folder=dag_folder, include_examples=False)
         dag = dag_bag.get_dag(dag_id)
         if dag is None:
             raise AirflowException(

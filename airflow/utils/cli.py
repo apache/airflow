@@ -34,7 +34,8 @@ from argparse import Namespace
 from datetime import datetime
 from typing import Optional
 
-from airflow import AirflowException, settings
+from airflow import settings
+from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagBag, DagModel, DagPickle, Log
 from airflow.utils import cli_action_loggers
 from airflow.utils.session import provide_session

@@ -22,7 +22,7 @@ import time
 
 import pytest
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSqlProxyRunner
 from tests.providers.google.cloud.operators.test_cloud_sql_system_helper import CloudSqlQueryTestHelper
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_CLOUDSQL_KEY

@@ -19,7 +19,7 @@ import os
 
 import pytest
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from tests.providers.google.cloud.operators.test_cloud_sql_system_helper import CloudSqlQueryTestHelper
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_CLOUDSQL_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context

@@ -19,8 +19,9 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from airflow import DAG, AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.models.dag import DAG
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.providers.apache.livy.operators.livy import LivyOperator
 from airflow.utils import db, timezone

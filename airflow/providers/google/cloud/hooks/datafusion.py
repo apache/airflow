@@ -27,7 +27,7 @@ from urllib.parse import urlencode
 import google.auth
 from googleapiclient.discovery import Resource, build
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 Operation = Dict[str, Any]

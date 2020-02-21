@@ -20,7 +20,7 @@ import filecmp
 import random
 import textwrap
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import BranchPythonOperator, PythonOperator
 from airflow.providers.qubole.operators.qubole import QuboleOperator

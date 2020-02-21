@@ -20,7 +20,7 @@ import unittest
 
 import mock
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
 from airflow.utils import timezone
 

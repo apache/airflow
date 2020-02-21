@@ -19,8 +19,8 @@
 import unittest
 from unittest.mock import patch
 
-from airflow import DAG
 from airflow.models import Connection
+from airflow.models.dag import DAG
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.providers.apache.livy.sensors.livy import LivySensor
 from airflow.utils import db, timezone

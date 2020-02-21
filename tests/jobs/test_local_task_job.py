@@ -24,10 +24,13 @@ import unittest
 import pytest
 from mock import patch
 
-from airflow import AirflowException, models, settings
+from airflow import settings
+from airflow.exceptions import AirflowException
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs import LocalTaskJob
-from airflow.models import DAG, TaskInstance as TI
+from airflow.models.dag import DAG
+from airflow.models.dagbag import DagBag
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
@@ -128,7 +131,7 @@ class TestLocalTaskJob(unittest.TestCase):
         self.mock_base_job_sleep.side_effect = time.sleep
 
         with create_session() as session:
-            dagbag = models.DagBag(
+            dagbag = DagBag(
                 dag_folder=TEST_DAG_FOLDER,
                 include_examples=False,
             )
@@ -142,7 +145,7 @@ class TestLocalTaskJob(unittest.TestCase):
                               execution_date=DEFAULT_DATE,
                               start_date=DEFAULT_DATE,
                               session=session)
-            ti = TI(task=task, execution_date=DEFAULT_DATE)
+            ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
             ti.refresh_from_db()
             ti.state = State.RUNNING
             ti.hostname = get_hostname()
@@ -168,7 +171,7 @@ class TestLocalTaskJob(unittest.TestCase):
         Test that ensures that mark_success in the UI doesn't cause
         the task to fail, and that the task exits
         """
-        dagbag = models.DagBag(
+        dagbag = DagBag(
             dag_folder=TEST_DAG_FOLDER,
             include_examples=False,
         )
@@ -183,7 +186,7 @@ class TestLocalTaskJob(unittest.TestCase):
                           execution_date=DEFAULT_DATE,
                           start_date=DEFAULT_DATE,
                           session=session)
-        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
         process = multiprocessing.Process(target=job1.run)
@@ -205,7 +208,7 @@ class TestLocalTaskJob(unittest.TestCase):
         self.assertEqual(State.SUCCESS, ti.state)
 
     def test_localtaskjob_double_trigger(self):
-        dagbag = models.DagBag(
+        dagbag = DagBag(
             dag_folder=TEST_DAG_FOLDER,
             include_examples=False,
         )
@@ -227,7 +230,7 @@ class TestLocalTaskJob(unittest.TestCase):
         session.merge(ti)
         session.commit()
 
-        ti_run = TI(task=task, execution_date=DEFAULT_DATE)
+        ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti_run.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti_run,
                             executor=SequentialExecutor())
@@ -243,7 +246,7 @@ class TestLocalTaskJob(unittest.TestCase):
         session.close()
 
     def test_localtaskjob_maintain_heart_rate(self):
-        dagbag = models.DagBag(
+        dagbag = DagBag(
             dag_folder=TEST_DAG_FOLDER,
             include_examples=False,
         )
@@ -259,7 +262,7 @@ class TestLocalTaskJob(unittest.TestCase):
                           start_date=DEFAULT_DATE,
                           session=session)
 
-        ti_run = TI(task=task, execution_date=DEFAULT_DATE)
+        ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti_run.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti_run,
                             executor=SequentialExecutor())
@@ -320,7 +323,7 @@ class TestLocalTaskJob(unittest.TestCase):
                           execution_date=DEFAULT_DATE,
                           start_date=DEFAULT_DATE,
                           session=session)
-        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti,
                             ignore_ti_state=True,
@@ -374,7 +377,7 @@ class TestLocalTaskJob(unittest.TestCase):
                           execution_date=DEFAULT_DATE,
                           start_date=DEFAULT_DATE,
                           session=session)
-        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti,
                             ignore_ti_state=True,
