@@ -25,10 +25,10 @@ many types of operation on a DAG, starting services, and supporting
 development and testing.
 
 .. contents:: Content
-    :local:
-    :depth: 2
+  :local:
+  :depth: 2
 
 .. argparse::
-   :module: airflow.bin.cli
-   :func: get_parser
-   :prog: airflow
+  :module: airflow.bin.cli
+  :func: get_parser
+  :prog: airflow
