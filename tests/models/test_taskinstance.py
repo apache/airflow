@@ -606,8 +606,7 @@ class TestTaskInstance(unittest.TestCase):
         period = ti.end_date.add(seconds=1) - ti.end_date.add(seconds=15)
         self.assertTrue(date in period)
 
-    @patch.object(TI, 'pool_full')
-    def test_reschedule_handling(self, mock_pool_full):
+    def test_reschedule_handling(self):
         """
         Test that task reschedules are handled properly
         """
@@ -702,8 +701,7 @@ class TestTaskInstance(unittest.TestCase):
         done, fail = True, False
         run_ti_and_assert(date4, date3, date4, 60, State.SUCCESS, 3, 0)
 
-    @patch.object(TI, 'pool_full')
-    def test_reschedule_handling_clear_reschedules(self, mock_pool_full):
+    def test_reschedule_handling_clear_reschedules(self):
         """
         Test that task reschedules clearing are handled properly
         """
