@@ -39,7 +39,7 @@ from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
-from airflow.models import DAG, DagBag, SlaMiss, errors
+from airflow.models import DAG, SlaMiss, errors
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
 from airflow.stats import Stats
@@ -821,10 +821,9 @@ class DagFileProcessor(LoggingMixin):
         paused_dag_ids = {dag.dag_id for dag in dagbag.dags.values() if dag.is_paused}
 
         # Pickle the DAGs (if necessary) and put them into a SimpleDag
-        for dag_id in dagbag.dags:
+        for dag_id, dag in dagbag.dags.items():
             # Only return DAGs that are not paused
             if dag_id not in paused_dag_ids:
-                dag = dagbag.get_dag(dag_id)
                 pickle_id = None
                 if pickle_dags:
                     pickle_id = dag.pickle(session).id
