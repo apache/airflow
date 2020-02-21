@@ -39,8 +39,8 @@ from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
-from airflow.models import DAG, DagRun, SlaMiss, errors
-from airflow.models.taskinstance import SimpleTaskInstance
+from airflow.models import DAG, DagBag, DagRun, SlaMiss, errors
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies import SCHEDULED_DEPS
@@ -631,7 +631,7 @@ class DagFileProcessor(LoggingMixin):
                 return next_run
 
     @provide_session
-    def _process_task_instances(self, dag, task_instances_list, session=None):
+    def _process_task_instances(self, dag: DAG, task_instances_list: List[TaskInstanceKeyType], session=None):
         """
         This method schedules the tasks for a single DAG by looking at the
         active DAG runs and adding task instances that should run to the
@@ -672,7 +672,7 @@ class DagFileProcessor(LoggingMixin):
                     self.log.debug('Queuing task: %s', ti)
                     task_instances_list.append(ti.key)
 
-    def _process_dags(self, dagbag, dags, tis_out):
+    def _process_dags(self, dagbag: DagBag, dags: List[DAG], tis_out: List[TaskInstanceKeyType]):
         """
         Iterates over the dags and processes them. Processing includes:
 
@@ -717,7 +717,7 @@ class DagFileProcessor(LoggingMixin):
             if check_slas:
                 self.manage_slas(dag)
 
-    def _find_dags_to_process(self, dags: List[DAG], paused_dag_ids: Set[str]):
+    def _find_dags_to_process(self, dags: List[DAG], paused_dag_ids: Set[str]) -> List[DAG]:
         """
         Find the DAGs that are not paused to process.
 
@@ -1589,7 +1589,7 @@ class SchedulerJob(BaseJob):
                 self.processor_agent.wait_until_finished()
 
             simple_dags = self._get_simple_dags()
-            self.log.debug("Harvested {} SimpleDAGs".format(len(simple_dags)))
+            self.log.debug("Harvested %d SimpleDAGs", len(simple_dags))
 
             # Send tasks for execution if available
             simple_dag_bag = SimpleDagBag(simple_dags)
@@ -1636,7 +1636,7 @@ class SchedulerJob(BaseJob):
 
         settings.Session.remove()
 
-    def _validate_and_run_task_instances(self, simple_dag_bag):
+    def _validate_and_run_task_instances(self, simple_dag_bag: SimpleDagBag) -> bool:
         if len(simple_dag_bag.simple_dags) > 0:
             try:
                 self._process_and_execute_tasks(simple_dag_bag)

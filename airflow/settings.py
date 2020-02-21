@@ -68,9 +68,9 @@ LOG_FORMAT = conf.get('logging', 'log_format')
 SIMPLE_LOG_FORMAT = conf.get('logging', 'simple_log_format')
 
 SQL_ALCHEMY_CONN: Optional[str] = None
-DAGS_FOLDER: Optional[str] = None
 PLUGINS_FOLDER: Optional[str] = None
 LOGGING_CLASS_PATH: Optional[str] = None
+DAGS_FOLDER: str = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
 engine: Optional[Engine] = None
 Session: Optional[SASession] = None

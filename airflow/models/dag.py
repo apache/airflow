@@ -34,6 +34,7 @@ from croniter import croniter
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, func, or_
 from sqlalchemy.orm import backref, relationship
+from sqlalchemy.orm.session import Session
 
 from airflow import settings, utils
 from airflow.configuration import conf
@@ -567,7 +568,7 @@ class DAG(BaseDag, LoggingMixin):
         return list(self.task_dict.keys())
 
     @property
-    def filepath(self):
+    def filepath(self) -> str:
         """
         File location of where the dag object is instantiated
         """
@@ -576,12 +577,12 @@ class DAG(BaseDag, LoggingMixin):
         return fn
 
     @property
-    def folder(self):
+    def folder(self) -> str:
         """Folder location of where the DAG object is instantiated."""
         return os.path.dirname(self.full_filepath)
 
     @property
-    def owner(self):
+    def owner(self) -> str:
         """
         Return list of all owners found in DAG tasks.
 
@@ -591,14 +592,14 @@ class DAG(BaseDag, LoggingMixin):
         return ", ".join({t.owner for t in self.tasks})
 
     @property
-    def allow_future_exec_dates(self):
+    def allow_future_exec_dates(self) -> bool:
         return conf.getboolean(
             'scheduler',
             'allow_trigger_in_future',
             fallback=False) and self.schedule_interval is None
 
     @provide_session
-    def _get_concurrency_reached(self, session=None):
+    def _get_concurrency_reached(self, session=None) -> bool:
         TI = TaskInstance
         qry = session.query(func.count(TI.task_id)).filter(
             TI.dag_id == self.dag_id,
@@ -607,7 +608,7 @@ class DAG(BaseDag, LoggingMixin):
         return qry.scalar() >= self.concurrency
 
     @property
-    def concurrency_reached(self):
+    def concurrency_reached(self) -> bool:
         """
         Returns a boolean indicating whether the concurrency limit for this DAG
         has been reached
@@ -621,7 +622,7 @@ class DAG(BaseDag, LoggingMixin):
         return qry.value(DagModel.is_paused)
 
     @property
-    def is_paused(self):
+    def is_paused(self) -> bool:
         """
         Returns a boolean indicating whether this DAG is paused
         """
@@ -903,11 +904,11 @@ class DAG(BaseDag, LoggingMixin):
     @provide_session
     def set_dag_runs_state(
             self,
-            state=State.RUNNING,
-            session=None,
-            start_date=None,
-            end_date=None,
-    ):
+            state: str = State.RUNNING,
+            session: Session = None,
+            start_date: Optional[datetime] = None,
+            end_date: Optional[datetime] = None,
+    ) -> None:
         query = session.query(DagRun).filter_by(dag_id=self.dag_id)
         if start_date:
             query = query.filter(DagRun.execution_date >= start_date)
