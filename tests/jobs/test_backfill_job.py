@@ -139,12 +139,11 @@ class TestBackfillJob(unittest.TestCase):
         target_dag.sync_to_db()
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=Mock())
-        task_instances_list = Mock()
-        dag_file_processor._process_task_instances(
+        task_instances_list = dag_file_processor._process_task_instances(
             target_dag,
-            task_instances_list=task_instances_list
+            dag_runs=DagRun.find(dag_id='example_trigger_target_dag')
         )
-        self.assertFalse(task_instances_list.append.called)
+        self.assertFalse(task_instances_list)
 
         job = BackfillJob(
             dag=dag,
@@ -154,12 +153,12 @@ class TestBackfillJob(unittest.TestCase):
         )
         job.run()
 
-        dag_file_processor._process_task_instances(
+        task_instances_list = dag_file_processor._process_task_instances(
             target_dag,
-            task_instances_list=task_instances_list
+            dag_runs=DagRun.find(dag_id='example_trigger_target_dag')
         )
 
-        self.assertTrue(task_instances_list.append.called)
+        self.assertTrue(task_instances_list)
 
     @pytest.mark.backend("postgres", "mysql")
     def test_backfill_multi_dates(self):

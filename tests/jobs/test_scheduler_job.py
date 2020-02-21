@@ -28,7 +28,7 @@ import mock
 import psutil
 import pytest
 import six
-from mock import MagicMock, Mock, patch
+from mock import MagicMock, patch
 from parameterized import parameterized
 
 import airflow.example_dags
@@ -178,8 +178,10 @@ class TestDagFileProcessor(unittest.TestCase):
         with create_session() as session:
             dagbag = DagBag(dag_folder=os.path.join(settings.DAGS_FOLDER, "no_dags.py"))
             dag = self.create_test_dag()
+            dag.clear()
             dagbag.bag_dag(dag=dag, root_dag=dag, parent_dag=dag)
             dag = self.create_test_dag()
+            dag.clear()
             task = DummyOperator(
                 task_id='dummy',
                 dag=dag,
@@ -439,11 +441,11 @@ class TestDagFileProcessor(unittest.TestCase):
                 ti.start_date = start_date
                 ti.end_date = end_date
 
-        mock_list = Mock()
-        dag_file_processor._process_task_instances(dag, task_instances_list=mock_list)
+        mock_list = dag_file_processor._process_task_instances(dag, dag_runs=[dr])
 
-        mock_list.append.assert_called_once_with(
-            (dag.dag_id, dag_task1.task_id, DEFAULT_DATE, TRY_NUMBER)
+        self.assertEqual(
+            [(dag.dag_id, dag_task1.task_id, DEFAULT_DATE, TRY_NUMBER)],
+            mock_list
         )
 
     @parameterized.expand([
@@ -485,8 +487,7 @@ class TestDagFileProcessor(unittest.TestCase):
                 ti.start_date = start_date
                 ti.end_date = end_date
 
-        ti_to_schedule = []
-        dag_file_processor._process_task_instances(dag, task_instances_list=ti_to_schedule)
+        ti_to_schedule = dag_file_processor._process_task_instances(dag, dag_runs=[dr])
 
         assert ti_to_schedule == [
             (dag.dag_id, dag_task1.task_id, DEFAULT_DATE, TRY_NUMBER),
@@ -536,8 +537,7 @@ class TestDagFileProcessor(unittest.TestCase):
                 ti.start_date = start_date
                 ti.end_date = end_date
 
-        ti_to_schedule = []
-        dag_file_processor._process_task_instances(dag, task_instances_list=ti_to_schedule)
+        ti_to_schedule = dag_file_processor._process_task_instances(dag, dag_runs=[dr])
 
         assert ti_to_schedule == [
             (dag.dag_id, dag_task1.task_id, DEFAULT_DATE, TRY_NUMBER),
@@ -565,14 +565,14 @@ class TestDagFileProcessor(unittest.TestCase):
         dr = dag_file_processor.create_dag_run(dag)
         self.assertIsNotNone(dr)
 
+        dr = DagRun.find(run_id=dr.run_id)[0]
         dag = DAG(
             dag_id='test_scheduler_do_not_schedule_removed_task',
             start_date=DEFAULT_DATE)
 
-        mock_list = Mock()
-        dag_file_processor._process_task_instances(dag, task_instances_list=mock_list)
+        mock_list = dag_file_processor._process_task_instances(dag, dag_runs=[dr])
 
-        mock_list.put.assert_not_called()
+        self.assertEqual([], mock_list)
 
     def test_dag_file_processor_do_not_schedule_too_early(self):
         dag = DAG(
@@ -595,10 +595,8 @@ class TestDagFileProcessor(unittest.TestCase):
         dr = dag_file_processor.create_dag_run(dag)
         self.assertIsNone(dr)
 
-        mock_list = Mock()
-        dag_file_processor._process_task_instances(dag, task_instances_list=mock_list)
-
-        mock_list.put.assert_not_called()
+        mock_list = dag_file_processor._process_task_instances(dag, dag_runs=[])
+        self.assertEqual([], mock_list)
 
     def test_dag_file_processor_do_not_schedule_without_tasks(self):
         dag = DAG(
@@ -641,10 +639,9 @@ class TestDagFileProcessor(unittest.TestCase):
         session.commit()
         session.close()
 
-        mock_list = Mock()
-        dag_file_processor._process_task_instances(dag, task_instances_list=mock_list)
+        mock_list = dag_file_processor._process_task_instances(dag, dag_runs=[dr])
 
-        mock_list.put.assert_not_called()
+        self.assertEqual([], mock_list)
 
     def test_dag_file_processor_add_new_task(self):
         """
@@ -679,8 +676,7 @@ class TestDagFileProcessor(unittest.TestCase):
             dag=dag,
             owner='airflow')
 
-        task_instances_list = Mock()
-        dag_file_processor._process_task_instances(dag, task_instances_list=task_instances_list)
+        dag_file_processor._process_task_instances(dag, dag_runs=[dr])
 
         tis = dr.get_task_instances()
         self.assertEqual(len(tis), 2)
@@ -815,22 +811,22 @@ class TestDagFileProcessor(unittest.TestCase):
         dag.clear()
 
         # First create up to 3 dagruns in RUNNING state.
-        assert dag_file_processor.create_dag_run(dag) is not None
-        assert dag_file_processor.create_dag_run(dag) is not None
-        assert dag_file_processor.create_dag_run(dag) is not None
+        dr1 = dag_file_processor.create_dag_run(dag)
+        assert dr1 is not None
+        dr2 = dag_file_processor.create_dag_run(dag)
+        assert dr2 is not None
+        dr3 = dag_file_processor.create_dag_run(dag)
+        assert dr3 is not None
         assert len(DagRun.find(dag_id=dag.dag_id, state=State.RUNNING, session=session)) == 3
 
         # Reduce max_active_runs to 1
         dag.max_active_runs = 1
 
-        task_instances_list = Mock()
         # and schedule them in, so we can check how many
         # tasks are put on the task_instances_list (should be one, not 3)
-        dag_file_processor._process_task_instances(dag, task_instances_list=task_instances_list)
+        task_instances_list = dag_file_processor._process_task_instances(dag, dag_runs=[dr1, dr2, dr3])
 
-        task_instances_list.append.assert_called_once_with(
-            (dag.dag_id, dag_task1.task_id, DEFAULT_DATE, TRY_NUMBER)
-        )
+        self.assertEqual([(dag.dag_id, dag_task1.task_id, DEFAULT_DATE, TRY_NUMBER)], task_instances_list)
 
     def test_find_dags_to_run_includes_subdags(self):
         dag = self.dagbag.get_dag('test_subdag_operator')
@@ -987,7 +983,7 @@ class TestDagFileProcessor(unittest.TestCase):
         scheduler._process_task_instances = mock.MagicMock()
         scheduler.manage_slas = mock.MagicMock()
 
-        scheduler._process_dags([dag] + dag.subdags, [])
+        scheduler._process_dags([dag] + dag.subdags)
 
         with create_session() as session:
             sub_dagruns = (
@@ -2289,8 +2285,8 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertEqual(dr.execution_date, DEFAULT_DATE)
         dr = dag_file_processor.create_dag_run(dag)
         self.assertIsNotNone(dr)
-        task_instances_list = []
-        dag_file_processor._process_task_instances(dag, task_instances_list=task_instances_list)
+        dag_runs = DagRun.find(dag_id="test_scheduler_verify_pool_full")
+        task_instances_list = dag_file_processor._process_task_instances(dag, dag_runs=dag_runs)
         self.assertEqual(len(task_instances_list), 2)
         dagbag = self._make_simple_dag_bag([dag])
 
@@ -2417,9 +2413,9 @@ class TestSchedulerJob(unittest.TestCase):
         # and the queued_tasks will be cleared by scheduler job.
         self.assertEqual(0, len(executor.queued_tasks))
 
-        def run_with_error(task, ignore_ti_state=False):
+        def run_with_error(ti, ignore_ti_state=False):
             try:
-                task.run(ignore_ti_state=ignore_ti_state)
+                ti.run(ignore_ti_state=ignore_ti_state)
             except AirflowException:
                 pass
 
@@ -2951,6 +2947,7 @@ def test_task_with_upstream_skip_process_task_instances():
     Test if _process_task_instances puts a task instance into SKIPPED state if any of its
     upstream tasks are skipped according to TriggerRuleDep.
     """
+    clear_db_runs()
     with DAG(
         dag_id='test_task_with_upstream_skip_dag',
         start_date=DEFAULT_DATE,
@@ -2975,7 +2972,8 @@ def test_task_with_upstream_skip_process_task_instances():
         tis[dummy2.task_id].state = State.SUCCESS
         assert tis[dummy3.task_id].state == State.NONE
 
-    dag_file_processor._process_task_instances(dag, task_instances_list=Mock())
+    dag_runs = DagRun.find(dag_id='test_task_with_upstream_skip_dag')
+    dag_file_processor._process_task_instances(dag, dag_runs=dag_runs)
 
     with create_session() as session:
         tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}

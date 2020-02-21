@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import List, Optional, Tuple, cast
+from datetime import datetime
+from typing import List, Optional, Tuple, Union, cast
 
 from sqlalchemy import (
     Boolean, Column, DateTime, Index, Integer, PickleType, String, UniqueConstraint, and_, func, or_,
@@ -126,14 +127,21 @@ class DagRun(Base, LoggingMixin):
 
     @staticmethod
     @provide_session
-    def find(dag_id=None, run_id=None, execution_date=None,
-             state=None, external_trigger=None, no_backfills=False,
-             session=None, execution_start_date=None, execution_end_date=None):
+    def find(
+        dag_id: Optional[Union[str, List[str]]] = None,
+        run_id: Optional[str] = None,
+        execution_date: Optional[datetime] = None,
+        state: Optional[str] = None,
+        external_trigger: Optional[bool] = None,
+        no_backfills: Optional[bool] = False,
+        session: Session = None,
+        execution_start_date=None, execution_end_date=None
+    ):
         """
         Returns a set of dag runs for the given search criteria.
 
-        :param dag_id: the dag_id to find dag runs for
-        :type dag_id: int, list
+        :param dag_id: the dag_id or list of dag_id to find dag runs for
+        :type dag_id: str or list[str]
         :param run_id: defines the run id for this dag run
         :type run_id: str
         :param execution_date: the execution date
@@ -155,8 +163,9 @@ class DagRun(Base, LoggingMixin):
         DR = DagRun
 
         qry = session.query(DR)
-        if dag_id:
-            qry = qry.filter(DR.dag_id == dag_id)
+        dag_ids = [dag_id] if isinstance(dag_id, str) else dag_id
+        if dag_ids:
+            qry = qry.filter(DR.dag_id.in_(dag_ids))
         if run_id:
             qry = qry.filter(DR.run_id == run_id)
         if execution_date:

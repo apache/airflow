@@ -27,6 +27,7 @@ import time
 from collections import defaultdict
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import timedelta
+from itertools import groupby
 from typing import List, Set
 
 from setproctitle import setproctitle
@@ -639,7 +640,9 @@ class DagFileProcessor(LoggingMixin):
         return None
 
     @provide_session
-    def _process_task_instances(self, dag: DAG, task_instances_list: List[TaskInstanceKeyType], session=None):
+    def _process_task_instances(
+        self, dag: DAG, dag_runs: List[DagRun], session=None
+    ) -> List[TaskInstanceKeyType]:
         """
         This method schedules the tasks for a single DAG by looking at the
         active DAG runs and adding task instances that should run to the
@@ -647,8 +650,8 @@ class DagFileProcessor(LoggingMixin):
         """
 
         # update the state of the previously active dag runs
-        dag_runs = DagRun.find(dag_id=dag.dag_id, state=State.RUNNING, session=session)
         active_dag_runs = 0
+        task_instances_list = []
         for run in dag_runs:
             self.log.info("Examining DAG run %s", run)
             # don't consider runs that are executed in the future unless
@@ -669,7 +672,7 @@ class DagFileProcessor(LoggingMixin):
                 continue
 
             # todo: run.dag is transient but needs to be set
-            run.dag = dag
+            run.dag = dag  # type: ignore
             # todo: preferably the integrity check happens at dag collection time
             run.verify_integrity(session=session)
             ready_tis = run.update_state(session=session)
@@ -679,8 +682,10 @@ class DagFileProcessor(LoggingMixin):
                 for ti in ready_tis:
                     self.log.debug('Queuing task: %s', ti)
                     task_instances_list.append(ti.key)
+        return task_instances_list
 
-    def _process_dags(self, dags: List[DAG], tis_out: List[TaskInstanceKeyType]):
+    @provide_session
+    def _process_dags(self, dags: List[DAG], session=None):
         """
         Iterates over the dags and processes them. Processing includes:
 
@@ -690,30 +695,44 @@ class DagFileProcessor(LoggingMixin):
 
         :param dags: the DAGs from the DagBag to process
         :type dags: List[airflow.models.DAG]
-        :param tis_out: A list to add generated TaskInstance objects
-        :type tis_out: list[TaskInstance]
-        :rtype: None
+        :rtype: list[TaskInstance]
+        :return: A list of generated TaskInstance objects
         """
         check_slas = conf.getboolean('core', 'CHECK_SLAS', fallback=True)
         # pylint: disable=too-many-nested-blocks
+
+        tis_out: List[TaskInstanceKeyType] = []
+        dag_ids = [dag.dag_id for dag in dags]
+        dag_runs = DagRun.find(dag_id=dag_ids, state=State.RUNNING, session=session)
+        # As per the docs of groupby (https://docs.python.org/3/library/itertools.html#itertools.groupby)
+        # we need to use `list()` otherwise the result will be wrong/incomplete
+        dag_runs_by_dag_id = {k: list(v) for k, v in groupby(dag_runs, lambda d: d.dag_id)}
+
         for dag in dags:
-            self.log.info("Processing %s", dag.dag_id)
+            dag_id = dag.dag_id
+            self.log.info("Processing %s", dag_id)
+            dag_runs_for_dag = dag_runs_by_dag_id.get(dag_id) or []
 
             # Only creates DagRun for DAGs that are not subdag since
             # DagRun of subdags are created when SubDagOperator executes.
             if not dag.is_subdag:
                 dag_run = self.create_dag_run(dag)
                 if dag_run:
+                    dag_runs_for_dag.append(dag_run)
                     expected_start_date = dag.following_schedule(dag_run.execution_date)
                     if expected_start_date:
                         schedule_delay = dag_run.start_date - expected_start_date
                         Stats.timing(
                             'dagrun.schedule_delay.{dag_id}'.format(dag_id=dag.dag_id),
                             schedule_delay)
-                self.log.info("Created %s", dag_run)
-            self._process_task_instances(dag, tis_out)
-            if check_slas:
-                self.manage_slas(dag)
+                    self.log.info("Created %s", dag_run)
+
+            if dag_runs_for_dag:
+                tis_out.extend(self._process_task_instances(dag, dag_runs_for_dag))
+                if check_slas:
+                    self.manage_slas(dag)
+
+        return tis_out
 
     def _find_dags_to_process(self, dags: List[DAG], paused_dag_ids: Set[str]) -> List[DAG]:
         """
@@ -824,17 +843,13 @@ class DagFileProcessor(LoggingMixin):
 
         dags = self._find_dags_to_process(dagbag.dags.values(), paused_dag_ids)
 
-        # Not using multiprocessing.Queue() since it's no longer a separate
-        # process and due to some unusual behavior. (empty() incorrectly
-        # returns true as described in https://bugs.python.org/issue23582 )
-        ti_keys_to_schedule = []
-        refreshed_tis = []
-
-        self._process_dags(dags, ti_keys_to_schedule)
+        ti_keys_to_schedule = self._process_dags(dags, session)
 
         # Refresh all task instances that will be scheduled
         TI = models.TaskInstance
         filter_for_tis = TI.filter_for_tis(ti_keys_to_schedule)
+
+        refreshed_tis = []
 
         if filter_for_tis is not None:
             refreshed_tis = session.query(TI).filter(filter_for_tis).with_for_update().all()
