@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,8 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
-
-AIRFLOW_MAIN_FOLDER = os.path.realpath(
-    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
-)
+---
+version: "2.2"
+services:
+  airflow-testing:
+    # Forwards local credentials to docker image
+    # Useful for gcloud/aws/kubernetes etc. authorisation to be passed
+    # To inside docker. Use with care - your credentials will be available to
+    # Everything you install in Docker
+    volumes:
+      - ./empty:/opt/airflow/airflow:cached
+      # necessary for system tests - we need to take example dags from there
+      - ../../../airflow/providers:/providers:cached

@@ -38,6 +38,7 @@ fi
 
 if [[ ${CI} == "true" ]]; then
     send_docker_logs_to_file_io
+    send_airflow_logs_to_file_io
 fi
 
 if [[ ${CI} == "true" && ${ENABLE_KIND_CLUSTER} == "true" ]]; then
