@@ -69,7 +69,7 @@ class TestOperatorHelpers(unittest.TestCase):
                 'airflow.ctx.dag_run_id': self.dag_run_id,
                 'airflow.ctx.dag_owner': 'owner1,owner2',
                 'airflow.ctx.dag_email': 'email1@test.com',
-                'airflow.ctx.dag_run.execution_date' : self.execution_date
+                'airflow.ctx.dag_run.execution_date': self.execution_date
             }
         )
 
