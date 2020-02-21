@@ -36,9 +36,10 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
-from airflow.jobs import BackfillJob, SchedulerJob
-from airflow.jobs.scheduler_job import DagFileProcessor
-from airflow.models import DAG, DagBag, DagModel, DagRun, Pool, SlaMiss, TaskInstance, errors
+from airflow.jobs.backfill_job import BackfillJob
+from airflow.jobs.scheduler_job import DagFileProcessor, SchedulerJob
+from airflow.models import DAG, DagBag, DagModel, Pool, SlaMiss, TaskInstance, errors
+from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
@@ -48,6 +49,7 @@ from airflow.utils.dates import days_ago
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 from tests.test_utils.db import (
     clear_db_dags, clear_db_errors, clear_db_pools, clear_db_runs, clear_db_sla_miss, set_default_pool_slots,
 )
@@ -1222,7 +1224,7 @@ class TestSchedulerJob(unittest.TestCase):
         session = settings.Session()
 
         dr1 = dag_file_processor.create_dag_run(dag)
-        dr1.run_id = BackfillJob.ID_PREFIX + '_blah'
+        dr1.run_id = DagRunType.BACKFILL_JOB.value + '_blah'
         ti1 = TaskInstance(task1, dr1.execution_date)
         ti1.refresh_from_db()
         ti1.state = State.SCHEDULED
@@ -1249,7 +1251,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         dr1 = dag_file_processor.create_dag_run(dag)
         dr2 = dag_file_processor.create_dag_run(dag)
-        dr2.run_id = BackfillJob.ID_PREFIX + 'asdf'
+        dr2.run_id = DagRunType.BACKFILL_JOB.value + 'asdf'
 
         ti_no_dagrun = TaskInstance(task1, DEFAULT_DATE - datetime.timedelta(days=1))
         ti_backfill = TaskInstance(task1, dr2.execution_date)
@@ -1775,13 +1777,13 @@ class TestSchedulerJob(unittest.TestCase):
         DummyOperator(task_id='dummy', dag=dag3, owner='airflow')
 
         session = settings.Session()
-        dr1 = dag1.create_dagrun(run_id=DagRun.ID_PREFIX,
+        dr1 = dag1.create_dagrun(run_id=DagRunType.SCHEDULED.value,
                                  state=State.RUNNING,
                                  execution_date=DEFAULT_DATE,
                                  start_date=DEFAULT_DATE,
                                  session=session)
 
-        dr2 = dag2.create_dagrun(run_id=DagRun.ID_PREFIX,
+        dr2 = dag2.create_dagrun(run_id=DagRunType.SCHEDULED.value,
                                  state=State.RUNNING,
                                  execution_date=DEFAULT_DATE,
                                  start_date=DEFAULT_DATE,
@@ -1907,12 +1909,12 @@ class TestSchedulerJob(unittest.TestCase):
             op1 = DummyOperator(task_id='op1')
 
         dag.clear()
-        dr = dag.create_dagrun(run_id=DagRun.ID_PREFIX,
+        dr = dag.create_dagrun(run_id=DagRunType.SCHEDULED.value,
                                state=State.RUNNING,
                                execution_date=DEFAULT_DATE,
                                start_date=DEFAULT_DATE,
                                session=session)
-        dr2 = dag.create_dagrun(run_id=BackfillJob.ID_PREFIX,
+        dr2 = dag.create_dagrun(run_id=DagRunType.BACKFILL_JOB.value,
                                 state=State.RUNNING,
                                 execution_date=DEFAULT_DATE + datetime.timedelta(1),
                                 start_date=DEFAULT_DATE,
@@ -1958,7 +1960,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         # Create DAG run with FAILED state
         dag.clear()
-        dr = dag.create_dagrun(run_id=DagRun.ID_PREFIX,
+        dr = dag.create_dagrun(run_id=DagRunType.SCHEDULED.value,
                                state=State.FAILED,
                                execution_date=DEFAULT_DATE,
                                start_date=DEFAULT_DATE,
@@ -2759,7 +2761,7 @@ class TestSchedulerJob(unittest.TestCase):
         ti = dr1.get_task_instances(session=session)[0]
         ti.state = State.SCHEDULED
         dr1.state = State.RUNNING
-        dr1.run_id = BackfillJob.ID_PREFIX + '_sdfsfdfsd'
+        dr1.run_id = DagRunType.BACKFILL_JOB.value + '_sdfsfdfsd'
         session.merge(ti)
         session.merge(dr1)
         session.commit()

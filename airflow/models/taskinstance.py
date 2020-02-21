@@ -107,7 +107,7 @@ def clear_task_instances(tis,
         ).delete()
 
     if job_ids:
-        from airflow.jobs import BaseJob as BJ
+        from airflow.jobs.base_job import BaseJob as BJ
         for job in session.query(BJ).filter(BJ.id.in_(job_ids)).all():
             job.state = State.SHUTDOWN
 
@@ -728,7 +728,7 @@ class TaskInstance(Base, LoggingMixin):
         return dr
 
     @provide_session
-    def _check_and_change_state_before_execution(
+    def check_and_change_state_before_execution(
             self,
             verbose: bool = True,
             ignore_all_deps: bool = False,
@@ -1038,7 +1038,7 @@ class TaskInstance(Base, LoggingMixin):
             job_id: Optional[str] = None,
             pool: Optional[str] = None,
             session=None) -> None:
-        res = self._check_and_change_state_before_execution(
+        res = self.check_and_change_state_before_execution(
             verbose=verbose,
             ignore_all_deps=ignore_all_deps,
             ignore_depends_on_past=ignore_depends_on_past,

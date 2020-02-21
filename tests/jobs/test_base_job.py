@@ -23,7 +23,7 @@ import unittest
 from mock import Mock, patch
 from sqlalchemy.exc import OperationalError
 
-from airflow.jobs import BaseJob
+from airflow.jobs.base_job import BaseJob
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State

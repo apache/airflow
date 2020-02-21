@@ -38,6 +38,7 @@ import airflow.models
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
+from airflow.jobs.local_task_job import LocalTaskJob as LJ
 from airflow.models import Connection, errors
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.settings import STORE_SERIALIZED_DAGS
@@ -1075,7 +1076,6 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         if not self._last_zombie_query_time or \
                 (now - self._last_zombie_query_time).total_seconds() > self._zombie_query_interval:
             # to avoid circular imports
-            from airflow.jobs import LocalTaskJob as LJ
             self.log.info("Finding 'running' jobs without a recent heartbeat")
             TI = airflow.models.TaskInstance
             limit_dttm = timezone.utcnow() - timedelta(

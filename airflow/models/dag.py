@@ -1374,7 +1374,7 @@ class DAG(BaseDag, LoggingMixin):
         :type: bool
 
         """
-        from airflow.jobs import BackfillJob
+        from airflow.jobs.backfill_job import BackfillJob
         if not executor and local:
             from airflow.executors.local_executor import LocalExecutor
             executor = LocalExecutor()

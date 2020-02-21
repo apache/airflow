@@ -35,6 +35,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 
 class DagRun(Base, LoggingMixin):
@@ -44,7 +45,7 @@ class DagRun(Base, LoggingMixin):
     """
     __tablename__ = "dag_run"
 
-    ID_PREFIX = 'scheduled__'
+    ID_PREFIX = DagRunType.SCHEDULED.value
     ID_FORMAT_PREFIX = ID_PREFIX + '{0}'
 
     id = Column(Integer, primary_key=True)
@@ -175,8 +176,7 @@ class DagRun(Base, LoggingMixin):
             qry = qry.filter(DR.external_trigger == external_trigger)
         if no_backfills:
             # in order to prevent a circular dependency
-            from airflow.jobs import BackfillJob
-            qry = qry.filter(DR.run_id.notlike(BackfillJob.ID_PREFIX + '%'))
+            qry = qry.filter(DR.run_id.notlike(DagRunType.BACKFILL_JOB.value + '%'))
 
         dr = qry.order_by(DR.execution_date).all()
 
@@ -484,10 +484,9 @@ class DagRun(Base, LoggingMixin):
 
     @property
     def is_backfill(self):
-        from airflow.jobs import BackfillJob
         return (
             self.run_id is not None and
-            self.run_id.startswith(BackfillJob.ID_PREFIX)
+            self.run_id.startswith(DagRunType.BACKFILL_JOB.value)
         )
 
     @classmethod

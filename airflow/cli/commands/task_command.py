@@ -26,10 +26,11 @@ from typing import List
 
 from tabulate import tabulate
 
-from airflow import jobs, settings
+from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models import DagPickle, TaskInstance
 from airflow.models.dag import DAG
 from airflow.ti_deps.dep_context import DepContext
@@ -102,7 +103,7 @@ def _run_task_by_local_task_job(args, ti):
     """
     Run LocalTaskJob, which monitors the raw task execution process
     """
-    run_job = jobs.LocalTaskJob(
+    run_job = LocalTaskJob(
         task_instance=ti,
         mark_success=args.mark_success,
         pickle_id=args.pickle,

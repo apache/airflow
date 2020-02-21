@@ -38,6 +38,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 
 class BaseJob(Base, LoggingMixin):
@@ -123,11 +124,14 @@ class BaseJob(Base, LoggingMixin):
 
     @provide_session
     def kill(self, session=None):
+        """
+        Handles on_kill callback and updates state in database.
+        """
         job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
         job.end_date = timezone.utcnow()
         try:
             self.on_kill()
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             self.log.error('on_kill() method failed: %s', str(e))
         session.merge(job)
         session.commit()
@@ -139,7 +143,9 @@ class BaseJob(Base, LoggingMixin):
         """
 
     def heartbeat_callback(self, session=None):
-        pass
+        """
+        Callback that is called during heartbeat. This method should be overwritten.
+        """
 
     def heartbeat(self):
         """
@@ -200,6 +206,9 @@ class BaseJob(Base, LoggingMixin):
             self.latest_heartbeat = previous_heartbeat
 
     def run(self):
+        """
+        Starts the job.
+        """
         Stats.incr(self.__class__.__name__.lower() + '_start', 1, 1)
         # Adding an entry in the DB
         with create_session() as session:
@@ -245,8 +254,6 @@ class BaseJob(Base, LoggingMixin):
         :return: the TIs reset (in expired SQLAlchemy state)
         :rtype: list[airflow.models.TaskInstance]
         """
-        from airflow.jobs.backfill_job import BackfillJob
-
         queued_tis = self.executor.queued_tasks
         # also consider running as the state might not have changed in the db yet
         running_tis = self.executor.running
@@ -265,7 +272,7 @@ class BaseJob(Base, LoggingMixin):
                         TI.execution_date == DR.execution_date))
                 .filter(
                     DR.state == State.RUNNING,
-                    DR.run_id.notlike(BackfillJob.ID_PREFIX + '%'),
+                    DR.run_id.notlike(DagRunType.BACKFILL_JOB.value + '%'),
                     TI.state.in_(resettable_states))).all()
         else:
             resettable_tis = filter_by_dag_run.get_task_instances(state=resettable_states,

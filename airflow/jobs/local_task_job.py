@@ -19,10 +19,12 @@
 
 import os
 import signal
+from typing import Optional
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job import BaseJob
+from airflow.models.taskinstance import TaskInstance
 from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.utils import timezone
@@ -32,6 +34,9 @@ from airflow.utils.state import State
 
 
 class LocalTaskJob(BaseJob):
+    """
+    LocalTaskJob runs a single task instance.
+    """
 
     __mapper_args__ = {
         'polymorphic_identity': 'LocalTaskJob'
@@ -39,14 +44,14 @@ class LocalTaskJob(BaseJob):
 
     def __init__(
             self,
-            task_instance,
-            ignore_all_deps=False,
-            ignore_depends_on_past=False,
-            ignore_task_deps=False,
-            ignore_ti_state=False,
-            mark_success=False,
-            pickle_id=None,
-            pool=None,
+            task_instance: TaskInstance,
+            ignore_all_deps: bool = False,
+            ignore_depends_on_past: bool = False,
+            ignore_task_deps: bool = False,
+            ignore_ti_state: bool = False,
+            mark_success: bool = False,
+            pickle_id: Optional[str] = None,
+            pool: Optional[str] = None,
             *args, **kwargs):
         self.task_instance = task_instance
         self.dag_id = task_instance.dag_id
@@ -57,6 +62,7 @@ class LocalTaskJob(BaseJob):
         self.pool = pool
         self.pickle_id = pickle_id
         self.mark_success = mark_success
+        self.task_runner = None
 
         # terminating state is used so that a job don't try to
         # terminate multiple times
@@ -74,7 +80,7 @@ class LocalTaskJob(BaseJob):
             raise AirflowException("LocalTaskJob received SIGTERM signal")
         signal.signal(signal.SIGTERM, signal_handler)
 
-        if not self.task_instance._check_and_change_state_before_execution(
+        if not self.task_instance.check_and_change_state_before_execution(
                 mark_success=self.mark_success,
                 ignore_all_deps=self.ignore_all_deps,
                 ignore_depends_on_past=self.ignore_depends_on_past,

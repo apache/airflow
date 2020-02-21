@@ -1034,7 +1034,7 @@ class TestTaskInstance(unittest.TestCase):
         ti = TI(
             task=task, execution_date=timezone.utcnow())
         self.assertEqual(ti._try_number, 0)
-        self.assertTrue(ti._check_and_change_state_before_execution())
+        self.assertTrue(ti.check_and_change_state_before_execution())
         # State should be running, and try_number column should be incremented
         self.assertEqual(ti.state, State.RUNNING)
         self.assertEqual(ti._try_number, 1)
@@ -1046,7 +1046,7 @@ class TestTaskInstance(unittest.TestCase):
         task >> task2
         ti = TI(
             task=task2, execution_date=timezone.utcnow())
-        self.assertFalse(ti._check_and_change_state_before_execution())
+        self.assertFalse(ti.check_and_change_state_before_execution())
 
     def test_try_number(self):
         """

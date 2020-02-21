@@ -48,14 +48,17 @@ from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
 
 import airflow
-from airflow import jobs, models, settings
+from airflow import models, settings
 from airflow._vendor import nvd3
 from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed, set_dag_run_state_to_success,
 )
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.models import Connection, DagModel, DagRun, DagTag, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.jobs.base_job import BaseJob
+from airflow.jobs.scheduler_job import SchedulerJob
+from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.models.dagrun import DagRun, DagRunType
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
@@ -175,7 +178,7 @@ class AirflowBaseView(BaseView):
         return super().render_template(
             *args,
             # Cache this at most once per request, not for the lifetime of the view instance
-            scheduler_job=lazy_object_proxy.Proxy(jobs.SchedulerJob.most_recent_job),
+            scheduler_job=lazy_object_proxy.Proxy(SchedulerJob.most_recent_job),
             **kwargs
         )
 
@@ -196,7 +199,7 @@ class Airflow(AirflowBaseView):
         scheduler_status = 'unhealthy'
         payload['metadatabase'] = {'status': 'healthy'}
         try:
-            scheduler_job = jobs.SchedulerJob.most_recent_job()
+            scheduler_job = SchedulerJob.most_recent_job()
 
             if scheduler_job:
                 latest_scheduler_heartbeat = scheduler_job.latest_heartbeat.isoformat()
@@ -993,7 +996,7 @@ class Airflow(AirflowBaseView):
             return redirect(origin)
 
         execution_date = timezone.utcnow()
-        run_id = "manual__{0}".format(execution_date.isoformat())
+        run_id = "{}{}".format(DagRunType.MANUAL.value, execution_date.isoformat())
 
         dr = DagRun.find(dag_id=dag_id, run_id=run_id)
         if dr:
@@ -2407,7 +2410,7 @@ class VariableModelView(AirflowModelView):
 class JobModelView(AirflowModelView):
     route_base = '/job'
 
-    datamodel = AirflowModelView.CustomSQLAInterface(jobs.BaseJob)
+    datamodel = AirflowModelView.CustomSQLAInterface(BaseJob)
 
     base_permissions = ['can_list']
 

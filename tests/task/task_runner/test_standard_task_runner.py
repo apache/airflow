@@ -25,7 +25,7 @@ from unittest import mock
 import psutil
 
 from airflow import models, settings
-from airflow.jobs import LocalTaskJob
+from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models import TaskInstance as TI
 from airflow.task.task_runner import StandardTaskRunner
 from airflow.utils import timezone

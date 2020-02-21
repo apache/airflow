@@ -72,7 +72,7 @@ class TestCliTasks(unittest.TestCase):
         # Check that prints, and log messages, are shown
         self.assertIn("'example_python_operator__print_the_context__20180101'", stdout.getvalue())
 
-    @mock.patch("airflow.cli.commands.task_command.jobs.LocalTaskJob")
+    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
     def test_run_naive_taskinstance(self, mock_local_job):
         """
         Test that we can run naive (non-localized) task instances

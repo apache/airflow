@@ -27,7 +27,7 @@ from mock import patch
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.executors.sequential_executor import SequentialExecutor
-from airflow.jobs import LocalTaskJob
+from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
