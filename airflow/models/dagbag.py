@@ -37,7 +37,6 @@ from airflow.utils import timezone
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import pprinttable
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import provide_session
 from airflow.utils.timeout import timeout
 
 
@@ -83,7 +82,6 @@ class DagBag(BaseDagBag, LoggingMixin):
     CYCLE_IN_PROGRESS = 1
     CYCLE_DONE = 2
     DAGBAG_IMPORT_TIMEOUT = conf.getint('core', 'DAGBAG_IMPORT_TIMEOUT')
-    UNIT_TEST_MODE = conf.getboolean('core', 'UNIT_TEST_MODE')
     SCHEDULER_ZOMBIE_TASK_THRESHOLD = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
     def __init__(
@@ -323,36 +321,6 @@ class DagBag(BaseDagBag, LoggingMixin):
 
         self.file_last_changed[filepath] = file_last_changed_on_disk
         return found_dags
-
-    @provide_session
-    def kill_zombies(self, zombies, session=None):
-        """
-        Fail given zombie tasks, which are tasks that haven't
-        had a heartbeat for too long, in the current DagBag.
-
-        :param zombies: zombie task instances to kill.
-        :type zombies: List[airflow.models.taskinstance.SimpleTaskInstance]
-        :param session: DB session.
-        """
-        from airflow.models.taskinstance import TaskInstance  # Avoid circular import
-
-        for zombie in zombies:
-            if zombie.dag_id in self.dags:
-                dag = self.dags[zombie.dag_id]
-                if zombie.task_id in dag.task_ids:
-                    task = dag.get_task(zombie.task_id)
-                    ti = TaskInstance(task, zombie.execution_date)
-                    # Get properties needed for failure handling from SimpleTaskInstance.
-                    ti.start_date = zombie.start_date
-                    ti.end_date = zombie.end_date
-                    ti.try_number = zombie.try_number
-                    ti.state = zombie.state
-                    ti.test_mode = self.UNIT_TEST_MODE
-                    ti.handle_failure("{} detected as zombie".format(ti),
-                                      ti.test_mode, ti.get_template_context())
-                    self.log.info('Marked zombie job %s as %s', ti, ti.state)
-                    Stats.incr('zombies_killed')
-        session.commit()
 
     def bag_dag(self, dag, parent_dag, root_dag):
         """

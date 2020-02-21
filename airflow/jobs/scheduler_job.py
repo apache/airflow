@@ -314,6 +314,9 @@ class DagFileProcessor(LoggingMixin):
     :param log: Logger to save the processing process
     :type log: logging.Logger
     """
+
+    UNIT_TEST_MODE = conf.getboolean('core', 'UNIT_TEST_MODE')
+
     def __init__(self, dag_ids, log):
         self.dag_ids = dag_ids
         self._log = log
@@ -731,6 +734,36 @@ class DagFileProcessor(LoggingMixin):
         return dags
 
     @provide_session
+    def kill_zombies(self, dagbag, zombies, session=None):
+        """
+        Fail given zombie tasks, which are tasks that haven't
+        had a heartbeat for too long, in the current DagBag.
+
+        :param zombies: zombie task instances to kill.
+        :type zombies: List[airflow.models.taskinstance.SimpleyTaskInstance]
+        :param session: DB session.
+        """
+        TI = models.TaskInstance
+
+        for zombie in zombies:
+            if zombie.dag_id in dagbag.dags:
+                dag = dagbag.dags[zombie.dag_id]
+                if zombie.task_id in dag.task_ids:
+                    task = dag.get_task(zombie.task_id)
+                    ti = TI(task, zombie.execution_date)
+                    # Get properties needed for failure handling from SimpleTaskInstance.
+                    ti.start_date = zombie.start_date
+                    ti.end_date = zombie.end_date
+                    ti.try_number = zombie.try_number
+                    ti.state = zombie.state
+                    ti.test_mode = self.UNIT_TEST_MODE
+                    ti.handle_failure("{} detected as zombie".format(ti),
+                                      ti.test_mode, ti.get_template_context())
+                    self.log.info('Marked zombie job %s as %s', ti, ti.state)
+                    Stats.incr('zombies_killed')
+        session.commit()
+
+    @provide_session
     def process_file(self, file_path, zombies, pickle_dags=False, session=None):
         """
         Process a Python file containing Airflow DAGs.
@@ -843,7 +876,7 @@ class DagFileProcessor(LoggingMixin):
         except Exception:
             self.log.exception("Error logging import errors!")
         try:
-            dagbag.kill_zombies(zombies)
+            self.kill_zombies(zombies)
         except Exception:
             self.log.exception("Error killing zombies!")
 

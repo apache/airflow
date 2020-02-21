@@ -38,6 +38,7 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.jobs import BackfillJob, SchedulerJob
 from airflow.jobs.scheduler_job import DagFileProcessor
 from airflow.models import DAG, DagBag, DagModel, DagRun, Pool, SlaMiss, TaskInstance as TI, errors
+from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
@@ -1030,6 +1031,31 @@ class TestDagFileProcessor(unittest.TestCase):
             )
 
             self.assertGreater(parent_dagruns, 0)
+
+    @patch.object(TI, 'handle_failure')
+    def test_kill_zombies(self, mock_ti_handle_failure):
+        """
+        Test that kill zombies call TIs failure handler with proper context
+        """
+        dagbag = models.DagBag(dag_folder="/dev/null", include_examples=True)
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        with create_session() as session:
+            session.query(TI).delete()
+            dag = dagbag.get_dag('example_branch_operator')
+            task = dag.get_task(task_id='run_this_first')
+
+            ti = TI(task, DEFAULT_DATE, State.RUNNING)
+
+            session.add(ti)
+            session.commit()
+
+            zombies = [SimpleTaskInstance(ti)]
+            dag_file_processor.kill_zombies(dagbag, zombies)
+            mock_ti_handle_failure.assert_called_once_with(
+                mock.ANY,
+                conf.getboolean('core', 'unit_test_mode'),
+                mock.ANY
+            )
 
 
 class TestSchedulerJob(unittest.TestCase):
