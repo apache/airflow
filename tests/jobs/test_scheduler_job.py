@@ -2387,6 +2387,7 @@ class TestSchedulerJob(unittest.TestCase):
         Checks if tasks that are not taken up by the executor
         get rescheduled
         """
+        executor = MockExecutor(do_update=False)
         dagbag = DagBag(dag_folder=os.path.join(settings.DAGS_FOLDER, "no_dags.py"))
         dagbag.dags.clear()
 
@@ -2439,6 +2440,7 @@ class TestSchedulerJob(unittest.TestCase):
         Checks if the scheduler does not put a task in limbo, when a task is retried
         but is still present in the executor.
         """
+        executor = MockExecutor(do_update=False)
         dagbag = DagBag(dag_folder=os.path.join(settings.DAGS_FOLDER, "no_dags.py"))
         dagbag.dags.clear()
 
