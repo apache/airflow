@@ -35,9 +35,11 @@ class TestWebHDFSHook(unittest.TestCase):
         Connection(host='localhost', port=50070),
         Connection(host='localhost', port=50071, login='user')
     ])
-    def test_get_conn(self, mock_get_connections, mock_insecure_client):
+    @patch("airflow.providers.apache.hive.hooks.hive.socket")
+    def test_get_conn(self, socket_mock, mock_get_connections, mock_insecure_client):
         mock_insecure_client.side_effect = [HdfsError('Error'), mock_insecure_client.return_value]
-        conn = self.webhdfs_hook._find_valid_server()
+        socket_mock.socket.return_value.connect_ex.return_value = 0
+        conn = self.webhdfs_hook.get_conn()
 
         mock_insecure_client.assert_has_calls([
             call('http://{host}:{port}'.format(host=connection.host, port=connection.port),
@@ -52,11 +54,14 @@ class TestWebHDFSHook(unittest.TestCase):
         Connection(host='localhost', port=50070)
     ])
     @patch('airflow.providers.apache.hdfs.hooks.webhdfs._kerberos_security_mode', return_value=True)
+    @patch("airflow.providers.apache.hive.hooks.hive.socket")
     def test_get_conn_kerberos_security_mode(self,
                                              mock_kerberos_security_mode,
                                              mock_get_connections,
+                                             socket_mock,
                                              mock_kerberos_client):
-        conn = self.webhdfs_hook._find_valid_server()
+        socket_mock.socket.return_value.connect_ex.return_value = 0
+        conn = self.webhdfs_hook.get_conn()
 
         connection = mock_get_connections.return_value[0]
         mock_kerberos_client.assert_called_once_with(
