@@ -68,7 +68,8 @@ class TestOperatorHelpers(unittest.TestCase):
                 'airflow.ctx.task_id': self.task_id,
                 'airflow.ctx.dag_run_id': self.dag_run_id,
                 'airflow.ctx.dag_owner': 'owner1,owner2',
-                'airflow.ctx.dag_email': 'email1@test.com'
+                'airflow.ctx.dag_email': 'email1@test.com',
+                'airflow.ctx.dag_run.execution_date' : self.execution_date
             }
         )
 
@@ -81,7 +82,8 @@ class TestOperatorHelpers(unittest.TestCase):
                 'AIRFLOW_CTX_TASK_ID': self.task_id,
                 'AIRFLOW_CTX_DAG_RUN_ID': self.dag_run_id,
                 'AIRFLOW_CTX_DAG_OWNER': 'owner1,owner2',
-                'AIRFLOW_CTX_DAG_EMAIL': 'email1@test.com'
+                'AIRFLOW_CTX_DAG_EMAIL': 'email1@test.com',
+                'AIRFLOW_CTX_DAGRUN_EXECUTION_DATE': self.execution_date
             }
         )
 
