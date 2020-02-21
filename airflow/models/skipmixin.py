@@ -150,7 +150,6 @@ class SkipMixin(LoggingMixin):
                 self._set_state_to_skipped(
                     dag_run, ti.execution_date, skip_tasks, session=session
                 )
-                session.commit()
                 ti.xcom_push(
                     key=XCOM_SKIPMIXIN_KEY, value={XCOM_SKIPMIXIN_FOLLOWED: branch_task_ids}
                 )
