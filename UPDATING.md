@@ -301,7 +301,7 @@ with redirect_stdout(StreamLogWriter(logger, logging.INFO)), \
 
 ### Removal of XCom.get_one()
 
-This one is supersede by `XCom.get_many().first()` which will return the same result.
+This one is superseded by `XCom.get_many().first()` which will return the same result.
 
 ### Changes to SQLSensor
 
