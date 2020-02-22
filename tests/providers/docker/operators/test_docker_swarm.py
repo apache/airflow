@@ -140,8 +140,8 @@ class TestDockerSwarmOperator(unittest.TestCase):
             operator.execute(None)
         self.assertEqual(str(error.exception), msg)
 
-    @mock.patch('airflow.operators.docker_operator.APIClient')
-    @mock.patch('airflow.contrib.operators.docker_swarm_operator.types')
+    @mock.patch('airflow.providers.docker.operators.docker.APIClient')
+    @mock.patch('airflow.providers.docker.operators.docker_swarm.types')
     def test_logging_with_requests_timeout(self, types_mock, client_class_mock):
 
         mock_obj = mock.Mock()
