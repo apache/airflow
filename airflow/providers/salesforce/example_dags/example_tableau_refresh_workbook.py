@@ -49,7 +49,6 @@ with DAG(
         workbook_name='MyWorkbook',
         blocking=True,
         task_id='refresh_tableau_workbook_blocking',
-        dag=dag
     )
     # Refreshes a workbook and does not wait until it succeeds.
     task_refresh_workbook_non_blocking = TableauRefreshWorkbookOperator(
@@ -57,13 +56,11 @@ with DAG(
         workbook_name='MyWorkbook',
         blocking=False,
         task_id='refresh_tableau_workbook_non_blocking',
-        dag=dag
     )
     # The following task queries the status of the workbook refresh job until it succeeds.
     task_check_job_status = TableauJobStatusSensor(
         site_id='my_site',
         job_id="{{ ti.xcom_pull(task_ids='refresh_tableau_workbook') }}",
         task_id='check_tableau_job_status',
-        dag=dag
     )
     task_refresh_workbook_non_blocking >> task_check_job_status
