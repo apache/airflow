@@ -1449,7 +1449,7 @@ class DAG(BaseDag, LoggingMixin):
 
         # create the associated task instances
         # state is None at the moment of creation
-        run.verify_integrity(session=session)
+        run.verify_integrity(task_instances=[], session=session)
 
         run.refresh_from_db()
 
