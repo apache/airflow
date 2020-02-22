@@ -68,7 +68,7 @@ class SingularityOperatorTestCase(unittest.TestCase):
     def test_command_is_required(self, command):
         task = SingularityOperator(
             task_id='task-id',
-            image="awesome-image",
+            image="docker://busybox",
             command=command
         )
         with six.assertRaisesRegex(self, AirflowException, "You must define a command."):
@@ -117,7 +117,7 @@ class SingularityOperatorTestCase(unittest.TestCase):
             'start.return_value': 0,
             'stop.return_value': 0,
         })
-        client_mock.pull.return_value = 'pull-file', ''
+        client_mock.pull.return_value = 'docker://busybox'
         client_mock.instance.return_value = instance
         client_mock.execute.return_value = {'return_code': 0,
                                             'message': 'message'}
@@ -146,7 +146,7 @@ class SingularityOperatorTestCase(unittest.TestCase):
             'start.return_value': 0,
             'stop.return_value': 0,
         })
-        client_mock.pull.return_value = 'pull-file', ''
+        client_mock.pull.return_value = 'docker://busybox'
         client_mock.instance.return_value = instance
         client_mock.execute.return_value = {'return_code': 0,
                                             'message': 'message'}
