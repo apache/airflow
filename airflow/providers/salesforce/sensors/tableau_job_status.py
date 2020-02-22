@@ -16,7 +16,7 @@
 # under the License.
 from typing import Optional
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.salesforce.hooks.tableau import TableauHook, TableauJobFinishCode
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults

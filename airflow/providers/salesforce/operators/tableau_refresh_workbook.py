@@ -18,7 +18,7 @@ from typing import Optional
 
 from tableauserverclient import WorkbookItem
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.salesforce.hooks.tableau import TableauHook
 from airflow.utils.decorators import apply_defaults

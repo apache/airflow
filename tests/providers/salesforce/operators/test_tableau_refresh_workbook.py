@@ -18,7 +18,7 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.salesforce.operators.tableau_refresh_workbook import TableauRefreshWorkbookOperator
 
 
