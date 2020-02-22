@@ -318,14 +318,13 @@ Test Infrastructure
 
 We support the following types of tests:
 
-* **Unit tests** are Python ``nose`` tests launched with ``run-tests``.
+* **Unit tests** are Python tests launched with ``pytest``.
   Unit tests are available both in the `Breeze environment <BREEZE.rst>`_
   and `local virtualenv <LOCAL_VIRTUALENV.rst>`_.
 
 * **Integration tests** are available in the Breeze development environment
   that is also used for Airflow Travis CI tests. Integration test are special tests that require
-  additional services running, such as Postgres,Mysql, Kerberos, etc. These tests are not yet
-  clearly marked as integration tests but soon they will be clearly separated by the ``pytest`` annotations.
+  additional services running, such as Postgres, Mysql, Kerberos, etc.
 
 * **System tests** are automatic tests that use external systems like
   Google Cloud Platform. These tests are intended for an end-to-end DAG execution.
