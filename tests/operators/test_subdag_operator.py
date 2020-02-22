@@ -216,21 +216,21 @@ class TestSubDagOperator(unittest.TestCase):
         subdag_task = SubDagOperator(task_id='test', subdag=subdag, dag=dag, poke_interval=1)
         dummy_task = DummyOperator(task_id='dummy', dag=subdag)
 
-        with create_session() as session:
-            dummy_task_instance = TaskInstance(
-                task=dummy_task,
-                execution_date=DEFAULT_DATE,
-                state=State.FAILED,
-            )
-            session.add(dummy_task_instance)
-            session.commit()
-
         sub_dagrun = subdag.create_dagrun(
             run_id="scheduled__{}".format(DEFAULT_DATE.isoformat()),
             execution_date=DEFAULT_DATE,
             state=State.FAILED,
             external_trigger=True,
         )
+        with create_session() as session:
+            dummy_task_instance = TaskInstance(
+                task=dummy_task,
+                execution_date=DEFAULT_DATE,
+            )
+            dummy_task_instance.refresh_from_db()
+            dummy_task_instance.set_state(state=State.FAILED)
+
+            session.commit()
 
         subdag_task._reset_dag_run_and_task_instances(sub_dagrun, execution_date=DEFAULT_DATE)
 
