@@ -23,7 +23,7 @@ import six
 from parameterized import parameterized
 from spython.instance import Instance
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.singularity.operators.singularity import SingularityOperator
 
 
