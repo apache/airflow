@@ -60,7 +60,7 @@ with DAG(
     # The following task queries the status of the workbook refresh job until it succeeds.
     task_check_job_status = TableauJobStatusSensor(
         site_id='my_site',
-        job_id="{{ ti.xcom_pull(task_ids='refresh_tableau_workbook') }}",
+        job_id="{{ ti.xcom_pull(task_ids='refresh_tableau_workbook_non_blocking') }}",
         task_id='check_tableau_job_status',
     )
     task_refresh_workbook_non_blocking >> task_check_job_status
