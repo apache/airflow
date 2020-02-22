@@ -280,7 +280,6 @@ class Airflow(AirflowBaseView):
 
             dags = dags_query.order_by(DagModel.dag_id).options(
                 joinedload(DagModel.tags)).offset(start).limit(dags_per_page).all()
-            tags = []
 
             dagtags = session.query(DagTag.name).distinct(DagTag.name).all()
             tags = [
