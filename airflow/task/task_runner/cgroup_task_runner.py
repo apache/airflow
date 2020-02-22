@@ -192,7 +192,29 @@ class CgroupTaskRunner(BaseTaskRunner):
                              "resources argument to reserve more memory for your task")
         return return_code
 
+    def _kill_cgroup_procs(self, cgroup_node):
+        procs_filepath = os.path.join(cgroup_node.full_path, "cgroup.procs")
+
+        if not (os.path.exists(procs_filepath) and os.path.isfile(procs_filepath)):
+            self.log.info("Can not find procs file {}.".format(procs_filepath))
+            return
+
+        with open(procs_filepath, 'r') as pids_file:
+            pids = set([int(item) for item in pids_file.read().splitlines()])
+            self.log.info("Try to terminate all cgroup processes.")
+            for pid in pids:
+                if pid == os.getpid():
+                    # Do not kill myself.
+                    continue
+                try:
+                    reap_process_group(pid, self.log)
+                    self.log.info("Reap process for pid: %s", pid)
+                except Exception as e:
+                    msg = "Exception during reap process for pid: {}".format(pid)
+                    self.log.warning(msg, exec_info=True)
+
     def terminate(self):
+        self._kill_cgroup_procs(self.mem_cgroup_node)
         if self.process and psutil.pid_exists(self.process.pid):
             reap_process_group(self.process.pid, self.log)
 
