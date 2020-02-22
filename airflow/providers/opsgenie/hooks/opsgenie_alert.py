@@ -21,7 +21,7 @@ import json
 
 import requests
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 
 

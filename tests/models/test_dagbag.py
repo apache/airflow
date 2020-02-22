@@ -23,16 +23,13 @@ import textwrap
 import unittest
 from datetime import datetime, timezone
 from tempfile import NamedTemporaryFile, mkdtemp
-from unittest.mock import ANY, patch
+from unittest.mock import patch
 
 import airflow.example_dags
 from airflow import models
-from airflow.configuration import conf
-from airflow.models import DagBag, DagModel, TaskInstance as TI
-from airflow.models.taskinstance import SimpleTaskInstance
+from airflow.models import DagBag, DagModel
 from airflow.utils.session import create_session
-from airflow.utils.state import State
-from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
+from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.config import conf_vars
 
 
@@ -601,30 +598,6 @@ class TestDagBag(unittest.TestCase):
         dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
 
         self.assertEqual([], dagbag.process_file(None))
-
-    @patch.object(TI, 'handle_failure')
-    def test_kill_zombies(self, mock_ti_handle_failure):
-        """
-        Test that kill zombies call TIs failure handler with proper context
-        """
-        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=True)
-        with create_session() as session:
-            session.query(TI).delete()
-            dag = dagbag.get_dag('example_branch_operator')
-            task = dag.get_task(task_id='run_this_first')
-
-            ti = TI(task, DEFAULT_DATE, State.RUNNING)
-
-            session.add(ti)
-            session.commit()
-
-            zombies = [SimpleTaskInstance(ti)]
-            dagbag.kill_zombies(zombies)
-            mock_ti_handle_failure.assert_called_once_with(
-                ANY,
-                conf.getboolean('core', 'unit_test_mode'),
-                ANY
-            )
 
     def test_deactivate_unknown_dags(self):
         """

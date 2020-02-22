@@ -23,6 +23,7 @@ import json
 import logging
 import math
 import os
+import pkgutil
 import socket
 import traceback
 from collections import defaultdict
@@ -56,7 +57,8 @@ from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Connection, DagModel, DagRun, DagTag, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.settings import STORE_SERIALIZED_DAGS
-from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
+from airflow.ti_deps.dep_context import DepContext
+from airflow.ti_deps.dependencies import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.helpers import alchemy_to_dict, render_log_filename
@@ -279,7 +281,6 @@ class Airflow(AirflowBaseView):
 
             dags = dags_query.order_by(DagModel.dag_id).options(
                 joinedload(DagModel.tags)).offset(start).limit(dags_per_page).all()
-            tags = []
 
             dagtags = session.query(DagTag.name).distinct(DagTag.name).all()
             tags = [
@@ -529,7 +530,8 @@ class Airflow(AirflowBaseView):
             html_code = highlight(
                 code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
         except OSError as e:
-            html_code = str(e)
+            html_code = '<p>Failed to load file.</p><p>Details: {}</p>'.format(
+                escape(str(e)))
 
         return self.render_template(
             'airflow/dag_code.html', html_code=html_code, dag=dag, title=dag_id,
@@ -2055,9 +2057,7 @@ class VersionView(AirflowBaseView):
         # Get the Git repo and git hash
         git_version = None
         try:
-            with open(os.path.join(*[settings.AIRFLOW_HOME,
-                                   'airflow', 'git_version'])) as f:
-                git_version = f.readline()
+            git_version = str(pkgutil.get_data('airflow', 'git_version'), encoding="UTF-8")
         except Exception as e:
             logging.error(e)
 

@@ -42,7 +42,8 @@ from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagRun, SlaMiss, errors
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.stats import Stats
-from airflow.ti_deps.dep_context import SCHEDULED_DEPS, DepContext
+from airflow.ti_deps.dep_context import DepContext
+from airflow.ti_deps.dependencies import SCHEDULED_DEPS
 from airflow.ti_deps.deps.pool_slots_available_dep import STATES_TO_COUNT_AS_RUNNING
 from airflow.utils import asciiart, helpers, timezone
 from airflow.utils.dag_processing import (
@@ -314,6 +315,9 @@ class DagFileProcessor(LoggingMixin):
     :param log: Logger to save the processing process
     :type log: logging.Logger
     """
+
+    UNIT_TEST_MODE = conf.getboolean('core', 'UNIT_TEST_MODE')
+
     def __init__(self, dag_ids, log):
         self.dag_ids = dag_ids
         self._log = log
@@ -489,6 +493,7 @@ class DagFileProcessor(LoggingMixin):
         for filename, stacktrace in dagbag.import_errors.items():
             session.add(errors.ImportError(
                 filename=filename,
+                timestamp=timezone.utcnow(),
                 stacktrace=stacktrace))
         session.commit()
 
@@ -730,6 +735,36 @@ class DagFileProcessor(LoggingMixin):
         return dags
 
     @provide_session
+    def kill_zombies(self, dagbag, zombies, session=None):
+        """
+        Fail given zombie tasks, which are tasks that haven't
+        had a heartbeat for too long, in the current DagBag.
+
+        :param zombies: zombie task instances to kill.
+        :type zombies: List[airflow.models.taskinstance.SimpleyTaskInstance]
+        :param session: DB session.
+        """
+        TI = models.TaskInstance
+
+        for zombie in zombies:
+            if zombie.dag_id in dagbag.dags:
+                dag = dagbag.dags[zombie.dag_id]
+                if zombie.task_id in dag.task_ids:
+                    task = dag.get_task(zombie.task_id)
+                    ti = TI(task, zombie.execution_date)
+                    # Get properties needed for failure handling from SimpleTaskInstance.
+                    ti.start_date = zombie.start_date
+                    ti.end_date = zombie.end_date
+                    ti.try_number = zombie.try_number
+                    ti.state = zombie.state
+                    ti.test_mode = self.UNIT_TEST_MODE
+                    ti.handle_failure("{} detected as zombie".format(ti),
+                                      ti.test_mode, ti.get_template_context())
+                    self.log.info('Marked zombie job %s as %s', ti, ti.state)
+                    Stats.incr('zombies_killed')
+        session.commit()
+
+    @provide_session
     def process_file(self, file_path, zombies, pickle_dags=False, session=None):
         """
         Process a Python file containing Airflow DAGs.
@@ -842,7 +877,7 @@ class DagFileProcessor(LoggingMixin):
         except Exception:
             self.log.exception("Error logging import errors!")
         try:
-            dagbag.kill_zombies(zombies)
+            self.kill_zombies(zombies)
         except Exception:
             self.log.exception("Error killing zombies!")
 

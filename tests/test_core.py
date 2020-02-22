@@ -26,12 +26,13 @@ from time import sleep
 from dateutil.relativedelta import relativedelta
 from numpy.testing import assert_array_almost_equal
 
-from airflow import DAG, exceptions, settings
-from airflow.exceptions import AirflowException
+from airflow import settings
+from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.hooks.base_hook import BaseHook
 from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models import DagBag, DagRun, TaskFail, TaskInstance
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.operators.dummy_operator import DummyOperator
@@ -176,7 +177,7 @@ class TestCore(unittest.TestCase):
             bash_command="/bin/bash -c 'sleep %s'" % sleep_time,
             dag=self.dag)
         self.assertRaises(
-            exceptions.AirflowTaskTimeout,
+            AirflowTaskTimeout,
             op.run,
             start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         sleep(2)
@@ -203,7 +204,7 @@ class TestCore(unittest.TestCase):
             dag=self.dag,
             on_failure_callback=check_failure)
         self.assertRaises(
-            exceptions.AirflowException,
+            AirflowException,
             op.run,
             start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         self.assertTrue(data['called'])
@@ -230,7 +231,7 @@ class TestCore(unittest.TestCase):
             python_callable=lambda: sleep(5),
             dag=self.dag)
         self.assertRaises(
-            exceptions.AirflowTaskTimeout,
+            AirflowTaskTimeout,
             op.run,
             start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 

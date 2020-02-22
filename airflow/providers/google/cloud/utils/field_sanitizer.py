@@ -99,7 +99,8 @@ components in all elements of the array.
 
 from typing import List
 
-from airflow import AirflowException, LoggingMixin
+from airflow.exceptions import AirflowException
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class GcpFieldSanitizerException(AirflowException):

@@ -43,14 +43,14 @@ from airflow.exceptions import (
 )
 from airflow.models.base import ID_LEN, Base
 from airflow.models.log import Log
-from airflow.models.pool import Pool
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.sentry import Sentry
 from airflow.stats import Stats
-from airflow.ti_deps.dep_context import REQUEUEABLE_DEPS, RUNNING_DEPS, DepContext
+from airflow.ti_deps.dep_context import DepContext
+from airflow.ti_deps.dependencies import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.utils import timezone
 from airflow.utils.email import send_email
 from airflow.utils.helpers import is_container
@@ -86,6 +86,7 @@ def clear_task_instances(tis,
             task_id = ti.task_id
             if dag and dag.has_task(task_id):
                 task = dag.get_task(task_id)
+                ti.refresh_from_task(task)
                 task_retries = task.retries
                 ti.max_tries = ti.try_number + task_retries - 1
             else:
@@ -178,6 +179,7 @@ class TaskInstance(Base, LoggingMixin):
         self.dag_id = task.dag_id
         self.task_id = task.task_id
         self.task = task
+        self.refresh_from_task(task)
         self._log = logging.getLogger("airflow.task")
 
         # make sure we have a localized execution_date stored in UTC
@@ -194,18 +196,11 @@ class TaskInstance(Base, LoggingMixin):
 
         self.execution_date = execution_date
 
-        self.queue = task.queue
-        self.pool = task.pool
-        self.pool_slots = task.pool_slots
-        self.priority_weight = task.priority_weight_total
         self.try_number = 0
-        self.max_tries = self.task.retries
         self.unixname = getpass.getuser()
-        self.run_as_user = task.run_as_user
         if state:
             self.state = state
         self.hostname = ''
-        self.executor_config = task.executor_config
         self.init_on_load()
         # Is this TaskInstance being currently running within `airflow tasks run --raw`.
         # Not persisted to the database so only valid for the current process
@@ -472,6 +467,24 @@ class TaskInstance(Base, LoggingMixin):
         else:
             self.state = None
 
+    def refresh_from_task(self, task, pool_override=None):
+        """
+        Copy common attributes from the given task.
+
+        :param task: The task object to copy from
+        :type task: airflow.models.BaseOperator
+        :param pool_override: Use the pool_override instead of task's pool
+        :type pool_override: str
+        """
+        self.queue = task.queue
+        self.pool = pool_override or task.pool
+        self.pool_slots = task.pool_slots
+        self.priority_weight = task.priority_weight_total
+        self.run_as_user = task.run_as_user
+        self.max_tries = task.retries
+        self.executor_config = task.executor_config
+        self.operator = task.__class__.__name__
+
     @provide_session
     def clear_xcom_data(self, session=None):
         """
@@ -699,27 +712,6 @@ class TaskInstance(Base, LoggingMixin):
                 self.next_retry_datetime() < timezone.utcnow())
 
     @provide_session
-    def pool_full(self, session):
-        """
-        Returns a boolean as to whether the slot pool has room for this
-        task to run
-        """
-        if not self.task.pool:
-            return False
-
-        pool = (
-            session
-            .query(Pool)
-            .filter(Pool.pool == self.task.pool)
-            .first()
-        )
-        if not pool:
-            return False
-        open_slots = pool.open_slots(session=session)
-
-        return open_slots <= 0
-
-    @provide_session
     def get_dagrun(self, session):
         """
         Returns the DagRun for this TaskInstance
@@ -773,13 +765,11 @@ class TaskInstance(Base, LoggingMixin):
         :rtype: bool
         """
         task = self.task
-        self.pool = pool or task.pool
-        self.pool_slots = task.pool_slots
+        self.refresh_from_task(task, pool_override=pool)
         self.test_mode = test_mode
         self.refresh_from_db(session=session, lock_for_update=True)
         self.job_id = job_id
         self.hostname = get_hostname()
-        self.operator = task.__class__.__name__
 
         if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
             Stats.incr('previously_succeeded', 1, 1)
@@ -889,13 +879,11 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.sensors.base_sensor_operator import BaseSensorOperator
 
         task = self.task
-        self.pool = pool or task.pool
-        self.pool_slots = task.pool_slots
         self.test_mode = test_mode
+        self.refresh_from_task(task, pool_override=pool)
         self.refresh_from_db(session=session)
         self.job_id = job_id
         self.hostname = get_hostname()
-        self.operator = task.__class__.__name__
 
         context = {}  # type: Dict
         actual_start_date = timezone.utcnow()

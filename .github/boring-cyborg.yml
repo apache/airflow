@@ -147,6 +147,9 @@ firstPRWelcomeComment: >
   - Be patient and persistent. It might take some time to get a review or get the final approval from
   Committers.
 
+  - Be sure to read the [Airflow Coding style](
+  https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#coding-style-and-best-practices).
+
   Apache Airflow is a community-driven project and together we are making it better 🚀.
 
   In case of doubts contact the developers at:

@@ -168,6 +168,16 @@ def create_default_connections(session=None):
     )
     merge_conn(
         Connection(
+            conn_id="elasticsearch_default",
+            conn_type="elasticsearch",
+            host="localhost",
+            schema="http",
+            port=9200
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
             conn_id="emr_default",
             conn_type="emr",
             extra="""
@@ -259,6 +269,15 @@ def create_default_connections(session=None):
             conn_id="http_default",
             conn_type="http",
             host="https://www.httpbin.org/",
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="livy_default",
+            conn_type="livy",
+            host="livy",
+            port=8998
         ),
         session
     )
@@ -425,6 +444,17 @@ def create_default_connections(session=None):
             conn_id="ssh_default",
             conn_type="ssh",
             host="localhost",
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="tableau_default",
+            conn_type="tableau",
+            host="https://tableau.server.url",
+            login="user",
+            password="password",
+            extra='{"site_id": "my_site"}',
         ),
         session
     )

@@ -22,10 +22,10 @@ from unittest.mock import patch
 
 from freezegun import freeze_time
 
-from airflow import AirflowException, models
 from airflow.api.client.local_client import Client
 from airflow.example_dags import example_bash_operator
-from airflow.models import DagBag, DagModel
+from airflow.exceptions import AirflowException
+from airflow.models import DAG, DagBag, DagModel, Pool
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -52,10 +52,10 @@ class TestLocalClient(unittest.TestCase):
         clear_db_pools()
         super().tearDown()
 
-    @patch.object(models.DAG, 'create_dagrun')
+    @patch.object(DAG, 'create_dagrun')
     def test_trigger_dag(self, mock):
         test_dag_id = "example_bash_operator"
-        models.DagBag(include_examples=True)
+        DagBag(include_examples=True)
 
         # non existent
         with self.assertRaises(AirflowException):
@@ -129,12 +129,12 @@ class TestLocalClient(unittest.TestCase):
         pool = self.client.create_pool(name='foo', slots=1, description='')
         self.assertEqual(pool, ('foo', 1, ''))
         with create_session() as session:
-            self.assertEqual(session.query(models.Pool).count(), 2)
+            self.assertEqual(session.query(Pool).count(), 2)
 
     def test_delete_pool(self):
         self.client.create_pool(name='foo', slots=1, description='')
         with create_session() as session:
-            self.assertEqual(session.query(models.Pool).count(), 2)
+            self.assertEqual(session.query(Pool).count(), 2)
         self.client.delete_pool(name='foo')
         with create_session() as session:
-            self.assertEqual(session.query(models.Pool).count(), 1)
+            self.assertEqual(session.query(Pool).count(), 1)

@@ -32,7 +32,8 @@ from google.cloud.container_v1.gapic.enums import Operation
 from google.cloud.container_v1.types import Cluster
 from google.protobuf.json_format import ParseDict
 
-from airflow import AirflowException, version
+from airflow import version
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 OPERATIONAL_POLL_INTERVAL = 15

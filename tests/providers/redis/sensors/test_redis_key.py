@@ -21,7 +21,7 @@ import unittest
 
 import pytest
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.providers.redis.hooks.redis import RedisHook
 from airflow.providers.redis.sensors.redis_key import RedisKeySensor
 from airflow.utils import timezone

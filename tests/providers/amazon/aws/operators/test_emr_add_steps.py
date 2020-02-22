@@ -20,9 +20,9 @@ import unittest
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
-from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.emr_add_steps import EmrAddStepsOperator
 from airflow.utils import timezone
 

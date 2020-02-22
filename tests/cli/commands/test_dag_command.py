@@ -27,9 +27,10 @@ import mock
 import pytz
 
 import airflow.bin.cli as cli
-from airflow import AirflowException, models, settings
+from airflow import settings
 from airflow.cli.commands import dag_command
-from airflow.models import DagModel
+from airflow.exceptions import AirflowException
+from airflow.models import DagBag, DagModel, DagRun
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -56,7 +57,7 @@ class TestCliDags(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.dagbag = models.DagBag(include_examples=True)
+        cls.dagbag = DagBag(include_examples=True)
         cls.parser = cli.CLIFactory.get_parser()
 
     @mock.patch("airflow.cli.commands.dag_command.DAG.run")
@@ -239,7 +240,7 @@ class TestCliDags(unittest.TestCase):
         # A scaffolding function
         def reset_dr_db(dag_id):
             session = Session()
-            dr = session.query(models.DagRun).filter_by(dag_id=dag_id)
+            dr = session.query(DagRun).filter_by(dag_id=dag_id)
             dr.delete()
             session.commit()
             session.close()

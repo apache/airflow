@@ -23,7 +23,7 @@ from typing import Optional
 from google.api_core.retry import Retry
 from google.cloud.speech_v1.types import RecognitionConfig
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook, RecognitionAudio
 from airflow.utils.decorators import apply_defaults

@@ -15,20 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-set -uo pipefail
-
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export REMEMBER_LAST_ANSWER="false"
 export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
 
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
-
-basic_sanity_checks
-
-script_start
+# shellcheck source=scripts/ci/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
 rebuild_all_images_if_needed_and_confirmed
-
-script_end

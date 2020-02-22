@@ -18,11 +18,11 @@
 #
 
 import os
+import warnings
 
 from azure.common.client_factory import get_client_from_auth_file
 from azure.common.credentials import ServicePrincipalCredentials
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
-from zope.deprecation import deprecation
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -91,7 +91,6 @@ class AzureContainerInstanceHook(BaseHook):
                                                           name,
                                                           container_group)
 
-    @deprecation.deprecate("get_state_exitcode_details() is deprecated. Related method is get_state()")
     def get_state_exitcode_details(self, resource_group, name):
         """
         Get the state and exitcode of a container group
@@ -104,11 +103,15 @@ class AzureContainerInstanceHook(BaseHook):
             If the exitcode is unknown 0 is returned.
         :rtype: tuple(state,exitcode,details)
         """
+        warnings.warn(
+            "get_state_exitcode_details() is deprecated. Related method is get_state()",
+            DeprecationWarning,
+            stacklevel=2
+        )
         cg_state = self.get_state(resource_group, name)
         c_state = cg_state.containers[0].instance_view.current_state
         return (c_state.state, c_state.exit_code, c_state.detail_status)
 
-    @deprecation.deprecate("get_messages() is deprecated. Related method is get_state()")
     def get_messages(self, resource_group, name):
         """
         Get the messages of a container group
@@ -120,6 +123,11 @@ class AzureContainerInstanceHook(BaseHook):
         :return: A list of the event messages
         :rtype: list[str]
         """
+        warnings.warn(
+            "get_messages() is deprecated. Related method is get_state()",
+            DeprecationWarning,
+            stacklevel=2
+        )
         cg_state = self.get_state(resource_group, name)
         instance_view = cg_state.containers[0].instance_view
         return [event.message for event in instance_view.events]

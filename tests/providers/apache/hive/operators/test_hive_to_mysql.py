@@ -15,15 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import os
 import unittest
 from unittest.mock import PropertyMock, patch
 
 from airflow.providers.apache.hive.operators.hive_to_mysql import HiveToMySqlTransfer
+from airflow.utils import timezone
 from airflow.utils.operator_helpers import context_to_airflow_vars
+from tests.providers.apache.hive import TestHiveEnvironment
+
+DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 
 
-class TestHiveToMySqlTransfer(unittest.TestCase):
+class TestHiveToMySqlTransfer(TestHiveEnvironment):
 
     def setUp(self):
         self.kwargs = dict(
@@ -32,8 +36,8 @@ class TestHiveToMySqlTransfer(unittest.TestCase):
             hiveserver2_conn_id='hiveserver2_default',
             mysql_conn_id='mysql_default',
             task_id='test_hive_to_mysql',
-            dag=None
         )
+        super().setUp()
 
     @patch('airflow.providers.apache.hive.operators.hive_to_mysql.MySqlHook')
     @patch('airflow.providers.apache.hive.operators.hive_to_mysql.HiveServer2Hook')
@@ -105,3 +109,26 @@ class TestHiveToMySqlTransfer(unittest.TestCase):
             self.kwargs['sql'],
             hive_conf=hive_conf
         )
+
+    @unittest.skipIf(
+        'AIRFLOW_RUNALL_TESTS' not in os.environ,
+        "Skipped because AIRFLOW_RUNALL_TESTS is not set")
+    def test_hive_to_mysql(self):
+        op = HiveToMySqlTransfer(
+            mysql_conn_id='airflow_db',
+            task_id='hive_to_mysql_check',
+            create=True,
+            sql="""
+                SELECT name
+                FROM airflow.static_babynames
+                LIMIT 100
+                """,
+            mysql_table='test_static_babynames',
+            mysql_preoperator=[
+                'DROP TABLE IF EXISTS test_static_babynames;',
+                'CREATE TABLE test_static_babynames (name VARCHAR(500))',
+            ],
+            dag=self.dag)
+        op.clear(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+               ignore_ti_state=True)

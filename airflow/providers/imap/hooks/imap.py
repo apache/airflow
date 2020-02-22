@@ -25,8 +25,9 @@ import imaplib
 import os
 import re
 
-from airflow import AirflowException, LoggingMixin
+from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class ImapHook(BaseHook):

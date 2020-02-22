@@ -24,7 +24,7 @@ from typing import Dict, Iterable, List, Optional
 import google.api_core.exceptions
 from google.cloud.bigtable.column_family import GarbageCollectionRule
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
 from airflow.utils.decorators import apply_defaults

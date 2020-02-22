@@ -15,12 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import pytest
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GOOGLE_CAMPAIGN_MANAGER_KEY
 from tests.providers.google.marketing_platform.operators.test_campaign_manager_system_helper import (
     GoogleCampaignManagerTestHelper,
 )
-from tests.test_utils.gcp_system_helpers import provide_gcp_context, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import MARKETING_DAG_FOLDER, provide_gcp_context
 from tests.test_utils.system_tests_class import SystemTest
 
 # Required scopes
@@ -31,7 +32,8 @@ SCOPES = [
 ]
 
 
-@skip_gcp_system(GOOGLE_CAMPAIGN_MANAGER_KEY)
+@pytest.mark.system("google.marketing_platform")
+@pytest.mark.credential_file(GOOGLE_CAMPAIGN_MANAGER_KEY)
 class CampaignManagerSystemTest(SystemTest):
     helper = GoogleCampaignManagerTestHelper()
 
@@ -47,4 +49,4 @@ class CampaignManagerSystemTest(SystemTest):
 
     @provide_gcp_context(GOOGLE_CAMPAIGN_MANAGER_KEY, scopes=SCOPES)
     def test_run_example_dag(self):
-        self.run_dag('example_campaign_manager', "airflow/providers/google/marketing_platform/example_dags")
+        self.run_dag('example_campaign_manager', MARKETING_DAG_FOLDER)

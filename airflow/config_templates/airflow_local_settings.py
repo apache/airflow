@@ -21,7 +21,8 @@ import os
 from typing import Any, Dict, Union
 from urllib.parse import urlparse
 
-from airflow import AirflowException, conf
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.utils.file import mkdirs
 
 # TODO: Logging format and level should be configured

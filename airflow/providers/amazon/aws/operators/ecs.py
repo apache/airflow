@@ -20,13 +20,11 @@ import sys
 from datetime import datetime
 from typing import Dict, Optional
 
-from typing_extensions import runtime_checkable
-
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
-from airflow.typing_compat import Protocol
+from airflow.typing_compat import Protocol, runtime_checkable
 from airflow.utils.decorators import apply_defaults
 
 
@@ -234,8 +232,8 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
                         format(container.get('reason', '').lower()))
 
     def get_hook(self):
-        """Create and return an AwsHook."""
-        return AwsHook(
+        """Create and return an AwsBaseHook."""
+        return AwsBaseHook(
             aws_conn_id=self.aws_conn_id
         )
 

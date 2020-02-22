@@ -21,10 +21,10 @@ This module contains AWS SNS hook
 """
 import json
 
-from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AwsSnsHook(AwsHook):
+class AwsSnsHook(AwsBaseHook):
     """
     Interact with Amazon Simple Notification Service.
     """

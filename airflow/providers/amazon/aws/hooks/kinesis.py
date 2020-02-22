@@ -19,10 +19,10 @@
 """
 This module contains AWS Firehose hook
 """
-from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AwsFirehoseHook(AwsHook):
+class AwsFirehoseHook(AwsBaseHook):
     """
     Interact with AWS Kinesis Firehose.
 
@@ -40,7 +40,7 @@ class AwsFirehoseHook(AwsHook):
 
     def get_conn(self):
         """
-        Returns AwsHook connection object.
+        Returns AWS connection object.
         """
 
         self.conn = self.get_client_type('firehose', self.region_name)

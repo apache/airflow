@@ -23,6 +23,7 @@ from typing import Any, Dict, List, Optional
 from googleapiclient import http
 from googleapiclient.discovery import Resource, build
 
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 
@@ -229,3 +230,124 @@ class GoogleCampaignManagerHook(CloudBaseHook):
             .get_media(fileId=file_id, profileId=profile_id, reportId=report_id)
         )
         return request
+
+    @staticmethod
+    def _conversions_batch_request(
+        conversions: List[Dict[str, Any]],
+        encryption_entity_type: str,
+        encryption_entity_id: int,
+        encryption_source: str,
+        kind: str,
+    ) -> Dict[str, Any]:
+        return {
+            "kind": kind,
+            "conversions": conversions,
+            "encryptionInfo": {
+                "kind": "dfareporting#encryptionInfo",
+                "encryptionEntityType": encryption_entity_type,
+                "encryptionEntityId": encryption_entity_id,
+                "encryptionSource": encryption_source,
+            },
+        }
+
+    @CloudBaseHook.catch_http_exception
+    def conversions_batch_insert(
+        self,
+        profile_id: str,
+        conversions: List[Dict[str, Any]],
+        encryption_entity_type: str,
+        encryption_entity_id: int,
+        encryption_source: str,
+        max_failed_inserts: int = 0,
+    ) -> Any:
+        """
+        Inserts conversions.
+
+        :param profile_id: User profile ID associated with this request.
+        :type profile_id: str
+        :param conversions: Conversations to insert, should by type of Conversation:
+            https://developers.google.com/doubleclick-advertisers/v3.3/conversions#resource
+        :type conversions: List[Dict[str, Any]]
+        :param encryption_entity_type: The encryption entity type. This should match the encryption
+            configuration for ad serving or Data Transfer.
+        :type encryption_entity_type: str
+        :param encryption_entity_id: The encryption entity ID. This should match the encryption
+            configuration for ad serving or Data Transfer.
+        :type encryption_entity_id: int
+        :param encryption_source: Describes whether the encrypted cookie was received from ad serving
+            (the %m macro) or from Data Transfer.
+        :type encryption_source: str
+        :param max_failed_inserts: The maximum number of conversions that failed to be inserted
+        :type max_failed_inserts: int
+        """
+        response = (
+            self.get_conn()  # pylint: disable=no-member
+            .conversions()
+            .batchinsert(
+                profileId=profile_id,
+                body=self._conversions_batch_request(
+                    conversions=conversions,
+                    encryption_entity_type=encryption_entity_type,
+                    encryption_entity_id=encryption_entity_id,
+                    encryption_source=encryption_source,
+                    kind="dfareporting#conversionsBatchInsertRequest",
+                ),
+            )
+            .execute(num_retries=self.num_retries)
+        )
+        if response.get('hasFailures', False):
+            errored_conversions = [stat['errors'] for stat in response['status'] if 'errors' in stat]
+            if len(errored_conversions) > max_failed_inserts:
+                raise AirflowException(errored_conversions)
+        return response
+
+    @CloudBaseHook.catch_http_exception
+    def conversions_batch_update(
+        self,
+        profile_id: str,
+        conversions: List[Dict[str, Any]],
+        encryption_entity_type: str,
+        encryption_entity_id: int,
+        encryption_source: str,
+        max_failed_updates: int = 0,
+    ) -> Any:
+        """
+        Updates existing conversions.
+
+        :param profile_id: User profile ID associated with this request.
+        :type profile_id: str
+        :param conversions: Conversations to update, should by type of Conversation:
+            https://developers.google.com/doubleclick-advertisers/v3.3/conversions#resource
+        :type conversions: List[Dict[str, Any]]
+        :param encryption_entity_type: The encryption entity type. This should match the encryption
+            configuration for ad serving or Data Transfer.
+        :type encryption_entity_type: str
+        :param encryption_entity_id: The encryption entity ID. This should match the encryption
+            configuration for ad serving or Data Transfer.
+        :type encryption_entity_id: int
+        :param encryption_source: Describes whether the encrypted cookie was received from ad serving
+            (the %m macro) or from Data Transfer.
+        :type encryption_source: str
+        :param max_failed_updates: The maximum number of conversions that failed to be updateed
+        :type max_failed_updates: int
+        """
+        response = (
+            self.get_conn()  # pylint: disable=no-member
+            .conversions()
+            .batchupdate(
+                profileId=profile_id,
+                body=self._conversions_batch_request(
+                    conversions=conversions,
+                    encryption_entity_type=encryption_entity_type,
+                    encryption_entity_id=encryption_entity_id,
+                    encryption_source=encryption_source,
+                    kind="dfareporting#conversionsBatchUpdateRequest",
+                ),
+            )
+            .execute(num_retries=self.num_retries)
+        )
+        if response.get('hasFailures', False):
+            errored_conversions = [stat['errors'] for stat in response['status'] if 'errors' in stat]
+            if len(errored_conversions) > max_failed_updates:
+                raise AirflowException(errored_conversions)
+        return response

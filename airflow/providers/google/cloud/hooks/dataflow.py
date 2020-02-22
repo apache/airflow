@@ -31,7 +31,7 @@ from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 
 from googleapiclient.discovery import build
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.python_virtualenv import prepare_virtualenv

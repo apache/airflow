@@ -19,7 +19,7 @@
 import unittest
 from unittest import mock
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.segment.hooks.segment import SegmentHook
 from airflow.providers.segment.operators.segment_track_event import SegmentTrackEventOperator
 

@@ -19,7 +19,7 @@ import unittest
 import mock
 from requests.exceptions import BaseHTTPError
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.kubernetes.pod_launcher import PodLauncher
 
 

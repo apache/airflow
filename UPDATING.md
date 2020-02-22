@@ -61,6 +61,33 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Removed sub-package imports from `airflow/__init__.py`
+
+The imports `LoggingMixin`, `conf`, `AirflowException`, and `DAG` have been removed from `airflow/__init__.py`.
+All implicit references of these objects will no longer be valid. To migrate, all usages of each old path must be
+replaced with its corresponding new path.
+
+| Old Path (Implicit Import)   | New Path (Explicit Import)                       |
+|------------------------------|--------------------------------------------------|
+| ``airflow.LoggingMixin``     | ``airflow.utils.log.logging_mixin.LoggingMixin`` |
+| ``airflow.conf``             | ``airflow.configuration.conf``                   |
+| ``airflow.AirflowException`` | ``airflow.exceptions.AirflowException``          |
+| ``airflow.DAG``              | ``airflow.models.dag.DAG``                  |
+
+### Success Callback will be called when a task in marked as success from UI
+
+When a task is marked as success by a used from Airflow UI - on_success_callback will be called
+
+### Added `airflow dags test` CLI command
+
+A new command was added to the CLI for executing one full run of a DAG for a given execution date, similar to
+`airflow tasks test`. Example usage:
+
+```
+airflow dags test [dag_id] [execution_date]
+airflow dags test example_branch_operator 2018-01-01
+```
+
 ### Drop plugin support for stat_name_handler
 
 In previous version, you could use plugins mechanism to configure ``stat_name_handler``. You should now use the `stat_name_handler`
@@ -1689,7 +1716,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>> from airflow.settings import *
 >>>
 >>> from datetime import datetime
->>> from airflow import DAG
+>>> from airflow.models.dag import DAG
 >>> from airflow.operators.dummy_operator import DummyOperator
 >>>
 >>> dag = DAG('simple_dag', start_date=datetime(2017, 9, 1))

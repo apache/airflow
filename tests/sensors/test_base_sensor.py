@@ -23,9 +23,9 @@ from unittest.mock import Mock, patch
 
 from freezegun import freeze_time
 
-from airflow import DAG, settings
 from airflow.exceptions import AirflowException, AirflowRescheduleException, AirflowSensorTimeout
 from airflow.models import DagRun, TaskInstance, TaskReschedule
+from airflow.models.dag import DAG, settings
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep

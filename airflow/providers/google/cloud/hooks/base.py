@@ -326,7 +326,10 @@ class CloudBaseHook(BaseHook):
                 self.log.error('The request failed, the parameters are invalid.')
                 raise AirflowException(e)
             except HttpError as e:
-                self.log.error('The request failed:\n%s', str(e))
+                if hasattr(e, "content"):
+                    self.log.error('The request failed:\n%s', e.content.decode(encoding="utf-8"))
+                else:
+                    self.log.error('The request failed:\n%s', str(e))
                 raise AirflowException(e)
 
         return wrapper_decorator

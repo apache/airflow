@@ -15,16 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import pytest
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_SEARCHADS_KEY
 from tests.providers.google.marketing_platform.operators.test_search_ads_system_helper import (
     GoogleSearchAdsSystemTestHelper,
 )
-from tests.test_utils.gcp_system_helpers import provide_gcp_context, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import provide_gcp_context
 from tests.test_utils.system_tests_class import SystemTest
 
 
-@skip_gcp_system(GCP_SEARCHADS_KEY)
+@pytest.mark.system("google.marketing_platform")
+@pytest.mark.credential_file(GCP_SEARCHADS_KEY)
 class SearchAdsSystemTest(SystemTest):
     helper = GoogleSearchAdsSystemTestHelper()
 

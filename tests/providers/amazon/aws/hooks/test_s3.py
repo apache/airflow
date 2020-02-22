@@ -23,7 +23,7 @@ import mock
 import pytest
 from botocore.exceptions import NoCredentialsError
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook, provide_bucket_name
 
@@ -178,7 +178,7 @@ class TestAwsS3Hook:
         assert hook.read_key('my_key', s3_bucket) == 'Contént'
 
     # As of 1.3.2, Moto doesn't support select_object_content yet.
-    @mock.patch('airflow.providers.amazon.aws.hooks.aws_hook.AwsHook.get_client_type')
+    @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type')
     def test_select_key(self, mock_get_client_type, s3_bucket):
         mock_get_client_type.return_value.select_object_content.return_value = \
             {'Payload': [{'Records': {'Payload': b'Cont\xC3\xA9nt'}}]}

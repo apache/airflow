@@ -20,10 +20,11 @@ Base executor - this is the base class for all the implemented executors.
 from collections import OrderedDict
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
-from airflow import LoggingMixin, conf
+from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
 from airflow.stats import Stats
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
 PARALLELISM: int = conf.getint('core', 'PARALLELISM')

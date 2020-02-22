@@ -90,7 +90,7 @@ in the configuration file. When turned off, the scheduler creates a DAG run only
     Code that goes along with the Airflow tutorial located at:
     https://github.com/apache/airflow/blob/master/airflow/example_dags/tutorial.py
     """
-    from airflow import DAG
+    from airflow.models.dag import DAG
     from airflow.operators.bash import BashOperator
     from datetime import datetime, timedelta
 

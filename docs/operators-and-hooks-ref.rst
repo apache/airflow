@@ -98,6 +98,12 @@ Foundation.
        :mod:`airflow.providers.apache.hive.sensors.hive_partition`,
        :mod:`airflow.providers.apache.hive.sensors.metastore_partition`
 
+   * - `Apache Livy <https://livy.apache.org/>`__
+     -
+     - :mod:`airflow.providers.apache.livy.hooks.livy`
+     - :mod:`airflow.providers.apache.livy.operators.livy`
+     - :mod:`airflow.providers.apache.livy.sensors.livy`
+
    * - `Apache Pig <https://pig.apache.org/>`__
      -
      - :mod:`airflow.providers.apache.pig.hooks.pig`
@@ -289,7 +295,7 @@ AWS: Amazon Web Services
 
 Airflow has support for `Amazon Web Services <https://aws.amazon.com/>`__.
 
-All hooks are based on :mod:`airflow.providers.amazon.aws.hooks.aws_hook`.
+All hooks are based on :mod:`airflow.providers.amazon.aws.hooks.base_aws`.
 
 Service operators and hooks
 '''''''''''''''''''''''''''
@@ -350,7 +356,7 @@ These integrations allow you to perform various operations within the Amazon Web
 
    * - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
      -
-     - :mod:`airflow.providers.amazon.aws.hooks.aws_dynamodb_hook`
+     - :mod:`airflow.providers.amazon.aws.hooks.aws_dynamodb`
      -
      -
 
@@ -590,6 +596,12 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.providers.google.cloud.operators.dlp`
      -
 
+   * - `DataFusion <https://cloud.google.com/data-fusion/>`__
+     - :doc:`How to use <howto/operator/gcp/datafusion>`
+     - :mod:`airflow.providers.google.cloud.hooks.datafusion`
+     - :mod:`airflow.providers.google.cloud.operators.datafusion`
+     -
+
    * - `Dataflow <https://cloud.google.com/dataflow/>`__
      -
      - :mod:`airflow.providers.google.cloud.hooks.dataflow`
@@ -783,7 +795,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google Drive <https://www.google.com/drive/>`__
      -
-     - :mod:`airflow.providers.google.suite.operators.gcs_to_gdrive_operator`
+     - :mod:`airflow.providers.google.suite.operators.gcs_to_gdrive`
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - SFTP
@@ -890,8 +902,8 @@ These integrations allow you to perform various operations within the Yandex.Clo
 
    * - `Data Proc <https://cloud.yandex.com/services/data-proc>`__
      - :doc:`How to use <howto/operator/yandexcloud>`
-     - :mod:`airflow.providers.yandex.hooks.yandexcloud_dataproc_hook`
-     - :mod:`airflow.providers.yandex.operators.yandexcloud_dataproc_operator`
+     - :mod:`airflow.providers.yandex.hooks.yandexcloud_dataproc`
+     - :mod:`airflow.providers.yandex.operators.yandexcloud_dataproc`
      -
 
 .. _yc_service:
@@ -1007,9 +1019,10 @@ These integrations allow you to perform various operations within various servic
 
    * - `Salesforce <https://www.salesforce.com/>`__
      -
-     - :mod:`airflow.providers.salesforce.hooks.salesforce`
-     -
-     -
+     - :mod:`airflow.providers.salesforce.hooks.salesforce`,
+       :mod:`airflow.providers.salesforce.hooks.tableau`
+     - :mod:`airflow.providers.salesforce.operators.tableau_refresh_workbook`
+     - :mod:`airflow.providers.salesforce.sensors.tableau_job_status`
 
    * - `Segment <https://oapi.dingtalk.com>`__
      -
@@ -1059,7 +1072,7 @@ These integrations allow you to perform various operations within various servic
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google Drive <https://www.google.com/drive/>`__
      -
-     - :mod:`airflow.providers.google.suite.operators.gcs_to_gdrive_operator`
+     - :mod:`airflow.providers.google.suite.operators.gcs_to_gdrive`
 
    * - `Vertica <https://www.vertica.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__
@@ -1101,6 +1114,12 @@ These integrations allow you to perform various operations using various softwar
      - :mod:`airflow.providers.docker.hooks.docker`
      - :mod:`airflow.providers.docker.operators.docker`,
        :mod:`airflow.providers.docker.operators.docker_swarm`
+     -
+
+   * - `Elasticsearch <https://https://www.elastic.co/elasticsearch>`__
+     -
+     - :mod:`airflow.providers.elasticsearch.hooks.elasticsearch`
+     -
      -
 
    * - `GNU Bash <https://www.gnu.org/software/bash/>`__

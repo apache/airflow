@@ -17,9 +17,11 @@
 # under the License.
 import os
 
+import pytest
+
 from tests.providers.google.cloud.operators.test_dataproc_operator_system_helper import DataprocTestHelper
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_DATAPROC_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context
 from tests.test_utils.system_tests_class import SystemTest
 
 BUCKET = os.environ.get("GCP_DATAPROC_BUCKET", "dataproc-system-tests")
@@ -27,7 +29,9 @@ PYSPARK_MAIN = os.environ.get("PYSPARK_MAIN", "hello_world.py")
 PYSPARK_URI = "gs://{}/{}".format(BUCKET, PYSPARK_MAIN)
 
 
-@skip_gcp_system(GCP_DATAPROC_KEY, require_local_executor=True)
+@pytest.mark.backend("mysql", "postgres")
+@pytest.mark.system("google.cloud")
+@pytest.mark.credential_file(GCP_DATAPROC_KEY)
 class DataprocExampleDagsTest(SystemTest):
     helper = DataprocTestHelper()
 

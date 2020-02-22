@@ -19,8 +19,8 @@ import datetime
 import unittest
 from unittest.mock import ANY, patch
 
-from airflow import DAG
 from airflow.exceptions import AirflowException
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.utils import mlengine_operator_utils
 from airflow.version import version
 

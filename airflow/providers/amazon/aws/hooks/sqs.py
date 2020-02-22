@@ -19,10 +19,10 @@
 """
 This module contains AWS SQS hook
 """
-from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class SQSHook(AwsHook):
+class SQSHook(AwsBaseHook):
     """
     Interact with Amazon Simple Queue Service.
     """

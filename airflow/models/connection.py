@@ -44,6 +44,10 @@ CONN_TYPE_TO_HOOK = {
     "cassandra": ("airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook", "cassandra_conn_id"),
     "cloudant": ("airflow.providers.cloudant.hooks.cloudant.CloudantHook", "cloudant_conn_id"),
     "docker": ("airflow.providers.docker.hooks.docker.DockerHook", "docker_conn_id"),
+    "elasticsearch": (
+        "airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook",
+        "elasticsearch_conn_id"
+    ),
     "gcpcloudsql": (
         "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook",
         "gcp_cloudsql_conn_id",
@@ -67,6 +71,7 @@ CONN_TYPE_TO_HOOK = {
     "presto": ("airflow.providers.presto.hooks.presto.PrestoHook", "presto_conn_id"),
     "redis": ("airflow.providers.redis.hooks.redis.RedisHook", "redis_conn_id"),
     "sqlite": ("airflow.providers.sqlite.hooks.sqlite.SqliteHook", "sqlite_conn_id"),
+    "tableau": ("airflow.providers.salesforce.hooks.tableau.TableauHook", "tableau_conn_id"),
     "vertica": ("airflow.providers.vertica.hooks.vertica.VerticaHook", "vertica_conn_id"),
     "wasb": ("airflow.providers.microsoft.azure.hooks.wasb.WasbHook", "wasb_conn_id"),
 }
@@ -110,6 +115,7 @@ class Connection(Base, LoggingMixin):
 
     _types = [
         ('docker', 'Docker Registry'),
+        ('elasticsearch', 'Elasticsearch'),
         ('fs', 'File (path)'),
         ('ftp', 'FTP'),
         ('google_cloud_platform', 'Google Cloud Platform'),
@@ -153,6 +159,8 @@ class Connection(Base, LoggingMixin):
         ('gcpcloudsql', 'Google Cloud SQL'),
         ('grpc', 'GRPC Connection'),
         ('yandexcloud', 'Yandex Cloud'),
+        ('livy', 'Apache Livy'),
+        ('tableau', 'Tableau'),
     ]
 
     def __init__(

@@ -16,14 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 """System tests for Google Cloud Build operators"""
+import pytest
 
 from tests.providers.google.cloud.operators.test_bigquery_system_helper import GCPBigQueryTestHelper
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context
 from tests.test_utils.system_tests_class import SystemTest
 
 
-@skip_gcp_system(GCP_BIGQUERY_KEY, require_local_executor=True)
+@pytest.mark.backend("mysql", "postgres")
+@pytest.mark.system("google.cloud")
+@pytest.mark.credential_file(GCP_BIGQUERY_KEY)
 class BigQueryExampleDagsSystemTest(SystemTest):
     """
     System tests for Google BigQuery operators

@@ -110,6 +110,11 @@ To enable this feature, ``airflow.cfg`` must be configured as follows:
 
 In the above example, Airflow will try to use ``S3Hook('MyS3Conn')``.
 
+You can also use `LocalStack <https://localstack.cloud/>`_ to emulate Amazon S3 locally.
+To configure it, you must additionally set the endpoint url to point to your local stack.
+You can do this via the Connection Extra ``host`` field.
+For example, ``{"host": "http://localstack:4572"}``
+
 .. _write-logs-azure:
 
 Writing Logs to Azure Blob Storage

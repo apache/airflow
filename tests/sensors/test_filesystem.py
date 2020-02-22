@@ -22,8 +22,8 @@ import shutil
 import tempfile
 import unittest
 
-from airflow import DAG
 from airflow.exceptions import AirflowSensorTimeout
+from airflow.models.dag import DAG
 from airflow.sensors.filesystem import FileSensor
 from airflow.utils.timezone import datetime
 
