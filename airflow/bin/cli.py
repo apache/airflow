@@ -667,6 +667,12 @@ class CLIFactory:
                 'reset_dag_run', 'rerun_failed_tasks', 'run_backwards'
             ),
         },
+        {
+            "func": lazy_load_command('airflow.cli.commands.dag_command.dag_test'),
+            'name': 'test',
+            'help': "Execute one run of a DAG",
+            'args': ("dag_id", "execution_date", "subdir"),
+        },
     )
     TASKS_COMMANDS = (
         {

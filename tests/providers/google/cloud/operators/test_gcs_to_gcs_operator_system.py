@@ -16,15 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 """System tests for Google Cloud Build operators"""
-
+import pytest
 
 from tests.providers.google.cloud.operators.test_gcs_to_gcs_system_helper import GcsToGcsTestHelper
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context
 from tests.test_utils.system_tests_class import SystemTest
 
 
-@skip_gcp_system(GCP_GCS_KEY, require_local_executor=True)
+@pytest.mark.backend("mysql", "postgres")
+@pytest.mark.system("google.cloud")
+@pytest.mark.credential_file(GCP_GCS_KEY)
 class GcsToGcsExampleDagsSystemTest(SystemTest):
     """
     System tests for Google Cloud Storage to Google Cloud Storage transfer operators

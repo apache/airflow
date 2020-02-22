@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Optional
 import requests
 from googleapiclient.discovery import build
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 # Time to sleep between active checks of the operation results

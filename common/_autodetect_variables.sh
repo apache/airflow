@@ -53,11 +53,11 @@ export DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
 # own docker images. In this case you can build images locally and push them
 export DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
 
-# if AIRFLOW_CONTAINER_BRANCH_NAME is not set it will be set to either SOURCE_BRANCH
+# if BRANCH_NAME is not set it will be set to either SOURCE_BRANCH
 # (if overridden by configuration) or default branch configured in /common/_default_branch.sh
 export SOURCE_BRANCH=${SOURCE_BRANCH:=${DEFAULT_BRANCH}}
 
-export AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${SOURCE_BRANCH}}
+export BRANCH_NAME=${BRANCH_NAME:=${SOURCE_BRANCH}}
 
 # IMAGE_NAME might come from DockerHub and we decide which PYTHON_VERSION to use based on it (see below)
 # In case IMAGE_NAME is not set we determine PYTHON_VERSION based on the default python on the path
@@ -65,7 +65,7 @@ export AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${SOURCE_B
 # PYTHON_VERSION from the IMAGE_NAME set in the DockerHub build.
 # See comment above in PYTHON_VERSION - we will be able to get rid of this cumbersomness when we switch
 # to a different CI system and start pushing images to DockerHub rather than build it there.
-export BASE_IMAGE_NAME=${IMAGE_NAME:=${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION:-3.6}}
+export BASE_IMAGE_NAME=${IMAGE_NAME:=${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-python${PYTHON_VERSION:-3.6}}
 
 # Remove index.docker.io/ prefix as it is added by default by DockerHub
 export LOCAL_BASE_IMAGE_NAME=${BASE_IMAGE_NAME#index.docker.io/}

@@ -56,7 +56,7 @@
     {% endif %}
     <ul class="nav nav-pills">
       {% if dag.parent_dag is defined and dag.parent_dag %}
-          <li class="never_active"><a href="{{ url_for('Airflow.' + dag.get_default_view(), dag_id=dag.parent_dag.dag_id, base_date=base_date_arg, execution_date=execution_date_arg) }}">
+          <li class="never_active"><a href="{{ url_for('Airflow.' + dag.default_view, dag_id=dag.parent_dag.dag_id, base_date=base_date_arg, execution_date=execution_date_arg) }}">
               <span class="glyphicon glyphicon-arrow-left" aria-hidden="true"></span>
               Back to {{ dag.parent_dag.dag_id }}</a>
           </li>
@@ -141,7 +141,7 @@
         </div>
         <div class="modal-body">
           <div id="div_btn_subdag">
-            <a id="btn_subdag" type="button" class="btn btn-primary" data-base-url="{{ url_for('Airflow.' + dag.get_default_view()) }}">
+            <a id="btn_subdag" type="button" class="btn btn-primary" data-base-url="{{ url_for('Airflow.' + dag.default_view) }}">
                 Zoom into Sub DAG
               </a>
               <hr/>

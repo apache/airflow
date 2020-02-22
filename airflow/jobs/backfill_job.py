@@ -35,7 +35,8 @@ from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagPickle, DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKeyType
-from airflow.ti_deps.dep_context import BACKFILL_QUEUED_DEPS, DepContext
+from airflow.ti_deps.dep_context import DepContext
+from airflow.ti_deps.dependencies import BACKFILL_QUEUED_DEPS
 from airflow.utils import timezone
 from airflow.utils.configuration import tmp_configuration_copy
 from airflow.utils.session import provide_session

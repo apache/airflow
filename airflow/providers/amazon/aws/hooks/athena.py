@@ -21,10 +21,10 @@ This module contains AWS Athena hook
 """
 from time import sleep
 
-from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AWSAthenaHook(AwsHook):
+class AWSAthenaHook(AwsBaseHook):
     """
     Interact with AWS Athena to run, poll queries and return query results
 

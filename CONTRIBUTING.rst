@@ -124,6 +124,8 @@ If you are creating a ``hooks``, ``sensors``, ``operators`` directory in
 the ``airflow.providers`` package, you should also update
 the ``docs/operators-and-hooks-ref.rst`` file.
 
+If you are creating ``example_dags`` directory, you need to create ``example_dags/__init__.py`` with Apache license or copy another ``__init__.py`` file that contains the necessary license.
+
 Pull Request Guidelines
 =======================
 
@@ -139,6 +141,11 @@ these guidelines:
     `Travis CI Testing Framework <TESTING.rst#travis-ci-testing-framework>`__ usage guidelines).
     It will help you make sure you do not break the build with your PR and
     that you help increase coverage.
+
+-   Follow our project's `Coding style and best practices`_.
+
+    These are things that aren't currently enforced programtically (either because they are too hard or just
+    not yet done.)
 
 -   `Rebase your fork <http://stackoverflow.com/a/7244456/1110993>`__, squash
     commits, and resolve all conflicts.
@@ -319,19 +326,59 @@ Your code must pass all the static code checks in Travis CI in order to be eligi
 The easiest way to make sure your code is good before pushing is to use pre-commit checks locally
 as described in the static code checks documentation.
 
+.. _coding_style:
+
+Coding style and best practices
+===============================
+
+Most of our coding style rules are enforced programmatically by flake8 and pylint (which are run automatically
+on every pull request), but there are some rules that are not yet automated and are more Airflow specific or
+semantic than style
+
+Database Session Handling
+-------------------------
+
+**Explicit is better than implicit.** If a function accepts a ``session`` parameter it should not commit the
+transaction itself. Session management is up to the caller.
+
+To make this easier there is the ``create_session`` helper:
+
+.. code-block:: python
+
+    from airflow.utils.session import create_session
+
+    def my_call(*args, session):
+      ...
+      # You MUST not commit the session here.
+
+    with create_session() as session:
+        my_call(*args, session=session)
+
+If this function is designed to be called by "end-users" (i.e. DAG authors) then using the ``@provide_session`` wrapper is okay:
+
+.. code-block:: python
+
+    from airflow.utils.session import provide_session
+
+    ...
+
+    @provide_session
+    def my_method(arg, arg, session=None)
+      ...
+      # You SHOULD not commit the session here. The wrapper will take care of commit()/rollback() if exception
+
 Test Infrastructure
 ===================
 
 We support the following types of tests:
 
-* **Unit tests** are Python ``nose`` tests launched with ``run-tests``.
+* **Unit tests** are Python tests launched with ``pytest``.
   Unit tests are available both in the `Breeze environment <BREEZE.rst>`_
   and `local virtualenv <LOCAL_VIRTUALENV.rst>`_.
 
 * **Integration tests** are available in the Breeze development environment
   that is also used for Airflow Travis CI tests. Integration test are special tests that require
-  additional services running, such as Postgres,Mysql, Kerberos, etc. These tests are not yet
-  clearly marked as integration tests but soon they will be clearly separated by the ``pytest`` annotations.
+  additional services running, such as Postgres, Mysql, Kerberos, etc.
 
 * **System tests** are automatic tests that use external systems like
   Google Cloud Platform. These tests are intended for an end-to-end DAG execution.
@@ -673,6 +720,106 @@ Later on
 8. After you solved conflicts simply run ``git rebase --continue`` and go either to point 6. or 7.
    above depending if you have more commits that cause conflicts in your PR (rebasing applies each
    commit from your PR one-by-one).
+
+How to communicate
+==================
+
+Apache Airflow is a Community within Apache Software Foundation. As the motto of
+the Apache Software Foundation states "Community over Code" - people in the
+community are far more important than their contribution.
+
+This means that communication plays a big role in it, and this chapter is all about it.
+
+We have various channels of communication - starting from the official devlist, comments
+in the Pull Requests, Slack, wiki.
+
+All those channels can be used for different purposes.
+You can join the channels via links at the `Airflow Community page <https://airflow.apache.org/community/>`_
+
+* The `Apache Airflow devlist <https://lists.apache.org/list.html?dev@airflow.apache.org>`_ for:
+   * official communication
+   * general issues, asking community for opinion
+   * discussing proposals
+   * voting
+* The `Airflow CWiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home?src=breadcrumbs>`_ for:
+   * detailed discussions on big proposals (Airflow Improvement Proposals also name AIPs)
+   * helpful, shared resources (for example Apache Airflow logos
+   * information that can be re-used by others (for example instructions on preparing workshops)
+* Github `Pull Requests (PRs) <https://github.com/apache/airflow/pulls>`_ for:
+   * discussing implementation details of PRs
+   * not for architectural discussions (use the devlist for that)
+* The `Apache Airflow Slack <https://apache-airflow-slack.herokuapp.com/>`_ for:
+   * ad-hoc questions related to development (#development channel)
+   * asking for review (#development channel)
+   * asking for help with PRs (#how-to-pr channel)
+   * troubleshooting (#troubleshooting channel)
+   * group talks (including SIG - special interest groups) (#sig-* channels)
+   * notifications (#announcements channel)
+   * random queries (#random channel)
+   * regional announcements (#users-* channels)
+   * newbie questions (#newbie-questions channel)
+   * occasional discussions (wherever appropriate including group and 1-1 discussions)
+
+The devlist is the most important and official communication channel. Often at Apache project you can
+hear "if it is not in the devlist - it did not happen". If you discuss and agree with someone from the
+community on something important for the community (including if it is with committer or PMC member) the
+discussion must be captured and reshared on devlist in order to give other members of the community to
+participate in it.
+
+We are using certain prefixes for email subjects for different purposes. Start your email with one of those:
+  * ``[DISCUSS]`` - if you want to discuss something but you have no concrete proposal yet
+  * ``[PROPOSAL]`` - if usually after "[DISCUSS]" thread discussion you want to propose something and see
+    what other members of the community think about it.
+  * ``[AIP-NN]`` - if the mail is about one of the Airflow Improvement Proposals
+  * ``[VOTE]`` - if you would like to start voting on a proposal discussed before in a "[PROPOSAL]" thread
+
+Voting is governed by the rules described in `Voting <https://www.apache.org/foundation/voting.html>`_
+
+We are all devoting our time for community as individuals who except for being active in Apache Airflow have
+families, daily jobs, right for vacation. Sometimes we are in different time zones or simply are
+busy with day-to-day duties that our response time might be delayed. For us it's crucial
+to remember to respect each other in the project with no formal structure.
+There are no managers, departments, most of us is autonomous in our opinions, decisions.
+All of it makes Apache Airflow community a great space for open discussion and mutual respect
+for various opinions.
+
+Disagreements are expected, discussions might include strong opinions and contradicting statements.
+Sometimes you might get two committers asking you to do things differently. This all happened in the past
+and will continue to happen. As a community we have some mechanisms to facilitate discussion and come to
+a consensus, conclusions or we end up voting to make important decisions. It is important that these
+decisions are not treated as personal wins or looses. At the end it's the community that we all care about
+and what's good for community, should be accepted even if you have a different opinion. There is a nice
+motto that you should follow in case you disagree with community decision "Disagree but engage". Even
+if you do not agree with a community decision, you should follow it and embrace (but you are free to
+express your opinion that you don't agree with it).
+
+As a community - we have high requirements for code quality. This is mainly because we are a distributed
+and loosely organised team. We have both - contributors that commit one commit only, and people who add
+more commits. It happens that some people assume informal "stewardship" over parts of code for some time -
+but at any time we should make sure that the code can be taken over by others, without excessive communication.
+Setting high requirements for the code (fairly strict code review, static code checks, requirements of
+automated tests, pre-commit checks) is the best way to achieve that - by only accepting good quality
+code. Thanks to full test coverage we can make sure that we will be able to work with the code in the future.
+So do not be surprised if you are asked to add more tests or make the code cleaner -
+this is for the sake of maintainability.
+
+Here are a few rules that are important to keep in mind when you enter our community:
+
+ * Do not be afraid to ask questions
+ * The communication is asynchronous - do not expect immediate answers, ping others on slack
+   (#development channel) if blocked
+ * There is a #newbie-questions channel in slack as a safe place to ask questions
+ * You can ask one of the committers to be a mentor for you, committers can guide within the community
+ * You can apply to more structured `Apache Mentoring Programme <https://community.apache.org/mentoringprogramme.html>`_
+ * It’s your responsibility as an author to take your PR from start-to-end including leading communication
+   in the PR
+ * It’s your responsibility as an author to ping committers to review your PR - be mildly annoying sometimes,
+   it’s OK to be slightly annoying with your change - it is also a sign for committers that you care
+ * Be considerate to the high code quality/test coverage requirements for Apache Airflow
+ * If in doubt - ask the community for their opinion or propose to vote at the devlist
+ * Discussions should concern subject matters - judge or criticise the merit but never criticise people
+ * It’s OK to express your own emotions while communicating - it helps other people to understand you
+ * Be considerate for feelings of others. Tell about how you feel not what you think of others
 
 Resources & Links
 =================

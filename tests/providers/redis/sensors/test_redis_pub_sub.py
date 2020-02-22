@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.providers.redis.hooks.redis import RedisHook
 from airflow.providers.redis.sensors.redis_pub_sub import RedisPubSubSensor
 from airflow.utils import timezone

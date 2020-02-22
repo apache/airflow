@@ -22,7 +22,7 @@ import unittest
 
 import mock
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.local_to_gcs import LocalFilesystemToGCSOperator
 
 

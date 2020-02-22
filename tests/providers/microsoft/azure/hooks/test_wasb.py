@@ -24,7 +24,7 @@ from collections import namedtuple
 
 import mock
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.utils import db

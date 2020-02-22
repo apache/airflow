@@ -16,6 +16,7 @@
 # under the License.
 
 import glob
+import itertools
 import mmap
 import os
 import unittest
@@ -30,8 +31,6 @@ MISSING_TEST_FILES = {
     'tests/providers/apache/cassandra/sensors/test_table.py',
     'tests/providers/apache/hdfs/sensors/test_web_hdfs.py',
     'tests/providers/apache/hive/operators/test_vertica_to_hive.py',
-    'tests/providers/apache/hive/sensors/test_hive_partition.py',
-    'tests/providers/apache/hive/sensors/test_metastore_partition.py',
     'tests/providers/apache/pig/operators/test_pig.py',
     'tests/providers/apache/spark/hooks/test_spark_jdbc_script.py',
     'tests/providers/cncf/kubernetes/operators/test_kubernetes_pod.py',
@@ -48,7 +47,6 @@ MISSING_TEST_FILES = {
     'tests/providers/microsoft/mssql/hooks/test_mssql.py',
     'tests/providers/microsoft/mssql/operators/test_mssql.py',
     'tests/providers/oracle/operators/test_oracle.py',
-    'tests/providers/presto/operators/test_presto_check.py',
     'tests/providers/qubole/hooks/test_qubole.py',
     'tests/providers/samba/hooks/test_samba.py',
     'tests/providers/sqlite/operators/test_sqlite.py',
@@ -147,7 +145,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         ('cloud', 'mysql_to_gcs'),
         ('cloud', 'mssql_to_gcs'),
         ('cloud', 'bigquery_to_gcs'),
-        ('suite', 'gcs_to_gdrive_operator'),
         ('cloud', 'local_to_gcs')
     }
 
@@ -163,7 +160,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         'datastore',
         'dlp',
         'gcs_to_bigquery',
-        'gcs_to_gdrive_operator',
         'kubernetes_engine',
         'local_to_gcs',
         'mlengine',
@@ -207,7 +203,7 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         with self.subTest("Keep update missing example dags list"):
             new_example_dag = set(example_sets).intersection(set(self.MISSING_EXAMPLE_DAGS))
             if new_example_dag:
-                new_example_dag_text = '\n'.join(new_example_dag)
+                new_example_dag_text = '\n'.join(str(f) for f in new_example_dag)
                 self.fail(
                     "You've added a example dag currently listed as missing:\n"
                     f"{new_example_dag_text}"
@@ -251,3 +247,21 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         # Exclude __init__.py and pycache
         resource_files = (f for f in resource_files if not f.endswith("__init__.py"))
         return resource_files
+
+
+class TestOperatorsHooks(unittest.TestCase):
+    def test_no_illegal_suffixes(self):
+        illegal_suffixes = ["_operator.py", "_hook.py", "_sensor.py"]
+        files = itertools.chain(*[
+            glob.glob(f"{ROOT_FOLDER}/{part}/providers/**/{resource_type}/*.py", recursive=True)
+            for resource_type in ["operators", "hooks", "sensors", "example_dags"]
+            for part in ["airlfow", "tests"]
+        ])
+
+        invalid_files = [
+            f
+            for f in files
+            if any(f.endswith(suffix) for suffix in illegal_suffixes)
+        ]
+
+        self.assertEqual([], invalid_files)

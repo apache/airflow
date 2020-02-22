@@ -20,7 +20,7 @@ import unittest
 
 import pytest
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 from airflow.utils import timezone
 

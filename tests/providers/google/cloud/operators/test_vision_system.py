@@ -15,16 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import pytest
 
 from tests.providers.google.cloud.operators.test_vision_system_helper import GCPVisionTestHelper
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_AI_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context
 from tests.test_utils.system_tests_class import SystemTest
 
 VISION_HELPER = GCPVisionTestHelper()
 
 
-@skip_gcp_system(GCP_AI_KEY)
+@pytest.mark.system("google.cloud")
+@pytest.mark.credential_file(GCP_AI_KEY)
 class CloudVisionExampleDagsSystemTest(SystemTest):
     @provide_gcp_context(GCP_AI_KEY)
     def setUp(self):

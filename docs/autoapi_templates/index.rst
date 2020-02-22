@@ -80,6 +80,10 @@ All operators are in the following packages:
 
   airflow/providers/apache/hive/sensors/index
 
+  airflow/providers/apache/livy/operators/index
+
+  airflow/providers/apache/livy/sensors/index
+
   airflow/providers/apache/pig/operators/index
 
   airflow/providers/apache/spark/operators/index
@@ -160,6 +164,10 @@ All operators are in the following packages:
 
   airflow/providers/redis/sensors/index
 
+  airflow/providers/salesforce/operators/index
+
+  airflow/providers/salesforce/sensors/index
+
   airflow/providers/segment/operators/index
 
   airflow/providers/sftp/operators/index
@@ -209,6 +217,8 @@ All hooks are in the following packages:
 
   airflow/providers/apache/hive/hooks/index
 
+  airflow/providers/apache/livy/hooks/index
+
   airflow/providers/apache/pig/hooks/index
 
   airflow/providers/apache/pinot/hooks/index
@@ -228,6 +238,8 @@ All hooks are in the following packages:
   airflow/providers/dingding/hooks/index
 
   airflow/providers/docker/hooks/index
+
+  airflow/providers/elasticsearch/hooks/index
 
   airflow/providers/ftp/hooks/index
 

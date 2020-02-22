@@ -21,7 +21,7 @@ import re
 import zipfile
 from typing import Dict, List, Optional, Pattern
 
-from airflow import conf
+from airflow.configuration import conf
 
 log = logging.getLogger(__name__)
 

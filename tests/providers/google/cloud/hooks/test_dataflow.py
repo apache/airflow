@@ -24,7 +24,7 @@ import mock
 from mock import MagicMock
 from parameterized import parameterized
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataflow import (
     DataflowHook, DataflowJobStatus, DataflowJobType, _DataflowJobsController, _DataflowRunner,
     _fallback_to_project_id_from_variables,

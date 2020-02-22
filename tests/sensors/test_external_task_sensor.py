@@ -20,9 +20,10 @@ from datetime import time, timedelta
 
 import pytest
 
-from airflow import DAG, exceptions, settings
+from airflow import exceptions, settings
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
 from airflow.models import DagBag, TaskInstance
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.external_task_sensor import ExternalTaskMarker, ExternalTaskSensor

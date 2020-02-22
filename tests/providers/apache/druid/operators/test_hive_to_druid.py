@@ -22,7 +22,7 @@ import unittest
 import requests
 import requests_mock
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.providers.apache.druid.operators.hive_to_druid import HiveToDruidTransfer
 
 

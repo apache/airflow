@@ -55,6 +55,9 @@ services:
       - ENABLED_INTEGRATIONS
       - RUN_INTEGRATION_TESTS
       - BREEZE
+      - INSTALL_AIRFLOW_VERSION
+      - ENABLED_SYSTEMS
+      - RUN_SYSTEM_TESTS
     volumes:
       # Pass docker to inside of the container so that Kind and Moto tests can use it.
       - /var/run/docker.sock:/var/run/docker.sock

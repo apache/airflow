@@ -109,6 +109,48 @@ class TestDag(unittest.TestCase):
         params_combined.update(params2)
         self.assertEqual(params_combined, dag.params)
 
+    def test_dag_invalid_default_view(self):
+        """
+        Test invalid `default_view` of DAG initialization
+        """
+        with self.assertRaisesRegex(AirflowException,
+                                    'Invalid values of dag.default_view: only support'):
+            models.DAG(
+                dag_id='test-invalid-default_view',
+                default_view='airflow'
+            )
+
+    def test_dag_default_view_default_value(self):
+        """
+        Test `default_view` default value of DAG initialization
+        """
+        dag = models.DAG(
+            dag_id='test-default_default_view'
+        )
+        self.assertEqual(conf.get('webserver', 'dag_default_view').lower(),
+                         dag._default_view)
+
+    def test_dag_invalid_orientation(self):
+        """
+        Test invalid `orientation` of DAG initialization
+        """
+        with self.assertRaisesRegex(AirflowException,
+                                    'Invalid values of dag.orientation: only support'):
+            models.DAG(
+                dag_id='test-invalid-orientation',
+                orientation='airflow'
+            )
+
+    def test_dag_orientation_default_value(self):
+        """
+        Test `orientation` default value of DAG initialization
+        """
+        dag = models.DAG(
+            dag_id='test-default_orientation'
+        )
+        self.assertEqual(conf.get('webserver', 'dag_orientation'),
+                         dag.orientation)
+
     def test_dag_as_context_manager(self):
         """
         Test DAG as a context manager.
@@ -756,8 +798,8 @@ class TestDag(unittest.TestCase):
         self.assertEqual(set(orm_dag.owners.split(', ')), {'owner1', 'owner2'})
         self.assertEqual(orm_dag.last_scheduler_run, now)
         self.assertTrue(orm_dag.is_active)
-        self.assertIsNone(orm_dag.default_view)
-        self.assertEqual(orm_dag.get_default_view(),
+        self.assertIsNotNone(orm_dag.default_view)
+        self.assertEqual(orm_dag.default_view,
                          conf.get('webserver', 'dag_default_view').lower())
         self.assertEqual(orm_dag.safe_dag_id, 'dag')
 
@@ -794,7 +836,7 @@ class TestDag(unittest.TestCase):
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag').one()
         self.assertIsNotNone(orm_dag.default_view)
-        self.assertEqual(orm_dag.get_default_view(), "graph")
+        self.assertEqual(orm_dag.default_view, "graph")
         session.close()
 
     @patch('airflow.models.dag.DagBag')

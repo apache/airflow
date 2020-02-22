@@ -27,7 +27,7 @@ TODO: Review the workflow, change it accordingly to
 
 from datetime import timedelta
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.providers.docker.operators.docker import DockerOperator

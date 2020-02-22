@@ -29,7 +29,7 @@ from urllib.parse import urlparse
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.utils.helpers import chunks
 
 
@@ -58,7 +58,7 @@ def provide_bucket_name(func):
     return wrapper
 
 
-class S3Hook(AwsHook):
+class S3Hook(AwsBaseHook):
     """
     Interact with AWS S3, using the boto3 library.
     """

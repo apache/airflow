@@ -20,8 +20,8 @@
 import datetime
 import unittest
 
-from airflow import DAG
 from airflow.exceptions import AirflowException
+from airflow.models.dag import DAG
 from airflow.providers.apache.sqoop.operators.sqoop import SqoopOperator
 
 

@@ -20,7 +20,7 @@ This is an example dag for using the AzureContainerInstancesOperator.
 """
 from datetime import datetime, timedelta
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.providers.microsoft.azure.operators.azure_container_instances import (
     AzureContainerInstancesOperator,
 )

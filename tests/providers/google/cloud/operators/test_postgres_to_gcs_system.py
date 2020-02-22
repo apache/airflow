@@ -15,13 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import pytest
 from psycopg2 import ProgrammingError
 
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
-from tests.test_utils.gcp_system_helpers import provide_gcp_context, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import provide_gcp_context
 from tests.test_utils.system_tests_class import SystemTest
 
 GCS_BUCKET = "postgres_to_gcs_example"
@@ -80,7 +80,9 @@ class GcsHelper(LoggingCommandExecutor):
         self.execute_cmd(["gsutil", "-m", "rm", "-r", "gs://{}".format(GCS_BUCKET)])
 
 
-@skip_gcp_system(GCP_GCS_KEY, require_local_executor=True)
+@pytest.mark.backend("postgres")
+@pytest.mark.system("google.cloud")
+@pytest.mark.credential_file(GCP_GCS_KEY)
 class PostgresToGCSSystemTest(SystemTest):
     helper = GcsHelper()
 

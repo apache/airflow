@@ -21,7 +21,7 @@ import unittest
 from base64 import b64encode
 from unittest import mock
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import DAG, TaskInstance
 from airflow.providers.sftp.operators.sftp import SFTPOperation, SFTPOperator
 from airflow.providers.ssh.operators.ssh import SSHOperator

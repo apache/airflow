@@ -24,7 +24,7 @@ from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import ClusterState
 from parameterized import parameterized
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.sensors.bigtable import BigtableTableReplicationCompletedSensor
 
 PROJECT_ID = 'test_project_id'

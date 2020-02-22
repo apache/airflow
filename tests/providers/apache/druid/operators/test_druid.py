@@ -19,8 +19,8 @@
 
 import unittest
 
-from airflow import DAG
 from airflow.models import TaskInstance
+from airflow.models.dag import DAG
 from airflow.providers.apache.druid.operators.druid import DruidOperator
 from airflow.utils import timezone
 

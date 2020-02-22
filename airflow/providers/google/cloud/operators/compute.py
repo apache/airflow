@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional
 from googleapiclient.errors import HttpError
 from json_merge_patch import merge
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.utils.field_sanitizer import GcpBodyFieldSanitizer

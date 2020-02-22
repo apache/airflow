@@ -15,15 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.google.suite.operators.gcs_to_gdrive_operator`."""
+"""This module is deprecated. Please use `airflow.providers.google.suite.operators.gcs_to_gdrive`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.google.suite.operators.gcs_to_gdrive_operator import GCSToGoogleDriveOperator  # noqa
+from airflow.providers.google.suite.operators.gcs_to_gdrive import GCSToGoogleDriveOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. "
-    "Please use `airflow.providers.google.suite.operators.gcs_to_gdrive_operator`.",
+    "Please use `airflow.providers.google.suite.operators.gcs_to_gdrive.",
     DeprecationWarning, stacklevel=2
 )

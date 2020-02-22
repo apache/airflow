@@ -14,19 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import pytest
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_DISPLAY_VIDEO_KEY
 from tests.providers.google.marketing_platform.operators.test_display_video_system_helper import (
     GcpDisplayVideoSystemTestHelper,
 )
-from tests.test_utils.gcp_system_helpers import provide_gcp_context, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import provide_gcp_context
 from tests.test_utils.system_tests_class import SystemTest
 
 # Requires the following scope:
 SCOPES = ["https://www.googleapis.com/auth/doubleclickbidmanager"]
 
 
-@skip_gcp_system(GCP_DISPLAY_VIDEO_KEY)
+@pytest.mark.system("google.marketing_platform")
+@pytest.mark.credential_file(GCP_DISPLAY_VIDEO_KEY)
 class DisplayVideoSystemTest(SystemTest):
     helper = GcpDisplayVideoSystemTestHelper()
 
