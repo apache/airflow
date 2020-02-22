@@ -1020,7 +1020,7 @@
       version_added: ~
       type: string
       example: 16,12
-      default: 16,12
+      default: ~
     - name: worker_log_server_port
       description: |
         When you start an airflow worker, airflow starts a tiny web server
