@@ -61,6 +61,11 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Return the raw boto3 JSON response in SageMakerTrainingOperator
+
+The SageMakerTrainingOperator used to return the JSON response of `describe_training_job()` wrapped in a dict
+with key "Training". For simplicity, with now returns only the JSON response itself.
+
 ### Removed sub-package imports from `airflow/__init__.py`
 
 The imports `LoggingMixin`, `conf`, `AirflowException`, and `DAG` have been removed from `airflow/__init__.py`.
