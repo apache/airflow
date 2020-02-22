@@ -157,6 +157,7 @@ atlas = [
 ]
 aws = [
     'boto3~=1.10',
+    'watchtower~=0.7.3',
 ]
 azure = [
     'azure-cosmos>=3.0.1',
