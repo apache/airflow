@@ -504,7 +504,7 @@ class DagFileProcessor(LoggingMixin):
 
     # pylint: disable=too-many-return-statements,too-many-branches
     @provide_session
-    def create_dag_run(self, dag, session=None):
+    def create_dag_run(self, dag, dag_runs=None, session=None):
         """
         This method checks whether a new DagRun needs to be created
         for a DAG based on scheduling interval.
@@ -512,12 +512,19 @@ class DagFileProcessor(LoggingMixin):
         """
         # pylint: disable=too-many-nested-blocks
         if dag.schedule_interval and conf.getboolean('scheduler', 'USE_JOB_SCHEDULE'):
-            active_runs = DagRun.find(
-                dag_id=dag.dag_id,
-                state=State.RUNNING,
-                external_trigger=False,
-                session=session
-            )
+            if dag_runs is None:
+                active_runs = DagRun.find(
+                    dag_id=dag.dag_id,
+                    state=State.RUNNING,
+                    external_trigger=False,
+                    session=session
+                )
+            else:
+                active_runs = [
+                    dag_run
+                    for dag_run in dag_runs
+                    if not dag_run.external_trigger
+                ]
             # return if already reached maximum active runs and no timeout setting
             if len(active_runs) >= dag.max_active_runs and not dag.dagrun_timeout:
                 return None
@@ -716,7 +723,7 @@ class DagFileProcessor(LoggingMixin):
             # Only creates DagRun for DAGs that are not subdag since
             # DagRun of subdags are created when SubDagOperator executes.
             if not dag.is_subdag:
-                dag_run = self.create_dag_run(dag)
+                dag_run = self.create_dag_run(dag, dag_runs=dag_runs_for_dag)
                 if dag_run:
                     dag_runs_for_dag.append(dag_run)
                     expected_start_date = dag.following_schedule(dag_run.execution_date)
