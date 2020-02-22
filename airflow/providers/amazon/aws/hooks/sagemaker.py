@@ -22,7 +22,7 @@ import tempfile
 import time
 import warnings
 from functools import partial
-from typing import List, Dict
+from typing import Dict, List, Optional
 
 from botocore.exceptions import ClientError
 
@@ -745,7 +745,9 @@ class SageMakerHook(AwsBaseHook):
                 * instance_count
             self.log.info('Billable seconds: %d', int(billable_time.total_seconds()) + 1)
 
-    def list_training_jobs(self, name_contains: str = None, max_results: int = None, **kwargs) -> List[Dict]:
+    def list_training_jobs(
+        self, name_contains: Optional[str] = None, max_results: Optional[int] = None, **kwargs
+    ) -> List[Dict]:
         """
         This method wraps boto3's list_training_jobs(). The training job name and max results are configurable
         via arguments. Other arguments are not, and should be provided via kwargs. Note boto3 expects these in
@@ -785,7 +787,7 @@ class SageMakerHook(AwsBaseHook):
         )
         return results
 
-    def _list_request(self, partial_func, result_key: str, max_results: int = None) -> List[Dict]:
+    def _list_request(self, partial_func, result_key: str, max_results: Optional[int] = None) -> List[Dict]:
         """
         All AWS boto3 list_* requests return results in batches (if the key "NextToken" is contained in the
         result, there are more results to fetch). The default AWS batch size is 10, and configurable up to
@@ -800,9 +802,9 @@ class SageMakerHook(AwsBaseHook):
         :return: Results of the list_* request
         """
 
-        SAGEMAKER_MAX_RESULTS = 100  # Fixed number set by AWS
+        sagemaker_max_results = 100  # Fixed number set by AWS
 
-        results = []
+        results: List[Dict] = []
         next_token = None
 
         while True:
@@ -811,9 +813,9 @@ class SageMakerHook(AwsBaseHook):
                 kwargs["NextToken"] = next_token
 
             if max_results is None:
-                kwargs["MaxResults"] = SAGEMAKER_MAX_RESULTS
+                kwargs["MaxResults"] = sagemaker_max_results
             else:
-                kwargs["MaxResults"] = min(max_results - len(results), SAGEMAKER_MAX_RESULTS)
+                kwargs["MaxResults"] = min(max_results - len(results), sagemaker_max_results)
 
             response = partial_func(**kwargs)
             self.log.debug("Fetched %s results.", len(response[result_key]))
