@@ -92,7 +92,7 @@ class DAG(BaseDag, LoggingMixin):
     added once to a DAG.
 
     :param dag_id: The id of the DAG; must consist exclusively of alphanumeric
-        characters, dashes, dots and underscores (all ASCII) exclusively
+        characters, dashes, dots and underscores (all ASCII)
     :type dag_id: str
     :param description: The description for the DAG to e.g. be shown on the webserver
     :type description: str
