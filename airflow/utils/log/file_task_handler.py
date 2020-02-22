@@ -18,14 +18,16 @@
 """File logging handler for tasks."""
 import logging
 import os
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import requests
 
 from airflow.configuration import AirflowConfigException, conf
-from airflow.models import TaskInstance
 from airflow.utils.file import mkdirs
 from airflow.utils.helpers import parse_template_string
+
+if TYPE_CHECKING:
+    from airflow.models import TaskInstance
 
 
 class FileTaskHandler(logging.Handler):
@@ -45,7 +47,7 @@ class FileTaskHandler(logging.Handler):
         self.filename_template, self.filename_jinja_template = \
             parse_template_string(filename_template)
 
-    def set_context(self, ti: TaskInstance):
+    def set_context(self, ti: 'TaskInstance'):
         """
         Provide task_instance context to airflow task handler.
 
