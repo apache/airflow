@@ -1733,7 +1733,14 @@
       default: "IfNotPresent"
     - name: delete_worker_pods
       description: |
-        If True (default), worker pods will be deleted upon termination
+        If True, all worker pods will be deleted upon termination
+      version_added: ~
+      type: string
+      example: ~
+      default: "True"
+    - name: delete_worker_pods_on_success
+      description: |
+        If True (default), worker pods will be deleted only on task success
       version_added: ~
       type: string
       example: ~

@@ -98,6 +98,8 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
         self.kube_labels = configuration_dict.get('kubernetes_labels', {})
         self.delete_worker_pods = conf.getboolean(
             self.kubernetes_section, 'delete_worker_pods')
+        self.delete_worker_pods_on_success = conf.getboolean(
+            self.kubernetes_section, 'delete_worker_pods_on_success')
         self.worker_pods_creation_batch_size = conf.getint(
             self.kubernetes_section, 'worker_pods_creation_batch_size')
         self.worker_service_account_name = conf.get(
@@ -879,7 +881,11 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                       pod_id: str,
                       namespace: str) -> None:
         if state != State.RUNNING:
-            if self.kube_config.delete_worker_pods:
+            if self.kube_config.delete_worker_pods_on_success and state is State.SUCCESS:
+                if not self.kube_scheduler:
+                    raise AirflowException(NOT_STARTED_MESSAGE)
+                self.kube_scheduler.delete_pod(pod_id, namespace)
+            elif self.kube_config.delete_worker_pods:
                 if not self.kube_scheduler:
                     raise AirflowException(NOT_STARTED_MESSAGE)
                 self.kube_scheduler.delete_pod(pod_id, namespace)
