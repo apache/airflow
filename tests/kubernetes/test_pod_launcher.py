@@ -18,19 +18,19 @@ import datetime
 import unittest
 
 import mock
+from kubernetes import client
 from requests.exceptions import BaseHTTPError
 from tenacity import wait_none
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import pod_launcher
-from airflow.kubernetes.pod_launcher import PodLauncher
 
 
 class TestPodLauncher(unittest.TestCase):
 
     def setUp(self):
-        self.mock_kube_client = mock.Mock()
-        self.pod_launcher = PodLauncher(kube_client=self.mock_kube_client)
+        self.mock_kube_client = mock.create_autospec(client.CoreV1Api())
+        self.pod_launcher = pod_launcher.PodLauncher(kube_client=self.mock_kube_client)
         self.pod_launcher._request_pod_log_chunk.retry.wait = wait_none()  # pylint: disable=no-member
 
         self.log_chunk_returns = (

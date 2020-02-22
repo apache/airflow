@@ -339,7 +339,7 @@ After the Kubernetes Cluster is started, you need to deploy Airflow to the clust
 2. Load it to the Kubernetes cluster.
 3. Deploy the Airflow application.
 
-It can be done with a single script: ``./scripts/ci/in_container/kubernetes/deploy_airflow_to_kubernetes.sh``.
+It can be done with a single script: ``./scripts/ci/in_container/deploy_airflow_to_kubernetes.sh``.
 
 You can, however, work separately on the image in Kubernetes and deploying the Airflow app in the cluster.
 

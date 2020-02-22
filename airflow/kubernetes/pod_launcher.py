@@ -27,7 +27,6 @@ from kubernetes.client.models.v1_pod import V1Pod
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from requests.exceptions import BaseHTTPError
-from urllib3 import HTTPResponse
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes.pod_generator import PodDefaults
@@ -242,7 +241,7 @@ class PodLauncher(LoggingMixin):
 
         try:
             while pod_is_running:
-                pod_is_running = self.pod_is_running(pod)
+                pod_is_running = self.base_container_is_running(pod)
                 if not pod_is_running:
                     self.log.info("pod stopped, pulling logs one more time")
 
