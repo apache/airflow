@@ -32,7 +32,6 @@ KUBERNETES_HOST = (os.environ.get('CLUSTER_NAME') or "docker") + "-worker:30809"
 @pytest.mark.runtime("kubernetes")
 class TestKubernetesExecutor(unittest.TestCase):
 
-
     @staticmethod
     def _num_pods_in_namespace(namespace):
         air_pod = check_output(['kubectl', 'get', 'pods', '-n', namespace]).decode()
@@ -232,7 +231,10 @@ class TestKubernetesExecutor(unittest.TestCase):
                                        dag_id=dag_id,
                                        expected_final_state='success', timeout=100)
 
-        self.assertEqual(self._num_pods_in_namespace('test-namespace'), 0, "failed to delete pods in other namespace")
+        self.assertEqual(self._num_pods_in_namespace('test-namespace'),
+                         0,
+                         "failed to delete pods in other namespace")
+
 
 if __name__ == '__main__':
     unittest.main()
