@@ -98,7 +98,9 @@ class SingularityOperatorTestCase(unittest.TestCase):
         client_mock.instance.assert_called_once_with(
             "/tmp/busybox_latest.sif", options=[], args=None, start=False
         )
-        client_mock.pull.assert_called_once_with("docker://busybox", stream=True)
+        client_mock.pull.assert_called_once_with(
+            "docker://busybox", stream=True, pull_folder="/tmp"
+        )
         client_mock.execute.assert_called_once_with(mock.ANY,
                                                     "echo hello",
                                                     return_result=True)
