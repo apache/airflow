@@ -133,51 +133,58 @@ class DockerSwarmOperator(DockerOperator):
         while not self.cli.tasks(filters={'service': self.service['ID']}):
             continue
 
-        logs = self.cli.service_logs(
-            self.service['ID'], follow=True, stdout=True, stderr=True, is_tty=self.tty
-        )
-        line = ''
-        _stream_logs = self.enable_logging  # Status of the service_logs' generator
-        while True:  # pylint: disable=too-many-nested-blocks
-            if self.enable_logging:
-                while _stream_logs:
-                    try:
-                        log = next(logs)
-                    # TODO: Remove this clause once https://github.com/docker/docker-py/issues/931 is fixed
-                    except requests.exceptions.ConnectionError:
-                        # If the service log stream stopped sending messages, check if it the service has
-                        # terminated.
-                        break
-                    except StopIteration:
-                        # If the service log stream terminated, flush the current logs, stop fetching logs
-                        # further and wait for service to terminate.
-                        if line:
-                            self.log.info(line)
-                            line = ''
-                        _stream_logs = False
-                        break
-                    else:
-                        try:
-                            log = log.decode()
-                        except UnicodeDecodeError:
-                            continue
-                        if log == '\n':
-                            self.log.info(line)
-                            line = ''
-                        else:
-                            line += log
+        if self.enable_logging:
+            self._stream_logs_to_output()
 
-            status = self.cli.tasks(
-                filters={'service': self.service['ID']}
-            )[0]['Status']['State']
-            if status in ['failed', 'complete']:
-                self.log.info('Service status before exiting: %s', status)
+        while True:
+            if self._has_service_terminated():
+                self.log.info('Service status before exiting: %s', self._service_status())
                 break
 
         if self.auto_remove:
             self.cli.remove_service(self.service['ID'])
-        if status == 'failed':
+        if self._service_status() == 'failed':
             raise AirflowException('Service failed: ' + repr(self.service))
+
+    def _service_status(self):
+        return self.cli.tasks(
+            filters={'service': self.service['ID']}
+        )[0]['Status']['State']
+
+    def _has_service_terminated(self):
+        status = self._service_status()
+        return (status in ['failed', 'complete'])
+
+    def _stream_logs_to_output(self):
+        logs = self.cli.service_logs(
+            self.service['ID'], follow=True, stdout=True, stderr=True, is_tty=self.tty
+        )
+        line = ''
+        while True:
+            try:
+                log = next(logs)
+            # TODO: Remove this clause once https://github.com/docker/docker-py/issues/931 is fixed
+            except requests.exceptions.ConnectionError:
+                # If the service log stream stopped sending messages, check if it the service has
+                # terminated.
+                if self._has_service_terminated():
+                    break
+            except StopIteration:
+                # If the service log stream terminated, stop fetching logs further.
+                break
+            else:
+                try:
+                    log = log.decode()
+                except UnicodeDecodeError:
+                    continue
+                if log == '\n':
+                    self.log.info(line)
+                    line = ''
+                else:
+                    line += log
+        # flush any remaining log stream
+        if line:
+            self.log.info(line)
 
     def on_kill(self):
         if self.cli is not None:

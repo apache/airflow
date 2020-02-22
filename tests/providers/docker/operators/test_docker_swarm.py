@@ -38,7 +38,8 @@ class TestDockerSwarmOperator(unittest.TestCase):
         def _client_tasks_side_effect():
             for _ in range(2):
                 yield [{'Status': {'State': 'pending'}}]
-            yield [{'Status': {'State': 'complete'}}]
+            while True:
+                yield [{'Status': {'State': 'complete'}}]
 
         def _client_service_logs_effect():
             yield b'Testing is awesome.'
@@ -87,7 +88,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
         self.assertEqual(csargs, (mock_obj, ))
         self.assertEqual(cskwargs['labels'], {'name': 'airflow__adhoc_airflow__unittest'})
         self.assertTrue(cskwargs['name'].startswith('airflow-'))
-        self.assertEqual(client_mock.tasks.call_count, 3)
+        self.assertEqual(client_mock.tasks.call_count, 5)
         client_mock.remove_service.assert_called_once_with('some_id')
 
     @mock.patch('airflow.providers.docker.operators.docker.APIClient')
@@ -149,7 +150,8 @@ class TestDockerSwarmOperator(unittest.TestCase):
         def _client_tasks_side_effect():
             for _ in range(2):
                 yield [{'Status': {'State': 'pending'}}]
-            yield [{'Status': {'State': 'complete'}}]
+            while True:
+                yield [{'Status': {'State': 'complete'}}]
 
         def _client_service_logs_effect():
             yield b'Testing is awesome.'
