@@ -135,10 +135,6 @@ class BaseOperator(LoggingMixin):
         only tasks *immediately* downstream of the previous task instance are waited
         for; the statuses of any tasks further downstream are ignored.
     :type wait_for_downstream: bool
-    :param queue: which queue to target when running this job. Not
-        all executors implement queue management, the CeleryExecutor
-        does support targeting specific queues.
-    :type queue: str
     :param dag: a reference to the dag the task is attached to (if any)
     :type dag: airflow.models.DAG
     :param priority_weight: priority weight of this task against other task.
@@ -169,7 +165,9 @@ class BaseOperator(LoggingMixin):
         DAGS. Options can be set as string or using the constants defined in
         the static class ``airflow.utils.WeightRule``
     :type weight_rule: str
-    :param queue: specifies which task queue to use
+    :param queue: which queue to target when running this job. Not
+        all executors implement queue management, the CeleryExecutor
+        does support targeting specific queues.
     :type queue: str
     :param pool: the slot pool this task should run in, slot pools are a
         way to limit concurrency for certain tasks
