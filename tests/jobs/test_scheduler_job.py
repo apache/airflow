@@ -537,10 +537,10 @@ class TestDagFileProcessor(unittest.TestCase):
         ti_to_schedule = []
         dag_file_processor._process_task_instances(dag, task_instances_list=ti_to_schedule)
 
-        assert ti_to_schedule == [
+        assert set(ti_to_schedule) == {
             (dag.dag_id, dag_task1.task_id, DEFAULT_DATE, TRY_NUMBER),
             (dag.dag_id, dag_task2.task_id, DEFAULT_DATE, TRY_NUMBER),
-        ]
+        }
 
     def test_dag_file_processor_do_not_schedule_removed_task(self):
         dag = DAG(
