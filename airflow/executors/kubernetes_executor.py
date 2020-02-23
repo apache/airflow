@@ -351,7 +351,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     def process_status(self, pod_id: str,
                        namespace: str,
                        status: str,
-                       labels:
+                       labels: Dict[str, str]
                        Dict[str, str],
                        resource_version: str) -> None:
         """Process status response"""
