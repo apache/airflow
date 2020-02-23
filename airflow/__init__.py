@@ -42,3 +42,22 @@ from airflow.plugins_manager import integrate_plugins
 login: Optional[Callable] = None
 
 integrate_plugins()
+
+__all__ = ['__version__', 'login', 'DAG']
+
+
+def __getattr__(name):
+    # PEP-562: Lazy loaded attributes on python modules
+    if name == "DAG":
+        from airflow.models.dag import DAG # pylint: disable=redefined-outer-name
+        return DAG
+    raise AttributeError(f"module {__name__} has no attribute {name}")
+
+
+# This is never executed, but tricks static analyzers (PyDev, PyCharm,
+# pylint, etc.) into knowing the types of these symbols, and what
+# they contain.
+STATICA_HACK = True
+globals()['kcah_acitats'[::-1].upper()] = False
+if STATICA_HACK:  # pragma: no cover
+    from airflow.models.dag import DAG

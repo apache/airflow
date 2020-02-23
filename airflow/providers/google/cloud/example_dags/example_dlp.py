@@ -28,7 +28,7 @@ import os
 
 from google.cloud.dlp_v2.types import ContentItem, InspectConfig, InspectTemplate
 
-from airflow.models import DAG
+from airflow import DAG
 from airflow.providers.google.cloud.operators.dlp import (
     CloudDLPCreateInspectTemplateOperator, CloudDLPDeleteInspectTemplateOperator,
     CloudDLPInspectContentOperator,

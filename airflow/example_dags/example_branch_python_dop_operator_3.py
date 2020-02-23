@@ -21,7 +21,7 @@ Example DAG demonstrating the usage of BranchPythonOperator with depends_on_past
 or skipped on alternating runs.
 """
 
-from airflow.models import DAG
+from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import BranchPythonOperator
 from airflow.utils.dates import days_ago

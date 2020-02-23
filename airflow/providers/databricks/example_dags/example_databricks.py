@@ -31,7 +31,7 @@ For more information about the state of a run refer to
 https://docs.databricks.com/api/latest/jobs.html#runstate
 """
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.providers.databricks.operators.databricks import DatabricksSubmitRunOperator
 from airflow.utils.dates import days_ago
 

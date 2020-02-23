@@ -21,7 +21,7 @@
 import json
 from datetime import timedelta
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.providers.http.operators.http import SimpleHttpOperator
 from airflow.providers.http.sensors.http import HttpSensor
 from airflow.utils.dates import days_ago
