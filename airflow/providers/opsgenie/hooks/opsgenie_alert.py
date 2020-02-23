@@ -72,7 +72,7 @@ class OpsgenieAlertHook(HttpHook):
             session.headers.update(headers)
         return session
 
-    def execute(self, payload={}):
+    def execute(self, payload=None):
         """
         Execute the Opsgenie Alert call
 
@@ -80,6 +80,7 @@ class OpsgenieAlertHook(HttpHook):
             See https://docs.opsgenie.com/docs/alert-api#section-create-alert
         :type payload: dict
         """
+        payload = payload or {}
         api_key = self._get_api_key()
         return self.run(endpoint='v2/alerts',
                         data=json.dumps(payload),
