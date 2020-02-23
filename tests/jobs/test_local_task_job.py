@@ -44,6 +44,17 @@ TEST_DAG_FOLDER = os.environ['AIRFLOW__CORE__DAGS_FOLDER']
 
 
 class TestLocalTaskJob(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # The tests in this class which use multiprocessing and session can only work
+        # when connection pool is disabled.
+        settings.configure_orm(disable_connection_pool=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        # Restore connection pool so this test does not interfere with other tests.
+        settings.configure_orm()
+
     def setUp(self):
         clear_db_runs()
         patcher = patch('airflow.jobs.base_job.sleep')

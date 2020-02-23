@@ -64,6 +64,7 @@ LOGGING_CONFIG = {
 class TestStandardTaskRunner(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        settings.configure_orm()
         dictConfig(LOGGING_CONFIG)
 
     @classmethod

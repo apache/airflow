@@ -29,7 +29,7 @@ from airflow.bin import cli
 from airflow.cli.commands import task_command
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, TaskInstance
-from airflow.settings import Session
+from airflow.settings import Session, configure_orm
 from airflow.utils import timezone
 from airflow.utils.cli import get_dag
 from airflow.utils.state import State
@@ -51,6 +51,12 @@ class TestCliTasks(unittest.TestCase):
     def setUpClass(cls):
         cls.dagbag = DagBag(include_examples=True)
         cls.parser = cli.CLIFactory.get_parser()
+
+    @classmethod
+    def tearDownClass(cls):
+        # task_run() calls configure_orm with disable_connection_pool=True.
+        # Call configure_orm again to restore orm configuration to avoid interfering with other tests.
+        configure_orm()
 
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags:
