@@ -33,6 +33,13 @@ KUBERNETES_HOST = (os.environ.get('CLUSTER_NAME') or "docker") + "-worker:30809"
 class TestKubernetesExecutor(unittest.TestCase):
 
     @staticmethod
+    def _num_pods_in_namespace(namespace):
+        air_pod = check_output(['kubectl', 'get', 'pods', '-n', namespace]).decode()
+        air_pod = air_pod.split('\n')
+        names = [re.compile(r'\s+').split(x)[0] for x in air_pod if 'airflow' in x]
+        return len(names)
+
+    @staticmethod
     def _delete_airflow_pod():
         air_pod = check_output(['kubectl', 'get', 'pods']).decode()
         air_pod = air_pod.split('\n')
@@ -213,10 +220,20 @@ class TestKubernetesExecutor(unittest.TestCase):
                           task_id='start_task',
                           expected_final_state='success', timeout=200)
 
+        self.monitor_task(host=host,
+                          execution_date=execution_date,
+                          dag_id=dag_id,
+                          task_id='other_namespace_task',
+                          expected_final_state='success', timeout=200)
+
         self.ensure_dag_expected_state(host=host,
                                        execution_date=execution_date,
                                        dag_id=dag_id,
                                        expected_final_state='success', timeout=100)
+
+        self.assertEqual(self._num_pods_in_namespace('test-namespace'),
+                         0,
+                         "failed to delete pods in other namespace")
 
 
 if __name__ == '__main__':

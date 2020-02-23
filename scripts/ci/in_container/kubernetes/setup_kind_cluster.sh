@@ -182,5 +182,6 @@ kubectl get -n kube-system pods
 echo
 echo "Airflow environment on kubernetes is good to go!"
 echo
+kubectl create namespace test-namespace
 
 in_container_script_end
