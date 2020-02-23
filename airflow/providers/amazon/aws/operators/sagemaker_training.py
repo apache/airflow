@@ -26,7 +26,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
     """
     Initiate a SageMaker training job.
 
-    This operator returns The ARN of the training job created in Amazon SageMaker.
+    This operator returns the config of the training job created in Amazon SageMaker.
 
     :param config: The configuration necessary to start a training job (templated).
 
