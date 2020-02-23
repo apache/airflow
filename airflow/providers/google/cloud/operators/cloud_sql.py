@@ -808,7 +808,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
         self.gcp_cloudsql_conn_id = gcp_cloudsql_conn_id
         self.autocommit = autocommit
         self.parameters = parameters
-        self.gcp_connection = BaseHook.get_connection(self.gcp_conn_id)
+        self.gcp_connection = None
 
     def _execute_query(self, hook: CloudSQLDatabaseHook, database_hook: Union[PostgresHook, MySqlHook]):
         cloud_sql_proxy_runner = None
@@ -827,6 +827,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
                 cloud_sql_proxy_runner.stop_proxy()
 
     def execute(self, context):
+        self.gcp_connection = BaseHook.get_connection(self.gcp_conn_id)
         hook = CloudSQLDatabaseHook(
             gcp_cloudsql_conn_id=self.gcp_cloudsql_conn_id,
             gcp_conn_id=self.gcp_conn_id,

@@ -20,10 +20,15 @@ import unittest
 from glob import glob
 
 from airflow.models import DagBag
+from tests.test_utils.asserts import assert_queries_count
 
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir)
 )
+
+NO_DB_QUERY_EXCEPTION = [
+    "/airflow/example_dags/example_subdag_operator.py"
+]
 
 
 class TestExampleDags(unittest.TestCase):
@@ -38,3 +43,19 @@ class TestExampleDags(unittest.TestCase):
                 )
                 self.assertEqual(0, len(dagbag.import_errors), f"import_errors={str(dagbag.import_errors)}")
                 self.assertGreaterEqual(len(dagbag.dag_ids), 1)
+
+    def test_should_not_do_database_queries(self):
+        example_dags = glob(f"{ROOT_FOLDER}/airflow/**/example_dags/example_*.py", recursive=True)
+        example_dags = [
+            dag_file
+            for dag_file in example_dags
+            if any(not dag_file.endswith(e) for e in NO_DB_QUERY_EXCEPTION)
+        ]
+        for filepath in example_dags:
+            relative_filepath = os.path.relpath(filepath, ROOT_FOLDER)
+            with self.subTest(f"File {relative_filepath} shouldn't do database queries"):
+                with assert_queries_count(0):
+                    DagBag(
+                        dag_folder=filepath,
+                        include_examples=False,
+                    )
