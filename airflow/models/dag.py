@@ -1452,8 +1452,6 @@ class DAG(BaseDag, LoggingMixin):
         # state is None at the moment of creation
         run.verify_integrity(session=session)
 
-        run.refresh_from_db()
-
         return run
 
     @provide_session
