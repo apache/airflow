@@ -352,7 +352,6 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                        namespace: str,
                        status: str,
                        labels: Dict[str, str]
-                       Dict[str, str],
                        resource_version: str) -> None:
         """Process status response"""
         if status == 'Pending':
