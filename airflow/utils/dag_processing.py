@@ -654,6 +654,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             self._refresh_dag_dir()
             self._find_zombies()  # pylint: disable=no-value-for-parameter
 
+            self._kill_timed_out_processors()
             simple_dags = self.collect_results()
 
             # Generate more file paths to process if we processed all the files
@@ -962,8 +963,6 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             have finished since the last time this was called
         :rtype: list[airflow.utils.dag_processing.SimpleDag]
         """
-        self._kill_timed_out_processors()
-
         finished_processors: Dict[str, AbstractDagFileProcessorProcess] = {}
         running_processors: Dict[str, AbstractDagFileProcessorProcess] = {}
 
