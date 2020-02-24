@@ -1254,35 +1254,19 @@ class SchedulerJob(BaseJob):
         :type task_instances: list[airflow.models.TaskInstance]
         :rtype: list[airflow.models.taskinstance.SimpleTaskInstance]
         """
-        acceptable_states = (State.SCHEDULED,)
         if len(task_instances) == 0:
             session.commit()
             return []
 
         TI = models.TaskInstance
-        filter_for_ti_state_change = (
-            [and_(
-                TI.dag_id == ti.dag_id,
-                TI.task_id == ti.task_id,
-                TI.execution_date == ti.execution_date)
-                for ti in task_instances])
+
         ti_query = (
             session
             .query(TI)
-            .filter(or_(*filter_for_ti_state_change)))
+            .filter(TI.filter_for_tis(task_instances))
+        )
 
-        if acceptable_states:
-            if None in acceptable_states:
-                if all(x is None for x in acceptable_states):
-                    ti_query = ti_query.filter(TI.state == None)  # noqa pylint: disable=singleton-comparison
-                else:
-                    not_none_acceptable_states = [state for state in acceptable_states if state]
-                    ti_query = ti_query.filter(
-                        or_(TI.state == None,  # noqa pylint: disable=singleton-comparison
-                            TI.state.in_(not_none_acceptable_states))
-                    )
-            else:
-                ti_query = ti_query.filter(TI.state.in_(acceptable_states))
+        ti_query = ti_query.filter(TI.state.is_(State.SCHEDULED))
 
         tis_to_set_to_queued = (
             ti_query
