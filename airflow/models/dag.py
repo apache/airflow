@@ -1483,6 +1483,7 @@ class DAG(BaseDag, LoggingMixin):
             .query(DagModel)
             .options(joinedload(DagModel.tags, innerjoin=False))
             .filter(DagModel.dag_id.in_(dag_ids))
+            .with_for_update(of=DagModel)
             .all()
         )
 
