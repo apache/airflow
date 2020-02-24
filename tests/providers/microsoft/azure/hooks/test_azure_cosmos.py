@@ -58,7 +58,6 @@ class TestAzureCosmosDbHook(unittest.TestCase):
     def test_client(self, mock_cosmos):
         hook = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
         self.assertIsNone(hook._conn)
-        hook.get_conn()
         self.assertIsInstance(hook.get_conn(), CosmosClient)
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.azure_cosmos.CosmosClient')
