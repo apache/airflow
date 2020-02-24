@@ -23,11 +23,14 @@ import airflow.api
 from airflow import models
 from airflow.api.common.experimental import delete_dag as delete, pool as pool_api, trigger_dag as trigger
 from airflow.api.common.experimental.get_code import get_code
+from airflow.api.common.experimental.get_dag import get_dag
 from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from airflow.api.common.experimental.get_dag_runs import get_dag_runs
+from airflow.api.common.experimental.get_dags import get_dags
 from airflow.api.common.experimental.get_lineage import get_lineage as get_lineage_api
-from airflow.api.common.experimental.get_task import get_task
+from airflow.api.common.experimental.get_task import get_downstream_tasks, get_task, get_upstream_tasks
 from airflow.api.common.experimental.get_task_instance import get_task_instance
+from airflow.api.common.experimental.get_tasks import get_tasks
 from airflow.exceptions import AirflowException
 from airflow.utils import timezone
 from airflow.utils.strings import to_boolean
@@ -182,6 +185,101 @@ def task_info(dag_id, task_id):
               for k, v in vars(info).items()
               if not k.startswith('_')}
     return jsonify(fields)
+
+
+@api_experimental.route('/dags/<string:dag_id>/tasks', methods=['GET'])
+@requires_authentication
+def get_dag_tasks(dag_id):
+    """Returns a JSON array of task ids of a given `dag_id`. """
+    try:
+        regex = request.args.get('regex', default='', type=str)
+        info = get_tasks(dag_id, regex=regex)
+    except AirflowException as err:
+        log.info(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+
+    return jsonify(info)
+
+
+@api_experimental.route('/dags', methods=['GET'])
+@requires_authentication
+def dags():
+    """
+    Returns a JSON list of dag ids of dags in the dagbag.
+    Optionally pass a `regex` parameter to filter results.
+    """
+    try:
+        regex = request.args.get('regex', default='', type=str)
+        info = get_dags(regex=regex)
+    except AirflowException as err:
+        log.info(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+
+    return jsonify(info)
+
+
+@api_experimental.route('/dags/<string:dag_id>', methods=['GET'])
+@requires_authentication
+def dag_info(dag_id):
+    """
+    Returns a JSON with a dag's public instance variables.
+    Optionally pass a URL parameter `regex` to filter results.
+    """
+    try:
+        info = get_dag(dag_id)
+    except AirflowException as err:
+        log.info(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+
+    fields = {k: str(v)
+              for k, v in vars(info).items()
+              if not k.startswith('_')}
+
+    return jsonify(fields)
+
+
+@api_experimental.route('/dags/<string:dag_id>/tasks/<string:task_id>/downstream', methods=['GET'])
+@requires_authentication
+def downstream(dag_id, task_id):
+    """
+    Returns a JSON list of task ids downstream of a given task in a given dag.
+    Optionally pass a URL parameter `regex` to filter results.
+    """
+    try:
+        regex = request.args.get('regex', default='', type=str)
+        info = get_downstream_tasks(dag_id, task_id, regex)
+    except AirflowException as err:
+        log.info(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+
+    return jsonify(info)
+
+
+@api_experimental.route('/dags/<string:dag_id>/tasks/<string:task_id>/upstream', methods=['GET'])
+@requires_authentication
+def upstream(dag_id, task_id):
+    """
+    Returns a JSON list of task ids upstream of a given task in a given dag.
+    Optionally pass a URL parameter `regex` to filter results.
+    """
+    try:
+        regex = request.args.get('regex', default='', type=str)
+        info = get_upstream_tasks(dag_id, task_id, regex=regex)
+    except AirflowException as err:
+        log.info(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+
+    return jsonify(info)
 
 
 # ToDo: Shouldn't this be a PUT method?

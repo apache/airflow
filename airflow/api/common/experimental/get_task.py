@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Task APIs.."""
+import re
+import typing
+
 from airflow.api.common.experimental import check_and_get_dag
 from airflow.models import TaskInstance
 
@@ -26,3 +29,37 @@ def get_task(dag_id: str, task_id: str) -> TaskInstance:
 
     # Return the task.
     return dag.get_task(task_id)
+
+
+def get_downstream_tasks(dag_id: str, task_id: str, regex: str = '') -> typing.List[str]:
+    """
+    Returns a list of downstream tasks of the task object identified by the given dag_id and task_id.
+    Optionally filter the task list with a `regex` string.
+    """
+    dag = check_and_get_dag(dag_id, task_id)
+
+    if regex:
+        pattern = re.compile(regex)
+        return list(filter(
+            pattern.match,
+            map(lambda task: task.task_id, dag.get_task(task_id).downstream_list)
+        ))
+    else:
+        return list(map(lambda task: task.task_id, dag.get_task(task_id).downstream_list))
+
+
+def get_upstream_tasks(dag_id: str, task_id: str, regex: str = '') -> typing.List[str]:
+    """
+    Returns a list of upstream tasks of the task object identified by the given dag_id and task_id.
+    Optionally filter the task list with a `regex` string.
+    """
+    dag = check_and_get_dag(dag_id, task_id)
+
+    if regex:
+        pattern = re.compile(regex)
+        return list(filter(
+            pattern.match,
+            map(lambda task: task.task_id, dag.get_task(task_id).upstream_list)
+        ))
+    else:
+        return list(map(lambda task: task.task_id, dag.get_task(task_id).upstream_list))
