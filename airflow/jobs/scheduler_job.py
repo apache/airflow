@@ -1372,7 +1372,6 @@ class SchedulerJob(BaseJob):
     @provide_session
     def _execute_task_instances(self,
                                 simple_dag_bag,
-                                states,
                                 session=None):
         """
         Attempts to execute TaskInstances that should be executed by the scheduler.
@@ -1386,10 +1385,9 @@ class SchedulerJob(BaseJob):
         :param simple_dag_bag: TaskInstances associated with DAGs in the
             simple_dag_bag will be fetched from the DB and executed
         :type simple_dag_bag: airflow.utils.dag_processing.SimpleDagBag
-        :param states: Execute TaskInstances in these states
-        :type states: tuple[airflow.utils.state.State]
         :return: Number of task instance with state changed.
         """
+        states = (State.SCHEDULED,)
         executable_tis = self._find_executable_task_instances(simple_dag_bag, states,
                                                               session=session)
 
@@ -1673,8 +1671,7 @@ class SchedulerJob(BaseJob):
                                                    State.SCHEDULED,
                                                    State.UP_FOR_RESCHEDULE],
                                                   State.NONE)
-        self._execute_task_instances(simple_dag_bag,
-                                     (State.SCHEDULED,))
+        self._execute_task_instances(simple_dag_bag)
 
     @provide_session
     def heartbeat_callback(self, session=None):
