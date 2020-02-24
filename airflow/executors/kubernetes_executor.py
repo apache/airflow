@@ -71,8 +71,6 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
                                                'env_from_configmap_ref')
         self.env_from_secret_ref = conf.get(self.kubernetes_section,
                                             'env_from_secret_ref')
-        self.delete_options_kwargs = conf.get(self.kubernetes_section,
-                                             'delete_option_kwargs')
         self.airflow_home = settings.AIRFLOW_HOME
         self.dags_folder = conf.get(self.core_section, 'dags_folder')
         self.parallelism = conf.getint(self.core_section, 'parallelism')
@@ -223,6 +221,12 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
         else:
             self.kube_client_request_args = {}
         self._validate()
+
+        delete_option_kwargs = conf.get(self.kubernetes_section, 'delete_option_kwargs')
+        if delete_option_kwargs:
+            self.delete_option_kwargs = json.loads(delete_option_kwargs)
+        else:
+            self.delete_option_kwargs = {}
 
     # pod security context items should return integers
     # and only return a blank string if contexts are not set.
