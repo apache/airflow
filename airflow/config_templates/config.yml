@@ -2023,7 +2023,8 @@
       default: ""
     - name: delete_option_kwargs
       description: |
-        Optional keyword arguments to pass to the `delete_namespaced_pod` kubernetes client core_v1_api method when using the Kubernetes Executor. This should be an object and can contain options like "grace_period_seconds" and "propagation_policy".
+        Optional keyword arguments to pass to the `delete_namespaced_pod` kubernetes client core_v1_api method when using the Kubernetes Executor. This should be an object and can contain any of the options listed in the `v1DeleteOptions` class defined here:
+        https://github.com/kubernetes-client/python/blob/41f11a09995efcd0142e25946adc7591431bfb2f/kubernetes/client/models/v1_delete_options.py#L19
       version_added: 1.10.10
       type: string
       example: ~
