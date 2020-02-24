@@ -1085,7 +1085,6 @@ class SchedulerJob(BaseJob):
         :type simple_dag_bag: airflow.utils.dag_processing.SimpleDagBag
         :return: list[airflow.models.TaskInstance]
         """
-        states = (State.SCHEDULED,)
         from airflow.jobs.backfill_job import BackfillJob  # Avoid circular import
         executable_tis = []
 
@@ -1111,18 +1110,7 @@ class SchedulerJob(BaseJob):
         )
 
         # Additional filters on task instance state
-        if states:
-            if None in states:
-                if all(x is None for x in states):
-                    ti_query = ti_query.filter(TI.state == None)  # noqa pylint: disable=singleton-comparison
-                else:
-                    not_none_states = [state for state in states if state]
-                    ti_query = ti_query.filter(
-                        or_(TI.state == None,  # noqa: E711 pylint: disable=singleton-comparison
-                            TI.state.in_(not_none_states))
-                    )
-            else:
-                ti_query = ti_query.filter(TI.state.in_(states))
+        ti_query = ti_query.filter(TI.state.is_(State.SCHEDULED))
 
         task_instances_to_examine = ti_query.all()
 
