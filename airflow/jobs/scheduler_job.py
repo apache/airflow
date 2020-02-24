@@ -1094,7 +1094,7 @@ class SchedulerJob(BaseJob):
         TI = models.TaskInstance
         DR = models.DagRun
         DM = models.DagModel
-        ti_query = (
+        task_instances_to_examine = (
             session
             .query(TI)
             .filter(TI.dag_id.in_(simple_dag_bag.dag_ids))
@@ -1107,12 +1107,9 @@ class SchedulerJob(BaseJob):
             .outerjoin(DM, DM.dag_id == TI.dag_id)
             .filter(or_(DM.dag_id == None,  # noqa: E711 pylint: disable=singleton-comparison
                     not_(DM.is_paused)))
+            .filter(TI.state.is_(State.SCHEDULED))
+            .all()
         )
-
-        # Additional filters on task instance state
-        ti_query = ti_query.filter(TI.state.is_(State.SCHEDULED))
-
-        task_instances_to_examine = ti_query.all()
 
         if len(task_instances_to_examine) == 0:
             self.log.debug("No tasks to consider for execution.")
@@ -1260,18 +1257,14 @@ class SchedulerJob(BaseJob):
 
         TI = models.TaskInstance
 
-        ti_query = (
+        tis_to_set_to_queued = (
             session
             .query(TI)
             .filter(TI.filter_for_tis(task_instances))
-        )
-
-        ti_query = ti_query.filter(TI.state.is_(State.SCHEDULED))
-
-        tis_to_set_to_queued = (
-            ti_query
+            .filter(TI.state.is_(State.SCHEDULED))
             .with_for_update()
-            .all())
+            .all()
+        )
 
         if len(tis_to_set_to_queued) == 0:
             self.log.info("No tasks were able to have their state changed to queued.")
