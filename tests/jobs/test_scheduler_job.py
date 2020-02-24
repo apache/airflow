@@ -1176,7 +1176,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.add(dagmodel)
         session.commit()
 
-        scheduler._execute_task_instances(dagbag, [State.SCHEDULED])
+        scheduler._execute_task_instances(dagbag)
         ti1.refresh_from_db()
         self.assertEqual(State.SCHEDULED, ti1.state)
 
@@ -1202,7 +1202,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.merge(ti1)
         session.commit()
 
-        scheduler._execute_task_instances(dagbag, [State.SCHEDULED])
+        scheduler._execute_task_instances(dagbag)
         ti1.refresh_from_db()
         self.assertEqual(State.QUEUED, ti1.state)
 
@@ -1232,7 +1232,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         self.assertTrue(dr1.is_backfill)
 
-        scheduler._execute_task_instances(dagbag, [State.SCHEDULED])
+        scheduler._execute_task_instances(dagbag)
         ti1.refresh_from_db()
         self.assertEqual(State.SCHEDULED, ti1.state)
 
@@ -1267,7 +1267,6 @@ class TestSchedulerJob(unittest.TestCase):
 
         res = scheduler._find_executable_task_instances(
             dagbag,
-            states=[State.SCHEDULED],
             session=session)
 
         self.assertEqual(2, len(res))
@@ -1308,7 +1307,6 @@ class TestSchedulerJob(unittest.TestCase):
 
         res = scheduler._find_executable_task_instances(
             dagbag,
-            states=[State.SCHEDULED],
             session=session)
         session.commit()
         self.assertEqual(3, len(res))
@@ -1347,7 +1345,6 @@ class TestSchedulerJob(unittest.TestCase):
         # Two tasks w/o pool up for execution and our default pool size is 1
         res = scheduler._find_executable_task_instances(
             dagbag,
-            states=(State.SCHEDULED,),
             session=session)
         self.assertEqual(1, len(res))
 
@@ -1358,7 +1355,6 @@ class TestSchedulerJob(unittest.TestCase):
         # One task w/o pool up for execution and one task task running
         res = scheduler._find_executable_task_instances(
             dagbag,
-            states=(State.SCHEDULED,),
             session=session)
         self.assertEqual(0, len(res))
 
@@ -1384,7 +1380,6 @@ class TestSchedulerJob(unittest.TestCase):
 
         res = scheduler._find_executable_task_instances(
             dagbag,
-            states=[State.SCHEDULED],
             session=session)
         session.commit()
         self.assertEqual(0, len(res))
@@ -1405,7 +1400,6 @@ class TestSchedulerJob(unittest.TestCase):
 
         self.assertEqual(0, len(scheduler._find_executable_task_instances(
             dagbag,
-            states=[State.SCHEDULED],
             session=session)))
 
     def test_find_executable_task_instances_concurrency(self):
@@ -1437,7 +1431,6 @@ class TestSchedulerJob(unittest.TestCase):
 
         res = scheduler._find_executable_task_instances(
             dagbag,
-            states=[State.SCHEDULED],
             session=session)
 
         self.assertEqual(1, len(res))
@@ -1450,7 +1443,6 @@ class TestSchedulerJob(unittest.TestCase):
 
         res = scheduler._find_executable_task_instances(
             dagbag,
-            states=[State.SCHEDULED],
             session=session)
 
         self.assertEqual(0, len(res))
@@ -1483,7 +1475,6 @@ class TestSchedulerJob(unittest.TestCase):
 
         res = scheduler._find_executable_task_instances(
             dagbag,
-            states=[State.SCHEDULED],
             session=session)
 
         self.assertEqual(1, len(res))
@@ -1518,7 +1509,6 @@ class TestSchedulerJob(unittest.TestCase):
 
         res = scheduler._find_executable_task_instances(
             dagbag,
-            states=[State.SCHEDULED],
             session=session)
 
         self.assertEqual(2, len(res))
@@ -1534,7 +1524,6 @@ class TestSchedulerJob(unittest.TestCase):
 
         res = scheduler._find_executable_task_instances(
             dagbag,
-            states=[State.SCHEDULED],
             session=session)
 
         self.assertEqual(1, len(res))
@@ -1548,7 +1537,6 @@ class TestSchedulerJob(unittest.TestCase):
 
         res = scheduler._find_executable_task_instances(
             dagbag,
-            states=[State.SCHEDULED],
             session=session)
 
         self.assertEqual(0, len(res))
@@ -1563,7 +1551,6 @@ class TestSchedulerJob(unittest.TestCase):
 
         res = scheduler._find_executable_task_instances(
             dagbag,
-            states=[State.SCHEDULED],
             session=session)
 
         self.assertEqual(2, len(res))
@@ -1578,24 +1565,6 @@ class TestSchedulerJob(unittest.TestCase):
 
         res = scheduler._find_executable_task_instances(
             dagbag,
-            states=[State.SCHEDULED],
-            session=session)
-
-        self.assertEqual(1, len(res))
-
-        ti1_1.state = State.QUEUED
-        ti1_2.state = State.SCHEDULED
-        ti1_3.state = State.SUCCESS
-        session.merge(ti1_1)
-        session.merge(ti1_2)
-        session.merge(ti1_3)
-        session.commit()
-
-        executor.queued_tasks[ti1_1.key] = ti1_1
-
-        res = scheduler._find_executable_task_instances(
-            dagbag,
-            states=[State.SCHEDULED, State.QUEUED],
             session=session)
 
         self.assertEqual(1, len(res))
@@ -1604,7 +1573,7 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler = SchedulerJob()
         session = settings.Session()
         res = scheduler._change_state_for_executable_task_instances(
-            [], [State.NONE], session)
+            [], session)
         self.assertEqual(0, len(res))
 
     def test_change_state_for_executable_task_instances_no_tis_with_state(self):
@@ -1625,9 +1594,9 @@ class TestSchedulerJob(unittest.TestCase):
         ti1 = TaskInstance(task1, dr1.execution_date)
         ti2 = TaskInstance(task1, dr2.execution_date)
         ti3 = TaskInstance(task1, dr3.execution_date)
-        ti1.state = State.SCHEDULED
-        ti2.state = State.SCHEDULED
-        ti3.state = State.SCHEDULED
+        ti1.state = State.RUNNING
+        ti2.state = State.RUNNING
+        ti3.state = State.RUNNING
         session.merge(ti1)
         session.merge(ti2)
         session.merge(ti3)
@@ -1636,46 +1605,8 @@ class TestSchedulerJob(unittest.TestCase):
 
         res = scheduler._change_state_for_executable_task_instances(
             [ti1, ti2, ti3],
-            [State.RUNNING],
             session)
         self.assertEqual(0, len(res))
-
-    def test_change_state_for_executable_task_instances_none_state(self):
-        dag_id = 'SchedulerJobTest.test_change_state_for__none_state'
-        task_id_1 = 'dummy'
-        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=2)
-        task1 = DummyOperator(dag=dag, task_id=task_id_1)
-        self._make_simple_dag_bag([dag])
-
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        scheduler = SchedulerJob()
-        session = settings.Session()
-
-        dr1 = dag_file_processor.create_dag_run(dag)
-        dr2 = dag_file_processor.create_dag_run(dag)
-        dr3 = dag_file_processor.create_dag_run(dag)
-
-        ti1 = TaskInstance(task1, dr1.execution_date)
-        ti2 = TaskInstance(task1, dr2.execution_date)
-        ti3 = TaskInstance(task1, dr3.execution_date)
-        ti1.state = State.SCHEDULED
-        ti2.state = State.QUEUED
-        ti3.state = State.NONE
-        session.merge(ti1)
-        session.merge(ti2)
-        session.merge(ti3)
-
-        session.commit()
-
-        res = scheduler._change_state_for_executable_task_instances(
-            [ti1, ti2, ti3],
-            [State.NONE, State.SCHEDULED],
-            session)
-        self.assertEqual(2, len(res))
-        ti1.refresh_from_db()
-        ti3.refresh_from_db()
-        self.assertEqual(State.QUEUED, ti1.state)
-        self.assertEqual(State.QUEUED, ti3.state)
 
     def test_enqueue_task_instances_with_queued_state(self):
         dag_id = 'SchedulerJobTest.test_enqueue_task_instances_with_queued_state'
@@ -1716,7 +1647,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.merge(ti1)
         session.commit()
 
-        self.assertEqual(0, scheduler._execute_task_instances(dagbag, states=[State.SCHEDULED]))
+        self.assertEqual(0, scheduler._execute_task_instances(dagbag))
 
     def test_execute_task_instances(self):
         dag_id = 'SchedulerJobTest.test_execute_task_instances'
@@ -1770,7 +1701,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         self.assertEqual(State.RUNNING, dr2.state)
 
-        res = scheduler._execute_task_instances(dagbag, [State.SCHEDULED])
+        res = scheduler._execute_task_instances(dagbag)
 
         # check that concurrency is respected
         ti1.refresh_from_db()
@@ -1820,7 +1751,7 @@ class TestSchedulerJob(unittest.TestCase):
             session.merge(ti1)
             session.merge(ti2)
             session.commit()
-        res = scheduler._execute_task_instances(dagbag, [State.SCHEDULED])
+        res = scheduler._execute_task_instances(dagbag)
 
         self.assertEqual(8, res)
         for ti in tis:
@@ -2369,9 +2300,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.commit()
 
         self.assertEqual(len(scheduler.executor.queued_tasks), 0, "Check test pre-condition")
-        scheduler._execute_task_instances(dagbag,
-                                          (State.SCHEDULED, State.UP_FOR_RETRY),
-                                          session=session)
+        scheduler._execute_task_instances(dagbag, session=session)
 
         self.assertEqual(len(scheduler.executor.queued_tasks), 1)
 
