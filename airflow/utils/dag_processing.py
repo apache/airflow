@@ -1009,6 +1009,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         # Generate more file paths to process if we processed all the files
         # already.
         if not self._file_path_queue:
+            self.emit_metrics()
             self.prepare_file_path_queue()
 
         self.start_new_processes()
@@ -1036,8 +1037,6 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         """
         Generate more file paths to process. Result are saved in _file_path_queue.
         """
-        self.emit_metrics()
-
         self._parsing_start_time = timezone.utcnow()
         # If the file path is already being processed, or if a file was
         # processed recently, wait until the next batch
