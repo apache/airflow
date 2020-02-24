@@ -1075,7 +1075,7 @@ class SchedulerJob(BaseJob):
         return dag_map, task_map
 
     @provide_session
-    def _find_executable_task_instances(self, simple_dag_bag, states, session=None):
+    def _find_executable_task_instances(self, simple_dag_bag, session=None):
         """
         Finds TIs that are ready for execution with respect to pool limits,
         dag concurrency, executor state, and priority.
@@ -1083,12 +1083,9 @@ class SchedulerJob(BaseJob):
         :param simple_dag_bag: TaskInstances associated with DAGs in the
             simple_dag_bag will be fetched from the DB and executed
         :type simple_dag_bag: airflow.utils.dag_processing.SimpleDagBag
-        :param executor: the executor that runs task instances
-        :type executor: BaseExecutor
-        :param states: Execute TaskInstances in these states
-        :type states: tuple[airflow.utils.state.State]
         :return: list[airflow.models.TaskInstance]
         """
+        states = (State.SCHEDULED,)
         from airflow.jobs.backfill_job import BackfillJob  # Avoid circular import
         executable_tis = []
 
@@ -1387,7 +1384,7 @@ class SchedulerJob(BaseJob):
         :type simple_dag_bag: airflow.utils.dag_processing.SimpleDagBag
         :return: Number of task instance with state changed.
         """
-        executable_tis = self._find_executable_task_instances(simple_dag_bag, (State.SCHEDULED,),
+        executable_tis = self._find_executable_task_instances(simple_dag_bag,
                                                               session=session)
 
         def query(result, items):
