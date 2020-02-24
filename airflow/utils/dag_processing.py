@@ -654,7 +654,19 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             self._refresh_dag_dir()
             self._find_zombies()  # pylint: disable=no-value-for-parameter
 
-            simple_dags = self.heartbeat()
+            simple_dags = self.collect_results()
+
+            # Generate more file paths to process if we processed all the files
+            # already.
+            if not self._file_path_queue:
+                self.emit_metrics()
+                self.prepare_file_path_queue()
+
+            self.start_new_processes()
+
+            # Update number of loop iteration.
+            self._no_run += 1
+
             for simple_dag in simple_dags:
                 self._signal_conn.send(simple_dag)
 
@@ -991,31 +1003,6 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             else:
                 for simple_dag in processor.result[0]:
                     simple_dags.append(simple_dag)
-
-        return simple_dags
-
-    def heartbeat(self):
-        """
-        This should be periodically called by the manager loop. This method will
-        kick off new processes to process DAG definition files and read the
-        results from the finished processors.
-
-        :return: a list of SimpleDags that were produced by processors that
-            have finished since the last time this was called
-        :rtype: list[airflow.utils.dag_processing.SimpleDag]
-        """
-        simple_dags = self.collect_results()
-
-        # Generate more file paths to process if we processed all the files
-        # already.
-        if not self._file_path_queue:
-            self.emit_metrics()
-            self.prepare_file_path_queue()
-
-        self.start_new_processes()
-
-        # Update number of loop iteration.
-        self._no_run += 1
 
         return simple_dags
 
