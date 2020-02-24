@@ -1387,14 +1387,13 @@ class SchedulerJob(BaseJob):
         :type simple_dag_bag: airflow.utils.dag_processing.SimpleDagBag
         :return: Number of task instance with state changed.
         """
-        states = (State.SCHEDULED,)
-        executable_tis = self._find_executable_task_instances(simple_dag_bag, states,
+        executable_tis = self._find_executable_task_instances(simple_dag_bag, (State.SCHEDULED,),
                                                               session=session)
 
         def query(result, items):
             simple_tis_with_state_changed = \
                 self._change_state_for_executable_task_instances(items,
-                                                                 states,
+                                                                 (State.SCHEDULED,),
                                                                  session=session)
             self._enqueue_task_instances_with_queued_state(
                 simple_dag_bag,
