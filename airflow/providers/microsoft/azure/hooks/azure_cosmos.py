@@ -25,7 +25,7 @@ the default database and collection to use (see connection `azure_cosmos_default
 """
 import uuid
 
-import azure.cosmos.cosmos_client as cosmos_client
+from azure.cosmos.cosmos_client import CosmosClient
 from azure.cosmos.errors import HTTPFailure
 
 from airflow.exceptions import AirflowBadRequest
@@ -65,7 +65,7 @@ class AzureCosmosDBHook(BaseHook):
             self.default_collection_name = extras.get('collection_name')
 
             # Initialize the Python Azure Cosmos DB client
-            self._conn = cosmos_client.CosmosClient(endpoint_uri, {'masterKey': master_key})
+            self._conn = CosmosClient(endpoint_uri, {'masterKey': master_key})
         return self._conn
 
     def __get_database_name(self, database_name=None):
