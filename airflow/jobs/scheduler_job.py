@@ -1245,18 +1245,16 @@ class SchedulerJob(BaseJob):
         return executable_tis
 
     @provide_session
-    def _change_state_for_executable_task_instances(self, task_instances,
-                                                    acceptable_states, session=None):
+    def _change_state_for_executable_task_instances(self, task_instances, session=None):
         """
         Changes the state of task instances in the list with one of the given states
         to QUEUED atomically, and returns the TIs changed in SimpleTaskInstance format.
 
         :param task_instances: TaskInstances to change the state of
         :type task_instances: list[airflow.models.TaskInstance]
-        :param acceptable_states: Filters the TaskInstances updated to be in these states
-        :type acceptable_states: Iterable[State]
         :rtype: list[airflow.models.taskinstance.SimpleTaskInstance]
         """
+        acceptable_states = (State.SCHEDULED,)
         if len(task_instances) == 0:
             session.commit()
             return []
@@ -1378,7 +1376,6 @@ class SchedulerJob(BaseJob):
         def query(result, items):
             simple_tis_with_state_changed = \
                 self._change_state_for_executable_task_instances(items,
-                                                                 (State.SCHEDULED,),
                                                                  session=session)
             self._enqueue_task_instances_with_queued_state(
                 simple_dag_bag,
