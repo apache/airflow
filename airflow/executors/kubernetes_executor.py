@@ -452,11 +452,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         """Deletes POD"""
         try:
             self.kube_client.delete_namespaced_pod(
-<<<<<<< HEAD
                 pod_id, self.namespace, body=client.V1DeleteOptions(self.delete_option_kwargs),
-=======
-                pod_id, namespace, body=client.V1DeleteOptions(self.delete_option_kwargs),
->>>>>>> 12e439650c36aa115968a43ed266e05f3aa04427
                 **self.kube_config.kube_client_request_args)
         except ApiException as e:
             # If the pod is already deleted
