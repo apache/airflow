@@ -569,7 +569,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         # Map from file path to the processor
         self._processors: Dict[str, AbstractDagFileProcessorProcess] = {}
 
-        self._no_run = 0
+        self._num_run = 0
 
         # Map from file path to stats about the file
         self._file_stats: Dict[str, DagFileStat] = {}
@@ -666,7 +666,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             self.start_new_processes()
 
             # Update number of loop iteration.
-            self._no_run += 1
+            self._num_run += 1
 
             for simple_dag in simple_dags:
                 self._signal_conn.send(simple_dag)
@@ -1130,7 +1130,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         for stat in self._file_stats.values():
             if stat.run_count < self._max_runs:
                 return False
-        if self._no_run < self._max_runs:
+        if self._num_run < self._max_runs:
             return False
         return True
 
