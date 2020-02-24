@@ -51,17 +51,25 @@ class TestAzureFileshareHook(unittest.TestCase):
             )
         )
 
+    def test_conn(self):
+        from azure.storage.file import FileService
+        hook = AzureFileShareHook(wasb_conn_id='wasb_test_key')
+        self.assertIsNone(hook._conn)
+        self.assertEqual(hook.conn_id, 'wasb_test_key')
+        hook.get_conn()
+        self.assertIsInstance(hook._conn, FileService)
+
     def test_key(self):
         from azure.storage.file import FileService
         hook = AzureFileShareHook(wasb_conn_id='wasb_test_key')
         self.assertEqual(hook.conn_id, 'wasb_test_key')
-        self.assertIsInstance(hook.connection, FileService)
+        self.assertIsInstance(hook.get_conn(), FileService)
 
     def test_sas_token(self):
         from azure.storage.file import FileService
         hook = AzureFileShareHook(wasb_conn_id='wasb_test_sas_token')
         self.assertEqual(hook.conn_id, 'wasb_test_sas_token')
-        self.assertIsInstance(hook.connection, FileService)
+        self.assertIsInstance(hook.get_conn(), FileService)
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.azure_fileshare.FileService',
                 autospec=True)
