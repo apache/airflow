@@ -2021,6 +2021,13 @@
       type: string
       example: ~
       default: ""
+    - name: delete_option_kwargs
+      description: |
+        Optional keyword arguments to pass to the `delete_namespaced_pod` kubernetes client core_v1_api method when using the Kubernetes Executor. This should be an object and can contain options like "grace_period_seconds" and "propagation_policy".
+      version_added: 1.10.10
+      type: string
+      example: ~
+      default: ""
     - name: run_as_user
       description: |
         Specifies the uid to run the first process of the worker pods containers as
