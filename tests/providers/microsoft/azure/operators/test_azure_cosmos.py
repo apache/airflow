@@ -49,7 +49,7 @@ class TestAzureCosmosDbHook(unittest.TestCase):
             )
         )
 
-    @mock.patch('azure.cosmos.cosmos_client.CosmosClient')
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_cosmos.CosmosClient')
     def test_insert_document(self, cosmos_mock):
         test_id = str(uuid.uuid4())
         cosmos_mock.return_value.CreateItem.return_value = {'id': test_id}
