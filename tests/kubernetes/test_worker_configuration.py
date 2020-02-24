@@ -726,7 +726,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         """
         Test that airflow_local_settings.py can be set via configmap by
         checking volume & volume-mounts are set correctly when using a different
-        configmap then airflow_configmap (airflow.cfg)
+        configmap than airflow_configmap (airflow.cfg)
         """
         self.kube_config.airflow_home = '/usr/local/airflow'
         self.kube_config.airflow_configmap = 'airflow-configmap'
