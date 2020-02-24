@@ -132,6 +132,12 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
                                     'but not both$'):
             KubeConfig()
 
+    @conf_vars({
+        ('kubernetes', 'delete_option_kwargs'): '{"grace_period_seconds": 10}',
+    })
+    def test_delete_option_kwargs_config(self):
+        assert KubeConfig().delete_option_kwargs == {"grace_period_seconds": 10}
+
     def test_worker_with_subpaths(self):
         self.kube_config.dags_volume_subpath = 'dags'
         self.kube_config.logs_volume_subpath = 'logs'
