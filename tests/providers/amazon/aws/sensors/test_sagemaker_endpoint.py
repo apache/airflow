@@ -92,8 +92,6 @@ class TestSageMakerEndpointSensor(unittest.TestCase):
 
         # make sure the hook was initialized with the specific params
         calls = [
-            mock.call(aws_conn_id='aws_test'),
-            mock.call(aws_conn_id='aws_test'),
             mock.call(aws_conn_id='aws_test')
         ]
         hook_init.assert_has_calls(calls)

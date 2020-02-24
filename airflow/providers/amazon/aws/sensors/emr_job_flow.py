@@ -18,7 +18,6 @@
 
 from typing import Any, Dict, Iterable, Optional
 
-from airflow.providers.amazon.aws.hooks.emr import EmrHook
 from airflow.providers.amazon.aws.sensors.emr_base import EmrBaseSensor
 from airflow.utils.decorators import apply_defaults
 
@@ -68,10 +67,10 @@ class EmrJobFlowSensor(EmrBaseSensor):
         :return: response
         :rtype: dict[str, Any]
         """
-        emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
+        emr_client = self.get_hook().get_conn()
 
         self.log.info('Poking cluster %s', self.job_flow_id)
-        return emr.describe_cluster(ClusterId=self.job_flow_id)
+        return emr_client.describe_cluster(ClusterId=self.job_flow_id)
 
     @staticmethod
     def state_from_response(response: Dict[str, Any]) -> str:

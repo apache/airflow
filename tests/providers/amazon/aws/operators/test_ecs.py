@@ -49,7 +49,7 @@ RESPONSE_WITHOUT_FAILURES = {
 }
 
 # pylint: disable=unused-argument
-@mock.patch('airflow.providers.amazon.aws.operators.ecs.AwsHook')
+@mock.patch('airflow.providers.amazon.aws.operators.ecs.AwsBaseHook')
 class TestECSOperator(unittest.TestCase):
     def setUp(self):
         self.ecs_operator_args = {

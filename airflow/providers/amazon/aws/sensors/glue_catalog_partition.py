@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from airflow.providers.amazon.aws.hooks.glue_catalog import AwsGlueCatalogHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -76,18 +77,16 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
         self.log.info(
             'Poking for table %s. %s, expression %s', self.database_name, self.table_name, self.expression
         )
-        self.hook = self.get_hook()
 
-        return self.hook.check_for_partition(
+        return self.get_hook().check_for_partition(
             self.database_name, self.table_name, self.expression)
 
     def get_hook(self):
         """
         Gets the AwsGlueCatalogHook
         """
-        from airflow.providers.amazon.aws.hooks.glue_catalog import AwsGlueCatalogHook
-        hook = AwsGlueCatalogHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region_name)
-
-        return hook
+        if not self.hook:
+            self.hook = AwsGlueCatalogHook(
+                aws_conn_id=self.aws_conn_id,
+                region_name=self.region_name)
+        return self.hook

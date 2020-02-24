@@ -73,18 +73,17 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         return SageMakerHook.failed_states
 
     def get_sagemaker_response(self):
-        sagemaker_hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
         if self.print_log:
             if not self.log_resource_inited:
-                self.init_log_resource(sagemaker_hook)
+                self.init_log_resource(self.get_hook())
             self.state, self.last_description, self.last_describe_job_call = \
-                sagemaker_hook.describe_training_job_with_log(self.job_name,
-                                                              self.positions, self.stream_names,
-                                                              self.instance_count, self.state,
-                                                              self.last_description,
-                                                              self.last_describe_job_call)
+                self.get_hook().describe_training_job_with_log(self.job_name,
+                                                               self.positions, self.stream_names,
+                                                               self.instance_count, self.state,
+                                                               self.last_description,
+                                                               self.last_describe_job_call)
         else:
-            self.last_description = sagemaker_hook.describe_training_job(self.job_name)
+            self.last_description = self.get_hook().describe_training_job(self.job_name)
 
         status = self.state_from_response(self.last_description)
         if status not in self.non_terminal_states() and status not in self.failed_states():
