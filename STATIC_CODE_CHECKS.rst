@@ -207,9 +207,8 @@ Running Static Code Checks via Breeze
 
 The static code checks can be launched using the Breeze environment.
 
-You run the static code checks via ``-S``, ``--static-check`` flags or ``-F``,
-``--static-check-all-files``. The former ones run appropriate
-checks only for files changed and staged locally, the latter ones
+You run the static code checks via ``./breeze static-check`` or ``./breeze static-check-all-files`` commands.
+The former ones run appropriate checks only for files changed and staged locally, the latter ones
 run checks on all files.
 
 You can see the list of available static checks either via ``--help`` flag or by using the autocomplete
@@ -219,37 +218,37 @@ Run the ``mypy`` check for the currently staged changes:
 
 .. code-block:: bash
 
-     ./breeze  --static-check mypy
+     ./breeze static-check mypy
 
 Run the ``mypy`` check for all files:
 
 .. code-block:: bash
 
-     ./breeze --static-check-all-files mypy
+     ./breeze static-check-all-files mypy
 
 Run the ``flake8`` check for the ``tests.core.py`` file with verbose output:
 
 .. code-block:: bash
 
-     ./breeze  --static-check flake8 -- --files tests/core.py --verbose
+     ./breeze static-check flake8 -- --files tests/core.py --verbose
 
 Run the ``flake8`` check for the ``tests.core`` package with verbose output:
 
 .. code-block:: bash
 
-     ./breeze  --static-check mypy -- --files tests/hooks/test_druid_hook.py
+     ./breeze static-check mypy -- --files tests/hooks/test_druid_hook.py
 
 Run all tests for the currently staged files:
 
 .. code-block:: bash
 
-     ./breeze  --static-check all
+     ./breeze static-check all
 
 Run all tests for all files:
 
 .. code-block:: bash
 
-     ./breeze  --static-check-all-files all
+     ./breeze static-check-all-files all
 
 
 The ``license`` check is run via the same Docker image containing the
@@ -258,7 +257,7 @@ It does not take pre-commit parameters as extra arguments.
 
 .. code-block:: bash
 
-     ./breeze --static-check-all-files licenses
+     ./breeze static-check-all-files licenses
 
 Running Static Code Checks via Scripts from the Host
 ....................................................

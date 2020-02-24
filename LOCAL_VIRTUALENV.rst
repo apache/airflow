@@ -145,7 +145,7 @@ Simply enter the Breeze environment by using ``workon`` and, once you are in it,
 
 .. code-block:: bash
 
-  ./breeze --initialize-local-virtualenv
+  ./breeze initialize-local-virtualenv
 
 Running Tests
 -------------
