@@ -28,12 +28,15 @@ isort:skip_file
 
 # flake8: noqa: F401
 # pylint: disable=wrong-import-position
+import sys
 from typing import Callable, Optional
 
 from airflow import settings
 from airflow import version
 
 __version__ = version.version
+
+__all__ = ['__version__', 'login', 'DAG']
 
 settings.initialize()
 
@@ -43,7 +46,8 @@ login: Optional[Callable] = None
 
 integrate_plugins()
 
-__all__ = ['__version__', 'login', 'DAG']
+
+PY37 = sys.version_info >= (3, 7)
 
 
 def __getattr__(name):
@@ -61,3 +65,9 @@ STATICA_HACK = True
 globals()['kcah_acitats'[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
     from airflow.models.dag import DAG
+
+
+if not PY37:
+    from pep562 import Pep562
+
+    Pep562(__name__)
