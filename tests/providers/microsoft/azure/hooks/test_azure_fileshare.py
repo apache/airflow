@@ -51,6 +51,7 @@ class TestAzureFileshareHook(unittest.TestCase):
             )
         )
 
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_fileshare.FileService', autospec=True)
     def test_conn(self):
         from azure.storage.file import FileService
         hook = AzureFileShareHook(wasb_conn_id='wasb_test_key')
