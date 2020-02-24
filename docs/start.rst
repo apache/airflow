@@ -29,7 +29,7 @@ The installation is quick and straightforward.
     # (optional)
     export AIRFLOW_HOME=~/airflow
 
-    # install from pypi using pip
+    # install from pypi using pip    --what are the pre-requisites of this command. it does not work
     pip install apache-airflow
 
     # initialize the database
