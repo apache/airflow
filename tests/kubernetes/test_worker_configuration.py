@@ -20,6 +20,7 @@ import unittest
 from unittest.mock import ANY
 
 import mock
+from parameterized import parameterized
 
 from tests.test_utils.config import conf_vars
 
@@ -132,11 +133,15 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
                                     'but not both$'):
             KubeConfig()
 
-    @conf_vars({
-        ('kubernetes', 'delete_option_kwargs'): '{"grace_period_seconds": 10}',
-    })
-    def test_delete_option_kwargs_config(self):
-        assert KubeConfig().delete_option_kwargs == {"grace_period_seconds": 10}
+    @parameterized.expand([
+        ('{"grace_period_seconds": 10}', {"grace_period_seconds": 10}),
+        ("", {})
+    ])
+    def test_delete_option_kwargs_config(self, config, expected_value):
+        with conf_vars({
+            ('kubernetes', 'delete_option_kwargs'): config,
+        }):
+            self.assertEqual(KubeConfig().delete_option_kwargs, expected_value)
 
     def test_worker_with_subpaths(self):
         self.kube_config.dags_volume_subpath = 'dags'
