@@ -47,8 +47,8 @@ services:
       - TRAVIS_OS_NAME
       - TRAVIS_TAG
       - RUN_TESTS
-      - AIRFLOW_CI_VERBOSE
-      - AIRFLOW_CI_SILENT
+      - VERBOSE
+      - VEROSE_COMMANDS
       - AIRFLOW_CI_IMAGE
       - RUNTIME
       - ENABLE_KIND_CLUSTER

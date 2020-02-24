@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
+if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
     set -x
 fi
 
@@ -92,7 +92,7 @@ fi
 export HADOOP_DISTRO="${HADOOP_DISTRO:="cdh"}"
 export HADOOP_HOME="${HADOOP_HOME:="/opt/hadoop-cdh"}"
 
-if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
+if [[ ${VERBOSE} == "true" ]]; then
     echo
     echo "Using ${HADOOP_DISTRO} distribution of Hadoop from ${HADOOP_HOME}"
     echo
