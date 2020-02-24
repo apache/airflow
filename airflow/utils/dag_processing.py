@@ -1006,7 +1006,9 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         return simple_dags
 
     def start_new_processes(self):
-        # Start more processors if we have enough slots and files to process
+        """"
+        Start more processors if we have enough slots and files to process
+        """
         while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
             file_path = self._file_path_queue.pop(0)
             processor = self._processor_factory(file_path, self._zombies)
@@ -1033,7 +1035,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             last_finish_time = self.get_last_finish_time(file_path)
             if (last_finish_time is not None and
                 (now - last_finish_time).total_seconds() <
-                self._file_process_interval):
+                    self._file_process_interval):
                 file_paths_recently_processed.append(file_path)
 
         files_paths_at_run_limit = [file_path
