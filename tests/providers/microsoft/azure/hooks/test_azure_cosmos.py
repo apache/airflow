@@ -54,6 +54,14 @@ class TestAzureCosmosDbHook(unittest.TestCase):
         )
 
     @mock.patch('azure.cosmos.cosmos_client.CosmosClient')
+    def test_client(self):
+        import azure.cosmos.cosmos_client as cosmos_client
+        hook = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
+        self.assertIsNone(hook._conn)
+        hook.get_conn()
+        self.assertIsInstance(hook._conn, cosmos_client.CosmosClient)
+
+    @mock.patch('azure.cosmos.cosmos_client.CosmosClient')
     def test_create_database(self, mock_cosmos):
         hook = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
         hook.create_database(self.test_database_name)
