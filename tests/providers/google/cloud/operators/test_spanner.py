@@ -20,7 +20,7 @@ import unittest
 import mock
 from parameterized import parameterized
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.spanner import (
     SpannerDeleteDatabaseInstanceOperator, SpannerDeleteInstanceOperator,
     SpannerDeployDatabaseInstanceOperator, SpannerDeployInstanceOperator,

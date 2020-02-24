@@ -85,8 +85,7 @@ def _trigger_dag(
             run_conf = json.loads(conf)
 
     triggers = []
-    dags_to_trigger = []
-    dags_to_trigger.append(dag)
+    dags_to_trigger = [dag]
     while dags_to_trigger:
         dag = dags_to_trigger.pop()
         trigger = dag.create_dagrun(

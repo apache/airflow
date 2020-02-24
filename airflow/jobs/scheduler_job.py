@@ -42,7 +42,8 @@ from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagRun, SlaMiss, errors
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.stats import Stats
-from airflow.ti_deps.dep_context import SCHEDULED_DEPS, DepContext
+from airflow.ti_deps.dep_context import DepContext
+from airflow.ti_deps.dependencies import SCHEDULED_DEPS
 from airflow.ti_deps.deps.pool_slots_available_dep import STATES_TO_COUNT_AS_RUNNING
 from airflow.utils import asciiart, helpers, timezone
 from airflow.utils.dag_processing import (
@@ -314,6 +315,9 @@ class DagFileProcessor(LoggingMixin):
     :param log: Logger to save the processing process
     :type log: logging.Logger
     """
+
+    UNIT_TEST_MODE = conf.getboolean('core', 'UNIT_TEST_MODE')
+
     def __init__(self, dag_ids, log):
         self.dag_ids = dag_ids
         self._log = log
@@ -489,6 +493,7 @@ class DagFileProcessor(LoggingMixin):
         for filename, stacktrace in dagbag.import_errors.items():
             session.add(errors.ImportError(
                 filename=filename,
+                timestamp=timezone.utcnow(),
                 stacktrace=stacktrace))
         session.commit()
 
@@ -635,7 +640,7 @@ class DagFileProcessor(LoggingMixin):
 
         # update the state of the previously active dag runs
         dag_runs = DagRun.find(dag_id=dag.dag_id, state=State.RUNNING, session=session)
-        active_dag_runs = []
+        active_dag_runs = 0
         for run in dag_runs:
             self.log.info("Examining DAG run %s", run)
             # don't consider runs that are executed in the future unless
@@ -647,7 +652,7 @@ class DagFileProcessor(LoggingMixin):
                 )
                 continue
 
-            if len(active_dag_runs) >= dag.max_active_runs:
+            if active_dag_runs >= dag.max_active_runs:
                 self.log.info("Number of active dag runs reached max_active_run.")
                 break
 
@@ -661,6 +666,7 @@ class DagFileProcessor(LoggingMixin):
             run.verify_integrity(session=session)
             ready_tis = run.update_state(session=session)
             if run.state == State.RUNNING:
+                active_dag_runs += 1
                 self.log.debug("Examining active DAG run: %s", run)
                 for ti in ready_tis:
                     self.log.debug('Queuing task: %s', ti)
@@ -677,7 +683,7 @@ class DagFileProcessor(LoggingMixin):
         :param dagbag: a collection of DAGs to process
         :type dagbag: airflow.models.DagBag
         :param dags: the DAGs from the DagBag to process
-        :type dags: airflow.models.DAG
+        :type dags: List[airflow.models.DAG]
         :param tis_out: A list to add generated TaskInstance objects
         :type tis_out: list[TaskInstance]
         :rtype: None
@@ -727,6 +733,36 @@ class DagFileProcessor(LoggingMixin):
             dags = [dag for dag in dags
                     if dag.dag_id not in paused_dag_ids]
         return dags
+
+    @provide_session
+    def kill_zombies(self, dagbag, zombies, session=None):
+        """
+        Fail given zombie tasks, which are tasks that haven't
+        had a heartbeat for too long, in the current DagBag.
+
+        :param zombies: zombie task instances to kill.
+        :type zombies: List[airflow.models.taskinstance.SimpleyTaskInstance]
+        :param session: DB session.
+        """
+        TI = models.TaskInstance
+
+        for zombie in zombies:
+            if zombie.dag_id in dagbag.dags:
+                dag = dagbag.dags[zombie.dag_id]
+                if zombie.task_id in dag.task_ids:
+                    task = dag.get_task(zombie.task_id)
+                    ti = TI(task, zombie.execution_date)
+                    # Get properties needed for failure handling from SimpleTaskInstance.
+                    ti.start_date = zombie.start_date
+                    ti.end_date = zombie.end_date
+                    ti.try_number = zombie.try_number
+                    ti.state = zombie.state
+                    ti.test_mode = self.UNIT_TEST_MODE
+                    ti.handle_failure("{} detected as zombie".format(ti),
+                                      ti.test_mode, ti.get_template_context())
+                    self.log.info('Marked zombie job %s as %s', ti, ti.state)
+                    Stats.incr('zombies_killed')
+        session.commit()
 
     @provide_session
     def process_file(self, file_path, zombies, pickle_dags=False, session=None):
@@ -796,15 +832,22 @@ class DagFileProcessor(LoggingMixin):
         # process and due to some unusual behavior. (empty() incorrectly
         # returns true as described in https://bugs.python.org/issue23582 )
         ti_keys_to_schedule = []
+        refreshed_tis = []
 
         self._process_dags(dagbag, dags, ti_keys_to_schedule)
 
-        for ti_key in ti_keys_to_schedule:
-            dag = dagbag.dags[ti_key[0]]
-            task = dag.get_task(ti_key[1])
-            ti = models.TaskInstance(task, ti_key[2])
+        # Refresh all task instances that will be scheduled
+        TI = models.TaskInstance
+        filter_for_tis = TI.filter_for_tis(ti_keys_to_schedule)
 
-            ti.refresh_from_db(session=session, lock_for_update=True)
+        if filter_for_tis is not None:
+            refreshed_tis = session.query(TI).filter(filter_for_tis).with_for_update().all()
+
+        for ti in refreshed_tis:
+            # Add task to task instance
+            dag = dagbag.dags[ti.key[0]]
+            ti.task = dag.get_task(ti.key[1])
+
             # We check only deps needed to set TI to SCHEDULED state here.
             # Deps needed to set TI to QUEUED state will be batch checked later
             # by the scheduler for better performance.
@@ -834,7 +877,7 @@ class DagFileProcessor(LoggingMixin):
         except Exception:
             self.log.exception("Error logging import errors!")
         try:
-            dagbag.kill_zombies(zombies)
+            self.kill_zombies(zombies)
         except Exception:
             self.log.exception("Error killing zombies!")
 
@@ -994,8 +1037,7 @@ class SchedulerJob(BaseJob):
                     models.TaskInstance.task_id == subq.c.task_id,
                     models.TaskInstance.execution_date ==
                     subq.c.execution_date)) \
-                .update({models.TaskInstance.state: new_state},
-                        synchronize_session=False)
+                .update({models.TaskInstance.state: new_state}, synchronize_session=False)
             session.commit()
 
         if tis_changed > 0:
@@ -1270,20 +1312,17 @@ class SchedulerJob(BaseJob):
             return []
 
         # set TIs to queued state
-        for task_instance in tis_to_set_to_queued:
-            task_instance.state = State.QUEUED
-            task_instance.queued_dttm = timezone.utcnow()
-            session.merge(task_instance)
+        filter_for_tis = TI.filter_for_tis(tis_to_set_to_queued)
+        session.query(TI).filter(filter_for_tis).update(
+            {TI.state: State.QUEUED, TI.queued_dttm: timezone.utcnow()}, synchronize_session=False
+        )
+        session.commit()
 
         # Generate a list of SimpleTaskInstance for the use of queuing
         # them in the executor.
-        simple_task_instances = [SimpleTaskInstance(ti) for ti in
-                                 tis_to_set_to_queued]
+        simple_task_instances = [SimpleTaskInstance(ti) for ti in tis_to_set_to_queued]
 
-        task_instance_str = "\n\t".join(
-            [repr(x) for x in tis_to_set_to_queued])
-
-        session.commit()
+        task_instance_str = "\n\t".join([repr(x) for x in tis_to_set_to_queued])
         self.log.info("Setting the following %s tasks to queued state:\n\t%s",
                       len(tis_to_set_to_queued), task_instance_str)
         return simple_task_instances
@@ -1398,9 +1437,12 @@ class SchedulerJob(BaseJob):
                 return
 
             # set TIs to queued state
+            filter_for_tis = TI.filter_for_tis(tis_to_set_to_scheduled)
+            session.query(TI).filter(filter_for_tis).update(
+                {TI.state: State.SCHEDULED, TI.queued_dttm: None}, synchronize_session=False
+            )
+
             for task_instance in tis_to_set_to_scheduled:
-                task_instance.state = State.SCHEDULED
-                task_instance.queued_dttm = None
                 self.executor.queued_tasks.pop(task_instance.key)
 
             task_instance_str = "\n\t".join(

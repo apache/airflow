@@ -42,6 +42,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Beyond the Horizon](#beyond-the-horizon)
 - [Principles](#principles)
 - [User Interface](#user-interface)
+- [Using hooks and Operators from "master" in Airflow 1.10](#using-hooks-and-operators-from-master-in-airflow-110)
 - [Contributing](#contributing)
 - [Who uses Apache Airflow?](#who-uses-apache-airflow)
 - [Who Maintains Apache Airflow?](#who-maintains-apache-airflow)
@@ -107,6 +108,30 @@ unit of work and continuity.
   ![](/docs/img/code.png)
 
 
+## Using hooks and Operators from "master" in Airflow 1.10
+
+Currently stable versions of Apache Airflow are released in 1.10.* series. We are working on the
+future, major version of Airflow from the 2.0.* series. It is going to be released in
+in 2020. However the exact time of release depends on many factors and is yet unknown.
+We have already a lot of changes in the hooks/operators/sensors for many external systems
+and they are not used because they are part of the master/2.0 release.
+
+In the Airflow 2.0 - following AIP-21 "change in import paths" all the non-core operators/hooks/sensors
+of Apache Airflow have been moved to the "airflow.providers" package. This opened a possibility to
+use the operators from Airflow 2.0 in Airflow 1.10 - with the constraint that those
+packages can only be used in python3.6+ environment.
+
+Therefore we decided to prepare and release backport packages that can be installed
+for older Airflow versions. Those backport packages are released more frequently. Users do not
+have to upgrade their Airflow version to use those packages. There are a number of changes
+between Airflow 2.0 and 1.10.* - documented in [UPDATING.md](UPDATING.md). With backported
+providers package users can migrate their DAGs to the new providers package incrementally
+and once they convert to the new operators/sensors/hooks they can seamlessly migrate their
+environments to Airflow 2.0.
+
+More information about the status and releases of the back-ported packages are available
+at [Backported providers package page](https://cwiki.apache.org/confluence/display/AIRFLOW/Backported+providers+packages+for+Airflow+1.10.*+series)
+
 ## Contributing
 
 Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst).
@@ -133,6 +158,7 @@ Currently **officially** using Airflow:
 1. [AirDNA](https://www.airdna.co)
 1. [Airfinity](https://www.airfinity.com) [[@sibowyer](https://github.com/sibowyer)]
 1. [Airtel](https://www.airtel.in/) [[@harishbisht](https://github.com/harishbisht)]
+1. [Akamas](https://akamas.io) [[@GiovanniPaoloGibilisco](https://github.com/GiovanniPaoloGibilisco), [@lucacavazzana](https://github.com/lucacavazzana)]
 1. [Alan](https://alan.eu) [[@charles-go](https://github.com/charles-go)]
 1. [allegro.pl](http://allegro.tech/) [[@kretes](https://github.com/kretes)]
 1. [AloPeyk](https://alopeyk.com) [[@blcksrx](https://github.com/blcksrx), [@AloPeyk](https://github.com/AloPeyk)]
@@ -245,6 +271,7 @@ Currently **officially** using Airflow:
 1. [Fundera](https://fundera.com) [[@andyxhadji](https://github.com/andyxhadji)]
 1. [G Adventures](https://gadventures.com) [[@chchtv11](https://github.com/chchtv11), [@tgumbley](https://github.com/tgumbley), [@tomwross](https://github.com/tomwross)]
 1. [GameWisp](https://gamewisp.com) [[@tjbiii](https://github.com/TJBIII) & [@theryanwalls](https://github.com/theryanwalls)]
+1. [Geekie](https://www.geekie.com.br) [[@wolney](https://github.com/wolney)]
 1. [GeneCards](https://www.genecards.org) [[@oferze](https://github.com/oferze)]
 1. [Gentner Lab](http://github.com/gentnerlab) [[@neuromusic](https://github.com/neuromusic)]
 1. [Get Simpl](https://getsimpl.com/) [[@rootcss](https://github.com/rootcss)]
@@ -375,6 +402,7 @@ Currently **officially** using Airflow:
 1. [Semantics3](https://www.semantics3.com) [[@abishekk92](https://github.com/abishekk92)]
 1. [Sense360](https://github.com/Sense360) [[@kamilmroczek](https://github.com/KamilMroczek)]
 1. [Sentry.io](https://www.sentry.io) [[@tiopi](https://github.com/tiopi)]
+1. [ShopBack](https://www.shopback.sg/) [[@shopback](https://github.com/shopback)]
 1. [Shopkick](https://shopkick.com/) [[@shopkick](https://github.com/shopkick)]
 1. [Sidecar](https://hello.getsidecar.com/) [[@getsidecar](https://github.com/getsidecar)]
 1. [SimilarWeb](https://www.similarweb.com/) [[@similarweb](https://github.com/similarweb)]

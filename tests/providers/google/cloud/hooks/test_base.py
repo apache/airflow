@@ -32,9 +32,11 @@ from google.cloud.exceptions import Forbidden, MovedPermanently
 from googleapiclient.errors import HttpError
 from parameterized import parameterized
 
-from airflow import AirflowException, LoggingMixin, version
+from airflow import version
+from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.providers.google.cloud.hooks import base as hook
+from airflow.utils.log.logging_mixin import LoggingMixin
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 default_creds_available = True

@@ -18,7 +18,7 @@
 
 from datetime import datetime, timedelta
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 
 default_args = {

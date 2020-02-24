@@ -19,9 +19,11 @@
 Example Airflow DAG that shows how to use CampaignManager.
 """
 import os
+import time
 
 from airflow import models
 from airflow.providers.google.marketing_platform.operators.campaign_manager import (
+    GoogleCampaignManagerBatchInsertConversionsOperator, GoogleCampaignManagerBatchUpdateConversionsOperator,
     GoogleCampaignManagerDeleteReportOperator, GoogleCampaignManagerDownloadReportOperator,
     GoogleCampaignManagerInsertReportOperator, GoogleCampaignManagerRunReportOperator,
 )
@@ -31,6 +33,10 @@ from airflow.providers.google.marketing_platform.sensors.campaign_manager import
 from airflow.utils import dates
 
 PROFILE_ID = os.environ.get("MARKETING_PROFILE_ID", "123456789")
+FLOODLIGHT_ACTIVITY_ID = os.environ.get("FLOODLIGHT_ACTIVITY_ID", 12345)
+FLOODLIGHT_CONFIGURATION_ID = os.environ.get("FLOODLIGHT_CONFIGURATION_ID", 12345)
+ENCRYPTION_ENTITY_ID = os.environ.get("ENCRYPTION_ENTITY_ID", 12345)
+DEVICE_ID = os.environ.get("DEVICE_ID", "12345")
 BUCKET = os.environ.get("MARKETING_BUCKET", "test-cm-bucket")
 REPORT_NAME = "test-report"
 REPORT = {
@@ -48,6 +54,33 @@ REPORT = {
     },
 }
 
+CONVERSION = {
+    "kind": "dfareporting#conversion",
+    "floodlightActivityId": FLOODLIGHT_ACTIVITY_ID,
+    "floodlightConfigurationId": FLOODLIGHT_CONFIGURATION_ID,
+    "mobileDeviceId": DEVICE_ID,
+    "ordinal": "0",
+    "quantity": 42,
+    "value": 123.4,
+    "timestampMicros": int(time.time()) * 1000000,
+    "customVariables": [
+        {
+            "kind": "dfareporting#customFloodlightVariable",
+            "type": "U4",
+            "value": "value",
+        }
+    ],
+}
+
+CONVERSION_UPDATE = {
+    "kind": "dfareporting#conversion",
+    "floodlightActivityId": FLOODLIGHT_ACTIVITY_ID,
+    "floodlightConfigurationId": FLOODLIGHT_CONFIGURATION_ID,
+    "mobileDeviceId": DEVICE_ID,
+    "ordinal": "0",
+    "quantity": 42,
+    "value": 123.4,
+}
 
 default_args = {"start_date": dates.days_ago(1)}
 
@@ -97,3 +130,31 @@ with models.DAG(
     # [END howto_campaign_manager_delete_report_operator]
 
     create_report >> run_report >> wait_for_report >> get_report >> delete_report
+
+    # [START howto_campaign_manager_insert_conversions]
+    insert_conversion = GoogleCampaignManagerBatchInsertConversionsOperator(
+        task_id="insert_conversion",
+        profile_id=PROFILE_ID,
+        conversions=[CONVERSION],
+        encryption_source="AD_SERVING",
+        encryption_entity_type="DCM_ADVERTISER",
+        encryption_entity_id=ENCRYPTION_ENTITY_ID,
+    )
+    # [END howto_campaign_manager_insert_conversions]
+
+    # [START howto_campaign_manager_update_conversions]
+    update_conversion = GoogleCampaignManagerBatchUpdateConversionsOperator(
+        task_id="update_conversion",
+        profile_id=PROFILE_ID,
+        conversions=[CONVERSION_UPDATE],
+        encryption_source="AD_SERVING",
+        encryption_entity_type="DCM_ADVERTISER",
+        encryption_entity_id=ENCRYPTION_ENTITY_ID,
+    )
+    # [END howto_campaign_manager_update_conversions]
+
+    insert_conversion >> update_conversion
+
+if __name__ == "__main__":
+    dag.clear(reset_dag_runs=True)
+    dag.run()

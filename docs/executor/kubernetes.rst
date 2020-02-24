@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-Kubernetes Executor
+KubernetesExecutor
 ===================
 
 The kubernetes executor is introduced in Apache Airflow 1.10.0. The Kubernetes executor will create a new pod for every task instance.
@@ -34,3 +34,70 @@ The volumes are optional and depend on your configuration. There are two volumes
   - By storing logs onto a persistent disk, the files are accessible by workers and the webserver. If you don't configure this, the logs will be lost after the worker pods shuts down
 
   - Another option is to use S3/GCS/etc to store logs
+
+KubernetesExecutor Architecture
+################################
+
+The KubernetesExecutor runs as a process in the Scheduler that only requires access to the Kubernetes API (it does *not* need to run inside of a Kubernetes cluster). The KubernetesExecutor requires a non-sqlite database in the backend, but there are no external brokers or persistent workers needed.
+For these reasons, we recommend the KubernetesExecutor for deployments have long periods of dormancy between DAG execution.
+
+
+.. image:: ../img/k8s-0-worker.jpeg
+
+
+When a DAG submits a task, the KubernetesExecutor requests a worker pod from the Kubernetes API. The worker pod then runs the task, reports the result, and terminates.
+
+
+
+.. image:: ../img/k8s-3-worker.jpeg
+
+.. @startuml
+.. Airflow_Scheduler -> Kubernetes: Request a new pod with command "airflow run..."
+.. Kubernetes -> Airflow_Worker: Create Airflow worker with command "airflow run..."
+.. Airflow_Worker -> Airflow_DB: Report task passing or failure to DB
+.. Airflow_Worker -> Kubernetes: Pod completes with state "Succeeded" and k8s records in ETCD
+.. Kubernetes -> Airflow_Scheduler: Airflow scheduler reads "Succeeded" from k8s watcher thread
+.. @enduml
+.. image:: ../img/k8s-happy-path.png
+
+
+***************
+Fault Tolerance
+***************
+
+===========================
+Handling Worker Pod Crashes
+===========================
+
+When dealing with distributed systems, we need a system that assumes that any component can crash at any moment for reasons ranging from OOM errors to node upgrades.
+
+In the case where a worker dies before it can report its status to the backend DB, the executor can use a Kubernetes watcher thread to discover the failed pod.
+
+.. @startuml
+..
+.. Airflow_Scheduler -> Kubernetes: Request a new pod with command "airflow run..."
+.. Kubernetes -> Airflow_Worker: Create Airflow worker with command "airflow run..."
+.. Airflow_Worker -> Airflow_Worker: Pod fails before task can complete
+.. Airflow_Worker -> Kubernetes: Pod completes with state "Failed" and k8s records in ETCD
+.. Kubernetes -> Airflow_Scheduler: Airflow scheduler reads "Failed" from k8s watcher thread
+.. Airflow_Scheduler -> Airflow_DB: Airflow scheduler records "FAILED" state to DB for task
+..
+.. @enduml
+
+.. image:: ../img/k8s-failed-pod.png
+
+
+A Kubernetes watcher is a thread that can subscribe to every change that occurs in Kubernetes' database. It is alerted when pods start, run, end, and fail.
+By monitoring this stream, the KubernetesExecutor can discover that the worker crashed and correctly report the task as failed.
+
+
+=====================================================
+But What About Cases Where the Scheduler Pod Crashes?
+=====================================================
+
+In cases of scheduler crashes, we can completely rebuild the state of the scheduler using the watcher's ``resourceVersion``.
+
+When monitoring the Kubernetes cluster's watcher thread, each event has a monotonically rising number called a resourceVersion.
+Every time the executor reads a resourceVersion, the executor stores the latest value in the backend database.
+Because the resourceVersion is stored, the scheduler can restart and continue reading the watcher stream from where it left off.
+Since the tasks are run independently of the executor and report results directly to the database, scheduler failures will not lead to task failures or re-runs.

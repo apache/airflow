@@ -23,6 +23,7 @@ import json
 import logging
 import math
 import os
+import pkgutil
 import socket
 import traceback
 from collections import defaultdict
@@ -36,13 +37,13 @@ from flask import (
     Markup, Response, escape, flash, jsonify, make_response, redirect, render_template, request,
     session as flask_session, url_for,
 )
-from flask_appbuilder import BaseView, ModelView, expose, has_access
+from flask_appbuilder import BaseView, ModelView, expose, has_access, permission_name
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_babel import lazy_gettext
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import and_, desc, or_, union_all
+from sqlalchemy import and_, desc, func, or_, union_all
 from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
 
@@ -56,7 +57,8 @@ from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Connection, DagModel, DagRun, DagTag, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.settings import STORE_SERIALIZED_DAGS
-from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
+from airflow.ti_deps.dep_context import DepContext
+from airflow.ti_deps.dependencies import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.helpers import alchemy_to_dict, render_log_filename
@@ -279,7 +281,6 @@ class Airflow(AirflowBaseView):
 
             dags = dags_query.order_by(DagModel.dag_id).options(
                 joinedload(DagModel.tags)).offset(start).limit(dags_per_page).all()
-            tags = []
 
             dagtags = session.query(DagTag.name).distinct(DagTag.name).all()
             tags = [
@@ -305,11 +306,6 @@ class Airflow(AirflowBaseView):
         num_of_all_dags = dags_query.count()
         num_of_pages = int(math.ceil(num_of_all_dags / float(dags_per_page)))
 
-        auto_complete_data = set()
-        for row in dags_query.with_entities(DagModel.dag_id, DagModel.owners):
-            auto_complete_data.add(row.dag_id)
-            auto_complete_data.add(row.owners)
-
         return self.render_template(
             'airflow/dags.html',
             dags=dags,
@@ -324,7 +320,6 @@ class Airflow(AirflowBaseView):
             paging=wwwutils.generate_pages(current_page, num_of_pages,
                                            search=escape(arg_search_query) if arg_search_query else None,
                                            showPaused=not hide_paused),
-            auto_complete_data=auto_complete_data,
             num_runs=num_runs,
             tags=tags)
 
@@ -529,7 +524,8 @@ class Airflow(AirflowBaseView):
             html_code = highlight(
                 code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
         except OSError as e:
-            html_code = str(e)
+            html_code = '<p>Failed to load file.</p><p>Details: {}</p>'.format(
+                escape(str(e)))
 
         return self.render_template(
             'airflow/dag_code.html', html_code=html_code, dag=dag, title=dag_id,
@@ -2055,9 +2051,7 @@ class VersionView(AirflowBaseView):
         # Get the Git repo and git hash
         git_version = None
         try:
-            with open(os.path.join(*[settings.AIRFLOW_HOME,
-                                   'airflow', 'git_version'])) as f:
-                git_version = f.readline()
+            git_version = str(pkgutil.get_data('airflow', 'git_version'), encoding="UTF-8")
         except Exception as e:
             logging.error(e)
 
@@ -2204,7 +2198,13 @@ class ConnectionModelView(AirflowModelView):
                     'extra__google_cloud_platform__num_retries',
                     'extra__grpc__auth_type',
                     'extra__grpc__credential_pem_file',
-                    'extra__grpc__scopes']
+                    'extra__grpc__scopes',
+                    'extra__yandexcloud__service_account_json',
+                    'extra__yandexcloud__service_account_json_path',
+                    'extra__yandexcloud__oauth',
+                    'extra__yandexcloud__public_ssh_key',
+                    'extra__yandexcloud__folder_id',
+                    ]
     list_columns = ['conn_id', 'conn_type', 'host', 'port', 'is_encrypted',
                     'is_extra_encrypted']
     add_columns = edit_columns = ['conn_id', 'conn_type', 'host', 'schema',
@@ -2225,7 +2225,7 @@ class ConnectionModelView(AirflowModelView):
 
     def process_form(self, form, is_created):
         formdata = form.data
-        if formdata['conn_type'] in ['jdbc', 'google_cloud_platform', 'grpc']:
+        if formdata['conn_type'] in ['jdbc', 'google_cloud_platform', 'grpc', 'yandexcloud']:
             extra = {
                 key: formdata[key]
                 for key in self.extra_fields if key in formdata}
@@ -2714,3 +2714,36 @@ class DagModelView(AirflowModelView):
             .filter(models.DagModel.is_active)
             .filter(~models.DagModel.is_subdag)
         )
+
+    @has_access
+    @permission_name("list")
+    @provide_session
+    @expose('/autocomplete')
+    def autocomplete(self, session=None):
+        query = unquote(request.args.get('query', ''))
+
+        if not query:
+            wwwutils.json_response([])
+
+        # Provide suggestions of dag_ids and owners
+        dag_ids_query = session.query(DagModel.dag_id.label('item')).filter(
+            ~DagModel.is_subdag, DagModel.is_active,
+            DagModel.dag_id.ilike('%' + query + '%'))
+
+        owners_query = session.query(func.distinct(DagModel.owners).label('item')).filter(
+            ~DagModel.is_subdag, DagModel.is_active,
+            DagModel.owners.ilike('%' + query + '%'))
+
+        # Hide paused dags
+        if request.args.get('showPaused', 'True').lower() == 'false':
+            dag_ids_query = dag_ids_query.filter(~DagModel.is_paused)
+            owners_query = owners_query.filter(~DagModel.is_paused)
+
+        filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
+        if 'all_dags' not in filter_dag_ids:
+            dag_ids_query = dag_ids_query.filter(DagModel.dag_id.in_(filter_dag_ids))
+            owners_query = owners_query.filter(DagModel.dag_id.in_(filter_dag_ids))
+
+        payload = [row[0] for row in dag_ids_query.union(owners_query).limit(10).all()]
+
+        return wwwutils.json_response(payload)

@@ -17,7 +17,7 @@
 # under the License.
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.sagemaker_base import SageMakerBaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -99,7 +99,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
     def expand_role(self):
         if 'Model' not in self.config:
             return
-        hook = AwsHook(self.aws_conn_id)
+        hook = AwsBaseHook(self.aws_conn_id)
         config = self.config['Model']
         if 'ExecutionRoleArn' in config:
             config['ExecutionRoleArn'] = hook.expand_role(config['ExecutionRoleArn'])

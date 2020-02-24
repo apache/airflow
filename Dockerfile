@@ -180,6 +180,41 @@ RUN HADOOP_DISTRO="cdh" \
 
 ENV PATH "${PATH}:/opt/hive/bin"
 
+# Install Singularity (for Singularity executor testing)
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+       uuid-dev \
+       libgpgme11-dev \
+       squashfs-tools \
+       libseccomp-dev \
+       pkg-config \
+       cryptsetup \
+    && apt-get autoremove -yqq --purge \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV GOLANG_VERSION=1.13.8
+ENV SINGULARITY_VERSION=3.5.2
+
+RUN curl -L -o go${GOLANG_VERSION}.linux-amd64.tar.gz "https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz" \
+    && tar -C /usr/local -xzvf "go${GOLANG_VERSION}.linux-amd64.tar.gz" \
+    && rm "go${GOLANG_VERSION}.linux-amd64.tar.gz"
+
+ENV PATH="${PATH}:/usr/local/go/bin"
+
+WORKDIR /tmp
+
+RUN curl -L -o singularity-${SINGULARITY_VERSION}.tar.gz https://github.com/sylabs/singularity/releases/download/v${SINGULARITY_VERSION}/singularity-${SINGULARITY_VERSION}.tar.gz \
+    && tar -xzf singularity-${SINGULARITY_VERSION}.tar.gz
+
+WORKDIR /tmp/singularity
+
+RUN ./mconfig \
+    && make -C builddir \
+    && make -C builddir install
+
+WORKDIR /
+
 # Install Minicluster
 ENV MINICLUSTER_HOME="/opt/minicluster"
 
@@ -311,7 +346,7 @@ RUN mkdir -pv ${AIRFLOW_HOME} \
     mkdir -pv ${AIRFLOW_HOME}/logs
 
 # Increase the value here to force reinstalling Apache Airflow pip dependencies
-ARG PIP_DEPENDENCIES_EPOCH_NUMBER="2"
+ARG PIP_DEPENDENCIES_EPOCH_NUMBER="3"
 ENV PIP_DEPENDENCIES_EPOCH_NUMBER=${PIP_DEPENDENCIES_EPOCH_NUMBER}
 
 # Optimizing installation of Cassandra driver
@@ -362,11 +397,7 @@ RUN ln -sf /usr/bin/dumb-init /usr/local/bin/dumb-init
 # Rather than after setup.py is added.
 COPY airflow/www/yarn.lock airflow/www/package.json ${AIRFLOW_SOURCES}/airflow/www/
 
-WORKDIR ${AIRFLOW_SOURCES}/airflow/www
-
-RUN yarn install --frozen-lockfile
-
-WORKDIR ${AIRFLOW_SOURCES}
+RUN yarn --cwd airflow/www install --frozen-lockfile --no-cache
 
 # Note! We are copying everything with airflow:airflow user:group even if we use root to run the scripts
 # This is fine as root user will be able to use those dirs anyway.
@@ -386,13 +417,13 @@ COPY airflow/bin/airflow ${AIRFLOW_SOURCES}/airflow/bin/airflow
 # In non-CI optimized build this will install all dependencies before installing sources.
 RUN pip install -e ".[${AIRFLOW_EXTRAS}]"
 
-WORKDIR ${AIRFLOW_SOURCES}/airflow/www
+# Copy all the www/ files we need to compile assets. Done as two separate COPY
+# commands so as otherwise it copies the _contents_ of static/ in to www/
+COPY airflow/www/webpack.config.js ${AIRFLOW_SOURCES}/airflow/www/
+COPY airflow/www/static ${AIRFLOW_SOURCES}/airflow/www/static/
 
-# Copy all www files here so that we can run yarn building for production
-COPY airflow/www/ ${AIRFLOW_SOURCES}/airflow/www/
-
-# Package NPM for production
-RUN yarn run prod
+# Package JS/css for production
+RUN yarn --cwd airflow/www run prod
 
 COPY scripts/docker/entrypoint.sh /entrypoint.sh
 

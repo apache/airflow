@@ -39,3 +39,4 @@ determine what actually executes when your DAG runs.
     papermill
     python
     external
+    yandexcloud

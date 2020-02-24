@@ -22,7 +22,7 @@ Renderer DAG (tasks and dependencies) to the graphviz object.
 
 import graphviz
 
-from airflow import DAG
+from airflow.models.dag import DAG
 
 
 def _refine_color(color: str):

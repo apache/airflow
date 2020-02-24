@@ -24,7 +24,7 @@ from google.auth.environment_vars import CREDENTIALS
 from mock import PropertyMock
 from parameterized import parameterized
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.providers.google.cloud.operators.kubernetes_engine import (

@@ -19,7 +19,7 @@
 
 import unittest
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.providers.opsgenie.operators.opsgenie_alert import OpsgenieAlertOperator
 from airflow.utils import timezone
 

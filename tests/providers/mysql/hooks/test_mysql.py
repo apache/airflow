@@ -25,8 +25,8 @@ from unittest import mock
 import MySQLdb.cursors
 import pytest
 
-from airflow import DAG
 from airflow.models import Connection
+from airflow.models.dag import DAG
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils import timezone
 
@@ -156,7 +156,7 @@ class TestMySqlHookConn(unittest.TestCase):
         self.assertEqual(kwargs['ssl'], SSL_DICT)
 
     @mock.patch('airflow.providers.mysql.hooks.mysql.MySQLdb.connect')
-    @mock.patch('airflow.providers.amazon.aws.hooks.aws_hook.AwsHook.get_client_type')
+    @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type')
     def test_get_conn_rds_iam(self, mock_client, mock_connect):
         self.connection.extra = '{"iam":true}'
         mock_client.return_value.generate_db_auth_token.return_value = 'aws_token'

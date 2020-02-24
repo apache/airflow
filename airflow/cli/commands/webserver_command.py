@@ -28,8 +28,9 @@ import daemon
 import psutil
 from daemon.pidfile import TimeoutPIDLockFile
 
-from airflow import AirflowException, conf, settings
-from airflow.exceptions import AirflowWebServerTimeout
+from airflow import settings
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging
 from airflow.www.app import cached_app, create_app

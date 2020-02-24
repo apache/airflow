@@ -20,8 +20,8 @@
 import datetime
 import unittest
 
-from airflow import DAG
 from airflow.exceptions import AirflowSensorTimeout
+from airflow.models.dag import DAG
 from airflow.sensors.bash import BashSensor
 
 

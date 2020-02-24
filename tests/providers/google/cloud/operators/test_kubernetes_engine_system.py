@@ -15,15 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import pytest
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GKE_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context, skip_gcp_system
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 
-@skip_gcp_system(GCP_GKE_KEY, require_local_executor=True)
-class KubernetesEngineExampleDagTest(SystemTest):
+@pytest.mark.backend("mysql", "postgres")
+@pytest.mark.credential_file(GCP_GKE_KEY)
+class KubernetesEngineExampleDagTest(GoogleSystemTest):
     @provide_gcp_context(GCP_GKE_KEY)
     def test_run_example_dag(self):
         self.run_dag('example_gcp_gke', CLOUD_DAG_FOLDER)

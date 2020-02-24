@@ -25,9 +25,9 @@ from unittest import mock
 from parameterized import parameterized
 from tabulate import tabulate
 
-from airflow import AirflowException, models
 from airflow.bin import cli
 from airflow.cli.commands import task_command
+from airflow.exceptions import AirflowException
 from airflow.models import DagBag, TaskInstance
 from airflow.settings import Session
 from airflow.utils import timezone
@@ -40,7 +40,7 @@ DEFAULT_DATE = timezone.make_aware(datetime(2016, 1, 1))
 
 def reset(dag_id):
     session = Session()
-    tis = session.query(models.TaskInstance).filter_by(dag_id=dag_id)
+    tis = session.query(TaskInstance).filter_by(dag_id=dag_id)
     tis.delete()
     session.commit()
     session.close()
@@ -49,7 +49,7 @@ def reset(dag_id):
 class TestCliTasks(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.dagbag = models.DagBag(include_examples=True)
+        cls.dagbag = DagBag(include_examples=True)
         cls.parser = cli.CLIFactory.get_parser()
 
     def test_cli_list_tasks(self):

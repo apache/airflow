@@ -19,60 +19,109 @@
 # Assume all the scripts are sourcing the _utils.sh from the scripts/ci directory
 # and MY_DIR variable is set to this directory. It can be overridden however
 
-if [[ ${VERBOSE:=} == "true" ]]; then
-    set -x
-else
-    set +x
-fi
+declare -a EXTRA_DOCKER_FLAGS
 
-AIRFLOW_SOURCES=${AIRFLOW_SOURCES:=$(cd "${MY_DIR}/../../" && pwd)}
-export AIRFLOW_SOURCES
+function check_verbose_setup {
+    if [[ ${VERBOSE:=} == "true" ]]; then
+        set -x
+    else
+        set +x
+    fi
+}
 
-BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
-export BUILD_CACHE_DIR
 
-LAST_FORCE_ANSWER_FILE="${BUILD_CACHE_DIR}/last_force_answer.sh"
+function initialize_breeze_environment {
+    AIRFLOW_SOURCES=${AIRFLOW_SOURCES:=$(cd "${MY_DIR}/../../" && pwd)}
+    export AIRFLOW_SOURCES
 
-IMAGES_TO_CHECK=("CI")
-export IMAGES_TO_CHECK
+    BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
+    export BUILD_CACHE_DIR
 
-mkdir -p "${AIRFLOW_SOURCES}/.mypy_cache"
-mkdir -p "${AIRFLOW_SOURCES}/logs"
-mkdir -p "${AIRFLOW_SOURCES}/tmp"
+    LAST_FORCE_ANSWER_FILE="${BUILD_CACHE_DIR}/last_force_answer.sh"
 
-# shellcheck source=common/_autodetect_variables.sh
-. "${AIRFLOW_SOURCES}/common/_autodetect_variables.sh"
-# shellcheck source=common/_files_for_rebuild_check.sh
-. "${AIRFLOW_SOURCES}/common/_files_for_rebuild_check.sh"
+    IMAGES_TO_CHECK=("CI")
+    export IMAGES_TO_CHECK
 
-# Default branch name for triggered builds is the one configured in default branch
-export AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${DEFAULT_BRANCH}}
+    # Create directories if needed
+    mkdir -p "${AIRFLOW_SOURCES}/.mypy_cache"
+    mkdir -p "${AIRFLOW_SOURCES}/logs"
+    mkdir -p "${AIRFLOW_SOURCES}/tmp"
+    mkdir -p "${AIRFLOW_SOURCES}/files"
+    mkdir -p "${AIRFLOW_SOURCES}/dist"
 
-# Default port numbers for forwarded ports
-export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}
-export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:="25433"}
-export MYSQL_HOST_PORT=${MYSQL_HOST_PORT:="23306"}
+    # shellcheck source=common/_autodetect_variables.sh
+    . "${AIRFLOW_SOURCES}/common/_autodetect_variables.sh"
+    # shellcheck source=common/_files_for_rebuild_check.sh
+    . "${AIRFLOW_SOURCES}/common/_files_for_rebuild_check.sh"
 
-# Do not push images from here by default (push them directly from the build script on Dockerhub)
-export AIRFLOW_CONTAINER_PUSH_IMAGES=${AIRFLOW_CONTAINER_PUSH_IMAGES:="false"}
+    # Default branch name for triggered builds is the one configured in default branch
+    export BRANCH_NAME=${BRANCH_NAME:=${DEFAULT_BRANCH}}
 
-# Disable writing .pyc files - slightly slower imports but not messing around when switching
-# Python version and avoids problems with root-owned .pyc files in host
-export PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE:="true"}
+    # Default port numbers for forwarded ports
+    export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}
+    export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:="25433"}
+    export MYSQL_HOST_PORT=${MYSQL_HOST_PORT:="23306"}
 
-# By default we assume the kubernetes cluster is not being started
-export ENABLE_KIND_CLUSTER=${ENABLE_KIND_CLUSTER:="false"}
-#
-# Sets mounting of host volumes to container for static checks
-# unless AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS is not true
-#
-# Note that this cannot be function because we need the AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS array variable
-#
-AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS=${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS:="true"}
+    # Do not push images from here by default (push them directly from the build script on Dockerhub)
+    export PUSH_IMAGES=${PUSH_IMAGES:="false"}
 
-# If this variable is set, we mount the whole sources directory to the host rather than
-# selected volumes
-AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS=${AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="false"}
+    # Disable writing .pyc files - slightly slower imports but not messing around when switching
+    # Python version and avoids problems with root-owned .pyc files in host
+    export PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE:="true"}
+
+    # By default we assume the kubernetes cluster is not being started
+   export ENABLE_KIND_CLUSTER=${ENABLE_KIND_CLUSTER:="false"}
+    #
+    # Sets mounting of host volumes to container for static checks
+    # unless MOUNT_HOST_AIRFLOW_VOLUME is not true
+    #
+    # Note that this cannot be function because we need the EXTRA_DOCKER_FLAGS array variable
+    #
+    MOUNT_HOST_AIRFLOW_VOLUME=${MOUNT_HOST_AIRFLOW_VOLUME:="true"}
+    export MOUNT_HOST_AIRFLOW_VOLUME
+
+    # If this variable is set, we mount the whole sources directory to the host rather than
+    # selected volumes
+    AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS=${AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="false"}
+    export AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS
+
+    # Set host user id to current user
+    HOST_USER_ID="$(id -ur)"
+    export HOST_USER_ID
+
+    # Set host group id to current group
+    HOST_GROUP_ID="$(id -gr)"
+    export HOST_GROUP_ID
+
+    if [[ ${AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS} == "true" ]]; then
+        print_info
+        print_info "Mount whole airflow source directory for static checks (make sure all files are in container)"
+        print_info
+        EXTRA_DOCKER_FLAGS=( \
+          "-v" "${AIRFLOW_SOURCES}:/opt/airflow" \
+          "--env" "PYTHONDONTWRITEBYTECODE" \
+        )
+    elif [[ ${MOUNT_HOST_AIRFLOW_VOLUME} == "true" ]]; then
+        print_info
+        print_info "Mounting necessary host volumes to Docker"
+        print_info
+
+        EXTRA_DOCKER_FLAGS=()
+
+        while IFS= read -r LINE; do
+            EXTRA_DOCKER_FLAGS+=( "${LINE}")
+        done < <(convert_docker_mounts_to_docker_params)
+    else
+        print_info
+        print_info "Skip mounting host volumes to Docker"
+        print_info
+        EXTRA_DOCKER_FLAGS=( \
+            "--env" "PYTHONDONTWRITEBYTECODE" \
+        )
+    fi
+
+    export EXTRA_DOCKER_FLAGS
+}
 
 function print_info() {
     if [[ ${AIRFLOW_CI_SILENT:="false"} != "true" || ${VERBOSE:="false"} == "true" ]]; then
@@ -84,7 +133,6 @@ function print_info() {
 # Simple (?) no-dependency needed Yaml PARSER
 # From https://stackoverflow.com/questions/5014632/how-can-i-parse-a-yaml-file-from-a-linux-shell-script
 function parse_yaml {
-
     if [[ -z $1 ]]; then
         echo "Please provide yaml filename as first parameter."
         exit 1
@@ -119,6 +167,7 @@ function parse_yaml {
 # from airflow-testing section to "-v" "volume mapping" series of options
 function convert_docker_mounts_to_docker_params() {
     ESCAPED_AIRFLOW_SOURCES=$(echo "${AIRFLOW_SOURCES}" | sed -e 's/[\/&]/\\&/g')
+    ESCAPED_HOME=$(echo "${HOME}" | sed -e 's/[\/&]/\\&/g')
     # shellcheck disable=2046
     while IFS= read -r LINE; do
         echo "-v"
@@ -126,6 +175,7 @@ function convert_docker_mounts_to_docker_params() {
     done < <(parse_yaml scripts/ci/docker-compose/local.yml COMPOSE_ | \
             grep "COMPOSE_services_airflow-testing_volumes_" | \
             sed "s/..\/..\/../${ESCAPED_AIRFLOW_SOURCES}/" | \
+            sed "s/\${HOME}/${ESCAPED_HOME}/" | \
             sed "s/COMPOSE_services_airflow-testing_volumes_//" | \
             sort -t "=" -k 1 -n | \
             cut -d "=" -f 2- | \
@@ -145,36 +195,6 @@ function sanitize_mounted_files() {
     sanitize_file "${AIRFLOW_SOURCES}/.bash_aliases"
     sanitize_file "${AIRFLOW_SOURCES}/.inputrc"
 }
-
-declare -a AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS
-if [[ ${AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS} == "true" ]]; then
-    print_info
-    print_info "Mount whole airflow source directory for static checks (make sure all files are in container)"
-    print_info
-    AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=( \
-      "-v" "${AIRFLOW_SOURCES}:/opt/airflow" \
-      "--env" "PYTHONDONTWRITEBYTECODE" \
-    )
-elif [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
-    print_info
-    print_info "Mounting necessary host volumes to Docker"
-    print_info
-
-    AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=()
-
-    while IFS= read -r LINE; do
-        AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS+=( "${LINE}")
-    done < <(convert_docker_mounts_to_docker_params)
-else
-    print_info
-    print_info "Skip mounting host volumes to Docker"
-    print_info
-    AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=( \
-        "--env" "PYTHONDONTWRITEBYTECODE" \
-    )
-fi
-
-export AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS
 
 #
 # Creates cache directory where we will keep temporary files needed for the build
@@ -265,12 +285,8 @@ function update_all_md5_files() {
     do
         move_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"
     done
-    local SUFFIX=""
-    if [[ -n ${PYTHON_VERSION:=""} ]]; then
-        SUFFIX="_${PYTHON_VERSION}"
-    fi
     mkdir -pv "${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}"
-    touch "${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/.built_${THE_IMAGE_TYPE}${SUFFIX}"
+    touch "${BUILT_IMAGE_FLAG_FILE}"
 }
 
 #
@@ -297,7 +313,7 @@ function check_if_docker_build_is_needed() {
     print_info "Checking if docker image build is needed for ${THE_IMAGE_TYPE} image."
     print_info
     local IMAGE_BUILD_NEEDED="false"
-    if [[ ${AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD:=""} == "true" ]]; then
+    if [[ ${FORCE_BUILD_IMAGES:=""} == "true" ]]; then
         print_info "Docker image build is forced for ${THE_IMAGE_TYPE} image"
         set +e
         for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
@@ -307,20 +323,20 @@ function check_if_docker_build_is_needed() {
         done
         set -e
         IMAGES_TO_REBUILD+=("${THE_IMAGE_TYPE}")
-        export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
+        export NEEDS_DOCKER_BUILD="true"
     else
         set +e
         for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
         do
             if ! check_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"; then
-                export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
+                export NEEDS_DOCKER_BUILD="true"
                 IMAGE_BUILD_NEEDED=true
             fi
         done
         set -e
         if [[ ${IMAGE_BUILD_NEEDED} == "true" ]]; then
             IMAGES_TO_REBUILD+=("${THE_IMAGE_TYPE}")
-            export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="true"
+            export NEEDS_DOCKER_BUILD="true"
             print_info "Docker image build is needed for ${THE_IMAGE_TYPE} image!"
         else
             print_info "Docker image build is not needed for ${THE_IMAGE_TYPE} image!"
@@ -443,17 +459,17 @@ function confirm_image_rebuild() {
     set +e
     if [[ ${CI:="false"} == "true" ]]; then
         print_info
-        print_info "CI environment - forcing ${ACTION} for ${THE_IMAGE_TYPE} image."
+        print_info "CI environment - forcing build for ${THE_IMAGE_TYPE} image."
         print_info
         RES="0"
     elif [[ -c /dev/tty ]]; then
         # Make sure to use /dev/tty first rather than stdin/stdout when available - this way confirm
         # will works also in case of pre-commits (git does not pass stdin/stdout to pre-commit hooks)
-        "${AIRFLOW_SOURCES}/confirm" "${ACTION} ${THE_IMAGE_TYPE}" </dev/tty >/dev/tty
+        "${AIRFLOW_SOURCES}/confirm" "build ${THE_IMAGE_TYPE}" </dev/tty >/dev/tty
         RES=$?
     elif [[ -t 0 ]]; then
         # Check if this script is run interactively with stdin open and terminal attached
-        "${AIRFLOW_SOURCES}/confirm" "${ACTION} ${THE_IMAGE_TYPE}"
+        "${AIRFLOW_SOURCES}/confirm" "build ${THE_IMAGE_TYPE}"
         RES=$?
     else
         # No terminal, no stdin - quitting!
@@ -462,7 +478,7 @@ function confirm_image_rebuild() {
     set -e
     if [[ ${RES} == "1" ]]; then
         print_info
-        print_info "Skipping ${ACTION} for ${THE_IMAGE_TYPE}"
+        print_info "Skipping build for ${THE_IMAGE_TYPE}"
         print_info
         SKIP_REBUILD="true"
         # Force "no" also to subsequent questions so that if you answer it once, you are not asked
@@ -471,8 +487,8 @@ function confirm_image_rebuild() {
         echo 'export FORCE_ANSWER_TO_QUESTIONS="no"' > "${LAST_FORCE_ANSWER_FILE}"
     elif [[ ${RES} == "2" ]]; then
         echo >&2
-        echo >&2 "ERROR: The image needs ${ACTION} for ${THE_IMAGE_TYPE} - it is outdated. "
-        echo >&2 "   Make sure you build the images bu running run one of:"
+        echo >&2 "ERROR: The image needs to be byilt for ${THE_IMAGE_TYPE} - it is outdated. "
+        echo >&2 "   Make sure you build the images by running run one of:"
         echo >&2 "         * ./breeze --build-only"
         echo >&2 "         * ./breeze --build-only --force-pull-images"
         echo >&2
@@ -494,14 +510,9 @@ print(version.replace("+",""))
 EOF
     )
     export AIRFLOW_VERSION
+    export BUILT_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_VERSION}"
 
-    if [[ ${AIRFLOW_CONTAINER_CLEANUP_IMAGES:="false"} == "true" ]]; then
-        print_info
-        print_info "Clean up ${THE_IMAGE_TYPE} image. Just cleanup no pull of images happen."
-        print_info
-        export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="false"
-        export AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD="true"
-    elif [[ -f "${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/.built_${THE_IMAGE_TYPE}_${PYTHON_VERSION}" ]]; then
+    if [[ -f "${BUILT_IMAGE_FLAG_FILE}" ]]; then
         print_info
         print_info "${THE_IMAGE_TYPE} image already built locally."
         print_info
@@ -509,32 +520,34 @@ EOF
         print_info
         print_info "${THE_IMAGE_TYPE} image not built locally: pulling and building"
         print_info
-        export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
-        export AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD="true"
+        export FORCE_PULL_IMAGES="true"
+        export FORCE_BUILD_IMAGES="true"
     fi
 
-    AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="false"
+    NEEDS_DOCKER_BUILD="false"
     IMAGES_TO_REBUILD=()
     check_if_docker_build_is_needed
-    if [[ "${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED}" == "true" ]]; then
+    if [[ "${NEEDS_DOCKER_BUILD}" == "true" ]]; then
         SKIP_REBUILD="false"
-        if [[ ${AIRFLOW_CONTAINER_CLEANUP_IMAGES} == "true" ]]; then
-            export ACTION="clean"
-        else
-            export ACTION="rebuild"
-        fi
         if [[ ${CI:=} != "true" && "${FORCE_BUILD:=}" != "true" ]]; then
             confirm_image_rebuild
         fi
         if [[ ${SKIP_REBUILD} != "true" ]]; then
+            SYSTEM=$(uname -s)
+            if [[ ${SYSTEM} != "Darwin" ]]; then
+                ROOT_FILES_COUNT=$(find "airflow" "tests" -user root | wc -l | xargs)
+                if [[ ${ROOT_FILES_COUNT} != "0" ]]; then
+                    ./scripts/ci/ci_fix_ownership.sh
+                fi
+            fi
             print_info
-            print_info "${ACTION} start: ${THE_IMAGE_TYPE} image."
+            print_info "Build start: ${THE_IMAGE_TYPE} image."
             print_info
             # shellcheck source=hooks/build
             ./hooks/build | tee -a "${OUTPUT_LOG}"
             update_all_md5_files
             print_info
-            print_info "${ACTION} completed: ${THE_IMAGE_TYPE} image."
+            print_info "Build completed: ${THE_IMAGE_TYPE} image."
             print_info
         fi
     else
@@ -548,27 +561,12 @@ EOF
 # Rebuilds the image for tests if needed.
 #
 function rebuild_ci_image_if_needed() {
-    export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="false"
-
     export THE_IMAGE_TYPE="CI"
-
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci"
 
     rebuild_image_if_needed
 }
 
-
-#
-# Cleans up the CI image
-#
-function cleanup_ci_image() {
-    export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="false"
-    export AIRFLOW_CONTAINER_CLEANUP_IMAGES="true"
-
-    export THE_IMAGE_TYPE="CI"
-
-    rebuild_image_if_needed
-}
 
 #
 # Starts the script/ If VERBOSE variable is set to true, it enables verbose output of commands executed
@@ -602,6 +600,13 @@ function script_start {
 # Disables verbosity in the script
 #
 function script_end {
+    #shellcheck disable=2181
+    EXIT_CODE=$?
+    if [[ ${EXIT_CODE} != 0 ]]; then
+        echo "###########################################################################################"
+        echo "                   EXITING WITH STATUS CODE ${EXIT_CODE}"
+        echo "###########################################################################################"
+    fi
     if [[ ${VERBOSE:=} == "true" ]]; then
         set +x
     fi
@@ -609,7 +614,8 @@ function script_end {
     RUN_SCRIPT_TIME=$((END_SCRIPT_TIME-START_SCRIPT_TIME))
     print_info
     print_info "Finished the script $(basename "$0")"
-    print_info "It took ${RUN_SCRIPT_TIME} seconds"
+    print_info "Elapsed time spent in the script: ${RUN_SCRIPT_TIME} seconds"
+    print_info "Exit code ${EXIT_CODE}"
     print_info
     remove_cache_directory
 }
@@ -634,194 +640,6 @@ function basic_sanity_checks() {
     sanitize_mounted_files
 }
 
-
-function run_flake8() {
-    FILES=("$@")
-
-    if [[ "${#FILES[@]}" == "0" ]]; then
-        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint "/usr/local/bin/dumb-init"  \
-            --env PYTHONDONTWRITEBYTECODE \
-            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
-            --env AIRFLOW_CI_SILENT \
-            --env HOST_USER_ID="$(id -ur)" \
-            --env HOST_GROUP_ID="$(id -gr)" \
-            --rm \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/ci/in_container/run_flake8.sh" \
-            | tee -a "${OUTPUT_LOG}"
-    else
-        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint "/usr/local/bin/dumb-init"  \
-            --env PYTHONDONTWRITEBYTECODE \
-            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
-            --env AIRFLOW_CI_SILENT \
-            --env HOST_USER_ID="$(id -ur)" \
-            --env HOST_GROUP_ID="$(id -gr)" \
-            --rm \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/ci/in_container/run_flake8.sh" "${FILES[@]}" \
-            | tee -a "${OUTPUT_LOG}"
-    fi
-}
-
-function run_bats_tests() {
-    FILES=("$@")
-    if [[ "${#FILES[@]}" == "0" ]]; then
-        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
-            bats/bats:latest --tap -r /airflow/tests/bats | tee -a "${OUTPUT_LOG}"
-    else
-        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
-            bats/bats:latest --tap -r "${FILES[@]}" | tee -a "${OUTPUT_LOG}"
-    fi
-}
-
-
-function run_docs() {
-    docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
-            --entrypoint "/usr/local/bin/dumb-init"  \
-            --env PYTHONDONTWRITEBYTECODE \
-            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
-            --env AIRFLOW_CI_SILENT \
-            --env HOST_USER_ID="$(id -ur)" \
-            --env HOST_GROUP_ID="$(id -gr)" \
-            --rm \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/docs/build.sh" \
-            | tee -a "${OUTPUT_LOG}"
-}
-
-function run_check_license() {
-    docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
-            --entrypoint "/usr/local/bin/dumb-init"  \
-            --env PYTHONDONTWRITEBYTECODE \
-            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
-            --env AIRFLOW_CI_SILENT \
-            --env HOST_USER_ID="$(id -ur)" \
-            --env HOST_GROUP_ID="$(id -gr)" \
-            --rm \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/ci/in_container/run_check_licence.sh" \
-            | tee -a "${OUTPUT_LOG}"
-}
-
-function run_mypy() {
-    FILES=("$@")
-    if [[ "${#FILES[@]}" == "0" ]]; then
-        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint "/usr/local/bin/dumb-init"  \
-            --env PYTHONDONTWRITEBYTECODE \
-            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
-            --env AIRFLOW_CI_SILENT \
-            --env HOST_USER_ID="$(id -ur)" \
-            --env HOST_GROUP_ID="$(id -gr)" \
-            --rm \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/ci/in_container/run_mypy.sh" "airflow" "tests" "docs" \
-            | tee -a "${OUTPUT_LOG}"
-    else
-        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint "/usr/local/bin/dumb-init" \
-            --env PYTHONDONTWRITEBYTECODE \
-            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
-            --env AIRFLOW_CI_SILENT \
-            --env HOST_USER_ID="$(id -ur)" \
-            --env HOST_GROUP_ID="$(id -gr)" \
-            --rm \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/ci/in_container/run_mypy.sh" "${FILES[@]}" \
-            | tee -a "${OUTPUT_LOG}"
-    fi
-}
-
-function run_pylint_main() {
-    FILES=("$@")
-    if [[ "${#FILES[@]}" == "0" ]]; then
-        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint "/usr/local/bin/dumb-init"  \
-            --env PYTHONDONTWRITEBYTECODE \
-            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
-            --env AIRFLOW_CI_SILENT \
-            --env HOST_USER_ID="$(id -ur)" \
-            --env HOST_GROUP_ID="$(id -gr)" \
-            --rm \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/ci/in_container/run_pylint_main.sh" \
-            | tee -a "${OUTPUT_LOG}"
-    else
-        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint "/usr/local/bin/dumb-init" \
-            --env PYTHONDONTWRITEBYTECODE \
-            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
-            --env AIRFLOW_CI_SILENT \
-            --env HOST_USER_ID="$(id -ur)" \
-            --env HOST_GROUP_ID="$(id -gr)" \
-            --rm \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/ci/in_container/run_pylint_main.sh" "${FILES[@]}" \
-            | tee -a "${OUTPUT_LOG}"
-    fi
-}
-
-
-function run_pylint_tests() {
-    FILES=("$@")
-    if [[ "${#FILES[@]}" == "0" ]]; then
-        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint "/usr/local/bin/dumb-init"  \
-            --env PYTHONDONTWRITEBYTECODE \
-            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
-            --env AIRFLOW_CI_SILENT \
-            --env HOST_USER_ID="$(id -ur)" \
-            --env HOST_GROUP_ID="$(id -gr)" \
-            --rm \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/ci/in_container/run_pylint_tests.sh" \
-            | tee -a "${OUTPUT_LOG}"
-    else
-        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint "/usr/local/bin/dumb-init"  \
-            --env PYTHONDONTWRITEBYTECODE \
-            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
-            --env AIRFLOW_CI_SILENT \
-            --env HOST_USER_ID="$(id -ur)" \
-            --env HOST_GROUP_ID="$(id -gr)" \
-            --rm \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/ci/in_container/run_pylint_tests.sh" "${FILES[@]}" \
-            | tee -a "${OUTPUT_LOG}"
-    fi
-}
-
-function run_docker_lint() {
-    FILES=("$@")
-    if [[ "${#FILES[@]}" == "0" ]]; then
-        echo
-        echo "Running docker lint for all Dockerfiles"
-        echo
-        docker run \
-            -v "$(pwd):/root" \
-            -w /root \
-            --rm \
-            hadolint/hadolint /bin/hadolint Dockerfile*
-        echo
-        echo "Docker pylint completed with no errors"
-        echo
-    else
-        echo
-        echo "Running docker lint for $*"
-        echo
-        docker run \
-            -v "$(pwd):/root" \
-            -w /root \
-            --rm \
-            hadolint/hadolint /bin/hadolint "$@"
-        echo
-        echo "Docker pylint completed with no errors"
-        echo
-    fi
-}
-
 function filter_out_files_from_pylint_todo_list() {
   FILTERED_FILES=()
   set +e
@@ -839,21 +657,8 @@ function filter_out_files_from_pylint_todo_list() {
   export FILTERED_FILES
 }
 
-function refresh_pylint_todo() {
-    docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-        --env PYTHONDONTWRITEBYTECODE \
-        --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
-        --env AIRFLOW_CI_SILENT \
-        --env HOST_USER_ID="$(id -ur)" \
-        --env HOST_GROUP_ID="$(id -gr)" \
-        --rm \
-        "${AIRFLOW_CI_IMAGE}" \
-        /opt/airflow/scripts/ci/in_container/refresh_pylint_todo.sh \
-        | tee -a "${OUTPUT_LOG}"
-}
-
 function rebuild_all_images_if_needed_and_confirmed() {
-    AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="false"
+    NEEDS_DOCKER_BUILD="false"
     IMAGES_TO_REBUILD=()
 
     for THE_IMAGE_TYPE in "${IMAGES_TO_CHECK[@]}"
@@ -861,7 +666,7 @@ function rebuild_all_images_if_needed_and_confirmed() {
         check_if_docker_build_is_needed
     done
 
-    if [[ ${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED} == "true" ]]; then
+    if [[ ${NEEDS_DOCKER_BUILD} == "true" ]]; then
         print_info
         print_info "Docker image build is needed for ${IMAGES_TO_REBUILD[*]}!"
         print_info
@@ -871,7 +676,7 @@ function rebuild_all_images_if_needed_and_confirmed() {
         print_info
     fi
 
-    if [[ "${AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED}" == "true" ]]; then
+    if [[ "${NEEDS_DOCKER_BUILD}" == "true" ]]; then
         echo
         echo "Some of your images need to be rebuild because important files (like package list) has changed."
         echo
@@ -885,9 +690,6 @@ function rebuild_all_images_if_needed_and_confirmed() {
         echo "   The first command works incrementally from your last local build."
         echo "   The second command you use if you want to completely refresh your images from dockerhub."
         echo
-        export ACTION="rebuild"
-        export THE_IMAGE_TYPE="${IMAGES_TO_REBUILD[*]}"
-
         SKIP_REBUILD="false"
         confirm_image_rebuild
 
@@ -922,32 +724,39 @@ function build_image_on_ci() {
         "${AIRFLOW_SOURCES}/confirm" "Cleaning docker data and rebuilding"
     fi
 
-    export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
-    export FORCE_BUILD="true"
-    export VERBOSE="${VERBOSE:="false"}"
-
     # Cleanup docker installation. It should be empty in CI but let's not risk
     docker system prune --all --force
     rm -rf "${BUILD_CACHE_DIR}"
     mkdir -pv "${BUILD_CACHE_DIR}"
 
-    echo
-    echo "Finding changed file names ${TRAVIS_BRANCH}...HEAD"
-    echo
+    if [[ "${TRAVIS_PULL_REQUEST:=}" == "false" ]]; then
+        # If we are building a tag or a branch build, then we don't want to skip any tests
+        rebuild_ci_image_if_needed
+        return
+    else
+        # Don't try and find changed files for non-PR builds (tags, branch pushes etc.)
+        echo
+        echo "Finding changed file names ${TRAVIS_BRANCH}...HEAD"
+        echo
 
-    git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
-    git fetch origin "${TRAVIS_BRANCH}"
-    CHANGED_FILE_NAMES=$(git diff --name-only "remotes/origin/${TRAVIS_BRANCH}...HEAD")
-    echo
-    echo "Changed file names in this commit"
-    echo "${CHANGED_FILE_NAMES}"
-    echo
+        git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+        git fetch origin "${TRAVIS_BRANCH}"
+        CHANGED_FILE_NAMES=$(git diff --name-only "remotes/origin/${TRAVIS_BRANCH}...HEAD")
+        echo
+        echo "Changed file names in this commit"
+        echo "${CHANGED_FILE_NAMES}"
+        echo
+    fi
+
+    export FORCE_PULL_IMAGES="true"
+    export FORCE_BUILD="true"
+    export VERBOSE="${VERBOSE:="false"}"
 
     if [[ ${TRAVIS_JOB_NAME:=""} == "Tests"*"Kubernetes"* ]]; then
         match_files_regexp 'airflow/kubernetes/.*\.py' 'tests/runtime/kubernetes/.*\.py' \
             'airflow/www/.*\.py' 'airflow/www/.*\.js' 'airflow/www/.*\.html' \
             'scripts/ci/.*' 'airflow/example_dags/.*'
-        if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
+        if [[ ${FILE_MATCHES} == "true" ]]; then
             rebuild_ci_image_if_needed
         else
             touch "${BUILD_CACHE_DIR}"/.skip_tests
@@ -955,7 +764,7 @@ function build_image_on_ci() {
     elif [[ ${TRAVIS_JOB_NAME:=""} == "Tests"* ]]; then
         match_files_regexp '.*\.py' 'airflow/www/.*\.py' 'airflow/www/.*\.js' \
             'airflow/www/.*\.html' 'scripts/ci/.*' 'airflow/example_dags/.*'
-        if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
+        if [[ ${FILE_MATCHES} == "true" ]]; then
             rebuild_ci_image_if_needed
         else
             touch "${BUILD_CACHE_DIR}"/.skip_tests
@@ -985,7 +794,7 @@ function build_image_on_ci() {
     fi
 
     # Disable force pulling forced above
-    unset AIRFLOW_CONTAINER_FORCE_PULL_IMAGES
+    unset FORCE_PULL_IMAGES
     unset FORCE_BUILD
 }
 
@@ -998,12 +807,12 @@ function save_to_file {
     echo "$(eval echo "\$$1")" > "${BUILD_CACHE_DIR}/.$1"
 }
 
-function check_for_allowed_params {
+function check_and_save_allowed_param {
     _VARIABLE_NAME="${1}"
     _VARIABLE_DESCRIPTIVE_NAME="${2}"
     _FLAG="${3}"
     _ALLOWED_VALUES_ENV_NAME="_BREEZE_ALLOWED_${_VARIABLE_NAME}S"
-    _ALLOWED_VALUES=${!_ALLOWED_VALUES_ENV_NAME}
+    _ALLOWED_VALUES=" ${!_ALLOWED_VALUES_ENV_NAME//$'\n'/ } "
     _VALUE=${!_VARIABLE_NAME}
     if [[ ${_ALLOWED_VALUES:=} != *" ${_VALUE} "* ]]; then
         echo >&2
@@ -1022,4 +831,18 @@ function check_for_allowed_params {
         exit 1
     fi
     save_to_file "${_VARIABLE_NAME}"
+}
+
+function run_docs() {
+    docker run "${EXTRA_DOCKER_FLAGS[@]}" -t \
+            --entrypoint "/usr/local/bin/dumb-init"  \
+            --env PYTHONDONTWRITEBYTECODE \
+            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
+            --env AIRFLOW_CI_SILENT \
+            --env HOST_USER_ID="$(id -ur)" \
+            --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
+            "${AIRFLOW_CI_IMAGE}" \
+            "--" "/opt/airflow/docs/build.sh" \
+            | tee -a "${OUTPUT_LOG}"
 }

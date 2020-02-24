@@ -26,8 +26,10 @@ from sqlalchemy.orm.session import Session
 
 from airflow.exceptions import AirflowException
 from airflow.models.base import ID_LEN, Base
+from airflow.models.taskinstance import TaskInstance as TI
 from airflow.stats import Stats
-from airflow.ti_deps.dep_context import SCHEDULEABLE_STATES, DepContext
+from airflow.ti_deps.dep_context import DepContext
+from airflow.ti_deps.dependencies import SCHEDULEABLE_STATES
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
@@ -125,7 +127,7 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def find(dag_id=None, run_id=None, execution_date=None,
              state=None, external_trigger=None, no_backfills=False,
-             session=None):
+             session=None, execution_start_date=None, execution_end_date=None):
         """
         Returns a set of dag runs for the given search criteria.
 
@@ -134,7 +136,7 @@ class DagRun(Base, LoggingMixin):
         :param run_id: defines the run id for this dag run
         :type run_id: str
         :param execution_date: the execution date
-        :type execution_date: datetime.datetime
+        :type execution_date: datetime.datetime or list[datetime.datetime]
         :param state: the state of the dag run
         :type state: str
         :param external_trigger: whether this dag run is externally triggered
@@ -144,6 +146,10 @@ class DagRun(Base, LoggingMixin):
         :type no_backfills: bool
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
+        :param execution_start_date: dag run that was executed from this date
+        :type execution_start_date: datetime.datetime
+        :param execution_end_date: dag run that was executed until this date
+        :type execution_end_date: datetime.datetime
         """
         DR = DagRun
 
@@ -157,6 +163,12 @@ class DagRun(Base, LoggingMixin):
                 qry = qry.filter(DR.execution_date.in_(execution_date))
             else:
                 qry = qry.filter(DR.execution_date == execution_date)
+        if execution_start_date and execution_end_date:
+            qry = qry.filter(DR.execution_date.between(execution_start_date, execution_end_date))
+        elif execution_start_date:
+            qry = qry.filter(DR.execution_date >= execution_start_date)
+        elif execution_end_date:
+            qry = qry.filter(DR.execution_date <= execution_end_date)
         if state:
             qry = qry.filter(DR.state == state)
         if external_trigger is not None:
@@ -284,15 +296,27 @@ class DagRun(Base, LoggingMixin):
         none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tasks)
         none_task_concurrency = all(t.task.task_concurrency is None
                                     for t in unfinished_tasks)
-        # small speed up
-        if unfinished_tasks and none_depends_on_past and none_task_concurrency:
+        if unfinished_tasks:
             scheduleable_tasks = [ut for ut in unfinished_tasks if ut.state in SCHEDULEABLE_STATES]
+            if none_depends_on_past and none_task_concurrency:
+                # small speed up
+                self.log.debug(
+                    "number of scheduleable tasks for %s: %s task(s)",
+                    self, len(scheduleable_tasks))
+                ready_tis, changed_tis = self._get_ready_tis(scheduleable_tasks, finished_tasks, session)
+                self.log.debug("ready tis length for %s: %s task(s)", self, len(ready_tis))
+                are_runnable_tasks = ready_tis or self._are_premature_tis(
+                    unfinished_tasks, finished_tasks, session) or changed_tis
+            else:
+                # slow path
+                for ti in scheduleable_tasks:
+                    if ti.are_dependencies_met(
+                        dep_context=DepContext(flag_upstream_failed=True),
+                        session=session
+                    ):
+                        self.log.debug('Queuing task: %s', ti)
+                        ready_tis.append(ti)
 
-            self.log.debug("number of scheduleable tasks for %s: %s task(s)", self, len(scheduleable_tasks))
-            ready_tis, changed_tis = self._get_ready_tis(scheduleable_tasks, finished_tasks, session)
-            self.log.debug("ready tis length for %s: %s task(s)", self, len(ready_tis))
-            are_runnable_tasks = ready_tis or self._are_premature_tis(
-                unfinished_tasks, finished_tasks, session) or changed_tis
         duration = (timezone.utcnow() - start_dttm)
         Stats.timing("dagrun.dependency-check.{}".format(self.dag_id), duration)
 
@@ -336,18 +360,31 @@ class DagRun(Base, LoggingMixin):
         return ready_tis
 
     def _get_ready_tis(self, scheduleable_tasks, finished_tasks, session):
+        old_states = {}
         ready_tis = []
         changed_tis = False
+
+        if not scheduleable_tasks:
+            return ready_tis, changed_tis
+
+        # Check dependencies
         for st in scheduleable_tasks:
-            st_old_state = st.state
+            old_state = st.state
             if st.are_dependencies_met(
                 dep_context=DepContext(
                     flag_upstream_failed=True,
                     finished_tasks=finished_tasks),
                     session=session):
                 ready_tis.append(st)
-            elif st_old_state != st.current_state(session=session):
-                changed_tis = True
+            else:
+                old_states[st.key] = old_state
+
+        # Check if any ti changed state
+        tis_filter = TI.filter_for_tis(old_states.keys())
+        if tis_filter is not None:
+            fresh_tis = session.query(TI).filter(tis_filter).all()
+            changed_tis = any(ti.state != old_states[ti.key] for ti in fresh_tis)
+
         return ready_tis, changed_tis
 
     def _are_premature_tis(self, unfinished_tasks, finished_tasks, session):

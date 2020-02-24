@@ -16,57 +16,28 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-import unittest
-from typing import Optional, Sequence
+from contextlib import contextmanager
+from tempfile import TemporaryDirectory
+from typing import List, Optional, Sequence
+
+import pytest
+from google.auth.environment_vars import CREDENTIALS
 
 from airflow.providers.google.cloud.utils.credentials_provider import provide_gcp_conn_and_credentials
+from tests.contrib.utils.logging_command_executor import get_executor
+from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
+from tests.test_utils import AIRFLOW_MAIN_FOLDER
+from tests.test_utils.system_tests_class import SystemTest
 
-AIRFLOW_MAIN_FOLDER = os.path.realpath(
-    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
-)
 CLOUD_DAG_FOLDER = os.path.join(
     AIRFLOW_MAIN_FOLDER, "airflow", "providers", "google", "cloud", "example_dags"
+)
+MARKETING_DAG_FOLDER = os.path.join(
+    AIRFLOW_MAIN_FOLDER, "airflow", "providers", "google", "marketing_platform", "example_dags"
 )
 POSTGRES_LOCAL_EXECUTOR = os.path.join(
     AIRFLOW_MAIN_FOLDER, "tests", "test_utils", "postgres_local_executor.cfg"
 )
-
-
-SKIP_TEST_WARNING = """
-The test is only run when the test is run in environment with GCP-system-tests enabled
-environment. You can enable it in one of two ways:
-
-* Set GCP_CONFIG_DIR environment variable to point to the GCP configuration
-  directory which keeps the {} key.
-* Run this test within automated environment variable workspace where
-  config directory is checked out next to the airflow one.
-
-"""
-
-SKIP_LONG_TEST_WARNING = """
-The test is only run when the test is run in with GCP-system-tests enabled
-environment. And environment variable GCP_ENABLE_LONG_TESTS is set to True.
-You can enable it in one of two ways:
-
-* Set GCP_CONFIG_DIR environment variable to point to the GCP configuration
-  directory which keeps variables.env file with environment variables to set
-  and keys directory which keeps service account keys in .json format and
-  set GCP_ENABLE_LONG_TESTS to True
-* Run this test within automated environment variable workspace where
-  config directory is checked out next to the airflow one.
-"""
-
-
-LOCAL_EXECUTOR_WARNING = """
-The test requires local executor. Please set AIRFLOW_CONFIG variable to '{}'
-and make sure you have a Postgres server running locally and
-airflow/airflow.db database created.
-
-You can create the database via these commands:
-'createuser root'
-'createdb airflow/airflow.db`
-
-"""
 
 
 def resolve_full_gcp_key_path(key: str) -> str:
@@ -77,40 +48,9 @@ def resolve_full_gcp_key_path(key: str) -> str:
     :type key: str
     :returns: Full path to the key
     """
-    path = os.environ.get("GCP_CONFIG_DIR", "/config")
-    key = os.path.join(path, "keys", key)
+    path = os.environ.get("CREDENTIALS_DIR", "/files/airflow-breeze-config/keys")
+    key = os.path.join(path, key)
     return key
-
-
-def skip_gcp_system(
-    service_key: str, long_lasting: bool = False, require_local_executor: bool = False
-):
-    """
-    Decorator for skipping GCP system tests.
-
-    :param service_key: name of the service key that will be used to provide credentials
-    :type service_key: str
-    :param long_lasting: set True if a test take relatively long time
-    :type long_lasting: bool
-    :param require_local_executor: set True if test config must use local executor
-    :type require_local_executor: bool
-    """
-    try:
-        full_key_path = resolve_full_gcp_key_path(service_key)
-        with open(full_key_path):
-            pass
-    except FileNotFoundError:
-        return unittest.skip(SKIP_TEST_WARNING.format(service_key))
-
-    if long_lasting and os.environ.get("GCP_ENABLE_LONG_TESTS") == "True":
-        return unittest.skip(SKIP_LONG_TEST_WARNING)
-
-    if require_local_executor and POSTGRES_LOCAL_EXECUTOR != os.environ.get(
-        "AIRFLOW_CONFIG"
-    ):
-        return unittest.skip(LOCAL_EXECUTOR_WARNING.format(POSTGRES_LOCAL_EXECUTOR))
-
-    return lambda cls: cls
 
 
 def provide_gcp_context(
@@ -139,3 +79,97 @@ def provide_gcp_context(
     return provide_gcp_conn_and_credentials(
         key_file_path=key_file_path, scopes=scopes, project_id=project_id
     )
+
+
+@pytest.mark.system("google.cloud")
+class GoogleSystemTest(SystemTest):
+    @staticmethod
+    def _project_id():
+        return os.environ.get("GCP_PROJECT_ID")
+
+    @staticmethod
+    def _service_key():
+        return os.environ.get(CREDENTIALS)
+
+    @staticmethod
+    @contextmanager
+    def authentication():
+        GoogleSystemTest._authenticate()
+        try:
+            yield
+        finally:
+            GoogleSystemTest._revoke_authentication()
+
+    @staticmethod
+    def _authenticate():
+        """
+        Authenticate with service account specified via key name.
+        Required only when we use gcloud / gsutil.
+        """
+        executor = get_executor()
+        executor.execute_cmd(
+            [
+                "gcloud",
+                "auth",
+                "activate-service-account",
+                f"--key-file={GoogleSystemTest._service_key()}",
+                f"--project={GoogleSystemTest._project_id()}",
+            ]
+        )
+
+    @staticmethod
+    def _revoke_authentication():
+        """
+        Change default authentication to none - which is not existing one.
+        """
+        executor = get_executor()
+        executor.execute_cmd(
+            [
+                "gcloud",
+                "config",
+                "set",
+                "account",
+                "none",
+                f"--project={GoogleSystemTest._project_id()}",
+            ]
+        )
+
+    @staticmethod
+    def execute_with_ctx(cmd: List[str], key: str = GCP_GCS_KEY):
+        """
+        Executes command with context created by provide_gcp_context and activated
+        service key.
+        """
+        executor = get_executor()
+        with provide_gcp_context(key), GoogleSystemTest.authentication():
+            env = os.environ.copy()
+            executor.execute_cmd(cmd=cmd, env=env)
+
+    @staticmethod
+    def create_gcs_bucket(name: str, location: Optional[str] = None) -> None:
+        cmd = ["gsutil", "mb"]
+        if location:
+            cmd += ["-c", "regional", "-l", location]
+        cmd += [f"gs://{name}"]
+        GoogleSystemTest.execute_with_ctx(cmd, key=GCP_GCS_KEY)
+
+    @staticmethod
+    def delete_gcs_bucket(name: str):
+        cmd = ["gsutil", "-m", "rm", "-r", f"gs://{name}"]
+        GoogleSystemTest.execute_with_ctx(cmd, key=GCP_GCS_KEY)
+
+    @staticmethod
+    def upload_to_gcs(source_uri: str, target_uri: str):
+        GoogleSystemTest.execute_with_ctx(
+            ["gsutil", "cp", f"{target_uri}", f"{source_uri}"], key=GCP_GCS_KEY
+        )
+
+    @staticmethod
+    def upload_content_to_gcs(lines: str, bucket_uri: str, filename: str):
+        with TemporaryDirectory(prefix="airflow-gcp") as tmp_dir:
+            tmp_path = os.path.join(tmp_dir, filename)
+            with open(tmp_path, "w") as file:
+                file.writelines(lines)
+                file.flush()
+            os.chmod(tmp_path, 555)
+            GoogleSystemTest.upload_to_gcs(bucket_uri, tmp_path)

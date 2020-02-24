@@ -20,7 +20,7 @@ import unittest
 
 import mock
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook
 from airflow.providers.amazon.aws.sensors.athena import AthenaSensor
 

@@ -48,7 +48,7 @@ class TestAwsBatchOperator(unittest.TestCase):
     @mock.patch.dict("os.environ", AWS_DEFAULT_REGION=AWS_REGION)
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
-    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsHook")
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook")
     def setUp(self, aws_hook_mock):
         self.aws_hook_mock = aws_hook_mock
         self.batch = AwsBatchOperator(

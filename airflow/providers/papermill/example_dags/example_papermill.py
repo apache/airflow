@@ -25,8 +25,8 @@ from datetime import timedelta
 
 import scrapbook as sb
 
+from airflow import DAG
 from airflow.lineage import AUTO
-from airflow.models import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.papermill.operators.papermill import PapermillOperator
 from airflow.utils.dates import days_ago

@@ -21,7 +21,7 @@ import unittest
 import mock
 from google.cloud.dataproc_v1beta2.types import JobStatus  # pylint: disable=no-name-in-module
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
 from airflow.version import version
 

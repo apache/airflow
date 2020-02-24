@@ -24,6 +24,7 @@ from typing import List, Optional, Union
 from unittest.mock import mock_open, patch
 
 import pendulum
+import pytest
 from freezegun import freeze_time
 from parameterized import param, parameterized
 from sqlalchemy.orm.session import Session
@@ -37,7 +38,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import PythonOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.sensors.python import PythonSensor
-from airflow.ti_deps.dep_context import REQUEUEABLE_DEPS, RUNNABLE_STATES, RUNNING_DEPS
+from airflow.ti_deps.dependencies import REQUEUEABLE_DEPS, RUNNABLE_STATES, RUNNING_DEPS
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
@@ -606,8 +607,7 @@ class TestTaskInstance(unittest.TestCase):
         period = ti.end_date.add(seconds=1) - ti.end_date.add(seconds=15)
         self.assertTrue(date in period)
 
-    @patch.object(TI, 'pool_full')
-    def test_reschedule_handling(self, mock_pool_full):
+    def test_reschedule_handling(self):
         """
         Test that task reschedules are handled properly
         """
@@ -702,8 +702,7 @@ class TestTaskInstance(unittest.TestCase):
         done, fail = True, False
         run_ti_and_assert(date4, date3, date4, 60, State.SUCCESS, 3, 0)
 
-    @patch.object(TI, 'pool_full')
-    def test_reschedule_handling_clear_reschedules(self, mock_pool_full):
+    def test_reschedule_handling_clear_reschedules(self):
         """
         Test that task reschedules clearing are handled properly
         """
@@ -1496,3 +1495,26 @@ class TestTaskInstance(unittest.TestCase):
 
         context_arg_2 = mock_on_retry_2.call_args[0][0]
         assert context_arg_2 and "task_instance" in context_arg_2
+
+
+@pytest.mark.parametrize("pool_override", [None, "test_pool2"])
+def test_refresh_from_task(pool_override):
+    task = DummyOperator(task_id="dummy", queue="test_queue", pool="test_pool1", pool_slots=3,
+                         priority_weight=10, run_as_user="test", retries=30,
+                         executor_config={"KubernetesExecutor": {"image": "myCustomDockerImage"}})
+    ti = TI(task, execution_date=pendulum.datetime(2020, 1, 1))
+    ti.refresh_from_task(task, pool_override=pool_override)
+
+    assert ti.queue == task.queue
+
+    if pool_override:
+        assert ti.pool == pool_override
+    else:
+        assert ti.pool == task.pool
+
+    assert ti.pool_slots == task.pool_slots
+    assert ti.priority_weight == task.priority_weight_total
+    assert ti.run_as_user == task.run_as_user
+    assert ti.max_tries == task.retries
+    assert ti.executor_config == task.executor_config
+    assert ti.operator == DummyOperator.__name__

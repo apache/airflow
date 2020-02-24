@@ -18,7 +18,7 @@
 
 import requests
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 OK_STATUS_CODE = 202

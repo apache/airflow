@@ -21,9 +21,9 @@ from unittest.mock import patch
 import mock
 import requests
 
-from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
 from airflow.models import TaskInstance
+from airflow.models.dag import DAG
 from airflow.providers.http.operators.http import SimpleHttpOperator
 from airflow.providers.http.sensors.http import HttpSensor
 from airflow.utils.timezone import datetime

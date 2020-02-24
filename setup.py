@@ -24,6 +24,7 @@ import subprocess
 import sys
 import unittest
 from importlib import util
+from os.path import dirname
 from typing import List
 
 from setuptools import Command, find_packages, setup
@@ -73,6 +74,7 @@ class CleanCommand(Command):
     # noinspection PyMethodMayBeStatic
     def run(self):
         """Run command to remove temporary files and directories."""
+        os.chdir(dirname(__file__))
         os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')
 
 
@@ -113,7 +115,7 @@ def git_version(version_: str) -> str:
     try:
         import git
         try:
-            repo = git.Repo('.git')
+            repo = git.Repo(os.path.join(*[dirname(__file__), '.git']))
         except git.NoSuchPathError:
             logger.warning('.git directory not found: Cannot compute the git version')
             return ''
@@ -133,7 +135,7 @@ def git_version(version_: str) -> str:
         return 'no_git_version'
 
 
-def write_version(filename: str = os.path.join(*["airflow", "git_version"])):
+def write_version(filename: str = os.path.join(*[dirname(__file__), "airflow", "git_version"])):
     """
     Write the Semver version + git hash to file, e.g. ".dev0+2f635dc265e78db6708f59f68e8009abb92c1e65".
 
@@ -206,8 +208,9 @@ druid = [
     'pydruid>=0.4.1',
 ]
 elasticsearch = [
-    'elasticsearch>=5.0.0,<6.0.0',
-    'elasticsearch-dsl>=5.0.0,<6.0.0',
+    'elasticsearch>7',
+    'elasticsearch-dbapi==0.1.0',
+    'elasticsearch-dsl>=5.0.0',
 ]
 flask_oauth = [
     'Flask-OAuthlib>=0.9.1',
@@ -335,6 +338,7 @@ sentry = [
     'blinker>=1.1',
     'sentry-sdk>=0.8.0',
 ]
+singularity = ['spython>=0.0.56']
 slack = [
     'slackclient>=1.0.0,<2.0.0',
 ]
@@ -350,6 +354,9 @@ ssh = [
 statsd = [
     'statsd>=3.3.0, <4.0',
 ]
+tableau = [
+    'tableauserverclient==0.9',
+]
 vertica = [
     'vertica-python>=0.5.1',
 ]
@@ -361,6 +368,9 @@ webhdfs = [
 ]
 winrm = [
     'pywinrm~=0.4',
+]
+yandexcloud = [
+    'yandexcloud>=0.22.0',
 ]
 zendesk = [
     'zdesk',
@@ -414,11 +424,11 @@ else:
 
 devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
 devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
-devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + datadog + devel +
-             doc + docker + druid + elasticsearch + gcp + grpc + jdbc + jenkins +
-             kerberos + kubernetes + ldap + odbc + oracle + pagerduty + papermill +
-             password + pinot + redis + salesforce + samba + segment + sendgrid +
-             sentry + slack + snowflake + ssh + statsd + virtualenv + webhdfs + zendesk)
+devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + datadog + devel + doc + docker + druid +
+             elasticsearch + gcp + grpc + jdbc + jenkins + kerberos + kubernetes + ldap + odbc + oracle +
+             pagerduty + papermill + password + pinot + redis + salesforce + samba + segment + sendgrid +
+             sentry + singularity + slack + snowflake + ssh + statsd + tableau + virtualenv + webhdfs +
+             yandexcloud + zendesk)
 
 # Snakebite are not Python 3 compatible :'(
 if PY3:
@@ -479,6 +489,7 @@ def do_setup():
             'markdown>=2.5.2, <3.0',
             'pandas>=0.17.1, <1.0.0',
             'pendulum==1.4.4',
+            'pep562~=1.0;python_version<"3.7"',
             'psutil>=4.2.0, <6.0.0',
             'pygments>=2.0.1, <3.0',
             'python-daemon>=2.1.1, <2.2',
@@ -490,14 +501,13 @@ def do_setup():
             'tabulate>=0.7.5, <0.9',
             'tenacity==4.12.0',
             'termcolor==1.1.0',
-            'text-unidecode==1.3',
+            'text-unidecode==1.2',
             'thrift>=0.9.2',
             'typing;python_version<"3.6"',
             'typing-extensions>=3.7.4;python_version<"3.8"',
             'tzlocal>=1.4,<2.0.0',
             'unicodecsv>=0.14.1',
             'werkzeug<1.0.0',
-            'zope.deprecation>=4.0, <5.0',
         ],
         #####################################################################################################
         # IMPORTANT NOTE!!!!!!!!!!!!!!!
@@ -560,13 +570,16 @@ def do_setup():
             'segment': segment,
             'sendgrid': sendgrid,
             'sentry': sentry,
+            'singularity': singularity,
             'slack': slack,
             'snowflake': snowflake,
             'ssh': ssh,
             'statsd': statsd,
+            'tableau': tableau,
             'vertica': vertica,
             'webhdfs': webhdfs,
             'winrm': winrm,
+            'yandexcloud': yandexcloud,
         },
         classifiers=[
             'Development Status :: 5 - Production/Stable',

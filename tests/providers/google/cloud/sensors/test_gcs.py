@@ -20,8 +20,8 @@ from unittest import TestCase, mock
 
 import pendulum
 
-from airflow import DAG, AirflowException
 from airflow.exceptions import AirflowSensorTimeout
+from airflow.models.dag import DAG, AirflowException
 from airflow.providers.google.cloud.sensors.gcs import (
     GCSObjectExistenceSensor, GCSObjectsWtihPrefixExistenceSensor, GCSObjectUpdateSensor,
     GCSUploadSessionCompleteSensor, ts_function,

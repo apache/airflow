@@ -125,3 +125,41 @@ You can use :ref:`Jinja templating <jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerRunReportOperator`
 parameters which allows you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
+
+.. _howto/operator:GoogleCampaignManagerBatchInsertConversionsOperator:
+
+Inserting a conversions
+^^^^^^^^^^^^^^^^^^^^^^^
+
+To insert Campaign Manager conversions you can use the
+:class:`~airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerBatchInsertConversionsOperator`.
+
+.. exampleinclude:: ../../../../airflow/providers/google/marketing_platform/example_dags/example_campaign_manager.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_campaign_manager_insert_conversions]
+    :end-before: [END howto_campaign_manager_insert_conversions]
+
+You can use :ref:`Jinja templating <jinja-templating>` with
+:template-fields:`airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerBatchInsertConversionsOperator`
+parameters which allows you to dynamically determine values.
+The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
+
+.. _howto/operator:GoogleCampaignManagerBatchUpdateConversionsOperator:
+
+Updating a conversions
+^^^^^^^^^^^^^^^^^^^^^^
+
+To update Campaign Manager conversions you can use the
+:class:`~airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerBatchUpdateConversionsOperator`.
+
+.. exampleinclude:: ../../../../airflow/providers/google/marketing_platform/example_dags/example_campaign_manager.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_campaign_manager_update_conversions]
+    :end-before: [END howto_campaign_manager_update_conversions]
+
+You can use :ref:`Jinja templating <jinja-templating>` with
+:template-fields:`airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerBatchUpdateConversionsOperator`
+parameters which allows you to dynamically determine values.
+The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.

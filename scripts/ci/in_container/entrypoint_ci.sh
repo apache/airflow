@@ -15,23 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-#
-# Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
-set -euo pipefail
-
-MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
-
-if [[ ${AIRFLOW_CI_VERBOSE:="false"} == "true" ]]; then
+if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
     set -x
 fi
 
-# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
-. "${MY_DIR}/_in_container_utils.sh"
-
-in_container_basic_sanity_check
-
-in_container_script_start
+# shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
 TRAVIS=${TRAVIS:=}
 
@@ -41,7 +30,6 @@ PYTHON_VERSION=${PYTHON_VERSION:=3.6}
 BACKEND=${BACKEND:=sqlite}
 KUBERNETES_MODE=${KUBERNETES_MODE:=""}
 KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
-RECREATE_KIND_CLUSTER=${RECREATE_KIND_CLUSTER:="true"}
 ENABLE_KIND_CLUSTER=${ENABLE_KIND_CLUSTER:="false"}
 RUNTIME=${RUNTIME:=""}
 
@@ -63,26 +51,42 @@ echo
 ARGS=( "$@" )
 
 RUN_TESTS=${RUN_TESTS:="true"}
+INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION:=""}"
 
-if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/node_modules" ]]; then
-    echo
-    echo "Installing node modules as they are not yet installed (Sources mounted from Host)"
-    echo
-    pushd "${AIRFLOW_SOURCES}/airflow/www/" &>/dev/null || exit 1
-    yarn install --frozen-lockfile
-    echo
-    popd &>/dev/null || exit 1
-fi
-if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/static/dist" ]]; then
-    pushd "${AIRFLOW_SOURCES}/airflow/www/" &>/dev/null || exit 1
-    echo
-    echo "Building production version of javascript files (Sources mounted from Host)"
-    echo
-    echo
-    yarn run prod
-    echo
-    echo
-    popd &>/dev/null || exit 1
+if [[ ${INSTALL_AIRFLOW_VERSION} == "current" ]]; then
+    if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/node_modules" ]]; then
+        echo
+        echo "Installing node modules as they are not yet installed (Sources mounted from Host)"
+        echo
+        pushd "${AIRFLOW_SOURCES}/airflow/www/" &>/dev/null || exit 1
+        yarn install --frozen-lockfile
+        echo
+        popd &>/dev/null || exit 1
+    fi
+    if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/static/dist" ]]; then
+        pushd "${AIRFLOW_SOURCES}/airflow/www/" &>/dev/null || exit 1
+        echo
+        echo "Building production version of javascript files (Sources mounted from Host)"
+        echo
+        echo
+        yarn run prod
+        echo
+        echo
+        popd &>/dev/null || exit 1
+    fi
+    # Cleanup the logs, tmp when entering the environment
+    sudo rm -rf "${AIRFLOW_SOURCES}"/logs/*
+    sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
+    mkdir -p "${AIRFLOW_SOURCES}"/logs/
+    mkdir -p "${AIRFLOW_SOURCES}"/tmp/
+    export PYTHONPATH=${AIRFLOW_SOURCES}
+else
+    if [[ ${AIRFLOW_VERSION} == *1.10* || ${INSTALL_AIRFLOW_VERSION} == *1.10* ]]; then
+        export RUN_AIRFLOW_1_10="true"
+    else
+        export RUN_AIRFLOW_1_10="false"
+    fi
+    install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}"
 fi
 
 export HADOOP_DISTRO="${HADOOP_DISTRO:="cdh"}"
@@ -104,16 +108,9 @@ if [[ ! -h /home/travis/build/apache/airflow ]]; then
   sudo ln -s "${AIRFLOW_SOURCES}" /home/travis/build/apache/airflow
 fi
 
-# Cleanup the logs, tmp when entering the environment
-sudo rm -rf "${AIRFLOW_SOURCES}"/logs/*
-sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
-mkdir -p "${AIRFLOW_SOURCES}"/logs/
-mkdir -p "${AIRFLOW_SOURCES}"/tmp/
-
 mkdir -pv "${AIRFLOW_HOME}/logs/"
 cp -f "${MY_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
 
-export PYTHONPATH=${AIRFLOW_SOURCES}
 
 "${MY_DIR}/check_environment.sh"
 
@@ -167,13 +164,32 @@ if [[ ${RUNTIME:=""} == "kubernetes" ]]; then
     export AIRFLOW_KUBERNETES_IMAGE_TAG
 fi
 
-
 if [[ "${ENABLE_KIND_CLUSTER}" == "true" ]]; then
     export CLUSTER_NAME="airflow-python-${PYTHON_VERSION}-${KUBERNETES_VERSION}"
     "${MY_DIR}/kubernetes/setup_kind_cluster.sh"
     if [[ ${KIND_CLUSTER_OPERATION} == "stop" ]]; then
         exit 1
     fi
+fi
+
+export FILES_DIR="/files"
+export AIRFLOW_BREEZE_CONFIG_DIR="${FILES_DIR}/airflow-breeze-config"
+VARIABLES_ENV_FILE="variables.env"
+
+if [[ -d "${AIRFLOW_BREEZE_CONFIG_DIR}" && \
+    -f "${AIRFLOW_BREEZE_CONFIG_DIR}/${VARIABLES_ENV_FILE}" ]]; then
+    pushd "${AIRFLOW_BREEZE_CONFIG_DIR}" >/dev/null 2>&1 || exit 1
+    echo
+    echo "Sourcing environment variables from ${VARIABLES_ENV_FILE} in ${AIRFLOW_BREEZE_CONFIG_DIR}"
+    echo
+     # shellcheck disable=1090
+    source "${VARIABLES_ENV_FILE}"
+    popd >/dev/null 2>&1 || exit 1
+else
+    echo
+    echo "You can add ${AIRFLOW_BREEZE_CONFIG_DIR} directory and place ${VARIABLES_ENV_FILE}"
+    echo "In it to make breeze source the variables automatically for you"
+    echo
 fi
 
 set +u
@@ -224,7 +240,11 @@ if [[ -n ${RUNTIME} ]]; then
     fi
 fi
 
-ARGS=("${CI_ARGS[@]}" "${TESTS_TO_RUN}")
-"${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
 
-in_container_script_end
+ARGS=("${CI_ARGS[@]}" "${TESTS_TO_RUN}")
+
+if [[ ${RUN_SYSTEM_TESTS:="false"} == "true" ]]; then
+    "${MY_DIR}/run_system_tests.sh" "${ARGS[@]}"
+else
+    "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
+fi

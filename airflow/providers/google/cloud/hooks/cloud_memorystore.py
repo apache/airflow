@@ -27,7 +27,8 @@ from google.cloud.redis_v1.gapic.enums import FailoverInstanceRequest
 from google.cloud.redis_v1.types import FieldMask, InputConfig, Instance, OutputConfig
 from google.protobuf.json_format import ParseDict
 
-from airflow import AirflowException, version
+from airflow import version
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 

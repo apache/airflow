@@ -21,7 +21,7 @@ import unittest
 from mock import ANY, Mock, PropertyMock, patch
 from parameterized import parameterized
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.text_to_speech import CloudTextToSpeechSynthesizeOperator
 
 PROJECT_ID = "project-id"

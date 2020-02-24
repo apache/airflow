@@ -23,7 +23,7 @@ from unittest import TestCase
 import mock
 from parameterized import parameterized
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.cloud_build import BuildProcessor, CloudBuildCreateOperator
 
 TEST_CREATE_BODY = {

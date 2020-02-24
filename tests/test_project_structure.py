@@ -16,6 +16,7 @@
 # under the License.
 
 import glob
+import itertools
 import mmap
 import os
 import unittest
@@ -30,8 +31,6 @@ MISSING_TEST_FILES = {
     'tests/providers/apache/cassandra/sensors/test_table.py',
     'tests/providers/apache/hdfs/sensors/test_web_hdfs.py',
     'tests/providers/apache/hive/operators/test_vertica_to_hive.py',
-    'tests/providers/apache/hive/sensors/test_hive_partition.py',
-    'tests/providers/apache/hive/sensors/test_metastore_partition.py',
     'tests/providers/apache/pig/operators/test_pig.py',
     'tests/providers/apache/spark/hooks/test_spark_jdbc_script.py',
     'tests/providers/cncf/kubernetes/operators/test_kubernetes_pod.py',
@@ -48,7 +47,6 @@ MISSING_TEST_FILES = {
     'tests/providers/microsoft/mssql/hooks/test_mssql.py',
     'tests/providers/microsoft/mssql/operators/test_mssql.py',
     'tests/providers/oracle/operators/test_oracle.py',
-    'tests/providers/presto/operators/test_presto_check.py',
     'tests/providers/qubole/hooks/test_qubole.py',
     'tests/providers/samba/hooks/test_samba.py',
     'tests/providers/sqlite/operators/test_sqlite.py',
@@ -130,3 +128,140 @@ class TestProjectStructure(unittest.TestCase):
                 "Thank you very much.\n"
                 "Can you remove it from the list of missing tests, please?"
             )
+
+
+class TestGoogleProviderProjectStructure(unittest.TestCase):
+    MISSING_EXAMPLE_DAGS = {
+        ('cloud', 'text_to_speech'),
+        ('cloud', 'gcs_to_bigquery'),
+        ('cloud', 'adls_to_gcs'),
+        ('cloud', 'sql_to_gcs'),
+        ('cloud', 's3_to_gcs'),
+        ('cloud', 'translate_speech'),
+        ('cloud', 'bigquery_to_mysql'),
+        ('cloud', 'speech_to_text'),
+        ('cloud', 'cassandra_to_gcs'),
+        ('cloud', 'bigquery_to_bigquery'),
+        ('cloud', 'mysql_to_gcs'),
+        ('cloud', 'mssql_to_gcs'),
+        ('cloud', 'bigquery_to_gcs'),
+        ('cloud', 'local_to_gcs')
+    }
+
+    MISSING_DOC_GUIDES = {
+        'adls_to_gcs',
+        'bigquery',
+        'bigquery_to_bigquery',
+        'bigquery_to_gcs',
+        'bigquery_to_mysql',
+        'cassandra_to_gcs',
+        'dataflow',
+        'dataproc',
+        'datastore',
+        'dlp',
+        'gcs_to_bigquery',
+        'kubernetes_engine',
+        'local_to_gcs',
+        'mlengine',
+        'mssql_to_gcs',
+        'mysql_to_gcs',
+        'postgres_to_gcs',
+        's3_to_gcs',
+        'speech_to_text',
+        'sql_to_gcs',
+        'tasks',
+        'text_to_speech',
+        'translate_speech'
+    }
+
+    def test_example_dags(self):
+        operators_modules = self.find_resource_files(resource_type="operators")
+        example_dags_files = self.find_resource_files(resource_type="example_dags")
+        # Generate tuple of department and service e.g. ('marketing_platform', 'display_video')
+        operator_sets = [
+            (f.split("/")[-3], f.split("/")[-1].rsplit(".")[0]) for f in operators_modules
+        ]
+        example_sets = [
+            (f.split("/")[-3], f.split("/")[-1].rsplit(".")[0].replace("example_", "", 1))
+            for f in example_dags_files
+        ]
+
+        def has_example_dag(operator_set):
+            for e in example_sets:
+                if e[0] != operator_set[0]:
+                    continue
+                if e[1].startswith(operator_set[1]):
+                    return True
+
+            return False
+
+        with self.subTest("Detect missing example dags"):
+            missing_example = set(s for s in operator_sets if not has_example_dag(s))
+            missing_example -= self.MISSING_EXAMPLE_DAGS
+            self.assertEqual(set(), missing_example)
+
+        with self.subTest("Keep update missing example dags list"):
+            new_example_dag = set(example_sets).intersection(set(self.MISSING_EXAMPLE_DAGS))
+            if new_example_dag:
+                new_example_dag_text = '\n'.join(str(f) for f in new_example_dag)
+                self.fail(
+                    "You've added a example dag currently listed as missing:\n"
+                    f"{new_example_dag_text}"
+                    "\n"
+                    "Thank you very much.\n"
+                    "Can you remove it from the list of missing example, please?"
+                )
+
+    def test_documentation(self):
+        doc_files = glob.glob(f"{ROOT_FOLDER}/docs/howto/operator/gcp/*.rst")
+        operators_modules = self.find_resource_files(resource_type="operators")
+        operator_names = {f.split("/")[-1].rsplit(".")[0] for f in operators_modules}
+        doc_names = {
+            f.split("/")[-1].rsplit(".")[0] for f in doc_files
+        }
+
+        with self.subTest("Detect missing example dags"):
+            missing_guide = operator_names - doc_names
+            missing_guide -= self.MISSING_DOC_GUIDES
+
+            self.assertEqual(missing_guide, set())
+
+        with self.subTest("Keep update missing missing guide list"):
+            new_guides = set(doc_names).intersection(set(self.MISSING_DOC_GUIDES))
+            if new_guides:
+                new_guides_text = '\n'.join(new_guides)
+                self.fail(
+                    "You've added a guide currently listed as missing:\n"
+                    f"{new_guides_text}"
+                    "\n"
+                    "Thank you very much.\n"
+                    "Can you remove it from the list of missing guide, please?"
+                )
+
+    @staticmethod
+    def find_resource_files(department="*", resource_type="*", service="*"):
+        resource_files = glob.glob(
+            f"{ROOT_FOLDER}/airflow/providers/google/{department}/{resource_type}/{service}.py")
+        # Make path relative
+        resource_files = (os.path.relpath(f, ROOT_FOLDER) for f in resource_files)
+        # Exclude __init__.py and pycache
+        resource_files = (f for f in resource_files if not f.endswith("__init__.py"))
+        return resource_files
+
+
+class TestOperatorsHooks(unittest.TestCase):
+    def test_no_illegal_suffixes(self):
+        illegal_suffixes = ["_operator.py", "_hook.py", "_sensor.py"]
+        files = itertools.chain(*[
+            glob.glob(f"{ROOT_FOLDER}/{part}/providers/**/{resource_type}/*.py", recursive=True)
+            for resource_type in ["operators", "hooks", "sensors", "example_dags"]
+            for part in ["airlfow", "tests"]
+        ])
+
+        invalid_files = [
+            f
+            for f in files
+            if any(f.endswith(suffix) for suffix in illegal_suffixes)
+        ]
+
+        self.assertEqual([], invalid_files)

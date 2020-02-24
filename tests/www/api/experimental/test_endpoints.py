@@ -173,7 +173,9 @@ class TestApiExperimental(TestBase):
             dagbag = DagBag()
             dag = dagbag.get_dag('example_bash_operator')
             dag_run = dag.get_dagrun(response_execution_date)
-            self.assertEqual(run_id, dag_run.run_id)
+            dag_run_id = dag_run.run_id
+            self.assertEqual(run_id, dag_run_id)
+            self.assertEqual(dag_run_id, response['run_id'])
 
             # Test error for nonexistent dag
             response = self.client.post(

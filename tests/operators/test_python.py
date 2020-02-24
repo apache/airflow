@@ -32,6 +32,7 @@ import funcsigs
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
+from airflow.models.taskinstance import clear_task_instances
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import (
     BranchPythonOperator, PythonOperator, PythonVirtualenvOperator, ShortCircuitOperator,
@@ -396,7 +397,7 @@ class TestBranchOperator(unittest.TestCase):
                 elif ti.task_id == 'branch_2':
                     self.assertEqual(ti.state, State.SKIPPED)
                 else:
-                    raise Exception
+                    raise ValueError(f'Invalid task id {ti.task_id} found!')
 
     def test_branch_list_without_dag_run(self):
         """This checks if the BranchPythonOperator supports branching off to a list of tasks."""
@@ -428,7 +429,7 @@ class TestBranchOperator(unittest.TestCase):
                 if ti.task_id in expected:
                     self.assertEqual(ti.state, expected[ti.task_id])
                 else:
-                    raise Exception
+                    raise ValueError(f'Invalid task id {ti.task_id} found!')
 
     def test_with_dag_run(self):
         branch_op = BranchPythonOperator(task_id='make_choice',
@@ -457,7 +458,7 @@ class TestBranchOperator(unittest.TestCase):
             elif ti.task_id == 'branch_2':
                 self.assertEqual(ti.state, State.SKIPPED)
             else:
-                raise Exception
+                raise ValueError(f'Invalid task id {ti.task_id} found!')
 
     def test_with_skip_in_branch_downstream_dependencies(self):
         branch_op = BranchPythonOperator(task_id='make_choice',
@@ -486,7 +487,7 @@ class TestBranchOperator(unittest.TestCase):
             elif ti.task_id == 'branch_2':
                 self.assertEqual(ti.state, State.NONE)
             else:
-                raise Exception
+                raise ValueError(f'Invalid task id {ti.task_id} found!')
 
     def test_with_skip_in_branch_downstream_dependencies2(self):
         branch_op = BranchPythonOperator(task_id='make_choice',
@@ -515,7 +516,7 @@ class TestBranchOperator(unittest.TestCase):
             elif ti.task_id == 'branch_2':
                 self.assertEqual(ti.state, State.NONE)
             else:
-                raise Exception
+                raise ValueError(f'Invalid task id {ti.task_id} found!')
 
     def test_xcom_push(self):
         branch_op = BranchPythonOperator(task_id='make_choice',
@@ -540,6 +541,62 @@ class TestBranchOperator(unittest.TestCase):
             if ti.task_id == 'make_choice':
                 self.assertEqual(
                     ti.xcom_pull(task_ids='make_choice'), 'branch_1')
+
+    def test_clear_skipped_downstream_task(self):
+        """
+        After a downstream task is skipped by BranchPythonOperator, clearing the skipped task
+        should not cause it to be executed.
+        """
+        branch_op = BranchPythonOperator(task_id='make_choice',
+                                         dag=self.dag,
+                                         python_callable=lambda: 'branch_1')
+        branches = [self.branch_1, self.branch_2]
+        branch_op >> branches
+        self.dag.clear()
+
+        dr = self.dag.create_dagrun(
+            run_id="manual__",
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+
+        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        for task in branches:
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        tis = dr.get_task_instances()
+        for ti in tis:
+            if ti.task_id == 'make_choice':
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == 'branch_1':
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == 'branch_2':
+                self.assertEqual(ti.state, State.SKIPPED)
+            else:
+                raise ValueError(f'Invalid task id {ti.task_id} found!')
+
+        children_tis = [ti for ti in tis if ti.task_id in branch_op.get_direct_relative_ids()]
+
+        # Clear the children tasks.
+        with create_session() as session:
+            clear_task_instances(children_tis, session=session, dag=self.dag)
+
+        # Run the cleared tasks again.
+        for task in branches:
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        # Check if the states are correct after children tasks are cleared.
+        for ti in dr.get_task_instances():
+            if ti.task_id == 'make_choice':
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == 'branch_1':
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == 'branch_2':
+                self.assertEqual(ti.state, State.SKIPPED)
+            else:
+                raise ValueError(f'Invalid task id {ti.task_id} found!')
 
 
 class TestShortCircuitOperator(unittest.TestCase):
@@ -591,11 +648,11 @@ class TestShortCircuitOperator(unittest.TestCase):
                     self.assertEqual(ti.state, State.SUCCESS)
                 elif ti.task_id == 'upstream':
                     # should not exist
-                    raise Exception
+                    raise ValueError(f'Invalid task id {ti.task_id} found!')
                 elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
                     self.assertEqual(ti.state, State.SKIPPED)
                 else:
-                    raise Exception
+                    raise ValueError(f'Invalid task id {ti.task_id} found!')
 
             value = True
             dag.clear()
@@ -606,11 +663,11 @@ class TestShortCircuitOperator(unittest.TestCase):
                     self.assertEqual(ti.state, State.SUCCESS)
                 elif ti.task_id == 'upstream':
                     # should not exist
-                    raise Exception
+                    raise ValueError(f'Invalid task id {ti.task_id} found!')
                 elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
                     self.assertEqual(ti.state, State.NONE)
                 else:
-                    raise Exception
+                    raise ValueError(f'Invalid task id {ti.task_id} found!')
 
     def test_with_dag_run(self):
         value = False
@@ -652,7 +709,7 @@ class TestShortCircuitOperator(unittest.TestCase):
             elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
                 self.assertEqual(ti.state, State.SKIPPED)
             else:
-                raise Exception
+                raise ValueError(f'Invalid task id {ti.task_id} found!')
 
         value = True
         dag.clear()
@@ -670,7 +727,65 @@ class TestShortCircuitOperator(unittest.TestCase):
             elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
                 self.assertEqual(ti.state, State.NONE)
             else:
-                raise Exception
+                raise ValueError(f'Invalid task id {ti.task_id} found!')
+
+    def test_clear_skipped_downstream_task(self):
+        """
+        After a downstream task is skipped by ShortCircuitOperator, clearing the skipped task
+        should not cause it to be executed.
+        """
+        dag = DAG('shortcircuit_clear_skipped_downstream_task',
+                  default_args={
+                      'owner': 'airflow',
+                      'start_date': DEFAULT_DATE
+                  },
+                  schedule_interval=INTERVAL)
+        short_op = ShortCircuitOperator(task_id='make_choice',
+                                        dag=dag,
+                                        python_callable=lambda: False)
+        downstream = DummyOperator(task_id='downstream', dag=dag)
+
+        short_op >> downstream
+
+        dag.clear()
+
+        dr = dag.create_dagrun(
+            run_id="manual__",
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+
+        short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        downstream.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        tis = dr.get_task_instances()
+
+        for ti in tis:
+            if ti.task_id == 'make_choice':
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == 'downstream':
+                self.assertEqual(ti.state, State.SKIPPED)
+            else:
+                raise ValueError(f'Invalid task id {ti.task_id} found!')
+
+        # Clear downstream
+        with create_session() as session:
+            clear_task_instances([t for t in tis if t.task_id == "downstream"],
+                                 session=session,
+                                 dag=dag)
+
+        # Run downstream again
+        downstream.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        # Check if the states are correct.
+        for ti in dr.get_task_instances():
+            if ti.task_id == 'make_choice':
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == 'downstream':
+                self.assertEqual(ti.state, State.SKIPPED)
+            else:
+                raise ValueError(f'Invalid task id {ti.task_id} found!')
 
 
 virtualenv_string_args: List[str] = []

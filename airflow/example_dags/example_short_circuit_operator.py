@@ -17,7 +17,7 @@
 # under the License.
 
 """Example DAG demonstrating the usage of the ShortCircuitOperator."""
-from airflow.models import DAG
+from airflow import DAG
 from airflow.models.baseoperator import chain
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import ShortCircuitOperator

@@ -20,8 +20,8 @@
 import unittest
 from datetime import timedelta
 
-from airflow import DAG
 from airflow.models import TaskInstance
+from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.utils import timezone
 

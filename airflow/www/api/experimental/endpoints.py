@@ -92,7 +92,11 @@ def trigger_dag(dag_id):
     if getattr(g, 'user', None):
         log.info("User %s created %s", g.user, dr)
 
-    response = jsonify(message="Created {}".format(dr), execution_date=dr.execution_date.isoformat())
+    response = jsonify(
+        message="Created {}".format(dr),
+        execution_date=dr.execution_date.isoformat(),
+        run_id=dr.run_id
+    )
     return response
 
 
