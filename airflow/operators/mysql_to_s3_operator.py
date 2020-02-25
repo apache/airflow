@@ -104,8 +104,9 @@ class MySQLToS3Operator(BaseOperator):
         self.log.info("Data from MySQL obtained")
 
         self._fix_int_dtypes(data_df)
-        with tempfile.NamedTemporaryFile(suffix='.csv') as tmp_csv:
-            tmp_csv.write(pickle.dumps(data_df))
+        with tempfile.NamedTemporaryFile(mode='r+', suffix='.csv') as tmp_csv:
+            tmp_csv.file.write(data_df.to_csv(index=self.index, header=self.header))
+            tmp_csv.file.seek(0)
             s3_conn.load_file(filename=tmp_csv.name,
                               key=self.s3_key,
                               bucket_name=self.s3_bucket)
