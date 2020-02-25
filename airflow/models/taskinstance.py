@@ -56,6 +56,7 @@ from airflow.utils.email import send_email
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
+from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
@@ -915,6 +916,12 @@ class TaskInstance(Base, LoggingMixin):
                 start_time = time.time()
 
                 self.render_templates(context=context)
+                # Export context to make it available for operators to use.
+                airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+                self.log.info("Exporting the following env vars:\n%s",
+                              '\n'.join(["{}={}".format(k, v)
+                                         for k, v in airflow_context_vars.items()]))
+                os.environ.update(airflow_context_vars)
                 task_copy.pre_execute(context=context)
 
                 try:

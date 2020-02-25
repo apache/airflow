@@ -32,7 +32,6 @@ import dill
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, SkipMixin
 from airflow.utils.decorators import apply_defaults
-from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv
 
@@ -127,13 +126,6 @@ class PythonOperator(BaseOperator):
         return op_kwargs
 
     def execute(self, context: Dict):
-        # Export context to make it available for callables to use.
-        airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
-        self.log.debug("Exporting the following env vars:\n%s",
-                       '\n'.join(["{}={}".format(k, v)
-                                  for k, v in airflow_context_vars.items()]))
-        os.environ.update(airflow_context_vars)
-
         context.update(self.op_kwargs)
         context['templates_dict'] = self.templates_dict
 
