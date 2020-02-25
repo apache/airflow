@@ -1104,7 +1104,7 @@ class SchedulerJob(BaseJob):
             .filter(or_(DR.run_id.is_(None), not_(DR.run_id.like(BackfillJob.ID_PREFIX + '%'))))
             .outerjoin(DM, DM.dag_id == TI.dag_id)
             .filter(or_(DM.dag_id.is_(None), not_(DM.is_paused)))
-            .filter(TI.state.is_(State.SCHEDULED))
+            .filter(TI.state == State.SCHEDULED)
             .all()
         )
 
@@ -1258,7 +1258,7 @@ class SchedulerJob(BaseJob):
             session
             .query(TI)
             .filter(TI.filter_for_tis(task_instances))
-            .filter(TI.state.is_(State.SCHEDULED))
+            .filter(TI.state == State.SCHEDULED)
             .with_for_update()
             .all()
         )
