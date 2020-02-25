@@ -31,14 +31,11 @@ python: "3.6"
 stages:
   - pre-test
   - test
+  - post-test
 services:
   - docker
 jobs:
   include:
-    - name: "Prepare backport packages"
-      before_install: echo
-      stage: pre-test
-      script: ./scripts/ci/ci_prepare_backport_packages.sh
     - name: "Static checks"
       stage: pre-test
       script: ./scripts/ci/ci_run_all_static_checks.sh
@@ -114,6 +111,10 @@ jobs:
         PYTHON_VERSION=3.7
         ENABLED_INTEGRATIONS="kerberos"
       stage: test
+    - name: "Prepare backport packages"
+      before_install: echo
+      stage: post-test
+      script: ./scripts/ci/ci_prepare_backport_packages.sh
 before_install:
   - ./scripts/ci/ci_before_install.sh
 script: ./scripts/ci/ci_run_airflow_testing.sh
