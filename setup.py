@@ -309,7 +309,7 @@ pinot = [
     'pinotdb==0.1.1',
 ]
 postgres = [
-    'psycopg2-binary>=2.7.4',
+    'psycopg2>=2.7.4',
 ]
 presto = [
     'presto-python-client>=0.7.0,<0.8'
