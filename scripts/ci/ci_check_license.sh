@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 export AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
-export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
 export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
 
 # shellcheck source=scripts/ci/_script_init.sh
@@ -26,8 +25,8 @@ function run_check_license() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" -t \
             --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
-            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
-            --env AIRFLOW_CI_SILENT \
+            --env VERBOSE \
+            --env VERBOSE_COMMANDS \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \

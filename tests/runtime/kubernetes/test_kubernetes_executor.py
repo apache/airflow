@@ -88,6 +88,10 @@ class TestKubernetesExecutor(unittest.TestCase):
                             execution_date=execution_date,
                             task_id=task_id)
                 )
+                if result.status_code == 404:
+                    check_call(["echo", "api returned 404."])
+                    tries += 1
+                    continue
                 self.assertEqual(result.status_code, 200, "Could not get the status")
                 result_json = result.json()
                 state = result_json['state']

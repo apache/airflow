@@ -175,7 +175,7 @@ class TaskInstance(Base, LoggingMixin):
         Index('ti_job_id', job_id),
     )
 
-    def __init__(self, task, execution_date, state=None):
+    def __init__(self, task, execution_date: datetime, state: Optional[str] = None):
         self.dag_id = task.dag_id
         self.task_id = task.task_id
         self.task = task
@@ -393,7 +393,7 @@ class TaskInstance(Base, LoggingMixin):
         ).format(task_id=self.task_id, dag_id=self.dag_id, iso=iso)
 
     @provide_session
-    def current_state(self, session=None):
+    def current_state(self, session=None) -> str:
         """
         Get the very latest state from the database, if a session is passed,
         we use and looking up the state becomes part of the session, otherwise

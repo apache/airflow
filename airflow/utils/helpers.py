@@ -23,6 +23,7 @@ import signal
 import subprocess
 from datetime import datetime
 from functools import reduce
+from typing import Any, Dict, Optional
 
 import psutil
 from jinja2 import Template
@@ -56,7 +57,7 @@ def validate_key(k, max_length=250):
         return True
 
 
-def alchemy_to_dict(obj):
+def alchemy_to_dict(obj: Any) -> Optional[Dict]:
     """
     Transforms a SQLAlchemy model instance into a dictionary
     """

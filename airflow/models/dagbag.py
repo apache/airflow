@@ -24,7 +24,7 @@ import sys
 import textwrap
 import zipfile
 from datetime import datetime, timedelta
-from typing import NamedTuple
+from typing import List, NamedTuple
 
 from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
 
@@ -113,10 +113,10 @@ class DagBag(BaseDagBag, LoggingMixin):
         return len(self.dags)
 
     @property
-    def dag_ids(self):
+    def dag_ids(self) -> List[str]:
         return self.dags.keys()
 
-    def get_dag(self, dag_id, from_file_only=False):
+    def get_dag(self, dag_id: str, from_file_only: bool = False):
         """
         Gets the DAG out of the dictionary, and refreshes it if expired
 

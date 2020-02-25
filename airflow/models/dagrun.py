@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional, cast
+from typing import List, Optional, Tuple, cast
 
 from sqlalchemy import (
     Boolean, Column, DateTime, Index, Integer, PickleType, String, UniqueConstraint, and_, func, or_,
@@ -187,31 +187,30 @@ class DagRun(Base, LoggingMixin):
         """
         Returns the task instances for this dag run
         """
-        from airflow.models.taskinstance import TaskInstance  # Avoid circular import
-        tis = session.query(TaskInstance).filter(
-            TaskInstance.dag_id == self.dag_id,
-            TaskInstance.execution_date == self.execution_date,
+        tis = session.query(TI).filter(
+            TI.dag_id == self.dag_id,
+            TI.execution_date == self.execution_date,
         )
 
         if state:
             if isinstance(state, str):
-                tis = tis.filter(TaskInstance.state == state)
+                tis = tis.filter(TI.state == state)
             else:
                 # this is required to deal with NULL values
                 if None in state:
                     if all(x is None for x in state):
-                        tis = tis.filter(TaskInstance.state.is_(None))
+                        tis = tis.filter(TI.state.is_(None))
                     else:
                         not_none_state = [s for s in state if s]
                         tis = tis.filter(
-                            or_(TaskInstance.state.in_(not_none_state),
-                                TaskInstance.state.is_(None))
+                            or_(TI.state.in_(not_none_state),
+                                TI.state.is_(None))
                         )
                 else:
-                    tis = tis.filter(TaskInstance.state.in_(state))
+                    tis = tis.filter(TI.state.in_(state))
 
         if self.dag and self.dag.partial:
-            tis = tis.filter(TaskInstance.task_id.in_(self.dag.task_ids))
+            tis = tis.filter(TI.task_id.in_(self.dag.task_ids))
         return tis.all()
 
     @provide_session
@@ -221,9 +220,6 @@ class DagRun(Base, LoggingMixin):
 
         :param task_id: the task id
         """
-
-        from airflow.models.taskinstance import TaskInstance  # Avoid circular import
-        TI = TaskInstance
         ti = session.query(TI).filter(
             TI.dag_id == self.dag_id,
             TI.execution_date == self.execution_date,
@@ -287,7 +283,7 @@ class DagRun(Base, LoggingMixin):
         tis = [ti for ti in self.get_task_instances(session=session,
                                                     state=State.task_states + (State.SHUTDOWN,))]
         self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))
-        for ti in list(tis):
+        for ti in tis:
             ti.task = dag.get_task(ti.task_id)
 
         start_dttm = timezone.utcnow()
@@ -359,9 +355,14 @@ class DagRun(Base, LoggingMixin):
 
         return ready_tis
 
-    def _get_ready_tis(self, scheduleable_tasks, finished_tasks, session):
+    def _get_ready_tis(
+        self,
+        scheduleable_tasks: List[TI],
+        finished_tasks: List[TI],
+        session: Session,
+    ) -> Tuple[List[TI], bool]:
         old_states = {}
-        ready_tis = []
+        ready_tis: List[TI] = []
         changed_tis = False
 
         if not scheduleable_tasks:
@@ -387,8 +388,13 @@ class DagRun(Base, LoggingMixin):
 
         return ready_tis, changed_tis
 
-    def _are_premature_tis(self, unfinished_tasks, finished_tasks, session):
-        # there might be runnable tasks that are up for retry and from some reason(retry delay, etc) are
+    def _are_premature_tis(
+        self,
+        unfinished_tasks: List[TI],
+        finished_tasks: List[TI],
+        session: Session,
+    ) -> bool:
+        # there might be runnable tasks that are up for retry and for some reason(retry delay, etc) are
         # not ready yet so we set the flags to count them in
         for ut in unfinished_tasks:
             if ut.are_dependencies_met(
@@ -399,6 +405,7 @@ class DagRun(Base, LoggingMixin):
                     finished_tasks=finished_tasks),
                     session=session):
                 return True
+        return False
 
     def _emit_duration_stats_for_finished_state(self):
         if self.state == State.RUNNING:
@@ -416,8 +423,6 @@ class DagRun(Base, LoggingMixin):
         Verifies the DagRun by checking for removed tasks or tasks that are not in the
         database yet. It will set state to removed or add the task if required.
         """
-        from airflow.models.taskinstance import TaskInstance  # Avoid circular import
-
         dag = self.get_dag()
         tis = self.get_task_instances(session=session)
 
@@ -454,7 +459,7 @@ class DagRun(Base, LoggingMixin):
                 Stats.incr(
                     "task_instance_created-{}".format(task.__class__.__name__),
                     1, 1)
-                ti = TaskInstance(task, self.execution_date)
+                ti = TI(task, self.execution_date)
                 session.add(ti)
 
         session.commit()

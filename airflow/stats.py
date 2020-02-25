@@ -22,13 +22,28 @@ import socket
 import string
 import textwrap
 from functools import wraps
-from typing import Callable
+from typing import Callable, Optional
 
 from airflow.configuration import conf
 from airflow.exceptions import InvalidStatsNameException
+from airflow.typing_compat import Protocol
 from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
+
+
+class StatsLogger(Protocol):
+    def incr(cls, stat: str, count: int = 1, rate: int = 1) -> None:
+        ...
+
+    def decr(cls, stat: str, count: int = 1, rate: int = 1) -> None:
+        ...
+
+    def gauge(cls, stat: str, value: float, rate: int = 1, delta: bool = False) -> None:
+        ...
+
+    def timing(cls, stat: str, dt) -> None:
+        ...
 
 
 class DummyStatsLogger:
@@ -167,7 +182,7 @@ class SafeDogStatsdLogger:
 
 
 class _Stats(type):
-    instance = None
+    instance: Optional[StatsLogger] = None
 
     def __getattr__(cls, name):
         return getattr(cls.instance, name)

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export VERBOSE=${VERBOSE:="true"}
+export VERBOSE=${VERBOSE:="false"}
 
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
@@ -37,10 +37,10 @@ export BACKEND=${BACKEND:="sqlite"}
 export MOUNT_LOCAL_SOURCES=${MOUNT_LOCAL_SOURCES:="false"}
 
 # whethere verbose output should be produced
-export AIRFLOW_CI_VERBOSE=${VERBOSE}
+export VERBOSE=${VERBOSE:="false"}
 
-# opposite - whether diagnostic messages should be silenced
-export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
+# whethere verbose commadns output (set-x) should be used
+export VERBOSE_COMMANDS=${VERBOSE_COMMANDS:="false"}
 
 # Forwards host credentials to the container
 export FORWARD_CREDENTIALS=${FORWARD_CREDENTIALS:="false"}
