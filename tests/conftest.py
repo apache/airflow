@@ -264,7 +264,7 @@ def skip_if_runtime_disabled(marker, item):
     if not environment_variable_value or environment_variable_value != runtime_name:
         pytest.skip("The test requires {runtime_name} integration started and "
                     "{name} environment variable to be set to true (it is '{value}')."
-                    " It can be set by specifying '--environment {runtime_name}' at breeze startup"
+                    " It can be set by specifying '--kind-cluster-start' at breeze startup"
                     ": {item}".
                     format(name=environment_variable_name, value=environment_variable_value,
                            runtime_name=runtime_name, item=item))
