@@ -2044,7 +2044,7 @@
         https://github.com/kubernetes-client/python/blob/41f11a09995efcd0142e25946adc7591431bfb2f/kubernetes/client/models/v1_delete_options.py#L19
       version_added: ~
       type: string
-      example: "{{\"grace_period_seconds\": 10}}"
+      example: '{"grace_period_seconds": 10}'
       default: ""
     - name: run_as_user
       description: |
