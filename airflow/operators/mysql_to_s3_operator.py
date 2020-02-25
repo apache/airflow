@@ -106,9 +106,9 @@ class MySQLToS3Operator(BaseOperator):
         self._fix_int_dtypes(data_df)
         with tempfile.NamedTemporaryFile(suffix='.csv') as tmp_csv:
             tmp_csv.write(pickle.dumps(data_df))
-            s3_conn.load_file(tmp_csv.name,
-                              self.s3_bucket,
-                              self.s3_key)
+            s3_conn.load_file(filename=tmp_csv.name,
+                              key=self.s3_key,
+                              bucket_name=self.s3_bucket)
 
         if s3_conn.check_for_key(self.s3_key, bucket_name=self.s3_bucket):
             file_location = os.path.join(self.s3_bucket, self.s3_key)
