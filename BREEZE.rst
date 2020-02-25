@@ -362,8 +362,9 @@ After you run Breeze for the first time, you will have an empty directory ``file
 which will be mapped to ``/files`` in your Docker container. You can pass there any files you need to
 configure and run Docker. They will not be removed between Docker runs.
 
-If you wish to add local DAGs that can be run by Breeze, you can add the dags to ``/files/dags`` and then
-run ``export AIRFLOW__CORE__DAGS_FOLDER="/files/dags"`` once the container has started.
+By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_SOURCES>/files/dags`` and this is
+the directory used by airflow scheduler and webserver to scan dags for. You can use it to test your dags
+from local sources in Airflow. If you wish to add local DAGs that can be run by Breeze.
 
 Adding/Modifying Dependencies
 -----------------------------

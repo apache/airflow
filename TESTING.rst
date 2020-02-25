@@ -539,6 +539,7 @@ tests whenever an operator/hook/sensor is added/modified in a given system.
   are also used to take some snippets of code out of them when documentation is generated. So, having these
   DAGs runnable is a great way to make sure the documenation is describing a working example. Inside
   your test class/test method, simply use ``self.run_dag(<DAG_ID>,<DAG_FOLDER>)`` to run the DAG. Then,
+  your test class/test method, simply use ``self.run_dag(<DAG_ID>,<DAG_FOLDER>)`` to run the DAG. Then,
   the system class will take care about running the DAG. Note that the DAG_FOLDER should be
   a subdirectory of the ``tests.test_utils.AIRFLOW_MAIN_FOLDER`` + ``providers/<SYSTEM_NAME>/example_dags``.
 
@@ -624,6 +625,9 @@ Additionally, ``DebugExecutor`` can be used in a fail-fast mode that will make
 all other running or scheduled tasks fail immediately. To enable this option, set
 ``AIRFLOW__DEBUG__FAIL_FAST=True`` or adjust ``fail_fast`` option in your ``airflow.cfg``.
 
+By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_SOURCES>/files/dags`` and this is
+the directory used by airflow scheduler and webserver to scan dags for. You can place your dags there
+to test them.
 
 BASH Unit Testing (BATS)
 ========================
