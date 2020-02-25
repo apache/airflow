@@ -741,7 +741,7 @@ class DagFileProcessor(LoggingMixin):
         had a heartbeat for too long, in the current DagBag.
 
         :param zombies: zombie task instances to kill.
-        :type zombies: List[airflow.models.taskinstance.SimpleyTaskInstance]
+        :type zombies: List[airflow.models.taskinstance.SimpleTaskInstance]
         :param session: DB session.
         """
         TI = models.TaskInstance
@@ -877,7 +877,7 @@ class DagFileProcessor(LoggingMixin):
         except Exception:
             self.log.exception("Error logging import errors!")
         try:
-            self.kill_zombies(zombies)
+            self.kill_zombies(dagbag, zombies)
         except Exception:
             self.log.exception("Error killing zombies!")
 
