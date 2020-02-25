@@ -62,3 +62,37 @@ template to it, which will fail.
         # This works (has a space after)
         bash_command="/home/batcher/test.sh ",
         dag=dag)
+
+However, if you want to use templating in your bash script, do not add the space
+and instead put your bash script in a location relative to the directory containing
+the DAG file. So if your DAG file is in ``/usr/local/airflow/dags/test_dag.py``, you can
+move your ``test.sh`` file to any location under ``/usr/local/airflow/dags/`` (Example:
+``/usr/local/airflow/dags/scripts/test.sh``) and pass the relative path to ``bash_command``
+as shown below:
+
+.. code-block:: python
+
+    t2 = BashOperator(
+        task_id='bash_example',
+        # "scripts" folder is under "/usr/local/airflow/dags"
+        bash_command="scripts/test.sh",
+        dag=dag)
+
+Creating separate folder for bash scripts may be desirable for many reasons, like
+separating your script's logic and pipeline code, allowing for proper code highlighting
+in files composed in different languages, and general flexibility in structuring
+pipelines.
+
+It is also possible to define your ``template_searchpath`` as pointing to any folder
+locations in the DAG constructor call.
+
+Example:
+
+.. code-block:: python
+
+    dag = DAG("example_bash_dag", template_searchpath="/opt/scripts")
+    t2 = BashOperator(
+        task_id='bash_example',
+        # "test.sh" is a file under "/opt/scripts"
+        bash_command="test.sh ",
+        dag=dag)
