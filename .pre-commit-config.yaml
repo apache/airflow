@@ -250,7 +250,7 @@ repos:
           ^airflow/contrib/.*\.py$
       - id: provide-create-sessions
         language: pygrep
-        name: Make sure provide_session and create_session are imported from airflow.utils.session
+        name: To avoid import cycles make sure provide_session and create_session are imported from airflow.utils.session  # yamllint disable-line rule:line-length
         entry: "from airflow\\.utils\\.db import.* (provide_session|create_session)"
         files: \.py$
         pass_filenames: true
