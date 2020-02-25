@@ -213,8 +213,7 @@ function initialize_virtualenv() {
         echo
         echo "Resetting AIRFLOW sqlite unit test database"
         echo
-        export AIRFLOW__CORE__UNIT_TEST_MODE=True
-        airflow db reset -y
+        AIRFLOW__CORE__UNIT_TEST_MODE=True airflow db reset -y
         exit 0
    fi
 }

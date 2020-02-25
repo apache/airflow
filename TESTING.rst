@@ -631,6 +631,9 @@ Also, with the Airflow CLI command ``airflow dags test``, you can execute one co
     # airflow dags test [dag_id] [execution_date]
     airflow dags test example_branch_operator 2018-01-01
 
+By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_SOURCES>/files/dags`` and this is
+the directory used by airflow scheduler and webserver to scan dags for. You can place your dags there
+to test them.
 
 BASH Unit Testing (BATS)
 ========================
