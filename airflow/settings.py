@@ -21,7 +21,7 @@ import json
 import logging
 import os
 import sys
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import pendulum
 from sqlalchemy import create_engine, exc
@@ -35,6 +35,9 @@ from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F
 from airflow.logging_config import configure_logging
 from airflow.utils.module_loading import import_string
 from airflow.utils.sqlalchemy import setup_event_handlers
+
+if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator
 
 log = logging.getLogger(__name__)
 
@@ -79,7 +82,7 @@ Session: Optional[SASession] = None
 json = json
 
 
-def policy(task):
+def policy(task: 'BaseOperator'):
     """
     This policy setting allows altering tasks right before they
     are executed. It allows administrator to rewire some task parameters.
