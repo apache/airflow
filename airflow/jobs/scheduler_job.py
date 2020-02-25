@@ -877,7 +877,7 @@ class DagFileProcessor(LoggingMixin):
         except Exception:
             self.log.exception("Error logging import errors!")
         try:
-            self.kill_zombies(zombies)
+            self.kill_zombies(dagbag, zombies)
         except Exception:
             self.log.exception("Error killing zombies!")
 
