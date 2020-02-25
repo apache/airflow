@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -24,6 +23,7 @@ import signal
 import subprocess
 from datetime import datetime
 from functools import reduce
+from typing import Any, Dict, Optional
 
 import psutil
 from jinja2 import Template
@@ -57,7 +57,7 @@ def validate_key(k, max_length=250):
         return True
 
 
-def alchemy_to_dict(obj):
+def alchemy_to_dict(obj: Any) -> Optional[Dict]:
     """
     Transforms a SQLAlchemy model instance into a dictionary
     """
@@ -211,7 +211,7 @@ def reap_process_group(pgid, log, sig=signal.SIGTERM,
             # use sudo -n(--non-interactive) to kill the process
             if err.errno == errno.EPERM:
                 subprocess.check_call(
-                    ["sudo", "-n", "kill", "-" + str(sig)] + map(children, lambda p: str(p.pid))
+                    ["sudo", "-n", "kill", "-" + str(sig)] + [str(p.pid) for p in children]
                 )
             else:
                 raise
@@ -299,3 +299,18 @@ def convert_camel_to_snake(camel_str):
     Converts CamelCase to snake_case.
     """
     return re.sub('(?!^)([A-Z]+)', r'_\1', camel_str).lower()
+
+
+def merge_dicts(dict1, dict2):
+    """
+    Merge two dicts recursively, returning new dict (input dict is not mutated).
+
+    Lists are not concatenated. Items in dict2 overwrite those also found in dict1.
+    """
+    merged = dict1.copy()
+    for k, v in dict2.items():
+        if k in merged and isinstance(v, dict):
+            merged[k] = merge_dicts(merged.get(k, {}), v)
+        else:
+            merged[k] = v
+    return merged

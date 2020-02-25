@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -25,10 +24,13 @@ import unittest
 import pytest
 from mock import patch
 
-from airflow import AirflowException, models, settings
+from airflow import settings
+from airflow.exceptions import AirflowException
 from airflow.executors.sequential_executor import SequentialExecutor
-from airflow.jobs import LocalTaskJob
-from airflow.models import DAG, TaskInstance as TI
+from airflow.jobs.local_task_job import LocalTaskJob
+from airflow.models.dag import DAG
+from airflow.models.dagbag import DagBag
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
@@ -129,7 +131,7 @@ class TestLocalTaskJob(unittest.TestCase):
         self.mock_base_job_sleep.side_effect = time.sleep
 
         with create_session() as session:
-            dagbag = models.DagBag(
+            dagbag = DagBag(
                 dag_folder=TEST_DAG_FOLDER,
                 include_examples=False,
             )
@@ -143,7 +145,7 @@ class TestLocalTaskJob(unittest.TestCase):
                               execution_date=DEFAULT_DATE,
                               start_date=DEFAULT_DATE,
                               session=session)
-            ti = TI(task=task, execution_date=DEFAULT_DATE)
+            ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
             ti.refresh_from_db()
             ti.state = State.RUNNING
             ti.hostname = get_hostname()
@@ -159,10 +161,9 @@ class TestLocalTaskJob(unittest.TestCase):
             for i in range(1, len(heartbeat_records)):
                 time1 = heartbeat_records[i - 1]
                 time2 = heartbeat_records[i]
-                # Assert that difference small enough to avoid:
-                # AssertionError: 1.996401 not greater than or equal to 2
+                # Assert that difference small enough
                 delta = (time2 - time1).total_seconds()
-                self.assertAlmostEqual(delta, job.heartrate, delta=0.006)
+                self.assertAlmostEqual(delta, job.heartrate, delta=0.05)
 
     @pytest.mark.xfail(condition=True, reason="This test might be flaky in postgres/mysql")
     def test_mark_success_no_kill(self):
@@ -170,7 +171,7 @@ class TestLocalTaskJob(unittest.TestCase):
         Test that ensures that mark_success in the UI doesn't cause
         the task to fail, and that the task exits
         """
-        dagbag = models.DagBag(
+        dagbag = DagBag(
             dag_folder=TEST_DAG_FOLDER,
             include_examples=False,
         )
@@ -185,7 +186,7 @@ class TestLocalTaskJob(unittest.TestCase):
                           execution_date=DEFAULT_DATE,
                           start_date=DEFAULT_DATE,
                           session=session)
-        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
         process = multiprocessing.Process(target=job1.run)
@@ -207,7 +208,7 @@ class TestLocalTaskJob(unittest.TestCase):
         self.assertEqual(State.SUCCESS, ti.state)
 
     def test_localtaskjob_double_trigger(self):
-        dagbag = models.DagBag(
+        dagbag = DagBag(
             dag_folder=TEST_DAG_FOLDER,
             include_examples=False,
         )
@@ -229,7 +230,7 @@ class TestLocalTaskJob(unittest.TestCase):
         session.merge(ti)
         session.commit()
 
-        ti_run = TI(task=task, execution_date=DEFAULT_DATE)
+        ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti_run.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti_run,
                             executor=SequentialExecutor())
@@ -245,7 +246,7 @@ class TestLocalTaskJob(unittest.TestCase):
         session.close()
 
     def test_localtaskjob_maintain_heart_rate(self):
-        dagbag = models.DagBag(
+        dagbag = DagBag(
             dag_folder=TEST_DAG_FOLDER,
             include_examples=False,
         )
@@ -261,7 +262,7 @@ class TestLocalTaskJob(unittest.TestCase):
                           start_date=DEFAULT_DATE,
                           session=session)
 
-        ti_run = TI(task=task, execution_date=DEFAULT_DATE)
+        ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti_run.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti_run,
                             executor=SequentialExecutor())
@@ -322,7 +323,7 @@ class TestLocalTaskJob(unittest.TestCase):
                           execution_date=DEFAULT_DATE,
                           start_date=DEFAULT_DATE,
                           session=session)
-        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti,
                             ignore_ti_state=True,
@@ -339,6 +340,60 @@ class TestLocalTaskJob(unittest.TestCase):
             ti.refresh_from_db()
         self.assertEqual(State.RUNNING, ti.state)
         ti.state = State.FAILED
+        session.merge(ti)
+        session.commit()
+
+        job1.heartbeat_callback(session=None)
+        self.assertTrue(data['called'])
+        process.join(timeout=10)
+        self.assertFalse(process.is_alive())
+
+    def test_mark_success_on_success_callback(self):
+        """
+        Test that ensures that where a task is marked suceess in the UI
+        on_success_callback gets executed
+        """
+        data = {'called': False}
+
+        def success_callback(context):
+            self.assertEqual(context['dag_run'].dag_id,
+                             'test_mark_success')
+            data['called'] = True
+
+        dag = DAG(dag_id='test_mark_success',
+                  start_date=DEFAULT_DATE,
+                  default_args={'owner': 'owner1'})
+
+        task = DummyOperator(
+            task_id='test_state_succeeded1',
+            dag=dag,
+            on_success_callback=success_callback)
+
+        session = settings.Session()
+
+        dag.clear()
+        dag.create_dagrun(run_id="test",
+                          state=State.RUNNING,
+                          execution_date=DEFAULT_DATE,
+                          start_date=DEFAULT_DATE,
+                          session=session)
+        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+        job1 = LocalTaskJob(task_instance=ti,
+                            ignore_ti_state=True,
+                            executor=SequentialExecutor())
+        from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
+        job1.task_runner = StandardTaskRunner(job1)
+        process = multiprocessing.Process(target=job1.run)
+        process.start()
+        ti.refresh_from_db()
+        for _ in range(0, 50):
+            if ti.state == State.RUNNING:
+                break
+            time.sleep(0.1)
+            ti.refresh_from_db()
+        self.assertEqual(State.RUNNING, ti.state)
+        ti.state = State.SUCCESS
         session.merge(ti)
         session.commit()
 

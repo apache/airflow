@@ -15,11 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-set -uo pipefail
-
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
 export REMEMBER_LAST_ANSWER="true"
 
-"${MY_DIR}/ci_bat_tests.sh" "${@}"
+if [[ $# -eq 0 ]]; then
+    PARAMS=("tests/bats")
+else
+    PARAMS=("${@}")
+fi
+
+# shellcheck source=scripts/ci/ci_bat_tests.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/ci_bat_tests.sh" "${PARAMS[@]}"

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -28,9 +27,9 @@ from google.cloud.vision_v1.proto.product_search_service_pb2 import Product, Pro
 from google.protobuf.json_format import MessageToDict
 from parameterized import parameterized
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.vision import ERR_DIFF_NAMES, ERR_UNABLE_TO_CREATE, CloudVisionHook
-from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 PROJECT_ID_TEST = 'project-id'
 PROJECT_ID_TEST_2 = 'project-id-2'

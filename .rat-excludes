@@ -33,6 +33,9 @@ CHANGELOG.txt
 unittests.cfg
 logs
 .bash_aliases
+venv
+files
+airflow.iml
 
 # Generated doc files
 .*html
@@ -81,3 +84,6 @@ pylint_todo.txt
 .bash_history
 .bash_aliases
 .inputrc
+
+# the example notebook is ASF 2 licensed but RAT cannot read this
+input_notebook.ipynb

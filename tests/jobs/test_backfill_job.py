@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -29,19 +28,22 @@ import sqlalchemy
 from mock import Mock, patch
 from parameterized import parameterized
 
-from airflow import AirflowException, settings
+from airflow import settings
 from airflow.bin import cli
 from airflow.exceptions import (
-    AirflowTaskTimeout, DagConcurrencyLimitReached, NoAvailablePoolSlot, TaskConcurrencyLimitReached,
+    AirflowException, AirflowTaskTimeout, DagConcurrencyLimitReached, NoAvailablePoolSlot,
+    TaskConcurrencyLimitReached,
 )
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.jobs.scheduler_job import DagFileProcessor
-from airflow.models import DAG, DagBag, DagRun, Pool, TaskInstance as TI
+from airflow.models import DAG, DagBag, Pool, TaskInstance as TI
+from airflow.models.dagrun import DagRun
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
+from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_pools, clear_db_runs, set_default_pool_slots
 from tests.test_utils.mock_executor import MockExecutor
 
@@ -1294,7 +1296,7 @@ class TestBackfillJob(unittest.TestCase):
         job = BackfillJob(dag=dag)
 
         session = settings.Session()
-        dr = dag.create_dagrun(run_id=DagRun.ID_PREFIX,
+        dr = dag.create_dagrun(run_id=DagRunType.SCHEDULED.value,
                                state=State.RUNNING,
                                execution_date=DEFAULT_DATE,
                                start_date=DEFAULT_DATE,

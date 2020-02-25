@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,8 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Used for unit tests"""
-from airflow.models import DAG
-from airflow.operators.bash_operator import BashOperator
+from airflow import DAG
+from airflow.operators.bash import BashOperator
 from airflow.utils.dates import days_ago
 
 dag = DAG(dag_id='test_utils', schedule_interval=None, tags=['example'])

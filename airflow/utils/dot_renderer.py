@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,7 +22,7 @@ Renderer DAG (tasks and dependencies) to the graphviz object.
 
 import graphviz
 
-from airflow import DAG
+from airflow.models.dag import DAG
 
 
 def _refine_color(color: str):

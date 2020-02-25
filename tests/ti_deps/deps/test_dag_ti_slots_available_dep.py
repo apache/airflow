@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -31,7 +30,7 @@ class TestDagTISlotsAvailableDep(unittest.TestCase):
         Test concurrency reached should fail dep
         """
         dag = Mock(concurrency=1, concurrency_reached=True)
-        task = Mock(dag=dag)
+        task = Mock(dag=dag, pool_slots=1)
         ti = TaskInstance(task, execution_date=None)
 
         self.assertFalse(DagTISlotsAvailableDep().is_met(ti=ti))
@@ -41,7 +40,7 @@ class TestDagTISlotsAvailableDep(unittest.TestCase):
         Test all conditions met should pass dep
         """
         dag = Mock(concurrency=1, concurrency_reached=False)
-        task = Mock(dag=dag)
+        task = Mock(dag=dag, pool_slots=1)
         ti = TaskInstance(task, execution_date=None)
 
         self.assertTrue(DagTISlotsAvailableDep().is_met(ti=ti))

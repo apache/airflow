@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,6 +18,7 @@
 
 import copy
 import functools
+import logging
 import os
 import pickle
 import re
@@ -34,11 +34,14 @@ from croniter import croniter
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, func, or_
 from sqlalchemy.orm import backref, relationship
+from sqlalchemy.orm.session import Session
 
 from airflow import settings, utils
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag
-from airflow.exceptions import AirflowDagCycleException, AirflowException, DagNotFound, DuplicateTaskIdFound
+from airflow.exceptions import (
+    AirflowDagCycleException, AirflowException, DagNotFound, DuplicateTaskIdFound, TaskNotFound,
+)
 from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
@@ -55,7 +58,11 @@ from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import Interval, UtcDateTime
 from airflow.utils.state import State
 
+log = logging.getLogger(__name__)
+
 ScheduleInterval = Union[str, timedelta, relativedelta]
+DEFAULT_VIEW_PRESETS = ['tree', 'graph', 'duration', 'gantt', 'landing_times']
+ORIENTATION_PRESETS = ['LR', 'TB', 'RL', 'BT']
 
 
 def get_last_dagrun(dag_id, session, include_externally_triggered=False):
@@ -85,7 +92,8 @@ class DAG(BaseDag, LoggingMixin):
     DAGs essentially act as namespaces for tasks. A task_id can only be
     added once to a DAG.
 
-    :param dag_id: The id of the DAG
+    :param dag_id: The id of the DAG; must consist exclusively of alphanumeric
+        characters, dashes, dots and underscores (all ASCII)
     :type dag_id: str
     :param description: The description for the DAG to e.g. be shown on the webserver
     :type description: str
@@ -147,9 +155,9 @@ class DAG(BaseDag, LoggingMixin):
         timeouts.
     :type sla_miss_callback: types.FunctionType
     :param default_view: Specify DAG default view (tree, graph, duration,
-                                                   gantt, landing_times)
+                                                   gantt, landing_times), default tree
     :type default_view: str
-    :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT)
+    :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT), default LR
     :type orientation: str
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
     :type catchup: bool
@@ -215,7 +223,7 @@ class DAG(BaseDag, LoggingMixin):
         max_active_runs: int = conf.getint('core', 'max_active_runs_per_dag'),
         dagrun_timeout: Optional[timedelta] = None,
         sla_miss_callback: Optional[Callable] = None,
-        default_view: Optional[str] = None,
+        default_view: str = conf.get('webserver', 'dag_default_view').lower(),
         orientation: str = conf.get('webserver', 'dag_orientation'),
         catchup: bool = conf.getboolean('scheduler', 'catchup_by_default'),
         on_success_callback: Optional[Callable] = None,
@@ -300,8 +308,16 @@ class DAG(BaseDag, LoggingMixin):
         self.max_active_runs = max_active_runs
         self.dagrun_timeout = dagrun_timeout
         self.sla_miss_callback = sla_miss_callback
-        self._default_view = default_view
-        self.orientation = orientation
+        if default_view in DEFAULT_VIEW_PRESETS:
+            self._default_view = default_view
+        else:
+            raise AirflowException(f'Invalid values of dag.default_view: only support '
+                                   f'{DEFAULT_VIEW_PRESETS}, but get {default_view}')
+        if orientation in ORIENTATION_PRESETS:
+            self.orientation = orientation
+        else:
+            raise AirflowException(f'Invalid values of dag.orientation: only support '
+                                   f'{ORIENTATION_PRESETS}, but get {orientation}')
         self.catchup = catchup
         self.is_subdag = False  # DagBag.bag_dag() will set this to True if appropriate
 
@@ -358,13 +374,6 @@ class DAG(BaseDag, LoggingMixin):
         DagContext.pop_context_managed_dag()
 
     # /Context Manager ----------------------------------------------
-
-    def get_default_view(self):
-        """This is only there for backward compatible jinja2 templates"""
-        if self._default_view is None:
-            return conf.get('webserver', 'dag_default_view').lower()
-        else:
-            return self._default_view
 
     def date_range(self, start_date, num=None, end_date=timezone.utcnow()):
         if num:
@@ -534,6 +543,10 @@ class DAG(BaseDag, LoggingMixin):
         return self._description
 
     @property
+    def default_view(self):
+        return self._default_view
+
+    @property
     def pickle_id(self):
         return self._pickle_id
 
@@ -555,7 +568,7 @@ class DAG(BaseDag, LoggingMixin):
         return list(self.task_dict.keys())
 
     @property
-    def filepath(self):
+    def filepath(self) -> str:
         """
         File location of where the dag object is instantiated
         """
@@ -564,12 +577,12 @@ class DAG(BaseDag, LoggingMixin):
         return fn
 
     @property
-    def folder(self):
+    def folder(self) -> str:
         """Folder location of where the DAG object is instantiated."""
         return os.path.dirname(self.full_filepath)
 
     @property
-    def owner(self):
+    def owner(self) -> str:
         """
         Return list of all owners found in DAG tasks.
 
@@ -578,8 +591,15 @@ class DAG(BaseDag, LoggingMixin):
         """
         return ", ".join({t.owner for t in self.tasks})
 
+    @property
+    def allow_future_exec_dates(self) -> bool:
+        return conf.getboolean(
+            'scheduler',
+            'allow_trigger_in_future',
+            fallback=False) and self.schedule_interval is None
+
     @provide_session
-    def _get_concurrency_reached(self, session=None):
+    def _get_concurrency_reached(self, session=None) -> bool:
         TI = TaskInstance
         qry = session.query(func.count(TI.task_id)).filter(
             TI.dag_id == self.dag_id,
@@ -588,7 +608,7 @@ class DAG(BaseDag, LoggingMixin):
         return qry.scalar() >= self.concurrency
 
     @property
-    def concurrency_reached(self):
+    def concurrency_reached(self) -> bool:
         """
         Returns a boolean indicating whether the concurrency limit for this DAG
         has been reached
@@ -599,10 +619,10 @@ class DAG(BaseDag, LoggingMixin):
     def _get_is_paused(self, session=None):
         qry = session.query(DagModel).filter(
             DagModel.dag_id == self.dag_id)
-        return qry.value('is_paused')
+        return qry.value(DagModel.is_paused)
 
     @property
-    def is_paused(self):
+    def is_paused(self) -> bool:
         """
         Returns a boolean indicating whether this DAG is paused
         """
@@ -786,13 +806,16 @@ class DAG(BaseDag, LoggingMixin):
             start_date = (timezone.utcnow() - timedelta(30)).date()
             start_date = timezone.make_aware(
                 datetime.combine(start_date, datetime.min.time()))
-        end_date = end_date or timezone.utcnow()
+
         tis = session.query(TaskInstance).filter(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.execution_date >= start_date,
-            TaskInstance.execution_date <= end_date,
             TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
         )
+        # This allows allow_trigger_in_future config to take affect, rather than mandating exec_date <= UTC
+        if end_date or not self.allow_future_exec_dates:
+            end_date = end_date or timezone.utcnow()
+            tis = tis.filter(TaskInstance.execution_date <= end_date)
 
         if state:
             if isinstance(state, str):
@@ -881,11 +904,11 @@ class DAG(BaseDag, LoggingMixin):
     @provide_session
     def set_dag_runs_state(
             self,
-            state=State.RUNNING,
-            session=None,
-            start_date=None,
-            end_date=None,
-    ):
+            state: str = State.RUNNING,
+            session: Session = None,
+            start_date: Optional[datetime] = None,
+            end_date: Optional[datetime] = None,
+    ) -> None:
         query = session.query(DagRun).filter_by(dag_id=self.dag_id)
         if start_date:
             query = query.filter(DagRun.execution_date >= start_date)
@@ -1211,7 +1234,7 @@ class DAG(BaseDag, LoggingMixin):
             for dag in self.subdags:
                 if task_id in dag.task_dict:
                     return dag.task_dict[task_id]
-        raise AirflowException("Task {task_id} not found".format(task_id=task_id))
+        raise TaskNotFound("Task {task_id} not found".format(task_id=task_id))
 
     def pickle_info(self):
         d = dict()
@@ -1351,7 +1374,7 @@ class DAG(BaseDag, LoggingMixin):
         :type: bool
 
         """
-        from airflow.jobs import BackfillJob
+        from airflow.jobs.backfill_job import BackfillJob
         if not executor and local:
             from airflow.executors.local_executor import LocalExecutor
             executor = LocalExecutor()
@@ -1546,7 +1569,6 @@ class DAG(BaseDag, LoggingMixin):
         :type expiration_date: datetime
         :return: None
         """
-        log = LoggingMixin().log
         for dag in session.query(
                 DagModel).filter(DagModel.last_scheduler_run < expiration_date,
                                  DagModel.is_active).all():
@@ -1723,12 +1745,6 @@ class DagModel(Base):
     def get_current(cls, dag_id, session=None):
         return session.query(cls).filter(cls.dag_id == dag_id).first()
 
-    def get_default_view(self):
-        if self.default_view is None:
-            return conf.get('webserver', 'dag_default_view').lower()
-        else:
-            return self.default_view
-
     @provide_session
     def get_last_dagrun(self, session=None, include_externally_triggered=False):
         return get_last_dagrun(self.dag_id, session=session,
@@ -1827,7 +1843,6 @@ class DagModel(Base):
         :param alive_dag_filelocs: file paths of alive DAGs
         :param session: ORM Session
         """
-        log = LoggingMixin().log
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ",
                   cls.__tablename__)
 

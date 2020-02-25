@@ -38,6 +38,7 @@ import airflow.models
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
+from airflow.jobs.local_task_job import LocalTaskJob as LJ
 from airflow.models import Connection, errors
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.settings import STORE_SERIALIZED_DAGS
@@ -569,7 +570,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         # Map from file path to the processor
         self._processors: Dict[str, AbstractDagFileProcessorProcess] = {}
 
-        self._heartbeat_count = 0
+        self._num_run = 0
 
         # Map from file path to stats about the file
         self._file_stats: Dict[str, DagFileStat] = {}
@@ -622,13 +623,10 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         )
 
         # In sync mode we want timeout=None -- wait forever until a message is received
-        poll_time = None  # type: Optional[float]
         if self._async_mode:
             poll_time = 0.0
-            self.log.debug("Starting DagFileProcessorManager in async mode")
         else:
             poll_time = None
-            self.log.debug("Starting DagFileProcessorManager in sync mode")
 
         # Used to track how long it takes us to get once around every file in the DAG folder.
         self._parsing_start_time = timezone.utcnow()
@@ -638,7 +636,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             # pylint: disable=no-else-break
             if self._signal_conn.poll(poll_time):
                 agent_signal = self._signal_conn.recv()
-                self.log.debug("Recived %s singal from DagFileProcessorAgent", agent_signal)
+                self.log.debug("Received %s signal from DagFileProcessorAgent", agent_signal)
                 if agent_signal == DagParsingSignal.TERMINATE_MANAGER:
                     self.terminate()
                     break
@@ -657,7 +655,20 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             self._refresh_dag_dir()
             self._find_zombies()  # pylint: disable=no-value-for-parameter
 
-            simple_dags = self.heartbeat()
+            self._kill_timed_out_processors()
+            simple_dags = self.collect_results()
+
+            # Generate more file paths to process if we processed all the files
+            # already.
+            if not self._file_path_queue:
+                self.emit_metrics()
+                self.prepare_file_path_queue()
+
+            self.start_new_processes()
+
+            # Update number of loop iteration.
+            self._num_run += 1
+
             for simple_dag in simple_dags:
                 self._signal_conn.send(simple_dag)
 
@@ -729,7 +740,8 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         """
         Occasionally print out stats about how fast the files are getting processed
         """
-        if (timezone.utcnow() - self.last_stat_print_time).total_seconds() > self.print_stats_interval:
+        if 0 < self.print_stats_interval < (
+                timezone.utcnow() - self.last_stat_print_time).total_seconds():
             if self._file_paths:
                 self._log_file_processing_stats(self._file_paths)
             self.last_stat_print_time = timezone.utcnow()
@@ -952,8 +964,6 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             have finished since the last time this was called
         :rtype: list[airflow.utils.dag_processing.SimpleDag]
         """
-        self._kill_timed_out_processors()
-
         finished_processors: Dict[str, AbstractDagFileProcessorProcess] = {}
         running_processors: Dict[str, AbstractDagFileProcessorProcess] = {}
 
@@ -996,63 +1006,10 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
         return simple_dags
 
-    def heartbeat(self):
+    def start_new_processes(self):
+        """"
+        Start more processors if we have enough slots and files to process
         """
-        This should be periodically called by the manager loop. This method will
-        kick off new processes to process DAG definition files and read the
-        results from the finished processors.
-
-        :return: a list of SimpleDags that were produced by processors that
-            have finished since the last time this was called
-        :rtype: list[airflow.utils.dag_processing.SimpleDag]
-        """
-        simple_dags = self.collect_results()
-
-        # Generate more file paths to process if we processed all the files
-        # already.
-        if not self._file_path_queue:
-            self.emit_metrics()
-
-            self._parsing_start_time = timezone.utcnow()
-            # If the file path is already being processed, or if a file was
-            # processed recently, wait until the next batch
-            file_paths_in_progress = self._processors.keys()
-            now = timezone.utcnow()
-            file_paths_recently_processed = []
-            for file_path in self._file_paths:
-                last_finish_time = self.get_last_finish_time(file_path)
-                if (last_finish_time is not None and
-                    (now - last_finish_time).total_seconds() <
-                        self._file_process_interval):
-                    file_paths_recently_processed.append(file_path)
-
-            files_paths_at_run_limit = [file_path
-                                        for file_path, stat in self._file_stats.items()
-                                        if stat.run_count == self._max_runs]
-
-            files_paths_to_queue = list(set(self._file_paths) -
-                                        set(file_paths_in_progress) -
-                                        set(file_paths_recently_processed) -
-                                        set(files_paths_at_run_limit))
-
-            for file_path, processor in self._processors.items():
-                self.log.debug(
-                    "File path %s is still being processed (started: %s)",
-                    processor.file_path, processor.start_time.isoformat()
-                )
-
-            self.log.debug(
-                "Queuing the following files for processing:\n\t%s",
-                "\n\t".join(files_paths_to_queue)
-            )
-
-            for file_path in files_paths_to_queue:
-                if file_path not in self._file_stats:
-                    self._file_stats[file_path] = DagFileStat(0, 0, None, None, 0)
-
-            self._file_path_queue.extend(files_paths_to_queue)
-
-        # Start more processors if we have enough slots and files to process
         while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
             file_path = self._file_path_queue.pop(0)
             processor = self._processor_factory(file_path, self._zombies)
@@ -1065,10 +1022,48 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             )
             self._processors[file_path] = processor
 
-        # Update heartbeat count.
-        self._heartbeat_count += 1
+    def prepare_file_path_queue(self):
+        """
+        Generate more file paths to process. Result are saved in _file_path_queue.
+        """
+        self._parsing_start_time = timezone.utcnow()
+        # If the file path is already being processed, or if a file was
+        # processed recently, wait until the next batch
+        file_paths_in_progress = self._processors.keys()
+        now = timezone.utcnow()
+        file_paths_recently_processed = []
+        for file_path in self._file_paths:
+            last_finish_time = self.get_last_finish_time(file_path)
+            if (last_finish_time is not None and
+                (now - last_finish_time).total_seconds() <
+                    self._file_process_interval):
+                file_paths_recently_processed.append(file_path)
 
-        return simple_dags
+        files_paths_at_run_limit = [file_path
+                                    for file_path, stat in self._file_stats.items()
+                                    if stat.run_count == self._max_runs]
+
+        files_paths_to_queue = list(set(self._file_paths) -
+                                    set(file_paths_in_progress) -
+                                    set(file_paths_recently_processed) -
+                                    set(files_paths_at_run_limit))
+
+        for file_path, processor in self._processors.items():
+            self.log.debug(
+                "File path %s is still being processed (started: %s)",
+                processor.file_path, processor.start_time.isoformat()
+            )
+
+        self.log.debug(
+            "Queuing the following files for processing:\n\t%s",
+            "\n\t".join(files_paths_to_queue)
+        )
+
+        for file_path in files_paths_to_queue:
+            if file_path not in self._file_stats:
+                self._file_stats[file_path] = DagFileStat(0, 0, None, None, 0)
+
+        self._file_path_queue.extend(files_paths_to_queue)
 
     @provide_session
     def _find_zombies(self, session):
@@ -1081,7 +1076,6 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         if not self._last_zombie_query_time or \
                 (now - self._last_zombie_query_time).total_seconds() > self._zombie_query_interval:
             # to avoid circular imports
-            from airflow.jobs import LocalTaskJob as LJ
             self.log.info("Finding 'running' jobs without a recent heartbeat")
             TI = airflow.models.TaskInstance
             limit_dttm = timezone.utcnow() - timedelta(
@@ -1136,7 +1130,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         for stat in self._file_stats.values():
             if stat.run_count < self._max_runs:
                 return False
-        if self._heartbeat_count < self._max_runs:
+        if self._num_run < self._max_runs:
             return False
         return True
 

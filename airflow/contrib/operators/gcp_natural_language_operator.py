@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -38,13 +37,16 @@ warnings.warn(
 class CloudLanguageAnalyzeEntitiesOperator(CloudNaturalLanguageAnalyzeEntitiesOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.natural_language.CloudNaturalLanguageAnalyzeEntitiesOperator`.
+    Please use
+    `airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeEntitiesOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.natural_language.CloudNaturalLanguageAnalyzeEntitiesOperator`.
+            Please use
+            `airflow.providers.google.cloud.operators.natural_language
+            .CloudNaturalLanguageAnalyzeEntitiesOperator`.
             """,
             DeprecationWarning, stacklevel=2
         )
@@ -54,14 +56,17 @@ class CloudLanguageAnalyzeEntitiesOperator(CloudNaturalLanguageAnalyzeEntitiesOp
 class CloudLanguageAnalyzeEntitySentimentOperator(CloudNaturalLanguageAnalyzeEntitySentimentOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.natural_language.CloudNaturalLanguageAnalyzeEntitySentimentOperator`.
+    Please use
+    `airflow.providers.google.cloud.operators.natural_language
+    .CloudNaturalLanguageAnalyzeEntitySentimentOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use
-            `airflow.gcp.operators.natural_language.CloudNaturalLanguageAnalyzeEntitySentimentOperator`.
+            `airflow.providers.google.cloud.operators.natural_language
+            .CloudNaturalLanguageAnalyzeEntitySentimentOperator`.
             """,
             DeprecationWarning, stacklevel=2
         )
@@ -71,13 +76,15 @@ class CloudLanguageAnalyzeEntitySentimentOperator(CloudNaturalLanguageAnalyzeEnt
 class CloudLanguageAnalyzeSentimentOperator(CloudNaturalLanguageAnalyzeSentimentOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.natural_language.CloudNaturalLanguageAnalyzeSentimentOperator`.
+    Please use
+    `airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeSentimentOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.natural_language.CloudNaturalLanguageAnalyzeSentimentOperator`.
+            Please use `airflow.providers.google.cloud.operators.natural_language
+            .CloudNaturalLanguageAnalyzeSentimentOperator`.
             """,
             DeprecationWarning, stacklevel=2
         )
@@ -87,13 +94,15 @@ class CloudLanguageAnalyzeSentimentOperator(CloudNaturalLanguageAnalyzeSentiment
 class CloudLanguageClassifyTextOperator(CloudNaturalLanguageClassifyTextOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.natural_language.CloudNaturalLanguageClassifyTextOperator`.
+    Please use `airflow.providers.google.cloud.operators.natural_language
+    .CloudNaturalLanguageClassifyTextOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.natural_language.CloudNaturalLanguageClassifyTextOperator`.
+            Please use `airflow.providers.google.cloud.operators.natural_language
+            .CloudNaturalLanguageClassifyTextOperator`.
             """,
             DeprecationWarning, stacklevel=2
         )

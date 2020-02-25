@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,8 +18,8 @@
 
 from datetime import datetime, timedelta
 
-from airflow import DAG
-from airflow.operators.bash_operator import BashOperator
+from airflow.models.dag import DAG
+from airflow.operators.bash import BashOperator
 
 default_args = {
     'owner': 'airflow',

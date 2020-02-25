@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,6 +18,7 @@
 
 from typing import NamedTuple
 
+from airflow.ti_deps.dep_context import DepContext
 from airflow.utils.session import provide_session
 
 
@@ -41,7 +41,7 @@ class BaseTIDep:
         pass
 
     def __eq__(self, other):
-        return type(self) == type(other)
+        return isinstance(self, type(other))
 
     def __hash__(self):
         return hash(type(self))
@@ -57,7 +57,7 @@ class BaseTIDep:
         """
         return getattr(self, 'NAME', self.__class__.__name__)
 
-    def _get_dep_statuses(self, ti, session, dep_context=None):
+    def _get_dep_statuses(self, ti, session, dep_context):
         """
         Abstract method that returns an iterable of TIDepStatus objects that describe
         whether the given task instance has this dependency met.
@@ -87,9 +87,6 @@ class BaseTIDep:
         :param dep_context: the context for which this dependency should be evaluated for
         :type dep_context: DepContext
         """
-        # this avoids a circular dependency
-        from airflow.ti_deps.dep_context import DepContext
-
         if dep_context is None:
             dep_context = DepContext()
 

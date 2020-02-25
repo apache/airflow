@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -22,6 +21,9 @@ from airflow.utils.session import provide_session
 
 
 class DagTISlotsAvailableDep(BaseTIDep):
+    """
+    Determines whether a DAG maximum number of running tasks has been reached.
+    """
     NAME = "Task Instance Slots Available"
     IGNOREABLE = True
 

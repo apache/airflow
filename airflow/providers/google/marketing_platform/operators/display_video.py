@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -25,9 +24,9 @@ import urllib.request
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
-from airflow import AirflowException
-from airflow.gcp.hooks.gcs import GCSHook
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.utils.decorators import apply_defaults
 

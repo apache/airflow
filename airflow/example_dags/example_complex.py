@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,8 +22,8 @@ Example Airflow DAG that shows the complex DAG structure.
 
 from airflow import models
 from airflow.models.baseoperator import chain
-from airflow.operators.bash_operator import BashOperator
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.bash import BashOperator
+from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
 
 default_args = {"start_date": days_ago(1)}

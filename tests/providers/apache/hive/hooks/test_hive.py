@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -29,9 +28,9 @@ from unittest import mock
 import pandas as pd
 from hmsclient import HMSClient
 
-from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
+from airflow.models.dag import DAG
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
 from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.utils import timezone
@@ -537,3 +536,26 @@ class TestHiveServer2Hook(unittest.TestCase):
         self.assertIn('test_task_id', output)
         self.assertIn('test_execution_date', output)
         self.assertIn('test_dag_run_id', output)
+
+
+class TestHiveCli(unittest.TestCase):
+
+    def setUp(self):
+        self.nondefault_schema = "nondefault"
+        os.environ["AIRFLOW__CORE__SECURITY"] = "kerberos"
+
+    def tearDown(self):
+        del os.environ["AIRFLOW__CORE__SECURITY"]
+
+    def test_get_proxy_user_value(self):
+        hook = HiveCliHook()
+        returner = mock.MagicMock()
+        returner.extra_dejson = {'proxy_user': 'a_user_proxy'}
+        hook.use_beeline = True
+        hook.conn = returner
+
+        # Run
+        result = hook._prepare_cli_cmd()
+
+        # Verify
+        self.assertIn('hive.server2.proxy.user=a_user_proxy', result[2])

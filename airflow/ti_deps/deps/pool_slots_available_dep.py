@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -62,12 +61,13 @@ class PoolSlotsAvailableDep(BaseTIDep):
             open_slots = pools[0].open_slots()
 
         if ti.state in STATES_TO_COUNT_AS_RUNNING:
-            open_slots += 1
+            open_slots += ti.pool_slots
 
-        if open_slots <= 0:
+        if open_slots <= (ti.pool_slots - 1):
             yield self._failing_status(
-                reason=("Not scheduling since there are %s open slots in pool %s",
-                        open_slots, pool_name)
+                reason=("Not scheduling since there are %s open slots in pool %s "
+                        "and require %s pool slots",
+                        open_slots, pool_name, ti.pool_slots)
             )
         else:
             yield self._passing_status(

@@ -150,6 +150,10 @@ repos:
       - id: check-executables-have-shebangs
       - id: check-xml
       - id: trailing-whitespace
+      - id: fix-encoding-pragma
+        args:
+          - --remove
+        exclude: ^airflow/_vendor/.*$
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.4.4
     hooks:
@@ -198,6 +202,13 @@ repos:
         files: ^BREEZE.rst$|^breeze$|^breeze-complete$
         pass_filenames: false
         require_serial: true
+      - id: update-setup-cfg-file
+        name: Update setup.cfg file with all licenses
+        entry: "./scripts/ci/pre_commit_setup_cfg_file.sh"
+        language: system
+        files: ^setup.cfg$
+        pass_filenames: false
+        require_serial: true
       - id: pydevd
         language: pygrep
         name: Check for pydevd debug statements accidentally left
@@ -224,12 +235,6 @@ repos:
           ^airflow/sensors/.*$|
           ^airflow/providers/.*$|
           ^airflow/contrib/.*$
-      - id: provide-create-sessions
-        language: pygrep
-        name: Make sure provide_session and create_session are imported from airflow.utils.session
-        entry: "from airflow\\.utils\\.db import.* (provide_session|create_session)"
-        files: \.py$
-        pass_filenames: true
       - id: base-operator
         language: pygrep
         name: Make sure BaseOperator[Link] is imported from airflow.models outside of core
@@ -243,6 +248,24 @@ repos:
           ^airflow/sensors/.*$|
           ^airflow/providers/.*\.py$|
           ^airflow/contrib/.*\.py$
+      - id: provide-create-sessions
+        language: pygrep
+        name: Make sure provide_session and create_session are imported from airflow.utils.session
+        entry: "from airflow\\.utils\\.db import.* (provide_session|create_session)"
+        files: \.py$
+        pass_filenames: true
+      - id: incorrect-use-of-LoggingMixin
+        language: pygrep
+        name: Make sure LoggingMixin is not used alone
+        entry: "LoggingMixin\\(\\)"
+        files: \.py$
+        pass_filenames: true
+      - id: daysago-import-check
+        language: pygrep
+        name: Make sure days_ago is imported from airflow.utils.dates
+        entry: "(airflow\\.){0,1}utils\\.dates\\.days_ago"
+        files: \.py$
+        pass_filenames: true
       - id: build
         name: Check if image build is needed
         entry: ./scripts/ci/pre_commit_ci_build.sh
@@ -269,14 +292,14 @@ repos:
         language: system
         entry: "./scripts/ci/pre_commit_mypy.sh"
         files: \.py$
-        exclude: ^airflow/_vendor/.*$
-        pass_filenames: true
+        exclude: ^airflow/_vendor/.*$|^dev|^backport_packages
+        require_serial: true
       - id: pylint
         name: Run pylint for main sources
         language: system
         entry: "./scripts/ci/pre_commit_pylint_main.sh"
         files: \.py$
-        exclude: ^tests/.*\.py$|^airflow/_vendor/.*|^scripts/.*\.py$
+        exclude: ^tests/.*\.py$|^airflow/_vendor/.*|^scripts/.*\.py$|^dev|^backport_packages
         pass_filenames: true
         require_serial: true  # Pylint tests should be run in one chunk to detect all cycles
       - id: pylint-tests
@@ -285,7 +308,7 @@ repos:
         entry: "./scripts/ci/pre_commit_pylint_tests.sh"
         files: ^tests/.*\.py$
         pass_filenames: true
-        require_serial: false  # For tests, it's perfectly OK to run pylint in parallel
+        require_serial: true
       - id: flake8
         name: Run flake8
         language: system
@@ -293,8 +316,8 @@ repos:
         files: \.py$
         pass_filenames: true
       - id: bat-tests
-        name: Run BATS bash tests
+        name: Run BATS bash tests for changed bash files
         language: system
         entry: "./scripts/ci/pre_commit_bat_tests.sh"
-        files: ^tests/bats/.*\.bats$
-        pass_filenames: true
+        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$
+        pass_filenames: false

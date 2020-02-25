@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,9 +20,9 @@
 
 import random
 
-from airflow.models import DAG
+from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import BranchPythonOperator
+from airflow.operators.python import BranchPythonOperator
 from airflow.utils.dates import days_ago
 
 args = {

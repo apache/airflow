@@ -20,9 +20,8 @@ import unittest
 
 from parameterized import parameterized
 
-AIRFLOW_MAIN_FOLDER = os.path.realpath(
-    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir)
-)
+from tests.test_utils import AIRFLOW_MAIN_FOLDER
+
 CONFIG_TEMPLATES_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "config_templates")
 
 DEFAULT_AIRFLOW_SECTIONS = [

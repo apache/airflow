@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,24 +20,25 @@ import datetime
 import time
 import unittest
 import urllib
-from typing import List, Union
+from typing import List, Optional, Union
 from unittest.mock import mock_open, patch
 
 import pendulum
+import pytest
 from freezegun import freeze_time
 from parameterized import param, parameterized
 from sqlalchemy.orm.session import Session
 
 from airflow import models, settings
 from airflow.configuration import conf
-from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import DAG, DagRun, Pool, TaskFail, TaskInstance as TI, TaskReschedule, Variable
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.ti_deps.dep_context import REQUEUEABLE_DEPS, RUNNABLE_STATES, RUNNING_DEPS
+from airflow.sensors.python import PythonSensor
+from airflow.ti_deps.dependencies import REQUEUEABLE_DEPS, RUNNABLE_STATES, RUNNING_DEPS
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
@@ -49,10 +49,10 @@ from tests.test_utils import db
 
 
 class CallbackWrapper:
-    task_id = None
-    dag_id = None
-    execution_date = None
-    task_state_in_callback = None
+    task_id: Optional[str] = None
+    dag_id: Optional[str] = None
+    execution_date: Optional[datetime.datetime] = None
+    task_state_in_callback: Optional[str] = None
     callback_ran = False
 
     def wrap_task_instance(self, ti):
@@ -370,6 +370,19 @@ class TestTaskInstance(unittest.TestCase):
         db.clear_db_pools()
         self.assertEqual(ti.state, State.SUCCESS)
 
+    def test_pool_slots_property(self):
+        """
+        test that try to create a task with pool_slots less than 1
+        """
+        def create_task_instance():
+            dag = models.DAG(dag_id='test_run_pooling_task')
+            task = DummyOperator(task_id='test_run_pooling_task_op', dag=dag,
+                                 pool='test_pool', pool_slots=0, owner='airflow',
+                                 start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+            return TI(task=task, execution_date=timezone.utcnow())
+
+        self.assertRaises(AirflowException, create_task_instance)
+
     @provide_session
     def test_ti_updates_with_task(self, session=None):
         """
@@ -594,8 +607,7 @@ class TestTaskInstance(unittest.TestCase):
         period = ti.end_date.add(seconds=1) - ti.end_date.add(seconds=15)
         self.assertTrue(date in period)
 
-    @patch.object(TI, 'pool_full')
-    def test_reschedule_handling(self, mock_pool_full):
+    def test_reschedule_handling(self):
         """
         Test that task reschedules are handled properly
         """
@@ -690,8 +702,7 @@ class TestTaskInstance(unittest.TestCase):
         done, fail = True, False
         run_ti_and_assert(date4, date3, date4, 60, State.SUCCESS, 3, 0)
 
-    @patch.object(TI, 'pool_full')
-    def test_reschedule_handling_clear_reschedules(self, mock_pool_full):
+    def test_reschedule_handling_clear_reschedules(self):
         """
         Test that task reschedules clearing are handled properly
         """
@@ -1023,7 +1034,7 @@ class TestTaskInstance(unittest.TestCase):
         ti = TI(
             task=task, execution_date=timezone.utcnow())
         self.assertEqual(ti._try_number, 0)
-        self.assertTrue(ti._check_and_change_state_before_execution())
+        self.assertTrue(ti.check_and_change_state_before_execution())
         # State should be running, and try_number column should be incremented
         self.assertEqual(ti.state, State.RUNNING)
         self.assertEqual(ti._try_number, 1)
@@ -1035,7 +1046,7 @@ class TestTaskInstance(unittest.TestCase):
         task >> task2
         ti = TI(
             task=task2, execution_date=timezone.utcnow())
-        self.assertFalse(ti._check_and_change_state_before_execution())
+        self.assertFalse(ti.check_and_change_state_before_execution())
 
     def test_try_number(self):
         """
@@ -1484,3 +1495,26 @@ class TestTaskInstance(unittest.TestCase):
 
         context_arg_2 = mock_on_retry_2.call_args[0][0]
         assert context_arg_2 and "task_instance" in context_arg_2
+
+
+@pytest.mark.parametrize("pool_override", [None, "test_pool2"])
+def test_refresh_from_task(pool_override):
+    task = DummyOperator(task_id="dummy", queue="test_queue", pool="test_pool1", pool_slots=3,
+                         priority_weight=10, run_as_user="test", retries=30,
+                         executor_config={"KubernetesExecutor": {"image": "myCustomDockerImage"}})
+    ti = TI(task, execution_date=pendulum.datetime(2020, 1, 1))
+    ti.refresh_from_task(task, pool_override=pool_override)
+
+    assert ti.queue == task.queue
+
+    if pool_override:
+        assert ti.pool == pool_override
+    else:
+        assert ti.pool == task.pool
+
+    assert ti.pool_slots == task.pool_slots
+    assert ti.priority_weight == task.priority_weight_total
+    assert ti.run_as_user == task.run_as_user
+    assert ti.max_tries == task.retries
+    assert ti.executor_config == task.executor_config
+    assert ti.operator == DummyOperator.__name__
