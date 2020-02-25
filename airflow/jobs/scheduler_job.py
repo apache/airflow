@@ -56,6 +56,7 @@ from airflow.utils.dag_processing import (AbstractDagFileProcessor,
                                           list_py_file_paths)
 from airflow.utils.db import provide_session
 from airflow.utils.email import get_email_address_list, send_email
+from airflow.utils.lock import acquire_lock
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.state import State
 
@@ -403,6 +404,20 @@ class SchedulerJob(BaseJob):
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
 
+    def on_lock_error(self):
+        os.kill(os.getpid(), signal.SIGTERM)
+
+    def run(self):
+        def on_stolen_lock(*args, **kwargs):
+            self.log.info("Scheduler has lost the lock. Shutting down")
+            self.on_lock_error()
+
+        # Scheduler locking logic
+        self.log.error("Acquiring lock...")
+        with acquire_lock(callback=on_stolen_lock):
+            self.log.info("Lock Acquired!")
+            return super(SchedulerJob, self).run()
+
     def _exit_gracefully(self, signum, frame):
         """
         Helper method to clean up processor_agent to avoid leaving orphan processes.
@@ -667,9 +682,9 @@ class SchedulerJob(BaseJob):
                 next_start = dag.following_schedule(now)
                 last_start = dag.previous_schedule(now)
                 if next_start <= now:
-                    new_start = last_start
+                    new_start = last_start if self.schedule_when_period_ends else next_start
                 else:
-                    new_start = dag.previous_schedule(last_start)
+                    new_start = dag.previous_schedule(last_start) if self.schedule_when_period_ends else last_start
 
                 if dag.start_date:
                     if new_start >= dag.start_date:
@@ -714,7 +729,7 @@ class SchedulerJob(BaseJob):
 
             # this structure is necessary to avoid a TypeError from concatenating
             # NoneType
-            if dag.schedule_interval == '@once':
+            if dag.schedule_interval == '@once' or not self.schedule_when_period_ends:
                 period_end = next_run_date
             elif next_run_date:
                 period_end = dag.following_schedule(next_run_date)

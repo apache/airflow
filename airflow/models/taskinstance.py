@@ -64,6 +64,42 @@ from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 
 
+def cancel_task_instances(tis,
+                          session,
+                          dag=None,
+                          ):
+    """
+    Cancels a set of task instances, making sure running ones get killed and will not be run again..
+
+    :param tis: a list of task instances
+    :param session: current session
+    :param dag: DAG object
+    """
+    from airflow.models.dagrun import DagRun  # Avoid circular imports
+    job_ids = []
+    for ti in tis:
+        ti.max_tries = 0
+        ti._try_number = 1
+        if ti.state == State.RUNNING:
+            if ti.job_id:
+                ti.state = State.SHUTDOWN
+                job_ids.append(ti.job_id)
+        else:
+            ti.state = State.FAILED
+
+    if job_ids:
+        from airflow.jobs import BaseJob as BJ
+        for job in session.query(BJ).filter(BJ.id.in_(job_ids)).all():
+            job.state = State.SHUTDOWN
+
+    drs = session.query(DagRun).filter(
+        DagRun.dag_id.in_({ti.dag_id for ti in tis}),
+        DagRun.execution_date.in_({ti.execution_date for ti in tis}),
+    ).all()
+    for dr in drs:
+        dr.state = State.FAILED
+
+
 def clear_task_instances(tis,
                          session,
                          activate_dag_runs=True,

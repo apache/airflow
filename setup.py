@@ -209,6 +209,7 @@ docker = [
 druid = [
     'pydruid>=0.4.1',
 ]
+dynamodb_lock = ['python-dynamodb-lock==0.9.1']
 elasticsearch = [
     'elasticsearch>=5.0.0,<6.0.0',
     'elasticsearch-dsl>=5.0.0,<6.0.0',
@@ -410,7 +411,7 @@ devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
 devel_azure = azure_cosmos + azure_data_lake + devel_minreq
 devel_all = (all_dbs + atlas + aws +
              azure_blob_storage + azure_container_instances + azure_cosmos + azure_data_lake +
-             celery + cgroups + crypto + datadog + devel + doc + docker + druid +
+             celery + cgroups + crypto + datadog + devel + doc + docker + druid + dynamodb_lock +
              elasticsearch + gcp + grpc + jdbc + jenkins + kerberos + kubernetes + ldap + oracle +
              papermill + password + pinot +
              redis + samba + segment + sendgrid + sentry + slack + snowflake + ssh +
@@ -537,6 +538,7 @@ def do_setup():
             'doc': doc,
             'docker': docker,
             'druid': druid,
+            'dynamodb_lock': dynamodb_lock,
             'elasticsearch': elasticsearch,
             'emr': aws,
             'gcp': gcp,

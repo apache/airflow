@@ -919,12 +919,12 @@ if [[ ${INITIALIZE_LOCAL_VIRTUALENV} == "true" ]]; then
         echo "Resetting AIRFLOW sqlite database"
         echo
         unset AIRFLOW__CORE__UNIT_TEST_MODE
-        airflow db reset -y
+        airflow resetdb -y
         echo
         echo "Resetting AIRFLOW sqlite unit test database"
         echo
         export AIRFLOW__CORE__UNIT_TEST_MODE=True
-        airflow db reset -y
+        airflow resetdb -y
         exit 0
    fi
 fi
