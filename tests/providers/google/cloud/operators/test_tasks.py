@@ -44,7 +44,7 @@ FULL_TASK_PATH = (
 class TestCloudTasksQueueCreate(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_create_queue(self, mock_hook):
-        mock_hook.return_value.create_queue.return_value = {}
+        mock_hook.return_value.create_queue.return_value = mock.MagicMock()
         operator = CloudTasksQueueCreateOperator(
             location=LOCATION, task_queue=Queue(), task_id="id"
         )
@@ -64,7 +64,7 @@ class TestCloudTasksQueueCreate(unittest.TestCase):
 class TestCloudTasksQueueUpdate(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_update_queue(self, mock_hook):
-        mock_hook.return_value.update_queue.return_value = {}
+        mock_hook.return_value.update_queue.return_value = mock.MagicMock()
         operator = CloudTasksQueueUpdateOperator(
             task_queue=Queue(name=FULL_QUEUE_PATH), task_id="id"
         )
@@ -85,7 +85,7 @@ class TestCloudTasksQueueUpdate(unittest.TestCase):
 class TestCloudTasksQueueGet(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_get_queue(self, mock_hook):
-        mock_hook.return_value.get_queue.return_value = {}
+        mock_hook.return_value.get_queue.return_value = mock.MagicMock()
         operator = CloudTasksQueueGetOperator(
             location=LOCATION, queue_name=QUEUE_ID, task_id="id"
         )
@@ -104,7 +104,7 @@ class TestCloudTasksQueueGet(unittest.TestCase):
 class TestCloudTasksQueuesList(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_list_queues(self, mock_hook):
-        mock_hook.return_value.list_queues.return_value = {}
+        mock_hook.return_value.list_queues.return_value = mock.MagicMock()
         operator = CloudTasksQueuesListOperator(location=LOCATION, task_id="id")
         operator.execute(context=None)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
@@ -122,7 +122,7 @@ class TestCloudTasksQueuesList(unittest.TestCase):
 class TestCloudTasksQueueDelete(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_delete_queue(self, mock_hook):
-        mock_hook.return_value.delete_queue.return_value = {}
+        mock_hook.return_value.delete_queue.return_value = mock.MagicMock()
         operator = CloudTasksQueueDeleteOperator(
             location=LOCATION, queue_name=QUEUE_ID, task_id="id"
         )
@@ -141,7 +141,7 @@ class TestCloudTasksQueueDelete(unittest.TestCase):
 class TestCloudTasksQueuePurge(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_delete_queue(self, mock_hook):
-        mock_hook.return_value.purge_queue.return_value = {}
+        mock_hook.return_value.purge_queue.return_value = mock.MagicMock()
         operator = CloudTasksQueuePurgeOperator(
             location=LOCATION, queue_name=QUEUE_ID, task_id="id"
         )
@@ -160,7 +160,7 @@ class TestCloudTasksQueuePurge(unittest.TestCase):
 class TestCloudTasksQueuePause(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_pause_queue(self, mock_hook):
-        mock_hook.return_value.pause_queue.return_value = {}
+        mock_hook.return_value.pause_queue.return_value = mock.MagicMock()
         operator = CloudTasksQueuePauseOperator(
             location=LOCATION, queue_name=QUEUE_ID, task_id="id"
         )
@@ -179,7 +179,7 @@ class TestCloudTasksQueuePause(unittest.TestCase):
 class TestCloudTasksQueueResume(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_resume_queue(self, mock_hook):
-        mock_hook.return_value.resume_queue.return_value = {}
+        mock_hook.return_value.resume_queue.return_value = mock.MagicMock()
         operator = CloudTasksQueueResumeOperator(
             location=LOCATION, queue_name=QUEUE_ID, task_id="id"
         )
@@ -198,7 +198,7 @@ class TestCloudTasksQueueResume(unittest.TestCase):
 class TestCloudTasksTaskCreate(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_create_task(self, mock_hook):
-        mock_hook.return_value.create_task.return_value = {}
+        mock_hook.return_value.create_task.return_value = mock.MagicMock()
         operator = CloudTasksTaskCreateOperator(
             location=LOCATION, queue_name=QUEUE_ID, task=Task(), task_id="id"
         )
@@ -220,7 +220,7 @@ class TestCloudTasksTaskCreate(unittest.TestCase):
 class TestCloudTasksTaskGet(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_get_task(self, mock_hook):
-        mock_hook.return_value.get_task.return_value = {}
+        mock_hook.return_value.get_task.return_value = mock.MagicMock()
         operator = CloudTasksTaskGetOperator(
             location=LOCATION, queue_name=QUEUE_ID, task_name=TASK_NAME, task_id="id"
         )
@@ -241,7 +241,7 @@ class TestCloudTasksTaskGet(unittest.TestCase):
 class TestCloudTasksTasksList(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_list_tasks(self, mock_hook):
-        mock_hook.return_value.list_tasks.return_value = {}
+        mock_hook.return_value.list_tasks.return_value = mock.MagicMock()
         operator = CloudTasksTasksListOperator(
             location=LOCATION, queue_name=QUEUE_ID, task_id="id"
         )
@@ -262,7 +262,7 @@ class TestCloudTasksTasksList(unittest.TestCase):
 class TestCloudTasksTaskDelete(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_delete_task(self, mock_hook):
-        mock_hook.return_value.delete_task.return_value = {}
+        mock_hook.return_value.delete_task.return_value = mock.MagicMock()
         operator = CloudTasksTaskDeleteOperator(
             location=LOCATION, queue_name=QUEUE_ID, task_name=TASK_NAME, task_id="id"
         )
@@ -282,7 +282,7 @@ class TestCloudTasksTaskDelete(unittest.TestCase):
 class TestCloudTasksTaskRun(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_run_task(self, mock_hook):
-        mock_hook.return_value.run_task.return_value = {}
+        mock_hook.return_value.run_task.return_value = mock.MagicMock()
         operator = CloudTasksTaskRunOperator(
             location=LOCATION, queue_name=QUEUE_ID, task_name=TASK_NAME, task_id="id"
         )
