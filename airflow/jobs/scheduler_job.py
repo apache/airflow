@@ -446,6 +446,22 @@ class SchedulerJob(BaseJob):
             (timezone.utcnow() - self.latest_heartbeat).total_seconds() < scheduler_health_check_threshold
         )
 
+    def succeed_recently(self):
+        """
+        Did this SchedulerJob succeed recently?
+
+        We define the job succeeded recently if the job state is success
+        and ends within the threshold defined in the ``scheduler_health_check_threshold``
+        config setting.
+
+        :rtype: boolean
+        """
+        scheduler_health_check_threshold = conf.getint('scheduler', 'scheduler_health_check_threshold')
+        return (
+            self.state == State.SUCCESS and self.end_date and
+            (timezone.utcnow() - self.end_date).seconds < scheduler_health_check_threshold
+        )
+
     @provide_session
     def manage_slas(self, dag, session=None):
         """
