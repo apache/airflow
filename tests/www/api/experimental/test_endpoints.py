@@ -28,6 +28,7 @@ from parameterized import parameterized_class
 from airflow import settings
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
+from airflow.models.dag import DagModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import Session
 from airflow.utils.session import provide_session
@@ -380,9 +381,7 @@ class TestApiExperimental(TestBase):
             )
             self.assertEqual(200, response.status_code)
 
-            all_dags = {
-                dag.dag_id for dag in session.query(SerializedDagModel).order_by(SerializedDagModel.dag_id)
-            }
+            all_dags = {y for x in session.query(DagModel.dag_id) for y in x}
             self.assertSetEqual(all_dags, set(json.loads(response.data.decode('utf-8'))))
 
             # Test regex param
