@@ -42,6 +42,7 @@ FAILED = 'serialization_failed'
 BUILTIN_OPERATOR_EXTRA_LINKS: List[str] = [
     "airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink",
     "airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink",
+    "airflow.providers.google.cloud.operators.mlengine.AIPlatformConsoleLink",
     "airflow.providers.qubole.operators.qubole.QDSLink"
 ]
 
