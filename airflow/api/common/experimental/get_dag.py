@@ -18,7 +18,7 @@
 """Dag APIs.."""
 
 from airflow.api.common.experimental import check_and_get_dag
-from airflow.models import DagModel
+from airflow.models.dag import DagModel
 
 
 def get_dag(dag_id) -> DagModel:

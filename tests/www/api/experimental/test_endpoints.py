@@ -17,6 +17,7 @@
 # under the License.
 import json
 import os
+import re
 import unittest
 from datetime import timedelta
 from unittest import mock
@@ -29,6 +30,7 @@ from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import Session
+from airflow.utils.session import provide_session
 from airflow.utils.timezone import datetime, parse as parse_datetime, utcnow
 from airflow.version import version
 from airflow.www import app as application
@@ -112,6 +114,26 @@ class TestApiExperimental(TestBase):
                 url_template.format('DNE', 'DNE')
             )
             self.assertIn('error', response.data.decode('utf-8'))
+            self.assertEqual(404, response.status_code)
+
+    def test_get_dag_info(self):
+        with conf_vars(
+            {("core", "store_serialized_dags"): self.dag_serialzation}
+        ):
+            url_template = '/api/experimental/dags/{}'
+
+            response = self.client.get(
+                url_template.format('example_bash_operator')
+            )
+            self.assertEqual(200, response.status_code)
+            self.assertEqual(
+                'example_bash_operator',
+                json.loads(response.data.decode('utf-8')).get('safe_dag_id')
+            )
+
+            response = self.client.get(
+                url_template.format('bad_dag')
+            )
             self.assertEqual(404, response.status_code)
 
     def test_get_dag_code(self):
@@ -345,6 +367,126 @@ class TestApiExperimental(TestBase):
             self.assertEqual(400, response.status_code)
             self.assertIn('error', response.data.decode('utf-8'))
 
+    @provide_session
+    def test_get_dags(self, session=None):
+        with conf_vars(
+            {("core", "store_serialized_dags"): self.dag_serialzation}
+        ):
+            url = '/api/experimental/dags'
+
+            # Test Correct execution
+            response = self.client.get(
+                url
+            )
+            self.assertEqual(200, response.status_code)
+
+            all_dags = {
+                dag.dag_id for dag in session.query(SerializedDagModel).order_by(SerializedDagModel.dag_id)
+            }
+            self.assertSetEqual(all_dags, set(json.loads(response.data.decode('utf-8'))))
+
+            # Test regex param
+            response = self.client.get(
+                url,
+                query_string={'regex': 'example'}
+            )
+            self.assertEqual(200, response.status_code)
+
+            pattern = re.compile('example')
+            example_dags = set(filter(pattern.match, all_dags))
+            self.assertSetEqual(example_dags, set(json.loads(response.data.decode('utf-8'))))
+
+    def test_get_dag_tasks(self):
+        with conf_vars(
+            {("core", "store_serialized_dags"): self.dag_serialzation}
+        ):
+            url_template = '/api/experimental/dags/{dag_id}/tasks'
+
+            # Test Correct execution
+            response = self.client.get(
+                url_template.format(dag_id='example_bash_operator')
+            )
+
+            self.assertEqual(200, response.status_code)
+            self.assertSetEqual(
+                {'run_this_last', 'run_after_loop', 'runme_0', 'runme_1', 'runme_2', 'also_run_this'},
+                set(json.loads(response.data.decode('utf-8')))
+            )
+
+            # Test regex param
+            response = self.client.get(
+                url_template.format(dag_id='example_bash_operator'),
+                query_string={'regex': 'run(.*)'}
+            )
+
+            self.assertEqual(200, response.status_code)
+
+            # Task 'also_run_this' will should not be present
+            self.assertSetEqual(
+                {'run_this_last', 'run_after_loop', 'runme_0', 'runme_1', 'runme_2'},
+                set(json.loads(response.data.decode('utf-8')))
+            )
+
+    def test_get_upstream_tasks(self):
+        with conf_vars(
+            {("core", "store_serialized_dags"): self.dag_serialzation}
+        ):
+            url_template = '/api/experimental/dags/{dag_id}/tasks/{task_id}/upstream'
+
+            # Test Correct execution
+            response = self.client.get(
+                url_template.format(dag_id='example_branch_operator', task_id='join')
+            )
+
+            self.assertEqual(200, response.status_code)
+            self.assertSetEqual({'follow_branch_a', 'follow_branch_b', 'follow_branch_d', 'follow_branch_c'},
+                                set(json.loads(response.data.decode('utf-8'))))
+
+            # Test regex
+            response = self.client.get(
+                url_template.format(dag_id='example_branch_operator', task_id='join'),
+                query_string={'regex': '.*\\_a'}
+            )
+
+            self.assertEqual(200, response.status_code)
+            self.assertSetEqual({'follow_branch_a'}, set(json.loads(response.data.decode('utf-8'))))
+
+            # Test Error Handling
+            response = self.client.get(
+                url_template.format(dag_id='bad_dag', task_id='also_run_this')
+            )
+            self.assertEqual(404, response.status_code)
+
+            response = self.client.get(
+                url_template.format(dag_id='example_branch_operator', task_id='bad_task')
+            )
+            self.assertEqual(404, response.status_code)
+
+    def test_get_downstream_tasks(self):
+        with conf_vars(
+            {("core", "store_serialized_dags"): self.dag_serialzation}
+        ):
+            url_template = '/api/experimental/dags/{dag_id}/tasks/{task_id}/downstream'
+
+            # Test Correct execution
+            response = self.client.get(
+                url_template.format(dag_id='example_branch_operator', task_id='branching')
+            )
+            self.assertEqual(200, response.status_code)
+            self.assertSetEqual({'branch_a', 'branch_b', 'branch_d', 'branch_c'},
+                                set(json.loads(response.data.decode('utf-8'))))
+
+            # Test Error Handling
+            response = self.client.get(
+                url_template.format(dag_id='bad_dag', task_id='also_run_this')
+            )
+            self.assertEqual(404, response.status_code)
+
+            response = self.client.get(
+                url_template.format(dag_id='example_branch_operator', task_id='bad_task')
+            )
+            self.assertEqual(404, response.status_code)
+
 
 @parameterized_class([
     {"dag_serialzation": "False"},
@@ -417,7 +559,6 @@ class TestLineageApiExperimental(TestBase):
 
 
 class TestPoolApiExperimental(TestBase):
-
     USER_POOL_COUNT = 2
     TOTAL_POOL_COUNT = USER_POOL_COUNT + 1  # including default_pool
 
