@@ -19,7 +19,6 @@
 Transfer data from MySQL into a S3 bucket.
 """
 import os
-import pickle
 import tempfile
 from typing import Optional, Union
 
