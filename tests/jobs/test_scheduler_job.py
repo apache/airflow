@@ -127,6 +127,14 @@ class SchedulerJobTest(unittest.TestCase):
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
         self.assertFalse(job.is_alive(), "Completed jobs even with recent heartbeat should not be alive")
 
+    def test_succeed_recently(self):
+        job = SchedulerJob(None, heartrate=10, state=State.SUCCESS)
+        job.end_date = timezone.utcnow() - datetime.timedelta(seconds=10)
+        self.assertTrue(job.succeed_recently())
+
+        job.end_date = timezone.utcnow() - datetime.timedelta(seconds=31)
+        self.assertFalse(job.succeed_recently())
+
     def run_single_scheduler_loop_with_no_dags(self, dags_folder):
         """
         Utility function that runs a single scheduler loop without actually
