@@ -79,28 +79,26 @@ Session: Optional[SASession] = None
 json = json
 
 
-def policy(task_instance):
+def policy(task):
     """
-    This policy setting allows altering task instances right before they
+    This policy setting allows altering tasks right before they
     are executed. It allows administrator to rewire some task parameters.
 
-    Note that the ``TaskInstance`` object has an attribute ``task`` pointing
-    to its related task object, that in turns has a reference to the DAG
+    Note that the ``Task`` object has a reference to the DAG
     object. So you can use the attributes of all of these to define your
     policy.
 
     To define policy, add a ``airflow_local_settings`` module
     to your PYTHONPATH that defines this ``policy`` function. It receives
-    a ``TaskInstance`` object and can alter it where needed.
+    a ``Task`` object and can alter it where needed.
 
     Here are a few examples of how this can be useful:
 
     * You could enforce a specific queue (say the ``spark`` queue)
         for tasks using the ``SparkOperator`` to make sure that these
-        task instances get wired to the right workers
-    * You could force all task instances running on an
-        ``execution_date`` older than a week old to run in a ``backfill``
-        pool.
+        tasks get wired to the right workers
+    * You could enforce a task timeout policy, making sure that no tasks run
+        for more than 48 hours
     * ...
     """
 
