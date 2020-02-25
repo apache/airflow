@@ -53,8 +53,11 @@ PY37 = sys.version_info >= (3, 7)
 def __getattr__(name):
     # PEP-562: Lazy loaded attributes on python modules
     if name == "DAG":
-        from airflow.models.dag import DAG # pylint: disable=redefined-outer-name
+        from airflow.models.dag import DAG  # pylint: disable=redefined-outer-name
         return DAG
+    if name == "AirflowException":
+        from airflow.exceptions import AirflowException  # pylint: disable=redefined-outer-name
+        return AirflowException
     raise AttributeError(f"module {__name__} has no attribute {name}")
 
 
@@ -65,6 +68,7 @@ STATICA_HACK = True
 globals()['kcah_acitats'[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
     from airflow.models.dag import DAG
+    from airflow.exceptions import AirflowException
 
 
 if not PY37:
