@@ -371,7 +371,7 @@ class DagFileProcessorAgent(LoggingMixin):
 
     def wait_until_finished(self):
         """Waits until DAG parsing is finished."""
-        while self._parent_signal_conn.poll():
+        while self._parent_signal_conn.poll(timeout=None):
             try:
                 result = self._parent_signal_conn.recv()
             except EOFError:
@@ -426,7 +426,7 @@ class DagFileProcessorAgent(LoggingMixin):
         :return: List of parsing result in SimpleDag format.
         """
         # Receive any pending messages before checking if the process has exited.
-        while self._parent_signal_conn.poll():
+        while self._parent_signal_conn.poll(timeout=0.01):
             try:
                 result = self._parent_signal_conn.recv()
             except (EOFError, ConnectionError):
