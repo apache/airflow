@@ -169,8 +169,9 @@ switch when starting Breeze. You can specify multiple integrations by repeating 
 or by using the ``--integration all`` switch that enables all integrations.
 
 NOTE: Every integration requires a separate container with the corresponding integration image.
-So, they take precious resources on your PC, mainly, the memory. The started integrations are not stopped
-until you stop the Breeze environment with the ``--stop-environment`` switch.
+They take precious resources on your PC, mainly the memory. The started integrations are not stopped
+until you stop the Breeze environment with the ``stop-environment`` command  and restart it
+via ``restart-environment`` command.
 
 The following integrations are available:
 
@@ -634,6 +635,18 @@ Also, with the Airflow CLI command ``airflow dags test``, you can execute one co
 By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_SOURCES>/files/dags`` and this is
 the directory used by airflow scheduler and webserver to scan dags for. You can place your dags there
 to test them.
+
+The DAGs can be run in the master version of Airflow but they also work
+with older versions.
+
+To run the tests for Airflow 1.10.* series, you need to run Breeze with
+``--install-airflow-version==<VERSION>`` to install a different version of Airflow.
+If ``current`` is specified (default), then the current version of Airflow is used.
+Otherwise, the released version of Airflow is installed.
+
+You should also consider running it with ``restart-environment`` command when you change installed version.
+This will clean-up the database so that you start with a clean DB and not DB installed in a previous version.
+So typically you'd run it like ``breeze --install-ariflow-version=1.10.9 restart-environment``.
 
 BASH Unit Testing (BATS)
 ========================

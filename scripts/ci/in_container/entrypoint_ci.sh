@@ -127,9 +127,8 @@ if [[ ${INTEGRATION_KERBEROS:="false"} == "true" ]]; then
         echo
         echo "ERROR !!!!Kerberos initialisation requested, but failed"
         echo
-        echo "I will exit now, and you need to run 'breeze --stop-environment' to kill kerberos."
-        echo
-        echo "Then you can again run 'breeze --integration kerberos' to start it again"
+        echo "I will exit now, and you need to run 'breeze --integration kerberos restart-environment'"
+        echo "to re-enter breeze and restart kerberos."
         echo
         exit 1
     fi

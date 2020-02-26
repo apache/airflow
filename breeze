@@ -34,6 +34,7 @@ declare -a EXTRA_STATIC_CHECK_OPTIONS
 function setup_default_breeze_variables() {
     # Whether to actually run docker compose with the command set given
     COMMAND_TO_RUN="enter_breeze"
+    SECOND_COMMAND_TO_RUN=""
     export BREEZE=true
     export MAX_SCREEN_WIDTH=100
 
@@ -751,6 +752,14 @@ function parse_arguments() {
           DOCKER_COMPOSE_COMMAND="down"
           EXTRA_DC_OPTIONS+=("--remove-orphans")
           shift ;;
+        restart-environment)
+          LAST_SUBCOMMAND="${1}"
+          COMMAND_TO_RUN="run_docker_compose"
+          DOCKER_COMPOSE_COMMAND="down"
+          EXTRA_DC_OPTIONS+=("--remove-orphans")
+          SECOND_COMMAND_TO_RUN="enter_breeze"
+          echo "Restarts the environment. Includes emptying the databases."
+          shift ;;
         test-target)
           LAST_SUBCOMMAND="${1}"
           if [[ "${TEST_TARGET}" == "." ]]; then
@@ -846,6 +855,7 @@ prepare_usage() {
     export USAGE_INITIALIZE_LOCAL_VIRTUALENV="Initializes local virtualenv"
     export USAGE_SETUP_AUTOCOMPLETE="Sets up autocomplete for breeze"
     export USAGE_STOP_ENVIRONMENT="Stops the docker-compose evironment"
+    export USAGE_RESTART_ENVIRONMENT="Stops the docker-compose evironment including DB cleanup"
     export USAGE_STATIC_CHECK="Performs selected static check for changed files"
     export USAGE_STATIC_CHECK_ALL_FILES="Performs selected static check for all files"
     export USAGE_TOGGLE_SUPPRESS_CHEATSHEET="Toggles on/off cheatsheet"
@@ -922,6 +932,11 @@ prepare_usage() {
       Brings down running docker compose environment. When you start the environment, the docker
       containers will continue running so that startup time is shorter. But they take quite a lot of
       memory and CPU. This command stops all running containers from the environment.
+"
+    export DETAILED_USAGE_RESTART_ENVIRONMENT="
+      Restarts running docker compose environment. When you restart the environment, the docker
+      containers will be restarted. That includes cleaning up the databases. This is
+      especially useful if you switch between different versions of airflow.
 "
     export DETAILED_USAGE_STATIC_CHECK="
       Run selected static checks for currently changed files. You should specify static check that
@@ -1509,3 +1524,9 @@ print_setup_instructions
 
 set +u  # Account for an empty array
 run_breeze_command "${REMAINING_ARGS[@]}"
+
+set +u  # Account for an empty array
+if [[ -n ${SECOND_COMMAND_TO_RUN} ]]; then
+    COMMAND_TO_RUN=${SECOND_COMMAND_TO_RUN}
+    run_breeze_command "${REMAINING_ARGS[@]}"
+fi

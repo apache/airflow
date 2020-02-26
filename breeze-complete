@@ -33,7 +33,6 @@ current
 1.10.4
 1.10.3
 1.10.2
-1.10.1
 EOF
 )
 
@@ -94,6 +93,7 @@ cleanup-images
 initialize-local-virtualenv
 setup-autocomplete
 stop-environment
+restart-environment
 toggle-suppress-cheatsheet
 toggle-suppress-asciiart"
 
