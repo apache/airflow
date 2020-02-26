@@ -432,7 +432,7 @@ COPY .github/ ${AIRFLOW_SOURCES}/.github/
 COPY dags/ ${AIRFLOW_SOURCES}/dags/
 COPY common/ ${AIRFLOW_SOURCES}/common/
 COPY licenses/ ${AIRFLOW_SOURCES}/licenses/
-COPY scripts/ci/ ${AIRFLOW_SOURCES}/scripts/ci/
+COPY scripts/ ${AIRFLOW_SOURCES}/scripts/
 COPY docs/ ${AIRFLOW_SOURCES}/docs/
 COPY tests/ ${AIRFLOW_SOURCES}/tests/
 COPY airflow/ ${AIRFLOW_SOURCES}/airflow/

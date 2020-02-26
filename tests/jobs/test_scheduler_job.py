@@ -50,10 +50,18 @@ from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from tests.test_utils.asserts import assert_queries_count
+from tests.test_utils.config import conf_vars
 from tests.test_utils.db import (
     clear_db_dags, clear_db_errors, clear_db_pools, clear_db_runs, clear_db_sla_miss, set_default_pool_slots,
 )
 from tests.test_utils.mock_executor import MockExecutor
+
+ROOT_FOLDER = os.path.realpath(
+    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
+)
+PERF_DAGS_FOLDER = os.path.join(ROOT_FOLDER, "scripts", "perf", "dags")
+ELASTIC_DAG_FILE = os.path.join(PERF_DAGS_FOLDER, "elastic_dag.py")
 
 TEST_DAG_FOLDER = os.environ['AIRFLOW__CORE__DAGS_FOLDER']
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -1057,6 +1065,113 @@ class TestDagFileProcessor(unittest.TestCase):
                 content = callback_file2.read()
             self.assertEqual("Callback fired", content)
             os.remove(callback_file.name)
+
+
+class DagFileProcessorQueriesCount(unittest.TestCase):
+    """
+    These tests are designed to detect changes in the number of queries for different DAG files.
+
+    Each test has saved queries count in the table/spreadsheets. If you make a change that affected the number
+    of queries, please update the tables.
+
+    These tests allow easy detection when a change is made that affects the performance of the
+    DagFileProcessor.
+    """
+    def setUp(self) -> None:
+        clear_db_runs()
+        clear_db_pools()
+        clear_db_dags()
+        clear_db_sla_miss()
+        clear_db_errors()
+
+    @parameterized.expand(
+        [
+            # pylint: disable=bad-whitespace
+            # expected, dag_count, task_count, start_ago, schedule_interval, shape
+            # One DAG with one task per DAG file
+            ( 1,  1,  1, "1d",  "None",  "no_structure"),  # noqa
+            ( 1,  1,  1, "1d",  "None",        "linear"),  # noqa
+            ( 3,  1,  1, "1d", "@once",  "no_structure"),  # noqa
+            ( 3,  1,  1, "1d", "@once",        "linear"),  # noqa
+            ( 3,  1,  1, "1d",   "30m",  "no_structure"),  # noqa
+            ( 3,  1,  1, "1d",   "30m",        "linear"),  # noqa
+            # One DAG with five tasks per DAG  file
+            ( 1,  1,  5, "1d",  "None",  "no_structure"),  # noqa
+            ( 1,  1,  5, "1d",  "None",        "linear"),  # noqa
+            ( 3,  1,  5, "1d", "@once",  "no_structure"),  # noqa
+            ( 3,  1,  5, "1d", "@once",        "linear"),  # noqa
+            ( 3,  1,  5, "1d",   "30m",  "no_structure"),  # noqa
+            ( 3,  1,  5, "1d",   "30m",        "linear"),  # noqa
+            # 10 DAGs with 10 tasks per DAG file
+            ( 1, 10, 10, "1d",  "None",  "no_structure"),  # noqa
+            ( 1, 10, 10, "1d",  "None",        "linear"),  # noqa
+            (21, 10, 10, "1d", "@once",  "no_structure"),  # noqa
+            (21, 10, 10, "1d", "@once",        "linear"),  # noqa
+            (21, 10, 10, "1d",   "30m",  "no_structure"),  # noqa
+            (21, 10, 10, "1d",   "30m",        "linear"),  # noqa
+            # pylint: enable=bad-whitespace
+        ]
+    )
+    def test_process_dags_queries_count(
+        self, expected_query_count, dag_count, task_count, start_ago, schedule_interval, shape
+    ):
+        with mock.patch.dict("os.environ", {
+            "PERF_DAGS_COUNT": str(dag_count),
+            "PERF_TASKS_COUNT": str(task_count),
+            "PERF_START_AGO": start_ago,
+            "PERF_SCHEDULE_INTERVAL": schedule_interval,
+            "PERF_SHAPE": shape,
+        }), conf_vars({
+            ('scheduler', 'use_job_schedule'): 'True',
+        }):
+
+            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
+            with assert_queries_count(expected_query_count):
+                processor = DagFileProcessor([], mock.MagicMock())
+                processor._process_dags(dagbag.dags.values())
+
+    @parameterized.expand(
+        [
+            # pylint: disable=bad-whitespace
+            # expected, dag_count, task_count, start_ago, schedule_interval, shape
+            # One DAG with two tasks per DAG file
+            ( 5,  1,  1, "1d",   "None", "no_structure"),  # noqa
+            ( 5,  1,  1, "1d",   "None",       "linear"),  # noqa
+            ( 7,  1,  1, "1d",  "@once", "no_structure"),  # noqa
+            ( 7,  1,  1, "1d",  "@once",       "linear"),  # noqa
+            ( 7,  1,  1, "1d",    "30m", "no_structure"),  # noqa
+            ( 7,  1,  1, "1d",    "30m",       "linear"),  # noqa
+            # One DAG with five tasks per DAG file
+            ( 5,  1,  5, "1d",   "None", "no_structure"),  # noqa
+            ( 5,  1,  5, "1d",   "None",       "linear"),  # noqa
+            ( 7,  1,  5, "1d",  "@once", "no_structure"),  # noqa
+            ( 7,  1,  5, "1d",  "@once",       "linear"),  # noqa
+            ( 7,  1,  5, "1d",    "30m", "no_structure"),  # noqa
+            ( 7,  1,  5, "1d",    "30m",       "linear"),  # noqa
+            # 10 DAGs with 10 tasks per DAG file
+            ( 5, 10, 10, "1d",  "None",  "no_structure"),  # noqa
+            ( 5, 10, 10, "1d",  "None",        "linear"),  # noqa
+            (25, 10, 10, "1d", "@once",  "no_structure"),  # noqa
+            (25, 10, 10, "1d", "@once",        "linear"),  # noqa
+            (25, 10, 10, "1d",   "30m",  "no_structure"),  # noqa
+            (25, 10, 10, "1d",   "30m",        "linear"),  # noqa
+            # pylint: enable=bad-whitespace
+        ]
+    )
+    def test_process_file_queries_count(
+        self, expected_query_count, dag_count, task_count, start_ago, schedule_interval, shape
+    ):
+        with assert_queries_count(expected_query_count), mock.patch.dict("os.environ", {
+            "PERF_DAGS_COUNT": str(dag_count),
+            "PERF_TASKS_COUNT": str(task_count),
+            "PERF_START_AGO": start_ago,
+            "PERF_SCHEDULE_INTERVAL": schedule_interval,
+            "PERF_SHAPE": shape,
+        }), conf_vars({
+            ('scheduler', 'use_job_schedule'): 'True'
+        }):
+            processor = DagFileProcessor([], mock.MagicMock())
+            processor.process_file(ELASTIC_DAG_FILE, [])
 
 
 class TestSchedulerJob(unittest.TestCase):
