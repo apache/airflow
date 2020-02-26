@@ -27,7 +27,7 @@ mergeable:
               message: This is work in progress. Do not merge yet.
           - must_exclude:
               regex: ^\[DONT-MERGE\]
-              message: Do not merge this PR yet.  
+              message: Do not merge this PR yet.
         begins_with:
           match: '[AIRFLOW-'
         must_include:
