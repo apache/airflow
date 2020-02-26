@@ -34,7 +34,7 @@ The advantages and disadvantages of using the Breeze environment vs. other ways 
 are described in `CONTRIBUTING.rst <CONTRIBUTING.rst#integration-test-development-environment>`_.
 
 Here is a short 10-minute video about Airflow Breeze (note that it shows an old version of Breeze. Some
-of the points in the video are not valid any more. The video will be updated shortly with more up-to-date
+of the points in the video are not valid anymore. The video will be updated shortly with more up-to-date
 version):
 
 .. image:: http://img.youtube.com/vi/ffKFHV6f3PQ/0.jpg
