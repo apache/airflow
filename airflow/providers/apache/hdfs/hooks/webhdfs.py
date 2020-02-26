@@ -77,6 +77,7 @@ class WebHDFSHook(BaseHook):
                     client = self._get_client(connection)
                     client.status('/')
                     self.log.info('Using namenode %s for hook', connection.host)
+                    host_socket.close()
                     return client
                 else:
                     self.log.info("Could not connect to %s:%s", connection.host, connection.port)
