@@ -880,7 +880,7 @@ prepare_usage() {
 "
     export DETAILED_USAGE_BUILD_ONLY="
       Do not enter docker container - just build the docker images needed. You can (similarly as
-      with other commands) pass aditional options to this command, such as '--force-build-image',
+      with other commands) pass additional options to this command, such as '--force-build-image',
       '--force-pull-image' in order to force latest images to be built/pulled.
 "
     export DETAILED_USAGE_CLEANUP_IMAGES="
