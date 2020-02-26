@@ -633,7 +633,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   breeze [FLAGS] build-only -- <EXTRA_ARGS>
 
         Do not enter docker container - just build the docker images needed. You can (similarly as
-        with other commands) pass aditional options to this command, such as '--force-build-image',
+        with other commands) pass additional options to this command, such as '--force-build-image',
         '--force-pull-image' in order to force latest images to be built/pulled.
   ****************************************************************************************************
   breeze [FLAGS] cleanup-images -- <EXTRA_ARGS>
