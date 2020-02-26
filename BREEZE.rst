@@ -792,7 +792,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -s, --kind-cluster-start
           Starts kind Kubernetes cluster after entering the environment. The cluster is started using
-          Kubernetes Mode selected and Kubernetes version specifed via --kubernetes-mode and
+          Kubernetes Mode selected and Kubernetes version specified via --kubernetes-mode and
           --kubernetes-version flags.
 
   -x, --kind-cluster-stop
