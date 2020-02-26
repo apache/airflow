@@ -115,6 +115,8 @@ def write_config(yaml_config_file_path, default_cfg_file_path):
                             configfile.write("# {}\n".format(single_line_desc))
 
                 if option["example"]:
+                    if not str(option["name"]).endswith("_template"):
+                        option["example"] = option["example"].replace("{", "{{").replace("}", "}}")
                     configfile.write("# Example: {} = {}\n".format(option["name"], option["example"]))
 
                 configfile.write("{}{} ={}\n".format(
