@@ -229,28 +229,17 @@ MIT licenses
 The following components are provided under the MIT License. See project link for details.
 The text of each license is also included at licenses/LICENSE-[project].txt.
 
-    (MIT License) jquery v2.1.4 (https://jquery.org/license/)
-    (MIT License) dagre-d3 v0.6.1 (https://github.com/cpettitt/dagre-d3)
+    (MIT License) jquery v3.4.1 (https://jquery.org/license/)
+    (MIT License) dagre-d3 v0.6.4 (https://github.com/cpettitt/dagre-d3)
     (MIT License) bootstrap v3.2 (https://github.com/twbs/bootstrap/)
-    (MIT License) d3-tip v0.6.3 (https://github.com/Caged/d3-tip)
-    (MIT License) dataTables v1.10.10 (https://datatables.net)
-    (MIT License) WebGL-2D (git-commit 9a7ec26) (https://github.com/gameclosure/webgl-2d)
-    (MIT License) Underscorejs v1.5.0 (http://underscorejs.org)
-    (MIT License) Bootstrap Toggle v2.2.0 (http://www.bootstraptoggle.com)
+    (MIT License) d3-tip v0.9.1 (https://github.com/Caged/d3-tip)
+    (MIT License) dataTables v1.10.20 (https://datatables.net)
+    (MIT License) Bootstrap Toggle v2.2.2 (http://www.bootstraptoggle.com)
     (MIT License) normalize.css v3.0.2 (http://necolas.github.io/normalize.css/)
     (MIT License) ElasticMock v1.3.2 (https://github.com/vrcmarcos/elasticmock)
-    (MIT License) MomentJS v2.22.2 (http://momentjs.com/)
+    (MIT License) MomentJS v2.24.0 (http://momentjs.com/)
     (MIT License) python-slugify v2.0.1 (https://github.com/un33k/python-slugify)
     (MIT License) python-nvd3 v0.15.0 (https://github.com/areski/python-nvd3)
-
-========================================================================
-BSD 2-Clause licenses
-========================================================================
-The following components are provided under the BSD 2-Clause license.
-See file headers and project links for details.
-The text of each license is also included at licenses/LICENSE-[project].txt.
-
-    (BSD 2 License) flask-kerberos v1.0.4 (https://github.com/mkomitee/flask-kerberos)
 
 ========================================================================
 BSD 3-Clause licenses
@@ -258,7 +247,4 @@ BSD 3-Clause licenses
 The following components are provided under the BSD 3-Clause license. See project links for details.
 The text of each license is also included at licenses/LICENSE-[project].txt.
 
-    (BSD 3 License) Ace v1.1.8 (https://github.com/ajaxorg/ace)
-    (BSD 3 License) d3js v3.5.17 (https://d3js.org)
-    (BSD 3 License) parallel-coordinates v0.7.0 (http://syntagmatic.github.com/parallel-coordinates/)
-    (BSD 3 License) scikit-learn v0.19.1 (https://github.com/scikit-learn/scikit-learn)
+    (BSD 3 License) d3 v5.15.0 (https://d3js.org)
