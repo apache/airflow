@@ -1023,7 +1023,7 @@ class Airflow(AirflowBaseView):
 
     def _clear_dag_tis(self, dag, start_date, end_date, origin,
                        recursive=False, confirmed=False, only_failed=False, cancel=False):
-        from airflow.exceptions import AirflowExceptio
+        from airflow.exceptions import AirflowException
         if confirmed:
             if cancel:
                 count = dag.cancel(
