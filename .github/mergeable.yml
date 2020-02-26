@@ -32,6 +32,9 @@ mergeable:
       - do: label
         must_exclude:
           regex: 'wip'
+      - do: label
+        must_exclude:
+          regex: 'dont-merge'
       # All todo check boxes must be checked.
       - do: description
         must_exclude:
