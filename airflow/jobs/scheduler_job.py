@@ -27,7 +27,7 @@ import time
 from collections import defaultdict
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import timedelta
-from typing import List, Set
+from typing import List, Optional, Set
 
 from setproctitle import setproctitle
 from sqlalchemy import and_, func, not_, or_
@@ -319,13 +319,36 @@ class DagFileProcessor(LoggingMixin):
     :type dag_ids: List[str]
     :param log: Logger to save the processing process
     :type log: logging.Logger
+    :param unit_test_mode: If set to True, it means that the class is running during unit tests.
+        By default, reads the global Airflow configuration
+    :type unit_test_mode: bool
+    :param use_job_scheduler: If set to True, scheduler use of cron intervals,
+        By default, reads the global Airflow configuration
+    :type use_job_scheduler: bool
+    :param check_slas: If set to True, on each dagrun check against defined SLAs
+        By default, reads the global Airflow configuration
+    :type check_slas: bool
     """
 
-    UNIT_TEST_MODE = conf.getboolean('core', 'UNIT_TEST_MODE')
-
-    def __init__(self, dag_ids, log):
+    def __init__(
+        self,
+        dag_ids: List[str],
+        log: logging.Logger,
+        unit_test_mode: Optional[bool] = None,
+        use_job_scheduler: Optional[bool] = None,
+        check_slas: Optional[bool] = None,
+    ):
         self.dag_ids = dag_ids
         self._log = log
+        self.unit_test_mode = unit_test_mode
+        if self.unit_test_mode is None:
+            self.unit_test_mode = conf.getboolean('core', 'UNIT_TEST_MODE')
+        self.use_job_scheduler = use_job_scheduler
+        if self.use_job_scheduler is None:
+            self.use_job_scheduler = conf.getboolean('scheduler', 'USE_JOB_SCHEDULE')
+        self.check_slas = check_slas
+        if self.check_slas is None:
+            self.check_slas = conf.getboolean('core', 'CHECK_SLAS', fallback=True)
 
     @provide_session
     def manage_slas(self, dag, session=None):
@@ -511,7 +534,7 @@ class DagFileProcessor(LoggingMixin):
         Returns DagRun if one is scheduled. Otherwise returns None.
         """
         # pylint: disable=too-many-nested-blocks
-        if dag.schedule_interval and conf.getboolean('scheduler', 'USE_JOB_SCHEDULE'):
+        if dag.schedule_interval and self.use_job_scheduler:
             active_runs = DagRun.find(
                 dag_id=dag.dag_id,
                 state=State.RUNNING,
@@ -697,7 +720,6 @@ class DagFileProcessor(LoggingMixin):
         :type tis_out: list[TaskInstance]
         :rtype: None
         """
-        check_slas = conf.getboolean('core', 'CHECK_SLAS', fallback=True)
         # pylint: disable=too-many-nested-blocks
         for dag in dags:
             dag = dagbag.get_dag(dag.dag_id)
@@ -724,7 +746,7 @@ class DagFileProcessor(LoggingMixin):
                             schedule_delay)
                 self.log.info("Created %s", dag_run)
             self._process_task_instances(dag, tis_out)
-            if check_slas:
+            if self.check_slas:
                 self.manage_slas(dag)
 
     def _find_dags_to_process(self, dags: List[DAG], paused_dag_ids: Set[str]) -> List[DAG]:
@@ -767,7 +789,7 @@ class DagFileProcessor(LoggingMixin):
                     ti.end_date = zombie.end_date
                     ti.try_number = zombie.try_number
                     ti.state = zombie.state
-                    ti.test_mode = self.UNIT_TEST_MODE
+                    ti.test_mode = self.unit_test_mode
                     ti.handle_failure("{} detected as zombie".format(ti),
                                       ti.test_mode, ti.get_template_context())
                     self.log.info('Marked zombie job %s as %s', ti, ti.state)
@@ -906,35 +928,61 @@ class SchedulerJob(BaseJob):
     :type dag_id: str
     :param dag_ids: if specified, only schedule tasks with these DAG IDs
     :type dag_ids: list[str]
-    :param subdir: directory containing Python files with Airflow DAG
-        definitions, or a specific path to a file
-    :type subdir: str
-    :param num_runs: The number of times to try to schedule each DAG file.
-        -1 for unlimited times.
-    :type num_runs: int
-    :param processor_poll_interval: The number of seconds to wait between
-        polls of running processors
-    :type processor_poll_interval: int
     :param do_pickle: once a DAG object is obtained by executing the Python
         file, whether to serialize the DAG object to the DB
     :type do_pickle: bool
+    :param subdir: directory containing Python files with Airflow DAG
+        definitions, or a specific path to a file,
+        By default, reads the global Airflow configuration
+    :type subdir: str
+    :param max_thread: many threads will run.
+        By default, reads the global Airflow configuration
+    :type max_thread: int
+    :param num_runs: The number of times to try to schedule each DAG file.
+        -1 for unlimited times.
+        By default, reads the global Airflow configuration
+    :type num_runs: int
+    :param heartrate: The scheduler constantly tries to trigger new tasks. This defines
+        how often the scheduler should run (in seconds).
+    :type heartrate: int
+    :param processor_poll_interval: The number of seconds to wait between
+        polls of running processors
+        By default, reads the global Airflow configuration
+    :type processor_poll_interval: float
+    :param processor_timeout_seconds: How long before timing out a DagFileProcessor, which processes a
+        dag file.
+        By default, reads the global Airflow configuration
+    :type processor_timeout_seconds: int
+    :param unit_test_mode: If set to True, it means that the class is running during unit tests.
+        By default, reads the global Airflow configuration
+    :type unit_test_mode: bool
     """
 
     __mapper_args__ = {
         'polymorphic_identity': 'SchedulerJob'
     }
-    heartrate = conf.getint('scheduler', 'SCHEDULER_HEARTBEAT_SEC')
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
             self,
-            dag_id=None,
-            dag_ids=None,
-            subdir=settings.DAGS_FOLDER,
-            num_runs=conf.getint('scheduler', 'num_runs'),
-            processor_poll_interval=conf.getfloat('scheduler', 'processor_poll_interval'),
-            do_pickle=False,
-            log=None,
+            dag_id: Optional[str] = None,
+            dag_ids: Optional[List[str]] = None,
+            do_pickle: bool = False,
+            subdir: Optional[str] = None,
+            max_thread: Optional[int] = None,
+            num_runs: Optional[int] = None,
+            processor_poll_interval: Optional[float] = None,
+            processor_timeout_seconds: Optional[int] = None,
+            scheduler_health_check_threshold: Optional[int] = None,
+            unit_test_mode: Optional[bool] = None,
             *args, **kwargs):
+        # Hack for mypy issues:
+        # https://github.com/python/mypy/issues/2582
+        heartrate = kwargs.get("heartrate")
+        if heartrate is None:
+            kwargs['heartrate'] = conf.getfloat('scheduler', 'scheduler_heartbeat_sec')
+
+        super().__init__(*args, **kwargs)
+
         # for BaseJob compatibility
         self.dag_id = dag_id
         self.dag_ids = [dag_id] if dag_id else []
@@ -942,17 +990,36 @@ class SchedulerJob(BaseJob):
             self.dag_ids.extend(dag_ids)
 
         self.subdir = subdir
-
-        self.num_runs = num_runs
-        self._processor_poll_interval = processor_poll_interval
+        if subdir is None:
+            self.subdir = settings.DAGS_FOLDER
 
         self.do_pickle = do_pickle
-        super().__init__(*args, **kwargs)
 
-        self.max_threads = conf.getint('scheduler', 'max_threads')
+        self.max_threads = max_thread
+        if self.max_threads is None:
+            self.max_threads = conf.getint('scheduler', 'max_threads')
 
-        if log:
-            self._log = log
+        self.num_runs = num_runs
+        if self.num_runs is None:
+            self.num_runs = conf.getint('scheduler', 'num_runs')
+
+        self._processor_poll_interval = processor_poll_interval
+        if self._processor_poll_interval is None:
+            self._processor_poll_interval = conf.getfloat('scheduler', 'processor_poll_interval')
+
+        self.processor_timeout_seconds = processor_timeout_seconds
+        if self.processor_timeout_seconds is None:
+            self.processor_timeout_seconds = conf.getint('core', 'dag_file_processor_timeout')
+
+        self.scheduler_health_check_threshold = scheduler_health_check_threshold
+        if self.scheduler_health_check_threshold is None:
+            self.scheduler_health_check_threshold = conf.getint(
+                'scheduler', 'scheduler_health_check_threshold'
+            )
+
+        self.is_unit_test = unit_test_mode
+        if self.is_unit_test:
+            self.is_unit_test = conf.getboolean('core', 'unit_test_mode')
 
         self.using_sqlite = False
         self.using_mysql = False
@@ -961,7 +1028,6 @@ class SchedulerJob(BaseJob):
         if conf.get('core', 'sql_alchemy_conn').lower().startswith('mysql'):
             self.using_mysql = True
 
-        self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
         self.processor_agent = None
 
         signal.signal(signal.SIGINT, self._exit_gracefully)
@@ -991,10 +1057,10 @@ class SchedulerJob(BaseJob):
         if grace_multiplier is not None:
             # Accept the same behaviour as superclass
             return super().is_alive(grace_multiplier=grace_multiplier)
-        scheduler_health_check_threshold = conf.getint('scheduler', 'scheduler_health_check_threshold')
+
         return (
             self.state == State.RUNNING and
-            (timezone.utcnow() - self.latest_heartbeat).seconds < scheduler_health_check_threshold
+            (timezone.utcnow() - self.latest_heartbeat).seconds < self.scheduler_health_check_threshold
         )
 
     @provide_session
@@ -1489,8 +1555,7 @@ class SchedulerJob(BaseJob):
         # so the scheduler job and DAG parser don't access the DB at the same time.
         async_mode = not self.using_sqlite
 
-        processor_timeout_seconds = conf.getint('core', 'dag_file_processor_timeout')
-        processor_timeout = timedelta(seconds=processor_timeout_seconds)
+        processor_timeout = timedelta(seconds=self.processor_timeout_seconds)
         self.processor_agent = DagFileProcessorAgent(self.subdir,
                                                      known_file_paths,
                                                      self.num_runs,
@@ -1539,8 +1604,6 @@ class SchedulerJob(BaseJob):
         # Last time that self.heartbeat() was called.
         last_self_heartbeat_time = timezone.utcnow()
 
-        is_unit_test = conf.getboolean('core', 'unit_test_mode')
-
         # For the execute duration, parse and schedule DAGs
         while True:
             loop_start_time = time.time()
@@ -1574,7 +1637,7 @@ class SchedulerJob(BaseJob):
             loop_duration = loop_end_time - loop_start_time
             self.log.debug("Ran scheduling loop in %.2f seconds", loop_duration)
 
-            if not is_unit_test:
+            if not self.is_unit_test:
                 time.sleep(self._processor_poll_interval)
 
             if self.processor_agent.done:

@@ -53,6 +53,8 @@ class LocalTaskJob(BaseJob):
             pickle_id: Optional[str] = None,
             pool: Optional[str] = None,
             *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
         self.task_instance = task_instance
         self.dag_id = task_instance.dag_id
         self.ignore_all_deps = ignore_all_deps
@@ -67,8 +69,6 @@ class LocalTaskJob(BaseJob):
         # terminating state is used so that a job don't try to
         # terminate multiple times
         self.terminating = False
-
-        super().__init__(*args, **kwargs)
 
     def _execute(self):
         self.task_runner = get_task_runner(self)

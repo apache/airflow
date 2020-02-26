@@ -47,6 +47,17 @@ class BaseJob(Base, LoggingMixin):
     and duration that aren't task instances. For instance a BackfillJob is
     a collection of task instance runs, but should have its own state, start
     and end time.
+
+    :param executor: The executor used by Job
+        By default, use default executor defined in the global Airflow configuration.
+    :type executor: airflow.executor.base_executor.BaseExecutor
+    :param heartrate: job checks to see if they have been remotely stopped. This defines
+        how often the check should run (in seconds).
+        By default, reads the global Airflow configuration.
+    :type heartrate: float
+    :param max_tis_per_query: The batch size of queries in the scheduling main loop.
+        By default, reads the global Airflow configuration.
+    :type max_tis_per_query:
     """
 
     __tablename__ = "job"
@@ -72,23 +83,27 @@ class BaseJob(Base, LoggingMixin):
         Index('idx_job_state_heartbeat', state, latest_heartbeat),
     )
 
-    heartrate = conf.getfloat('scheduler', 'JOB_HEARTBEAT_SEC')
-
     def __init__(
             self,
             executor=None,
-            heartrate=None,
+            heartrate: Optional[float] = None,
+            max_tis_per_query: Optional[int] = None,
             *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
         self.hostname = get_hostname()
         self.executor = executor or ExecutorLoader.get_default_executor()
         self.executor_class = executor.__class__.__name__
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
-        if heartrate is not None:
-            self.heartrate = heartrate
         self.unixname = getpass.getuser()
-        self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
-        super().__init__(*args, **kwargs)
+        self.heartrate = heartrate
+        if self.heartrate is None:
+            self.heartrate = conf.getfloat('scheduler', 'JOB_HEARTBEAT_SEC')
+
+        self.max_tis_per_query = max_tis_per_query
+        if self.max_tis_per_query is None:
+            self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
 
     @classmethod
     @provide_session
