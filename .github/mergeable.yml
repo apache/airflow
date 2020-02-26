@@ -21,12 +21,13 @@ mergeable:
     validate:
       - do: title
         # Do not merge when it is marked work in progress (WIP)
-        must_exclude:
-          regex: ^\[WIP\]
-          message: This is work in progress. Do not merge yet.
-        must_exclude:
-          regex: ^\[DONT-MERGE\]
-          message: Do not merge this PR yet.  
+        or:
+          - must_exclude:
+              regex: ^\[WIP\]
+              message: This is work in progress. Do not merge yet.
+          - must_exclude:
+              regex: ^\[DONT-MERGE\]
+              message: Do not merge this PR yet.  
         begins_with:
           match: '[AIRFLOW-'
         must_include:
