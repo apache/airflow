@@ -20,12 +20,14 @@ services:
   airflow-testing:
     environment:
       - BACKEND=mysql
-      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=mysql://root@mysql/airflow
-      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://root@mysql/airflow
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=mysql://root@mysql/airflow?charset=utf8mb4
+      - AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS=utf8mb3_general_ci
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://root@mysql/airflow?charset=utf8mb4
     depends_on:
       - mysql
   mysql:
-    image: mysql:5.6
+    image: mysql:5.7
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     environment:
       - MYSQL_ALLOW_EMPTY_PASSWORD=true
       - MYSQL_ROOT_HOST=%

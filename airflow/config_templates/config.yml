@@ -74,6 +74,16 @@
       type: string
       example: ~
       default: "utf-8"
+    - name: sql_engine_collation_for_ids
+      description: |
+        Collation for `dag_id`, `task_id`, `key` columns in case they have different encoding.
+        This is particularly useful in case of mysql with utf8mb4 encoding because
+        primary keys for XCom table has too big size and `sql_engine_collation_for_ids` should
+        be set to `utf8mb3_general_ci`
+      version_added: 2.0.0
+      type: string
+      example: ~
+      default: ~
     - name: sql_alchemy_pool_enabled
       description: |
         If SqlAlchemy should pool database connections.

@@ -18,7 +18,7 @@
 """TaskReschedule tracks rescheduled task instances."""
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc
 
-from airflow.models.base import ID_LEN, Base
+from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -31,8 +31,8 @@ class TaskReschedule(Base):
     __tablename__ = "task_reschedule"
 
     id = Column(Integer, primary_key=True)
-    task_id = Column(String(ID_LEN), nullable=False)
-    dag_id = Column(String(ID_LEN), nullable=False)
+    task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     execution_date = Column(UtcDateTime, nullable=False)
     try_number = Column(Integer, nullable=False)
     start_date = Column(UtcDateTime, nullable=False)
