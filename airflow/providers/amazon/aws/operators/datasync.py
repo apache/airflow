@@ -21,6 +21,7 @@ Create, get, update, execute and delete an AWS DataSync Task.
 
 import logging
 import random
+import time
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -105,6 +106,12 @@ class AWSDataSyncOperator(BaseOperator):
     )
     ui_color = "#44b5e2"
 
+    # Control when we execute a Task, based on initial Task status
+    TASK_STATUS_WAIT_BEFORE_START = ['CREATING']
+    TASK_STATUS_START = ['AVAILABLE']
+    TASK_STATUS_SKIP_START = []
+    TASK_STATUS_FAIL = ['UNAVAILABLE', 'QUEUED', 'RUNNING']
+
     @apply_defaults
     def __init__(
         self,
@@ -174,6 +181,7 @@ class AWSDataSyncOperator(BaseOperator):
         self.source_location_arn = None
         self.destination_location_arn = None
         self.task_execution_arn = None
+        self.task_status = None
 
     def get_hook(self):
         """Create and return AWSDataSyncHook.
@@ -208,12 +216,41 @@ class AWSDataSyncOperator(BaseOperator):
 
         self.log.info("Using DataSync TaskArn %s", self.task_arn)
 
-        # Update the DataSync Task
+        # Update the DataSync Task definition
         if self.update_task_kwargs:
             self._update_datasync_task()
 
-        # Execute the DataSync Task
-        self._execute_datasync_task()
+        # Wait for the Task to be in a valid state to Start
+        self.task_status = self._wait_get_status_before_start()
+
+        self.log.info('Task status is %s.', self.task_status)
+        if self.task_status in self.TASK_STATUS_START:
+            self.log.info(
+                'The Task will be started because its status is in %s.',
+                self.TASK_STATUS_START)
+            # Start the DataSync Task
+            self._start_datasync_task()
+        elif self.task_status in self.TASK_STATUS_SKIP_START:
+            self.log.info(
+                'The Task will NOT be started because its status is in %s.',
+                self.TASK_STATUS_SKIP_START)
+            if not self.task_execution_arn:
+                task_description = self.get_hook().get_task_description(self.task_arn)
+                if 'CurrentTaskExecutionArn' in task_description:
+                    self.task_execution_arn = task_description['CurrentTaskExecutionArn']
+                else:
+                    raise AirflowException(
+                        'Starting the Task was skipped,'
+                        ' but no CurrentTaskExecutionArn was found.')
+        elif self.task_status in self.TASK_STATUS_FAIL:
+            raise AirflowException(
+                'Task cannot be started because its status is in %s.'
+                % self.TASK_STATUS_FAIL
+            )
+        else:
+            raise AirflowException('Unexpected task status %s.' % self.task_status)
+
+        self._wait_for_datasync_task()
 
         if not self.task_execution_arn:
             raise AirflowException("Nothing was executed")
@@ -222,7 +259,10 @@ class AWSDataSyncOperator(BaseOperator):
         if self.delete_task_after_execution:
             self._delete_datasync_task()
 
-        return {"TaskArn": self.task_arn, "TaskExecutionArn": self.task_execution_arn}
+        return {
+            "TaskArn": self.task_arn,
+            "TaskExecutionArn": self.task_execution_arn
+        }
 
     def _get_tasks_and_locations(self):
         """Find existing DataSync Task based on source and dest Locations."""
@@ -331,16 +371,41 @@ class AWSDataSyncOperator(BaseOperator):
         self.log.info("Updated TaskArn %s", self.task_arn)
         return self.task_arn
 
-    def _execute_datasync_task(self):
-        """Create and monitor an AWSDataSync TaskExecution for a Task."""
-        hook = self.get_hook()
+    def _wait_get_status_before_start(self):
+        """
+        Wait until the Task can be started.
 
+        The Task can be started when its Status is not in TASK_STATUS_WAIT_BEFORE_START
+        Uses wait_interval_seconds (which is also used while waiting for TaskExecution)
+        """
+        hook = self.get_hook()
+        task_status = hook.get_task_description(self.task_arn)['Status']
+        while task_status in self.TASK_STATUS_WAIT_BEFORE_START:
+            self.log.info(
+                'Task status is %s.'
+                ' Waiting for it to not be ',
+                self.task_status,
+                self.TASK_STATUS_WAIT_BEFORE_START)
+            time.sleep(self.wait_interval_seconds)
+            task_status = hook.get_task_description(self.task_arn)['Status']
+        return task_status
+
+    def _start_datasync_task(self):
+        """Create an AWSDataSync TaskExecution for a Task."""
+        hook = self.get_hook()
         # Create a task execution:
         self.log.info("Starting execution for TaskArn %s", self.task_arn)
         self.task_execution_arn = hook.start_task_execution(
             self.task_arn, **self.task_execution_kwargs)
         self.log.info("Started TaskExecutionArn %s", self.task_execution_arn)
 
+    def _wait_for_datasync_task(self):
+        """Monitor an AWSDataSync TaskExecution for a Task."""
+        hook = self.get_hook()
+        if not self.task_execution_arn:
+            raise AirflowException(
+                'Unable to wait for TaskExecutionArn to complete'
+                ' because none was provided')
         # Wait for task execution to complete
         self.log.info("Waiting for TaskExecutionArn %s",
                       self.task_execution_arn)
@@ -355,9 +420,10 @@ class AWSDataSyncOperator(BaseOperator):
         # Log some meaningful statuses
         level = logging.ERROR if not result else logging.INFO
         self.log.log(level, 'Status=%s', task_execution_description['Status'])
-        for k, v in task_execution_description['Result'].items():
-            if 'Status' in k or 'Error' in k:
-                self.log.log(level, '%s=%s', k, v)
+        if 'Result' in task_execution_description:
+            for k, v in task_execution_description['Result'].items():
+                if 'Status' in k or 'Error' in k:
+                    self.log.log(level, '%s=%s', k, v)
 
         if not result:
             raise AirflowException(
