@@ -51,7 +51,6 @@ from airflow.utils.dag_processing import (
     AbstractDagFileProcessorProcess, DagFileProcessorAgent, SimpleDag, SimpleDagBag,
 )
 from airflow.utils.email import get_email_address_list, send_email
-from airflow.utils.file import list_py_file_paths
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
@@ -1472,11 +1471,6 @@ class SchedulerJob(BaseJob):
 
         self.log.info("Processing each file at most %s times", self.num_runs)
 
-        # Build up a list of Python files that could contain DAGs
-        self.log.info("Searching for files in %s", self.subdir)
-        known_file_paths = list_py_file_paths(self.subdir)
-        self.log.info("There are %s files in %s", len(known_file_paths), self.subdir)
-
         def processor_factory(file_path, zombies):
             return DagFileProcessorProcess(
                 file_path=file_path,
@@ -1492,7 +1486,6 @@ class SchedulerJob(BaseJob):
         processor_timeout_seconds = conf.getint('core', 'dag_file_processor_timeout')
         processor_timeout = timedelta(seconds=processor_timeout_seconds)
         self.processor_agent = DagFileProcessorAgent(self.subdir,
-                                                     known_file_paths,
                                                      self.num_runs,
                                                      processor_factory,
                                                      processor_timeout,

@@ -285,33 +285,28 @@ class DagFileProcessorAgent(LoggingMixin):
     signal/DAG parsing stat with it.
 
     This class runs in the main `airflow scheduler` process.
+
+    :param dag_directory: Directory where DAG definitions are kept. All
+        files in file_paths should be under this directory
+    :type dag_directory: str
+    :param max_runs: The number of times to parse and schedule each file. -1
+        for unlimited.
+    :type max_runs: int
+    :param processor_factory: function that creates processors for DAG
+        definition files. Arguments are (dag_definition_path, log_file_path)
+    :type processor_factory: (str, str, list) -> (AbstractDagFileProcessorProcess)
+    :param processor_timeout: How long to wait before timing out a DAG file processor
+    :type processor_timeout: timedelta
+    :param async_mode: Whether to start agent in async mode
+    :type async_mode: bool
     """
 
     def __init__(self,
                  dag_directory,
-                 file_paths,
                  max_runs,
                  processor_factory,
                  processor_timeout,
                  async_mode):
-        """
-        :param dag_directory: Directory where DAG definitions are kept. All
-            files in file_paths should be under this directory
-        :type dag_directory: unicode
-        :param file_paths: list of file paths that contain DAG definitions
-        :type file_paths: list[unicode]
-        :param max_runs: The number of times to parse and schedule each file. -1
-            for unlimited.
-        :type max_runs: int
-        :param processor_factory: function that creates processors for DAG
-            definition files. Arguments are (dag_definition_path, log_file_path)
-        :type processor_factory: (unicode, unicode, list) -> (AbstractDagFileProcessorProcess)
-        :param processor_timeout: How long to wait before timing out a DAG file processor
-        :type processor_timeout: timedelta
-        :param async_mode: Whether to start agent in async mode
-        :type async_mode: bool
-        """
-        self._file_paths = file_paths
         self._file_path_queue = []
         self._dag_directory = dag_directory
         self._max_runs = max_runs
@@ -338,7 +333,6 @@ class DagFileProcessorAgent(LoggingMixin):
             target=type(self)._run_processor_manager,
             args=(
                 self._dag_directory,
-                self._file_paths,
                 self._max_runs,
                 self._processor_factory,
                 self._processor_timeout,
@@ -384,7 +378,6 @@ class DagFileProcessorAgent(LoggingMixin):
 
     @staticmethod
     def _run_processor_manager(dag_directory,
-                               file_paths,
                                max_runs,
                                processor_factory,
                                processor_timeout,
@@ -410,7 +403,6 @@ class DagFileProcessorAgent(LoggingMixin):
         airflow.settings.initialize()
         del os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER']
         processor_manager = DagFileProcessorManager(dag_directory,
-                                                    file_paths,
                                                     max_runs,
                                                     processor_factory,
                                                     processor_timeout,
@@ -464,21 +456,21 @@ class DagFileProcessorAgent(LoggingMixin):
         """
         Sync metadata from stat queue and only keep the latest stat.
         """
-        self._file_paths = stat.file_paths
         self._done = stat.done
         self._all_files_processed = stat.all_files_processed
 
-    # pylint: disable=missing-docstring
-    @property
-    def file_paths(self):
-        return self._file_paths
-
     @property
     def done(self):
+        """
+        Has DagFileProcessorManager ended?
+        """
         return self._done
 
     @property
     def all_files_processed(self):
+        """
+        Have all files been processed at least once?
+        """
         return self._all_files_processed
 
     def terminate(self):
@@ -516,8 +508,6 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
     :param dag_directory: Directory where DAG definitions are kept. All
         files in file_paths should be under this directory
     :type dag_directory: unicode
-    :param file_paths: list of file paths that contain DAG definitions
-    :type file_paths: list[unicode]
     :param max_runs: The number of times to parse and schedule each file. -1
         for unlimited.
     :type max_runs: int
@@ -527,20 +517,19 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
     :param processor_timeout: How long to wait before timing out a DAG file processor
     :type processor_timeout: timedelta
     :param signal_conn: connection to communicate signal with processor agent.
-    :type signal_conn: airflow.models.connection.Connection
+    :type signal_conn: multiprocessing.connection.Connection
     :param async_mode: whether to start the manager in async mode
     :type async_mode: bool
     """
 
     def __init__(self,
                  dag_directory: str,
-                 file_paths: List[str],
                  max_runs: int,
                  processor_factory: Callable[[str, List[Any]], AbstractDagFileProcessorProcess],
                  processor_timeout: timedelta,
                  signal_conn: Connection,
                  async_mode: bool = True):
-        self._file_paths = file_paths
+        self._file_paths: List[str] = []
         self._file_path_queue: List[str] = []
         self._dag_directory = dag_directory
         self._max_runs = max_runs
@@ -577,7 +566,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
         self._last_zombie_query_time = None
         # Last time that the DAG dir was traversed to look for files
-        self.last_dag_dir_refresh_time = timezone.utcnow()
+        self.last_dag_dir_refresh_time = timezone.make_aware(datetime.fromtimestamp(0))
         # Last time stats were printed
         self.last_stat_print_time = timezone.datetime(2000, 1, 1)
         # TODO: Remove magic number
