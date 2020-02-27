@@ -551,6 +551,18 @@ class DAG(BaseDag, LoggingMixin):
         return self._description
 
     @property
+    def description_unicode(self):
+        if six.PY2:
+            try:
+                # in Py2 when you parse python code which is UTF-8 encoded you get byte str
+                # description here - but it is actually UTF-8 encoded, so you need to decode
+                # it in order to be correctly converted to
+                return self._description.decode("utf-8")
+            except UnicodeDecodeError:
+                pass
+        return self._description
+
+    @property
     def pickle_id(self):
         return self._pickle_id
 
