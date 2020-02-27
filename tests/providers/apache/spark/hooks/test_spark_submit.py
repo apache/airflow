@@ -21,7 +21,7 @@ import unittest
 from unittest.mock import call, patch
 
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
 from airflow.utils import db
 

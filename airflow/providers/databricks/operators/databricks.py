@@ -23,7 +23,7 @@ This module contains Databricks operators.
 import time
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
 from airflow.utils.decorators import apply_defaults
 
@@ -216,7 +216,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     :type do_xcom_push: bool
     """
-    # Used in airflow.models.BaseOperator
+    # Used in airflow.models.baseoperator.BaseOperator
     template_fields = ('json',)
     # Databricks brand color (blue) under white text
     ui_color = '#1CB1C2'
@@ -422,7 +422,7 @@ class DatabricksRunNowOperator(BaseOperator):
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     :type do_xcom_push: bool
     """
-    # Used in airflow.models.BaseOperator
+    # Used in airflow.models.baseoperator.BaseOperator
     template_fields = ('json',)
     # Databricks brand color (blue) under white text
     ui_color = '#1CB1C2'

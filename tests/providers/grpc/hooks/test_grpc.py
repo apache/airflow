@@ -21,7 +21,7 @@ from io import StringIO
 import mock
 
 from airflow.exceptions import AirflowConfigException
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.grpc.hooks.grpc import GrpcHook
 
 

@@ -25,8 +25,8 @@ from cryptography.fernet import Fernet
 from parameterized import parameterized
 
 from airflow.hooks.base_hook import BaseHook
-from airflow.models import Connection, crypto
-from airflow.models.connection import CONN_TYPE_TO_HOOK
+from airflow.models import crypto
+from airflow.models.connection import CONN_TYPE_TO_HOOK, Connection
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 from tests.test_utils.config import conf_vars
 

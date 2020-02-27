@@ -18,7 +18,7 @@
 from typing import Iterable, Mapping, Optional, Union
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 from airflow.providers.odbc.hooks.odbc import OdbcHook
 from airflow.utils.decorators import apply_defaults

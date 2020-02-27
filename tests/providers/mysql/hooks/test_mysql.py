@@ -25,7 +25,7 @@ from unittest import mock
 import MySQLdb.cursors
 import pytest
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils import timezone

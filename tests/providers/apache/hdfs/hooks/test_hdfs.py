@@ -20,7 +20,7 @@ import json
 import unittest
 from unittest import mock
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.apache.hdfs.hooks.hdfs import HDFSHook
 
 try:

@@ -23,7 +23,7 @@ from datetime import datetime
 import mock
 import numpy
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.oracle.hooks.oracle import OracleHook
 
 # pylint: disable=c-extension-no-member

@@ -18,7 +18,8 @@
 import unittest
 from unittest.mock import patch
 
-from airflow import configuration, models
+from airflow import configuration
+from airflow.models.connection import Connection
 from airflow.providers.salesforce.hooks.tableau import TableauHook
 from airflow.utils import db
 
@@ -29,7 +30,7 @@ class TestTableauHook(unittest.TestCase):
         configuration.conf.load_test_config()
 
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='tableau_test_password',
                 conn_type='tableau',
                 host='tableau',
@@ -39,7 +40,7 @@ class TestTableauHook(unittest.TestCase):
             )
         )
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='tableau_test_token',
                 conn_type='tableau',
                 host='tableau',

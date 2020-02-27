@@ -21,7 +21,7 @@ import unittest
 import boto3
 import mock
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 try:

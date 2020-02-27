@@ -24,7 +24,7 @@ from unittest import mock
 import pysftp
 from parameterized import parameterized
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.utils.session import provide_session
 

@@ -22,7 +22,7 @@ from typing import List
 
 from mock import patch
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.datadog.sensors.datadog import DatadogSensor
 from airflow.utils import db
 

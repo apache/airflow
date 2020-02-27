@@ -19,8 +19,7 @@ import json
 import unittest
 from unittest.mock import patch
 
-from airflow.models import Connection
-
+from airflow.models.connection import Connection
 try:
     from airflow.providers.yandex.hooks.yandexcloud_dataproc import DataprocHook
 

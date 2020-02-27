@@ -25,7 +25,7 @@ from mock import PropertyMock
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKECreateClusterOperator, GKEDeleteClusterOperator, GKEStartPodOperator,

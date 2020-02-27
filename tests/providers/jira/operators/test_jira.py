@@ -20,7 +20,7 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.providers.jira.operators.jira import JiraOperator
 from airflow.utils import db, timezone

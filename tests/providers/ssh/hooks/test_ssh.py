@@ -23,7 +23,7 @@ from io import StringIO
 import mock
 import paramiko
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils import db
 from airflow.utils.session import create_session

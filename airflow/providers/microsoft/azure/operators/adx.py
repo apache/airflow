@@ -22,7 +22,7 @@ from typing import Dict, Optional
 
 from azure.kusto.data._models import KustoResultTable
 
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 from airflow.utils.decorators import apply_defaults
 

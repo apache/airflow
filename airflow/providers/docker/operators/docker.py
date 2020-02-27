@@ -26,7 +26,7 @@ from typing import Dict, Iterable, List, Optional, Union
 from docker import APIClient, tls
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.providers.docker.hooks.docker import DockerHook
 from airflow.utils.decorators import apply_defaults
 

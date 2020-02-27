@@ -23,7 +23,7 @@ import requests_mock
 from requests.exceptions import RequestException
 
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.utils import db
 

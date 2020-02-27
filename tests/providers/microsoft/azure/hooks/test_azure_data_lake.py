@@ -23,7 +23,7 @@ import unittest
 
 import mock
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.utils import db
 
 

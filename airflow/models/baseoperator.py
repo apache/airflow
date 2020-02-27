@@ -1203,8 +1203,8 @@ class BaseOperator(Operator, LoggingMixin):
 def chain(*tasks: Union[BaseOperator, List[BaseOperator]]):
     r"""
     Given a number of tasks, builds a dependency chain.
-    Support mix airflow.models.BaseOperator and List[airflow.models.BaseOperator].
-    If you want to chain between two List[airflow.models.BaseOperator], have to
+    Support mix airflow.models.baseoperator.BaseOperator and List[airflow.models.baseoperator.BaseOperator].
+    If you want to chain between two List[airflow.models.baseoperator.BaseOperator], have to
     make sure they have same length.
 
     .. code-block:: python
@@ -1226,8 +1226,8 @@ def chain(*tasks: Union[BaseOperator, List[BaseOperator]]):
         t4.set_downstream(t6)
         t5.set_downstream(t6)
 
-    :param tasks: List of tasks or List[airflow.models.BaseOperator] to set dependencies
-    :type tasks: List[airflow.models.BaseOperator] or airflow.models.BaseOperator
+    :param tasks: List of tasks or List[airflow.models.baseoperator.BaseOperator] to set dependencies
+    :type tasks: List[airflow.models.baseoperator.BaseOperator] or airflow.models.baseoperator.BaseOperator
     """
     for index, up_task in enumerate(tasks[:-1]):
         down_task = tasks[index + 1]
@@ -1282,9 +1282,9 @@ def cross_downstream(from_tasks: List[BaseOperator],
         t3.set_downstream(t6)
 
     :param from_tasks: List of tasks to start from.
-    :type from_tasks: List[airflow.models.BaseOperator]
+    :type from_tasks: List[airflow.models.baseoperator.BaseOperator]
     :param to_tasks: List of tasks to set as downstream dependencies.
-    :type to_tasks: List[airflow.models.BaseOperator]
+    :type to_tasks: List[airflow.models.baseoperator.BaseOperator]
     """
     for task in from_tasks:
         task.set_downstream(to_tasks)

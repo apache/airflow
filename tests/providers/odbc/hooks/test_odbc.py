@@ -23,7 +23,7 @@ from urllib.parse import quote_plus, urlparse
 
 import pyodbc
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.odbc.hooks.odbc import OdbcHook
 
 

@@ -29,7 +29,7 @@ from wtforms.fields import (
     BooleanField, DateTimeField, IntegerField, PasswordField, SelectField, StringField, TextAreaField,
 )
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.utils import timezone
 from airflow.www.validators import ValidJson
 

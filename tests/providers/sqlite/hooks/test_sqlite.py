@@ -21,7 +21,7 @@ import unittest
 from unittest import mock
 from unittest.mock import patch
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 
 

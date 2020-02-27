@@ -24,7 +24,7 @@ from tempfile import TemporaryDirectory, gettempdir
 from typing import Dict, Optional
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import context_to_airflow_vars
 

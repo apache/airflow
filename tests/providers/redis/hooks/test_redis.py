@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.redis.hooks.redis import RedisHook
 
 

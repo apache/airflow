@@ -21,7 +21,7 @@ import unittest
 from unittest.mock import patch
 
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 
 

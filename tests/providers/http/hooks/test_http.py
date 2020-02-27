@@ -25,7 +25,7 @@ import tenacity
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.http.hooks.http import HttpHook
 
 

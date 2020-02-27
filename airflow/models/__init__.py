@@ -16,9 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow models"""
-from airflow.models.base import ID_LEN, Base
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
-from airflow.models.connection import Connection
 from airflow.models.dag import DAG, DagModel, DagTag
 from airflow.models.dagbag import DagBag
 from airflow.models.dagpickle import DagPickle

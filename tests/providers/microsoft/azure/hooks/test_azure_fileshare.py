@@ -30,7 +30,7 @@ import unittest
 
 import mock
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.microsoft.azure.hooks.azure_fileshare import AzureFileShareHook
 from airflow.utils import db
 

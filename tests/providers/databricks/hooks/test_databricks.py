@@ -26,7 +26,7 @@ from requests import exceptions as requests_exceptions
 
 from airflow import __version__
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.databricks.hooks.databricks import SUBMIT_RUN_ENDPOINT, DatabricksHook, RunState
 from airflow.utils.session import provide_session
 

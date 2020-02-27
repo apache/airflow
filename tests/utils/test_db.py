@@ -26,7 +26,7 @@ from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import MetaData
 
-from airflow.models import Base as airflow_base
+from airflow.models.base import Base as airflow_base
 from airflow.settings import engine
 from airflow.utils.db import create_default_connections
 

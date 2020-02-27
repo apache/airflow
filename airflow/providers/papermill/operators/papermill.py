@@ -21,7 +21,7 @@ import attr
 import papermill as pm
 
 from airflow.lineage.entities import File
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

@@ -27,7 +27,7 @@ from typing import Dict, Optional
 import pymssql
 import unicodecsv as csv
 
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 from airflow.utils.decorators import apply_defaults

@@ -17,7 +17,7 @@
 # under the License.
 from typing import Iterable, Mapping, Optional, Union
 
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook
 from airflow.utils.decorators import apply_defaults
 

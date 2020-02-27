@@ -22,7 +22,7 @@ from airflow.exceptions import AirflowException
 from airflow.utils.decorators import apply_defaults
 
 
-# Essentially similar to airflow.models.BaseOperator
+# Essentially similar to airflow.models.baseoperator.BaseOperator
 class DummyClass:
     @apply_defaults
     def __init__(self, test_param, params=None, default_args=None):  # pylint: disable=unused-argument

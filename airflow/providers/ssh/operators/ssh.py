@@ -21,7 +21,7 @@ from select import select
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils.decorators import apply_defaults
 

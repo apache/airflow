@@ -20,7 +20,7 @@ This module contains CloudFormation create/delete stack operators.
 """
 from typing import List
 
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.providers.amazon.aws.hooks.cloud_formation import AWSCloudFormationHook
 from airflow.utils.decorators import apply_defaults
 

@@ -25,7 +25,7 @@ import pytest
 from botocore.exceptions import NoCredentialsError
 
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook, provide_bucket_name, unify_bucket_name_and_key
 
 try:

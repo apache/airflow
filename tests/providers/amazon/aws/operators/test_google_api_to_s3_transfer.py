@@ -19,8 +19,8 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from airflow import models
 from airflow.configuration import load_test_config
+from airflow.models.connection import Connection
 from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.providers.amazon.aws.operators.google_api_to_s3_transfer import GoogleApiToS3Transfer
 from airflow.utils import db
@@ -32,7 +32,7 @@ class TestGoogleApiToS3Transfer(unittest.TestCase):
         load_test_config()
 
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='google_test',
                 host='google',
                 schema='refresh_token',
@@ -41,7 +41,7 @@ class TestGoogleApiToS3Transfer(unittest.TestCase):
             )
         )
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='s3_test',
                 conn_type='s3',
                 schema='test',

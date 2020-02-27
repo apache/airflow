@@ -24,7 +24,7 @@ from unittest import mock
 from azure.kusto.data.request import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
 
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 from airflow.utils import db
 from airflow.utils.session import create_session

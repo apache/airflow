@@ -21,7 +21,7 @@ import json
 import unittest
 from unittest.mock import Mock, patch
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook
 from airflow.utils import db
 

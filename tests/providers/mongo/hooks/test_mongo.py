@@ -19,7 +19,7 @@ import unittest
 
 import pymongo
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.mongo.hooks.mongo import MongoHook
 from airflow.utils import db
 

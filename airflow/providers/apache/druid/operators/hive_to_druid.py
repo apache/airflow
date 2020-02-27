@@ -22,7 +22,7 @@ This module contains operator to move data from Hive to Druid.
 
 from typing import Dict, List, Optional
 
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.providers.apache.druid.hooks.druid import DruidHook
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook
 from airflow.utils.decorators import apply_defaults

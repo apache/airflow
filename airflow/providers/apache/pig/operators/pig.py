@@ -19,7 +19,7 @@
 import re
 from typing import Optional
 
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.providers.apache.pig.hooks.pig import PigCliHook
 from airflow.utils.decorators import apply_defaults
 

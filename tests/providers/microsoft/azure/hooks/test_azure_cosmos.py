@@ -27,7 +27,7 @@ import mock
 from azure.cosmos.cosmos_client import CosmosClient
 
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.microsoft.azure.hooks.azure_cosmos import AzureCosmosDBHook
 from airflow.utils import db
 

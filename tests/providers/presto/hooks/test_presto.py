@@ -23,7 +23,7 @@ from unittest.mock import patch
 
 from prestodb.transaction import IsolationLevel
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.presto.hooks.presto import PrestoHook
 
 

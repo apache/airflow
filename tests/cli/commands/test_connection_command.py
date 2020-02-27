@@ -23,7 +23,7 @@ from parameterized import parameterized
 
 from airflow.bin import cli
 from airflow.cli.commands import connection_command
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
 from tests.test_utils.db import clear_db_connections

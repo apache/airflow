@@ -21,7 +21,7 @@ import unittest
 from unittest.mock import Mock, mock_open, patch
 
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.imap.hooks.imap import ImapHook
 from airflow.utils import db
 

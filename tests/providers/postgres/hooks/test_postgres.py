@@ -24,7 +24,7 @@ from unittest import mock
 import psycopg2.extras
 import pytest
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 

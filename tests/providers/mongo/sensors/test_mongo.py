@@ -21,7 +21,7 @@ import unittest
 
 import pytest
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.providers.mongo.hooks.mongo import MongoHook
 from airflow.providers.mongo.sensors.mongo import MongoSensor

@@ -29,7 +29,7 @@ An Airflow operator for AWS Batch services
 from typing import Dict, Optional
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClient
 from airflow.utils.decorators import apply_defaults
 

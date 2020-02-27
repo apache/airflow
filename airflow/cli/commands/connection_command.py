@@ -21,7 +21,7 @@ from urllib.parse import urlunparse
 from sqlalchemy.orm import exc
 from tabulate import tabulate
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import alternative_conn_specs
 from airflow.utils.session import create_session

@@ -21,9 +21,7 @@ import unittest
 from unittest import mock
 
 from airflow.hooks.dbapi_hook import DbApiHook
-from airflow.models import Connection
-
-
+from airflow.models.connection import Connection
 class TestDbApiHook(unittest.TestCase):
 
     def setUp(self):

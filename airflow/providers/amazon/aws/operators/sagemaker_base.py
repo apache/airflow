@@ -19,7 +19,7 @@
 import json
 from typing import Iterable
 
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.utils.decorators import apply_defaults
 

@@ -24,7 +24,7 @@ import uuid
 
 import mock
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.microsoft.azure.operators.azure_cosmos import AzureCosmosInsertDocumentOperator
 from airflow.utils import db
 

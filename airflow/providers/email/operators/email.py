@@ -17,7 +17,7 @@
 # under the License.
 from typing import List, Optional, Union
 
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.email import send_email
 

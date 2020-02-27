@@ -24,7 +24,7 @@ from io import StringIO
 from unittest.mock import call, patch
 
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.apache.sqoop.hooks.sqoop import SqoopHook
 from airflow.utils import db
 

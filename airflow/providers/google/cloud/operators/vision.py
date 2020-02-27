@@ -28,7 +28,7 @@ from google.cloud.vision_v1.types import (
     AnnotateImageRequest, FieldMask, Image, Product, ProductSet, ReferenceImage,
 )
 
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.providers.google.cloud.hooks.vision import CloudVisionHook
 from airflow.utils.decorators import apply_defaults
 

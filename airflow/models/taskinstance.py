@@ -484,7 +484,7 @@ class TaskInstance(Base, LoggingMixin):
         Copy common attributes from the given task.
 
         :param task: The task object to copy from
-        :type task: airflow.models.BaseOperator
+        :type task: airflow.models.baseoperator.BaseOperator
         :param pool_override: Use the pool_override instead of task's pool
         :type pool_override: str
         """

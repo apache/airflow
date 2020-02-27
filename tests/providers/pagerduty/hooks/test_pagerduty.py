@@ -20,7 +20,7 @@
 import unittest
 from unittest import mock
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.providers.pagerduty.hooks.pagerduty import PagerdutyHook
 from airflow.utils.session import provide_session
 

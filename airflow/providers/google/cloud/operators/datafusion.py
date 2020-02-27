@@ -22,7 +22,7 @@ from typing import Any, Dict, Optional
 
 from googleapiclient.errors import HttpError
 
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionHook
 from airflow.utils.decorators import apply_defaults
 
