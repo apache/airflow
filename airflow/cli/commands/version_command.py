@@ -20,4 +20,4 @@ import airflow
 
 def version(args):
     """Displays Airflow version at the command line"""
-    print(f"v{airflow.__version__}")
+    print(f"{airflow.__version__}")
