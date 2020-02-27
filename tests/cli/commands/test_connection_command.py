@@ -90,7 +90,7 @@ class TestCliAddConnections(unittest.TestCase):
     @parameterized.expand(
         [
             (
-                ["connections", "add", "new1", "--conn_uri=%s" % TEST_URL],
+                ["connections", "add", "new1", "--conn-uri=%s" % TEST_URL],
                 "\tSuccessfully added `conn_id`=new1 : postgresql://airflow:airflow@host:5432/airflow",
                 {
                     "conn_id": "new1",
@@ -104,7 +104,7 @@ class TestCliAddConnections(unittest.TestCase):
                 },
             ),
             (
-                ["connections", "add", "new2", "--conn_uri=%s" % TEST_URL],
+                ["connections", "add", "new2", "--conn-uri=%s" % TEST_URL],
                 "\tSuccessfully added `conn_id`=new2 : postgresql://airflow:airflow@host:5432/airflow",
                 {
                     "conn_id": "new2",
@@ -122,8 +122,8 @@ class TestCliAddConnections(unittest.TestCase):
                     "connections",
                     "add",
                     "new3",
-                    "--conn_uri=%s" % TEST_URL,
-                    "--conn_extra",
+                    "--conn-uri=%s" % TEST_URL,
+                    "--conn-extra",
                     "{'extra': 'yes'}",
                 ],
                 "\tSuccessfully added `conn_id`=new3 : postgresql://airflow:airflow@host:5432/airflow",
@@ -143,8 +143,8 @@ class TestCliAddConnections(unittest.TestCase):
                     "connections",
                     "add",
                     "new4",
-                    "--conn_uri=%s" % TEST_URL,
-                    "--conn_extra",
+                    "--conn-uri=%s" % TEST_URL,
+                    "--conn-extra",
                     "{'extra': 'yes'}",
                 ],
                 "\tSuccessfully added `conn_id`=new4 : postgresql://airflow:airflow@host:5432/airflow",
@@ -164,12 +164,12 @@ class TestCliAddConnections(unittest.TestCase):
                     "connections",
                     "add",
                     "new5",
-                    "--conn_type=hive_metastore",
-                    "--conn_login=airflow",
-                    "--conn_password=airflow",
-                    "--conn_host=host",
-                    "--conn_port=9083",
-                    "--conn_schema=airflow",
+                    "--conn-type=hive_metastore",
+                    "--conn-login=airflow",
+                    "--conn-password=airflow",
+                    "--conn-host=host",
+                    "--conn-port=9083",
+                    "--conn-schema=airflow",
                 ],
                 "\tSuccessfully added `conn_id`=new5 : hive_metastore://airflow:******@host:9083/airflow",
                 {
@@ -188,10 +188,10 @@ class TestCliAddConnections(unittest.TestCase):
                     "connections",
                     "add",
                     "new6",
-                    "--conn_uri",
+                    "--conn-uri",
                     "",
-                    "--conn_type=google_cloud_platform",
-                    "--conn_extra",
+                    "--conn-type=google_cloud_platform",
+                    "--conn-extra",
                     "{'extra': 'yes'}",
                 ],
                 "\tSuccessfully added `conn_id`=new6 : google_cloud_platform://:@:",
@@ -233,11 +233,11 @@ class TestCliAddConnections(unittest.TestCase):
     def test_cli_connections_add_duplicate(self):
         # Attempt to add duplicate
         connection_command.connections_add(
-            self.parser.parse_args(["connections", "add", "new1", "--conn_uri=%s" % TEST_URL])
+            self.parser.parse_args(["connections", "add", "new1", "--conn-uri=%s" % TEST_URL])
         )
         with redirect_stdout(io.StringIO()) as stdout:
             connection_command.connections_add(
-                self.parser.parse_args(["connections", "add", "new1", "--conn_uri=%s" % TEST_URL])
+                self.parser.parse_args(["connections", "add", "new1", "--conn-uri=%s" % TEST_URL])
             )
             stdout = stdout.getvalue()
 

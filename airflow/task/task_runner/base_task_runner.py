@@ -32,7 +32,7 @@ PYTHONPATH_VAR = 'PYTHONPATH'
 
 class BaseTaskRunner(LoggingMixin):
     """
-    Runs Airflow task instances by invoking the `airflow run` command with raw
+    Runs Airflow task instances by invoking the `airflow tasks run` command with raw
     mode enabled in a subprocess.
 
     :param local_task_job: The local task job associated with running the

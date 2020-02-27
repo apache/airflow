@@ -53,7 +53,7 @@ Follow the steps below to enable custom logging config class:
 
 #. Start by setting environment variable to known directory e.g. ``~/airflow/``
 
-    .. code-block:: ini
+    .. code-block:: bash
 
         export PYTHON_PATH=~/airflow/
 
@@ -183,7 +183,7 @@ example:
 
   *** Reading remote log from gs://<bucket where logs should be persisted>/example_bash_operator/run_this_last/2017-10-03T00:00:00/16.log.
   [2017-10-03 21:57:50,056] {cli.py:377} INFO - Running on host chrisr-00532
-  [2017-10-03 21:57:50,093] {base_task_runner.py:115} INFO - Running: ['bash', '-c', 'airflow tasks run example_bash_operator run_this_last 2017-10-03T00:00:00 --job_id 47 --raw -sd DAGS_FOLDER/example_dags/example_bash_operator.py']
+  [2017-10-03 21:57:50,093] {base_task_runner.py:115} INFO - Running: ['bash', '-c', 'airflow tasks run example_bash_operator run_this_last 2017-10-03T00:00:00 --job-id 47 --raw -S DAGS_FOLDER/example_dags/example_bash_operator.py']
   [2017-10-03 21:57:51,264] {base_task_runner.py:98} INFO - Subtask: [2017-10-03 21:57:51,263] {__init__.py:45} INFO - Using executor SequentialExecutor
   [2017-10-03 21:57:51,306] {base_task_runner.py:98} INFO - Subtask: [2017-10-03 21:57:51,306] {models.py:186} INFO - Filling up the DagBag from /airflow/dags/example_dags/example_bash_operator.py
 

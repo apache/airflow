@@ -64,7 +64,7 @@ class TestCliDags(unittest.TestCase):
     def test_backfill(self, mock_run):
         dag_command.dag_backfill(self.parser.parse_args([
             'dags', 'backfill', 'example_bash_operator',
-            '-s', DEFAULT_DATE.isoformat()]))
+            '--start-date', DEFAULT_DATE.isoformat()]))
 
         mock_run.assert_called_once_with(
             start_date=DEFAULT_DATE,
@@ -86,8 +86,8 @@ class TestCliDags(unittest.TestCase):
 
         with contextlib.redirect_stdout(io.StringIO()) as stdout:
             dag_command.dag_backfill(self.parser.parse_args([
-                'dags', 'backfill', 'example_bash_operator', '-t', 'runme_0', '--dry_run',
-                '-s', DEFAULT_DATE.isoformat()]), dag=dag)
+                'dags', 'backfill', 'example_bash_operator', '--task-regex', 'runme_0', '--dry-run',
+                '--start-date', DEFAULT_DATE.isoformat()]), dag=dag)
 
         output = stdout.getvalue()
         self.assertIn("Dry run of DAG example_bash_operator on {}\n".format(DEFAULT_DATE.isoformat()), output)
@@ -96,14 +96,14 @@ class TestCliDags(unittest.TestCase):
         mock_run.assert_not_called()  # Dry run shouldn't run the backfill
 
         dag_command.dag_backfill(self.parser.parse_args([
-            'dags', 'backfill', 'example_bash_operator', '--dry_run',
-            '-s', DEFAULT_DATE.isoformat()]), dag=dag)
+            'dags', 'backfill', 'example_bash_operator', '--dry-run',
+            '--start-date', DEFAULT_DATE.isoformat()]), dag=dag)
 
         mock_run.assert_not_called()  # Dry run shouldn't run the backfill
 
         dag_command.dag_backfill(self.parser.parse_args([
-            'dags', 'backfill', 'example_bash_operator', '-l',
-            '-s', DEFAULT_DATE.isoformat()]), dag=dag)
+            'dags', 'backfill', 'example_bash_operator', '--local',
+            '--start-date', DEFAULT_DATE.isoformat()]), dag=dag)
 
         mock_run.assert_called_once_with(
             start_date=DEFAULT_DATE,
@@ -172,10 +172,10 @@ class TestCliDags(unittest.TestCase):
             'dags',
             'backfill',
             dag_id,
-            '-l',
-            '-s',
+            '--local',
+            '--start-date',
             run_date.isoformat(),
-            '-I',
+            '--ignore-first-depends-on-past',
         ]
         dag = self.dagbag.get_dag(dag_id)
 
@@ -209,13 +209,13 @@ class TestCliDags(unittest.TestCase):
             'dags',
             'backfill',
             dag_id,
-            '-l',
-            '-s',
+            '--local',
+            '--start-date',
             start_date.isoformat(),
-            '-e',
+            '--end-date',
             end_date.isoformat(),
-            '-I',
-            '-B',
+            '--ignore-first-depends-on-past',
+            '--run-backwards',
         ]
         dag = self.dagbag.get_dag(dag_id)
 
@@ -311,17 +311,17 @@ class TestCliDags(unittest.TestCase):
             'dags', 'trigger', 'example_bash_operator', ]))
         args = self.parser.parse_args(['dags',
                                        'list_runs',
-                                       '--dag_id',
+                                       '--dag-id',
                                        'example_bash_operator',
-                                       '--no_backfill',
-                                       '--start_date',
+                                       '--no-backfill',
+                                       '--start-date',
                                        DEFAULT_DATE.isoformat(),
-                                       '--end_date',
+                                       '--end-date',
                                        timezone.make_aware(datetime.max).isoformat()])
         dag_command.dag_list_dag_runs(args)
 
     def test_cli_list_jobs_with_args(self):
-        args = self.parser.parse_args(['dags', 'list_jobs', '--dag_id',
+        args = self.parser.parse_args(['dags', 'list_jobs', '--dag-id',
                                        'example_bash_operator',
                                        '--state', 'success',
                                        '--limit', '100',
@@ -342,14 +342,14 @@ class TestCliDags(unittest.TestCase):
     def test_trigger_dag(self):
         dag_command.dag_trigger(self.parser.parse_args([
             'dags', 'trigger', 'example_bash_operator',
-            '-c', '{"foo": "bar"}']))
+            '--conf', '{"foo": "bar"}']))
         self.assertRaises(
             ValueError,
             dag_command.dag_trigger,
             self.parser.parse_args([
                 'dags', 'trigger', 'example_bash_operator',
-                '--run_id', 'trigger_dag_xxx',
-                '-c', 'NOT JSON'])
+                '--run-id', 'trigger_dag_xxx',
+                '--conf', 'NOT JSON'])
         )
 
     def test_delete_dag(self):

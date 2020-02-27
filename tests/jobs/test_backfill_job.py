@@ -858,7 +858,7 @@ class TestBackfillJob(unittest.TestCase):
             dag_id,
             '-s',
             run_date.isoformat(),
-            '--delay_on_limit',
+            '--delay-on-limit',
             '0.5',
         ]
         parsed_args = self.parser.parse_args(args)

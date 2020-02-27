@@ -25,7 +25,7 @@ import os
 import signal
 import time
 from datetime import datetime, timedelta
-from typing import Any, Dict, Iterable, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 from urllib.parse import quote
 
 import dill
@@ -294,72 +294,88 @@ class TaskInstance(Base, LoggingMixin):
             cfg_path=cfg_path)
 
     @staticmethod
-    def generate_command(dag_id,
-                         task_id,
-                         execution_date,
-                         mark_success=False,
-                         ignore_all_deps=False,
-                         ignore_depends_on_past=False,
-                         ignore_task_deps=False,
-                         ignore_ti_state=False,
-                         local=False,
-                         pickle_id=None,
-                         file_path=None,
-                         raw=False,
-                         job_id=None,
-                         pool=None,
-                         cfg_path=None
-                         ):
+    def generate_command(dag_id: str,
+                         task_id: str,
+                         execution_date: datetime,
+                         mark_success: Optional[bool] = False,
+                         ignore_all_deps: Optional[bool] = False,
+                         ignore_depends_on_past: Optional[bool] = False,
+                         ignore_task_deps: Optional[bool] = False,
+                         ignore_ti_state: Optional[bool] = False,
+                         local: Optional[bool] = False,
+                         pickle_id: Optional[str] = None,
+                         file_path: Optional[str] = None,
+                         raw: Optional[bool] = False,
+                         job_id: Optional[str] = None,
+                         pool: Optional[str] = None,
+                         cfg_path: Optional[str] = None
+                         ) -> List[str]:
         """
         Generates the shell command required to execute this task instance.
 
         :param dag_id: DAG ID
-        :type dag_id: unicode
+        :type dag_id: str
         :param task_id: Task ID
-        :type task_id: unicode
+        :type task_id: str
         :param execution_date: Execution date for the task
-        :type execution_date: datetime.datetime
+        :type execution_date: datetime
         :param mark_success: Whether to mark the task as successful
-        :type mark_success: bool
+        :type mark_success: Optional[bool]
         :param ignore_all_deps: Ignore all ignorable dependencies.
             Overrides the other ignore_* parameters.
-        :type ignore_all_deps: bool
+        :type ignore_all_deps: Optional[bool]
         :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs
             (e.g. for Backfills)
-        :type ignore_depends_on_past: bool
+        :type ignore_depends_on_past: Optional[bool]
         :param ignore_task_deps: Ignore task-specific dependencies such as depends_on_past
             and trigger rule
-        :type ignore_task_deps: bool
+        :type ignore_task_deps: Optional[bool]
         :param ignore_ti_state: Ignore the task instance's previous failure/success
-        :type ignore_ti_state: bool
+        :type ignore_ti_state: Optional[bool]
         :param local: Whether to run the task locally
-        :type local: bool
+        :type local: Optional[bool]
         :param pickle_id: If the DAG was serialized to the DB, the ID
             associated with the pickled DAG
-        :type pickle_id: unicode
+        :type pickle_id: Optional[str]
         :param file_path: path to the file containing the DAG definition
+        :type file_path: Optional[str]
         :param raw: raw mode (needs more details)
+        :type raw: Optional[bool]
         :param job_id: job ID (needs more details)
+        :type job_id: Optional[str]
         :param pool: the Airflow pool that the task should run in
-        :type pool: unicode
+        :type pool: Optional[str]
         :param cfg_path: the Path to the configuration file
-        :type cfg_path: str
+        :type cfg_path: Optional[str]
         :return: shell command that can be used to run the task instance
+        :rtype: list[str]
         """
         iso = execution_date.isoformat()
-        cmd = ["airflow", "tasks", "run", str(dag_id), str(task_id), str(iso)]
-        cmd.extend(["--mark_success"]) if mark_success else None
-        cmd.extend(["--pickle", str(pickle_id)]) if pickle_id else None
-        cmd.extend(["--job_id", str(job_id)]) if job_id else None
-        cmd.extend(["-A"]) if ignore_all_deps else None
-        cmd.extend(["-i"]) if ignore_task_deps else None
-        cmd.extend(["-I"]) if ignore_depends_on_past else None
-        cmd.extend(["--force"]) if ignore_ti_state else None
-        cmd.extend(["--local"]) if local else None
-        cmd.extend(["--pool", pool]) if pool else None
-        cmd.extend(["--raw"]) if raw else None
-        cmd.extend(["-sd", file_path]) if file_path else None
-        cmd.extend(["--cfg_path", cfg_path]) if cfg_path else None
+        cmd = ["airflow", "tasks", "run", dag_id, task_id, iso]
+        if mark_success:
+            cmd.extend(["--mark-success"])
+        if pickle_id:
+            cmd.extend(["--pickle", pickle_id])
+        if job_id:
+            cmd.extend(["--job-id", job_id])
+        if ignore_all_deps:
+            cmd.extend(["--ignore-all-dependencies"])
+        if ignore_task_deps:
+            cmd.extend(["--ignore-dependencies"])
+        if ignore_depends_on_past:
+            cmd.extend(["--ignore-depends-on-past"])
+        if ignore_ti_state:
+            cmd.extend(["--force"])
+        if local:
+            cmd.extend(["--local"])
+        if pool:
+            cmd.extend(["--pool", pool])
+        if raw:
+            cmd.extend(["--raw"])
+        if file_path:
+            cmd.extend(["--subdir", file_path])
+        if cfg_path:
+            cmd.extend(["--cfg-path", cfg_path])
         return cmd
 
     @property

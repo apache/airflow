@@ -1526,6 +1526,22 @@ class TestTaskInstance(unittest.TestCase):
         ti.refresh_from_db()
         self.assertEqual(ti.state, State.SUCCESS)
 
+    def test_generate_command_default_param(self):
+        dag_id = 'test_generate_command_default_param'
+        task_id = 'task'
+        assert_command = ['airflow', 'tasks', 'run', dag_id, task_id, DEFAULT_DATE.isoformat()]
+        generate_command = TI.generate_command(dag_id=dag_id, task_id=task_id, execution_date=DEFAULT_DATE)
+        assert assert_command == generate_command
+
+    def test_generate_command_specific_param(self):
+        dag_id = 'test_generate_command_specific_param'
+        task_id = 'task'
+        assert_command = ['airflow', 'tasks', 'run', dag_id,
+                          task_id, DEFAULT_DATE.isoformat(), '--mark-success']
+        generate_command = TI.generate_command(dag_id=dag_id, task_id=task_id,
+                                               execution_date=DEFAULT_DATE, mark_success=True)
+        assert assert_command == generate_command
+
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
 def test_refresh_from_task(pool_override):
