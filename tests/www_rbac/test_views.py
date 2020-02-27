@@ -58,8 +58,9 @@ from airflow.utils.db import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.www_rbac import app as application
-from tests.test_utils.config import conf_vars
 from tests.compat import mock
+from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_runs
 
 
 class TestBase(unittest.TestCase):
@@ -70,6 +71,10 @@ class TestBase(unittest.TestCase):
         cls.app.jinja_env.undefined = jinja2.StrictUndefined
         settings.configure_orm()
         cls.session = Session
+
+    @classmethod
+    def tearDownClass(cls):
+        clear_db_runs()
 
     def setUp(self):
         self.client = self.app.test_client()
@@ -379,20 +384,8 @@ class TestAirflowBaseViews(TestBase):
         super(TestAirflowBaseViews, self).setUp()
         self.logout()
         self.login()
-        self.cleanup_dagruns()
+        clear_db_runs()
         self.prepare_dagruns()
-
-    def cleanup_dagruns(self):
-        DR = models.DagRun
-        dag_ids = ['example_bash_operator',
-                   'example_subdag_operator',
-                   'example_xcom']
-        (self.session
-             .query(DR)
-             .filter(DR.dag_id.in_(dag_ids))
-             .filter(DR.run_id == self.run_id)
-             .delete(synchronize_session='fetch'))
-        self.session.commit()
 
     def prepare_dagruns(self):
         self.bash_dag = self.dagbag.dags['example_bash_operator']
@@ -1349,17 +1342,6 @@ class TestDagACLView(TestBase):
         for dag in dagbag.dags.values():
             dag.sync_to_db()
 
-    def cleanup_dagruns(self):
-        DR = models.DagRun
-        dag_ids = ['example_bash_operator',
-                   'example_subdag_operator']
-        (self.session
-             .query(DR)
-             .filter(DR.dag_id.in_(dag_ids))
-             .filter(DR.run_id == self.run_id)
-             .delete(synchronize_session='fetch'))
-        self.session.commit()
-
     def prepare_dagruns(self):
         dagbag = models.DagBag(include_examples=True)
         self.bash_dag = dagbag.dags['example_bash_operator']
@@ -1379,7 +1361,7 @@ class TestDagACLView(TestBase):
 
     def setUp(self):
         super(TestDagACLView, self).setUp()
-        self.cleanup_dagruns()
+        clear_db_runs()
         self.prepare_dagruns()
         self.logout()
         self.appbuilder.sm.sync_roles()
@@ -2658,20 +2640,8 @@ class TestDecorators(TestBase):
         super(TestDecorators, self).setUp()
         self.logout()
         self.login()
-        self.cleanup_dagruns()
+        clear_db_runs()
         self.prepare_dagruns()
-
-    def cleanup_dagruns(self):
-        DR = models.DagRun
-        dag_ids = ['example_bash_operator',
-                   'example_subdag_operator',
-                   'example_xcom']
-        (self.session
-             .query(DR)
-             .filter(DR.dag_id.in_(dag_ids))
-             .filter(DR.run_id == self.run_id)
-             .delete(synchronize_session='fetch'))
-        self.session.commit()
 
     def prepare_dagruns(self):
         dagbag = models.DagBag(include_examples=True)
