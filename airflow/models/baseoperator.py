@@ -140,7 +140,7 @@ class BaseOperator(Operator, LoggingMixin):
         for; the statuses of any tasks further downstream are ignored.
     :type wait_for_downstream: bool
     :param dag: a reference to the dag the task is attached to (if any)
-    :type dag: airflow.models.DAG
+    :type dag: airflow.models.dag.DAG
     :param priority_weight: priority weight of this task against other task.
         This allows the executor to trigger higher priority tasks before
         others when things get backed up. Set priority_weight as a higher

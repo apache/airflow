@@ -21,6 +21,8 @@ Example Airflow DAG that uses Google PubSub services.
 """
 import os
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.pubsub import (
@@ -44,7 +46,7 @@ echo_cmd = """
 """
 # [END howto_operator_gcp_pubsub_pull_messages_result_cmd]
 
-with models.DAG(
+with DAG(
     "example_gcp_pubsub",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

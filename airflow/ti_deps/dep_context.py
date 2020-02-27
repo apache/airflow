@@ -89,7 +89,7 @@ class DepContext:
         This is for the strange feature of running tasks without dag_run.
 
         :param dag: The DAG for which to find finished tasks
-        :type dag: airflow.models.DAG
+        :type dag: airflow.models.dag.DAG
         :param execution_date: The execution_date to look for
         :param session: Database session to use
         :return: A list of all the finished tasks of this DAG and execution_date

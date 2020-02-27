@@ -22,6 +22,8 @@ Example Airflow DAG for Google ML Engine service.
 import os
 from typing import Dict
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.mlengine import (
@@ -55,7 +57,7 @@ default_args = {
     }
 }
 
-with models.DAG(
+with DAG(
     "example_gcp_mlengine",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

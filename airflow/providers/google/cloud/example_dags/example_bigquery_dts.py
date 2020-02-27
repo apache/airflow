@@ -22,6 +22,7 @@ Example Airflow DAG that creates and deletes Bigquery data transfer configuratio
 import os
 import time
 
+from airflow.models.dag import DAG
 from google.cloud.bigquery_datatransfer_v1.types import TransferConfig
 from google.protobuf.json_format import ParseDict
 
@@ -71,7 +72,7 @@ TRANSFER_CONFIG = ParseDict(
 
 default_args = {"start_date": days_ago(1)}
 
-with models.DAG(
+with DAG(
     "example_gcp_bigquery_dts",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

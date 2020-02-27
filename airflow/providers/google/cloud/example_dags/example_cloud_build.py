@@ -30,6 +30,7 @@ This DAG relies on the following OS environment variables:
 
 import os
 
+from airflow.models.dag import DAG
 from future.backports.urllib.parse import urlparse
 
 from airflow import models
@@ -75,7 +76,7 @@ create_build_from_repo_body = {
 }
 # [END howto_operator_create_build_from_repo_body]
 
-with models.DAG(
+with DAG(
     "example_gcp_cloud_build",
     default_args=dict(start_date=dates.days_ago(1)),
     schedule_interval=None,

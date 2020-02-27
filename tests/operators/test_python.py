@@ -30,7 +30,7 @@ from typing import List
 import funcsigs
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagRun, TaskInstance as TI
+from airflow.models.dag import DAG, DagRun, TaskInstance as TI
 from airflow.models.taskinstance import clear_task_instances
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import (

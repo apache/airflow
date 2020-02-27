@@ -19,7 +19,7 @@
 
 import datetime
 
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.subdag_operator import SubDagOperator
 

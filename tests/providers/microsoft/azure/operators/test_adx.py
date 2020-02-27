@@ -20,7 +20,8 @@
 import unittest
 from unittest import mock
 
-from airflow.models import DAG, TaskInstance
+from airflow.models.dag import DAG
+from airflow.models import TaskInstance
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 from airflow.providers.microsoft.azure.operators.adx import AzureDataExplorerQueryOperator
 from airflow.utils import timezone

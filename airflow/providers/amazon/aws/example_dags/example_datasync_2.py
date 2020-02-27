@@ -37,6 +37,8 @@ import json
 import re
 from os import getenv
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.providers.amazon.aws.operators.datasync import AWSDataSyncOperator
 from airflow.utils.dates import days_ago
@@ -80,7 +82,7 @@ UPDATE_TASK_KWARGS = json.loads(
 default_args = {"start_date": days_ago(1)}
 # [END howto_operator_datasync_2_args]
 
-with models.DAG(
+with DAG(
     "example_datasync_2",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

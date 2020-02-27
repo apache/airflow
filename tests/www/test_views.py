@@ -43,7 +43,8 @@ from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONF
 from airflow.configuration import conf
 from airflow.executors.celery_executor import CeleryExecutor
 from airflow.jobs.base_job import BaseJob
-from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models import DagRun, TaskInstance
+from airflow.models.dag import DAG
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.operators.dummy_operator import DummyOperator

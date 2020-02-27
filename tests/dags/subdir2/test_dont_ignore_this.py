@@ -17,7 +17,7 @@
 # under the License.
 from datetime import datetime
 
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 
 DEFAULT_DATE = datetime(2019, 12, 1)

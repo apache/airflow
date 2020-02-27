@@ -30,6 +30,8 @@ https://airflow.apache.org/concepts.html#variables
 import os
 from urllib.parse import urlsplit
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLCreateInstanceDatabaseOperator, CloudSQLCreateInstanceOperator,
@@ -178,7 +180,7 @@ default_args = {
     'start_date': days_ago(1)
 }
 
-with models.DAG(
+with DAG(
     'example_gcp_sql',
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

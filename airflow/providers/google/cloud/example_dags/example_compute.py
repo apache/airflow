@@ -31,6 +31,8 @@ This DAG relies on the following OS environment variables
 
 import os
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineSetMachineTypeOperator, ComputeEngineStartInstanceOperator,
@@ -56,7 +58,7 @@ SET_MACHINE_TYPE_BODY = {
 # [END howto_operator_gce_args_set_machine_type]
 
 
-with models.DAG(
+with DAG(
     'example_gcp_compute',
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

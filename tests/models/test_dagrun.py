@@ -20,7 +20,8 @@ import datetime
 import unittest
 
 from airflow import models, settings
-from airflow.models import DAG, TaskInstance as TI, clear_task_instances
+from airflow.models.dag import DAG
+from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.dagrun import DagRun
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import ShortCircuitOperator

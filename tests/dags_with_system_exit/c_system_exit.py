@@ -22,7 +22,7 @@
 import sys
 from datetime import datetime
 
-from airflow.models import DAG
+from airflow.models.dag import DAG
 
 DEFAULT_DATE = datetime(2100, 1, 1)
 

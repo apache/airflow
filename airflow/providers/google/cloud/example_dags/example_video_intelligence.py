@@ -27,6 +27,7 @@ This DAG relies on the following OS environment variables:
 import os
 
 # [START howto_operator_vision_retry_import]
+from airflow.models.dag import DAG
 from google.api_core.retry import Retry
 
 from airflow import models
@@ -54,7 +55,7 @@ INPUT_URI = "gs://{}/video.mp4".format(GCP_BUCKET_NAME)
 # [END howto_operator_video_intelligence_other_args]
 
 
-with models.DAG(
+with DAG(
     "example_gcp_video_intelligence",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

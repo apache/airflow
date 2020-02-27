@@ -40,6 +40,8 @@ Variables for update template in Group Manager:
 
 import os
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineCopyInstanceTemplateOperator, ComputeEngineInstanceGroupUpdateManagerTemplateOperator,
@@ -95,7 +97,7 @@ UPDATE_POLICY = {
 # [END howto_operator_compute_igm_update_template_args]
 
 
-with models.DAG(
+with DAG(
     'example_gcp_compute_igm',
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

@@ -22,6 +22,7 @@ from collections import OrderedDict
 from datetime import datetime
 from typing import Set
 
+from airflow.models.dag import DAG
 from sqlalchemy.orm.session import Session, make_transient
 from tabulate import tabulate
 
@@ -33,7 +34,7 @@ from airflow.exceptions import (
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
-from airflow.models import DAG, DagPickle
+from airflow.models import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKeyType
 from airflow.ti_deps.dep_context import DepContext
@@ -136,7 +137,7 @@ class BackfillJob(BaseJob):
             *args, **kwargs):
         """
         :param dag: DAG object.
-        :type dag: airflow.models.DAG
+        :type dag: airflow.models.dag.DAG
         :param start_date: start date for the backfill date range.
         :type start_date: datetime.datetime
         :param end_date: end date for the backfill date range.

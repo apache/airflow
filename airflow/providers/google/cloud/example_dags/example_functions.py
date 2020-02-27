@@ -42,6 +42,8 @@ https://airflow.apache.org/concepts.html#variables
 
 import os
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.providers.google.cloud.operators.functions import (
     CloudFunctionDeleteFunctionOperator, CloudFunctionDeployFunctionOperator,
@@ -103,7 +105,7 @@ else:
 # [END howto_operator_gcf_deploy_variants]
 
 
-with models.DAG(
+with DAG(
     'example_gcp_function',
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

@@ -57,7 +57,7 @@ class SimpleDag(BaseDag):
     required for instantiating and scheduling its associated tasks.
 
     :param dag: the DAG
-    :type dag: airflow.models.DAG
+    :type dag: airflow.models.dag.DAG
     :param pickle_id: ID associated with the pickled version of this DAG.
     :type pickle_id: unicode
     """

@@ -18,6 +18,7 @@
 """
 Example Airflow DAG that shows how to use DisplayVideo.
 """
+from airflow.models.dag import DAG
 
 from airflow import models
 from airflow.providers.google.marketing_platform.operators.display_video import (
@@ -54,7 +55,7 @@ PARAMS = {"dataRange": "LAST_14_DAYS", "timezoneCode": "America/New_York"}
 
 default_args = {"start_date": dates.days_ago(1)}
 
-with models.DAG(
+with DAG(
     "example_display_video",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

@@ -23,6 +23,8 @@ import os
 from copy import deepcopy
 from typing import Dict, List
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.automl import (
@@ -74,7 +76,7 @@ def get_target_column_spec(columns_specs: List[Dict], column_name: str) -> str:
 
 
 # Example DAG to create dataset, train model_id and deploy it.
-with models.DAG(
+with DAG(
     "example_create_and_deploy",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
@@ -183,7 +185,7 @@ with models.DAG(
 
 
 # Example DAG for AutoML datasets operations
-with models.DAG(
+with DAG(
     "example_automl_dataset",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
@@ -248,7 +250,7 @@ with models.DAG(
         >> delete_datasets_task  # noqa
     )
 
-with models.DAG(
+with DAG(
     "example_gcp_get_deploy",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
@@ -272,7 +274,7 @@ with models.DAG(
     # [END howto_operator_deploy_model]
 
 
-with models.DAG(
+with DAG(
     "example_gcp_predict",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

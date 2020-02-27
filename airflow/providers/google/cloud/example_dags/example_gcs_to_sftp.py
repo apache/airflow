@@ -21,6 +21,8 @@ Example Airflow DAG for Google Cloud Storage to SFTP transfer operators.
 
 import os
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.providers.google.cloud.operators.gcs_to_sftp import GCSToSFTPOperator
 from airflow.utils.dates import days_ago
@@ -35,7 +37,7 @@ DESTINATION_PATH_1 = "/tmp/single-file/"
 DESTINATION_PATH_2 = "/tmp/dirs/"
 
 
-with models.DAG(
+with DAG(
     "example_gcs_to_sftp", default_args=default_args, schedule_interval=None, tags=['example']
 ) as dag:
     # [START howto_operator_gcs_to_sftp_copy_single_file]

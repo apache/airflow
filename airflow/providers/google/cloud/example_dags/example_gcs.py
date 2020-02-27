@@ -21,6 +21,8 @@ Example Airflow DAG for Google Cloud Storage operators.
 
 import os
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import (
@@ -56,7 +58,7 @@ PATH_TO_SAVED_FILE = os.environ.get(
 
 BUCKET_FILE_LOCATION = PATH_TO_UPLOAD_FILE.rpartition("/")[-1]
 
-with models.DAG(
+with DAG(
     "example_gcs", default_args=default_args, schedule_interval=None, tags=['example'],
 ) as dag:
     create_bucket1 = GCSCreateBucketOperator(

@@ -37,7 +37,8 @@ from airflow import models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowDagCycleException, AirflowException, DuplicateTaskIdFound
 from airflow.jobs.scheduler_job import DagFileProcessor
-from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
+from airflow.models.dag import DAG
+from airflow.models import DagModel, DagRun, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
@@ -89,7 +90,7 @@ class TestDag(unittest.TestCase):
         Test that when 'params' is _not_ passed to a new Dag, that the params
         attribute is set to an empty dictionary.
         """
-        dag = models.DAG('test-dag')
+        dag = DAG('test-dag')
 
         self.assertEqual(dict, type(dag.params))
         self.assertEqual(0, len(dag.params))
@@ -104,7 +105,7 @@ class TestDag(unittest.TestCase):
         params1 = {'parameter1': 1}
         params2 = {'parameter2': 2}
 
-        dag = models.DAG('test-dag',
+        dag = DAG('test-dag',
                          default_args={'params': params1},
                          params=params2)
 
@@ -118,7 +119,7 @@ class TestDag(unittest.TestCase):
         """
         with self.assertRaisesRegex(AirflowException,
                                     'Invalid values of dag.default_view: only support'):
-            models.DAG(
+            DAG(
                 dag_id='test-invalid-default_view',
                 default_view='airflow'
             )
@@ -127,7 +128,7 @@ class TestDag(unittest.TestCase):
         """
         Test `default_view` default value of DAG initialization
         """
-        dag = models.DAG(
+        dag = DAG(
             dag_id='test-default_default_view'
         )
         self.assertEqual(conf.get('webserver', 'dag_default_view').lower(),
@@ -139,7 +140,7 @@ class TestDag(unittest.TestCase):
         """
         with self.assertRaisesRegex(AirflowException,
                                     'Invalid values of dag.orientation: only support'):
-            models.DAG(
+            DAG(
                 dag_id='test-invalid-orientation',
                 orientation='airflow'
             )
@@ -148,7 +149,7 @@ class TestDag(unittest.TestCase):
         """
         Test `orientation` default value of DAG initialization
         """
-        dag = models.DAG(
+        dag = DAG(
             dag_id='test-default_orientation'
         )
         self.assertEqual(conf.get('webserver', 'dag_orientation'),
@@ -513,7 +514,7 @@ class TestDag(unittest.TestCase):
         def jinja_udf(name):
             return 'Hello %s' % name
 
-        dag = models.DAG('test-dag', start_date=DEFAULT_DATE, user_defined_filters={"hello": jinja_udf})
+        dag = DAG('test-dag', start_date=DEFAULT_DATE, user_defined_filters={"hello": jinja_udf})
         jinja_env = dag.get_template_env()
 
         self.assertIn('hello', jinja_env.filters)

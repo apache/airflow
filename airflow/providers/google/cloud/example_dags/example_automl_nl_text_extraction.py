@@ -21,6 +21,8 @@ Example Airflow DAG that uses Google AutoML services.
 """
 import os
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.automl import (
@@ -54,7 +56,7 @@ default_args = {"start_date": days_ago(1)}
 extract_object_id = CloudAutoMLHook.extract_object_id
 
 # Example DAG for AutoML Natural Language Entities Extraction
-with models.DAG(
+with DAG(
     "example_automl_text",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

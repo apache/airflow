@@ -24,7 +24,7 @@ import mock
 
 import airflow.providers.databricks.operators.databricks as databricks_operator
 from airflow.exceptions import AirflowException
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.providers.databricks.hooks.databricks import RunState
 from airflow.providers.databricks.operators.databricks import (
     DatabricksRunNowOperator, DatabricksSubmitRunOperator,

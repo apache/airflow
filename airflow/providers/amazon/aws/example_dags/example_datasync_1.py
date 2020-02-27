@@ -28,6 +28,8 @@ This DAG relies on the following environment variables:
 
 from os import getenv
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.providers.amazon.aws.operators.datasync import AWSDataSyncOperator
 from airflow.utils.dates import days_ago
@@ -47,7 +49,7 @@ DESTINATION_LOCATION_URI = getenv(
 
 default_args = {"start_date": days_ago(1)}
 
-with models.DAG(
+with DAG(
     "example_datasync_1_1",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
@@ -62,7 +64,7 @@ with models.DAG(
     )
     # [END howto_operator_datasync_1_1]
 
-with models.DAG(
+with DAG(
     "example_datasync_1_2",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

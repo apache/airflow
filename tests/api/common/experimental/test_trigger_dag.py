@@ -22,7 +22,8 @@ from unittest import mock
 
 from airflow.api.common.experimental.trigger_dag import _trigger_dag
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagRun
+from airflow.models.dag import DAG
+from airflow.models import DagRun
 from airflow.utils import timezone
 
 
@@ -64,7 +65,7 @@ class TestTriggerDag(unittest.TestCase):
             replace_microseconds=True,
         )
 
-    @mock.patch('airflow.models.DAG')
+    @mock.patch('airflow.models.dag.DAG')
     @mock.patch('airflow.models.DagRun')
     @mock.patch('airflow.models.DagBag')
     def test_trigger_dag_include_subdags(self, dag_bag_mock, dag_run_mock, dag_mock):

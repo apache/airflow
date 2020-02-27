@@ -24,7 +24,8 @@ from parameterized import parameterized
 
 import airflow
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.dag import DAG
+from airflow.models import DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SkippedStatePropagationOptions, SubDagOperator
 from airflow.utils.session import create_session

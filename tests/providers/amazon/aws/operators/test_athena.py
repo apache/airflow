@@ -19,7 +19,7 @@ import unittest
 
 import mock
 
-from airflow.models import DAG, TaskInstance
+from airflow.models.dag import DAG, TaskInstance
 from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook
 from airflow.providers.amazon.aws.operators.athena import AWSAthenaOperator
 from airflow.utils import timezone

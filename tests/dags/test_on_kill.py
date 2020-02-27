@@ -17,7 +17,7 @@
 # under the License.
 import time
 
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.timezone import datetime
 

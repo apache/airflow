@@ -18,7 +18,8 @@
 
 import pendulum
 
-from airflow.models import DAG, TaskInstance
+from airflow.models import TaskInstance
+from airflow.models.dag import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import BranchPythonOperator
 from airflow.ti_deps.dep_context import DepContext

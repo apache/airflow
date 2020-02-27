@@ -21,6 +21,8 @@ Example Airflow DAG that shows how to use CampaignManager.
 import os
 import time
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.providers.google.marketing_platform.operators.campaign_manager import (
     GoogleCampaignManagerBatchInsertConversionsOperator, GoogleCampaignManagerBatchUpdateConversionsOperator,
@@ -84,7 +86,7 @@ CONVERSION_UPDATE = {
 
 default_args = {"start_date": dates.days_ago(1)}
 
-with models.DAG(
+with DAG(
     "example_campaign_manager",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

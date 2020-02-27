@@ -27,7 +27,8 @@ import mock
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, TaskInstance
+from airflow.models import TaskInstance
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineCopyInstanceTemplateOperator, ComputeEngineInstanceGroupUpdateManagerTemplateOperator,
     ComputeEngineSetMachineTypeOperator, ComputeEngineStartInstanceOperator,

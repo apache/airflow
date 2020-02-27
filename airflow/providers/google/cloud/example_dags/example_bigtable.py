@@ -48,6 +48,8 @@ This DAG relies on the following environment variables:
 import json
 from os import getenv
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.providers.google.cloud.operators.bigtable import (
     BigtableCreateInstanceOperator, BigtableCreateTableOperator, BigtableDeleteInstanceOperator,
@@ -75,7 +77,7 @@ default_args = {
     'start_date': days_ago(1)
 }
 
-with models.DAG(
+with DAG(
     'example_gcp_bigtable_operators',
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

@@ -22,6 +22,8 @@ operators to manage a cluster and submit jobs.
 
 import os
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateClusterOperator, DataprocDeleteClusterOperator, DataprocSubmitJobOperator,
@@ -119,7 +121,7 @@ HADOOP_JOB = {
     },
 }
 
-with models.DAG(
+with DAG(
     "example_gcp_dataproc",
     default_args={"start_date": days_ago(1)},
     schedule_interval=None,

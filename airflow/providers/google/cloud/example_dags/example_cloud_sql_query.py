@@ -41,6 +41,8 @@ import subprocess
 from os.path import expanduser
 from urllib.parse import quote_plus
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.providers.google.cloud.operators.cloud_sql import CloudSQLExecuteQueryOperator
 from airflow.utils.dates import days_ago
@@ -273,7 +275,7 @@ connection_names = [
 tasks = []
 
 
-with models.DAG(
+with DAG(
     dag_id='example_gcp_sql_query',
     default_args=default_args,
     schedule_interval=None,

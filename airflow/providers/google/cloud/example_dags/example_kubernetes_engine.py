@@ -21,6 +21,8 @@ Example Airflow DAG for Google Kubernetes Engine.
 
 import os
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
@@ -36,7 +38,7 @@ CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
 
 default_args = {"start_date": days_ago(1)}
 
-with models.DAG(
+with DAG(
     "example_gcp_gke",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

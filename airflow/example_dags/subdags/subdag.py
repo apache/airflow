@@ -30,7 +30,7 @@ def subdag(parent_dag_name, child_dag_name, args):
     :param str child_dag_name: Id of the child DAG
     :param dict args: Default arguments to provide to the subdag
     :return: DAG to use as a subdag
-    :rtype: airflow.models.DAG
+    :rtype: airflow.models.dag.DAG
     """
     dag_subdag = DAG(
         dag_id='%s.%s' % (parent_dag_name, child_dag_name),

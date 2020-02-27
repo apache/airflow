@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow models"""
-from airflow.models.dag import DAG, DagModel, DagTag
+from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagbag import DagBag
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun

@@ -21,6 +21,7 @@ Example Airflow DAG that translates text in Google Cloud Translate
 service in the Google Cloud Platform.
 
 """
+from airflow.models.dag import DAG
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -29,7 +30,7 @@ from airflow.utils.dates import days_ago
 
 default_args = {'start_date': days_ago(1)}
 
-with models.DAG(
+with DAG(
     'example_gcp_translate',
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

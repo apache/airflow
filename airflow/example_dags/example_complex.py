@@ -19,6 +19,7 @@
 """
 Example Airflow DAG that shows the complex DAG structure.
 """
+from airflow.models.dag import DAG
 
 from airflow import models
 from airflow.models.baseoperator import chain
@@ -28,7 +29,7 @@ from airflow.utils.dates import days_ago
 
 default_args = {"start_date": days_ago(1)}
 
-with models.DAG(
+with DAG(
     dag_id="example_complex",
     default_args=default_args,
     schedule_interval=None,

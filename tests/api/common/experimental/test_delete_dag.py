@@ -18,6 +18,8 @@
 
 import unittest
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.api.common.experimental.delete_dag import delete_dag
 from airflow.exceptions import DagNotFound
@@ -57,7 +59,7 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
         self.dag_file_path = "/usr/local/airflow/dags/test_dag_8.py"
 
         task = DummyOperator(task_id='dummy',
-                             dag=models.DAG(dag_id=self.key,
+                             dag=DAG(dag_id=self.key,
                                             default_args={'start_date': days_ago(2)}),
                              owner='airflow')
 

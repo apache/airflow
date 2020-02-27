@@ -22,6 +22,8 @@ Example Airflow DAG for Google BigQuery service.
 import os
 from urllib.parse import urlparse
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.bigquery import (
@@ -83,7 +85,7 @@ DATA_SAMPLE_GCS_OBJECT_NAME = DATA_SAMPLE_GCS_URL_PARTS.path[1:]
 DATA_EXPORT_BUCKET_NAME = os.environ.get("GCP_BIGQUERY_EXPORT_BUCKET_NAME", "test-bigquery-sample-data")
 
 
-with models.DAG(
+with DAG(
     "example_bigquery",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

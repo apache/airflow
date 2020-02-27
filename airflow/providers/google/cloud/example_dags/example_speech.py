@@ -26,6 +26,8 @@ This DAG relies on the following OS environment variables
 
 import os
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.providers.google.cloud.operators.speech_to_text import CloudSpeechToTextRecognizeSpeechOperator
 from airflow.providers.google.cloud.operators.text_to_speech import CloudTextToSpeechSynthesizeOperator
@@ -61,7 +63,7 @@ SOURCE_LANGUAGE = None  # type: None
 
 default_args = {"start_date": dates.days_ago(1)}
 
-with models.DAG(
+with DAG(
     "example_gcp_speech",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

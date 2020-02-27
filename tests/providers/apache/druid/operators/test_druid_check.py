@@ -23,7 +23,7 @@ from datetime import datetime
 import mock
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.providers.apache.druid.operators.druid_check import DruidCheckOperator
 
 

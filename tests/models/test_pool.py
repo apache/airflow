@@ -19,7 +19,7 @@
 import unittest
 
 from airflow import settings
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator

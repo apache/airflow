@@ -18,6 +18,7 @@
 """
 Example Airflow DAG that shows how to use DataFusion.
 """
+from airflow.models.dag import DAG
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -124,7 +125,7 @@ PIPELINE = {
 
 default_args = {"start_date": dates.days_ago(1)}
 
-with models.DAG(
+with DAG(
     "example_data_fusion",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

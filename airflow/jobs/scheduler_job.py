@@ -40,7 +40,8 @@ from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
-from airflow.models import DAG, DagModel, SlaMiss, errors
+from airflow.models.dag import DAG
+from airflow.models import SlaMiss, errors
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
 from airflow.stats import Stats
@@ -701,7 +702,7 @@ class DagFileProcessor(LoggingMixin):
         3. Send emails for tasks that have missed SLAs (if CHECK_SLAS config enabled).
 
         :param dags: the DAGs from the DagBag to process
-        :type dags: List[airflow.models.DAG]
+        :type dags: List[airflow.models.dag.DAG]
         :rtype: list[TaskInstance]
         :return: A list of generated TaskInstance objects
         """
@@ -1598,7 +1599,7 @@ class SchedulerJob(BaseJob):
                 "Deactivating DAGs that haven't been touched since %s",
                 execute_start_time.isoformat()
             )
-            models.DAG.deactivate_stale_dags(execute_start_time)
+            DAG.deactivate_stale_dags(execute_start_time)
 
         self.executor.end()
 

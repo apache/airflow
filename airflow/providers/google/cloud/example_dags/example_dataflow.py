@@ -21,6 +21,8 @@ Example Airflow DAG for Google Cloud Dataflow service
 """
 import os
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.providers.google.cloud.operators.dataflow import (
     CheckJobRunning, DataflowCreateJavaJobOperator, DataflowCreatePythonJobOperator,
@@ -43,7 +45,7 @@ default_args = {
     }
 }
 
-with models.DAG(
+with DAG(
     "example_gcp_dataflow",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

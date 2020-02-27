@@ -21,7 +21,8 @@ from unittest import mock
 import boto3
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, TaskInstance
+from airflow.models.dag import DAG
+from airflow.models import TaskInstance
 from airflow.providers.amazon.aws.hooks.datasync import AWSDataSyncHook
 from airflow.providers.amazon.aws.operators.datasync import AWSDataSyncOperator
 from airflow.utils import timezone

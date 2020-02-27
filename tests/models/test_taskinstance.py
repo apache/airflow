@@ -26,6 +26,7 @@ from unittest.mock import mock_open, patch
 
 import pendulum
 import pytest
+from airflow.models.xcom import XCOM_RETURN_KEY
 from freezegun import freeze_time
 from parameterized import param, parameterized
 from sqlalchemy.orm.session import Session
@@ -33,7 +34,8 @@ from sqlalchemy.orm.session import Session
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.models import DAG, DagRun, Pool, TaskFail, TaskInstance as TI, TaskReschedule, Variable
+from airflow.models.dag import DAG
+from airflow.models import DagRun, Pool, TaskFail, TaskInstance as TI, TaskReschedule, Variable
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import PythonOperator
@@ -296,7 +298,7 @@ class TestTaskInstance(unittest.TestCase):
         self.assertEqual(ti.state, State.NONE)
 
     def test_not_requeue_non_requeueable_task_instance(self):
-        dag = models.DAG(dag_id='test_not_requeue_non_requeueable_task_instance')
+        dag = DAG(dag_id='test_not_requeue_non_requeueable_task_instance')
         # Use BaseSensorOperator because sensor got
         # one additional DEP in BaseSensorOperator().deps
         task = BaseSensorOperator(
@@ -340,7 +342,7 @@ class TestTaskInstance(unittest.TestCase):
         """
         non_runnable_state = (
             set(State.task_states) - RUNNABLE_STATES - set(State.SUCCESS)).pop()
-        dag = models.DAG(dag_id='test_mark_non_runnable_task_as_success')
+        dag = DAG(dag_id='test_mark_non_runnable_task_as_success')
         task = DummyOperator(
             task_id='test_mark_non_runnable_task_as_success_op',
             dag=dag,
@@ -360,7 +362,7 @@ class TestTaskInstance(unittest.TestCase):
         """
         test that running a task in an existing pool update task state as SUCCESS.
         """
-        dag = models.DAG(dag_id='test_run_pooling_task')
+        dag = DAG(dag_id='test_run_pooling_task')
         task = DummyOperator(task_id='test_run_pooling_task_op', dag=dag,
                              pool='test_pool', owner='airflow',
                              start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
@@ -376,7 +378,7 @@ class TestTaskInstance(unittest.TestCase):
         test that try to create a task with pool_slots less than 1
         """
         def create_task_instance():
-            dag = models.DAG(dag_id='test_run_pooling_task')
+            dag = DAG(dag_id='test_run_pooling_task')
             task = DummyOperator(task_id='test_run_pooling_task_op', dag=dag,
                                  pool='test_pool', pool_slots=0, owner='airflow',
                                  start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
@@ -389,7 +391,7 @@ class TestTaskInstance(unittest.TestCase):
         """
         test that updating the executor_config propogates to the TaskInstance DB
         """
-        dag = models.DAG(dag_id='test_run_pooling_task')
+        dag = DAG(dag_id='test_run_pooling_task')
         task = DummyOperator(task_id='test_run_pooling_task_op', dag=dag, owner='airflow',
                              executor_config={'foo': 'bar'},
                              start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
@@ -416,7 +418,7 @@ class TestTaskInstance(unittest.TestCase):
         update task state as SUCCESS without running task
         despite it fails dependency checks.
         """
-        dag = models.DAG(dag_id='test_run_pooling_task_with_mark_success')
+        dag = DAG(dag_id='test_run_pooling_task_with_mark_success')
         task = DummyOperator(
             task_id='test_run_pooling_task_with_mark_success_op',
             dag=dag,
@@ -437,7 +439,7 @@ class TestTaskInstance(unittest.TestCase):
         def raise_skip_exception():
             raise AirflowSkipException
 
-        dag = models.DAG(dag_id='test_run_pooling_task_with_skip')
+        dag = DAG(dag_id='test_run_pooling_task_with_skip')
         task = PythonOperator(
             task_id='test_run_pooling_task_with_skip',
             dag=dag,
@@ -453,7 +455,7 @@ class TestTaskInstance(unittest.TestCase):
         """
         Test that retry delays are respected
         """
-        dag = models.DAG(dag_id='test_retry_handling')
+        dag = DAG(dag_id='test_retry_handling')
         task = BashOperator(
             task_id='test_retry_handling_op',
             bash_command='exit 1',
@@ -491,7 +493,7 @@ class TestTaskInstance(unittest.TestCase):
         """
         Test that task retries are handled properly
         """
-        dag = models.DAG(dag_id='test_retry_handling')
+        dag = DAG(dag_id='test_retry_handling')
         task = BashOperator(
             task_id='test_retry_handling_op',
             bash_command='exit 1',
@@ -544,7 +546,7 @@ class TestTaskInstance(unittest.TestCase):
         delay = datetime.timedelta(seconds=30)
         max_delay = datetime.timedelta(minutes=60)
 
-        dag = models.DAG(dag_id='fail_dag')
+        dag = DAG(dag_id='fail_dag')
         task = BashOperator(
             task_id='task_with_exp_backoff_and_max_delay',
             bash_command='exit 1',
@@ -588,7 +590,7 @@ class TestTaskInstance(unittest.TestCase):
         delay = datetime.timedelta(seconds=1)
         max_delay = datetime.timedelta(minutes=60)
 
-        dag = models.DAG(dag_id='fail_dag')
+        dag = DAG(dag_id='fail_dag')
         task = BashOperator(
             task_id='task_with_exp_backoff_and_short_time_interval',
             bash_command='exit 1',
@@ -621,7 +623,7 @@ class TestTaskInstance(unittest.TestCase):
                 raise AirflowException()
             return done
 
-        dag = models.DAG(dag_id='test_reschedule_handling')
+        dag = DAG(dag_id='test_reschedule_handling')
         task = PythonSensor(
             task_id='test_reschedule_handling_sensor',
             poke_interval=0,
@@ -716,7 +718,7 @@ class TestTaskInstance(unittest.TestCase):
                 raise AirflowException()
             return done
 
-        dag = models.DAG(dag_id='test_reschedule_handling')
+        dag = DAG(dag_id='test_reschedule_handling')
         task = PythonSensor(
             task_id='test_reschedule_handling_sensor',
             poke_interval=0,
@@ -846,7 +848,7 @@ class TestTaskInstance(unittest.TestCase):
                                      flag_upstream_failed,
                                      expect_state, expect_completed):
         start_date = timezone.datetime(2016, 2, 1, 0, 0, 0)
-        dag = models.DAG('test-dag', start_date=start_date)
+        dag = DAG('test-dag', start_date=start_date)
         downstream = DummyOperator(task_id='downstream',
                                    dag=dag, owner='airflow',
                                    trigger_rule=trigger_rule)
@@ -875,7 +877,7 @@ class TestTaskInstance(unittest.TestCase):
         """
         Test xcom_pull, using different filtering methods.
         """
-        dag = models.DAG(
+        dag = DAG(
             dag_id='test_xcom', schedule_interval='@monthly',
             start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
 
@@ -915,7 +917,7 @@ class TestTaskInstance(unittest.TestCase):
         key = 'xcom_key'
         value = 'xcom_value'
 
-        dag = models.DAG(dag_id='test_xcom', schedule_interval='@monthly')
+        dag = DAG(dag_id='test_xcom', schedule_interval='@monthly')
         task = DummyOperator(
             task_id='test_xcom',
             dag=dag,
@@ -949,7 +951,7 @@ class TestTaskInstance(unittest.TestCase):
         key = 'xcom_key'
         value = 'xcom_value'
 
-        dag = models.DAG(dag_id='test_xcom', schedule_interval='@monthly')
+        dag = DAG(dag_id='test_xcom', schedule_interval='@monthly')
         task = DummyOperator(
             task_id='test_xcom',
             dag=dag,
@@ -983,7 +985,7 @@ class TestTaskInstance(unittest.TestCase):
         """
         value = 'hello'
         task_id = 'test_no_xcom_push'
-        dag = models.DAG(dag_id='test_xcom')
+        dag = DAG(dag_id='test_xcom')
 
         # nothing saved to XCom
         task = PythonOperator(
@@ -998,7 +1000,7 @@ class TestTaskInstance(unittest.TestCase):
         ti.run()
         self.assertEqual(
             ti.xcom_pull(
-                task_ids=task_id, key=models.XCOM_RETURN_KEY
+                task_ids=task_id, key=XCOM_RETURN_KEY
             ),
             None
         )
@@ -1017,7 +1019,7 @@ class TestTaskInstance(unittest.TestCase):
                 if result == 'error':
                     raise TestError('expected error.')
 
-        dag = models.DAG(dag_id='test_post_execute_dag')
+        dag = DAG(dag_id='test_post_execute_dag')
         task = TestOperator(
             task_id='test_operator',
             dag=dag,
@@ -1030,7 +1032,7 @@ class TestTaskInstance(unittest.TestCase):
             ti.run()
 
     def test_check_and_change_state_before_execution(self):
-        dag = models.DAG(dag_id='test_check_and_change_state_before_execution')
+        dag = DAG(dag_id='test_check_and_change_state_before_execution')
         task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
         ti = TI(
             task=task, execution_date=timezone.utcnow())
@@ -1041,7 +1043,7 @@ class TestTaskInstance(unittest.TestCase):
         self.assertEqual(ti._try_number, 1)
 
     def test_check_and_change_state_before_execution_dep_not_met(self):
-        dag = models.DAG(dag_id='test_check_and_change_state_before_execution')
+        dag = DAG(dag_id='test_check_and_change_state_before_execution')
         task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
         task2 = DummyOperator(task_id='task2', dag=dag, start_date=DEFAULT_DATE)
         task >> task2
@@ -1053,7 +1055,7 @@ class TestTaskInstance(unittest.TestCase):
         """
         Test the try_number accessor behaves in various running states
         """
-        dag = models.DAG(dag_id='test_check_and_change_state_before_execution')
+        dag = DAG(dag_id='test_check_and_change_state_before_execution')
         task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
         ti = TI(task=task, execution_date=timezone.utcnow())
         self.assertEqual(1, ti.try_number)
@@ -1066,8 +1068,8 @@ class TestTaskInstance(unittest.TestCase):
     def test_get_num_running_task_instances(self):
         session = settings.Session()
 
-        dag = models.DAG(dag_id='test_get_num_running_task_instances')
-        dag2 = models.DAG(dag_id='test_get_num_running_task_instances_dummy')
+        dag = DAG(dag_id='test_get_num_running_task_instances')
+        dag2 = DAG(dag_id='test_get_num_running_task_instances_dummy')
         task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
         task2 = DummyOperator(task_id='task', dag=dag2, start_date=DEFAULT_DATE)
 
@@ -1155,7 +1157,7 @@ class TestTaskInstance(unittest.TestCase):
 
     @patch('airflow.models.taskinstance.send_email')
     def test_email_alert(self, mock_send_email):
-        dag = models.DAG(dag_id='test_failure_email')
+        dag = DAG(dag_id='test_failure_email')
         task = BashOperator(
             task_id='test_email_alert',
             dag=dag,
@@ -1178,7 +1180,7 @@ class TestTaskInstance(unittest.TestCase):
 
     @patch('airflow.models.taskinstance.send_email')
     def test_email_alert_with_config(self, mock_send_email):
-        dag = models.DAG(dag_id='test_failure_email')
+        dag = DAG(dag_id='test_failure_email')
         task = BashOperator(
             task_id='test_email_alert_with_config',
             dag=dag,
@@ -1243,7 +1245,7 @@ class TestTaskInstance(unittest.TestCase):
     def _test_previous_dates_setup(schedule_interval: Union[str, datetime.timedelta, None],
                                    catchup: bool, scenario: List[str]) -> list:
         dag_id = 'test_previous_dates'
-        dag = models.DAG(dag_id=dag_id, schedule_interval=schedule_interval, catchup=catchup)
+        dag = DAG(dag_id=dag_id, schedule_interval=schedule_interval, catchup=catchup)
         task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
 
         def get_test_ti(session, execution_date: pendulum.datetime, state: str) -> TI:
@@ -1356,7 +1358,7 @@ class TestTaskInstance(unittest.TestCase):
         )
 
     def test_pendulum_template_dates(self):
-        dag = models.DAG(
+        dag = DAG(
             dag_id='test_pendulum_template_dates', schedule_interval='0 12 * * *',
             start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
         task = DummyOperator(task_id='test_pendulum_template_dates_task', dag=dag)
@@ -1465,7 +1467,7 @@ class TestTaskInstance(unittest.TestCase):
         import mock
 
         start_date = timezone.datetime(2016, 6, 1)
-        dag = models.DAG(dag_id="test_handle_failure", schedule_interval=None, start_date=start_date)
+        dag = DAG(dag_id="test_handle_failure", schedule_interval=None, start_date=start_date)
 
         mock_on_failure_1 = mock.MagicMock()
         mock_on_retry_1 = mock.MagicMock()

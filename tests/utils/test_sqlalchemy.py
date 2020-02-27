@@ -22,7 +22,7 @@ import unittest
 from sqlalchemy.exc import StatementError
 
 from airflow import settings
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.settings import Session
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow

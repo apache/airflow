@@ -19,7 +19,7 @@
 """
 Example Airflow DAG for Google Cloud Natural Language service
 """
-
+from airflow.models.dag import DAG
 from google.cloud.language_v1.proto.language_service_pb2 import Document
 
 from airflow import models
@@ -49,7 +49,7 @@ document_gcs = Document(gcs_content_uri=GCS_CONTENT_URI, type="PLAIN_TEXT")
 
 default_args = {"start_date": days_ago(1)}
 
-with models.DAG(
+with DAG(
     "example_gcp_natural_language",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

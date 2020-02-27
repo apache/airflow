@@ -18,7 +18,7 @@
 
 from datetime import datetime
 
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.operators.dummy_operator import DummyOperator
 
 DEFAULT_DATE = datetime(2000, 1, 1)

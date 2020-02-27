@@ -25,6 +25,8 @@ from datetime import datetime, timezone
 from tempfile import NamedTemporaryFile, mkdtemp
 from unittest.mock import patch
 
+from airflow.models.dag import DAG
+
 import airflow.example_dags
 from airflow import models
 from airflow.models import DagBag, DagModel
@@ -311,7 +313,7 @@ class TestDagBag(unittest.TestCase):
     def test_load_subdags(self):
         # Define Dag to load
         def standard_subdag():
-            from airflow.models import DAG
+            from airflow.models.dag import DAG
             from airflow.operators.dummy_operator import DummyOperator
             from airflow.operators.subdag_operator import SubDagOperator
             import datetime  # pylint: disable=redefined-outer-name,reimported
@@ -366,7 +368,7 @@ class TestDagBag(unittest.TestCase):
 
         # Define Dag to load
         def nested_subdags():
-            from airflow.models import DAG
+            from airflow.models.dag import DAG
             from airflow.operators.dummy_operator import DummyOperator
             from airflow.operators.subdag_operator import SubDagOperator
             import datetime  # pylint: disable=redefined-outer-name,reimported
@@ -464,7 +466,7 @@ class TestDagBag(unittest.TestCase):
 
         # Define Dag to load
         def basic_cycle():
-            from airflow.models import DAG
+            from airflow.models.dag import DAG
             from airflow.operators.dummy_operator import DummyOperator
             import datetime  # pylint: disable=redefined-outer-name,reimported
             dag_name = 'cycle_dag'
@@ -497,7 +499,7 @@ class TestDagBag(unittest.TestCase):
 
         # Define Dag to load
         def nested_subdag_cycle():
-            from airflow.models import DAG
+            from airflow.models.dag import DAG
             from airflow.operators.dummy_operator import DummyOperator
             from airflow.operators.subdag_operator import SubDagOperator
             import datetime  # pylint: disable=redefined-outer-name,reimported
@@ -612,7 +614,7 @@ class TestDagBag(unittest.TestCase):
         with create_session() as session:
             session.merge(model_before)
 
-        models.DAG.deactivate_unknown_dags(expected_active_dags)
+        DAG.deactivate_unknown_dags(expected_active_dags)
 
         after_model = DagModel.get_dagmodel(dag_id)
         self.assertTrue(model_before.is_active)

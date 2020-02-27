@@ -42,6 +42,8 @@ import os
 from datetime import datetime, timedelta
 from typing import Any, Dict
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ALREADY_EXISTING_IN_SINK, AWS_S3_DATA_SOURCE, BUCKET_NAME, DESCRIPTION, FILTER_JOB_NAMES,
@@ -125,7 +127,7 @@ list_filter_dict = {FILTER_PROJECT_ID: GCP_PROJECT_ID, FILTER_JOB_NAMES: []}
 default_args = {'start_date': days_ago(1)}
 # [END howto_operator_gcp_transfer_default_args]
 
-with models.DAG(
+with DAG(
     'example_gcp_transfer',
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

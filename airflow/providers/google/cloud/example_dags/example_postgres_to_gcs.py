@@ -18,6 +18,8 @@
 """
 Example DAG using PostgresToGoogleCloudStorageOperator.
 """
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.providers.google.cloud.operators.postgres_to_gcs import PostgresToGCSOperator
 from airflow.utils.dates import days_ago
@@ -28,7 +30,7 @@ SQL_QUERY = "select * from test_table;"
 
 default_args = {"start_date": days_ago(1)}
 
-with models.DAG(
+with DAG(
     dag_id='example_postgres_to_gcs',
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

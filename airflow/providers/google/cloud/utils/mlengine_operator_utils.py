@@ -174,7 +174,7 @@ def create_evaluate_ops(task_prefix,  # pylint: disable=too-many-arguments
     :type version_name: str
 
     :param dag: The `DAG` to use for all Operators.
-    :type dag: airflow.models.DAG
+    :type dag: airflow.models.dag.DAG
 
     :param py_interpreter: Python version of the beam pipeline.
         If None, this defaults to the python3.

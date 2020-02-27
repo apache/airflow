@@ -21,6 +21,7 @@ Example Airflow DAG for Google Cloud Memorystore service.
 import os
 from urllib.parse import urlparse
 
+from airflow.models.dag import DAG
 from google.cloud.redis_v1.gapic.enums import FailoverInstanceRequest, Instance
 
 from airflow import models
@@ -55,7 +56,7 @@ SECOND_INSTANCE = {"tier": Instance.Tier.STANDARD_HA, "memory_size_gb": 3}
 
 default_args = {"start_date": dates.days_ago(1)}
 
-with models.DAG(
+with DAG(
     "gcp_cloud_memorystore",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

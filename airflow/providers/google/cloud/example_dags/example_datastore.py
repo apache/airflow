@@ -24,6 +24,8 @@ This example requires that your project contains Datastore instance.
 
 import os
 
+from airflow.models.dag import DAG
+
 from airflow import models
 from airflow.providers.google.cloud.operators.datastore import (
     CloudDatastoreExportEntitiesOperator, CloudDatastoreImportEntitiesOperator,
@@ -35,7 +37,7 @@ BUCKET = os.environ.get("GCP_DATASTORE_BUCKET", "datastore-system-test")
 
 default_args = {"start_date": dates.days_ago(1)}
 
-with models.DAG(
+with DAG(
     "example_gcp_datastore",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
