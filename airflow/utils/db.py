@@ -506,9 +506,9 @@ def initdb():
     create_default_connections()
 
     dagbag = DagBag()
-    # Save individual DAGs in the ORM
-    for dag in dagbag.dags.values():
-        dag.sync_to_db()
+    # Save DAGs in the ORM
+    dagbag.sync_to_db()
+
     # Deactivate the unknown ones
     DAG.deactivate_unknown_dags(dagbag.dags.keys())
 

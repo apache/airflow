@@ -34,7 +34,7 @@ The advantages and disadvantages of using the Breeze environment vs. other ways 
 are described in `CONTRIBUTING.rst <CONTRIBUTING.rst#integration-test-development-environment>`_.
 
 Here is a short 10-minute video about Airflow Breeze (note that it shows an old version of Breeze. Some
-of the points in the video are not valid any more. The video will be updated shortly with more up-to-date
+of the points in the video are not valid anymore. The video will be updated shortly with more up-to-date
 version):
 
 .. image:: http://img.youtube.com/vi/ffKFHV6f3PQ/0.jpg
@@ -224,6 +224,15 @@ You can always stop it via:
 
    ./breeze stop-environment
 
+Restarting Breeze
+-----------------
+
+You can also  restart the environment and enter it via:
+
+.. code-block:: bash
+
+   ./breeze restart-environment
+
 Choosing a Breeze Environment
 -----------------------------
 
@@ -260,7 +269,7 @@ to start more than one integration at a time.
 Finally you can specify ``--integration all`` to start all integrations.
 
 Once integration is started, it will continue to run until the environment is stopped with
-``breeze stop-environment`` command.
+``breeze stop-environment`` command. or restarted via ``breeze restart-environment`` command
 
 Note that running integrations uses significant resources - CPU and memory.
 
@@ -362,8 +371,9 @@ After you run Breeze for the first time, you will have an empty directory ``file
 which will be mapped to ``/files`` in your Docker container. You can pass there any files you need to
 configure and run Docker. They will not be removed between Docker runs.
 
-If you wish to add local DAGs that can be run by Breeze, you can add the dags to ``/files/dags`` and then
-run ``export AIRFLOW__CORE__DAGS_FOLDER="/files/dags"`` once the container has started.
+By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_SOURCES>/files/dags`` and this is
+the directory used by airflow scheduler and webserver to scan dags for. You can use it to test your dags
+from local sources in Airflow. If you wish to add local DAGs that can be run by Breeze.
 
 Adding/Modifying Dependencies
 -----------------------------
@@ -581,6 +591,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
     initialize-local-virtualenv              Initializes local virtualenv
     setup-autocomplete                       Sets up autocomplete for breeze
     stop-environment                         Stops the docker-compose evironment
+    restart-environment                      Stops the docker-compose evironment including DB cleanup
     toggle-suppress-cheatsheet               Toggles on/off cheatsheet
     toggle-suppress-asciiart                 Toggles on/off asciiart
 
@@ -632,7 +643,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   breeze [FLAGS] build-only -- <EXTRA_ARGS>
 
         Do not enter docker container - just build the docker images needed. You can (similarly as
-        with other commands) pass aditional options to this command, such as '--force-build-image',
+        with other commands) pass additional options to this command, such as '--force-build-image',
         '--force-pull-image' in order to force latest images to be built/pulled.
   ****************************************************************************************************
   breeze [FLAGS] cleanup-images -- <EXTRA_ARGS>
@@ -659,6 +670,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
         Brings down running docker compose environment. When you start the environment, the docker
         containers will continue running so that startup time is shorter. But they take quite a lot of
         memory and CPU. This command stops all running containers from the environment.
+  ****************************************************************************************************
+  breeze [FLAGS] restart-environment -- <EXTRA_ARGS>
+
+        Restarts running docker compose environment. When you restart the environment, the docker
+        containers will be restarted. That includes cleaning up the databases. This is
+        especially useful if you switch between different versions of airflow.
   ****************************************************************************************************
   breeze [FLAGS] toggle-suppress-cheatsheet -- <EXTRA_ARGS>
 
@@ -791,7 +808,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -s, --kind-cluster-start
           Starts kind Kubernetes cluster after entering the environment. The cluster is started using
-          Kubernetes Mode selected and Kubernetes version specifed via --kubernetes-mode and
+          Kubernetes Mode selected and Kubernetes version specified via --kubernetes-mode and
           --kubernetes-version flags.
 
   -x, --kind-cluster-stop
@@ -841,7 +858,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If different than 'current' removes the source-installed airflow and installs a
           released version of Airflow instead. One of:
 
-                 current 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2 1.10.1
+                 current 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2
 
           Default: current.
 
@@ -939,7 +956,7 @@ If you are having problems with the Breeze environment, try the steps below. Aft
 can check whether your problem is fixed.
 
 1. If you are on macOS, check if you have enough disk space for Docker.
-2. Stop Breeze with ``./breeze stop-environment``.
+2. Restart Breeze with ``./breeze restart-environment``.
 3. Delete the ``.build`` directory and run ``./breeze build-only --force-pull-images``.
 4. `Clean up Docker images <#cleaning-up-the-images>`_.
 5. Restart your Docker Engine and try again.

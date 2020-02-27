@@ -61,6 +61,29 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Custom executors is loaded using full import path
+
+In previous versions of Airflow it was possible to use plugins to load custom executors. It is still
+possible, but the configuration has changed. Now you don't have to create a plugin to configure a
+custom executor, but you need to provide the full path to the module in the `executor` option
+in the `core` section. The purpose of this change is to simplify the plugin mechanism and make
+it easier to configure executor.
+
+If your module was in the path `my_acme_company.executors.MyCustomExecutor`  and the plugin was
+called `my_plugin` then your configuration looks like this
+
+```ini
+[core]
+executor = my_plguin.MyCustomExecutor
+```
+And now it should look like this:
+```ini
+[core]
+executor = my_acme_company.executors.MyCustomExecutor
+```
+
+The old configuration is still works but can be abandoned at any time.
+
 ### Removed sub-package imports from `airflow/__init__.py`
 
 The imports `LoggingMixin`, `conf`, and `AirflowException` have been removed from `airflow/__init__.py`.

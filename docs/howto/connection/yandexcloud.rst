@@ -54,5 +54,5 @@ SSH public key (optional)
 Folder ID (optional)
     Folder is a entity to separate different projects within the cloud.
 
-    If specified, this ID will be used by default durion creation of nodes and clusters.
+    If specified, this ID will be used by default during creation of nodes and clusters.
     See https://cloud.yandex.com/docs/resource-manager/operations/folder/get-id for details

@@ -299,11 +299,13 @@ class PodGenerator:
         if resources is None:
             requests = {
                 'cpu': namespaced.get('request_cpu'),
-                'memory': namespaced.get('request_memory')
+                'memory': namespaced.get('request_memory'),
+                'ephemeral-storage': namespaced.get('ephemeral-storage')
             }
             limits = {
                 'cpu': namespaced.get('limit_cpu'),
-                'memory': namespaced.get('limit_memory')
+                'memory': namespaced.get('limit_memory'),
+                'ephemeral-storage': namespaced.get('ephemeral-storage')
             }
             all_resources = list(requests.values()) + list(limits.values())
             if all(r is None for r in all_resources):

@@ -26,14 +26,14 @@ import sys
 import traceback
 from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
-from typing import Callable, Dict, FrozenSet, Iterable, List, Optional, Type, Union
+from typing import Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Type, Union
 
 import jinja2
 import pendulum
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, func, or_
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy.orm import backref, joinedload, relationship
 from sqlalchemy.orm.session import Session
 
 from airflow import settings, utils
@@ -1453,67 +1453,94 @@ class DAG(BaseDag, LoggingMixin):
         # state is None at the moment of creation
         run.verify_integrity(session=session)
 
-        run.refresh_from_db()
-
         return run
 
+    @classmethod
     @provide_session
-    def sync_to_db(self, owner=None, sync_time=None, session=None):
+    def bulk_sync_to_db(cls, dags: Collection["DAG"], sync_time=None, session=None):
+        """
+        Save attributes about list of DAG to the DB. Note that this method
+        can be called for both DAGs and SubDAGs. A SubDag is actually a
+        SubDagOperator.
+
+        :param dags: the DAG objects to save to the DB
+        :type dags: List[airflow.models.dag.DAG]
+        :param sync_time: The time that the DAG should be marked as sync'ed
+        :type sync_time: datetime
+        :return: None
+        """
+        if not dags:
+            return
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        if sync_time is None:
+            sync_time = timezone.utcnow()
+        log.info("Sync %s DAGs", len(dags))
+        dag_by_ids = {dag.dag_id: dag for dag in dags}
+        dag_ids = set(dag_by_ids.keys())
+        orm_dags = (
+            session
+            .query(DagModel)
+            .options(joinedload(DagModel.tags, innerjoin=False))
+            .filter(DagModel.dag_id.in_(dag_ids))
+            .with_for_update(of=DagModel)
+            .all()
+        )
+
+        existing_dag_ids = {orm_dag.dag_id for orm_dag in orm_dags}
+        missing_dag_ids = dag_ids.difference(existing_dag_ids)
+
+        for missing_dag_id in missing_dag_ids:
+            orm_dag = DagModel(dag_id=missing_dag_id)
+            dag = dag_by_ids[missing_dag_id]
+            if dag.is_paused_upon_creation is not None:
+                orm_dag.is_paused = dag.is_paused_upon_creation
+            log.info("Creating ORM DAG for %s", dag.dag_id)
+            session.add(orm_dag)
+            orm_dags.append(orm_dag)
+
+        for orm_dag in sorted(orm_dags, key=lambda d: d.dag_id):
+            dag = dag_by_ids[orm_dag.dag_id]
+            if dag.is_subdag:
+                orm_dag.is_subdag = True
+                orm_dag.fileloc = dag.parent_dag.fileloc  # type: ignore
+                orm_dag.root_dag_id = dag.parent_dag.dag_id  # type: ignore
+                orm_dag.owners = dag.parent_dag.owner  # type: ignore
+            else:
+                orm_dag.is_subdag = False
+                orm_dag.fileloc = dag.fileloc
+                orm_dag.owners = dag.owner
+            orm_dag.is_active = True
+            orm_dag.last_scheduler_run = sync_time
+            orm_dag.default_view = dag._default_view
+            orm_dag.description = dag.description
+            orm_dag.schedule_interval = dag.schedule_interval
+            orm_dag.tags = dag.get_dagtags(session=session)
+
+        session.commit()
+
+        for dag in dags:
+            cls.bulk_sync_to_db(dag.subdags, sync_time=sync_time, session=session)
+
+            if STORE_SERIALIZED_DAGS and not dag.is_subdag:
+                SerializedDagModel.write_dag(
+                    dag,
+                    min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
+                    session=session
+                )
+
+    @provide_session
+    def sync_to_db(self, sync_time=None, session=None):
         """
         Save attributes about this DAG to the DB. Note that this method
         can be called for both DAGs and SubDAGs. A SubDag is actually a
         SubDagOperator.
 
-        :param dag: the DAG object to save to the DB
-        :type dag: airflow.models.DAG
         :param sync_time: The time that the DAG should be marked as sync'ed
         :type sync_time: datetime
         :return: None
         """
-        from airflow.models.serialized_dag import SerializedDagModel
-
-        if owner is None:
-            owner = self.owner
-        if sync_time is None:
-            sync_time = timezone.utcnow()
-
-        orm_dag = session.query(
-            DagModel).filter(DagModel.dag_id == self.dag_id).first()
-        if not orm_dag:
-            orm_dag = DagModel(dag_id=self.dag_id)
-            if self.is_paused_upon_creation is not None:
-                orm_dag.is_paused = self.is_paused_upon_creation
-            self.log.info("Creating ORM DAG for %s", self.dag_id)
-            session.add(orm_dag)
-        if self.is_subdag:
-            orm_dag.is_subdag = True
-            orm_dag.fileloc = self.parent_dag.fileloc
-            orm_dag.root_dag_id = self.parent_dag.dag_id
-        else:
-            orm_dag.is_subdag = False
-            orm_dag.fileloc = self.fileloc
-        orm_dag.owners = owner
-        orm_dag.is_active = True
-        orm_dag.last_scheduler_run = sync_time
-        orm_dag.default_view = self._default_view
-        orm_dag.description = self.description
-        orm_dag.schedule_interval = self.schedule_interval
-        orm_dag.tags = self.get_dagtags(session=session)
-
-        session.commit()
-
-        for subdag in self.subdags:
-            subdag.sync_to_db(owner=owner, sync_time=sync_time, session=session)
-
-        # Write DAGs to serialized_dag table in DB.
-        # subdags are not written into serialized_dag, because they are not displayed
-        # in the DAG list on UI. They are included in the serialized parent DAG.
-        if STORE_SERIALIZED_DAGS and not self.is_subdag:
-            SerializedDagModel.write_dag(
-                self,
-                min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
-                session=session
-            )
+        self.bulk_sync_to_db([self], sync_time, session)
 
     @provide_session
     def get_dagtags(self, session=None):

@@ -39,7 +39,7 @@ from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
-from airflow.models import DAG, DagBag, SlaMiss, errors
+from airflow.models import DAG, DagModel, SlaMiss, errors
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
 from airflow.stats import Stats
@@ -51,7 +51,6 @@ from airflow.utils.dag_processing import (
     AbstractDagFileProcessorProcess, DagFileProcessorAgent, SimpleDag, SimpleDagBag,
 )
 from airflow.utils.email import get_email_address_list, send_email
-from airflow.utils.file import list_py_file_paths
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
@@ -681,7 +680,7 @@ class DagFileProcessor(LoggingMixin):
                     self.log.debug('Queuing task: %s', ti)
                     task_instances_list.append(ti.key)
 
-    def _process_dags(self, dagbag: DagBag, dags: List[DAG], tis_out: List[TaskInstanceKeyType]):
+    def _process_dags(self, dags: List[DAG], tis_out: List[TaskInstanceKeyType]):
         """
         Iterates over the dags and processes them. Processing includes:
 
@@ -689,8 +688,6 @@ class DagFileProcessor(LoggingMixin):
         2. Create appropriate TaskInstance(s) in the DB.
         3. Send emails for tasks that have missed SLAs (if CHECK_SLAS config enabled).
 
-        :param dagbag: a collection of DAGs to process
-        :type dagbag: airflow.models.DagBag
         :param dags: the DAGs from the DagBag to process
         :type dags: List[airflow.models.DAG]
         :param tis_out: A list to add generated TaskInstance objects
@@ -700,15 +697,6 @@ class DagFileProcessor(LoggingMixin):
         check_slas = conf.getboolean('core', 'CHECK_SLAS', fallback=True)
         # pylint: disable=too-many-nested-blocks
         for dag in dags:
-            dag = dagbag.get_dag(dag.dag_id)
-            if not dag:
-                self.log.error("DAG ID %s was not found in the DagBag", dag.dag_id)
-                continue
-
-            if dag.is_paused:
-                self.log.info("Not processing DAG %s since it's paused", dag.dag_id)
-                continue
-
             self.log.info("Processing %s", dag.dag_id)
 
             # Only creates DagRun for DAGs that are not subdag since
@@ -821,16 +809,19 @@ class DagFileProcessor(LoggingMixin):
             return [], len(dagbag.import_errors)
 
         # Save individual DAGs in the ORM and update DagModel.last_scheduled_time
-        for dag in dagbag.dags.values():
-            dag.sync_to_db()
+        dagbag.sync_to_db()
 
-        paused_dag_ids = {dag.dag_id for dag in dagbag.dags.values() if dag.is_paused}
+        paused_dag_ids = (
+            session.query(DagModel.dag_id)
+            .filter(DagModel.is_paused.is_(True))
+            .filter(DagModel.dag_id.in_(dagbag.dag_ids))
+            .all()
+        )
 
         # Pickle the DAGs (if necessary) and put them into a SimpleDag
-        for dag_id in dagbag.dags:
+        for dag_id, dag in dagbag.dags.items():
             # Only return DAGs that are not paused
             if dag_id not in paused_dag_ids:
-                dag = dagbag.get_dag(dag_id)
                 pickle_id = None
                 if pickle_dags:
                     pickle_id = dag.pickle(session).id
@@ -844,7 +835,7 @@ class DagFileProcessor(LoggingMixin):
         ti_keys_to_schedule = []
         refreshed_tis = []
 
-        self._process_dags(dagbag, dags, ti_keys_to_schedule)
+        self._process_dags(dags, ti_keys_to_schedule)
 
         # Refresh all task instances that will be scheduled
         TI = models.TaskInstance
@@ -964,6 +955,10 @@ class SchedulerJob(BaseJob):
         self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
         self.processor_agent = None
 
+    def register_exit_signals(self):
+        """
+        Register signals that stop child processes
+        """
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
 
@@ -1472,11 +1467,6 @@ class SchedulerJob(BaseJob):
 
         self.log.info("Processing each file at most %s times", self.num_runs)
 
-        # Build up a list of Python files that could contain DAGs
-        self.log.info("Searching for files in %s", self.subdir)
-        known_file_paths = list_py_file_paths(self.subdir)
-        self.log.info("There are %s files in %s", len(known_file_paths), self.subdir)
-
         def processor_factory(file_path, zombies):
             return DagFileProcessorProcess(
                 file_path=file_path,
@@ -1492,7 +1482,6 @@ class SchedulerJob(BaseJob):
         processor_timeout_seconds = conf.getint('core', 'dag_file_processor_timeout')
         processor_timeout = timedelta(seconds=processor_timeout_seconds)
         self.processor_agent = DagFileProcessorAgent(self.subdir,
-                                                     known_file_paths,
                                                      self.num_runs,
                                                      processor_factory,
                                                      processor_timeout,
@@ -1530,6 +1519,8 @@ class SchedulerJob(BaseJob):
 
         self.log.info("Resetting orphaned tasks for active dag runs")
         self.reset_state_for_orphaned_tasks()
+
+        self.register_exit_signals()
 
         # Start after resetting orphaned tasks to avoid stressing out DB.
         self.processor_agent.start()

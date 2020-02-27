@@ -781,13 +781,14 @@ class TestDag(unittest.TestCase):
         )
         with dag:
             DummyOperator(task_id='task', owner='owner1')
+            subdag = DAG('dag.subtask', start_date=DEFAULT_DATE, )
+            # parent_dag and is_subdag was set by DagBag. We don't use DagBag, so this value is not set.
+            subdag.parent_dag = dag
+            subdag.is_subdag = True
             SubDagOperator(
                 task_id='subtask',
                 owner='owner2',
-                subdag=DAG(
-                    'dag.subtask',
-                    start_date=DEFAULT_DATE,
-                )
+                subdag=subdag
             )
         now = datetime.datetime.utcnow().replace(tzinfo=pendulum.timezone('UTC'))
         mock_now.return_value = now

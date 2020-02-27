@@ -33,12 +33,16 @@ class Resources(K8SModel):
     :type request_memory: str
     :param request_cpu: requested CPU number
     :type request_cpu: float | str
+    :param request_ephemeral_storage: requested ephermeral storage
+    :type request_ephemeral_storage: str
     :param limit_memory: limit for memory usage
     :type limit_memory: str
     :param limit_cpu: Limit for CPU used
     :type limit_cpu: float | str
     :param limit_gpu: Limits for GPU used
     :type limit_gpu: int
+    :param limit_ephemeral_storage: Limit for ephermeral storage
+    :type limit_ephemeral_storage: float | str
     """
     __slots__ = ('request_memory', 'request_cpu', 'limit_memory', 'limit_cpu', 'limit_gpu')
 
@@ -46,14 +50,18 @@ class Resources(K8SModel):
             self,
             request_memory=None,
             request_cpu=None,
+            request_ephemeral_storage=None,
             limit_memory=None,
             limit_cpu=None,
-            limit_gpu=None):
+            limit_gpu=None,
+            limit_ephemeral_storage=None):
         self.request_memory = request_memory
         self.request_cpu = request_cpu
+        self.request_ephemeral_storage = request_ephemeral_storage
         self.limit_memory = limit_memory
         self.limit_cpu = limit_cpu
         self.limit_gpu = limit_gpu
+        self.limit_ephemeral_storage = limit_ephemeral_storage
 
     def is_empty_resource_request(self):
         """Whether resource is empty"""
@@ -61,17 +69,30 @@ class Resources(K8SModel):
 
     def has_limits(self):
         """Whether resource has limits"""
-        return self.limit_cpu is not None or self.limit_memory is not None or self.limit_gpu is not None
+        return self.limit_cpu is not None or \
+            self.limit_memory is not None or \
+            self.limit_gpu is not None or \
+            self.limit_ephemeral_storage is not None
 
     def has_requests(self):
         """Whether resource has requests"""
-        return self.request_cpu is not None or self.request_memory is not None
+        return self.request_cpu is not None or \
+            self.request_memory is not None or \
+            self.request_ephemeral_storage is not None
 
     def to_k8s_client_obj(self) -> k8s.V1ResourceRequirements:
         """Converts to k8s client object"""
         return k8s.V1ResourceRequirements(
-            limits={'cpu': self.limit_cpu, 'memory': self.limit_memory, 'nvidia.com/gpu': self.limit_gpu},
-            requests={'cpu': self.request_cpu, 'memory': self.request_memory}
+            limits={
+                'cpu': self.limit_cpu,
+                'memory': self.limit_memory,
+                'nvidia.com/gpu': self.limit_gpu,
+                'ephemeral-storage': self.limit_ephemeral_storage
+            },
+            requests={
+                'cpu': self.request_cpu,
+                'memory': self.request_memory,
+                'ephemeral-storage': self.request_ephemeral_storage}
         )
 
     def attach_to_pod(self, pod: k8s.V1Pod) -> k8s.V1Pod:
