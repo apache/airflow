@@ -25,7 +25,7 @@ features to its core by simply dropping files in your
 ``$AIRFLOW_HOME/plugins`` folder.
 
 The python modules in the ``plugins`` folder get imported,
-and **hooks**, **operators**, **sensors**, **macros**, **executors** and web **views**
+and **hooks**, **operators**, **sensors**, **macros** and web **views**
 get integrated to Airflow's main collections and become available for use.
 
 What for?
@@ -84,8 +84,6 @@ looks like:
         sensors = []
         # A list of class(es) derived from BaseHook
         hooks = []
-        # A list of class(es) derived from BaseExecutor
-        executors = []
         # A list of references to inject into the macros namespace
         macros = []
         # A list of Blueprint object created from flask.Blueprint. For use with the flask_appbuilder based GUI
@@ -161,7 +159,6 @@ definitions in Airflow.
     from airflow.models.baseoperator import BaseOperatorLink
     from airflow.providers.amazon.aws.operators.gcs_to_s3 import GCSToS3Operator
     from airflow.sensors.base_sensor_operator import BaseSensorOperator
-    from airflow.executors.base_executor import BaseExecutor
 
     # Will show up under airflow.hooks.test_plugin.PluginHook
     class PluginHook(BaseHook):
@@ -173,10 +170,6 @@ definitions in Airflow.
 
     # Will show up under airflow.sensors.test_plugin.PluginSensorOperator
     class PluginSensorOperator(BaseSensorOperator):
-        pass
-
-    # Will show up under airflow.executors.test_plugin.PluginExecutor
-    class PluginExecutor(BaseExecutor):
         pass
 
     # Will show up under airflow.macros.test_plugin.plugin_macro
@@ -240,7 +233,6 @@ definitions in Airflow.
         operators = [PluginOperator]
         sensors = [PluginSensorOperator]
         hooks = [PluginHook]
-        executors = [PluginExecutor]
         macros = [plugin_macro]
         flask_blueprints = [bp]
         appbuilder_views = [v_appbuilder_package]
