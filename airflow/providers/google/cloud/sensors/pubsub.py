@@ -61,15 +61,14 @@ class PubSubPullSensor(BaseSensorOperator):
     :param max_messages: The maximum number of messages to retrieve per
         PubSub pull request
     :type max_messages: int
-    :param return_immediately: If True, instruct the PubSub API to return
-        immediately if no messages are available for delivery.
-        This will cause Airflow to retry/reschedule the Sensor task
-        until a message comes.
-        If False, the waiting will be done by PubSub `SubscriberClient`.
-        If None (default), it calls PubSub API with return_immediately=True
-        when running in reschedule mode and return_immediately=False when running in poke mode.
-        If you don't want to wait for messages at all, please use
-        :class:`airflow.providers.google.cloud.sensors.PubSubPullOperator`
+    :param return_immediately:
+        (Deprecated) This is an underlying PubSub API implementation detail.
+        It has no real effect on Sensor behaviour other than some internal wait time before retrying
+            on empty queue.
+        The Sensor task will (by definition) always wait for a message, regardless of this argument value.
+
+        If you want a non-blocking task that does not to wait for messages, please use
+        :class:`airflow.providers.google.cloud.operators.PubSubPullOperator`
         instead.
     :type return_immediately: bool
     :param ack_messages: If True, each message will be acknowledged
@@ -98,7 +97,7 @@ class PubSubPullSensor(BaseSensorOperator):
             project_id: str,
             subscription: str,
             max_messages: int = 5,
-            return_immediately: Optional[bool] = None,
+            return_immediately: bool = True,
             ack_messages: bool = False,
             gcp_conn_id: str = 'google_cloud_default',
             messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]] = None,
@@ -114,6 +113,18 @@ class PubSubPullSensor(BaseSensorOperator):
                 "The project parameter has been deprecated. You should pass "
                 "the project_id parameter.", DeprecationWarning, stacklevel=2)
             project_id = project
+
+        if not return_immediately:
+            warnings.warn(
+                "The return_immediately parameter is deprecated.\n"
+                " It exposes what is really just an implementation detail of underlying PubSub API.\n"
+                " It has no effect on PubSubPullSensor behaviour.\n"
+                " It should be left as default value of True.\n"
+                " If is here only because of backwards compatibility.\n"
+                " If may be removed in the future.\n",
+                DeprecationWarning,
+                stacklevel=2
+            )
 
         super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
@@ -138,15 +149,11 @@ class PubSubPullSensor(BaseSensorOperator):
             delegate_to=self.delegate_to,
         )
 
-        return_immediately = self.return_immediately
-        if return_immediately is None:
-            return_immediately = self.reschedule
-
         pulled_messages = hook.pull(
             project_id=self.project_id,
             subscription=self.subscription,
             max_messages=self.max_messages,
-            return_immediately=return_immediately,
+            return_immediately=self.return_immediately,
         )
 
         handle_messages = self.messages_callback or self._default_message_callback
