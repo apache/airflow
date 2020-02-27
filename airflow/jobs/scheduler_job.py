@@ -964,6 +964,10 @@ class SchedulerJob(BaseJob):
         self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
         self.processor_agent = None
 
+    def register_exit_signals(self):
+        """
+        Register signals that stop child processes
+        """
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
 
@@ -1530,6 +1534,8 @@ class SchedulerJob(BaseJob):
 
         self.log.info("Resetting orphaned tasks for active dag runs")
         self.reset_state_for_orphaned_tasks()
+
+        self.register_exit_signals()
 
         # Start after resetting orphaned tasks to avoid stressing out DB.
         self.processor_agent.start()
