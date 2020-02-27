@@ -210,7 +210,7 @@ and *upstream* refers to a dependency within the same run and having the same ``
 
 .. note::
     The Airflow documentation sometimes refers to *previous* instead of *upstream* in places, and vice-versa.
-    If you find any occurances of this, please help us improve by contributing some corrections!
+    If you find any occurrences of this, please help us improve by contributing some corrections!
 
 Task Lifecycle
 ==============
