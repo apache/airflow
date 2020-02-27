@@ -25,7 +25,7 @@ from airflow.configuration import conf
 # noinspection PyUnresolvedReferences
 from airflow.jobs.base_job import BaseJob  # noqa: F401 # pylint: disable=unused-import
 # noinspection PyUnresolvedReferences
-from airflow.models import (  # noqa: F401 # pylint: disable=unused-import
+from airflow.models.all_models import (  # noqa: F401 # pylint: disable=unused-import
     DAG, XCOM_RETURN_KEY, BaseOperator, BaseOperatorLink, Connection, DagBag, DagModel, DagPickle, DagRun,
     DagTag, Log, Pool, SkipMixin, SlaMiss, TaskFail, TaskInstance, TaskReschedule, Variable, XCom,
 )
