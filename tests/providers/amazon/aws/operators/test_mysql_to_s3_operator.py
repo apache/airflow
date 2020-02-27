@@ -27,10 +27,9 @@ from airflow.operators.mysql_to_s3_operator import MySQLToS3Operator
 class TestMySqlToS3Operator(unittest.TestCase):
 
     @mock.patch("airflow.operators.mysql_to_s3_operator.tempfile.NamedTemporaryFile")
-    @mock.patch("airflow.operators.mysql_to_s3_operator.pickle.dumps")
     @mock.patch("airflow.operators.mysql_to_s3_operator.S3Hook")
     @mock.patch("airflow.operators.mysql_to_s3_operator.MySqlHook")
-    def test_execute(self, mock_mysql_hook, mock_s3_hook, pickle_mock, temp_mock):
+    def test_execute(self, mock_mysql_hook, mock_s3_hook, temp_mock):
         query = "query"
         s3_bucket = "bucket"
         s3_key = "key"
@@ -55,7 +54,6 @@ class TestMySqlToS3Operator(unittest.TestCase):
 
         get_pandas_df_mock.assert_called_once_with(query)
 
-        with pickle_mock:
-            temp_mock.assert_called_once_with(suffix=".csv")
-            temp_mock.return_value.__enter__.return_value.name = "file"
-            mock_s3_hook.return_value.load_file.assert_called_once_with("file", s3_key, s3_bucket)
+        temp_mock.assert_called_once_with(suffix=".csv")
+        temp_mock.return_value.__enter__.return_value.name = "file"
+        mock_s3_hook.return_value.load_file.assert_called_once_with("file", s3_key, s3_bucket)
