@@ -1346,7 +1346,7 @@ class TestDag(unittest.TestCase):
         self.assertNotEqual(hash(dag_subclass), hash(dag))
 
 
-class TestPerformance(unittest.TestCase):
+class TestQueries(unittest.TestCase):
 
     def setUp(self) -> None:
         clear_db_runs()
