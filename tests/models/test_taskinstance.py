@@ -1537,7 +1537,6 @@ class TestTaskInstance(unittest.TestCase):
             pass  # expected
         self.assertEqual(State.UP_FOR_RETRY, ti.state)
 
-
     def _env_var_check_callback(self):
         self.assertEqual('test_echo_env_variables', os.environ['AIRFLOW_CTX_DAG_ID'])
         self.assertEqual('hive_in_python_op', os.environ['AIRFLOW_CTX_TASK_ID'])
