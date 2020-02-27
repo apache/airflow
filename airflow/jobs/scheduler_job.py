@@ -1506,9 +1506,6 @@ class SchedulerJob(BaseJob):
             self.processor_agent.end()
             self.log.info("Exited execute loop")
 
-    def _get_simple_dags(self):
-        return self.processor_agent.harvest_simple_dags()
-
     def _execute_helper(self):
         """
         The actual scheduler loop. The main steps in the loop are:
@@ -1552,7 +1549,7 @@ class SchedulerJob(BaseJob):
                 self.log.debug("Waiting for processors to finish since we're using sqlite")
                 self.processor_agent.wait_until_finished()
 
-            simple_dags = self._get_simple_dags()
+            simple_dags = self.processor_agent.harvest_simple_dags()
 
             self.log.debug("Harvested %d SimpleDAGs", len(simple_dags))
 
