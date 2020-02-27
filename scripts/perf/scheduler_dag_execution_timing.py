@@ -84,9 +84,10 @@ def get_executor_under_test():
 
 def reset_dag(dag, session):
     import airflow.models
+    from airflow.models.dag import DagModel
 
     DR = airflow.models.DagRun
-    DM = airflow.models.DagModel
+    DM = DagModel
     TI = airflow.models.TaskInstance
     TF = airflow.models.TaskFail
     dag_id = dag.dag_id

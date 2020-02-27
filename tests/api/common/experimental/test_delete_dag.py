@@ -18,7 +18,7 @@
 
 import unittest
 
-from airflow.models.dag import DAG
+from airflow.models.dag import DAG, DagModel
 
 from airflow import models
 from airflow.api.common.experimental.delete_dag import delete_dag
@@ -28,7 +28,7 @@ from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
-DM = models.DagModel
+DM = DagModel
 DR = models.DagRun
 TI = models.TaskInstance
 LOG = models.log.Log

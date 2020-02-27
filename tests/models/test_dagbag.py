@@ -25,11 +25,11 @@ from datetime import datetime, timezone
 from tempfile import NamedTemporaryFile, mkdtemp
 from unittest.mock import patch
 
-from airflow.models.dag import DAG
+from airflow.models.dag import DAG, DagModel
 
 import airflow.example_dags
 from airflow import models
-from airflow.models import DagBag, DagModel
+from airflow.models import DagBag
 from airflow.utils.session import create_session
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.config import conf_vars

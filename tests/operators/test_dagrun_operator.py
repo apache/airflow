@@ -21,8 +21,8 @@ import tempfile
 from datetime import datetime
 from unittest import TestCase
 
-from airflow.models.dag import DAG
-from airflow.models import DagModel, DagRun, Log, TaskInstance
+from airflow.models.dag import DAG, DagModel
+from airflow.models import DagRun, Log, TaskInstance
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session

@@ -29,6 +29,7 @@ from airflow.api.common.experimental.get_lineage import get_lineage as get_linea
 from airflow.api.common.experimental.get_task import get_task
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.exceptions import AirflowException
+from airflow.models.dag import DagModel
 from airflow.utils import timezone
 from airflow.utils.strings import to_boolean
 from airflow.version import version
@@ -192,7 +193,7 @@ def dag_paused(dag_id, paused):
 
     is_paused = True if paused == 'true' else False
 
-    models.DagModel.get_dagmodel(dag_id).set_is_paused(
+    DagModel.get_dagmodel(dag_id).set_is_paused(
         is_paused=is_paused,
     )
 

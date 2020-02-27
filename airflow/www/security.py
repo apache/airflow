@@ -22,8 +22,8 @@ from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
 from sqlalchemy import and_, or_
 
-from airflow import models
 from airflow.exceptions import AirflowException
+from airflow.models.dag import DagModel
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.www.app import appbuilder
@@ -402,9 +402,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 all_pvs.add((pv.permission.name, pv.view_menu.name))
 
         # Get all the active / paused dags and insert them into a set
-        all_dags_models = session.query(models.DagModel)\
-            .filter(or_(models.DagModel.is_active, models.DagModel.is_paused))\
-            .filter(~models.DagModel.is_subdag).all()
+        all_dags_models = session.query(DagModel)\
+            .filter(or_(DagModel.is_active, DagModel.is_paused))\
+            .filter(~DagModel.is_subdag).all()
 
         # create can_dag_edit and can_dag_read permissions for every dag(vm)
         for dag in all_dags_models:

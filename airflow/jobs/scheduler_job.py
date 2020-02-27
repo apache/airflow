@@ -40,7 +40,7 @@ from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
-from airflow.models.dag import DAG
+from airflow.models.dag import DAG, DagModel
 from airflow.models import SlaMiss, errors
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
@@ -1116,7 +1116,7 @@ class SchedulerJob(BaseJob):
         # and the dag is not paused
         TI = models.TaskInstance
         DR = models.DagRun
-        DM = models.DagModel
+        DM = DagModel
         task_instances_to_examine = (
             session
             .query(TI)

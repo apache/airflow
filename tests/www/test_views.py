@@ -44,7 +44,7 @@ from airflow.configuration import conf
 from airflow.executors.celery_executor import CeleryExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DagRun, TaskInstance
-from airflow.models.dag import DAG
+from airflow.models.dag import DAG, DagModel
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.operators.dummy_operator import DummyOperator
@@ -704,7 +704,7 @@ class TestAirflowBaseViews(TestBase):
         dag_id = 'example_bash_operator'
         test_dag_id = "non_existent_dag"
 
-        DM = models.DagModel
+        DM = DagModel
         dag_query = self.session.query(DM).filter(DM.dag_id == dag_id)
         dag_query.first().tags = []  # To avoid "FOREIGN KEY constraint" error
         self.session.commit()

@@ -32,8 +32,8 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.debug_executor import DebugExecutor
 from airflow.jobs.base_job import BaseJob
-from airflow.models import DagBag, DagModel, DagRun, TaskInstance
-from airflow.models.dag import DAG
+from airflow.models import DagBag, DagRun, TaskInstance
+from airflow.models.dag import DAG, DagModel
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import get_dag, get_dag_by_file_location, process_subdir, sigint_handler
 from airflow.utils.dot_renderer import render_dag
