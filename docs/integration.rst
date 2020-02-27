@@ -17,6 +17,7 @@
 
 Integration
 ===========
+
 Airflow has a mechanism that allows you to expand its functionality and integrate with other systems.
 
 * :doc:`Operators and hooks </operators-and-hooks-ref>`
