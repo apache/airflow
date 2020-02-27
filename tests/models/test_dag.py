@@ -30,6 +30,7 @@ from unittest.mock import patch
 
 import pendulum
 from dateutil.relativedelta import relativedelta
+from parameterized import parameterized
 from pendulum import utcnow
 
 from airflow import models, settings
@@ -48,6 +49,8 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime as datetime_tz
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
+from tests.test_utils.asserts import assert_queries_count
+from tests.test_utils.db import clear_db_runs
 
 
 class TestDag(unittest.TestCase):
@@ -1341,3 +1344,26 @@ class TestDag(unittest.TestCase):
         self.assertEqual(hash(dag_eq), hash(dag))
         self.assertNotEqual(hash(dag_diff_name), hash(dag))
         self.assertNotEqual(hash(dag_subclass), hash(dag))
+
+
+class TestPerformance(unittest.TestCase):
+
+    def setUp(self) -> None:
+        clear_db_runs()
+
+    def tearDown(self) -> None:
+        clear_db_runs()
+
+    @parameterized.expand([
+        (3, ),
+        (12, ),
+    ])
+    def test_count_number_queries(self, tasks_count):
+        dag = DAG('test_dagrun_query_count', start_date=DEFAULT_DATE)
+        for i in range(tasks_count):
+            DummyOperator(task_id=f'dummy_task_{i}', owner='test', dag=dag)
+        with assert_queries_count(3):
+            dag.create_dagrun(
+                run_id="test_dagrun_query_count",
+                state=State.RUNNING
+            )
