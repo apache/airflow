@@ -27,6 +27,7 @@ from datetime import datetime, timedelta
 from typing import List, NamedTuple
 
 from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
+from tabulate import tabulate
 
 from airflow import settings
 from airflow.configuration import conf
@@ -35,7 +36,6 @@ from airflow.exceptions import AirflowDagCycleException
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.file import correct_maybe_zipped
-from airflow.utils.helpers import pprinttable
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timeout import timeout
 
@@ -453,5 +453,5 @@ class DagBag(BaseDagBag, LoggingMixin):
             duration=sum([o.duration for o in stats], timedelta()).total_seconds(),
             dag_num=sum([o.dag_num for o in stats]),
             task_num=sum([o.task_num for o in stats]),
-            table=pprinttable(stats),
+            table=tabulate(stats, headers="keys"),
         )
