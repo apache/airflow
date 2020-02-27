@@ -2035,6 +2035,17 @@
       type: string
       example: ~
       default: ""
+    - name: delete_option_kwargs
+      description: |
+        Optional keyword arguments to pass to the ``delete_namespaced_pod`` kubernetes client
+        ``core_v1_api`` method when using the Kubernetes Executor.
+        This should be an object and can contain any of the options listed in the ``v1DeleteOptions``
+        class defined here:
+        https://github.com/kubernetes-client/python/blob/41f11a09995efcd0142e25946adc7591431bfb2f/kubernetes/client/models/v1_delete_options.py#L19
+      version_added: ~
+      type: string
+      example: '{"grace_period_seconds": 10}'
+      default: ""
     - name: run_as_user
       description: |
         Specifies the uid to run the first process of the worker pods containers as

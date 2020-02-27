@@ -987,7 +987,7 @@ class TestDagFileProcessor(unittest.TestCase):
         scheduler._process_task_instances = mock.MagicMock()
         scheduler.manage_slas = mock.MagicMock()
 
-        scheduler._process_dags(self.dagbag, [dag] + dag.subdags, [])
+        scheduler._process_dags([dag] + dag.subdags, [])
 
         with create_session() as session:
             sub_dagruns = (

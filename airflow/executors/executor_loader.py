@@ -15,11 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """All executors."""
-import importlib
 import logging
+from contextlib import suppress
 from typing import Optional
 
 from airflow.executors.base_executor import BaseExecutor
+from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
 
@@ -38,12 +39,12 @@ class ExecutorLoader:
 
     _default_executor: Optional[BaseExecutor] = None
     executors = {
-        LOCAL_EXECUTOR: 'airflow.executors.local_executor',
-        SEQUENTIAL_EXECUTOR: 'airflow.executors.sequential_executor',
-        CELERY_EXECUTOR: 'airflow.executors.celery_executor',
-        DASK_EXECUTOR: 'airflow.executors.dask_executor',
-        KUBERNETES_EXECUTOR: 'airflow.executors.kubernetes_executor',
-        DEBUG_EXECUTOR: 'airflow.executors.debug_executor'
+        LOCAL_EXECUTOR: 'airflow.executors.local_executor.LocalExecutor',
+        SEQUENTIAL_EXECUTOR: 'airflow.executors.sequential_executor.SequentialExecutor',
+        CELERY_EXECUTOR: 'airflow.executors.celery_executor.CeleryExecutor',
+        DASK_EXECUTOR: 'airflow.executors.dask_executor.DaskExecutor',
+        KUBERNETES_EXECUTOR: 'airflow.executors.kubernetes_executor.KubernetesExecutor',
+        DEBUG_EXECUTOR: 'airflow.executors.debug_executor.DebugExecutor'
     }
 
     @classmethod
@@ -55,31 +56,39 @@ class ExecutorLoader:
         from airflow.configuration import conf
         executor_name = conf.get('core', 'EXECUTOR')
 
-        cls._default_executor = ExecutorLoader._get_executor(executor_name)
-
-        log.info("Using executor %s", executor_name)
+        cls._default_executor = ExecutorLoader._load_executor(executor_name)
 
         return cls._default_executor
 
     @classmethod
-    def _get_executor(cls, executor_name: str) -> BaseExecutor:
+    def _load_executor(cls, executor_name: str) -> BaseExecutor:
         """
-        Creates a new instance of the named executor.
-        In case the executor name is unknown in airflow,
-        look for it in the plugins
+        Loads the executor.
+
+        This supports the following following formats:
+        * by executor name for core executor
+        * by ``{plugin_name}.{class_name}`` for executor from plugins
+        * by import path.
         """
         if executor_name in cls.executors:
-            executor_module = importlib.import_module(cls.executors[executor_name])
-            executor = getattr(executor_module, executor_name)
-            return executor()
-        else:
-            # Load plugins here for executors as at that time the plugins might not have been initialized yet
-            from airflow import plugins_manager
-            plugins_manager.integrate_executor_plugins()
-            executor_path = executor_name.split('.')
-            if len(executor_path) != 2:
-                raise ValueError(f"Executor {executor_name} not supported: "
-                                 f"please specify in format plugin_module.executor")
-            if executor_path[0] not in globals():
-                raise ValueError(f"Executor {executor_name} not supported")
-            return globals()[executor_path[0]].__dict__[executor_path[1]]()
+            log.debug("Loading core executor: %s", executor_name)
+            return import_string(cls.executors[executor_name])()
+        # If the executor name looks like "plugin executor path" then try to load plugins.
+        if executor_name.count(".") == 1:
+            log.debug(
+                "The executor name looks like the plugin path (executor_name=%s). Trying to load a "
+                "executor from a plugin", executor_name
+            )
+            with suppress(ImportError), suppress(AttributeError):
+                # Load plugins here for executors as at that time the plugins might not have been
+                # initialized yet
+                from airflow import plugins_manager
+                plugins_manager.integrate_executor_plugins()
+                return import_string(f"airflow.executors.{executor_name}")()
+
+        log.debug("Loading executor from custom path: %s", executor_name)
+        executor = import_string(executor_name)()
+
+        log.info("Loaded executor: %s", executor_name)
+
+        return executor

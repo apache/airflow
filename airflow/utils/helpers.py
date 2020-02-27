@@ -141,49 +141,6 @@ def as_flattened_list(iterable):
     return [e for i in iterable for e in i]
 
 
-def pprinttable(rows):
-    """Returns a pretty ascii table from tuples
-
-    If namedtuple are used, the table will have headers
-    """
-    if not rows:
-        return None
-    if hasattr(rows[0], '_fields'):  # if namedtuple
-        headers = rows[0]._fields
-    else:
-        headers = ["col{}".format(i) for i in range(len(rows[0]))]
-    lens = [len(s) for s in headers]
-
-    for row in rows:
-        for i in range(len(rows[0])):
-            slenght = len("{}".format(row[i]))
-            if slenght > lens[i]:
-                lens[i] = slenght
-    formats = []
-    hformats = []
-    for i in range(len(rows[0])):
-        if isinstance(rows[0][i], int):
-            formats.append("%%%dd" % lens[i])
-        else:
-            formats.append("%%-%ds" % lens[i])
-        hformats.append("%%-%ds" % lens[i])
-    pattern = " | ".join(formats)
-    hpattern = " | ".join(hformats)
-    separator = "-+-".join(['-' * n for n in lens])
-    tab = ""
-    tab += separator + '\n'
-    tab += (hpattern % tuple(headers)) + '\n'
-    tab += separator + '\n'
-
-    def _format(t):
-        return "{}".format(t) if isinstance(t, str) else t
-
-    for line in rows:
-        tab += pattern % tuple(_format(t) for t in line) + '\n'
-    tab += separator + '\n'
-    return tab
-
-
 def reap_process_group(pgid, log, sig=signal.SIGTERM,
                        timeout=DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM):
     """
