@@ -1057,7 +1057,10 @@ class SchedulerJob(BaseJob):
         if grace_multiplier is not None:
             # Accept the same behaviour as superclass
             return super().is_alive(grace_multiplier=grace_multiplier)
-
+        # The object can be retrieved from the database, so it does not contain all the attributes.
+        self.scheduler_health_check_threshold = conf.getint(
+            'scheduler', 'scheduler_health_check_threshold'
+        )
         return (
             self.state == State.RUNNING and
             (timezone.utcnow() - self.latest_heartbeat).seconds < self.scheduler_health_check_threshold
