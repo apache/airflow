@@ -22,7 +22,6 @@ from time import sleep
 from typing import Optional
 
 from pendulum import utcfromtimestamp
-from redis import Redis
 from sqlalchemy import Column, Index, Integer, String, and_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
@@ -41,6 +40,9 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+
+if conf.getboolean('heartbeat', 'redis_enabled'):
+    from redis import Redis
 
 
 class BaseJob(Base, LoggingMixin):
@@ -63,10 +65,10 @@ class BaseJob(Base, LoggingMixin):
     because this can be backed by sqlalchemy or redis, name is underscored so
     users can use get_heartbeat and update_heartbeat
     """
-    _legacy_heartbeat = Column('latest_heartbeat', UtcDateTime())
+    _orm_heartbeat = Column('latest_heartbeat', UtcDateTime())
     __table_args__ = (
-        Index('job_type_heart', job_type, _legacy_heartbeat),
-        Index('idx_job_state_heartbeat', state, _legacy_heartbeat),
+        Index('job_type_heart', job_type, _orm_heartbeat),
+        Index('idx_job_state_heartbeat', state, _orm_heartbeat),
     )
     executor_class = Column(String(500))
     hostname = Column(String(500))
@@ -78,7 +80,8 @@ class BaseJob(Base, LoggingMixin):
     }
 
     heartrate = conf.getfloat('scheduler', 'JOB_HEARTBEAT_SEC')
-    if conf.getboolean('heartbeat', 'redis_enabled'):
+    redis_enabled = conf.getboolean('heartbeat', 'redis_enabled')
+    if redis_enabled:
         redis = Redis.from_url(conf.get('heartbeat', 'redis_url'))
     else:
         redis = None
@@ -93,7 +96,7 @@ class BaseJob(Base, LoggingMixin):
         self.executor = executor or ExecutorLoader.get_default_executor()
         self.executor_class = executor.__class__.__name__
         self.start_date = timezone.utcnow()
-        self._legacy_heartbeat = timezone.utcnow()
+        self._orm_heartbeat = timezone.utcnow()
         if heartrate is not None:
             self.heartrate = heartrate
         self.unixname = getpass.getuser()
@@ -113,11 +116,11 @@ class BaseJob(Base, LoggingMixin):
         :param session: Database session
         :rtype: BaseJob or None
         """
-        latest_job_sql = session.query(cls).order_by(cls._legacy_heartbeat.desc()).limit(1).first()
-        if conf.getboolean('heartbeat', 'redis_enabled'):
+        latest_job_sql = session.query(cls).order_by(cls._orm_heartbeat.desc()).limit(1).first()
+        if cls.redis_enabled:
             latest_id = cls.redis.zrange(cls.__name__, -1, -1)
             latest_job_redis = latest_id and session.query(cls).get(int(latest_id))
-            if latest_id and latest_job_redis.get_heartbeat() > latest_job_sql._legacy_heartbeat:
+            if latest_id and latest_job_redis.get_heartbeat() > latest_job_sql._orm_heartbeat:
                 return latest_job_redis
             else:
                 return latest_job_sql
@@ -328,19 +331,19 @@ class BaseJob(Base, LoggingMixin):
     def update_heartbeat(self, heartbeat_time=None, session=None):
         if heartbeat_time is None:
             heartbeat_time = timezone.utcnow()
-        if conf.getboolean('heartbeat', 'redis_enabled'):
+        if self.redis_enabled:
             self.redis.zadd(
                 self.job_type,
                 {str(self.id): str((heartbeat_time - timezone.utc_epoch()).total_seconds())})
         else:
             # Update last heartbeat time
             session.merge(self)
-            self._legacy_heartbeat = heartbeat_time
+            self._orm_heartbeat = heartbeat_time
             session.commit()
 
     def get_heartbeat(self):
-        if conf.getboolean('heartbeat', 'redis_enabled'):
+        if self.redis_enabled:
             redis_result = self.redis.zscore(self.job_type, str(self.id))
-            return (redis_result and utcfromtimestamp(redis_result)) or self._legacy_heartbeat
+            return (redis_result and utcfromtimestamp(redis_result)) or self._orm_heartbeat
         else:
-            return self._legacy_heartbeat
+            return self._orm_heartbeat

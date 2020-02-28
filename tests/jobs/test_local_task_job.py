@@ -28,6 +28,7 @@ from mock import patch
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.executors.sequential_executor import SequentialExecutor
+from airflow.jobs.base_job import BaseJob
 from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
@@ -449,9 +450,9 @@ class TestLocalTaskJob(unittest.TestCase):
             ti3, job3 = self.create_ti_with_job(test_name + '3', 'task', State.RUNNING, session)
             _ = self.create_ti_with_job(test_name + '6', 'task', State.FAILED, session)
             session.commit()
-            job1._legacy_heartbeat = before_dttm
-            job2._legacy_heartbeat = after_dttm
-            job3._legacy_heartbeat = before_dttm
+            job1._orm_heartbeat = before_dttm
+            job2._orm_heartbeat = after_dttm
+            job3._orm_heartbeat = before_dttm
             job3.state = State.FAILED
 
             expected.add(SimpleTaskInstance(ti1).key)
@@ -489,11 +490,11 @@ class TestLocalTaskJob(unittest.TestCase):
             ti5, job5 = self.create_ti_with_job(test_name + '5', 'task', State.RUNNING, session)
             _ = self.create_ti_with_job(test_name + '6', 'task', State.FAILED, session)
             session.commit()
-            job1._legacy_heartbeat = before_dttm
-            job2._legacy_heartbeat = after_dttm
-            job3._legacy_heartbeat = before_dttm
-            job4._legacy_heartbeat = before_dttm
-            job5._legacy_heartbeat = before_dttm
+            job1._orm_heartbeat = before_dttm
+            job2._orm_heartbeat = after_dttm
+            job3._orm_heartbeat = before_dttm
+            job4._orm_heartbeat = before_dttm
+            job5._orm_heartbeat = before_dttm
             job5.state = State.FAILED
 
             expected.add(SimpleTaskInstance(ti1).key)
@@ -522,10 +523,13 @@ class TestLocalTaskJob(unittest.TestCase):
                     results.append(dttm and (dttm - timezone.utc_epoch()).total_seconds())
                 return results
 
-            with patch.object(configuration.conf, 'getint', return_value=3):
-                with patch.object(configuration.conf, 'getboolean', return_value=True):
-                    with patch('airflow.jobs.BaseJob.redis') as mocked_redis:
-                        mocked_redis.register_script.return_value = mock_method
-                        res = LocalTaskJob.get_zombie_running_tis(limit_dttm, session=session)
-                        res_as_set = {sti.key for sti in res}
-                        self.assertEqual(expected, res_as_set)
+            try:
+                BaseJob.redis_enabled = True
+                LocalTaskJob.redis_batch_size = 3
+                with patch('airflow.jobs.base_job.BaseJob.redis') as mocked_redis:
+                    mocked_redis.register_script.return_value = mock_method
+                    res = LocalTaskJob.get_zombie_running_tis(limit_dttm, session=session)
+                    res_as_set = {sti.key for sti in res}
+                    self.assertEqual(expected, res_as_set)
+            finally:
+                BaseJob.redis_enabled = False

@@ -46,6 +46,8 @@ class LocalTaskJob(BaseJob):
         'polymorphic_identity': 'LocalTaskJob'
     }
 
+    redis_batch_size = conf.getint('heartbeat', 'redis_get_batch_size')
+
     def __init__(
             self,
             task_instance: TaskInstance,
@@ -184,13 +186,12 @@ class LocalTaskJob(BaseJob):
                 end
                 return res
             '''
-            from airflow.jobs import LocalTaskJob
+            from airflow.jobs.local_task_job import LocalTaskJob
             return acc + cls.redis.register_script(lua_script)(keys=[LocalTaskJob.__name__], args=items)
 
         TI = airflow.models.TaskInstance
 
-        if conf.getboolean('heartbeat', 'redis_enabled'):
-            batch_size = conf.getint('heartbeat', 'redis_get_batch_size')
+        if cls.redis_enabled:
             ti_job = (
                 session
                 .query(TI, cls)
@@ -199,12 +200,12 @@ class LocalTaskJob(BaseJob):
                 .all())
             job_id_to_ti_job = dict([(job.id, (ti, job)) for ti, job in ti_job])
             job_ids = list(job_id_to_ti_job.keys())
-            heartbeats = helpers.reduce_in_chunks(batch_get, job_ids, [], batch_size)
+            heartbeats = helpers.reduce_in_chunks(batch_get, job_ids, [], cls.redis_batch_size)
             zombie_tis = []
             for heartbeat_raw, job_id in zip(heartbeats, job_ids):
                 ti, job = job_id_to_ti_job[job_id]
                 heartbeat = heartbeat_raw and utcfromtimestamp(float(heartbeat_raw))
-                if ((not heartbeat and job._legacy_heartbeat < limit_dttm) or
+                if ((not heartbeat and job._orm_heartbeat < limit_dttm) or
                         (heartbeat and heartbeat < limit_dttm) or
                         job.state != State.RUNNING):
                     zombie_tis.append(SimpleTaskInstance(ti))
@@ -218,7 +219,7 @@ class LocalTaskJob(BaseJob):
                 .filter(
                     or_(
                         cls.state != State.RUNNING,
-                        cls._legacy_heartbeat < limit_dttm,
+                        cls._orm_heartbeat < limit_dttm,
                     )
                 ).all()
             )

@@ -23,7 +23,7 @@ import unittest
 from mock import Mock, patch
 from sqlalchemy.exc import OperationalError
 
-from airflow.jobs import BaseJob
+from airflow.jobs.base_job import BaseJob
 from airflow.utils import configuration, timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -140,8 +140,9 @@ class TestBaseJob(unittest.TestCase):
             self.assertEqual(new_heartbeat_expected, new_heartbeat_actual)
 
     def test_update_heartbeat_redis(self):
-        with patch.object(configuration.conf, 'getboolean', return_value=True):
-            with patch('airflow.jobs.BaseJob.redis') as mocked_redis:
+        try:
+            BaseJob.redis_enabled = True
+            with patch('airflow.jobs.base_job.BaseJob.redis') as mocked_redis:
                 with create_session() as session:
                     job = self.TestJob(None)
                     session.add(job)
@@ -154,6 +155,8 @@ class TestBaseJob(unittest.TestCase):
                     Mock.assert_called_with(mocked_redis.zadd,
                                             'TestJob',
                                             {str(job.id): str(heartbeat_in_seconds)})
+        finally:
+            BaseJob.redis_enabled = False
 
     def test_get_heartbeat_initial(self):
         with create_session() as session:
@@ -165,7 +168,7 @@ class TestBaseJob(unittest.TestCase):
 
     def test_get_heartbeat_initial_redis(self):
         with patch.object(configuration.conf, 'getboolean', return_value=True):
-            with patch('airflow.jobs.BaseJob.redis') as mocked_redis:
+            with patch('airflow.jobs.base_job.BaseJob.redis') as mocked_redis:
                 with create_session() as session:
                     job = self.TestJob(None)
                     session.add(job)
