@@ -54,6 +54,6 @@ class TestMySqlToS3Operator(unittest.TestCase):
 
         get_pandas_df_mock.assert_called_once_with(query)
 
-        temp_mock.assert_called_once_with(suffix=".csv")
+        temp_mock.assert_called_once_with(mode='r+', suffix=".csv")
         temp_mock.return_value.__enter__.return_value.name = "file"
         mock_s3_hook.return_value.load_file.assert_called_once_with("file", s3_key, s3_bucket)
