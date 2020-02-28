@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -22,10 +21,10 @@ from collections import OrderedDict
 from typing import Callable, Dict, List, Optional
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.mysql_hook import MySqlHook
-from airflow.hooks.presto_hook import PrestoHook
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
+from airflow.providers.mysql.hooks.mysql import MySqlHook
+from airflow.providers.presto.hooks.presto import PrestoHook
 from airflow.utils.decorators import apply_defaults
 
 

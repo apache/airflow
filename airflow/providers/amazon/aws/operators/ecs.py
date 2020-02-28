@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,34 +18,46 @@
 import re
 import sys
 from datetime import datetime
-from typing import Optional
+from typing import Dict, Optional
 
-from typing_extensions import runtime_checkable
-
-from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
-from airflow.typing_compat import Protocol
+from airflow.typing_compat import Protocol, runtime_checkable
 from airflow.utils.decorators import apply_defaults
 
 
 @runtime_checkable
 class ECSProtocol(Protocol):
+    """
+    A structured Protocol for ``boto3.client('ecs')``. This is used for type hints on
+    :py:meth:`.ECSOperator.client`.
+
+    .. seealso::
+
+        - https://mypy.readthedocs.io/en/latest/protocols.html
+        - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html
+    """
+
     def run_task(self, **kwargs):
+        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task"""  # noqa: E501  # pylint: disable=line-too-long
         ...
 
     def get_waiter(self, x: str):
+        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.get_waiter"""  # noqa: E501  # pylint: disable=line-too-long
         ...
 
-    def describe_tasks(self, cluster, tasks):
+    def describe_tasks(self, cluster: str, tasks) -> Dict:
+        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_tasks"""  # noqa: E501  # pylint: disable=line-too-long
         ...
 
-    def stop_task(self, cluster, task, reason: str):
+    def stop_task(self, cluster, task, reason: str) -> Dict:
+        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.stop_task"""  # noqa: E501  # pylint: disable=line-too-long
         ...
 
 
-class ECSOperator(BaseOperator):
+class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     """
     Execute a task on AWS EC2 Container Service
 
@@ -98,7 +109,7 @@ class ECSOperator(BaseOperator):
     template_fields = ('overrides',)
 
     @apply_defaults
-    def __init__(self, task_definition, cluster, overrides,
+    def __init__(self, task_definition, cluster, overrides,  # pylint: disable=too-many-arguments
                  aws_conn_id=None, region_name=None, launch_type='EC2',
                  group=None, placement_constraints=None, platform_version='LATEST',
                  network_configuration=None, tags=None, awslogs_group=None,
@@ -191,8 +202,8 @@ class ECSOperator(BaseOperator):
             task_id = self.arn.split("/")[-1]
             stream_name = "{}/{}".format(self.awslogs_stream_prefix, task_id)
             for event in self.get_logs_hook().get_log_events(self.awslogs_group, stream_name):
-                dt = datetime.fromtimestamp(event['timestamp'] / 1000.0)
-                self.log.info("[{}] {}".format(dt.isoformat(), event['message']))
+                event_dt = datetime.fromtimestamp(event['timestamp'] / 1000.0)
+                self.log.info("[%s] %s", event_dt.isoformat(), event['message'])
 
         if len(response.get('failures', [])) > 0:
             raise AirflowException(response)
@@ -201,7 +212,7 @@ class ECSOperator(BaseOperator):
             # This is a `stoppedReason` that indicates a task has not
             # successfully finished, but there is no other indication of failure
             # in the response.
-            # See, https://docs.aws.amazon.com/AmazonECS/latest/developerguide/stopped-task-errors.html # noqa E501
+            # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/stopped-task-errors.html
             if re.match(r'Host EC2 \(instance .+?\) (stopped|terminated)\.',
                         task.get('stoppedReason', '')):
                 raise AirflowException(
@@ -221,11 +232,13 @@ class ECSOperator(BaseOperator):
                         format(container.get('reason', '').lower()))
 
     def get_hook(self):
-        return AwsHook(
+        """Create and return an AwsBaseHook."""
+        return AwsBaseHook(
             aws_conn_id=self.aws_conn_id
         )
 
     def get_logs_hook(self):
+        """Create and return an AwsLogsHook."""
         return AwsLogsHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.awslogs_region

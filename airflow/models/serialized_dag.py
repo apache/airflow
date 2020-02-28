@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,6 +19,7 @@
 """Serialzed DAG table in database."""
 
 import hashlib
+import logging
 from datetime import timedelta
 from typing import Any, Dict, List, Optional
 
@@ -27,16 +27,15 @@ import sqlalchemy_jsonfield
 from sqlalchemy import Column, Index, Integer, String, and_
 from sqlalchemy.sql import exists
 
-from airflow import DAG
 from airflow.models.base import ID_LEN, Base
+from airflow.models.dag import DAG
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import json
 from airflow.utils import timezone
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 class SerializedDagModel(Base):

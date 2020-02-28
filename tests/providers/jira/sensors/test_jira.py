@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,8 +20,8 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from airflow import DAG
 from airflow.models import Connection
+from airflow.models.dag import DAG
 from airflow.providers.jira.sensors.jira import JiraTicketSensor
 from airflow.utils import db, timezone
 

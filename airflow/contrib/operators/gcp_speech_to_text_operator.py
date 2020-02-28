@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,15 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.operators.speech_to_text`.
+This module is deprecated. Please use `airflow.providers.google.cloud.operators.speech_to_text`.
 """
 
 import warnings
 
-from airflow.gcp.operators.speech_to_text import CloudSpeechToTextRecognizeSpeechOperator
+from airflow.providers.google.cloud.operators.speech_to_text import CloudSpeechToTextRecognizeSpeechOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.speech_to_text`",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.speech_to_text`",
     DeprecationWarning, stacklevel=2
 )
 
@@ -33,13 +32,16 @@ warnings.warn(
 class GcpSpeechToTextRecognizeSpeechOperator(CloudSpeechToTextRecognizeSpeechOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.speech_to_text.CloudSpeechToTextRecognizeSpeechOperator`.
+    Please use
+    `airflow.providers.google.cloud.operators.speech_to_text.CloudSpeechToTextRecognizeSpeechOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.speech_to_text.CloudSpeechToTextRecognizeSpeechOperator`.""",
+            Please use
+            `airflow.providers.google.cloud.operators.speech_to_text
+            .CloudSpeechToTextRecognizeSpeechOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)

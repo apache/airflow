@@ -20,9 +20,9 @@ from unittest import mock
 
 from sqlalchemy.engine.url import make_url
 
-from airflow import AirflowException
 from airflow.bin import cli
 from airflow.cli.commands import db_command
+from airflow.exceptions import AirflowException
 
 
 class TestCliDb(unittest.TestCase):

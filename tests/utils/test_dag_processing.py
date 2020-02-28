@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -142,7 +141,6 @@ class TestDagFileProcessorManager(unittest.TestCase):
     def test_set_file_paths_when_processor_file_path_not_in_new_file_paths(self):
         manager = DagFileProcessorManager(
             dag_directory='directory',
-            file_paths=['abc.txt'],
             max_runs=1,
             processor_factory=MagicMock().return_value,
             processor_timeout=timedelta.max,
@@ -163,7 +161,6 @@ class TestDagFileProcessorManager(unittest.TestCase):
     def test_set_file_paths_when_processor_file_path_is_in_new_file_paths(self):
         manager = DagFileProcessorManager(
             dag_directory='directory',
-            file_paths=['abc.txt'],
             max_runs=1,
             processor_factory=MagicMock().return_value,
             processor_timeout=timedelta.max,
@@ -183,7 +180,6 @@ class TestDagFileProcessorManager(unittest.TestCase):
     def test_find_zombies(self):
         manager = DagFileProcessorManager(
             dag_directory='directory',
-            file_paths=['abc.txt'],
             max_runs=1,
             processor_factory=MagicMock().return_value,
             processor_timeout=timedelta.max,
@@ -282,7 +278,6 @@ class TestDagFileProcessorManager(unittest.TestCase):
                                          'test_example_bash_operator.py')
             async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
             processor_agent = DagFileProcessorAgent(test_dag_path,
-                                                    [],
                                                     1,
                                                     processor_factory,
                                                     timedelta.max,
@@ -306,7 +301,6 @@ class TestDagFileProcessorManager(unittest.TestCase):
         mock_pid.return_value = 1234
         manager = DagFileProcessorManager(
             dag_directory='directory',
-            file_paths=['abc.txt'],
             max_runs=1,
             processor_factory=MagicMock().return_value,
             processor_timeout=timedelta(seconds=5),
@@ -325,7 +319,6 @@ class TestDagFileProcessorManager(unittest.TestCase):
         mock_pid.return_value = 1234
         manager = DagFileProcessorManager(
             dag_directory='directory',
-            file_paths=['abc.txt'],
             max_runs=1,
             processor_factory=MagicMock().return_value,
             processor_timeout=timedelta(seconds=5),
@@ -377,7 +370,6 @@ class TestDagFileProcessorAgent(unittest.TestCase):
 
             # Starting dag processing with 0 max_runs to avoid redundant operations.
             processor_agent = DagFileProcessorAgent(test_dag_path,
-                                                    [],
                                                     0,
                                                     processor_factory,
                                                     timedelta.max,
@@ -402,7 +394,6 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
         async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
         processor_agent = DagFileProcessorAgent(test_dag_path,
-                                                [test_dag_path],
                                                 1,
                                                 processor_factory,
                                                 timedelta.max,
@@ -437,7 +428,6 @@ class TestDagFileProcessorAgent(unittest.TestCase):
 
         # Starting dag processing with 0 max_runs to avoid redundant operations.
         processor_agent = DagFileProcessorAgent(test_dag_path,
-                                                [],
                                                 0,
                                                 processor_factory,
                                                 timedelta.max,

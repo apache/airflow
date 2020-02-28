@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,10 +19,10 @@
 """
 This module contains AWS Glue Catalog Hook
 """
-from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AwsGlueCatalogHook(AwsHook):
+class AwsGlueCatalogHook(AwsBaseHook):
     """
     Interact with AWS Glue Catalog
 

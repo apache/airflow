@@ -53,11 +53,23 @@ subcommand
     airflow celery worker
 
 Your worker should start picking up tasks as soon as they get fired in
-its direction.
+its direction. To stop a worker running on a machine you can use:
 
-Note that you can also run "Celery Flower", a web UI built on top of Celery,
-to monitor your workers. You can use the shortcut command ``airflow celery flower``
-to start a Flower web server.
+.. code-block:: bash
+
+    airflow celery stop
+
+It will try to stop the worker gracefully by sending ``SIGTERM`` signal to main Celery
+process as recommended by
+`Celery documentation <https://docs.celeryproject.org/en/latest/userguide/workers>`__.
+
+Note that you can also run `Celery Flower <https://flower.readthedocs.io/en/latest/>`__,
+a web UI built on top of Celery, to monitor your workers. You can use the shortcut command
+to start a Flower web server:
+
+.. code-block:: bash
+
+    airflow celery stop
 
 Please note that you must have the ``flower`` python library already installed on your system. The recommend way is to install the airflow celery bundle.
 

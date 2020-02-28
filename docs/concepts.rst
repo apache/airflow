@@ -210,7 +210,7 @@ and *upstream* refers to a dependency within the same run and having the same ``
 
 .. note::
     The Airflow documentation sometimes refers to *previous* instead of *upstream* in places, and vice-versa.
-    If you find any occurances of this, please help us improve by contributing some corrections!
+    If you find any occurrences of this, please help us improve by contributing some corrections!
 
 Task Lifecycle
 ==============
@@ -263,23 +263,23 @@ described in the section :ref:`XComs <concepts:xcom>`
 
 Airflow provides operators for many common tasks, including:
 
-- :class:`~airflow.operators.bash_operator.BashOperator` - executes a bash command
-- :class:`~airflow.operators.python_operator.PythonOperator` - calls an arbitrary Python function
-- :class:`~airflow.operators.email_operator.EmailOperator` - sends an email
-- :class:`~airflow.operators.http_operator.SimpleHttpOperator` - sends an HTTP request
-- :class:`~airflow.operators.mysql_operator.MySqlOperator`,
-  :class:`~airflow.operators.sqlite_operator.SqliteOperator`,
-  :class:`~airflow.operators.postgres_operator.PostgresOperator`,
-  :class:`~airflow.operators.mssql_operator.MsSqlOperator`,
-  :class:`~airflow.operators.oracle_operator.OracleOperator`,
-  :class:`~airflow.operators.jdbc_operator.JdbcOperator`, etc. - executes a SQL command
+- :class:`~airflow.operators.bash.BashOperator` - executes a bash command
+- :class:`~airflow.operators.python.PythonOperator` - calls an arbitrary Python function
+- :class:`~airflow.providers.email.operators.email.EmailOperator` - sends an email
+- :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` - sends an HTTP request
+- :class:`~airflow.providers.mysql.operators.mysql.MySqlOperator`,
+  :class:`~airflow.providers.sqlite.operators.sqlite.SqliteOperator`,
+  :class:`~airflow.providers.postgres.operators.postgres.PostgresOperator`,
+  :class:`~airflow.providers.microsoft.mssql.operators.mssql.MsSqlOperator`,
+  :class:`~airflow.providers.oracle.operators.oracle.OracleOperator`,
+  :class:`~airflow.providers.jdbc.operators.jdbc.JdbcOperator`, etc. - executes a SQL command
 - ``Sensor`` - an Operator that waits (polls) for a certain time, file, database row, S3 key, etc...
 
 In addition to these basic building blocks, there are many more specific
-operators: :class:`~airflow.operators.docker_operator.DockerOperator`,
+operators: :class:`~airflow.providers.docker.operators.docker.DockerOperator`,
 :class:`~airflow.providers.apache.hive.operators.hive.HiveOperator`, :class:`~airflow.providers.amazon.aws.operators.s3_file_transform.S3FileTransformOperator`,
-:class:`~airflow.operators.presto_to_mysql.PrestoToMySqlTransfer`,
-:class:`~airflow.operators.slack_operator.SlackAPIOperator`... you get the idea!
+:class:`~airflow.providers.mysql.operators.presto_to_mysql.PrestoToMySqlTransfer`,
+:class:`~airflow.providers.slack.operators.slack.SlackAPIOperator`... you get the idea!
 
 Operators are only loaded by Airflow if they are assigned to a DAG.
 
@@ -591,7 +591,7 @@ before it starts to search in metadata database).
 
 Many hooks have a default ``conn_id``, where operators using that hook do not
 need to supply an explicit connection ID. For example, the default
-``conn_id`` for the :class:`~airflow.hooks.postgres_hook.PostgresHook` is
+``conn_id`` for the :class:`~airflow.providers.postgres.hooks.postgres.PostgresHook` is
 ``postgres_default``.
 
 See :doc:`howto/connection/index` for how to create and manage connections.
@@ -955,7 +955,7 @@ For example, consider the following DAG:
 
   from airflow.models import DAG
   from airflow.operators.dummy_operator import DummyOperator
-  from airflow.operators.python_operator import BranchPythonOperator
+  from airflow.operators.python import BranchPythonOperator
 
   dag = DAG(
       dag_id='branch_without_trigger',
@@ -1014,9 +1014,9 @@ a pause just wastes CPU cycles.
 
 For situations like this, you can use the ``LatestOnlyOperator`` to skip
 tasks that are not being run during the most recent scheduled run for a
-DAG. The ``LatestOnlyOperator`` skips all downstream tasks, if the time
+DAG. The ``LatestOnlyOperator`` skips all direct downstream tasks, if the time
 right now is not between its ``execution_time`` and the next scheduled
-``execution_time``.
+``execution_time`` or the DagRun has been externally triggered.
 
 For example, consider the following DAG:
 
@@ -1051,15 +1051,14 @@ For example, consider the following DAG:
                         trigger_rule=TriggerRule.ALL_DONE)
   task4.set_upstream([task1, task2])
 
-In the case of this DAG, the ``latest_only`` task will show up as skipped
-for all runs except the latest run. ``task1`` is directly downstream of
-``latest_only`` and will also skip for all runs except the latest.
+In the case of this DAG, the task ``task1`` is directly downstream of
+``latest_only`` and will be skipped for all runs except the latest.
 ``task2`` is entirely independent of ``latest_only`` and will run in all
 scheduled periods. ``task3`` is downstream of ``task1`` and ``task2`` and
 because of the default ``trigger_rule`` being ``all_success`` will receive
 a cascaded skip from ``task1``. ``task4`` is downstream of ``task1`` and
-``task2``. It will be first skipped directly by ``LatestOnlyOperator``,
-even its ``trigger_rule`` is set to ``all_done``.
+``task2``, but it will not be skipped, since its ``trigger_rule`` is set to
+``all_done``.
 
 .. image:: img/latest_only_with_trigger.png
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -27,8 +26,8 @@ from datetime import datetime
 
 import psutil
 
-from airflow import DAG
 from airflow.models import TaskInstance
+from airflow.models.dag import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import helpers
 from airflow.utils.helpers import merge_dicts

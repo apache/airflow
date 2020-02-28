@@ -26,9 +26,14 @@ from typing import List
 
 from tabulate import tabulate
 
-from airflow import DAG, AirflowException, conf, jobs, settings
+from airflow import settings
 from airflow.api.client import get_current_api_client
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
+from airflow.executors.debug_executor import DebugExecutor
+from airflow.jobs.base_job import BaseJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
+from airflow.models.dag import DAG
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import get_dag, get_dag_by_file_location, process_subdir, sigint_handler
 from airflow.utils.dot_renderer import render_dag
@@ -44,6 +49,7 @@ def _tabulate_dag_runs(dag_runs: List[DagRun], tablefmt="fancy_grid"):
             'DAG ID': dag_run.dag_id,
             'Execution date': dag_run.execution_date.isoformat(),
             'Start date': dag_run.start_date.isoformat() if dag_run.start_date else '',
+            'End date': dag_run.end_date.isoformat() if dag_run.end_date else '',
         } for dag_run in dag_runs
     )
     return "\n%s" % tabulate(
@@ -271,16 +277,16 @@ def dag_list_jobs(args, dag=None):
         if args.dag_id not in dagbag.dags:
             error_message = "Dag id {} not found".format(args.dag_id)
             raise AirflowException(error_message)
-        queries.append(jobs.BaseJob.dag_id == args.dag_id)
+        queries.append(BaseJob.dag_id == args.dag_id)
 
     if args.state:
-        queries.append(jobs.BaseJob.state == args.state)
+        queries.append(BaseJob.state == args.state)
 
     with create_session() as session:
         all_jobs = (session
-                    .query(jobs.BaseJob)
+                    .query(BaseJob)
                     .filter(*queries)
-                    .order_by(jobs.BaseJob.start_date.desc())
+                    .order_by(BaseJob.start_date.desc())
                     .limit(args.limit)
                     .all())
         fields = ['dag_id', 'state', 'job_type', 'start_date', 'end_date']
@@ -299,7 +305,7 @@ def dag_list_dag_runs(args, dag=None):
 
     dagbag = DagBag()
 
-    if args.dag_id not in dagbag.dags:
+    if args.dag_id is not None and args.dag_id not in dagbag.dags:
         error_message = "Dag id {} not found".format(args.dag_id)
         raise AirflowException(error_message)
 
@@ -307,7 +313,9 @@ def dag_list_dag_runs(args, dag=None):
     dag_runs = DagRun.find(
         dag_id=args.dag_id,
         state=state,
-        no_backfills=args.no_backfill
+        no_backfills=args.no_backfill,
+        execution_start_date=args.start_date,
+        execution_end_date=args.end_date,
     )
 
     if not dag_runs:
@@ -320,3 +328,11 @@ def dag_list_dag_runs(args, dag=None):
         tablefmt=args.output
     )
     print(table)
+
+
+@cli_utils.action_logging
+def dag_test(args):
+    """Execute one single DagRun for a given DAG and execution date, using the DebugExecutor."""
+    dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
+    dag.clear(start_date=args.execution_date, end_date=args.execution_date, reset_dag_runs=True)
+    dag.run(executor=DebugExecutor(), start_date=args.execution_date, end_date=args.execution_date)

@@ -276,14 +276,13 @@ Running Static Code Checks via Breeze
 
 The static code checks can be launched using the Breeze environment.
 
-You run the static code checks via ``-S``, ``--static-check`` flags or ``-F``,
-``--static-check-all-files``. The former ones run appropriate
-checks only for files changed and staged locally, the latter ones
+You run the static code checks via ``./breeze static-check`` or ``./breeze static-check-all-files`` commands.
+The former ones run appropriate checks only for files changed and staged locally, the latter ones
 run checks on all files.
 
 Note that it may take a lot of time to run checks for all files with pylint on macOS due to a slow
 filesystem for macOS Docker. As a workaround, you can add their arguments after ``--`` as extra arguments.
-You cannot pass the ``--files`` flag if you select the ``--static-check-all-files`` option.
+You cannot pass the ``--files`` flag if you use the ``./breeze static-check-all-files`` command.
 
 You can see the list of available static checks either via ``--help`` flag or by using the autocomplete
 option. Note that the ``all`` static check runs all configured static checks. Also since pylint tests take
@@ -293,62 +292,62 @@ Run the ``mypy`` check for the currently staged changes:
 
 .. code-block:: bash
 
-     ./breeze  --static-check mypy
+     ./breeze static-check mypy
 
 Run the ``mypy`` check for all files:
 
 .. code-block:: bash
 
-     ./breeze --static-check-all-files mypy
+     ./breeze static-check-all-files mypy
 
 Run the ``flake8`` check for the ``tests.core.py`` file with verbose output:
 
 .. code-block:: bash
 
-     ./breeze  --static-check flake8 -- --files tests/core.py --verbose
+     ./breeze static-check flake8 -- --files tests/core.py --verbose
 
 Run the ``flake8`` check for the ``tests.core`` package with verbose output:
 
 .. code-block:: bash
 
-     ./breeze  --static-check mypy -- --files tests/hooks/test_druid_hook.py
+     ./breeze static-check mypy -- --files tests/hooks/test_druid_hook.py
 
 Run all tests for the currently staged files:
 
 .. code-block:: bash
 
-     ./breeze  --static-check all
+     ./breeze static-check all
 
 Run all tests for all files:
 
 .. code-block:: bash
 
-     ./breeze  --static-check-all-files all
+     ./breeze static-check-all-files all
 
 Run all tests but pylint for all files:
 
 .. code-block:: bash
 
-     ./breeze  --static-check-all-files all-but-pylint
+     ./breeze static-check-all-files all-but-pylint
 
 Run pylint checks for all changed files:
 
 .. code-block:: bash
 
-     ./breeze  --static-check pylint
+     ./breeze static-check pylint
 
 Run pylint checks for selected files:
 
 .. code-block:: bash
 
-     ./breeze  --static-check pylint -- --files airflow/configuration.py
+     ./breeze static-check pylint -- --files airflow/configuration.py
 
 
 Run pylint checks for all files:
 
 .. code-block:: bash
 
-     ./breeze --static-check-all-files pylint
+     ./breeze static-check-all-files pylint
 
 
 The ``license`` check is run via a separate script and a separate Docker image containing the
@@ -357,7 +356,7 @@ It does not take pre-commit parameters as extra arguments.
 
 .. code-block:: bash
 
-     ./breeze --static-check-all-files licenses
+     ./breeze static-check-all-files licenses
 
 Running Static Code Checks via Scripts from the Host
 ....................................................

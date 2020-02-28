@@ -33,6 +33,9 @@ CHANGELOG.txt
 unittests.cfg
 logs
 .bash_aliases
+venv
+files
+airflow.iml
 
 # Generated doc files
 .*html

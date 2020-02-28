@@ -18,23 +18,34 @@
 ---
 dist: bionic
 language: python
+os: linux
 env:
   global:
     - BUILD_ID=${TRAVIS_BUILD_ID}
     - MOUNT_LOCAL_SOURCES="false"
-    - AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS="true"
+    - MOUNT_HOST_AIRFLOW_VOLUME="true"
     - FORCE_ANSWER_TO_QUESTIONS="yes"
-    - AIRFLOW_CI_SILENT="true"
+    - VERBOSE="true"
     - CI="true"
 python: "3.6"
 stages:
   - pre-test
   - test
+  - post-test
+services:
+  - docker
 jobs:
   include:
     - name: "Static checks"
       stage: pre-test
-      script: ./scripts/ci/ci_run_all_static_tests.sh
+      script: ./scripts/ci/ci_run_all_static_checks.sh
+      env: >-
+        PYTHON_VERSION=3.6
+        AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
+        SKIP=pylint-tests
+    - name: "Static checks - pylint tests only"
+      stage: pre-test
+      script: ./scripts/ci/ci_run_static_checks_pylint_tests.sh
       env: >-
         PYTHON_VERSION=3.6
         AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
@@ -94,14 +105,16 @@ jobs:
         ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
         RUN_INTEGRATION_TESTS=all
       stage: test
-      script: ./scripts/ci/ci_run_airflow_testing.sh tests/tests_core.py
-    - name: "Tests [MySQL][3.7][kerberos-temporarily-disabled]"
+    - name: "Tests [MySQL][3.7][kerberos]"
       env: >-
         BACKEND=mysql
         PYTHON_VERSION=3.7
+        ENABLED_INTEGRATIONS="kerberos"
       stage: test
-  services:
-    - docker
+    - name: "Prepare backport packages"
+      before_install: echo
+      stage: post-test
+      script: ./scripts/ci/ci_prepare_backport_packages.sh
 before_install:
   - ./scripts/ci/ci_before_install.sh
 script: ./scripts/ci/ci_run_airflow_testing.sh

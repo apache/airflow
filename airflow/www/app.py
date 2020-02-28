@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -52,7 +51,6 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
         app.wsgi_app = ProxyFix(
             app.wsgi_app,
-            num_proxies=conf.get("webserver", "PROXY_FIX_NUM_PROXIES", fallback=None),
             x_for=conf.getint("webserver", "PROXY_FIX_X_FOR", fallback=1),
             x_proto=conf.getint("webserver", "PROXY_FIX_X_PROTO", fallback=1),
             x_host=conf.getint("webserver", "PROXY_FIX_X_HOST", fallback=1),
@@ -109,7 +107,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             app,
             db.session if not session else session,
             security_manager_class=security_manager_class,
-            base_template='appbuilder/baselayout.html',
+            base_template='airflow/master.html',
             update_perms=conf.getboolean('webserver', 'UPDATE_FAB_PERMS'))
 
         def init_views(appbuilder):

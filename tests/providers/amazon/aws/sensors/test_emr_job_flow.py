@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,7 +22,7 @@ from unittest.mock import MagicMock, patch
 
 from dateutil.tz import tzlocal
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.sensors.emr_job_flow import EmrJobFlowSensor
 
 DESCRIBE_CLUSTER_STARTING_RETURN = {

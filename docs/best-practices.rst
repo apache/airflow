@@ -87,7 +87,7 @@ Airflow parses all the DAGs in the background at a specific period.
 The default period is set using ``processor_poll_interval`` config, which is by default 1 second. During parsing, Airflow creates a new connection to the metadata DB for each DAG.
 It can result in a lot of open connections.
 
-The best way of using variables is via a Jinja template which will delay reading the value until the task execution. The template synaxt to do this is:
+The best way of using variables is via a Jinja template which will delay reading the value until the task execution. The template syntax to do this is:
 
 .. code::
 
@@ -203,7 +203,7 @@ As an example, if you have a task that pushes data to S3, you can implement a ch
 make sure that the partition is created in S3 and perform some simple checks to see if the data is correct or not.
 
 
-Similarly, if you have a task that starts a microservice in Kubernetes or Mesos, you should check if the service has started or not using :class:`airflow.sensors.http_sensor.HttpSensor`.
+Similarly, if you have a task that starts a microservice in Kubernetes or Mesos, you should check if the service has started or not using :class:`airflow.providers.http.sensors.http.HttpSensor`.
 
 .. code::
 
@@ -315,3 +315,16 @@ Some configurations such as Airflow Backend connection URI can be derived from b
 .. code::
 
  sql_alchemy_conn_cmd = bash_command_to_run
+
+
+Scheduler Uptime
+-----------------
+
+Airflow users have for a long time been affected by a
+`core Airflow bug <https://issues.apache.org/jira/browse/AIRFLOW-401>`_
+that causes the scheduler to hang without a trace.
+
+Until fully resolved, you can mitigate a few ways:
+
+* Set a reasonable run_duration setting in your ``airflow.cfg``. `Example config <https://github.com/astronomer/airflow-chart/blob/63bc503c67e2cd599df0b6f831d470d09bad7ee7/templates/configmap.yaml#L44>`_.
+* Add an ``exec`` style health check to your helm charts on the scheduler deployment to fail if the scheduler has not heartbeat in a while. `Example health check definition <https://github.com/astronomer/helm.astronomer.io/pull/200/files>`_.
