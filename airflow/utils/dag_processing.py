@@ -29,7 +29,6 @@ from datetime import datetime, timedelta
 from importlib import import_module
 from typing import Any, Callable, Dict, KeysView, List, NamedTuple, Optional, Tuple
 
-import psutil
 from setproctitle import setproctitle  # pylint: disable=no-name-in-module
 from sqlalchemy import or_
 from tabulate import tabulate
@@ -46,7 +45,7 @@ from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.process_utils import reap_process_group
+from airflow.utils.process_utils import kill_child_processes_by_pids, reap_process_group
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
@@ -1136,35 +1135,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         """
         pids_to_kill = self.get_all_pids()
         if pids_to_kill:
-            # First try SIGTERM
-            this_process = psutil.Process(os.getpid())
-            # Only check child processes to ensure that we don't have a case
-            # where we kill the wrong process because a child process died
-            # but the PID got reused.
-            child_processes = [x for x in this_process.children(recursive=True)
-                               if x.is_running() and x.pid in pids_to_kill]
-            for child in child_processes:
-                self.log.info("Terminating child PID: %s", child.pid)
-                child.terminate()
-            # TODO: Remove magic number
-            timeout = 5
-            self.log.info("Waiting up to %s seconds for processes to exit...", timeout)
-            try:
-                psutil.wait_procs(
-                    child_processes, timeout=timeout,
-                    callback=lambda x: self.log.info('Terminated PID %s', x.pid))
-            except psutil.TimeoutExpired:
-                self.log.debug("Ran out of time while waiting for processes to exit")
-
-            # Then SIGKILL
-            child_processes = [x for x in this_process.children(recursive=True)
-                               if x.is_running() and x.pid in pids_to_kill]
-            if child_processes:
-                self.log.info("SIGKILL processes that did not terminate gracefully")
-                for child in child_processes:
-                    self.log.info("Killing child PID: %s", child.pid)
-                    child.kill()
-                    child.wait()
+            kill_child_processes_by_pids(pids_to_kill)
 
     def emit_metrics(self):
         """
