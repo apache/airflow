@@ -94,7 +94,7 @@ class TestTaskInstance(unittest.TestCase):
         with create_session() as session:
             session.query(TaskFail).delete()
             session.query(TaskReschedule).delete()
-            session.query(TaskInstance).delete()
+            session.query(TI).delete()
             session.query(DagRun).delete()
 
     def test_set_task_dates(self):

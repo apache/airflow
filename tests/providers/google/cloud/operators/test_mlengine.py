@@ -24,8 +24,8 @@ import httplib2
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
-from airflow.models import TaskInstance
 from airflow.models.dag import DAG
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.operators.mlengine import (
     AIPlatformConsoleLink, MLEngineCreateModelOperator, MLEngineCreateVersionOperator,
     MLEngineDeleteModelOperator, MLEngineDeleteVersionOperator, MLEngineGetModelOperator,
