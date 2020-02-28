@@ -34,14 +34,6 @@ from urllib.parse import quote, unquote
 import lazy_object_proxy
 import markdown
 import sqlalchemy as sqla
-
-from airflow.models.dag import DagModel, DagTag
-from airflow.models.dagbag import DagBag
-from airflow.models.log import Log
-
-from airflow.models.variable import Variable
-
-from airflow.models.pool import Pool
 from flask import (
     Markup, Response, escape, flash, jsonify, make_response, redirect, render_template, request,
     session as flask_session, url_for,
@@ -67,10 +59,16 @@ from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
-from airflow.models import SlaMiss, TaskFail, XCom, errors
+from airflow.models import TaskFail, XCom, errors
 from airflow.models.connection import Connection
+from airflow.models.dag import DagModel, DagTag
+from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun, DagRunType
+from airflow.models.log import Log
+from airflow.models.pool import Pool
+from airflow.models.slamiss import SlaMiss
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.variable import Variable
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
