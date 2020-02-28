@@ -119,7 +119,6 @@ labelPRBasedOnFilePath:
     - docs/scheduler.rst
     - tests/executors/*
     - tests/jobs/*
-    
 
   area:Serialization:
     - airflow/serialization/*
