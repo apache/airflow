@@ -38,10 +38,6 @@ jobs:
       env: BACKEND=sqlite ENV=docker
       python: "3.5"
       stage: test
-    - name: "Tests mysql python 2.7"
-      env: BACKEND=mysql ENV=docker
-      python: "2.7"
-      stage: test
     - name: "Tests postgres kubernetes python 3.6 (persistent)"
       env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.13.0 KUBERNETES_MODE=persistent_mode
       python: "3.6"
@@ -49,14 +45,6 @@ jobs:
     - name: "Tests postgres kubernetes python 3.6 (git)"
       env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.13.0 KUBERNETES_MODE=git_mode
       python: "3.6"
-      stage: test
-    - name: "Tests postgres kubernetes python 2.7 (persistent)"
-      env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.13.0 KUBERNETES_MODE=persistent_mode
-      python: "2.7"
-      stage: test
-    - name: "Tests postgres kubernetes python 2.7 (git)"
-      env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.9.0 KUBERNETES_MODE=git_mode
-      python: "2.7"
       stage: test
     - name: "Static checks (no licence check)"
       stage: pre-test
