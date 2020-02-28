@@ -37,6 +37,7 @@ import sqlalchemy as sqla
 
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagbag import DagBag
+from airflow.models.log import Log
 
 from airflow.models.variable import Variable
 
@@ -66,7 +67,7 @@ from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
-from airflow.models import Log, SlaMiss, TaskFail, XCom, errors
+from airflow.models import SlaMiss, TaskFail, XCom, errors
 from airflow.models.connection import Connection
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance, clear_task_instances

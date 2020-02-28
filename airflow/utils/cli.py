@@ -38,7 +38,7 @@ from airflow.models.dagpickle import DagPickle
 
 from airflow import settings
 from airflow.exceptions import AirflowException
-from airflow.models import Log
+from airflow.models.log import Log
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.utils import cli_action_loggers

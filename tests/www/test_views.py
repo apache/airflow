@@ -2268,7 +2268,7 @@ class TestDecorators(TestBase):
             state=State.RUNNING)
 
     def check_last_log(self, dag_id, event, execution_date=None):
-        from airflow.models import Log
+        from airflow.models.log import Log
         qry = self.session.query(Log.dag_id, Log.task_id, Log.event, Log.execution_date,
                                  Log.owner, Log.extra)
         qry = qry.filter(Log.dag_id == dag_id, Log.event == event)
