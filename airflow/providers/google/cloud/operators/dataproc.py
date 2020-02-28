@@ -244,7 +244,7 @@ class ClusterGenerator:
                 return self.init_action_timeout
             elif match.group(2) == "m":
                 val = float(match.group(1))
-                return "{}s".format(timedelta(minutes=val).seconds)
+                return "{}s".format(int(timedelta(minutes=val).total_seconds()))
 
         raise AirflowException(
             "DataprocClusterCreateOperator init_action_timeout"
@@ -621,13 +621,13 @@ class DataprocScaleClusterOperator(BaseOperator):
                 timeout = int(match.group(1))
             elif match.group(2) == "m":
                 val = float(match.group(1))
-                timeout = timedelta(minutes=val).seconds
+                timeout = int(timedelta(minutes=val).total_seconds())
             elif match.group(2) == "h":
                 val = float(match.group(1))
-                timeout = timedelta(hours=val).seconds
+                timeout = int(timedelta(hours=val).total_seconds())
             elif match.group(2) == "d":
                 val = float(match.group(1))
-                timeout = timedelta(days=val).seconds
+                timeout = int(timedelta(days=val).total_seconds())
 
         if not timeout:
             raise AirflowException(

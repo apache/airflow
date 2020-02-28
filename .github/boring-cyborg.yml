@@ -111,13 +111,14 @@ labelPRBasedOnFilePath:
     - docs/plugins.rst
 
   area:Scheduler/Executor:
-    - airflow/jobs/*
     - airflow/executors/*
+    - airflow/jobs/*
     - airflow/task/task_runner/*
+    - airflow/utils/dag_processing.py
+    - docs/executor/*
+    - docs/scheduler.rst
     - tests/executors/*
     - tests/jobs/*
-    - docs/scheduler.rst
-    - docs/executor/*
 
   area:Serialization:
     - airflow/serialization/*

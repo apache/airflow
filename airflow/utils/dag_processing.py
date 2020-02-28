@@ -572,6 +572,10 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
         self._log = logging.getLogger('airflow.processor_manager')
 
+    def register_exit_signals(self):
+        """
+        Register signals that stop child processes
+        """
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
 
@@ -592,6 +596,8 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         we can get parallelism and isolation from potentially harmful
         user code.
         """
+
+        self.register_exit_signals()
 
         # Start a new process group
         os.setpgid(0, 0)

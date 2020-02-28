@@ -30,6 +30,7 @@ from unittest.mock import patch
 
 import pendulum
 from dateutil.relativedelta import relativedelta
+from parameterized import parameterized
 from pendulum import utcnow
 
 from airflow import models, settings
@@ -48,6 +49,8 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime as datetime_tz
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
+from tests.test_utils.asserts import assert_queries_count
+from tests.test_utils.db import clear_db_runs
 
 
 class TestDag(unittest.TestCase):
@@ -128,7 +131,7 @@ class TestDag(unittest.TestCase):
             dag_id='test-default_default_view'
         )
         self.assertEqual(conf.get('webserver', 'dag_default_view').lower(),
-                         dag._default_view)
+                         dag.default_view)
 
     def test_dag_invalid_orientation(self):
         """
@@ -1342,3 +1345,40 @@ class TestDag(unittest.TestCase):
         self.assertEqual(hash(dag_eq), hash(dag))
         self.assertNotEqual(hash(dag_diff_name), hash(dag))
         self.assertNotEqual(hash(dag_subclass), hash(dag))
+
+    def test_get_paused_dag_ids(self):
+        dag_id = "test_get_paused_dag_ids"
+        dag = DAG(dag_id, is_paused_upon_creation=True)
+        dag.sync_to_db()
+        self.assertIsNotNone(DagModel.get_dagmodel(dag_id))
+
+        paused_dag_ids = DagModel.get_paused_dag_ids([dag_id])
+        self.assertEqual(paused_dag_ids, {dag_id})
+
+        with create_session() as session:
+            session.query(DagModel).filter(
+                DagModel.dag_id == dag_id).delete(
+                synchronize_session=False)
+
+
+class TestQueries(unittest.TestCase):
+
+    def setUp(self) -> None:
+        clear_db_runs()
+
+    def tearDown(self) -> None:
+        clear_db_runs()
+
+    @parameterized.expand([
+        (3, ),
+        (12, ),
+    ])
+    def test_count_number_queries(self, tasks_count):
+        dag = DAG('test_dagrun_query_count', start_date=DEFAULT_DATE)
+        for i in range(tasks_count):
+            DummyOperator(task_id=f'dummy_task_{i}', owner='test', dag=dag)
+        with assert_queries_count(3):
+            dag.create_dagrun(
+                run_id="test_dagrun_query_count",
+                state=State.RUNNING
+            )

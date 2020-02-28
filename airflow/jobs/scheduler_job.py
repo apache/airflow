@@ -811,12 +811,7 @@ class DagFileProcessor(LoggingMixin):
         # Save individual DAGs in the ORM and update DagModel.last_scheduled_time
         dagbag.sync_to_db()
 
-        paused_dag_ids = (
-            session.query(DagModel.dag_id)
-            .filter(DagModel.is_paused.is_(True))
-            .filter(DagModel.dag_id.in_(dagbag.dag_ids))
-            .all()
-        )
+        paused_dag_ids = DagModel.get_paused_dag_ids(dag_ids=dagbag.dag_ids)
 
         # Pickle the DAGs (if necessary) and put them into a SimpleDag
         for dag_id, dag in dagbag.dags.items():
@@ -989,7 +984,7 @@ class SchedulerJob(BaseJob):
         scheduler_health_check_threshold = conf.getint('scheduler', 'scheduler_health_check_threshold')
         return (
             self.state == State.RUNNING and
-            (timezone.utcnow() - self.latest_heartbeat).seconds < scheduler_health_check_threshold
+            (timezone.utcnow() - self.latest_heartbeat).total_seconds() < scheduler_health_check_threshold
         )
 
     @provide_session
@@ -1495,9 +1490,6 @@ class SchedulerJob(BaseJob):
             self.processor_agent.end()
             self.log.info("Exited execute loop")
 
-    def _get_simple_dags(self):
-        return self.processor_agent.harvest_simple_dags()
-
     def _execute_helper(self):
         """
         The actual scheduler loop. The main steps in the loop are:
@@ -1543,7 +1535,7 @@ class SchedulerJob(BaseJob):
                 self.log.debug("Waiting for processors to finish since we're using sqlite")
                 self.processor_agent.wait_until_finished()
 
-            simple_dags = self._get_simple_dags()
+            simple_dags = self.processor_agent.harvest_simple_dags()
 
             self.log.debug("Harvested %d SimpleDAGs", len(simple_dags))
 

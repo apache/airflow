@@ -1066,6 +1066,11 @@ class TestSchedulerJob(unittest.TestCase):
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=31)
         self.assertFalse(job.is_alive())
 
+        # test because .seconds was used before instead of total_seconds
+        # internal repr of datetime is (days, seconds)
+        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(days=1)
+        self.assertFalse(job.is_alive())
+
         job.state = State.SUCCESS
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
         self.assertFalse(job.is_alive(), "Completed jobs even with recent heartbeat should not be alive")

@@ -20,7 +20,8 @@ from contextlib import contextmanager
 
 from sqlalchemy import event
 
-from airflow.settings import engine
+# Long import to not create a copy of the reference, but to refer to one place.
+import airflow.settings
 
 
 def assert_equal_ignore_multiple_spaces(case, first, second, msg=None):
@@ -45,11 +46,11 @@ class CountQueries:
         self.result = CountQueriesResult()
 
     def __enter__(self):
-        event.listen(engine, "after_cursor_execute", self.after_cursor_execute)
+        event.listen(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
         return self.result
 
     def __exit__(self, type_, value, traceback):
-        event.remove(engine, "after_cursor_execute", self.after_cursor_execute)
+        event.remove(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
 
     def after_cursor_execute(self, *args, **kwargs):
         self.result.count += 1
