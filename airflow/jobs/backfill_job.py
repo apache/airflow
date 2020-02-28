@@ -36,6 +36,7 @@ from airflow.jobs.base_job import BaseJob
 from airflow.models.dag import DAG
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
+from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKeyType
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies import BACKFILL_QUEUED_DEPS
@@ -559,8 +560,8 @@ class BackfillJob(BaseJob):
                         if task.task_id != ti.task_id:
                             continue
 
-                        pool = session.query(models.Pool) \
-                            .filter(models.Pool.pool == task.pool) \
+                        pool = session.query(Pool) \
+                            .filter(Pool.pool == task.pool) \
                             .first()
                         if not pool:
                             raise PoolNotFound('Unknown pool: {}'.format(task.pool))

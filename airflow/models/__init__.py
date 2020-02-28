@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow models"""
-from airflow.models.pool import Pool
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.slamiss import SlaMiss
 from airflow.models.taskfail import TaskFail

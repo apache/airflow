@@ -49,6 +49,7 @@ from airflow.models.connection import Connection
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
+from airflow.models.pool import Pool
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.ti_deps.dependencies import QUEUEABLE_STATES, RUNNABLE_STATES
@@ -245,7 +246,7 @@ class TestPoolModelView(TestBase):
         }
 
     def tearDown(self):
-        self.clear_table(models.Pool)
+        self.clear_table(Pool)
         super().tearDown()
 
     def test_create_pool_with_same_name(self):
@@ -271,7 +272,7 @@ class TestPoolModelView(TestBase):
 
     def test_odd_name(self):
         self.pool['pool'] = 'test-pool<script></script>'
-        self.session.add(models.Pool(**self.pool))
+        self.session.add(Pool(**self.pool))
         self.session.commit()
         resp = self.client.get('/pool/list/')
         self.check_content_in_response('test-pool&lt;script&gt;', resp)
@@ -279,7 +280,7 @@ class TestPoolModelView(TestBase):
 
     def test_list(self):
         self.pool['pool'] = 'test-pool'
-        self.session.add(models.Pool(**self.pool))
+        self.session.add(Pool(**self.pool))
         self.session.commit()
         resp = self.client.get('/pool/list/')
         # We should see this link

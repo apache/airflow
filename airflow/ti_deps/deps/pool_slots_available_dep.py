@@ -45,8 +45,8 @@ class PoolSlotsAvailableDep(BaseTIDep):
         :type dep_context: DepContext
         :return: True if there are available slots in the pool.
         """
-        from airflow import models  # To avoid a circular dependency
-        P = models.Pool
+        from airflow.models import pool  # To avoid a circular dependency
+        P = pool.Pool
         pool_name = ti.pool
 
         pools = session.query(P).filter(P.pool == pool_name).all()

@@ -43,6 +43,7 @@ from airflow.jobs.base_job import BaseJob
 from airflow.models import SlaMiss, dagbag as db, errors
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
+from airflow.models.pool import Pool
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
@@ -1144,7 +1145,7 @@ class SchedulerJob(BaseJob):
         )
 
         # Get the pool settings
-        pools = {p.pool: p for p in session.query(models.Pool).all()}
+        pools = {p.pool: p for p in session.query(Pool).all()}
 
         pool_to_task_instances = defaultdict(list)
         for task_instance in task_instances_to_examine:

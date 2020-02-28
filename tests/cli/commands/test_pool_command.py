@@ -22,11 +22,11 @@ import os
 import unittest
 from contextlib import redirect_stdout
 
-from airflow import models, settings
+from airflow import settings
 from airflow.bin import cli
 from airflow.cli.commands import pool_command
-from airflow.models import Pool
 from airflow.models.dagbag import DagBag
+from airflow.models.pool import Pool
 from airflow.settings import Session
 from airflow.utils.db import add_default_pool_if_not_exists
 

@@ -17,7 +17,7 @@
 # under the License.
 """Pool APIs."""
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
-from airflow.models import Pool
+from airflow.models.pool import Pool
 from airflow.utils.session import provide_session
 
 

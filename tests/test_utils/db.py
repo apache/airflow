@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.models import Pool, SlaMiss, TaskInstance, errors
+from airflow.models import SlaMiss, TaskInstance, errors
 from airflow.models.connection import Connection
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
+from airflow.models.pool import Pool
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections
 from airflow.utils.session import create_session
 
