@@ -30,7 +30,7 @@ from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.ext.declarative import declarative_base
 
 from airflow import settings
-from airflow.models import DagBag
+from airflow.models.dagbag import DagBag
 
 # revision identifiers, used by Alembic.
 revision = 'cc1e65623dc7'

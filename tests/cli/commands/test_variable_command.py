@@ -23,12 +23,13 @@ from airflow import models
 from airflow.bin import cli
 from airflow.cli.commands import variable_command
 from airflow.models import Variable
+from airflow.models.dagbag import DagBag
 
 
 class TestCliVariables(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.dagbag = models.DagBag(include_examples=True)
+        cls.dagbag = DagBag(include_examples=True)
         cls.parser = cli.CLIFactory.get_parser()
 
     def test_variables(self):

@@ -36,8 +36,9 @@ from airflow.exceptions import (
 )
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.jobs.scheduler_job import DagFileProcessor
+from airflow.models import Pool, TaskInstance as TI
 from airflow.models.dag import DAG
-from airflow.models import DagBag, Pool, TaskInstance as TI
+from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone

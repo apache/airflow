@@ -40,8 +40,8 @@ from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
+from airflow.models import SlaMiss, dagbag as db, errors
 from airflow.models.dag import DAG, DagModel
-from airflow.models import SlaMiss, errors
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
 from airflow.stats import Stats
@@ -487,7 +487,7 @@ class DagFileProcessor(LoggingMixin):
         :param session: session for ORM operations
         :type session: sqlalchemy.orm.session.Session
         :param dagbag: DagBag containing DAGs with import errors
-        :type dagbag: airflow.models.DagBag
+        :type dagbag: airflow.models.dagbag.DagBag
         """
         # Clear the errors of the processed files
         for dagbag_file in dagbag.file_last_changed:
@@ -822,7 +822,7 @@ class DagFileProcessor(LoggingMixin):
         simple_dags = []
 
         try:
-            dagbag = models.DagBag(file_path, include_examples=False)
+            dagbag = db.DagBag(file_path, include_examples=False)
         except Exception:  # pylint: disable=broad-except
             self.log.exception("Failed at reloading the DAG file %s", file_path)
             Stats.incr('dag_file_refresh_error', 1, 1)
@@ -1463,7 +1463,7 @@ class SchedulerJob(BaseJob):
                     self.log.error(msg)
                     try:
                         simple_dag = simple_dag_bag.get_dag(dag_id)
-                        dagbag = models.DagBag(simple_dag.full_filepath)
+                        dagbag = db.DagBag(simple_dag.full_filepath)
                         dag = dagbag.get_dag(dag_id)
                         ti.task = dag.get_task(task_id)
                         ti.handle_failure(msg)

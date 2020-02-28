@@ -22,15 +22,15 @@ from unittest import mock
 
 from airflow.api.common.experimental.trigger_dag import _trigger_dag
 from airflow.exceptions import AirflowException
-from airflow.models.dag import DAG
 from airflow.models import DagRun
+from airflow.models.dag import DAG
 from airflow.utils import timezone
 
 
 class TestTriggerDag(unittest.TestCase):
 
     @mock.patch('airflow.models.DagRun')
-    @mock.patch('airflow.models.DagBag')
+    @mock.patch('airflow.models.dagbag.DagBag')
     def test_trigger_dag_dag_not_found(self, dag_bag_mock, dag_run_mock):
         dag_bag_mock.dags = []
         self.assertRaises(
@@ -46,7 +46,7 @@ class TestTriggerDag(unittest.TestCase):
         )
 
     @mock.patch('airflow.models.DagRun')
-    @mock.patch('airflow.models.DagBag')
+    @mock.patch('airflow.models.dagbag.DagBag')
     def test_trigger_dag_dag_run_exist(self, dag_bag_mock, dag_run_mock):
         dag_id = "dag_run_exist"
         dag = DAG(dag_id)
@@ -67,7 +67,7 @@ class TestTriggerDag(unittest.TestCase):
 
     @mock.patch('airflow.models.dag.DAG')
     @mock.patch('airflow.models.DagRun')
-    @mock.patch('airflow.models.DagBag')
+    @mock.patch('airflow.models.dagbag.DagBag')
     def test_trigger_dag_include_subdags(self, dag_bag_mock, dag_run_mock, dag_mock):
         dag_id = "trigger_dag"
         dag_bag_mock.dags = [dag_id]
@@ -90,7 +90,7 @@ class TestTriggerDag(unittest.TestCase):
 
         self.assertEqual(3, len(triggers))
 
-    @mock.patch('airflow.models.DagBag')
+    @mock.patch('airflow.models.dagbag.DagBag')
     def test_trigger_dag_with_str_conf(self, dag_bag_mock):
         dag_id = "trigger_dag_with_str_conf"
         dag = DAG(dag_id)
@@ -109,7 +109,7 @@ class TestTriggerDag(unittest.TestCase):
 
         self.assertEqual(triggers[0].conf, json.loads(conf))
 
-    @mock.patch('airflow.models.DagBag')
+    @mock.patch('airflow.models.dagbag.DagBag')
     def test_trigger_dag_with_too_early_start_date(self, dag_bag_mock):
         dag_id = "trigger_dag_with_too_early_start_date"
         dag = DAG(dag_id, default_args={'start_date': timezone.datetime(2016, 9, 5, 10, 10, 0)})
@@ -129,7 +129,7 @@ class TestTriggerDag(unittest.TestCase):
             replace_microseconds=True,
         )
 
-    @mock.patch('airflow.models.DagBag')
+    @mock.patch('airflow.models.dagbag.DagBag')
     def test_trigger_dag_with_valid_start_date(self, dag_bag_mock):
         dag_id = "trigger_dag_with_valid_start_date"
         dag = DAG(dag_id, default_args={'start_date': timezone.datetime(2016, 9, 5, 10, 10, 0)})
@@ -149,7 +149,7 @@ class TestTriggerDag(unittest.TestCase):
 
         assert len(triggers) == 1
 
-    @mock.patch('airflow.models.DagBag')
+    @mock.patch('airflow.models.dagbag.DagBag')
     def test_trigger_dag_with_dict_conf(self, dag_bag_mock):
         dag_id = "trigger_dag_with_dict_conf"
         dag = DAG(dag_id)

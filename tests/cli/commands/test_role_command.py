@@ -23,6 +23,7 @@ from contextlib import redirect_stdout
 from airflow import models
 from airflow.bin import cli
 from airflow.cli.commands import role_command
+from airflow.models.dagbag import DagBag
 from airflow.settings import Session
 
 TEST_USER1_EMAIL = 'test-user1@example.com'
@@ -32,7 +33,7 @@ TEST_USER2_EMAIL = 'test-user2@example.com'
 class TestCliRoles(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.dagbag = models.DagBag(include_examples=True)
+        cls.dagbag = DagBag(include_examples=True)
         cls.parser = cli.CLIFactory.get_parser()
 
     def setUp(self):

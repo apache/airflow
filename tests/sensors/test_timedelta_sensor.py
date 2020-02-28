@@ -18,8 +18,8 @@
 import unittest
 from datetime import timedelta
 
-from airflow.models import DagBag
 from airflow.models.dag import DAG
+from airflow.models.dagbag import DagBag
 from airflow.sensors.time_delta_sensor import TimeDeltaSensor
 from airflow.utils.timezone import datetime
 

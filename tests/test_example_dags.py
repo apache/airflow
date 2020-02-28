@@ -19,7 +19,7 @@ import os
 import unittest
 from glob import glob
 
-from airflow.models import DagBag
+from airflow.models.dagbag import DagBag
 from tests.test_utils.asserts import assert_queries_count
 
 ROOT_FOLDER = os.path.realpath(

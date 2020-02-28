@@ -28,7 +28,8 @@ from tabulate import tabulate
 from airflow.bin import cli
 from airflow.cli.commands import task_command
 from airflow.exceptions import AirflowException
-from airflow.models import DagBag, TaskInstance
+from airflow.models import TaskInstance
+from airflow.models.dagbag import DagBag
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.cli import get_dag

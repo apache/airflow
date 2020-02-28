@@ -18,11 +18,11 @@
 
 import unittest
 
-from airflow.models.dag import DAG, DagModel
-
 from airflow import models
 from airflow.api.common.experimental.delete_dag import delete_dag
 from airflow.exceptions import DagNotFound
+from airflow.models.dag import DAG, DagModel
+from airflow.models.dagbag import DagBag
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
@@ -40,7 +40,7 @@ IE = models.ImportError
 class TestDeleteDAGCatchError(unittest.TestCase):
 
     def setUp(self):
-        self.dagbag = models.DagBag(include_examples=True)
+        self.dagbag = DagBag(include_examples=True)
         self.dag_id = 'example_bash_operator'
         self.dag = self.dagbag.dags[self.dag_id]
 
