@@ -19,7 +19,7 @@
 import unittest
 from unittest.mock import Mock
 
-from airflow.models import TaskInstance
+from airflow.models.taskinstance import TaskInstance
 from airflow.ti_deps.deps.dag_unpaused_dep import DagUnpausedDep
 
 

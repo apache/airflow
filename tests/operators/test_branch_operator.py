@@ -19,9 +19,9 @@
 import datetime
 import unittest
 
-from airflow.models import TaskInstance as TI
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.branch_operator import BaseBranchOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone

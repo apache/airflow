@@ -21,9 +21,9 @@ from datetime import datetime
 from unittest.mock import Mock
 
 from airflow import settings
-from airflow.models import TaskInstance
-from airflow.models.dag import DAG
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone

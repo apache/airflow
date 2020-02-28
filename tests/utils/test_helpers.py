@@ -19,8 +19,8 @@
 import unittest
 from datetime import datetime
 
-from airflow.models import TaskInstance
 from airflow.models.dag import DAG
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import helpers
 from airflow.utils.helpers import merge_dicts

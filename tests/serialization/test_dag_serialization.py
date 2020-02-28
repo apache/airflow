@@ -29,11 +29,11 @@ from dateutil.relativedelta import FR, relativedelta
 from parameterized import parameterized
 
 from airflow.hooks.base_hook import BaseHook
-from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.bash import BashOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.serialization.json_schema import load_dag_schema_dict

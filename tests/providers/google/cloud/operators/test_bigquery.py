@@ -25,10 +25,11 @@ from parameterized import parameterized
 
 from airflow import models
 from airflow.exceptions import AirflowException
-from airflow.models import TaskInstance, XCom
+from airflow.models import XCom
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.taskfail import TaskFail
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator, BigQueryConsoleIndexableLink, BigQueryConsoleLink,
     BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator,
@@ -310,7 +311,7 @@ class TestBigQueryOperator(unittest.TestCase):
 
     def tearDown(self):
         session = Session()
-        session.query(models.TaskInstance).filter_by(
+        session.query(TaskInstance).filter_by(
             dag_id=TEST_DAG_ID).delete()
         session.query(TaskFail).filter_by(
             dag_id=TEST_DAG_ID).delete()

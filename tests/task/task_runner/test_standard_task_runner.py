@@ -24,10 +24,10 @@ from unittest import mock
 
 import psutil
 
-from airflow import models, settings
+from airflow import settings
 from airflow.jobs.local_task_job import LocalTaskJob
-from airflow.models import TaskInstance as TI
 from airflow.models.dagbag import DagBag
+from airflow.models.taskinstance import TaskInstance as TI
 from airflow.task.task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.state import State

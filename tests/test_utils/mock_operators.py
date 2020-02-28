@@ -19,8 +19,8 @@ from typing import FrozenSet, NamedTuple, Optional
 
 import attr
 
-from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils.decorators import apply_defaults
 
 

@@ -45,7 +45,7 @@ from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.pool import Pool
 from airflow.models.slamiss import SlaMiss
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKeyType
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies import SCHEDULED_DEPS
@@ -343,7 +343,7 @@ class DagFileProcessor(LoggingMixin):
             self.log.info("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
 
-        TI = models.TaskInstance
+        TI = TaskInstance
         qry = (
             session
             .query(
@@ -771,7 +771,7 @@ class DagFileProcessor(LoggingMixin):
         :type zombies: List[airflow.models.taskinstance.SimpleTaskInstance]
         :param session: DB session.
         """
-        TI = models.TaskInstance
+        TI = TaskInstance
 
         for zombie in zombies:
             if zombie.dag_id in dagbag.dags:
@@ -856,7 +856,7 @@ class DagFileProcessor(LoggingMixin):
         ti_keys_to_schedule = self._process_dags(dags, session)
 
         # Refresh all task instances that will be scheduled
-        TI = models.TaskInstance
+        TI = TaskInstance
         filter_for_tis = TI.filter_for_tis(ti_keys_to_schedule)
 
         refreshed_tis = []
@@ -1035,12 +1035,12 @@ class SchedulerJob(BaseJob):
         """
         tis_changed = 0
         query = session \
-            .query(models.TaskInstance) \
+            .query(TaskInstance) \
             .outerjoin(DagRun, and_(
-                models.TaskInstance.dag_id == DagRun.dag_id,
-                models.TaskInstance.execution_date == DagRun.execution_date)) \
-            .filter(models.TaskInstance.dag_id.in_(simple_dag_bag.dag_ids)) \
-            .filter(models.TaskInstance.state.in_(old_states)) \
+                TaskInstance.dag_id == DagRun.dag_id,
+                TaskInstance.execution_date == DagRun.execution_date)) \
+            .filter(TaskInstance.dag_id.in_(simple_dag_bag.dag_ids)) \
+            .filter(TaskInstance.state.in_(old_states)) \
             .filter(or_(
                 DagRun.state != State.RUNNING,
                 DagRun.state.is_(None)))  # pylint: disable=no-member
@@ -1056,13 +1056,13 @@ class SchedulerJob(BaseJob):
         else:
             subq = query.subquery()
             tis_changed = session \
-                .query(models.TaskInstance) \
+                .query(TaskInstance) \
                 .filter(and_(
-                    models.TaskInstance.dag_id == subq.c.dag_id,
-                    models.TaskInstance.task_id == subq.c.task_id,
-                    models.TaskInstance.execution_date ==
+                    TaskInstance.dag_id == subq.c.dag_id,
+                    TaskInstance.task_id == subq.c.task_id,
+                    TaskInstance.execution_date ==
                     subq.c.execution_date)) \
-                .update({models.TaskInstance.state: new_state}, synchronize_session=False)
+                .update({TaskInstance.state: new_state}, synchronize_session=False)
             session.commit()
 
         if tis_changed > 0:
@@ -1084,7 +1084,7 @@ class SchedulerJob(BaseJob):
         :rtype: dict[tuple[str, str], int]
 
         """
-        TI = models.TaskInstance
+        TI = TaskInstance
         ti_concurrency_query = (
             session
             .query(TI.task_id, TI.dag_id, func.count('*'))
@@ -1109,14 +1109,14 @@ class SchedulerJob(BaseJob):
         :param simple_dag_bag: TaskInstances associated with DAGs in the
             simple_dag_bag will be fetched from the DB and executed
         :type simple_dag_bag: airflow.utils.dag_processing.SimpleDagBag
-        :return: list[airflow.models.TaskInstance]
+        :return: list[airflow.models.taskinstance.TaskInstance]
         """
         executable_tis = []
 
         # Get all task instances associated with scheduled
         # DagRuns which are not backfilled, in the given states,
         # and the dag is not paused
-        TI = models.TaskInstance
+        TI = TaskInstance
         DR = DagRun
         DM = DagModel
         task_instances_to_examine = (
@@ -1271,14 +1271,14 @@ class SchedulerJob(BaseJob):
         to QUEUED atomically, and returns the TIs changed in SimpleTaskInstance format.
 
         :param task_instances: TaskInstances to change the state of
-        :type task_instances: list[airflow.models.TaskInstance]
+        :type task_instances: list[airflow.models.taskinstance.TaskInstance]
         :rtype: list[airflow.models.taskinstance.SimpleTaskInstance]
         """
         if len(task_instances) == 0:
             session.commit()
             return []
 
-        TI = models.TaskInstance
+        TI = TaskInstance
 
         tis_to_set_to_queued = (
             session
@@ -1321,7 +1321,7 @@ class SchedulerJob(BaseJob):
         :param simple_dag_bag: Should contains all of the task_instances' dags
         :type simple_dag_bag: airflow.utils.dag_processing.SimpleDagBag
         """
-        TI = models.TaskInstance
+        TI = TaskInstance
         # actually enqueue them
         for simple_task_instance in simple_task_instances:
             simple_dag = simple_dag_bag.get_dag(simple_task_instance.dag_id)
@@ -1394,7 +1394,7 @@ class SchedulerJob(BaseJob):
         :param session: session for ORM operations
         """
         if self.executor.queued_tasks:
-            TI = models.TaskInstance
+            TI = TaskInstance
             filter_for_ti_state_change = (
                 [and_(
                     TI.dag_id == dag_id,
@@ -1437,7 +1437,7 @@ class SchedulerJob(BaseJob):
         """
         # TODO: this shares quite a lot of code with _manage_executor_state
 
-        TI = models.TaskInstance
+        TI = TaskInstance
         # pylint: disable=too-many-nested-blocks
         for key, state in list(self.executor.get_event_buffer(simple_dag_bag.dag_ids)
                                    .items()):

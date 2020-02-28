@@ -60,7 +60,7 @@ class DepContext:
     :param ignore_ti_state: Ignore the task instance's previous failure/success
     :type ignore_ti_state: bool
     :param finished_tasks: A list of all the finished tasks of this run
-    :type finished_tasks: list[airflow.models.TaskInstance]
+    :type finished_tasks: list[airflow.models.taskinstance.TaskInstance]
     """
     def __init__(
             self,
@@ -93,7 +93,7 @@ class DepContext:
         :param execution_date: The execution_date to look for
         :param session: Database session to use
         :return: A list of all the finished tasks of this DAG and execution_date
-        :rtype: list[airflow.models.TaskInstance]
+        :rtype: list[airflow.models.taskinstance.TaskInstance]
         """
         if self.finished_tasks is None:
             self.finished_tasks = dag.get_task_instances(

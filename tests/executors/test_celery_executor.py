@@ -34,9 +34,8 @@ from parameterized import parameterized
 
 from airflow.configuration import conf
 from airflow.executors import celery_executor
-from airflow.models import TaskInstance
 from airflow.models.dag import DAG
-from airflow.models.taskinstance import SimpleTaskInstance
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.operators.bash import BashOperator
 from airflow.utils.state import State
 

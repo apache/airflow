@@ -17,7 +17,7 @@
 # under the License.
 """Task APIs.."""
 from airflow.api.common.experimental import check_and_get_dag
-from airflow.models import TaskInstance
+from airflow.models.taskinstance import TaskInstance
 
 
 def get_task(dag_id: str, task_id: str) -> TaskInstance:

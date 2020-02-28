@@ -28,9 +28,8 @@ from unittest.mock import MagicMock, PropertyMock
 from airflow.configuration import conf
 from airflow.jobs.local_task_job import LocalTaskJob as LJ
 from airflow.jobs.scheduler_job import DagFileProcessorProcess
-from airflow.models import TaskInstance as TI
 from airflow.models.dagbag import DagBag
-from airflow.models.taskinstance import SimpleTaskInstance
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance as TI
 from airflow.utils import timezone
 from airflow.utils.dag_processing import DagFileProcessorAgent, DagFileProcessorManager, DagFileStat
 from airflow.utils.file import correct_maybe_zipped

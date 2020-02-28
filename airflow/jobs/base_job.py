@@ -30,6 +30,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.base import ID_LEN, Base
+from airflow.models.taskinstance import TaskInstance
 from airflow.stats import Stats
 from airflow.utils import helpers, timezone
 from airflow.utils.helpers import convert_camel_to_snake
@@ -252,14 +253,14 @@ class BaseJob(Base, LoggingMixin):
         :param filter_by_dag_run: the dag_run we want to process, None if all
         :type filter_by_dag_run: airflow.models.dagrun.DagRun
         :return: the TIs reset (in expired SQLAlchemy state)
-        :rtype: list[airflow.models.TaskInstance]
+        :rtype: list[airflow.models.taskinstance.TaskInstance]
         """
         queued_tis = self.executor.queued_tasks
         # also consider running as the state might not have changed in the db yet
         running_tis = self.executor.running
 
         resettable_states = [State.SCHEDULED, State.QUEUED]
-        TI = models.TaskInstance
+        TI = TaskInstance
         DR = models.dagrun.DagRun
         if filter_by_dag_run is None:
             resettable_tis = (

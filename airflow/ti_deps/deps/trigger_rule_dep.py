@@ -40,9 +40,9 @@ class TriggerRuleDep(BaseTIDep):
         whether this ti can run in this iteration
 
         :param ti: the ti that we want to calculate deps for
-        :type ti: airflow.models.TaskInstance
+        :type ti: airflow.models.taskinstance.TaskInstance
         :param finished_tasks: all the finished tasks of the dag_run
-        :type finished_tasks: list[airflow.models.TaskInstance]
+        :type finished_tasks: list[airflow.models.taskinstance.TaskInstance]
         """
         counter = Counter(task.state for task in finished_tasks if task.task_id in ti.task.upstream_task_ids)
         return counter.get(State.SUCCESS, 0), counter.get(State.SKIPPED, 0), counter.get(State.FAILED, 0), \
@@ -91,7 +91,7 @@ class TriggerRuleDep(BaseTIDep):
         rule was met.
 
         :param ti: the task instance to evaluate the trigger rule of
-        :type ti: airflow.models.TaskInstance
+        :type ti: airflow.models.taskinstance.TaskInstance
         :param successes: Number of successful upstream tasks
         :type successes: int
         :param skipped: Number of skipped upstream tasks

@@ -21,7 +21,7 @@ import unittest
 from unittest import mock
 
 from airflow.configuration import conf
-from airflow.models import TaskInstance
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.utils import timezone
 from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment

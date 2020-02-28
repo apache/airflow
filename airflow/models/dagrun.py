@@ -284,7 +284,7 @@ class DagRun(Base, LoggingMixin):
         of its TaskInstances.
 
         :return: ready_tis: the tis that can be scheduled in the current loop
-        :rtype ready_tis: list[airflow.models.TaskInstance]
+        :rtype ready_tis: list[airflow.models.taskinstance.TaskInstance]
         """
 
         dag = self.get_dag()

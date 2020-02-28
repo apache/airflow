@@ -71,7 +71,7 @@ class TaskReschedule(Base):
         :param session: the database session object
         :type session: sqlalchemy.orm.session.Session
         :param task_instance: the task instance to find task reschedules for
-        :type task_instance: airflow.models.TaskInstance
+        :type task_instance: airflow.models.taskinstance.TaskInstance
         """
         TR = TaskReschedule
         return (

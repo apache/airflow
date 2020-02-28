@@ -25,6 +25,7 @@ import click
 
 from airflow.models.dagrun import DagRun
 from airflow.models.taskfail import TaskFail
+from airflow.models.taskinstance import TaskInstance
 
 MAX_DAG_RUNS_ALLOWED = 1
 
@@ -85,12 +86,11 @@ def get_executor_under_test():
 
 
 def reset_dag(dag, session):
-    import airflow.models
     from airflow.models.dag import DagModel
 
     DR = DagRun
     DM = DagModel
-    TI = airflow.models.TaskInstance
+    TI = TaskInstance
     TF = TaskFail
     dag_id = dag.dag_id
 

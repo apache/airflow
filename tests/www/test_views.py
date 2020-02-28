@@ -43,13 +43,13 @@ from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONF
 from airflow.configuration import conf
 from airflow.executors.celery_executor import CeleryExecutor
 from airflow.jobs.base_job import BaseJob
-from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.pool import Pool
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.ti_deps.dependencies import QUEUEABLE_STATES, RUNNABLE_STATES
@@ -639,8 +639,8 @@ class TestAirflowBaseViews(TestBase):
         task_id = 'runme_0'
 
         for state in RUNNABLE_STATES:
-            self.session.query(models.TaskInstance) \
-                .filter(models.TaskInstance.task_id == task_id) \
+            self.session.query(TaskInstance) \
+                .filter(TaskInstance.task_id == task_id) \
                 .update({'state': state, 'end_date': timezone.utcnow()})
             self.session.commit()
 
@@ -669,8 +669,8 @@ class TestAirflowBaseViews(TestBase):
         for state in QUEUEABLE_STATES:
             self.assertFalse(state in RUNNABLE_STATES)
 
-            self.session.query(models.TaskInstance) \
-                .filter(models.TaskInstance.task_id == task_id) \
+            self.session.query(TaskInstance) \
+                .filter(TaskInstance.task_id == task_id) \
                 .update({'state': state, 'end_date': timezone.utcnow()})
             self.session.commit()
 

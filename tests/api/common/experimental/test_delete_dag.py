@@ -34,7 +34,7 @@ from airflow.utils.state import State
 
 DM = DagModel
 DR = DagRun
-TI = models.TaskInstance
+TI = TaskInstance
 LOG = Log
 TF = TaskFail
 TR = models.taskreschedule.TaskReschedule

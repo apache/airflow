@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow models"""
-from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom

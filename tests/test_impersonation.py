@@ -29,6 +29,7 @@ from copy import deepcopy
 from airflow import models
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.models.dagbag import DagBag
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils.db import add_default_pool_if_not_exists
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
@@ -136,7 +137,7 @@ class TestImpersonation(unittest.TestCase):
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE).run()
 
-        ti = models.TaskInstance(
+        ti = TaskInstance(
             task=dag.get_task(task_id),
             execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
@@ -213,7 +214,7 @@ class TestImpersonationWithCustomPythonPath(unittest.TestCase):
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE).run()
 
-        ti = models.TaskInstance(
+        ti = TaskInstance(
             task=dag.get_task(task_id),
             execution_date=DEFAULT_DATE)
         ti.refresh_from_db()

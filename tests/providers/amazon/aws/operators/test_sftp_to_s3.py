@@ -21,8 +21,8 @@ import unittest
 import boto3
 from moto import mock_s3
 
-from airflow.models import TaskInstance
 from airflow.models.dag import DAG
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.sftp_to_s3 import SFTPToS3Operator
 from airflow.providers.ssh.hooks.ssh import SSHHook

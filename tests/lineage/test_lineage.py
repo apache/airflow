@@ -20,7 +20,7 @@ import unittest
 from airflow.lineage import AUTO
 from airflow.lineage.entities import File
 from airflow.models.dag import DAG
-from airflow.models import TaskInstance as TI
+from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 

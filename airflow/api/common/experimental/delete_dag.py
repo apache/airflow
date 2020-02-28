@@ -27,6 +27,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
+from airflow.models.taskinstance import TaskInstance
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.utils.session import provide_session
 
@@ -64,7 +65,7 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
             count += session.query(model).filter(cond).delete(synchronize_session='fetch')
     if dag.is_subdag:
         parent_dag_id, task_id = dag_id.rsplit(".", 1)
-        for model in DagRun, TaskFail, models.TaskInstance:
+        for model in DagRun, TaskFail, TaskInstance:
             count += session.query(model).filter(model.dag_id == parent_dag_id,
                                                  model.task_id == task_id).delete()
 

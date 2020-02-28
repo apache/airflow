@@ -21,8 +21,7 @@ from collections import OrderedDict
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from airflow.configuration import conf
-from airflow.models import TaskInstance
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKeyType
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State

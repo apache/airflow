@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, Mock
 from freezegun import freeze_time
 from sentry_sdk import configure_scope
 
-from airflow.models import TaskInstance
+from airflow.models.taskinstance import TaskInstance
 from airflow.sentry import ConfiguredSentry
 from airflow.settings import Session
 from airflow.utils import timezone

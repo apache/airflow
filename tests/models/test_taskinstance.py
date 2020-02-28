@@ -33,11 +33,12 @@ from sqlalchemy.orm.session import Session
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.models import TaskInstance as TI, TaskReschedule, Variable
+from airflow.models import TaskReschedule, Variable
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.pool import Pool
 from airflow.models.taskfail import TaskFail
+from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
@@ -92,7 +93,7 @@ class TestTaskInstance(unittest.TestCase):
         with create_session() as session:
             session.query(TaskFail).delete()
             session.query(TaskReschedule).delete()
-            session.query(models.TaskInstance).delete()
+            session.query(TaskInstance).delete()
             session.query(DagRun).delete()
 
     def test_set_task_dates(self):

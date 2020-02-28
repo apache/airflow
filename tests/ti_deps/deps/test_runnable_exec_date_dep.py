@@ -21,8 +21,9 @@ from unittest.mock import Mock
 
 import pytest
 from freezegun import freeze_time
+
 from airflow.models.dag import DAG
-from airflow.models import TaskInstance
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
 from airflow.utils.timezone import datetime

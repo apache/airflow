@@ -27,7 +27,7 @@ from google.cloud.logging.handlers.transports import BackgroundThreadTransport, 
 from google.cloud.logging.resource import Resource
 
 from airflow import version
-from airflow.models import TaskInstance
+from airflow.models.taskinstance import TaskInstance
 
 DEFAULT_LOGGER_NAME = "airflow"
 _GLOBAL_RESOURCE = Resource(type="global", labels={})

@@ -23,9 +23,9 @@ from typing import Iterable
 from sqlalchemy import or_
 
 from airflow.jobs.backfill_job import BackfillJob
-from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.session import provide_session

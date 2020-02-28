@@ -24,9 +24,9 @@ import pandas as pd
 from airflow import settings
 from airflow.configuration import conf
 from airflow.jobs.scheduler_job import SchedulerJob
-from airflow.models import TaskInstance
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.state import State
 

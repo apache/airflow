@@ -26,8 +26,8 @@ import elasticsearch
 import pendulum
 
 from airflow.configuration import conf
-from airflow.models import TaskInstance
 from airflow.models.dag import DAG
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.log.es_task_handler import ElasticsearchTaskHandler

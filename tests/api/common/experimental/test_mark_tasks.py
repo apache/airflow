@@ -29,6 +29,7 @@ from airflow.api.common.experimental.mark_tasks import (
 )
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session, provide_session
@@ -85,7 +86,7 @@ class TestMarkTasks(unittest.TestCase):
 
     @staticmethod
     def snapshot_state(dag, execution_dates):
-        TI = models.TaskInstance
+        TI = TaskInstance
         with create_session() as session:
             return session.query(TI).filter(
                 TI.dag_id == dag.dag_id,
@@ -94,7 +95,7 @@ class TestMarkTasks(unittest.TestCase):
 
     @provide_session
     def verify_state(self, dag, task_ids, execution_dates, state, old_tis, session=None):
-        TI = models.TaskInstance
+        TI = TaskInstance
 
         tis = session.query(TI).filter(
             TI.dag_id == dag.dag_id,
@@ -315,7 +316,7 @@ class TestMarkDAGRun(unittest.TestCase):
 
     @provide_session
     def _verify_task_instance_states(self, dag, date, state, session=None):
-        TI = models.TaskInstance
+        TI = TaskInstance
         tis = session.query(TI)\
             .filter(TI.dag_id == dag.dag_id, TI.execution_date == date)
         for ti in tis:
@@ -592,7 +593,7 @@ class TestMarkDAGRun(unittest.TestCase):
 
         with create_session() as session:
             session.query(DagRun).delete()
-            session.query(models.TaskInstance).delete()
+            session.query(TaskInstance).delete()
 
 
 if __name__ == '__main__':

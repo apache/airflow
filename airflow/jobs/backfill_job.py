@@ -72,9 +72,9 @@ class BackfillJob(BaseJob):
         it easier to pass it around.
 
         :param to_run: Tasks to run in the backfill
-        :type to_run: dict[tuple[TaskInstanceKeyType], airflow.models.TaskInstance]
+        :type to_run: dict[tuple[TaskInstanceKeyType], airflow.models.taskinstance.TaskInstance]
         :param running: Maps running task instance key to task instance object
-        :type running: dict[tuple[TaskInstanceKeyType], airflow.models.TaskInstance]
+        :type running: dict[tuple[TaskInstanceKeyType], airflow.models.taskinstance.TaskInstance]
         :param skipped: Tasks that have been skipped
         :type skipped: set[tuple[TaskInstanceKeyType]]
         :param succeeded: Tasks that have succeeded so far
@@ -84,7 +84,7 @@ class BackfillJob(BaseJob):
         :param not_ready: Tasks not ready for execution
         :type not_ready: set[tuple[TaskInstanceKeyType]]
         :param deadlocked: Deadlocked tasks
-        :type deadlocked: set[airflow.models.TaskInstance]
+        :type deadlocked: set[airflow.models.taskinstance.TaskInstance]
         :param active_runs: Active dag runs at a certain point in time
         :type active_runs: list[DagRun]
         :param executed_dag_run_dates: Datetime objects for the executed dag runs

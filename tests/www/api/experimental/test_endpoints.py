@@ -26,11 +26,11 @@ from parameterized import parameterized_class
 
 from airflow import settings
 from airflow.api.common.experimental.trigger_dag import trigger_dag
-from airflow.models import TaskInstance
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskinstance import TaskInstance
 from airflow.settings import Session
 from airflow.utils.timezone import datetime, parse as parse_datetime, utcnow
 from airflow.version import version

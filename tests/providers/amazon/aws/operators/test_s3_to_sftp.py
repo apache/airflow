@@ -23,7 +23,7 @@ from moto import mock_s3
 
 from airflow.configuration import conf
 from airflow.models.dag import DAG
-from airflow.models import TaskInstance
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.amazon.aws.operators.s3_to_sftp import S3ToSFTPOperator
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils import timezone

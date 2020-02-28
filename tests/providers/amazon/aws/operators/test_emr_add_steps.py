@@ -21,8 +21,8 @@ from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 from airflow.exceptions import AirflowException
-from airflow.models import TaskInstance
 from airflow.models.dag import DAG
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.providers.amazon.aws.operators.emr_add_steps import EmrAddStepsOperator
 from airflow.utils import timezone

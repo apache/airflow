@@ -22,7 +22,7 @@ import unittest
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.configuration import conf
 from airflow.models.dag import DAG
-from airflow.models import TaskInstance
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.timezone import datetime
