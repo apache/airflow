@@ -128,7 +128,7 @@ class TestDag(unittest.TestCase):
             dag_id='test-default_default_view'
         )
         self.assertEqual(conf.get('webserver', 'dag_default_view').lower(),
-                         dag._default_view)
+                         dag.default_view)
 
     def test_dag_invalid_orientation(self):
         """

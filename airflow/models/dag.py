@@ -1512,7 +1512,7 @@ class DAG(BaseDag, LoggingMixin):
                 orm_dag.owners = dag.owner
             orm_dag.is_active = True
             orm_dag.last_scheduler_run = sync_time
-            orm_dag.default_view = dag._default_view
+            orm_dag.default_view = dag.default_view
             orm_dag.description = dag.description
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.tags = dag.get_dagtags(session=session)
