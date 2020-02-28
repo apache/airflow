@@ -282,7 +282,7 @@ def dag_run_status(dag_id, execution_date):
 @requires_authentication
 def latest_dag_runs():
     """Returns the latest DagRun for each DAG formatted for the UI. """
-    from airflow.models import DagRun
+    from airflow.models.dagrun import DagRun
     dagruns = DagRun.get_latest_runs()
     payload = []
     for dagrun in dagruns:

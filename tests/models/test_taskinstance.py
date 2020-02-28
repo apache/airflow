@@ -26,7 +26,6 @@ from unittest.mock import mock_open, patch
 
 import pendulum
 import pytest
-from airflow.models.xcom import XCOM_RETURN_KEY
 from freezegun import freeze_time
 from parameterized import param, parameterized
 from sqlalchemy.orm.session import Session
@@ -34,8 +33,10 @@ from sqlalchemy.orm.session import Session
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.models import Pool, TaskFail, TaskInstance as TI, TaskReschedule, Variable
 from airflow.models.dag import DAG
-from airflow.models import DagRun, Pool, TaskFail, TaskInstance as TI, TaskReschedule, Variable
+from airflow.models.dagrun import DagRun
+from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import PythonOperator
@@ -90,7 +91,7 @@ class TestTaskInstance(unittest.TestCase):
             session.query(TaskFail).delete()
             session.query(TaskReschedule).delete()
             session.query(models.TaskInstance).delete()
-            session.query(models.DagRun).delete()
+            session.query(DagRun).delete()
 
     def test_set_task_dates(self):
         """

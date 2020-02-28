@@ -23,8 +23,9 @@ from typing import Optional, Union
 from sqlalchemy import func
 
 from airflow.exceptions import AirflowException
-from airflow.models import DagRun, TaskInstance
+from airflow.models import TaskInstance
 from airflow.models.dag import DagModel
+from airflow.models.dagrun import DagRun
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults

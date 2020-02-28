@@ -22,7 +22,6 @@ from collections import OrderedDict
 from datetime import datetime
 from typing import Set
 
-from airflow.models.dag import DAG
 from sqlalchemy.orm.session import Session, make_transient
 from tabulate import tabulate
 
@@ -34,6 +33,7 @@ from airflow.exceptions import (
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
+from airflow.models.dag import DAG
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKeyType
@@ -343,7 +343,7 @@ class BackfillJob(BaseJob):
         run in the given dag run.
 
         :param dag_run: the dag run to get the tasks from
-        :type dag_run: airflow.models.DagRun
+        :type dag_run: airflow.models.dagrun.DagRun
         :param session: the database session object
         :type session: sqlalchemy.orm.session.Session
         """

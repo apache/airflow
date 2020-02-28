@@ -43,11 +43,12 @@ from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONF
 from airflow.configuration import conf
 from airflow.executors.celery_executor import CeleryExecutor
 from airflow.jobs.base_job import BaseJob
-from airflow.models import DagRun, TaskInstance
+from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
+from airflow.models.dagrun import DagRun
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.ti_deps.dependencies import QUEUEABLE_STATES, RUNNABLE_STATES
@@ -324,7 +325,7 @@ class TestMountPoint(unittest.TestCase):
 
 class TestAirflowBaseViews(TestBase):
     EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
-    run_id = "test_{}".format(models.DagRun.id_for_date(EXAMPLE_DAG_DEFAULT_DATE))
+    run_id = "test_{}".format(DagRun.id_for_date(EXAMPLE_DAG_DEFAULT_DATE))
 
     @classmethod
     def setUpClass(cls):
@@ -1215,7 +1216,7 @@ class TestDagACLView(TestBase):
     """
     next_year = dt.now().year + 1
     default_date = timezone.datetime(next_year, 6, 1)
-    run_id = "test_{}".format(models.DagRun.id_for_date(default_date))
+    run_id = "test_{}".format(DagRun.id_for_date(default_date))
 
     @classmethod
     def setUpClass(cls):
@@ -1898,7 +1899,7 @@ class TestTriggerDag(TestBase):
 
         test_dag_id = "example_bash_operator"
 
-        DR = models.DagRun
+        DR = DagRun
         self.session.query(DR).delete()
         self.session.commit()
 
@@ -1914,7 +1915,7 @@ class TestTriggerDag(TestBase):
         test_dag_id = "example_bash_operator"
         conf_dict = {'string': 'Hello, World!'}
 
-        DR = models.DagRun
+        DR = DagRun
         self.session.query(DR).delete()
         self.session.commit()
 
@@ -1929,7 +1930,7 @@ class TestTriggerDag(TestBase):
     def test_trigger_dag_conf_malformed(self):
         test_dag_id = "example_bash_operator"
 
-        DR = models.DagRun
+        DR = DagRun
         self.session.query(DR).delete()
         self.session.commit()
 
@@ -2170,10 +2171,10 @@ class TestDagRunModelView(TestBase):
     def setUpClass(cls):
         super().setUpClass()
         DagBag().get_dag("example_bash_operator").sync_to_db(session=cls.session)
-        cls.clear_table(models.DagRun)
+        cls.clear_table(DagRun)
 
     def tearDown(self):
-        self.clear_table(models.DagRun)
+        self.clear_table(DagRun)
 
     def test_create_dagrun(self):
         data = {
@@ -2187,7 +2188,7 @@ class TestDagRunModelView(TestBase):
                                 follow_redirects=True)
         self.check_content_in_response('Added Row', resp)
 
-        dr = self.session.query(models.DagRun).one()
+        dr = self.session.query(DagRun).one()
 
         self.assertEqual(dr.execution_date, timezone.convert_to_utc(datetime(2018, 7, 6, 5, 4, 3)))
 
@@ -2205,7 +2206,7 @@ class TestDagRunModelView(TestBase):
                                 data=data,
                                 follow_redirects=True)
         self.check_content_in_response('Added Row', resp)
-        dr = self.session.query(models.DagRun).one()
+        dr = self.session.query(DagRun).one()
         self.assertEqual(dr.conf, conf_value)
 
     def test_create_dagrun_invalid_conf(self):
@@ -2221,13 +2222,13 @@ class TestDagRunModelView(TestBase):
                                 data=data,
                                 follow_redirects=True)
         self.check_content_in_response('JSON Validation Error:', resp)
-        dr = self.session.query(models.DagRun).all()
+        dr = self.session.query(DagRun).all()
         self.assertFalse(dr)
 
 
 class TestDecorators(TestBase):
     EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
-    run_id = "test_{}".format(models.DagRun.id_for_date(EXAMPLE_DAG_DEFAULT_DATE))
+    run_id = "test_{}".format(DagRun.id_for_date(EXAMPLE_DAG_DEFAULT_DATE))
 
     @classmethod
     def setUpClass(cls):

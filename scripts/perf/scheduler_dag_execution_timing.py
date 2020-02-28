@@ -23,6 +23,8 @@ import time
 
 import click
 
+from airflow.models.dagrun import DagRun
+
 MAX_DAG_RUNS_ALLOWED = 1
 
 
@@ -46,10 +48,9 @@ class ShortCircutExecutorMixin:
         if run_key in self.stop_when_these_completed:
 
             if self.stop_when_these_completed[run_key] is None:
-                import airflow.models
 
                 # We are interested in this run, but don't yet have the record for it.
-                run = airflow.models.DagRun.find(dag_id=dag_id, execution_date=execution_date)[0]
+                run = DagRun.find(dag_id=dag_id, execution_date=execution_date)[0]
                 self.stop_when_these_completed[run_key] = run
             else:
                 run = self.stop_when_these_completed[run_key]
@@ -86,7 +87,7 @@ def reset_dag(dag, session):
     import airflow.models
     from airflow.models.dag import DagModel
 
-    DR = airflow.models.DagRun
+    DR = DagRun
     DM = DagModel
     TI = airflow.models.TaskInstance
     TF = airflow.models.TaskFail

@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Optional
 from flask import url_for
 
 from airflow.api.common.experimental import check_and_get_dag
-from airflow.models import DagRun
+from airflow.models.dagrun import DagRun
 
 
 def get_dag_runs(dag_id: str, state: Optional[str] = None) -> List[Dict[str, Any]]:

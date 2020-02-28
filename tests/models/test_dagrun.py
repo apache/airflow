@@ -21,8 +21,8 @@ import unittest
 
 from airflow import models, settings
 from airflow.models.dag import DAG
-from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.utils import timezone
@@ -87,7 +87,7 @@ class TestDagRun(unittest.TestCase):
         self.assertEqual(dr0.state, State.RUNNING)
 
     def test_id_for_date(self):
-        run_id = models.DagRun.id_for_date(
+        run_id = DagRun.id_for_date(
             timezone.datetime(2015, 1, 2, 3, 4, 5, 6))
         self.assertEqual(
             'scheduled__2015-01-02T03:04:05', run_id,
@@ -98,7 +98,7 @@ class TestDagRun(unittest.TestCase):
         now = timezone.utcnow()
 
         dag_id1 = "test_dagrun_find_externally_triggered"
-        dag_run = models.DagRun(
+        dag_run = DagRun(
             dag_id=dag_id1,
             run_id='manual__' + now.isoformat(),
             execution_date=now,
@@ -109,7 +109,7 @@ class TestDagRun(unittest.TestCase):
         session.add(dag_run)
 
         dag_id2 = "test_dagrun_find_not_externally_triggered"
-        dag_run = models.DagRun(
+        dag_run = DagRun(
             dag_id=dag_id2,
             run_id='manual__' + now.isoformat(),
             execution_date=now,
@@ -122,13 +122,13 @@ class TestDagRun(unittest.TestCase):
         session.commit()
 
         self.assertEqual(1,
-                         len(models.DagRun.find(dag_id=dag_id1, external_trigger=True)))
+                         len(DagRun.find(dag_id=dag_id1, external_trigger=True)))
         self.assertEqual(0,
-                         len(models.DagRun.find(dag_id=dag_id1, external_trigger=False)))
+                         len(DagRun.find(dag_id=dag_id1, external_trigger=False)))
         self.assertEqual(0,
-                         len(models.DagRun.find(dag_id=dag_id2, external_trigger=True)))
+                         len(DagRun.find(dag_id=dag_id2, external_trigger=True)))
         self.assertEqual(1,
-                         len(models.DagRun.find(dag_id=dag_id2, external_trigger=False)))
+                         len(DagRun.find(dag_id=dag_id2, external_trigger=False)))
 
     def test_dagrun_success_when_all_skipped(self):
         """
@@ -493,7 +493,7 @@ class TestDagRun(unittest.TestCase):
 
         # Don't use create_dagrun since it will create the task instances too which we
         # don't want
-        dag_run = models.DagRun(
+        dag_run = DagRun(
             dag_id=dag.dag_id,
             run_id='manual__' + now.isoformat(),
             execution_date=now,
@@ -514,7 +514,7 @@ class TestDagRun(unittest.TestCase):
             start_date=DEFAULT_DATE)
         self.create_dag_run(dag, execution_date=timezone.datetime(2015, 1, 1))
         self.create_dag_run(dag, execution_date=timezone.datetime(2015, 1, 2))
-        dagruns = models.DagRun.get_latest_runs(session)
+        dagruns = DagRun.get_latest_runs(session)
         session.close()
         for dagrun in dagruns:
             if dagrun.dag_id == 'test_latest_runs_1':

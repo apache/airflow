@@ -20,9 +20,9 @@ from datetime import datetime
 from typing import Optional
 
 from airflow.exceptions import DagNotFound, DagRunNotFound, TaskNotFound
-from airflow.models import DagRun
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
+from airflow.models.dagrun import DagRun
 
 
 def check_and_get_dag(dag_id: str, task_id: Optional[str] = None) -> DagModel:

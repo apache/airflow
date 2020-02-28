@@ -22,14 +22,14 @@ from unittest import mock
 
 from airflow.api.common.experimental.trigger_dag import _trigger_dag
 from airflow.exceptions import AirflowException
-from airflow.models import DagRun
 from airflow.models.dag import DAG
+from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
 
 
 class TestTriggerDag(unittest.TestCase):
 
-    @mock.patch('airflow.models.DagRun')
+    @mock.patch('airflow.models.dagrun.DagRun')
     @mock.patch('airflow.models.dagbag.DagBag')
     def test_trigger_dag_dag_not_found(self, dag_bag_mock, dag_run_mock):
         dag_bag_mock.dags = []
@@ -45,7 +45,7 @@ class TestTriggerDag(unittest.TestCase):
             replace_microseconds=True,
         )
 
-    @mock.patch('airflow.models.DagRun')
+    @mock.patch('airflow.models.dagrun.DagRun')
     @mock.patch('airflow.models.dagbag.DagBag')
     def test_trigger_dag_dag_run_exist(self, dag_bag_mock, dag_run_mock):
         dag_id = "dag_run_exist"
@@ -66,7 +66,7 @@ class TestTriggerDag(unittest.TestCase):
         )
 
     @mock.patch('airflow.models.dag.DAG')
-    @mock.patch('airflow.models.DagRun')
+    @mock.patch('airflow.models.dagrun.DagRun')
     @mock.patch('airflow.models.dagbag.DagBag')
     def test_trigger_dag_include_subdags(self, dag_bag_mock, dag_run_mock, dag_mock):
         dag_id = "trigger_dag"

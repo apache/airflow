@@ -27,8 +27,8 @@ from airflow.api.common.experimental.mark_tasks import (
     _create_dagruns, set_dag_run_state_to_failed, set_dag_run_state_to_running, set_dag_run_state_to_success,
     set_state,
 )
-from airflow.models import DagRun
 from airflow.models.dagbag import DagBag
+from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session, provide_session
@@ -329,7 +329,7 @@ class TestMarkDAGRun(unittest.TestCase):
         )
 
     def _verify_dag_run_state(self, dag, date, state):
-        drs = models.DagRun.find(dag_id=dag.dag_id, execution_date=date)
+        drs = DagRun.find(dag_id=dag.dag_id, execution_date=date)
         dr = drs[0]
 
         self.assertEqual(dr.get_state(), state)
@@ -541,10 +541,10 @@ class TestMarkDAGRun(unittest.TestCase):
         self._verify_dag_run_state(self.dag2, self.execution_dates[1], State.SUCCESS)
 
         # Make sure other dag status are not changed
-        models.DagRun.find(dag_id=self.dag2.dag_id,
+        DagRun.find(dag_id=self.dag2.dag_id,
                            execution_date=self.execution_dates[0])
         self._verify_dag_run_state(self.dag2, self.execution_dates[0], State.FAILED)
-        models.DagRun.find(dag_id=self.dag2.dag_id,
+        DagRun.find(dag_id=self.dag2.dag_id,
                            execution_date=self.execution_dates[2])
         self._verify_dag_run_state(self.dag2, self.execution_dates[2], State.RUNNING)
 
@@ -591,7 +591,7 @@ class TestMarkDAGRun(unittest.TestCase):
         self.dag2.clear()
 
         with create_session() as session:
-            session.query(models.DagRun).delete()
+            session.query(DagRun).delete()
             session.query(models.TaskInstance).delete()
 
 

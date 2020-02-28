@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow models"""
-from airflow.models.dagrun import DagRun
 from airflow.models.errors import ImportError  # pylint: disable=redefined-builtin
 from airflow.models.log import Log
 from airflow.models.pool import Pool

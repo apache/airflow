@@ -37,9 +37,10 @@ from airflow import models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowDagCycleException, AirflowException, DuplicateTaskIdFound
 from airflow.jobs.scheduler_job import DagFileProcessor
-from airflow.models.dag import DAG, DagModel
-from airflow.models import DagRun, TaskFail, TaskInstance as TI
+from airflow.models import TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG, DagModel
+from airflow.models.dagrun import DagRun
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator

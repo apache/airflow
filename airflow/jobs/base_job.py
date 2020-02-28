@@ -250,7 +250,7 @@ class BaseJob(Base, LoggingMixin):
         sequence.
 
         :param filter_by_dag_run: the dag_run we want to process, None if all
-        :type filter_by_dag_run: airflow.models.DagRun
+        :type filter_by_dag_run: airflow.models.dagrun.DagRun
         :return: the TIs reset (in expired SQLAlchemy state)
         :rtype: list[airflow.models.TaskInstance]
         """
@@ -260,7 +260,7 @@ class BaseJob(Base, LoggingMixin):
 
         resettable_states = [State.SCHEDULED, State.QUEUED]
         TI = models.TaskInstance
-        DR = models.DagRun
+        DR = models.dagrun.DagRun
         if filter_by_dag_run is None:
             resettable_tis = (
                 session

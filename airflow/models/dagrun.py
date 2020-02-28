@@ -482,7 +482,7 @@ class DagRun(Base, LoggingMixin):
         :type execution_date: datetime
         :return: DagRun corresponding to the given dag_id and execution date
             if one exists. None otherwise.
-        :rtype: airflow.models.DagRun
+        :rtype: airflow.models.dagrun.DagRun
         """
         qry = session.query(DagRun).filter(
             DagRun.dag_id == dag_id,

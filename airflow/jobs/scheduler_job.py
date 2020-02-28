@@ -1034,14 +1034,14 @@ class SchedulerJob(BaseJob):
         tis_changed = 0
         query = session \
             .query(models.TaskInstance) \
-            .outerjoin(models.DagRun, and_(
-                models.TaskInstance.dag_id == models.DagRun.dag_id,
-                models.TaskInstance.execution_date == models.DagRun.execution_date)) \
+            .outerjoin(DagRun, and_(
+                models.TaskInstance.dag_id == DagRun.dag_id,
+                models.TaskInstance.execution_date == DagRun.execution_date)) \
             .filter(models.TaskInstance.dag_id.in_(simple_dag_bag.dag_ids)) \
             .filter(models.TaskInstance.state.in_(old_states)) \
             .filter(or_(
-                models.DagRun.state != State.RUNNING,
-                models.DagRun.state.is_(None)))  # pylint: disable=no-member
+                DagRun.state != State.RUNNING,
+                DagRun.state.is_(None)))  # pylint: disable=no-member
         # We need to do this for mysql as well because it can cause deadlocks
         # as discussed in https://issues.apache.org/jira/browse/AIRFLOW-2516
         if self.using_sqlite or self.using_mysql:
@@ -1115,7 +1115,7 @@ class SchedulerJob(BaseJob):
         # DagRuns which are not backfilled, in the given states,
         # and the dag is not paused
         TI = models.TaskInstance
-        DR = models.DagRun
+        DR = DagRun
         DM = DagModel
         task_instances_to_examine = (
             session

@@ -25,8 +25,8 @@ from sqlalchemy.orm.session import Session
 
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.exceptions import AirflowException, TaskInstanceNotFound
-from airflow.models import DagRun
 from airflow.models.dag import DAG, DagContext
+from airflow.models.dagrun import DagRun
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
