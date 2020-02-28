@@ -1346,6 +1346,20 @@ class TestDag(unittest.TestCase):
         self.assertNotEqual(hash(dag_diff_name), hash(dag))
         self.assertNotEqual(hash(dag_subclass), hash(dag))
 
+    def test_get_paused_dag_ids(self):
+        dag_id = "test_get_paused_dag_ids"
+        dag = DAG(dag_id, is_paused_upon_creation=True)
+        dag.sync_to_db()
+        self.assertIsNotNone(DagModel.get_dagmodel(dag_id))
+
+        paused_dag_ids = DagModel.get_paused_dag_ids([dag_id])
+        self.assertEqual(paused_dag_ids, {dag_id})
+
+        with create_session() as session:
+            session.query(DagModel).filter(
+                DagModel.dag_id == dag_id).delete(
+                synchronize_session=False)
+
 
 class TestQueries(unittest.TestCase):
 

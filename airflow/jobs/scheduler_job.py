@@ -811,14 +811,7 @@ class DagFileProcessor(LoggingMixin):
         # Save individual DAGs in the ORM and update DagModel.last_scheduled_time
         dagbag.sync_to_db()
 
-        paused_dag_ids = (
-            session.query(DagModel.dag_id)
-            .filter(DagModel.is_paused.is_(True))
-            .filter(DagModel.dag_id.in_(dagbag.dag_ids))
-            .all()
-        )
-
-        paused_dag_ids = set(paused_dag_id for paused_dag_id, in paused_dag_ids)
+        paused_dag_ids = DagModel.get_paused_dag_ids(dag_ids=dagbag.dag_ids)
 
         # Pickle the DAGs (if necessary) and put them into a SimpleDag
         for dag_id, dag in dagbag.dags.items():

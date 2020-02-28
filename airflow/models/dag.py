@@ -26,7 +26,7 @@ import sys
 import traceback
 from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
-from typing import Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Type, Union
+from typing import Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Type, Union
 
 import jinja2
 import pendulum
@@ -1776,6 +1776,26 @@ class DagModel(Base):
     def get_last_dagrun(self, session=None, include_externally_triggered=False):
         return get_last_dagrun(self.dag_id, session=session,
                                include_externally_triggered=include_externally_triggered)
+
+    @staticmethod
+    @provide_session
+    def get_paused_dag_ids(dag_ids: List[str], session: Session = None) -> Set[str]:
+        """
+        Given a list of dag_ids, get a set of Paused Dag Ids
+
+        :param dag_ids: List of Dag ids
+        :param session: ORM Session
+        :return: Paused Dag_ids
+        """
+        paused_dag_ids = (
+            session.query(DagModel.dag_id)
+            .filter(DagModel.is_paused.is_(True))
+            .filter(DagModel.dag_id.in_(dag_ids))
+            .all()
+        )
+
+        paused_dag_ids = set(paused_dag_id for paused_dag_id, in paused_dag_ids)
+        return paused_dag_ids
 
     @property
     def safe_dag_id(self):
