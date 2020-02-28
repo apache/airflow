@@ -34,7 +34,7 @@ from airflow.exceptions import (
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
-from airflow.models import DagPickle
+from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKeyType
 from airflow.ti_deps.dep_context import DepContext

@@ -24,6 +24,7 @@ import textwrap
 from contextlib import redirect_stderr, redirect_stdout
 from typing import List
 
+from airflow.models.dagpickle import DagPickle
 from tabulate import tabulate
 
 from airflow import settings
@@ -31,7 +32,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.local_task_job import LocalTaskJob
-from airflow.models import DagPickle, TaskInstance
+from airflow.models import TaskInstance
 from airflow.models.dag import DAG
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies import SCHEDULER_QUEUED_DEPS
