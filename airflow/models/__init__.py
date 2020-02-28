@@ -16,8 +16,3 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow models"""
-
-try:
-    from airflow.models.kubernetes import KubeResourceVersion, KubeWorkerIdentifier
-except ImportError:
-    pass
