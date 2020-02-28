@@ -34,8 +34,6 @@ This DAG relies on the following OS environment variables
 import os
 
 from airflow.models.dag import DAG
-
-from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.vision import (
     CloudVisionAddProductToProductSetOperator, CloudVisionCreateProductOperator,

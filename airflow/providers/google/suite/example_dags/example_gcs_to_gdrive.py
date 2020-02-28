@@ -21,8 +21,6 @@ Example DAG using GoogleCloudStorageToGoogleDriveOperator.
 import os
 
 from airflow.models.dag import DAG
-
-from airflow import models
 from airflow.providers.google.suite.operators.gcs_to_gdrive import GCSToGoogleDriveOperator
 from airflow.utils.dates import days_ago
 

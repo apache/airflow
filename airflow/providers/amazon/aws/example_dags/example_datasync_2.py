@@ -38,8 +38,6 @@ import re
 from os import getenv
 
 from airflow.models.dag import DAG
-
-from airflow import models
 from airflow.providers.amazon.aws.operators.datasync import AWSDataSyncOperator
 from airflow.utils.dates import days_ago
 

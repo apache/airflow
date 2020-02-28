@@ -22,7 +22,6 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 
-from airflow import models
 from airflow.bin import cli
 from airflow.cli.commands import user_command
 from airflow.models.dagbag import DagBag

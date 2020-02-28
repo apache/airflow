@@ -20,9 +20,9 @@ import unittest
 from datetime import timedelta
 from unittest.mock import Mock, patch
 
-from airflow.models import TaskReschedule
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils.state import State

@@ -31,8 +31,6 @@ import os
 from urllib.parse import urlsplit
 
 from airflow.models.dag import DAG
-
-from airflow import models
 from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLCreateInstanceDatabaseOperator, CloudSQLCreateInstanceOperator,
     CloudSQLDeleteInstanceDatabaseOperator, CloudSQLDeleteInstanceOperator, CloudSQLExportInstanceOperator,

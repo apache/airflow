@@ -26,11 +26,10 @@ This DAG relies on the following OS environment variables:
 """
 import os
 
-# [START howto_operator_vision_retry_import]
-from airflow.models.dag import DAG
 from google.api_core.retry import Retry
 
-from airflow import models
+# [START howto_operator_vision_retry_import]
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.video_intelligence import (
     CloudVideoIntelligenceDetectVideoExplicitContentOperator, CloudVideoIntelligenceDetectVideoLabelsOperator,

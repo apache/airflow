@@ -20,7 +20,8 @@ from logging.config import fileConfig
 
 from alembic import context
 
-from airflow import models, settings
+from airflow import settings
+from airflow.models.base import Base
 from airflow.models.serialized_dag import SerializedDagModel  # noqa
 
 
@@ -45,7 +46,7 @@ fileConfig(config.config_file_name, disable_existing_loggers=False)
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = models.base.Base.metadata
+target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

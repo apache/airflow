@@ -21,10 +21,9 @@ Example Airflow DAG for Google Cloud Memorystore service.
 import os
 from urllib.parse import urlparse
 
-from airflow.models.dag import DAG
 from google.cloud.redis_v1.gapic.enums import FailoverInstanceRequest, Instance
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.cloud_memorystore import (
     CloudMemorystoreCreateInstanceAndImportOperator, CloudMemorystoreCreateInstanceOperator,

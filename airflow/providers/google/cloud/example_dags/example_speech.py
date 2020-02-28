@@ -27,8 +27,6 @@ This DAG relies on the following OS environment variables
 import os
 
 from airflow.models.dag import DAG
-
-from airflow import models
 from airflow.providers.google.cloud.operators.speech_to_text import CloudSpeechToTextRecognizeSpeechOperator
 from airflow.providers.google.cloud.operators.text_to_speech import CloudTextToSpeechSynthesizeOperator
 from airflow.providers.google.cloud.operators.translate_speech import GcpTranslateSpeechOperator

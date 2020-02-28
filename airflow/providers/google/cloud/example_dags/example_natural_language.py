@@ -19,10 +19,9 @@
 """
 Example Airflow DAG for Google Cloud Natural Language service
 """
-from airflow.models.dag import DAG
 from google.cloud.language_v1.proto.language_service_pb2 import Document
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.natural_language import (
     CloudNaturalLanguageAnalyzeEntitiesOperator, CloudNaturalLanguageAnalyzeEntitySentimentOperator,

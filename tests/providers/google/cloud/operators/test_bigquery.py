@@ -23,13 +23,12 @@ from unittest.mock import MagicMock
 import mock
 from parameterized import parameterized
 
-from airflow import models
 from airflow.exceptions import AirflowException
-from airflow.models import XCom
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.xcom import XCom
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator, BigQueryConsoleIndexableLink, BigQueryConsoleLink,
     BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator,

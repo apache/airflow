@@ -22,11 +22,10 @@ Example Airflow DAG that creates and deletes Bigquery data transfer configuratio
 import os
 import time
 
-from airflow.models.dag import DAG
 from google.cloud.bigquery_datatransfer_v1.types import TransferConfig
 from google.protobuf.json_format import ParseDict
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery_dts import (
     BigQueryCreateDataTransferOperator, BigQueryDataTransferServiceStartTransferRunsOperator,
     BigQueryDeleteDataTransferConfigOperator,

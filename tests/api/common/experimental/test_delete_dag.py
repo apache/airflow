@@ -18,7 +18,6 @@
 
 import unittest
 
-from airflow import models
 from airflow.api.common.experimental.delete_dag import delete_dag
 from airflow.exceptions import DagNotFound
 from airflow.models import errors
@@ -27,6 +26,8 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.log import Log
 from airflow.models.taskfail import TaskFail
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskreschedule import TaskReschedule
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
@@ -37,7 +38,7 @@ DR = DagRun
 TI = TaskInstance
 LOG = Log
 TF = TaskFail
-TR = models.taskreschedule.TaskReschedule
+TR = TaskReschedule
 IE = errors.ImportError
 
 

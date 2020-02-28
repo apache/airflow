@@ -33,7 +33,7 @@ from dateutil.relativedelta import relativedelta
 from parameterized import parameterized
 from pendulum import utcnow
 
-from airflow import models, settings
+from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowDagCycleException, AirflowException, DuplicateTaskIdFound
 from airflow.jobs.scheduler_job import DagFileProcessor

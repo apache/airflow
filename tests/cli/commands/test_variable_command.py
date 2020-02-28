@@ -19,11 +19,10 @@
 import os
 import unittest
 
-from airflow import models
 from airflow.bin import cli
 from airflow.cli.commands import variable_command
-from airflow.models import Variable
 from airflow.models.dagbag import DagBag
+from airflow.models.variable import Variable
 
 
 class TestCliVariables(unittest.TestCase):

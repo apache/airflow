@@ -30,15 +30,16 @@ from freezegun import freeze_time
 from parameterized import param, parameterized
 from sqlalchemy.orm.session import Session
 
-from airflow import models, settings
+from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.models import TaskReschedule, Variable
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.pool import Pool
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.taskreschedule import TaskReschedule
+from airflow.models.variable import Variable
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator

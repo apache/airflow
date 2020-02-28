@@ -20,9 +20,9 @@ import logging
 
 from sqlalchemy import or_
 
-from airflow import models
 from airflow.exceptions import DagNotFound
 from airflow.models import errors
+from airflow.models.base import Base
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
@@ -57,7 +57,7 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
     count = 0
 
     # noinspection PyUnresolvedReferences,PyProtectedMember
-    for model in models.base.Base._decl_class_registry.values():  # pylint: disable=protected-access
+    for model in Base._decl_class_registry.values():  # pylint: disable=protected-access
         if hasattr(model, "dag_id"):
             if keep_records_in_log and model.__name__ == 'Log':
                 continue

@@ -20,7 +20,6 @@ import logging
 from flask import Blueprint, g, jsonify, request, url_for
 
 import airflow.api
-from airflow import models
 from airflow.api.common.experimental import delete_dag as delete, pool as pool_api, trigger_dag as trigger
 from airflow.api.common.experimental.get_code import get_code
 from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state

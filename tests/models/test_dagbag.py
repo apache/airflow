@@ -26,7 +26,6 @@ from tempfile import NamedTemporaryFile, mkdtemp
 from unittest.mock import patch
 
 import airflow.example_dags
-from airflow import models
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.utils.session import create_session

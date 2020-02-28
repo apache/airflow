@@ -21,7 +21,8 @@ import unittest
 from cryptography.fernet import Fernet
 
 from airflow import settings
-from airflow.models import Variable, crypto
+from airflow.models import crypto
+from airflow.models.variable import Variable
 from tests.test_utils.config import conf_vars
 
 

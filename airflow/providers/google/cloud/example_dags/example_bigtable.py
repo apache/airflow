@@ -49,8 +49,6 @@ import json
 from os import getenv
 
 from airflow.models.dag import DAG
-
-from airflow import models
 from airflow.providers.google.cloud.operators.bigtable import (
     BigtableCreateInstanceOperator, BigtableCreateTableOperator, BigtableDeleteInstanceOperator,
     BigtableDeleteTableOperator, BigtableUpdateClusterOperator,

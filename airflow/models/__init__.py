@@ -16,9 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow models"""
-from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.variable import Variable
-from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 
 try:
     from airflow.models.kubernetes import KubeResourceVersion, KubeWorkerIdentifier

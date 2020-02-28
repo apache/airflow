@@ -19,7 +19,7 @@
 import datetime
 import unittest
 
-from airflow import models, settings
+from airflow import settings
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances

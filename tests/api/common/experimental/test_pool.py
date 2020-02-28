@@ -18,7 +18,6 @@
 
 import unittest
 
-from airflow import models
 from airflow.api.common.experimental import pool as pool_api
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
 from airflow.models.pool import Pool

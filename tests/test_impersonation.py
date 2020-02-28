@@ -26,7 +26,6 @@ import unittest
 import unittest.mock
 from copy import deepcopy
 
-from airflow import models
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance

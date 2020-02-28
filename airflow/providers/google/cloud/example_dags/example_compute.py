@@ -32,8 +32,6 @@ This DAG relies on the following OS environment variables
 import os
 
 from airflow.models.dag import DAG
-
-from airflow import models
 from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineSetMachineTypeOperator, ComputeEngineStartInstanceOperator,
     ComputeEngineStopInstanceOperator,

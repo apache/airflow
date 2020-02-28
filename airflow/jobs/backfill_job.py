@@ -25,7 +25,6 @@ from typing import Set
 from sqlalchemy.orm.session import Session, make_transient
 from tabulate import tabulate
 
-from airflow import models
 from airflow.exceptions import (
     AirflowException, DagConcurrencyLimitReached, NoAvailablePoolSlot, PoolNotFound,
     TaskConcurrencyLimitReached,

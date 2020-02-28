@@ -19,7 +19,7 @@
 import json
 import os
 
-from airflow.models import Variable
+from airflow.models.variable import Variable
 from airflow.utils import cli as cli_utils
 from airflow.utils.session import create_session
 

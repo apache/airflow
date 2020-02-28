@@ -22,8 +22,6 @@ service in the Google Cloud Platform.
 
 """
 from airflow.models.dag import DAG
-
-from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.translate import CloudTranslateTextOperator
 from airflow.utils.dates import days_ago

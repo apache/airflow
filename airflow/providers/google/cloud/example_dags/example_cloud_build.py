@@ -30,10 +30,9 @@ This DAG relies on the following OS environment variables:
 
 import os
 
-from airflow.models.dag import DAG
 from future.backports.urllib.parse import urlparse
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.cloud_build import CloudBuildCreateOperator
 from airflow.utils import dates

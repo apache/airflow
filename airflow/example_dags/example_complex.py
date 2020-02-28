@@ -19,10 +19,8 @@
 """
 Example Airflow DAG that shows the complex DAG structure.
 """
-from airflow.models.dag import DAG
-
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago

@@ -22,7 +22,6 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from airflow import models
 from airflow.api.common.experimental.mark_tasks import (
     _create_dagruns, set_dag_run_state_to_failed, set_dag_run_state_to_running, set_dag_run_state_to_success,
     set_state,
