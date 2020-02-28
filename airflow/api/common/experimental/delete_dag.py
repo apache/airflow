@@ -22,7 +22,7 @@ from sqlalchemy import or_
 
 from airflow import models
 from airflow.exceptions import DagNotFound
-from airflow.models import TaskFail
+from airflow.models import TaskFail, errors
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
@@ -69,8 +69,8 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
 
     # Delete entries in Import Errors table for a deleted DAG
     # This handles the case when the dag_id is changed in the file
-    session.query(models.ImportError).filter(
-        models.ImportError.filename == dag.fileloc
+    session.query(errors.ImportError).filter(
+        errors.ImportError.filename == dag.fileloc
     ).delete(synchronize_session='fetch')
 
     return count

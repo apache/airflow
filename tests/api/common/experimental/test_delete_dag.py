@@ -21,6 +21,7 @@ import unittest
 from airflow import models
 from airflow.api.common.experimental.delete_dag import delete_dag
 from airflow.exceptions import DagNotFound
+from airflow.models import errors
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
@@ -35,7 +36,7 @@ TI = models.TaskInstance
 LOG = models.log.Log
 TF = models.taskfail.TaskFail
 TR = models.taskreschedule.TaskReschedule
-IE = models.ImportError
+IE = errors.ImportError
 
 
 class TestDeleteDAGCatchError(unittest.TestCase):
