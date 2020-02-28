@@ -24,6 +24,7 @@ import time
 import click
 
 from airflow.models.dagrun import DagRun
+from airflow.models.taskfail import TaskFail
 
 MAX_DAG_RUNS_ALLOWED = 1
 
@@ -90,7 +91,7 @@ def reset_dag(dag, session):
     DR = DagRun
     DM = DagModel
     TI = airflow.models.TaskInstance
-    TF = airflow.models.TaskFail
+    TF = TaskFail
     dag_id = dag.dag_id
 
     session.query(DM).filter(DM.dag_id == dag_id).update({'is_paused': False})

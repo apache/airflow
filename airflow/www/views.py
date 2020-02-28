@@ -59,7 +59,7 @@ from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
-from airflow.models import TaskFail, XCom, errors
+from airflow.models import XCom, errors
 from airflow.models.connection import Connection
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagbag import DagBag
@@ -67,6 +67,7 @@ from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.slamiss import SlaMiss
+from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.variable import Variable
 from airflow.settings import STORE_SERIALIZED_DAGS

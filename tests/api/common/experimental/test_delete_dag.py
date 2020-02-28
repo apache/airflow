@@ -25,6 +25,8 @@ from airflow.models import errors
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
+from airflow.models.log import Log
+from airflow.models.taskfail import TaskFail
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
@@ -33,8 +35,8 @@ from airflow.utils.state import State
 DM = DagModel
 DR = DagRun
 TI = models.TaskInstance
-LOG = models.log.Log
-TF = models.taskfail.TaskFail
+LOG = Log
+TF = TaskFail
 TR = models.taskreschedule.TaskReschedule
 IE = errors.ImportError
 
