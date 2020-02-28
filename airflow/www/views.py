@@ -997,7 +997,7 @@ class Airflow(AirflowBaseView):
             return redirect(origin)
 
         execution_date = timezone.utcnow()
-        run_id = "{}{}".format(DagRunType.MANUAL.value, execution_date.isoformat())
+        run_id = f"{DagRunType.MANUAL.value}__{execution_date.isoformat()}"
 
         dr = DagRun.find(dag_id=dag_id, run_id=run_id)
         if dr:

@@ -558,7 +558,7 @@ class DagFileProcessor(LoggingMixin):
                 .filter(or_(
                     DagRun.external_trigger == False,  # noqa: E712 pylint: disable=singleton-comparison
                     # add % as a wildcard for the like query
-                    DagRun.run_id.like(DagRunType.SCHEDULED.value + '%')
+                    DagRun.run_id.like(f"{DagRunType.SCHEDULED.value}__%")
                 )
             )
         )
@@ -644,7 +644,7 @@ class DagFileProcessor(LoggingMixin):
 
         if next_run_date and period_end and period_end <= timezone.utcnow():
             next_run = dag.create_dagrun(
-                run_id=DagRunType.SCHEDULED.value + next_run_date.isoformat(),
+                run_id=f"{DagRunType.SCHEDULED.value}__{next_run_date.isoformat()}",
                 execution_date=next_run_date,
                 start_date=timezone.utcnow(),
                 state=State.RUNNING,
@@ -1135,7 +1135,7 @@ class SchedulerJob(BaseJob):
             .outerjoin(
                 DR, and_(DR.dag_id == TI.dag_id, DR.execution_date == TI.execution_date)
             )
-            .filter(or_(DR.run_id.is_(None), not_(DR.run_id.like(DagRunType.BACKFILL_JOB.value + '%'))))
+            .filter(or_(DR.run_id.is_(None), not_(DR.run_id.like(f"{DagRunType.BACKFILL_JOB.value}__%"))))
             .outerjoin(DM, DM.dag_id == TI.dag_id)
             .filter(or_(DM.dag_id.is_(None), not_(DM.is_paused)))
             .filter(TI.state == State.SCHEDULED)

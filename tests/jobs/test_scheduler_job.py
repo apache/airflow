@@ -1385,7 +1385,7 @@ class TestSchedulerJob(unittest.TestCase):
         session = settings.Session()
 
         dr1 = dag_file_processor.create_dag_run(dag)
-        dr1.run_id = DagRunType.BACKFILL_JOB.value + '_blah'
+        dr1.run_id = f"{DagRunType.BACKFILL_JOB.value}__blah"
         ti1 = TaskInstance(task1, dr1.execution_date)
         ti1.refresh_from_db()
         ti1.state = State.SCHEDULED
@@ -1412,7 +1412,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         dr1 = dag_file_processor.create_dag_run(dag)
         dr2 = dag_file_processor.create_dag_run(dag)
-        dr2.run_id = DagRunType.BACKFILL_JOB.value + 'asdf'
+        dr2.run_id = f"{DagRunType.BACKFILL_JOB.value}__asdf"
 
         ti_no_dagrun = TaskInstance(task1, DEFAULT_DATE - datetime.timedelta(days=1))
         ti_backfill = TaskInstance(task1, dr2.execution_date)
@@ -2070,12 +2070,12 @@ class TestSchedulerJob(unittest.TestCase):
             op1 = DummyOperator(task_id='op1')
 
         dag.clear()
-        dr = dag.create_dagrun(run_id=DagRunType.SCHEDULED.value,
+        dr = dag.create_dagrun(run_id=f"{DagRunType.SCHEDULED.value}__",
                                state=State.RUNNING,
                                execution_date=DEFAULT_DATE,
                                start_date=DEFAULT_DATE,
                                session=session)
-        dr2 = dag.create_dagrun(run_id=DagRunType.BACKFILL_JOB.value,
+        dr2 = dag.create_dagrun(run_id=f"{DagRunType.BACKFILL_JOB.value}__",
                                 state=State.RUNNING,
                                 execution_date=DEFAULT_DATE + datetime.timedelta(1),
                                 start_date=DEFAULT_DATE,
@@ -2922,7 +2922,7 @@ class TestSchedulerJob(unittest.TestCase):
         ti = dr1.get_task_instances(session=session)[0]
         ti.state = State.SCHEDULED
         dr1.state = State.RUNNING
-        dr1.run_id = DagRunType.BACKFILL_JOB.value + '_sdfsfdfsd'
+        dr1.run_id = f"{DagRunType.BACKFILL_JOB.value}__sdfsfdfsd"
         session.merge(ti)
         session.merge(dr1)
         session.commit()
