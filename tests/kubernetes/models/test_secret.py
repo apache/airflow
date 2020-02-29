@@ -100,7 +100,6 @@ class TestSecret(unittest.TestCase):
                     }],
                     'envFrom': [{'secretRef': {'name': 'secret_a'}}],
                     'image': 'airflow-worker:latest',
-                    'imagePullPolicy': 'IfNotPresent',
                     'name': 'base',
                     'ports': [],
                     'volumeMounts': [{
@@ -110,7 +109,6 @@ class TestSecret(unittest.TestCase):
                 }],
                 'hostNetwork': False,
                 'imagePullSecrets': [],
-                'restartPolicy': 'Never',
                 'volumes': [{
                     'name': 'secretvol' + str(static_uuid),
                     'secret': {'secretName': 'secret_b'}

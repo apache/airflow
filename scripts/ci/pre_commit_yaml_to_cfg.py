@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -25,8 +24,7 @@ import os
 
 import yaml
 
-FILE_HEADER = """# -*- coding: utf-8 -*-
-#
+FILE_HEADER = """#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -114,6 +112,8 @@ def write_config(yaml_config_file_path: str, default_cfg_file_path: str):
                             configfile.write(f"# {single_line_desc}\n")
 
                 if option["example"]:
+                    if not str(option["name"]).endswith("_template"):
+                        option["example"] = option["example"].replace("{", "{{").replace("}", "}}")
                     configfile.write("# Example: {} = {}\n".format(option["name"], option["example"]))
 
                 configfile.write("{}{} ={}\n".format(

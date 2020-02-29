@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -52,7 +51,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         """
         remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
-            from airflow.contrib.hooks.wasb_hook import WasbHook
+            from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
             return WasbHook(remote_conn_id)
         except AzureHttpError:
             self.log.error(

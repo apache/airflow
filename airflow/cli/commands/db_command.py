@@ -20,7 +20,8 @@ import subprocess
 import textwrap
 from tempfile import NamedTemporaryFile
 
-from airflow import AirflowException, settings
+from airflow import settings
+from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
 
 
@@ -81,3 +82,9 @@ def shell(args):
         subprocess.Popen(["psql"], env=env).wait()
     else:
         raise AirflowException(f"Unknown driver: {url.drivername}")
+
+
+@cli_utils.action_logging
+def check(_):
+    """Runs a check command that checks if db is available."""
+    db.check()

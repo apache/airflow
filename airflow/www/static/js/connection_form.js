@@ -61,6 +61,10 @@ $(document).ready(function () {
         'login': 'Username',
       }
     },
+    yandexcloud: {
+      hidden_fields: ['host', 'schema', 'login', 'password', 'port', 'extra'],
+      relabeling: {},
+    },
   };
 
   function connTypeChange(connectionType) {

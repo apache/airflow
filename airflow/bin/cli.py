@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -125,7 +124,6 @@ class CLIFactory:
             ("--output",), (
                 "Output table format. The specified value is passed to "
                 "the tabulate module (https://pypi.org/project/tabulate/). "
-                "Valid values are: ({})".format("|".join(tabulate_formats))
             ),
             choices=tabulate_formats,
             default="fancy_grid"),
@@ -599,8 +597,12 @@ class CLIFactory:
             'help': "List dag runs given a DAG id. If state option is given, it will only "
                     "search for all the dagruns with the given state. "
                     "If no_backfill option is given, it will filter out "
-                    "all backfill dagruns for given dag id",
-            'args': ('dag_id', 'no_backfill', 'state', 'output',),
+                    "all backfill dagruns for given dag id. "
+                    "If start_date is given, it will filter out "
+                    "all the dagruns that were executed before this date. "
+                    "If end_date is given, it will filter out "
+                    "all the dagruns that were executed after this date. ",
+            'args': ('dag_id_opt', 'no_backfill', 'state', 'output', "start_date", "end_date"),
         },
         {
             'func': lazy_load_command('airflow.cli.commands.dag_command.dag_list_jobs'),
@@ -668,6 +670,12 @@ class CLIFactory:
                 'subdir', 'pool', 'delay_on_limit', 'dry_run', 'verbose', 'conf',
                 'reset_dag_run', 'rerun_failed_tasks', 'run_backwards'
             ),
+        },
+        {
+            "func": lazy_load_command('airflow.cli.commands.dag_command.dag_test'),
+            'name': 'test',
+            'help': "Execute one run of a DAG",
+            'args': ("dag_id", "execution_date", "subdir"),
         },
     )
     TASKS_COMMANDS = (
@@ -835,6 +843,12 @@ class CLIFactory:
             'func': lazy_load_command('airflow.cli.commands.db_command.shell'),
             'name': 'shell',
             'help': "Runs a shell to access the database",
+            'args': tuple(),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.db_command.check'),
+            'name': 'check',
+            'help': "Check if the database can be reached.",
             'args': tuple(),
         },
     )
@@ -1017,6 +1031,12 @@ class CLIFactory:
                         'flower_hostname', 'flower_port', 'flower_conf', 'flower_url_prefix',
                         'flower_basic_auth', 'broker_api', 'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
                 },
+                {
+                    'name': 'stop',
+                    'func': lazy_load_command('airflow.cli.commands.celery_command.stop_worker'),
+                    'help': "Stop the Celery worker gracefully",
+                    'args': (),
+                }
             )
         })
     subparsers_dict = {sp.get('name') or sp['func'].__name__: sp for sp in subparsers}  # type: ignore

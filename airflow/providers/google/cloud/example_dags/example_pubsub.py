@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,7 +22,7 @@ Example Airflow DAG that uses Google PubSub services.
 import os
 
 from airflow import models
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.pubsub import (
     PubSubCreateSubscriptionOperator, PubSubCreateTopicOperator, PubSubDeleteSubscriptionOperator,
     PubSubDeleteTopicOperator, PubSubPublishMessageOperator,

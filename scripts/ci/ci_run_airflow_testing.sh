@@ -15,18 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+export VERBOSE=${VERBOSE:="false"}
 
-set -euo pipefail
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
-
-export VERBOSE=${VERBOSE:="true"}
-
-basic_sanity_checks
-
-script_start
+# shellcheck source=scripts/ci/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
 if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
     echo
@@ -45,10 +37,16 @@ export BACKEND=${BACKEND:="sqlite"}
 export MOUNT_LOCAL_SOURCES=${MOUNT_LOCAL_SOURCES:="false"}
 
 # whethere verbose output should be produced
-export AIRFLOW_CI_VERBOSE=${VERBOSE}
+export VERBOSE=${VERBOSE:="false"}
 
-# opposite - whether diagnostict messages should be silenced
-export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
+# whethere verbose commadns output (set-x) should be used
+export VERBOSE_COMMANDS=${VERBOSE_COMMANDS:="false"}
+
+# Forwards host credentials to the container
+export FORWARD_CREDENTIALS=${FORWARD_CREDENTIALS:="false"}
+
+# Installs different airflow version than current from the sources
+export INSTALL_AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION:="current"}
 
 if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then
     DOCKER_COMPOSE_LOCAL=("-f" "${MY_DIR}/docker-compose/local.yml")
@@ -56,15 +54,17 @@ else
     DOCKER_COMPOSE_LOCAL=()
 fi
 
+if [[ ${FORWARD_CREDENTIALS} == "true" ]]; then
+    DOCKER_COMPOSE_LOCAL+=("-f" "${MY_DIR}/docker-compose/forward-credentials.yml")
+fi
+
+if [[ ${INSTALL_AIRFLOW_VERSION} != "current" ]]; then
+    DOCKER_COMPOSE_LOCAL+=("-f" "${MY_DIR}/docker-compose/remove-sources.yml")
+fi
+
 echo
 echo "Using docker image: ${AIRFLOW_CI_IMAGE} for docker compose runs"
 echo
-
-HOST_USER_ID="$(id -ur)"
-export HOST_USER_ID
-
-HOST_GROUP_ID="$(id -gr)"
-export HOST_GROUP_ID
 
 INTEGRATIONS=()
 
@@ -111,5 +111,3 @@ else
          # and bash -c starts passing parameters from $0. TODO: fixme
     set -u
 fi
-
-script_end

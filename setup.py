@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -25,6 +24,7 @@ import subprocess
 import sys
 import unittest
 from importlib import util
+from os.path import dirname
 from typing import List
 
 from setuptools import Command, find_packages, setup
@@ -74,6 +74,7 @@ class CleanCommand(Command):
     # noinspection PyMethodMayBeStatic
     def run(self):
         """Run command to remove temporary files and directories."""
+        os.chdir(dirname(__file__))
         os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')
 
 
@@ -114,9 +115,12 @@ def git_version(version_: str) -> str:
     try:
         import git
         try:
-            repo = git.Repo('.git')
+            repo = git.Repo(os.path.join(*[dirname(__file__), '.git']))
         except git.NoSuchPathError:
             logger.warning('.git directory not found: Cannot compute the git version')
+            return ''
+        except git.InvalidGitRepositoryError:
+            logger.warning('Invalid .git directory not found: Cannot compute the git version')
             return ''
     except ImportError:
         logger.warning('gitpython not found: Cannot compute the git version.')
@@ -131,7 +135,7 @@ def git_version(version_: str) -> str:
         return 'no_git_version'
 
 
-def write_version(filename: str = os.path.join(*["airflow", "git_version"])):
+def write_version(filename: str = os.path.join(*[dirname(__file__), "airflow", "git_version"])):
     """
     Write the Semver version + git hash to file, e.g. ".dev0+2f635dc265e78db6708f59f68e8009abb92c1e65".
 
@@ -159,6 +163,7 @@ aws = [
 azure = [
     'azure-cosmos>=3.0.1',
     'azure-datalake-store>=0.0.45',
+    'azure-kusto-data>=0.0.43',
     'azure-mgmt-containerinstance>=1.5.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
@@ -166,7 +171,7 @@ azure = [
     'azure-storage-blob<12.0',
 ]
 cassandra = [
-    'cassandra-driver>=3.13.0',
+    'cassandra-driver>=3.13.0,<3.21.0',
 ]
 celery = [
     'celery~=4.3',
@@ -203,8 +208,9 @@ druid = [
     'pydruid>=0.4.1',
 ]
 elasticsearch = [
-    'elasticsearch>=5.0.0,<6.0.0',
-    'elasticsearch-dsl>=5.0.0,<6.0.0',
+    'elasticsearch>7',
+    'elasticsearch-dbapi==0.1.0',
+    'elasticsearch-dsl>=5.0.0',
 ]
 flask_oauth = [
     'Flask-OAuthlib>=0.9.1',
@@ -224,6 +230,8 @@ gcp = [
     'google-cloud-dlp>=0.11.0',
     'google-cloud-kms>=1.2.1',
     'google-cloud-language>=1.1.1',
+    'google-cloud-logging>=1.14.0',
+    'google-cloud-monitoring>=0.34.0',
     'google-cloud-pubsub>=1.0.0',
     'google-cloud-redis>=0.3.0',
     'google-cloud-spanner>=1.10.0',
@@ -280,6 +288,9 @@ mssql = [
 mysql = [
     'mysqlclient>=1.3.6,<1.4',
 ]
+odbc = [
+    'pyodbc',
+]
 oracle = [
     'cx_Oracle>=5.1.2',
 ]
@@ -287,8 +298,8 @@ pagerduty = [
     'pypd>=1.1.0',
 ]
 papermill = [
-    'papermill[all]>=1.0.0',
-    'nteract-scrapbook[all]>=0.2.1',
+    'papermill[all]>=1.2.1',
+    'nteract-scrapbook[all]>=0.3.1',
 ]
 password = [
     'bcrypt>=2.0.0',
@@ -328,6 +339,7 @@ sentry = [
     'blinker>=1.1',
     'sentry-sdk>=0.8.0',
 ]
+singularity = ['spython>=0.0.56']
 slack = [
     'slackclient>=1.0.0,<2.0.0',
 ]
@@ -343,6 +355,9 @@ ssh = [
 statsd = [
     'statsd>=3.3.0, <4.0',
 ]
+tableau = [
+    'tableauserverclient==0.9',
+]
 vertica = [
     'vertica-python>=0.5.1',
 ]
@@ -354,6 +369,9 @@ webhdfs = [
 ]
 winrm = [
     'pywinrm~=0.4',
+]
+yandexcloud = [
+    'yandexcloud>=0.22.0',
 ]
 zendesk = [
     'zdesk',
@@ -373,7 +391,6 @@ devel = [
     'click==6.7',
     'contextdecorator;python_version<"3.4"',
     'coverage',
-    'dumb-init>=1.2.2',
     'flake8>=3.6.0',
     'flake8-colors',
     'flaky',
@@ -408,13 +425,13 @@ else:
 
 devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
 devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
-devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + datadog + devel +
-             doc + docker + druid + elasticsearch + gcp + grpc + jdbc + jenkins +
-             kerberos + kubernetes + ldap + oracle + pagerduty + papermill +
-             password + pinot + redis + salesforce + samba + segment + sendgrid +
-             sentry + slack + snowflake + ssh + virtualenv + webhdfs + zendesk)
+devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + datadog + devel + doc + docker + druid +
+             elasticsearch + gcp + grpc + jdbc + jenkins + kerberos + kubernetes + ldap + odbc + oracle +
+             pagerduty + papermill + password + pinot + redis + salesforce + samba + segment + sendgrid +
+             sentry + singularity + slack + snowflake + ssh + statsd + tableau + virtualenv + webhdfs +
+             yandexcloud + zendesk)
 
-# Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
+# Snakebite are not Python 3 compatible :'(
 if PY3:
     devel_ci = [package for package in devel_all if package not in
                 ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']]
@@ -434,7 +451,7 @@ def do_setup():
         version=version,
         packages=find_packages(exclude=['tests*']),
         package_data={
-            '': ['airflow/alembic.ini', "airflow/git_version"],
+            '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb"],
             'airflow.serialization': ["*.json"],
         },
         include_package_data=True,
@@ -469,9 +486,11 @@ def do_setup():
             'json-merge-patch==0.2',
             'jsonschema~=3.0',
             'lazy_object_proxy~=1.3',
+            'lockfile>=0.12.2',
             'markdown>=2.5.2, <3.0',
             'pandas>=0.17.1, <1.0.0',
             'pendulum==1.4.4',
+            'pep562~=1.0;python_version<"3.7"',
             'psutil>=4.2.0, <6.0.0',
             'pygments>=2.0.1, <3.0',
             'python-daemon>=2.1.1, <2.2',
@@ -489,7 +508,7 @@ def do_setup():
             'typing-extensions>=3.7.4;python_version<"3.8"',
             'tzlocal>=1.4,<2.0.0',
             'unicodecsv>=0.14.1',
-            'zope.deprecation>=4.0, <5.0',
+            'werkzeug<1.0.0',
         ],
         #####################################################################################################
         # IMPORTANT NOTE!!!!!!!!!!!!!!!
@@ -497,7 +516,7 @@ def do_setup():
         # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
         #####################################################################################################
         setup_requires=[
-            'docutils>=0.14, <1.0',
+            'docutils>=0.14, <0.16'
             'gitpython>=2.0.2',
         ],
         extras_require={
@@ -536,6 +555,7 @@ def do_setup():
             'mongo': mongo,
             'mssql': mssql,
             'mysql': mysql,
+            'odbc': odbc,
             'oracle': oracle,
             'pagerduty': pagerduty,
             'papermill': papermill,
@@ -551,13 +571,16 @@ def do_setup():
             'segment': segment,
             'sendgrid': sendgrid,
             'sentry': sentry,
+            'singularity': singularity,
             'slack': slack,
             'snowflake': snowflake,
             'ssh': ssh,
             'statsd': statsd,
+            'tableau': tableau,
             'vertica': vertica,
             'webhdfs': webhdfs,
             'winrm': winrm,
+            'yandexcloud': yandexcloud,
         },
         classifiers=[
             'Development Status :: 5 - Production/Stable',

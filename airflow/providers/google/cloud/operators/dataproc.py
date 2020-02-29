@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -40,9 +39,9 @@ from google.cloud.dataproc_v1beta2.types import (  # pylint: disable=no-name-in-
 from google.protobuf.json_format import MessageToDict
 
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks.gcs import GCSHook
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 from airflow.version import version as airflow_version
@@ -245,7 +244,7 @@ class ClusterGenerator:
                 return self.init_action_timeout
             elif match.group(2) == "m":
                 val = float(match.group(1))
-                return "{}s".format(timedelta(minutes=val).seconds)
+                return "{}s".format(int(timedelta(minutes=val).total_seconds()))
 
         raise AirflowException(
             "DataprocClusterCreateOperator init_action_timeout"
@@ -622,13 +621,13 @@ class DataprocScaleClusterOperator(BaseOperator):
                 timeout = int(match.group(1))
             elif match.group(2) == "m":
                 val = float(match.group(1))
-                timeout = timedelta(minutes=val).seconds
+                timeout = int(timedelta(minutes=val).total_seconds())
             elif match.group(2) == "h":
                 val = float(match.group(1))
-                timeout = timedelta(hours=val).seconds
+                timeout = int(timedelta(hours=val).total_seconds())
             elif match.group(2) == "d":
                 val = float(match.group(1))
-                timeout = timedelta(days=val).seconds
+                timeout = int(timedelta(days=val).total_seconds())
 
         if not timeout:
             raise AirflowException(

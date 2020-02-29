@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -35,7 +34,7 @@ This DAG relies on the following OS environment variables
 import os
 
 from airflow import models
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.vision import (
     CloudVisionAddProductToProductSetOperator, CloudVisionCreateProductOperator,
     CloudVisionCreateProductSetOperator, CloudVisionCreateReferenceImageOperator,

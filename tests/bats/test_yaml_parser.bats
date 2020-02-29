@@ -20,6 +20,9 @@
 
 @test "yaml parsing missing file" {
   load bats_utils
+
+  initialize_breeze_environment
+
   run parse_yaml
   [ "${status}" == 1 ]
   [ "${output}" == "Please provide yaml filename as first parameter." ]
@@ -27,6 +30,9 @@
 
 @test "yaml parsing existing file" {
   load bats_utils
+
+  initialize_breeze_environment
+
   run parse_yaml "scripts/ci/docker-compose/local.yml"
   diff <(echo "${output}") - << 'EOF'
 1="--"
@@ -51,16 +57,17 @@ services_airflow-testing_volumes_17="../../../dags:/opt/airflow/dags:cached"
 services_airflow-testing_volumes_18="../../../dev:/opt/airflow/dev:cached"
 services_airflow-testing_volumes_19="../../../docs:/opt/airflow/docs:cached"
 services_airflow-testing_volumes_20="../../../files:/files:cached"
-services_airflow-testing_volumes_21="../../../hooks:/opt/airflow/hooks:cached"
-services_airflow-testing_volumes_22="../../../logs:/root/airflow/logs:cached"
-services_airflow-testing_volumes_23="../../../pylintrc:/opt/airflow/pylintrc:cached"
-services_airflow-testing_volumes_24="../../../pytest.ini:/opt/airflow/pytest.ini:cached"
-services_airflow-testing_volumes_25="../../../scripts:/opt/airflow/scripts:cached"
-services_airflow-testing_volumes_26="../../../scripts/ci/in_container/entrypoint_ci.sh:/entrypoint_ci.sh:cached"
-services_airflow-testing_volumes_27="../../../setup.cfg:/opt/airflow/setup.cfg:cached"
-services_airflow-testing_volumes_28="../../../setup.py:/opt/airflow/setup.py:cached"
-services_airflow-testing_volumes_29="../../../tests:/opt/airflow/tests:cached"
-services_airflow-testing_volumes_30="../../../tmp:/opt/airflow/tmp:cached"
+services_airflow-testing_volumes_21="../../../dist:/dist:cached"
+services_airflow-testing_volumes_22="../../../hooks:/opt/airflow/hooks:cached"
+services_airflow-testing_volumes_23="../../../logs:/root/airflow/logs:cached"
+services_airflow-testing_volumes_24="../../../pylintrc:/opt/airflow/pylintrc:cached"
+services_airflow-testing_volumes_25="../../../pytest.ini:/opt/airflow/pytest.ini:cached"
+services_airflow-testing_volumes_26="../../../scripts:/opt/airflow/scripts:cached"
+services_airflow-testing_volumes_27="../../../scripts/ci/in_container/entrypoint_ci.sh:/entrypoint_ci.sh:cached"
+services_airflow-testing_volumes_28="../../../setup.cfg:/opt/airflow/setup.cfg:cached"
+services_airflow-testing_volumes_29="../../../setup.py:/opt/airflow/setup.py:cached"
+services_airflow-testing_volumes_30="../../../tests:/opt/airflow/tests:cached"
+services_airflow-testing_volumes_31="../../../tmp:/opt/airflow/tmp:cached"
 services_airflow-testing_environment_1="HOST_USER_ID"
 services_airflow-testing_environment_2="HOST_GROUP_ID"
 services_airflow-testing_environment_3="PYTHONDONTWRITEBYTECODE"
@@ -71,6 +78,9 @@ EOF
 
 @test "convert yaml docker file to docker params" {
   load bats_utils
+
+  initialize_breeze_environment
+
   run convert_docker_mounts_to_docker_params
   diff <(echo "${output}") - << EOF
 -v
@@ -113,6 +123,8 @@ ${AIRFLOW_SOURCES}/dev:/opt/airflow/dev:cached
 ${AIRFLOW_SOURCES}/docs:/opt/airflow/docs:cached
 -v
 ${AIRFLOW_SOURCES}/files:/files:cached
+-v
+${AIRFLOW_SOURCES}/dist:/dist:cached
 -v
 ${AIRFLOW_SOURCES}/hooks:/opt/airflow/hooks:cached
 -v

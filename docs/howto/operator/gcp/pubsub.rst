@@ -92,7 +92,7 @@ and pass them through XCom.
     :start-after: [START howto_operator_gcp_pubsub_pull_message]
     :end-before: [END howto_operator_gcp_pubsub_pull_message]
 
-To pull messages from XCom use the :class:`~airflow.operators.bash_operator.BashOperator`.
+To pull messages from XCom use the :class:`~airflow.operators.bash.BashOperator`.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_pubsub.py
     :language: python

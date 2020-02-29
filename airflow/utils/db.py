@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,20 +15,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import logging
 import os
 
-from airflow import models, settings
-from airflow.configuration import conf
-from airflow.jobs.base_job import BaseJob  # noqa: F401  # pylint: disable=unused-import
-from airflow.models import Connection
-from airflow.models.pool import Pool
-# We need to add this model manually to get reset working well
-from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401  # pylint: disable=unused-import
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import create_session, provide_session  # noqa  # pylint: disable=unused-import
+from sqlalchemy import Table
 
-log = LoggingMixin().log
+from airflow import settings
+from airflow.configuration import conf
+# noinspection PyUnresolvedReferences
+from airflow.jobs.base_job import BaseJob  # noqa: F401 # pylint: disable=unused-import
+# noinspection PyUnresolvedReferences
+from airflow.models import (  # noqa: F401 # pylint: disable=unused-import
+    DAG, XCOM_RETURN_KEY, BaseOperator, BaseOperatorLink, Connection, DagBag, DagModel, DagPickle, DagRun,
+    DagTag, Log, Pool, SkipMixin, SlaMiss, TaskFail, TaskInstance, TaskReschedule, Variable, XCom,
+)
+# We need to add this model manually to get reset working well
+# noinspection PyUnresolvedReferences
+from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401  # pylint: disable=unused-import
+# TODO: remove create_session once we decide to break backward compatibility
+from airflow.utils.session import (  # noqa: F401 # pylint: disable=unused-import
+    create_session, provide_session,
+)
+
+log = logging.getLogger(__name__)
 
 
 @provide_session
@@ -99,6 +107,16 @@ def create_default_connections(session=None):
     )
     merge_conn(
         Connection(
+            conn_id='azure_data_explorer_default', conn_type='azure_data_explorer',
+            host='https://<CLUSTER>.kusto.windows.net',
+            extra='''{"auth_method": "<AAD_APP | AAD_APP_CERT | AAD_CREDS | AAD_DEVICE>",
+                    "tenant": "<TENANT ID>", "certificate": "<APPLICATION PEM CERTIFICATE>",
+                    "thumbprint": "<APPLICATION CERTIFICATE THUMBPRINT>"}'''
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="azure_data_lake_default",
             conn_type="azure_data_lake",
             extra='{"tenant": "<TENANT>", "account_name": "<ACCOUNTNAME>" }',
@@ -148,6 +166,16 @@ def create_default_connections(session=None):
             host="druid-overlord",
             port=8081,
             extra='{"endpoint": "druid/indexer/v1/task"}',
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="elasticsearch_default",
+            conn_type="elasticsearch",
+            host="localhost",
+            schema="http",
+            port=9200
         ),
         session
     )
@@ -244,6 +272,15 @@ def create_default_connections(session=None):
             conn_id="http_default",
             conn_type="http",
             host="https://www.httpbin.org/",
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="livy_default",
+            conn_type="livy",
+            host="livy",
+            port=8998
         ),
         session
     )
@@ -415,6 +452,17 @@ def create_default_connections(session=None):
     )
     merge_conn(
         Connection(
+            conn_id="tableau_default",
+            conn_type="tableau",
+            host="https://tableau.server.url",
+            login="user",
+            password="password",
+            extra='{"site_id": "my_site"}',
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
             conn_id="vertica_default",
             conn_type="vertica",
             host="localhost",
@@ -439,6 +487,14 @@ def create_default_connections(session=None):
         ),
         session
     )
+    merge_conn(
+        Connection(
+            conn_id='yandexcloud_default',
+            conn_type='yandexcloud',
+            schema='default',
+        ),
+        session
+    )
 
 
 def initdb():
@@ -449,12 +505,12 @@ def initdb():
 
     create_default_connections()
 
-    dagbag = models.DagBag()
-    # Save individual DAGs in the ORM
-    for dag in dagbag.dags.values():
-        dag.sync_to_db()
+    dagbag = DagBag()
+    # Save DAGs in the ORM
+    dagbag.sync_to_db()
+
     # Deactivate the unknown ones
-    models.DAG.deactivate_unknown_dags(dagbag.dags.keys())
+    DAG.deactivate_unknown_dags(dagbag.dags.keys())
 
     from flask_appbuilder.models.sqla import Base
     Base.metadata.create_all(settings.engine)  # pylint: disable=no-member
@@ -484,20 +540,66 @@ def resetdb():
     """
     Clear out the database
     """
-    # alembic adds significant import time, so we import it lazily
-    # noinspection PyUnresolvedReferences
-    from alembic.migration import MigrationContext
 
     log.info("Dropping tables that exist")
 
     connection = settings.engine.connect()
-    models.base.Base.metadata.drop_all(connection)
-    migartion_ctx = MigrationContext.configure(connection)
-    version = migartion_ctx._version  # pylint: disable=protected-access
+
+    drop_airflow_models(connection)
+    drop_flask_models(connection)
+
+    initdb()
+
+
+def drop_airflow_models(connection):
+    """
+    Drops all airflow models.
+    @param connection:
+    @return: None
+    """
+    from airflow.models.base import Base
+    # Drop connection and chart - those tables have been deleted and in case you
+    # run resetdb on schema with chart or users table will fail
+    chart = Table('chart', Base.metadata)
+    chart.drop(settings.engine, checkfirst=True)
+    user = Table('user', Base.metadata)
+    user.drop(settings.engine, checkfirst=True)
+    users = Table('users', Base.metadata)
+    users.drop(settings.engine, checkfirst=True)
+    dag_stats = Table('dag_stats', Base.metadata)
+    dag_stats.drop(settings.engine, checkfirst=True)
+
+    Base.metadata.drop_all(connection)
+    # we remove the Tables here so that if resetdb is run metadata does not keep the old tables.
+    Base.metadata.remove(dag_stats)
+    Base.metadata.remove(users)
+    Base.metadata.remove(user)
+    Base.metadata.remove(chart)
+    # alembic adds significant import time, so we import it lazily
+    # noinspection PyUnresolvedReferences
+    from alembic.migration import MigrationContext
+    migration_ctx = MigrationContext.configure(connection)
+    # noinspection PyProtectedMember
+    version = migration_ctx._version  # pylint: disable=protected-access
     if version.exists(connection):
         version.drop(connection)
 
+
+def drop_flask_models(connection):
+    """
+    Drops all Flask models.
+    @param connection:
+    @return:
+    """
     from flask_appbuilder.models.sqla import Base
     Base.metadata.drop_all(connection)  # pylint: disable=no-member
 
-    initdb()
+
+@provide_session
+def check(session=None):
+    """
+    Checks if the database works.
+    :param session: session of the sqlalchemy
+    """
+    session.execute('select 1 as is_alive;')
+    log.info("Connection successful.")

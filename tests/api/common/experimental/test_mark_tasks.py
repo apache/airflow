@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -104,8 +103,11 @@ class TestMarkTasks(unittest.TestCase):
         self.assertTrue(len(tis) > 0)
 
         for ti in tis:  # pylint: disable=too-many-nested-blocks
+            self.assertEqual(ti.operator, dag.get_task(ti.task_id).__class__.__name__)
             if ti.task_id in task_ids and ti.execution_date in execution_dates:
                 self.assertEqual(ti.state, state)
+                if state in State.finished():
+                    self.assertIsNotNone(ti.end_date)
             else:
                 for old_ti in old_tis:
                     if old_ti.task_id == ti.task_id and old_ti.execution_date == ti.execution_date:
