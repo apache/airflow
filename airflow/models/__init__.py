@@ -29,7 +29,7 @@ def __getattr__(name):
     if name == "BaseOperator":
         from airflow.models.baseoperator import BaseOperator  # pylint: disable=redefined-outer-name
         return BaseOperator
-    if name == "BaseOperator":
+    if name == "BaseOperatorLink":
         from airflow.models.baseoperator import BaseOperatorLink  # pylint: disable=redefined-outer-name
         return BaseOperatorLink
     raise AttributeError(f"module {__name__} has no attribute {name}")
