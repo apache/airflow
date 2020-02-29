@@ -539,7 +539,7 @@ class TestDagFileProcessor(unittest.TestCase):
 
         ti_to_schedule = dag_file_processor._process_task_instances(dag, dag_runs=[dr])
 
-        assert ti_to_schedule == [
+        assert sorted(ti_to_schedule) == [
             (dag.dag_id, dag_task1.task_id, DEFAULT_DATE, TRY_NUMBER),
             (dag.dag_id, dag_task2.task_id, DEFAULT_DATE, TRY_NUMBER),
         ]
