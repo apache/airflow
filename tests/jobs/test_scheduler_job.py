@@ -22,7 +22,7 @@ import os
 import shutil
 import unittest
 from datetime import timedelta
-from tempfile import mkdtemp
+from tempfile import NamedTemporaryFile, mkdtemp
 
 import mock
 import psutil
@@ -44,7 +44,7 @@ from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
-from airflow.utils.dag_processing import SimpleDag, SimpleDagBag
+from airflow.utils.dag_processing import FailureCallbackRequest, SimpleDag, SimpleDagBag
 from airflow.utils.dates import days_ago
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
@@ -999,10 +999,7 @@ class TestDagFileProcessor(unittest.TestCase):
             self.assertGreater(parent_dagruns, 0)
 
     @patch.object(TaskInstance, 'handle_failure')
-    def test_kill_zombies(self, mock_ti_handle_failure):
-        """
-        Test that kill zombies call TaskInstances failure handler with proper context
-        """
+    def test_execute_on_failure_callbacks(self, mock_ti_handle_failure):
         dagbag = DagBag(dag_folder="/dev/null", include_examples=True)
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         with create_session() as session:
@@ -1015,13 +1012,51 @@ class TestDagFileProcessor(unittest.TestCase):
             session.add(ti)
             session.commit()
 
-            zombies = [SimpleTaskInstance(ti)]
-            dag_file_processor.kill_zombies(dagbag, zombies)
+            requests = [
+                FailureCallbackRequest(
+                    full_filepath="A",
+                    simple_task_instance=SimpleTaskInstance(ti),
+                    msg="Message"
+                )
+            ]
+            dag_file_processor.execute_on_failure_callbacks(dagbag, requests)
             mock_ti_handle_failure.assert_called_once_with(
-                mock.ANY,
+                "Message",
                 conf.getboolean('core', 'unit_test_mode'),
                 mock.ANY
             )
+
+    def test_process_file_should_failure_callback(self):
+        dag_file = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), '../dags/test_on_failure_callback.py'
+        )
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        with create_session() as session, NamedTemporaryFile(delete=False) as callback_file:
+            session.query(TaskInstance).delete()
+            dag = dagbag.get_dag('test_om_failure_callback_dag')
+            task = dag.get_task(task_id='test_om_failure_callback_task')
+
+            ti = TaskInstance(task, DEFAULT_DATE, State.RUNNING)
+
+            session.add(ti)
+            session.commit()
+
+            requests = [
+                FailureCallbackRequest(
+                    full_filepath=dag.full_filepath,
+                    simple_task_instance=SimpleTaskInstance(ti),
+                    msg="Message"
+                )
+            ]
+            callback_file.close()
+
+            with mock.patch.dict("os.environ", {"AIRFLOW_CALLBACK_FILE": callback_file.name}):
+                dag_file_processor.process_file(dag_file, requests)
+            with open(callback_file.name) as callback_file2:
+                content = callback_file2.read()
+            self.assertEqual("Callback fired", content)
+            os.remove(callback_file.name)
 
 
 class TestSchedulerJob(unittest.TestCase):
@@ -1113,8 +1148,8 @@ class TestSchedulerJob(unittest.TestCase):
         dag_id2 = "test_process_executor_events_2"
         task_id_1 = 'dummy_task'
 
-        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
-        dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE)
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, full_filepath="/test_path1/")
+        dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE, full_filepath="/test_path1/")
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
         DummyOperator(dag=dag2, task_id=task_id_1)
 
@@ -1134,16 +1169,26 @@ class TestSchedulerJob(unittest.TestCase):
 
         scheduler.executor = executor
 
+        scheduler.processor_agent = mock.MagicMock()
         # dag bag does not contain dag_id
         scheduler._process_executor_events(simple_dag_bag=dagbag2)
         ti1.refresh_from_db()
         self.assertEqual(ti1.state, State.QUEUED)
+        scheduler.processor_agent.send_callback_to_execute.assert_not_called()
 
         # dag bag does contain dag_id
         scheduler._process_executor_events(simple_dag_bag=dagbag1)
         ti1.refresh_from_db()
-        self.assertEqual(ti1.state, State.FAILED)
+        self.assertEqual(ti1.state, State.QUEUED)
+        scheduler.processor_agent.send_callback_to_execute.assert_called_once_with(
+            full_filepath='/test_path1/',
+            task_instance=mock.ANY,
+            msg='Executor reports task instance finished (failed) '
+                'although the task says its queued. Was the task killed externally?'
+        )
+        scheduler.processor_agent.reset_mock()
 
+        # ti in success state
         ti1.state = State.SUCCESS
         session.merge(ti1)
         session.commit()
@@ -1152,6 +1197,7 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler._process_executor_events(simple_dag_bag=dagbag1)
         ti1.refresh_from_db()
         self.assertEqual(ti1.state, State.SUCCESS)
+        scheduler.processor_agent.send_callback_to_execute.assert_not_called()
 
         mock_stats_incr.assert_called_once_with('scheduler.tasks.killed_externally')
 

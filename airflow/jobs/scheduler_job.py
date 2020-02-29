@@ -28,7 +28,7 @@ from collections import defaultdict
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import timedelta
 from itertools import groupby
-from typing import List, Set
+from typing import List, Optional, Set
 
 from setproctitle import setproctitle
 from sqlalchemy import and_, func, not_, or_
@@ -49,7 +49,7 @@ from airflow.ti_deps.dependencies import SCHEDULED_DEPS
 from airflow.ti_deps.deps.pool_slots_available_dep import STATES_TO_COUNT_AS_RUNNING
 from airflow.utils import asciiart, helpers, timezone
 from airflow.utils.dag_processing import (
-    AbstractDagFileProcessorProcess, DagFileProcessorAgent, SimpleDag, SimpleDagBag,
+    AbstractDagFileProcessorProcess, DagFileProcessorAgent, FailureCallbackRequest, SimpleDag, SimpleDagBag,
 )
 from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
@@ -67,21 +67,27 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
     :type pickle_dags: bool
     :param dag_id_white_list: If specified, only look at these DAG ID's
     :type dag_id_white_list: List[str]
-    :param zombies: zombie task instances to kill
-    :type zombies: List[airflow.models.taskinstance.SimpleTaskInstance]
+    :param failure_callback_requests: failure callback to execute
+    :type failure_callback_requests: List[airflow.utils.dag_processing.FailureCallbackRequest]
     """
 
     # Counter that increments every time an instance of this class is created
     class_creation_counter = 0
 
-    def __init__(self, file_path, pickle_dags, dag_id_white_list, zombies):
+    def __init__(
+        self,
+        file_path: str,
+        pickle_dags: bool,
+        dag_id_white_list: Optional[List[str]],
+        failure_callback_requests: List[FailureCallbackRequest]
+    ):
         self._file_path = file_path
+        self._pickle_dags = pickle_dags
+        self._dag_id_white_list = dag_id_white_list
+        self._failure_callback_requests = failure_callback_requests
 
         # The process that was launched to process the given .
         self._process = None
-        self._dag_id_white_list = dag_id_white_list
-        self._pickle_dags = pickle_dags
-        self._zombies = zombies
         # The result of Scheduler.process_file(file_path).
         self._result = None
         # Whether the process is done running.
@@ -106,7 +112,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
                             pickle_dags,
                             dag_id_white_list,
                             thread_name,
-                            zombies):
+                            failure_callback_requests):
         """
         Process the given file.
 
@@ -122,8 +128,8 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
         :type dag_id_white_list: list[str]
         :param thread_name: the name to use for the process that is launched
         :type thread_name: str
-        :param zombies: zombie task instances to kill
-        :type zombies: list[airflow.models.taskinstance.SimpleTaskInstance]
+        :param failure_callback_requests: failure callback to execute
+        :type failure_callback_requests: list[airflow.utils.dag_processing.FailureCallbackRequest]
         :return: the process that was launched
         :rtype: multiprocessing.Process
         """
@@ -151,8 +157,8 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
                 dag_file_processor = DagFileProcessor(dag_ids=dag_id_white_list, log=log)
                 result = dag_file_processor.process_file(
                     file_path=file_path,
-                    zombies=zombies,
-                    pickle_dags=pickle_dags
+                    pickle_dags=pickle_dags,
+                    failure_callback_requests=failure_callback_requests,
                 )
                 result_channel.send(result)
                 end_time = time.time()
@@ -182,7 +188,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
                 self._pickle_dags,
                 self._dag_id_white_list,
                 "DagFileProcessor{}".format(self._instance_id),
-                self._zombies
+                self._failure_callback_requests
             ),
             name="DagFileProcessor{}-Process".format(self._instance_id)
         )
@@ -752,37 +758,35 @@ class DagFileProcessor(LoggingMixin):
         return dags
 
     @provide_session
-    def kill_zombies(self, dagbag, zombies, session=None):
+    def execute_on_failure_callbacks(self, dagbag, failure_callback_requests, session=None):
         """
-        Fail given zombie tasks, which are tasks that haven't
-        had a heartbeat for too long, in the current DagBag.
+        Execute on failure callbacks. These objects can come from SchedulerJob or from
+        DagFileProcessorManager.
 
-        :param zombies: zombie task instances to kill.
-        :type zombies: List[airflow.models.taskinstance.SimpleTaskInstance]
+        :param failure_callback_requests: failure callbacks to execute
+        :type failure_callback_requests: List[airflow.utils.dag_processing.FailureCallbackRequest]
         :param session: DB session.
         """
         TI = models.TaskInstance
 
-        for zombie in zombies:
-            if zombie.dag_id in dagbag.dags:
-                dag = dagbag.dags[zombie.dag_id]
-                if zombie.task_id in dag.task_ids:
-                    task = dag.get_task(zombie.task_id)
-                    ti = TI(task, zombie.execution_date)
+        for request in failure_callback_requests:
+            if request.simple_task_instance.dag_id in dagbag.dags:
+                dag = dagbag.dags[request.simple_task_instance.dag_id]
+                if request.simple_task_instance.task_id in dag.task_ids:
+                    task = dag.get_task(request.simple_task_instance.task_id)
+                    ti = TI(task, request.simple_task_instance.execution_date)
                     # Get properties needed for failure handling from SimpleTaskInstance.
-                    ti.start_date = zombie.start_date
-                    ti.end_date = zombie.end_date
-                    ti.try_number = zombie.try_number
-                    ti.state = zombie.state
+                    ti.start_date = request.simple_task_instance.start_date
+                    ti.end_date = request.simple_task_instance.end_date
+                    ti.try_number = request.simple_task_instance.try_number
+                    ti.state = request.simple_task_instance.state
                     ti.test_mode = self.UNIT_TEST_MODE
-                    ti.handle_failure("{} detected as zombie".format(ti),
-                                      ti.test_mode, ti.get_template_context())
-                    self.log.info('Marked zombie job %s as %s', ti, ti.state)
-                    Stats.incr('zombies_killed')
+                    ti.handle_failure(request.msg, ti.test_mode, ti.get_template_context())
+                    self.log.info('Exeuted failure callback for %s in state %s', ti, ti.state)
         session.commit()
 
     @provide_session
-    def process_file(self, file_path, zombies, pickle_dags=False, session=None):
+    def process_file(self, file_path, failure_callback_requests, pickle_dags=False, session=None):
         """
         Process a Python file containing Airflow DAGs.
 
@@ -801,8 +805,8 @@ class DagFileProcessor(LoggingMixin):
 
         :param file_path: the path to the Python file that should be executed
         :type file_path: str
-        :param zombies: zombie task instances to kill.
-        :type zombies: List[airflow.models.taskinstance.SimpleTaskInstance]
+        :param failure_callback_requests: failure callback to execute
+        :type failure_callback_requests: List[airflow.utils.dag_processing.FailureCallbackRequest]
         :param pickle_dags: whether serialize the DAGs found in the file and
             save them to the db
         :type pickle_dags: bool
@@ -826,6 +830,11 @@ class DagFileProcessor(LoggingMixin):
             self.log.warning("No viable dags retrieved from %s", file_path)
             self.update_import_errors(session, dagbag)
             return [], len(dagbag.import_errors)
+
+        try:
+            self.execute_on_failure_callbacks(dagbag, failure_callback_requests)
+        except Exception:  # pylint: disable=broad-except
+            self.log.exception("Error executing failure callback!")
 
         # Save individual DAGs in the ORM and update DagModel.last_scheduled_time
         dagbag.sync_to_db()
@@ -887,10 +896,6 @@ class DagFileProcessor(LoggingMixin):
             self.update_import_errors(session, dagbag)
         except Exception:  # pylint: disable=broad-except
             self.log.exception("Error logging import errors!")
-        try:
-            self.kill_zombies(dagbag, zombies)
-        except Exception:  # pylint: disable=broad-except
-            self.log.exception("Error killing zombies!")
 
         return simple_dags, len(dagbag.import_errors)
 
@@ -1448,24 +1453,19 @@ class SchedulerJob(BaseJob):
 
                 # TODO: should we fail RUNNING as well, as we do in Backfills?
                 if ti.try_number == try_number and ti.state == State.QUEUED:
-                    msg = ("Executor reports task instance {} finished ({}) "
-                           "although the task says its {}. Was the task "
-                           "killed externally?".format(ti, state, ti.state))
                     Stats.incr('scheduler.tasks.killed_externally')
-                    self.log.error(msg)
-                    try:
-                        simple_dag = simple_dag_bag.get_dag(dag_id)
-                        dagbag = models.DagBag(simple_dag.full_filepath)
-                        dag = dagbag.get_dag(dag_id)
-                        ti.task = dag.get_task(task_id)
-                        ti.handle_failure(msg)
-                    except Exception:  # pylint: disable=broad-except
-                        self.log.error("Cannot load the dag bag to handle failure for %s"
-                                       ". Setting task to FAILED without callbacks or "
-                                       "retries. Do you have enough resources?", ti)
-                        ti.state = State.FAILED
-                        session.merge(ti)
-                        session.commit()
+                    self.log.error(
+                        "Executor reports task instance %s finished (%s) although the task says its %s. "
+                        "Was the task killed externally?",
+                        ti, state, ti.state
+                    )
+                    simple_dag = simple_dag_bag.get_dag(dag_id)
+                    self.processor_agent.send_callback_to_execute(
+                        full_filepath=simple_dag.full_filepath,
+                        task_instance=ti,
+                        msg="Executor reports task instance finished ({}) although the task says its {}. "
+                            "Was the task killed externally?".format(state, ti.state)
+                    )
 
     def _execute(self):
         self.log.info("Starting the scheduler")
@@ -1477,12 +1477,12 @@ class SchedulerJob(BaseJob):
 
         self.log.info("Processing each file at most %s times", self.num_runs)
 
-        def processor_factory(file_path, zombies):
+        def processor_factory(file_path, failure_callback_requests):
             return DagFileProcessorProcess(
                 file_path=file_path,
                 pickle_dags=pickle_dags,
                 dag_id_white_list=self.dag_ids,
-                zombies=zombies
+                failure_callback_requests=failure_callback_requests
             )
 
         # When using sqlite, we do not use async_mode
@@ -1600,7 +1600,24 @@ class SchedulerJob(BaseJob):
     def _validate_and_run_task_instances(self, simple_dag_bag: SimpleDagBag) -> bool:
         if len(simple_dag_bag.simple_dags) > 0:
             try:
-                self._process_and_execute_tasks(simple_dag_bag)
+                # Handle cases where a DAG run state is set (perhaps manually) to
+                # a non-running state. Handle task instances that belong to
+                # DAG runs in those states
+                # If a task instance is up for retry but the corresponding DAG run
+                # isn't running, mark the task instance as FAILED so we don't try
+                # to re-run it.
+                self._change_state_for_tis_without_dagrun(simple_dag_bag,
+                                                          [State.UP_FOR_RETRY],
+                                                          State.FAILED)
+                # If a task instance is scheduled or queued or up for reschedule,
+                # but the corresponding DAG run isn't running, set the state to
+                # NONE so we don't try to re-run it.
+                self._change_state_for_tis_without_dagrun(simple_dag_bag,
+                                                          [State.QUEUED,
+                                                           State.SCHEDULED,
+                                                           State.UP_FOR_RESCHEDULE],
+                                                          State.NONE)
+                self._execute_task_instances(simple_dag_bag)
             except Exception as e:  # pylint: disable=broad-except
                 self.log.error("Error queuing tasks")
                 self.log.exception(e)
@@ -1615,26 +1632,6 @@ class SchedulerJob(BaseJob):
         # Process events from the executor
         self._process_executor_events(simple_dag_bag)
         return True
-
-    def _process_and_execute_tasks(self, simple_dag_bag):
-        # Handle cases where a DAG run state is set (perhaps manually) to
-        # a non-running state. Handle task instances that belong to
-        # DAG runs in those states
-        # If a task instance is up for retry but the corresponding DAG run
-        # isn't running, mark the task instance as FAILED so we don't try
-        # to re-run it.
-        self._change_state_for_tis_without_dagrun(simple_dag_bag,
-                                                  [State.UP_FOR_RETRY],
-                                                  State.FAILED)
-        # If a task instance is scheduled or queued or up for reschedule,
-        # but the corresponding DAG run isn't running, set the state to
-        # NONE so we don't try to re-run it.
-        self._change_state_for_tis_without_dagrun(simple_dag_bag,
-                                                  [State.QUEUED,
-                                                   State.SCHEDULED,
-                                                   State.UP_FOR_RESCHEDULE],
-                                                  State.NONE)
-        self._execute_task_instances(simple_dag_bag)
 
     @provide_session
     def heartbeat_callback(self, session=None):

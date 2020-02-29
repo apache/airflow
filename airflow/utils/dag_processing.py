@@ -25,6 +25,7 @@ import signal
 import sys
 import time
 from abc import ABCMeta, abstractmethod
+from collections import defaultdict
 from datetime import datetime, timedelta
 from importlib import import_module
 from typing import Any, Callable, Dict, KeysView, List, NamedTuple, Optional, Tuple
@@ -40,7 +41,7 @@ from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
 from airflow.jobs.local_task_job import LocalTaskJob as LJ
 from airflow.models import Connection, errors
-from airflow.models.taskinstance import SimpleTaskInstance
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -268,6 +269,13 @@ class DagParsingSignal(enum.Enum):
     END_MANAGER = 'end_manager'
 
 
+class FailureCallbackRequest(NamedTuple):
+    """A message with information about the callback to be executed."""
+    full_filepath: str
+    simple_task_instance: SimpleTaskInstance
+    msg: str
+
+
 class DagFileProcessorAgent(LoggingMixin):
     """
     Agent for DAG file processing. It is responsible for all DAG parsing
@@ -349,6 +357,29 @@ class DagFileProcessorAgent(LoggingMixin):
 
         try:
             self._parent_signal_conn.send(DagParsingSignal.AGENT_HEARTBEAT)
+        except ConnectionError:
+            # If this died cos of an error then we will noticed and restarted
+            # when harvest_simple_dags calls _heartbeat_manager.
+            pass
+
+    def send_callback_to_execute(self, full_filepath: str, task_instance: TaskInstance, msg: str):
+        """
+        Sends information about the callback to be executed by DagFileProcessor.
+
+        :param full_filepath: DAG File path
+        :type full_filepath: str
+        :param task_instance: Task Instance for which the callback is to be executed.
+        :type task_instance: airflow.models.taskinstance.TaskInstance
+        :param msg: Message sent in callback.
+        :type msg: str
+        """
+        try:
+            request = FailureCallbackRequest(
+                full_filepath=full_filepath,
+                simple_task_instance=SimpleTaskInstance(task_instance),
+                msg=msg
+            )
+            self._parent_signal_conn.send(request)
         except ConnectionError:
             # If this died cos of an error then we will noticed and restarted
             # when harvest_simple_dags calls _heartbeat_manager.
@@ -516,7 +547,10 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
     def __init__(self,
                  dag_directory: str,
                  max_runs: int,
-                 processor_factory: Callable[[str, List[Any]], AbstractDagFileProcessorProcess],
+                 processor_factory: Callable[
+                     [str, List[FailureCallbackRequest]],
+                     AbstractDagFileProcessorProcess
+                 ],
                  processor_timeout: timedelta,
                  signal_conn: Connection,
                  async_mode: bool = True):
@@ -562,13 +596,14 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         self.last_stat_print_time = timezone.datetime(2000, 1, 1)
         # TODO: Remove magic number
         self._zombie_query_interval = 10
-        self._zombies: List[SimpleTaskInstance] = []
         # How long to wait before timing out a process to parse a DAG file
         self._processor_timeout = processor_timeout
 
         # How often to scan the DAGs directory for new files. Default to 5 minutes.
-        self.dag_dir_list_interval = conf.getint('scheduler',
-                                                 'dag_dir_list_interval')
+        self.dag_dir_list_interval = conf.getint('scheduler', 'dag_dir_list_interval')
+
+        # Mapping file name and callbacks requests
+        self._callback_to_execute: Dict[str, List[FailureCallbackRequest]] = defaultdict(list)
 
         self._log = logging.getLogger('airflow.processor_manager')
 
@@ -632,6 +667,10 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 elif agent_signal == DagParsingSignal.AGENT_HEARTBEAT:
                     # continue the loop to parse dags
                     pass
+                elif isinstance(agent_signal, FailureCallbackRequest):
+                    self._add_callback_to_queue(agent_signal)
+                else:
+                    raise AirflowException("Invalid message")
             elif not self._async_mode:
                 # In "sync" mode we don't want to parse the DAGs until we
                 # are told to (as that would open another connection to the
@@ -642,7 +681,6 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             self._find_zombies()  # pylint: disable=no-value-for-parameter
 
             self._kill_timed_out_processors()
-            simple_dags = self.collect_results()
 
             # Generate more file paths to process if we processed all the files
             # already.
@@ -655,6 +693,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             # Update number of loop iteration.
             self._num_run += 1
 
+            simple_dags = self.collect_results()
             for simple_dag in simple_dags:
                 self._signal_conn.send(simple_dag)
 
@@ -694,6 +733,13 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                     poll_time = 1 - loop_duration
                 else:
                     poll_time = 0.0
+
+    def _add_callback_to_queue(self, request: FailureCallbackRequest):
+        self._callback_to_execute[request.full_filepath].append(request)
+        # Callback has a higher priority over DAG Run scheduling
+        if request.full_filepath in self._file_path_queue:
+            self._file_path_queue.remove(request.full_filepath)
+        self._file_path_queue.insert(0, request.full_filepath)
 
     def _refresh_dag_dir(self):
         """
@@ -998,7 +1044,9 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         """
         while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
             file_path = self._file_path_queue.pop(0)
-            processor = self._processor_factory(file_path, self._zombies)
+            callback_to_execute_for_file = self._callback_to_execute[file_path]
+            processor = self._processor_factory(file_path, callback_to_execute_for_file)
+            del self._callback_to_execute[file_path]
             Stats.incr('dag_processing.processes')
 
             processor.start()
@@ -1058,19 +1106,19 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         and update the current zombie list.
         """
         now = timezone.utcnow()
-        zombies: List[SimpleTaskInstance] = []
         if not self._last_zombie_query_time or \
                 (now - self._last_zombie_query_time).total_seconds() > self._zombie_query_interval:
             # to avoid circular imports
             self.log.info("Finding 'running' jobs without a recent heartbeat")
             TI = airflow.models.TaskInstance
-            limit_dttm = timezone.utcnow() - timedelta(
-                seconds=self._zombie_threshold_secs)
+            DM = airflow.models.DagModel
+            limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
             self.log.info("Failing jobs without heartbeat after %s", limit_dttm)
 
-            tis = (
-                session.query(TI)
+            zombies = (
+                session.query(TI, DM.fileloc)
                 .join(LJ, TI.job_id == LJ.id)
+                .join(DM, TI.dag_id == DM.dag_id)
                 .filter(TI.state == State.RUNNING)
                 .filter(
                     or_(
@@ -1079,15 +1127,17 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                     )
                 ).all()
             )
-            self._last_zombie_query_time = timezone.utcnow()
-            for ti in tis:
-                sti = SimpleTaskInstance(ti)
-                self.log.info(
-                    "Detected zombie job with dag_id %s, task_id %s, and execution date %s",
-                    sti.dag_id, sti.task_id, sti.execution_date.isoformat())
-                zombies.append(sti)
 
-            self._zombies = zombies
+            self._last_zombie_query_time = timezone.utcnow()
+            for ti, file_loc in zombies:
+                request = FailureCallbackRequest(
+                    full_filepath=file_loc,
+                    simple_task_instance=SimpleTaskInstance(ti),
+                    msg="Detected as zombie",
+                )
+                self.log.info("Detected zombie job: %s", request)
+                self._add_callback_to_queue(request)
+                Stats.incr('zombies_killed')
 
     def _kill_timed_out_processors(self):
         """
