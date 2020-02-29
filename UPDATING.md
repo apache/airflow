@@ -89,6 +89,37 @@ executor = my_acme_company.executors.MyCustomExecutor
 
 The old configuration is still works but can be abandoned at any time.
 
+### Removed sub-package imports from `airflow/models/__init__.py`
+
+The below imports have been removed from `airflow/models/__init__.py`. All implicit references of these objects
+will no longer be valid. To migrate, all usages of each old path must be replaced with its corresponding new path.
+
+| Old Path (Implicit Import)              | New Path (Explicit Import)                            |
+|-----------------------------------------|-------------------------------------------------------|
+| ``airflow.models.ID_LEN``               | ``airflow.models.base.ID_LEN ``                       |
+| ``airflow.models.Base``                 | ``airflow.models.base.Base ``                         |
+| ``airflow.models.Connection``           | ``airflow.models.connection.Connection ``             |
+| ``airflow.models.DAG``                  | ``airflow.models.dag.DAG ``                           |
+| ``airflow.models.DagModel``             | ``airflow.models.dag.DagModel ``                      |
+| ``airflow.models.DagTag``               | ``airflow.models.dag.DagTag ``                        |
+| ``airflow.models.DagBag``               | ``airflow.models.dagbag.DagBag ``                     |
+| ``airflow.models.DagPickle``            | ``airflow.models.dagpickle.DagPickle ``               |
+| ``airflow.models.DagRun``               | ``airflow.models.dagrun.DagRun ``                     |
+| ``airflow.models.ImportError``          | ``airflow.models.errors.ImportError ``                |
+| ``airflow.models.KubeResourceVersion``  | ``airflow.models.kubernetes.KubeResourceVersion ``    |
+| ``airflow.models.KubeWorkerIdentifier`` | ``airflow.models.kubernetes.KubeWorkerIdentifier ``   |
+| ``airflow.models.Log``                  | ``airflow.models.log.Log ``                           |
+| ``airflow.models.Pool``                 | ``airflow.models.pool.Pool ``                         |
+| ``airflow.models.SkipMixin``            | ``airflow.models.skipmixin.SkipMixin ``               |
+| ``airflow.models.SlaMiss``              | ``airflow.models.slamiss.SlaMiss ``                   |
+| ``airflow.models.TaskFail``             | ``airflow.models.taskfail.TaskFail ``                 |
+| ``airflow.models.TaskInstance``         | ``airflow.models.taskinstance.TaskInstance ``         |
+| ``airflow.models.clear_task_instances`` | ``airflow.models.taskinstance.clear_task_instances `` |
+| ``airflow.models.TaskReschedule``       | ``airflow.models.taskreschedule.TaskReschedule ``     |
+| ``airflow.models.Variable``             | ``airflow.models.variable.Variable ``                 |
+| ``airflow.models.XCOM_RETURN_KEY``      | ``airflow.models.xcom.XCOM_RETURN_KEY ``              |
+| ``airflow.models.XCom``                 | ``airflow.models.xcom.XCom ``                         |
+
 ### Removed sub-package imports from `airflow/__init__.py`
 
 The imports `LoggingMixin`, `conf`, and `AirflowException` have been removed from `airflow/__init__.py`.
