@@ -25,6 +25,7 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models.dag import DagModel
+from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone

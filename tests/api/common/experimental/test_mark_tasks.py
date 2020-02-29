@@ -541,11 +541,15 @@ class TestMarkDAGRun(unittest.TestCase):
         self._verify_dag_run_state(self.dag2, self.execution_dates[1], State.SUCCESS)
 
         # Make sure other dag status are not changed
-        DagRun.find(dag_id=self.dag2.dag_id,
-                           execution_date=self.execution_dates[0])
+        DagRun.find(
+            dag_id=self.dag2.dag_id,
+            execution_date=self.execution_dates[0]
+        )
         self._verify_dag_run_state(self.dag2, self.execution_dates[0], State.FAILED)
-        DagRun.find(dag_id=self.dag2.dag_id,
-                           execution_date=self.execution_dates[2])
+        DagRun.find(
+            dag_id=self.dag2.dag_id,
+            execution_date=self.execution_dates[2]
+        )
         self._verify_dag_run_state(self.dag2, self.execution_dates[2], State.RUNNING)
 
     def test_set_dag_run_state_edge_cases(self):

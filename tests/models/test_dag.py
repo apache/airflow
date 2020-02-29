@@ -107,9 +107,11 @@ class TestDag(unittest.TestCase):
         params1 = {'parameter1': 1}
         params2 = {'parameter2': 2}
 
-        dag = DAG('test-dag',
-                         default_args={'params': params1},
-                         params=params2)
+        dag = DAG(
+            'test-dag',
+            default_args={'params': params1},
+            params=params2
+        )
 
         params_combined = params1.copy()
         params_combined.update(params2)
