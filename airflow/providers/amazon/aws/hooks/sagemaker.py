@@ -791,8 +791,9 @@ class SageMakerHook(AwsBaseHook):
         result, there are more results to fetch). The default AWS batch size is 10, and configurable up to
         100. This function iteratively loads all results (or up to a given maximum).
 
-        Each boto3 function returns the results in a different dict structure. The key of this structure must
-        be given to iterate over the results, e.g. "TransformJobSummaries" for list_transform_jobs().
+        Each boto3 list_* function returns the results in a list with a different name. The key of this
+        structure must be given to iterate over the results, e.g. "TransformJobSummaries" for
+        list_transform_jobs().
 
         :param partial_func: boto3 function with arguments
         :param result_key: the result key to iterate over
@@ -800,7 +801,7 @@ class SageMakerHook(AwsBaseHook):
         :return: Results of the list_* request
         """
 
-        SAGEMAKER_MAX_RESULTS = 100  # Fixed number set by AWS
+        sagemaker_max_results = 100  # Fixed number set by AWS
 
         results = []
         next_token = None
@@ -811,9 +812,9 @@ class SageMakerHook(AwsBaseHook):
                 kwargs["NextToken"] = next_token
 
             if max_results is None:
-                kwargs["MaxResults"] = SAGEMAKER_MAX_RESULTS
+                kwargs["MaxResults"] = sagemaker_max_results
             else:
-                kwargs["MaxResults"] = min(max_results - len(results), SAGEMAKER_MAX_RESULTS)
+                kwargs["MaxResults"] = min(max_results - len(results), sagemaker_max_results)
 
             response = partial_func(**kwargs)
             self.log.debug("Fetched %s results.", len(response[result_key]))
