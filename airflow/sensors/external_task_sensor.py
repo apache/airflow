@@ -24,6 +24,7 @@ from sqlalchemy import func
 
 from airflow.exceptions import AirflowException
 from airflow.models.dag import DagModel
+from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
