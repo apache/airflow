@@ -1390,7 +1390,7 @@ class Airflow(AirflowBaseView):
         min_date = min(dates) if dates else None
 
         tis = dag.get_task_instances(start_date=min_date, end_date=base_date)
-        task_instances: Dict[Tuple[str, datetime], models.TaskInstance] = {}
+        task_instances: Dict[Tuple[str, datetime], TaskInstance] = {}
         for ti in tis:
             task_instances[(ti.task_id, ti.execution_date)] = ti
 
@@ -1401,7 +1401,7 @@ class Airflow(AirflowBaseView):
         node_count = 0
         node_limit = 5000 / max(1, len(dag.leaves))
 
-        def encode_ti(ti: Optional[models.TaskInstance]) -> Optional[List]:
+        def encode_ti(ti: Optional[TaskInstance]) -> Optional[List]:
             if not ti:
                 return None
 
