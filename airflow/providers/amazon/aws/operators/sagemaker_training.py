@@ -72,7 +72,14 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         self.print_log = print_log
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
-        self.action_if_job_exists = action_if_job_exists
+
+        if action_if_job_exists in ("increment", "fail"):
+            self.action_if_job_exists = action_if_job_exists
+        else:
+            raise AirflowException(
+                "Argument action_if_job_exists accepts only 'increment' and 'fail'. "
+                f"Provided value: '{action_if_job_exists}'."
+            )
 
     def expand_role(self):
         if 'RoleArn' in self.config:
