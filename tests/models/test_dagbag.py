@@ -26,7 +26,7 @@ from tempfile import NamedTemporaryFile, mkdtemp
 from unittest.mock import patch
 
 import airflow.example_dags
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.utils.session import create_session
 from tests.models import TEST_DAGS_FOLDER
@@ -604,6 +604,7 @@ class TestDagBag(unittest.TestCase):
         Test that dag_ids not passed into deactivate_unknown_dags
         are deactivated when function is invoked
         """
+        from airflow.models.dag import DAG
         dagbag = DagBag(include_examples=True)
         dag_id = "test_deactivate_unknown_dags"
         expected_active_dags = dagbag.dags.keys()
