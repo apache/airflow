@@ -63,10 +63,14 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
         self.key = "test_dag_id"
         self.dag_file_path = "/usr/local/airflow/dags/test_dag_8.py"
 
-        task = DummyOperator(task_id='dummy',
-                             dag=DAG(dag_id=self.key,
-                                            default_args={'start_date': days_ago(2)}),
-                             owner='airflow')
+        task = DummyOperator(
+            task_id='dummy',
+            dag=DAG(
+                dag_id=self.key,
+                default_args={'start_date': days_ago(2)}
+            ),
+            owner='airflow'
+        )
 
         test_date = days_ago(1)
         with create_session() as session:
