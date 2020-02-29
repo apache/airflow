@@ -342,7 +342,7 @@ class TaskInstance(Base, LoggingMixin):
         :param raw: raw mode (needs more details)
         :type raw: Optional[bool]
         :param job_id: job ID (needs more details)
-        :type job_id: Optional[str]
+        :type job_id: Optional[int]
         :param pool: the Airflow pool that the task should run in
         :type pool: Optional[str]
         :param cfg_path: the Path to the configuration file
@@ -357,7 +357,7 @@ class TaskInstance(Base, LoggingMixin):
         if pickle_id:
             cmd.extend(["--pickle", pickle_id])
         if job_id:
-            cmd.extend(["--job-id", job_id])
+            cmd.extend(["--job-id", str(job_id)])
         if ignore_all_deps:
             cmd.extend(["--ignore-all-dependencies"])
         if ignore_task_deps:
