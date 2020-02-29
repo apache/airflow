@@ -22,7 +22,7 @@ This module contains operator to move data from Hive to MySQL.
 from tempfile import NamedTemporaryFile
 from typing import Dict, Optional
 
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils.decorators import apply_defaults

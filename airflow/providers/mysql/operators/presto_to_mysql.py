@@ -17,7 +17,7 @@
 # under the License.
 from typing import Optional
 
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.presto.hooks.presto import PrestoHook
 from airflow.utils.decorators import apply_defaults

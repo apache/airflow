@@ -22,7 +22,7 @@ from typing import Any, Dict, Iterable, Optional
 from urllib.parse import unquote, urlparse
 
 from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook
 from airflow.utils.decorators import apply_defaults
 

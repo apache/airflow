@@ -21,7 +21,7 @@ This module contains Google Spanner operators.
 from typing import List, Optional, Union
 
 from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.spanner import SpannerHook
 from airflow.utils.decorators import apply_defaults
 

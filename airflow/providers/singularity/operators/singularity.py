@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Optional, Union
 from spython.main import Client
 
 from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

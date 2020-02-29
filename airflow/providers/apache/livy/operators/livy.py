@@ -22,7 +22,7 @@ This module contains the Apache Livy operator.
 from time import sleep
 
 from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.utils.decorators import apply_defaults
 

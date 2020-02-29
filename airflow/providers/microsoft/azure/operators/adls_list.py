@@ -18,7 +18,7 @@
 
 from typing import Iterable
 
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
 from airflow.utils.decorators import apply_defaults
 

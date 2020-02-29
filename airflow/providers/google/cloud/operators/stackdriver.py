@@ -20,7 +20,7 @@ from typing import Optional
 
 from google.api_core.gapic_v1.method import DEFAULT
 
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.stackdriver import StackdriverHook
 from airflow.utils.decorators import apply_defaults
 

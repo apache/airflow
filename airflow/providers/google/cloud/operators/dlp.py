@@ -33,7 +33,7 @@ from google.cloud.dlp_v2.types import (
 )
 from google.protobuf.json_format import MessageToDict
 
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
 from airflow.utils.decorators import apply_defaults
 

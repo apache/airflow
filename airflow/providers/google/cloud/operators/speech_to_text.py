@@ -25,7 +25,7 @@ from google.cloud.speech_v1.types import RecognitionConfig
 from google.protobuf.json_format import MessageToDict
 
 from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook, RecognitionAudio
 from airflow.utils.decorators import apply_defaults
 

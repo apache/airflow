@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.functions import CloudFunctionsHook
 from airflow.providers.google.cloud.utils.field_validator import (
     GcpBodyFieldValidator, GcpFieldValidationException,

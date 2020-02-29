@@ -24,7 +24,7 @@ import warnings
 from typing import List, Optional
 
 from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.mlengine import MLEngineHook
 from airflow.utils.decorators import apply_defaults

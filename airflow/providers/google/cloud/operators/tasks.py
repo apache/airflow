@@ -29,7 +29,7 @@ from google.cloud.tasks_v2 import enums
 from google.cloud.tasks_v2.types import FieldMask, Queue, Task
 from google.protobuf.json_format import MessageToDict
 
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
 from airflow.utils.decorators import apply_defaults
 

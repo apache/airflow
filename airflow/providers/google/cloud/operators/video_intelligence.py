@@ -25,7 +25,7 @@ from google.cloud.videointelligence_v1 import enums
 from google.cloud.videointelligence_v1.types import VideoContext
 from google.protobuf.json_format import MessageToDict
 
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.video_intelligence import CloudVideoIntelligenceHook
 
 

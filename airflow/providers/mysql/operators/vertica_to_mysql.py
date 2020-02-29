@@ -22,7 +22,7 @@ from tempfile import NamedTemporaryFile
 import MySQLdb
 import unicodecsv as csv
 
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.vertica.hooks.vertica import VerticaHook
 from airflow.utils.decorators import apply_defaults

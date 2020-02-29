@@ -19,8 +19,9 @@
 
 from typing import Dict, Iterable, Union
 
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.models.skipmixin import SkipMixin
+
 
 class BaseBranchOperator(BaseOperator, SkipMixin):
     """

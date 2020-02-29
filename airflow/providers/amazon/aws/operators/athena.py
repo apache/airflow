@@ -19,7 +19,7 @@
 
 from uuid import uuid4
 
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook
 from airflow.utils.decorators import apply_defaults
 

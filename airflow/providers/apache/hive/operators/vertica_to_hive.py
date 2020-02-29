@@ -25,7 +25,7 @@ from tempfile import NamedTemporaryFile
 
 import unicodecsv as csv
 
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.providers.vertica.hooks.vertica import VerticaHook
 from airflow.utils.decorators import apply_defaults

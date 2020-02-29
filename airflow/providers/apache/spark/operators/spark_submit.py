@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
 from airflow.settings import WEB_COLORS
 from airflow.utils.decorators import apply_defaults

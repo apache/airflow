@@ -22,7 +22,7 @@ This module contains operator to move data from Hive to Samba.
 
 from tempfile import NamedTemporaryFile
 
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
 from airflow.providers.samba.hooks.samba import SambaHook
 from airflow.utils.decorators import apply_defaults

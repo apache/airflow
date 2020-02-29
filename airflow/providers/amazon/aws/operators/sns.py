@@ -18,7 +18,7 @@
 
 """Publish message to SNS queue"""
 
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sns import AwsSnsHook
 from airflow.utils.decorators import apply_defaults
 

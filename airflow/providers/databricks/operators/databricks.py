@@ -23,7 +23,7 @@ This module contains Databricks operators.
 import time
 
 from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
 from airflow.utils.decorators import apply_defaults
 

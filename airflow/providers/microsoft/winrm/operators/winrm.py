@@ -23,7 +23,7 @@ from winrm.exceptions import WinRMOperationTimeoutError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 from airflow.utils.decorators import apply_defaults
 

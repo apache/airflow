@@ -20,7 +20,7 @@ import datetime
 from typing import Dict, Optional, Union
 
 from airflow.api.common.experimental.trigger_dag import trigger_dag
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 

@@ -18,7 +18,7 @@
 from typing import List, Optional, Union
 
 from airflow.hooks.base_hook import BaseHook
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

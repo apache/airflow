@@ -23,7 +23,7 @@ import logging
 import random
 
 from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.datasync import AWSDataSyncHook
 from airflow.utils.decorators import apply_defaults
 
