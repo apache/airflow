@@ -16,25 +16,31 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow models"""
-from airflow.models.base import ID_LEN, Base
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
-from airflow.models.connection import Connection
-from airflow.models.dag import DAG, DagModel, DagTag
-from airflow.models.dagbag import DagBag
-from airflow.models.dagpickle import DagPickle
-from airflow.models.dagrun import DagRun
+from airflow.models.base import ID_LEN, Base  # noqa: F401 # pylint: disable=unused-import
+from airflow.models.baseoperator import (  # noqa: F401 # pylint: disable=unused-import
+    BaseOperator, BaseOperatorLink,
+)
+from airflow.models.connection import Connection  # noqa: F401 # pylint: disable=unused-import
+from airflow.models.dag import DAG, DagModel, DagTag  # noqa: F401 # pylint: disable=unused-import
+from airflow.models.dagbag import DagBag  # noqa: F401 # pylint: disable=unused-import
+from airflow.models.dagpickle import DagPickle  # noqa: F401 # pylint: disable=unused-import
+from airflow.models.dagrun import DagRun  # noqa: F401 # pylint: disable=unused-import
 from airflow.models.errors import ImportError  # pylint: disable=redefined-builtin
-from airflow.models.log import Log
-from airflow.models.pool import Pool
-from airflow.models.skipmixin import SkipMixin
-from airflow.models.slamiss import SlaMiss
-from airflow.models.taskfail import TaskFail
-from airflow.models.taskinstance import TaskInstance, clear_task_instances
-from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.variable import Variable
-from airflow.models.xcom import XCOM_RETURN_KEY, XCom
+from airflow.models.log import Log  # noqa: F401 # pylint: disable=unused-import
+from airflow.models.pool import Pool  # noqa: F401 # pylint: disable=unused-import
+from airflow.models.skipmixin import SkipMixin  # noqa: F401 # pylint: disable=unused-import
+from airflow.models.slamiss import SlaMiss  # noqa: F401 # pylint: disable=unused-import
+from airflow.models.taskfail import TaskFail  # noqa: F401 # pylint: disable=unused-import
+from airflow.models.taskinstance import (  # noqa: F401 # pylint: disable=unused-import
+    TaskInstance, clear_task_instances,
+)
+from airflow.models.taskreschedule import TaskReschedule  # noqa: F401 # pylint: disable=unused-import
+from airflow.models.variable import Variable  # noqa: F401 # pylint: disable=unused-import
+from airflow.models.xcom import XCOM_RETURN_KEY, XCom  # noqa: F401 # pylint: disable=unused-import
 
 try:
-    from airflow.models.kubernetes import KubeResourceVersion, KubeWorkerIdentifier
+    from airflow.models.kubernetes import (  # noqa: F401 # pylint: disable=unused-import
+        KubeResourceVersion, KubeWorkerIdentifier
+    )
 except ImportError:
     pass
