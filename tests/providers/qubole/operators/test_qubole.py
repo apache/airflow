@@ -20,8 +20,8 @@
 import unittest
 
 from airflow import settings
-from airflow.models.dag import DAG
 from airflow.models.connection import Connection
+from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.qubole.hooks.qubole import QuboleHook
 from airflow.providers.qubole.operators.qubole import QDSLink, QuboleOperator

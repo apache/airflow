@@ -27,8 +27,8 @@ import pendulum
 from dateutil import relativedelta
 
 from airflow.exceptions import AirflowException
-from airflow.models.connection import Connection
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.json_schema import Validator, load_dag_schema

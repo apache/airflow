@@ -23,7 +23,6 @@ Example Airflow DAG for Google Cloud Stackdriver service.
 import json
 
 from airflow.models.dag import DAG
-
 from airflow.providers.google.cloud.operators.stackdriver import (
     StackdriverDeleteAlertOperator, StackdriverDeleteNotificationChannelOperator,
     StackdriverDisableAlertPoliciesOperator, StackdriverDisableNotificationChannelsOperator,

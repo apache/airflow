@@ -26,8 +26,8 @@ from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.lineage.entities import File
-from airflow.models.dag import DAG
 from airflow.models.baseoperator import chain, cross_downstream
+from airflow.models.dag import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from tests.models import DEFAULT_DATE
 from tests.test_utils.mock_operators import MockNamedTuple, MockOperator

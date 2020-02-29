@@ -19,6 +19,7 @@ import json
 from unittest import mock
 
 from airflow.models.connection import Connection
+
 GCP_PROJECT_ID_HOOK_UNIT_TEST = 'example-project'
 
 

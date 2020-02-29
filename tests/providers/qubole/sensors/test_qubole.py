@@ -22,8 +22,8 @@ from datetime import datetime
 from unittest.mock import patch
 
 from airflow.exceptions import AirflowException
-from airflow.models.dag import DAG
 from airflow.models.connection import Connection
+from airflow.models.dag import DAG
 from airflow.providers.qubole.sensors.qubole import QuboleFileSensor, QubolePartitionSensor
 from airflow.utils import db
 
