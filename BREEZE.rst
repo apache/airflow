@@ -79,6 +79,37 @@ Docker Compose
 
 - **Permissions**: Configure to run the ``docker-compose`` command.
 
+Docker in WSL
+-------------
+
+- **WSL installation** :
+    `WSL Installation Guide <https://docs.microsoft.com/en-us/windows/wsl/install-win10>`_ for details.
+
+- **Docker installation** :
+    You should install docker in WSL.
+    follow `Docker Installtion Guide <https://docs.docker.com/install/linux/docker-ce/ubuntu/>`_
+    only docker-ce without docker-ce-cli containerd.io.
+- **Docker setting** :
+    You should expose Docker daemon,
+
+.. image:: images/docker_expose_daemon.png
+    :align: left
+    :alt: Docker expose daemon
+
+and set env variable DOCKER_HOST.
+
+.. code-block:: bash
+
+    echo "export DOCKER_HOST=tcp://localhost:2375" >> ~/.bashrc && source ~/.bashrc
+
+- **WSL problems** :
+  There is a mounting problem in docker because docker could not recognize ``/mnt/c``, ``/mnt/d`` driver path.
+  run this command in Windows Version 18.03+ and reboot Windows
+
+.. code-block:: bash
+
+    printf '[automount]\nroot = /\n options = "metadata"\n' >> /etc/wsl.conf
+
 Docker Images Used by Breeze
 ----------------------------
 
