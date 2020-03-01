@@ -161,4 +161,5 @@ The :class:`airflow.providers.cncf.kubernetes.operators.kubernetes_pod.Kubernete
                               tolerations=tolerations,
                               configmaps=configmaps,
                               init_containers=[init_container],
+                              priority_class_name="medium",
                               )

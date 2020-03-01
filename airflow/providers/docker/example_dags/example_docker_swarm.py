@@ -17,7 +17,7 @@
 # under the License.
 from datetime import timedelta
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.providers.docker.operators.docker_swarm import DockerSwarmOperator
 from airflow.utils.dates import days_ago
 

@@ -20,7 +20,7 @@ include NOTICE
 include LICENSE
 include CHANGELOG.txt
 include README.md
-graft licenses/
+graft licenses
 graft airflow/www
 graft airflow/www/static
 graft airflow/www/templates

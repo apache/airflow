@@ -5,10 +5,6 @@
 ./airflow/contrib/auth/backends/ldap_auth.py
 ./airflow/hooks/dbapi_hook.py
 ./airflow/hooks/filesystem.py
-./airflow/jobs/backfill_job.py
-./airflow/jobs/base_job.py
-./airflow/jobs/local_task_job.py
-./airflow/jobs/scheduler_job.py
 ./airflow/lineage/backend/atlas/typedefs.py
 ./airflow/lineage/datasets.py
 ./airflow/logging_config.py

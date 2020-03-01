@@ -20,7 +20,7 @@ This is an example dag for using the KubernetesPodOperator.
 """
 import logging
 
-from airflow.models import DAG
+from airflow import DAG
 from airflow.utils.dates import days_ago
 
 log = logging.getLogger(__name__)

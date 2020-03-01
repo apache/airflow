@@ -23,6 +23,7 @@ from unittest.mock import MagicMock, patch
 from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.providers.amazon.aws.operators.emr_add_steps import EmrAddStepsOperator
 from airflow.utils import timezone
 
@@ -97,6 +98,54 @@ class TestEmrAddStepsOperator(unittest.TestCase):
         }]
 
         self.assertListEqual(self.operator.steps, expected_args)
+
+    def test_render_template_2(self):
+        dag = DAG(
+            dag_id='test_xcom', default_args=self.args)
+
+        xcom_steps = [
+            {
+                'Name': 'test_step1',
+                'ActionOnFailure': 'CONTINUE',
+                'HadoopJarStep': {
+                    'Jar': 'command-runner.jar',
+                    'Args': [
+                        '/usr/lib/spark/bin/run-example1'
+                    ]
+                }
+            }, {
+                'Name': 'test_step2',
+                'ActionOnFailure': 'CONTINUE',
+                'HadoopJarStep': {
+                    'Jar': 'command-runner.jar',
+                    'Args': [
+                        '/usr/lib/spark/bin/run-example2'
+                    ]
+                }
+            }
+        ]
+
+        make_steps = DummyOperator(task_id='make_steps', dag=dag, owner='airflow')
+        execution_date = timezone.utcnow()
+        ti1 = TaskInstance(task=make_steps, execution_date=execution_date)
+        ti1.xcom_push(key='steps', value=xcom_steps)
+
+        self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
+
+        test_task = EmrAddStepsOperator(
+            task_id='test_task',
+            job_flow_id='j-8989898989',
+            aws_conn_id='aws_default',
+            steps="{{ ti.xcom_pull(task_ids='make_steps',key='steps') }}",
+            dag=dag)
+
+        with patch('boto3.session.Session', self.boto3_session_mock):
+            ti = TaskInstance(task=test_task, execution_date=execution_date)
+            ti.run()
+
+        self.emr_client_mock.add_job_flow_steps.assert_called_once_with(
+            JobFlowId='j-8989898989',
+            Steps=xcom_steps)
 
     def test_execute_returns_step_id(self):
         self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN

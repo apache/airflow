@@ -24,9 +24,10 @@ import sys
 import textwrap
 import zipfile
 from datetime import datetime, timedelta
-from typing import NamedTuple
+from typing import List, NamedTuple
 
 from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
+from tabulate import tabulate
 
 from airflow import settings
 from airflow.configuration import conf
@@ -35,7 +36,6 @@ from airflow.exceptions import AirflowDagCycleException
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.file import correct_maybe_zipped
-from airflow.utils.helpers import pprinttable
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timeout import timeout
 
@@ -113,10 +113,10 @@ class DagBag(BaseDagBag, LoggingMixin):
         return len(self.dags)
 
     @property
-    def dag_ids(self):
+    def dag_ids(self) -> List[str]:
         return self.dags.keys()
 
-    def get_dag(self, dag_id, from_file_only=False):
+    def get_dag(self, dag_id: str, from_file_only: bool = False):
         """
         Gets the DAG out of the dictionary, and refreshes it if expired
 
@@ -453,5 +453,12 @@ class DagBag(BaseDagBag, LoggingMixin):
             duration=sum([o.duration for o in stats], timedelta()).total_seconds(),
             dag_num=sum([o.dag_num for o in stats]),
             task_num=sum([o.task_num for o in stats]),
-            table=pprinttable(stats),
+            table=tabulate(stats, headers="keys"),
         )
+
+    def sync_to_db(self):
+        """
+        Save attributes about list of DAG to the DB.
+        """
+        from airflow.models.dag import DAG
+        DAG.bulk_sync_to_db(self.dags.values())

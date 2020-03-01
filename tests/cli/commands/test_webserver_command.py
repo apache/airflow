@@ -75,7 +75,7 @@ class TestCLIGetNumReadyWorkersRunning(unittest.TestCase):
 
     def test_cli_webserver_debug(self):
         env = os.environ.copy()
-        proc = psutil.Popen(["airflow", "webserver", "-d"], env=env)
+        proc = psutil.Popen(["airflow", "webserver", "--debug"], env=env)
         sleep(3)  # wait for webserver to start
         return_code = proc.poll()
         self.assertEqual(
@@ -99,8 +99,8 @@ class TestCliWebServer(unittest.TestCase):
         try:
             # Confirm that webserver hasn't been launched.
             # pgrep returns exit status 1 if no process matched.
-            self.assertEqual(1, subprocess.Popen(["pgrep", "-f", "-c", "airflow webserver"]).wait())
-            self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+            self.assertEqual(1, subprocess.Popen(["pgrep", "--full", "--count", "airflow webserver"]).wait())
+            self.assertEqual(1, subprocess.Popen(["pgrep", "--count", "gunicorn"]).wait())
         except:  # noqa: E722
             subprocess.Popen(["ps", "-ax"]).wait()
             raise
@@ -151,14 +151,14 @@ class TestCliWebServer(unittest.TestCase):
         pidfile_monitor = setup_locations("webserver-monitor")[0]
 
         # Run webserver as daemon in background. Note that the wait method is not called.
-        subprocess.Popen(["airflow", "webserver", "-D"])
+        subprocess.Popen(["airflow", "webserver", "--daemon"])
 
         pid_monitor = self._wait_pidfile(pidfile_monitor)
         self._wait_pidfile(pidfile_webserver)
 
         # Assert that gunicorn and its monitor are launched.
-        self.assertEqual(0, subprocess.Popen(["pgrep", "-f", "-c", "airflow webserver"]).wait())
-        self.assertEqual(0, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+        self.assertEqual(0, subprocess.Popen(["pgrep", "--full", "--count", "airflow webserver"]).wait())
+        self.assertEqual(0, subprocess.Popen(["pgrep", "--count", "gunicorn"]).wait())
 
         # Terminate monitor process.
         proc = psutil.Process(pid_monitor)

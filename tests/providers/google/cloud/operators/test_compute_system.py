@@ -19,25 +19,25 @@ import pytest
 
 from tests.providers.google.cloud.operators.test_compute_system_helper import GCPComputeTestHelper
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_COMPUTE_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 
 @pytest.mark.backend("mysql", "postgres")
-@pytest.mark.system("google.cloud")
 @pytest.mark.credential_file(GCP_COMPUTE_KEY)
-class GcpComputeExampleDagsSystemTest(SystemTest):
+class GcpComputeExampleDagsSystemTest(GoogleSystemTest):
     helper = GCPComputeTestHelper()
 
     @provide_gcp_context(GCP_COMPUTE_KEY)
     def setUp(self):
         super().setUp()
-        self.helper.delete_instance()
-        self.helper.create_instance()
+        with self.authentication():
+            self.helper.delete_instance()
+            self.helper.create_instance()
 
     @provide_gcp_context(GCP_COMPUTE_KEY)
     def tearDown(self):
-        self.helper.delete_instance()
+        with self.authentication():
+            self.helper.delete_instance()
         super().tearDown()
 
     @provide_gcp_context(GCP_COMPUTE_KEY)
@@ -46,20 +46,21 @@ class GcpComputeExampleDagsSystemTest(SystemTest):
 
 
 @pytest.mark.backend("mysql", "postgres")
-@pytest.mark.system("google.cloud")
 @pytest.mark.credential_file(GCP_COMPUTE_KEY)
-class GcpComputeIgmExampleDagsSystemTest(SystemTest):
+class GcpComputeIgmExampleDagsSystemTest(GoogleSystemTest):
     helper = GCPComputeTestHelper()
 
     @provide_gcp_context(GCP_COMPUTE_KEY)
     def setUp(self):
         super().setUp()
-        self.helper.delete_instance_group_and_template(silent=True)
-        self.helper.create_instance_group_and_template()
+        with self.authentication():
+            self.helper.delete_instance_group_and_template(silent=True)
+            self.helper.create_instance_group_and_template()
 
     @provide_gcp_context(GCP_COMPUTE_KEY)
     def tearDown(self):
-        self.helper.delete_instance_group_and_template()
+        with self.authentication():
+            self.helper.delete_instance_group_and_template()
         super().tearDown()
 
     @provide_gcp_context(GCP_COMPUTE_KEY)

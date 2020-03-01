@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
+if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
     set -x
 fi
 
@@ -92,7 +92,7 @@ fi
 export HADOOP_DISTRO="${HADOOP_DISTRO:="cdh"}"
 export HADOOP_HOME="${HADOOP_HOME:="/opt/hadoop-cdh"}"
 
-if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
+if [[ ${VERBOSE} == "true" ]]; then
     echo
     echo "Using ${HADOOP_DISTRO} distribution of Hadoop from ${HADOOP_HOME}"
     echo
@@ -100,6 +100,9 @@ fi
 
 # Added to have run-tests on path
 export PATH=${PATH}:${AIRFLOW_SOURCES}
+
+# This is now set in conftest.py - only for pytest tests
+unset AIRFLOW__CORE__UNIT_TEST_MODE
 
 # Fix codecov build path
 # TODO: Check this - this should be made travis-independent
@@ -124,9 +127,8 @@ if [[ ${INTEGRATION_KERBEROS:="false"} == "true" ]]; then
         echo
         echo "ERROR !!!!Kerberos initialisation requested, but failed"
         echo
-        echo "I will exit now, and you need to run 'breeze --stop-environment' to kill kerberos."
-        echo
-        echo "Then you can again run 'breeze --integration kerberos' to start it again"
+        echo "I will exit now, and you need to run 'breeze --integration kerberos restart-environment'"
+        echo "to re-enter breeze and restart kerberos."
         echo
         exit 1
     fi
@@ -176,6 +178,19 @@ export FILES_DIR="/files"
 export AIRFLOW_BREEZE_CONFIG_DIR="${FILES_DIR}/airflow-breeze-config"
 VARIABLES_ENV_FILE="variables.env"
 
+if [[ -d "${FILES_DIR}" ]]; then
+    export AIRFLOW__CORE__DAGS_FOLDER="/files/dags"
+    mkdir -pv "${AIRFLOW__CORE__DAGS_FOLDER}"
+    sudo chown "${HOST_USER_ID}":"${HOST_GROUP_ID}" "${AIRFLOW__CORE__DAGS_FOLDER}"
+    echo "Your dags for webserver and scheduler are read from ${AIRFLOW__CORE__DAGS_FOLDER} directory"
+    echo "which is mounted from your <AIRFLOW_SOURCES>/files/dags folder"
+    echo
+else
+    export AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_HOME}/dags"
+    echo "Your dags for webserver and scheduler are read from ${AIRFLOW__CORE__DAGS_FOLDER} directory"
+fi
+
+
 if [[ -d "${AIRFLOW_BREEZE_CONFIG_DIR}" && \
     -f "${AIRFLOW_BREEZE_CONFIG_DIR}/${VARIABLES_ENV_FILE}" ]]; then
     pushd "${AIRFLOW_BREEZE_CONFIG_DIR}" >/dev/null 2>&1 || exit 1
@@ -191,6 +206,7 @@ else
     echo "In it to make breeze source the variables automatically for you"
     echo
 fi
+
 
 set +u
 # If we do not want to run tests, we simply drop into bash

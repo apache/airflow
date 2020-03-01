@@ -27,8 +27,8 @@ import psutil
 from cgroupspy import trees
 
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
-from airflow.utils.helpers import reap_process_group
 from airflow.utils.operator_resources import Resources
+from airflow.utils.process_utils import reap_process_group
 
 
 class CgroupTaskRunner(BaseTaskRunner):

@@ -23,7 +23,7 @@ import unittest
 from mock import Mock, patch
 from sqlalchemy.exc import OperationalError
 
-from airflow.jobs import BaseJob
+from airflow.jobs.base_job import BaseJob
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -93,6 +93,11 @@ class TestBaseJob(unittest.TestCase):
         self.assertTrue(job.is_alive())
 
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=21)
+        self.assertFalse(job.is_alive())
+
+        # test because .seconds was used before instead of total_seconds
+        # internal repr of datetime is (days, seconds)
+        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(days=1)
         self.assertFalse(job.is_alive())
 
         job.state = State.SUCCESS

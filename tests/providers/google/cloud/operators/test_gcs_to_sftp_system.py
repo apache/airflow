@@ -16,29 +16,43 @@
 # specific language governing permissions and limitations
 # under the License.
 """System tests for Google Cloud Build operators"""
+import os
+from itertools import product
+
 import pytest
 
-from tests.providers.google.cloud.operators.test_gcs_to_sftp_system_helper import GcsToSFTPTestHelper
+from airflow.providers.google.cloud.example_dags.example_gcs_to_sftp import (
+    BUCKET_SRC, OBJECT_SRC_1, OBJECT_SRC_2,
+)
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 
-@pytest.mark.system("google.cloud")
 @pytest.mark.credential_file(GCP_GCS_KEY)
-class GcsToSftpExampleDagsSystemTest(SystemTest):
-    """
-    System tests for Google Cloud Storage to SFTP transfer operator
-
-    It use a real service.
-    """
-
-    helper = GcsToSFTPTestHelper()
+class GcsToSftpExampleDagsSystemTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_GCS_KEY)
     def setUp(self):
         super().setUp()
-        self.helper.create_buckets()
+
+        # 1. Create buckets
+        self.create_gcs_bucket(BUCKET_SRC)
+
+        # 2. Prepare files
+        for bucket_src, object_source in product(
+            (
+                BUCKET_SRC,
+                "{}/subdir-1".format(BUCKET_SRC),
+                "{}/subdir-2".format(BUCKET_SRC),
+            ),
+            (OBJECT_SRC_1, OBJECT_SRC_2),
+        ):
+            source_path = "gs://{}/{}".format(bucket_src, object_source)
+            self.upload_content_to_gcs(
+                lines=f"{os.urandom(1 * 1024 * 1024)}",
+                bucket_uri=source_path,
+                filename=object_source
+            )
 
     @provide_gcp_context(GCP_GCS_KEY)
     def test_run_example_dag(self):
@@ -46,5 +60,5 @@ class GcsToSftpExampleDagsSystemTest(SystemTest):
 
     @provide_gcp_context(GCP_GCS_KEY)
     def tearDown(self):
-        self.helper.delete_buckets()
+        self.delete_gcs_bucket(BUCKET_SRC)
         super().tearDown()

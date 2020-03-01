@@ -22,7 +22,7 @@
 declare -a EXTRA_DOCKER_FLAGS
 
 function check_verbose_setup {
-    if [[ ${VERBOSE:=} == "true" ]]; then
+    if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
         set -x
     else
         set +x
@@ -124,7 +124,7 @@ function initialize_breeze_environment {
 }
 
 function print_info() {
-    if [[ ${AIRFLOW_CI_SILENT:="false"} != "true" || ${VERBOSE:="false"} == "true" ]]; then
+    if [[ ${VERBOSE:="false"} == "true" ]]; then
         echo "$@"
     fi
 }
@@ -314,7 +314,7 @@ function check_if_docker_build_is_needed() {
     print_info
     local IMAGE_BUILD_NEEDED="false"
     if [[ ${FORCE_BUILD_IMAGES:=""} == "true" ]]; then
-        print_info "Docker image build is forced for ${THE_IMAGE_TYPE} image"
+        echo "Docker image build is forced for ${THE_IMAGE_TYPE} image"
         set +e
         for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
         do
@@ -337,7 +337,7 @@ function check_if_docker_build_is_needed() {
         if [[ ${IMAGE_BUILD_NEEDED} == "true" ]]; then
             IMAGES_TO_REBUILD+=("${THE_IMAGE_TYPE}")
             export NEEDS_DOCKER_BUILD="true"
-            print_info "Docker image build is needed for ${THE_IMAGE_TYPE} image!"
+            echo "Docker image build is needed for ${THE_IMAGE_TYPE} image!"
         else
             print_info "Docker image build is not needed for ${THE_IMAGE_TYPE} image!"
         fi
@@ -487,10 +487,10 @@ function confirm_image_rebuild() {
         echo 'export FORCE_ANSWER_TO_QUESTIONS="no"' > "${LAST_FORCE_ANSWER_FILE}"
     elif [[ ${RES} == "2" ]]; then
         echo >&2
-        echo >&2 "ERROR: The image needs to be byilt for ${THE_IMAGE_TYPE} - it is outdated. "
+        echo >&2 "ERROR: The image needs to be built for ${THE_IMAGE_TYPE} - it is outdated. "
         echo >&2 "   Make sure you build the images by running run one of:"
-        echo >&2 "         * ./breeze --build-only"
-        echo >&2 "         * ./breeze --build-only --force-pull-images"
+        echo >&2 "         * ./breeze build-only"
+        echo >&2 "         * ./breeze build-only --force-pull-images"
         echo >&2
         echo >&2 "   The first command works incrementally from your last local build."
         echo >&2 "   The second command you use if you want to completely refresh your images from dockerhub."
@@ -569,8 +569,8 @@ function rebuild_ci_image_if_needed() {
 
 
 #
-# Starts the script/ If VERBOSE variable is set to true, it enables verbose output of commands executed
-# Also prints some useful diagnostics information at start of the script
+# Starts the script/ If VERBOSE_COMMANDS variable is set to true, it enables verbose output of commands executed
+# Also prints some useful diagnostics information at start of the script if VERBOSE is set to true
 #
 function script_start {
     print_info
@@ -578,14 +578,14 @@ function script_start {
     print_info
     print_info "Log is redirected to ${OUTPUT_LOG}"
     print_info
-    if [[ ${VERBOSE:=} == "true" ]]; then
+    if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
         print_info
-        print_info "Variable VERBOSE Set to \"true\""
+        print_info "Variable VERBOSE_COMMANDS Set to \"true\""
         print_info "You will see a lot of output"
         print_info
         set -x
     else
-        print_info "You can increase verbosity by running 'export VERBOSE=\"true\""
+        print_info "You can increase verbosity by running 'export VERBOSE_COMMANDS=\"true\""
         if [[ ${SKIP_CACHE_DELETION:=} != "true" ]]; then
             print_info "And skip deleting the output file with 'export SKIP_CACHE_DELETION=\"true\""
         fi
@@ -603,11 +603,11 @@ function script_end {
     #shellcheck disable=2181
     EXIT_CODE=$?
     if [[ ${EXIT_CODE} != 0 ]]; then
-        echo "###########################################################################################"
-        echo "                   EXITING WITH STATUS CODE ${EXIT_CODE}"
-        echo "###########################################################################################"
+        print_info "###########################################################################################"
+        print_info "                   EXITING WITH STATUS CODE ${EXIT_CODE}"
+        print_info "###########################################################################################"
     fi
-    if [[ ${VERBOSE:=} == "true" ]]; then
+    if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
         set +x
     fi
     END_SCRIPT_TIME=$(date +%s)
@@ -684,8 +684,8 @@ function rebuild_all_images_if_needed_and_confirmed() {
         echo "   * Rebuild the images now by answering 'y' (this might take some time!)"
         echo "   * Skip rebuilding the images and hope changes are not big (you will be asked again)"
         echo "   * Quit and manually rebuild the images using one of the following commmands"
-        echo "        * ./breeze --build-only"
-        echo "        * ./breeze --build-only --force-pull-images"
+        echo "        * ./breeze build-only"
+        echo "        * ./breeze build-only --force-pull-images"
         echo
         echo "   The first command works incrementally from your last local build."
         echo "   The second command you use if you want to completely refresh your images from dockerhub."
@@ -837,8 +837,8 @@ function run_docs() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" -t \
             --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
-            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
-            --env AIRFLOW_CI_SILENT \
+            --env VERBOSE \
+            --env VERBOSE_COMMANDS \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \

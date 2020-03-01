@@ -23,7 +23,7 @@ from sqlalchemy import Table
 from airflow import settings
 from airflow.configuration import conf
 # noinspection PyUnresolvedReferences
-from airflow.jobs.base_job import BaseJob  # noqa: F401  # pylint: disable=unused-import
+from airflow.jobs.base_job import BaseJob  # noqa: F401 # pylint: disable=unused-import
 # noinspection PyUnresolvedReferences
 from airflow.models import (  # noqa: F401 # pylint: disable=unused-import
     DAG, XCOM_RETURN_KEY, BaseOperator, BaseOperatorLink, Connection, DagBag, DagModel, DagPickle, DagRun,
@@ -32,7 +32,10 @@ from airflow.models import (  # noqa: F401 # pylint: disable=unused-import
 # We need to add this model manually to get reset working well
 # noinspection PyUnresolvedReferences
 from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401  # pylint: disable=unused-import
-from airflow.utils.session import create_session, provide_session  # noqa  # pylint: disable=unused-import
+# TODO: remove create_session once we decide to break backward compatibility
+from airflow.utils.session import (  # noqa: F401 # pylint: disable=unused-import
+    create_session, provide_session,
+)
 
 log = logging.getLogger(__name__)
 
@@ -503,9 +506,9 @@ def initdb():
     create_default_connections()
 
     dagbag = DagBag()
-    # Save individual DAGs in the ORM
-    for dag in dagbag.dags.values():
-        dag.sync_to_db()
+    # Save DAGs in the ORM
+    dagbag.sync_to_db()
+
     # Deactivate the unknown ones
     DAG.deactivate_unknown_dags(dagbag.dags.keys())
 

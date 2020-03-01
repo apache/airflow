@@ -49,8 +49,9 @@ LAST_STEP_NAME=""
 STEP_STARTED="false"
 PYTHON_VERSION_FOR_DEFAULT_IMAGE=3.6
 VERBOSE=${VERBOSE:="false"}
+VERBOSE_COMMANDS=${VERBOSE_COMMANDS:="false"}
 
-if [[ ${VERBOSE} == "true" ]]; then
+if [[ ${VERBOSE_COMMANDS} == "true" ]]; then
     set -x
 fi
 

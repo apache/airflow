@@ -23,7 +23,7 @@ import pandas as pd
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.jobs import SchedulerJob
+from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.utils import timezone
 from airflow.utils.state import State

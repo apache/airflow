@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,15 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
-
-BUCKET = "gs://test-display-video-bucket"
+import enum
 
 
-class GcpDisplayVideoSystemTestHelper(LoggingCommandExecutor):
-    def create_bucket(self):
-        self.execute_cmd(["gsutil", "mb", "gs://{bucket}".format(bucket=BUCKET)])
-
-    def delete_bucket(self):
-        self.execute_cmd(["gsutil", "rm", "-r", "gs://{bucket}".format(bucket=BUCKET)])
+class DagRunType(enum.Enum):
+    """Class with DagRun types"""
+    BACKFILL_JOB = "backfill_"
+    SCHEDULED = "scheduled__"
+    MANUAL = "manual__"

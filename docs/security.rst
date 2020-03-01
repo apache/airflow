@@ -64,7 +64,7 @@ you will need to change ``search_scope`` to "SUBTREE".
 
 Valid search_scope options can be found in the `ldap3 Documentation <http://ldap3.readthedocs.org/searches.html?highlight=search_scope>`_
 
-.. code-block:: bash
+.. code-block:: ini
 
     [webserver]
     authenticate = True
@@ -104,7 +104,7 @@ Airflow uses ``flask_login`` and
 exposes a set of hooks in the ``airflow.default_login`` module. You can
 alter the content and make it part of the ``PYTHONPATH`` and configure it as a backend in ``airflow.cfg``.
 
-.. code-block:: bash
+.. code-block:: ini
 
     [webserver]
     authenticate = True
@@ -182,7 +182,7 @@ To enable kerberos you will need to generate a (service) key tab.
 Now store this file in a location where the airflow user can read it (chmod 600). And then add the following to
 your ``airflow.cfg``
 
-.. code-block:: bash
+.. code-block:: ini
 
     [core]
     security = kerberos
@@ -204,7 +204,7 @@ Hadoop
 
 If want to use impersonation this needs to be enabled in ``core-site.xml`` of your hadoop config.
 
-.. code-block:: bash
+.. code-block:: xml
 
     <property>
       <name>hadoop.proxyuser.airflow.groups</name>
@@ -272,7 +272,7 @@ against an installation of GitHub Enterprise using OAuth2. You can optionally
 specify a team whitelist (composed of slug cased team names) to restrict login
 to only members of those teams.
 
-.. code-block:: bash
+.. code-block:: ini
 
     [webserver]
     authenticate = True
@@ -443,7 +443,7 @@ command, or as a configuration item in your ``airflow.cfg``. For both cases, ple
 
 .. code-block:: bash
 
-    airflow flower --basic_auth=user1:password1,user2:password2
+    airflow flower --basic-auth=user1:password1,user2:password2
 
 .. code-block:: ini
 

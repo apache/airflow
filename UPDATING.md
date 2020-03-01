@@ -61,9 +61,32 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Custom executors is loaded using full import path
+
+In previous versions of Airflow it was possible to use plugins to load custom executors. It is still
+possible, but the configuration has changed. Now you don't have to create a plugin to configure a
+custom executor, but you need to provide the full path to the module in the `executor` option
+in the `core` section. The purpose of this change is to simplify the plugin mechanism and make
+it easier to configure executor.
+
+If your module was in the path `my_acme_company.executors.MyCustomExecutor`  and the plugin was
+called `my_plugin` then your configuration looks like this
+
+```ini
+[core]
+executor = my_plguin.MyCustomExecutor
+```
+And now it should look like this:
+```ini
+[core]
+executor = my_acme_company.executors.MyCustomExecutor
+```
+
+The old configuration is still works but can be abandoned at any time.
+
 ### Removed sub-package imports from `airflow/__init__.py`
 
-The imports `LoggingMixin`, `conf`, `AirflowException`, and `DAG` have been removed from `airflow/__init__.py`.
+The imports `LoggingMixin`, `conf`, and `AirflowException` have been removed from `airflow/__init__.py`.
 All implicit references of these objects will no longer be valid. To migrate, all usages of each old path must be
 replaced with its corresponding new path.
 
@@ -72,7 +95,6 @@ replaced with its corresponding new path.
 | ``airflow.LoggingMixin``     | ``airflow.utils.log.logging_mixin.LoggingMixin`` |
 | ``airflow.conf``             | ``airflow.configuration.conf``                   |
 | ``airflow.AirflowException`` | ``airflow.exceptions.AirflowException``          |
-| ``airflow.DAG``              | ``airflow.models.dag.DAG``                  |
 
 ### Success Callback will be called when a task in marked as success from UI
 
@@ -219,12 +241,89 @@ The following configurations have been moved from `[core]` to the new `[logging]
 
 ### Simplification of CLI commands
 
+#### Grouped to improve UX of CLI
+
 Some commands have been grouped to improve UX of CLI. New commands are available according to the following table:
 
 | Old command               | New command                        |
 |---------------------------|------------------------------------|
 | ``airflow worker``        | ``airflow celery worker``          |
 | ``airflow flower``        | ``airflow celery flower``          |
+
+#### Cli use exactly single character for short option style change
+
+For Airflow short option, use exactly one single character, New commands are available according to the following table:
+
+| Old command                                        | New command                                       |
+| :------------------------------------------------- | :------------------------------------------------ |
+| ``airflow (dags|tasks|scheduler) [-sd, --subdir]`` | ``airflow (dags|tasks|scheduler) [-S, --subdir]`` |
+| ``airflow tasks test [-dr, --dry_run]``            | ``airflow tasks test [-n, --dry-run]``            |
+| ``airflow dags backfill [-dr, --dry_run]``         | ``airflow dags backfill [-n, --dry-run]``         |
+| ``airflow tasks clear [-dx, --dag_regex]``         | ``airflow tasks clear [-R, --dag-regex]``         |
+| ``airflow kerberos [-kt, --keytab]``               | ``airflow kerberos [-k, --keytab]``               |
+| ``airflow tasks run [-int, --interactive]``        | ``airflow tasks run [-N, --interactive]``         |
+| ``airflow webserver [-hn, --hostname]``            | ``airflow webserver [-H, --hostname]``            |
+| ``airflow celery worker [-cn, --celery_hostname]`` | ``airflow celery worker [-H, --celery-hostname]`` |
+| ``airflow celery flower [-hn, --hostname]``        | ``airflow celery flower [-H, --hostname]``        |
+| ``airflow celery flower [-fc, --flower_conf]``     | ``airflow celery flower [-c, --flower-conf]``     |
+| ``airflow celery flower [-ba, --basic_auth]``      | ``airflow celery flower [-A, --basic-auth]``      |
+| ``airflow celery flower [-tp, --task_params]``     | ``airflow celery flower [-t, --task-params]``     |
+| ``airflow celery flower [-pm, --post_mortem]``     | ``airflow celery flower [-m, --post-mortem]``     |
+
+For Airflow long option, use [kebab-case](https://en.wikipedia.org/wiki/Letter_case) instead of [snake_case](https://en.wikipedia.org/wiki/Snake_case)
+
+| Old option                         | New option                         |
+| :--------------------------------- | :--------------------------------- |
+| ``--task_regex``                   | ``--task-regex``                   |
+| ``--start_date``                   | ``--start-date``                   |
+| ``--end_date``                     | ``--end-date``                     |
+| ``--dry_run``                      | ``--dry-run``                      |
+| ``--no_backfill``                  | ``--no-backfill``                  |
+| ``--mark_success``                 | ``--mark-success``                 |
+| ``--donot_pickle``                 | ``--donot-pickle``                 |
+| ``--ignore_dependencies``          | ``--ignore-dependencies``          |
+| ``--ignore_first_depends_on_past`` | ``--ignore-first-depends-on-past`` |
+| ``--delay_on_limit``               | ``--delay-on-limit``               |
+| ``--reset_dagruns``                | ``--reset-dagruns``                |
+| ``--rerun_failed_tasks``           | ``--rerun-failed-tasks``           |
+| ``--run_backwards``                | ``--run-backwards``                |
+| ``--only_failed``                  | ``--only-failed``                  |
+| ``--only_running``                 | ``--only-running``                 |
+| ``--exclude_subdags``              | ``--exclude-subdags``              |
+| ``--exclude_parentdag``            | ``--exclude-parentdag``            |
+| ``--dag_regex``                    | ``--dag-regex``                    |
+| ``--run_id``                       | ``--run-id``                       |
+| ``--exec_date``                    | ``--exec-date``                    |
+| ``--ignore_all_dependencies``      | ``--ignore-all-dependencies``      |
+| ``--ignore_depends_on_past``       | ``--ignore-depends-on-past``       |
+| ``--ship_dag``                     | ``--ship-dag``                     |
+| ``--job_id``                       | ``--job-id``                       |
+| ``--cfg_path``                     | ``--cfg-path``                     |
+| ``--ssl_cert``                     | ``--ssl-cert``                     |
+| ``--ssl_key``                      | ``--ssl-key``                      |
+| ``--worker_timeout``               | ``--worker-timeout``               |
+| ``--access_logfile``               | ``--access-logfile``               |
+| ``--error_logfile``                | ``--error-logfile``                |
+| ``--dag_id``                       | ``--dag-id``                       |
+| ``--num_runs``                     | ``--num-runs``                     |
+| ``--do_pickle``                    | ``--do-pickle``                    |
+| ``--celery_hostname``              | ``--celery-hostname``              |
+| ``--broker_api``                   | ``--broker-api``                   |
+| ``--flower_conf``                  | ``--flower-conf``                  |
+| ``--url_prefix``                   | ``--url-prefix``                   |
+| ``--basic_auth``                   | ``--basic-auth``                   |
+| ``--task_params``                  | ``--task-params``                  |
+| ``--post_mortem``                  | ``--post-mortem``                  |
+| ``--conn_uri``                     | ``--conn-uri``                     |
+| ``--conn_type``                    | ``--conn-type``                    |
+| ``--conn_host``                    | ``--conn-host``                    |
+| ``--conn_login``                   | ``--conn-login``                   |
+| ``--conn_password``                | ``--conn-password``                |
+| ``--conn_schema``                  | ``--conn-schema``                  |
+| ``--conn_port``                    | ``--conn-port``                    |
+| ``--conn_extra``                   | ``--conn-extra``                   |
+| ``--use_random_password``          | ``--use-random-password``          |
+| ``--skip_serve_logs``              | ``--skip-serve-logs``              |
 
 ### Remove serve_logs command from CLI
 

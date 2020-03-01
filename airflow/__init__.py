@@ -28,12 +28,15 @@ isort:skip_file
 
 # flake8: noqa: F401
 # pylint: disable=wrong-import-position
+import sys
 from typing import Callable, Optional
 
 from airflow import settings
 from airflow import version
 
 __version__ = version.version
+
+__all__ = ['__version__', 'login', 'DAG']
 
 settings.initialize()
 
@@ -42,3 +45,33 @@ from airflow.plugins_manager import integrate_plugins
 login: Optional[Callable] = None
 
 integrate_plugins()
+
+
+PY37 = sys.version_info >= (3, 7)
+
+
+def __getattr__(name):
+    # PEP-562: Lazy loaded attributes on python modules
+    if name == "DAG":
+        from airflow.models.dag import DAG  # pylint: disable=redefined-outer-name
+        return DAG
+    if name == "AirflowException":
+        from airflow.exceptions import AirflowException  # pylint: disable=redefined-outer-name
+        return AirflowException
+    raise AttributeError(f"module {__name__} has no attribute {name}")
+
+
+# This is never executed, but tricks static analyzers (PyDev, PyCharm,
+# pylint, etc.) into knowing the types of these symbols, and what
+# they contain.
+STATICA_HACK = True
+globals()['kcah_acitats'[::-1].upper()] = False
+if STATICA_HACK:  # pragma: no cover
+    from airflow.models.dag import DAG
+    from airflow.exceptions import AirflowException
+
+
+if not PY37:
+    from pep562 import Pep562
+
+    Pep562(__name__)

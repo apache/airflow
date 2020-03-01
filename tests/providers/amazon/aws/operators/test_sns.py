@@ -26,6 +26,8 @@ TASK_ID = "sns_publish_job"
 AWS_CONN_ID = "custom_aws_conn"
 TARGET_ARN = "arn:aws:sns:eu-central-1:1234567890:test-topic"
 MESSAGE = "Message to send"
+SUBJECT = "Subject to send"
+MESSAGE_ATTRIBUTES = {"test-attribute": "Attribute to send"}
 
 
 class TestSnsPublishOperator(unittest.TestCase):
@@ -36,7 +38,9 @@ class TestSnsPublishOperator(unittest.TestCase):
             task_id=TASK_ID,
             aws_conn_id=AWS_CONN_ID,
             target_arn=TARGET_ARN,
-            message=MESSAGE
+            message=MESSAGE,
+            subject=SUBJECT,
+            message_attributes=MESSAGE_ATTRIBUTES,
         )
 
         # Then
@@ -44,6 +48,8 @@ class TestSnsPublishOperator(unittest.TestCase):
         self.assertEqual(AWS_CONN_ID, operator.aws_conn_id)
         self.assertEqual(TARGET_ARN, operator.target_arn)
         self.assertEqual(MESSAGE, operator.message)
+        self.assertEqual(SUBJECT, operator.subject)
+        self.assertEqual(MESSAGE_ATTRIBUTES, operator.message_attributes)
 
     @mock.patch('airflow.providers.amazon.aws.operators.sns.AwsSnsHook')
     def test_execute(self, mock_hook):
@@ -57,7 +63,9 @@ class TestSnsPublishOperator(unittest.TestCase):
             task_id=TASK_ID,
             aws_conn_id=AWS_CONN_ID,
             target_arn=TARGET_ARN,
-            message=MESSAGE
+            message=MESSAGE,
+            subject=SUBJECT,
+            message_attributes=MESSAGE_ATTRIBUTES,
         )
 
         # When

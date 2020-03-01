@@ -15,31 +15,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
+
 import pytest
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_SEARCHADS_KEY
-from tests.providers.google.marketing_platform.operators.test_search_ads_system_helper import (
-    GoogleSearchAdsSystemTestHelper,
-)
-from tests.test_utils.gcp_system_helpers import provide_gcp_context
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import MARKETING_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
+
+BUCKET = os.environ.get("GMP_GCS_BUCKET", "test-cm-bucket")
 
 
 @pytest.mark.system("google.marketing_platform")
 @pytest.mark.credential_file(GCP_SEARCHADS_KEY)
-class SearchAdsSystemTest(SystemTest):
-    helper = GoogleSearchAdsSystemTestHelper()
+class SearchAdsSystemTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_SEARCHADS_KEY)
     def setUp(self):
         super().setUp()
-        self.helper.create_bucket()
+        self.create_gcs_bucket(BUCKET)
 
     @provide_gcp_context(GCP_SEARCHADS_KEY)
     def tearDown(self):
-        self.helper.delete_bucket()
+        self.delete_gcs_bucket(BUCKET)
         super().tearDown()
 
     @provide_gcp_context(GCP_SEARCHADS_KEY)
     def test_run_example_dag(self):
-        self.run_dag("example_search_ads", "airflow/providers/google/marketing_platform/example_dags")
+        self.run_dag("example_search_ads", MARKETING_DAG_FOLDER)

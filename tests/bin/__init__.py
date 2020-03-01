@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,25 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Helpers to perform system tests for the Google Campaign Manager.
-"""
-import os
-
-from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
-
-BUCKET = os.environ.get("MARKETING_BUCKET", "test-cm-bucket")
-
-
-class GoogleCampaignManagerTestHelper(LoggingCommandExecutor):
-    """
-    Helper class to perform system tests for the Google Campaign Manager.
-    """
-
-    def create_bucket(self):
-        """Create a bucket."""
-        self.execute_cmd(["gsutil", "mb", "gs://{}".format(BUCKET)])
-
-    def delete_bucket(self):
-        """Delete bucket in Google Cloud Storage service"""
-        self.execute_cmd(["gsutil", "rb", "gs://{}".format(BUCKET)])

@@ -313,8 +313,10 @@ class TestKubernetesPodOperator(unittest.TestCase):
         resources = {
             'limit_cpu': 0.25,
             'limit_memory': '64Mi',
+            'limit_ephemeral_storage': '2Gi',
             'request_cpu': '250m',
             'request_memory': '64Mi',
+            'request_ephemeral_storage': '1Gi',
         }
         k = KubernetesPodOperator(
             namespace='default',
@@ -333,12 +335,14 @@ class TestKubernetesPodOperator(unittest.TestCase):
         self.expected_pod['spec']['containers'][0]['resources'] = {
             'requests': {
                 'memory': '64Mi',
-                'cpu': '250m'
+                'cpu': '250m',
+                'ephemeral-storage': '1Gi'
             },
             'limits': {
                 'memory': '64Mi',
                 'cpu': 0.25,
-                'nvidia.com/gpu': None
+                'nvidia.com/gpu': None,
+                'ephemeral-storage': '2Gi'
             }
         }
         self.assertEqual(self.expected_pod, actual_pod)
@@ -811,6 +815,34 @@ class TestKubernetesPodOperator(unittest.TestCase):
 
             assert counter[(b"+ echo 10\n",)] == 1
             assert counter[(b"+ echo 20\n",)] == 1
+
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    def test_pod_priority_class_name(self, mock_client, launcher_mock):
+        """Test ability to assign priorityClassName to pod
+
+        """
+        from airflow.utils.state import State
+
+        priority_class_name = "medium-test"
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+            priority_class_name=priority_class_name,
+        )
+
+        launcher_mock.return_value = (State.SUCCESS, None)
+        k.execute(None)
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod['spec']['priorityClassName'] = priority_class_name
+        self.assertEqual(self.expected_pod, actual_pod)
 
 
 # pylint: enable=unused-argument

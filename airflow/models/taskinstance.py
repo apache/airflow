@@ -25,7 +25,7 @@ import os
 import signal
 import time
 from datetime import datetime, timedelta
-from typing import Any, Dict, Iterable, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 from urllib.parse import quote
 
 import dill
@@ -56,6 +56,7 @@ from airflow.utils.email import send_email
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
+from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
@@ -107,7 +108,7 @@ def clear_task_instances(tis,
         ).delete()
 
     if job_ids:
-        from airflow.jobs import BaseJob as BJ
+        from airflow.jobs.base_job import BaseJob as BJ
         for job in session.query(BJ).filter(BJ.id.in_(job_ids)).all():
             job.state = State.SHUTDOWN
 
@@ -175,7 +176,7 @@ class TaskInstance(Base, LoggingMixin):
         Index('ti_job_id', job_id),
     )
 
-    def __init__(self, task, execution_date, state=None):
+    def __init__(self, task, execution_date: datetime, state: Optional[str] = None):
         self.dag_id = task.dag_id
         self.task_id = task.task_id
         self.task = task
@@ -293,72 +294,88 @@ class TaskInstance(Base, LoggingMixin):
             cfg_path=cfg_path)
 
     @staticmethod
-    def generate_command(dag_id,
-                         task_id,
-                         execution_date,
-                         mark_success=False,
-                         ignore_all_deps=False,
-                         ignore_depends_on_past=False,
-                         ignore_task_deps=False,
-                         ignore_ti_state=False,
-                         local=False,
-                         pickle_id=None,
-                         file_path=None,
-                         raw=False,
-                         job_id=None,
-                         pool=None,
-                         cfg_path=None
-                         ):
+    def generate_command(dag_id: str,
+                         task_id: str,
+                         execution_date: datetime,
+                         mark_success: Optional[bool] = False,
+                         ignore_all_deps: Optional[bool] = False,
+                         ignore_depends_on_past: Optional[bool] = False,
+                         ignore_task_deps: Optional[bool] = False,
+                         ignore_ti_state: Optional[bool] = False,
+                         local: Optional[bool] = False,
+                         pickle_id: Optional[str] = None,
+                         file_path: Optional[str] = None,
+                         raw: Optional[bool] = False,
+                         job_id: Optional[str] = None,
+                         pool: Optional[str] = None,
+                         cfg_path: Optional[str] = None
+                         ) -> List[str]:
         """
         Generates the shell command required to execute this task instance.
 
         :param dag_id: DAG ID
-        :type dag_id: unicode
+        :type dag_id: str
         :param task_id: Task ID
-        :type task_id: unicode
+        :type task_id: str
         :param execution_date: Execution date for the task
-        :type execution_date: datetime.datetime
+        :type execution_date: datetime
         :param mark_success: Whether to mark the task as successful
-        :type mark_success: bool
+        :type mark_success: Optional[bool]
         :param ignore_all_deps: Ignore all ignorable dependencies.
             Overrides the other ignore_* parameters.
-        :type ignore_all_deps: bool
+        :type ignore_all_deps: Optional[bool]
         :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs
             (e.g. for Backfills)
-        :type ignore_depends_on_past: bool
+        :type ignore_depends_on_past: Optional[bool]
         :param ignore_task_deps: Ignore task-specific dependencies such as depends_on_past
             and trigger rule
-        :type ignore_task_deps: bool
+        :type ignore_task_deps: Optional[bool]
         :param ignore_ti_state: Ignore the task instance's previous failure/success
-        :type ignore_ti_state: bool
+        :type ignore_ti_state: Optional[bool]
         :param local: Whether to run the task locally
-        :type local: bool
+        :type local: Optional[bool]
         :param pickle_id: If the DAG was serialized to the DB, the ID
             associated with the pickled DAG
-        :type pickle_id: unicode
+        :type pickle_id: Optional[str]
         :param file_path: path to the file containing the DAG definition
+        :type file_path: Optional[str]
         :param raw: raw mode (needs more details)
+        :type raw: Optional[bool]
         :param job_id: job ID (needs more details)
+        :type job_id: Optional[int]
         :param pool: the Airflow pool that the task should run in
-        :type pool: unicode
+        :type pool: Optional[str]
         :param cfg_path: the Path to the configuration file
-        :type cfg_path: str
+        :type cfg_path: Optional[str]
         :return: shell command that can be used to run the task instance
+        :rtype: list[str]
         """
         iso = execution_date.isoformat()
-        cmd = ["airflow", "tasks", "run", str(dag_id), str(task_id), str(iso)]
-        cmd.extend(["--mark_success"]) if mark_success else None
-        cmd.extend(["--pickle", str(pickle_id)]) if pickle_id else None
-        cmd.extend(["--job_id", str(job_id)]) if job_id else None
-        cmd.extend(["-A"]) if ignore_all_deps else None
-        cmd.extend(["-i"]) if ignore_task_deps else None
-        cmd.extend(["-I"]) if ignore_depends_on_past else None
-        cmd.extend(["--force"]) if ignore_ti_state else None
-        cmd.extend(["--local"]) if local else None
-        cmd.extend(["--pool", pool]) if pool else None
-        cmd.extend(["--raw"]) if raw else None
-        cmd.extend(["-sd", file_path]) if file_path else None
-        cmd.extend(["--cfg_path", cfg_path]) if cfg_path else None
+        cmd = ["airflow", "tasks", "run", dag_id, task_id, iso]
+        if mark_success:
+            cmd.extend(["--mark-success"])
+        if pickle_id:
+            cmd.extend(["--pickle", pickle_id])
+        if job_id:
+            cmd.extend(["--job-id", str(job_id)])
+        if ignore_all_deps:
+            cmd.extend(["--ignore-all-dependencies"])
+        if ignore_task_deps:
+            cmd.extend(["--ignore-dependencies"])
+        if ignore_depends_on_past:
+            cmd.extend(["--ignore-depends-on-past"])
+        if ignore_ti_state:
+            cmd.extend(["--force"])
+        if local:
+            cmd.extend(["--local"])
+        if pool:
+            cmd.extend(["--pool", pool])
+        if raw:
+            cmd.extend(["--raw"])
+        if file_path:
+            cmd.extend(["--subdir", file_path])
+        if cfg_path:
+            cmd.extend(["--cfg-path", cfg_path])
         return cmd
 
     @property
@@ -393,7 +410,7 @@ class TaskInstance(Base, LoggingMixin):
         ).format(task_id=self.task_id, dag_id=self.dag_id, iso=iso)
 
     @provide_session
-    def current_state(self, session=None):
+    def current_state(self, session=None) -> str:
         """
         Get the very latest state from the database, if a session is passed,
         we use and looking up the state becomes part of the session, otherwise
@@ -421,13 +438,10 @@ class TaskInstance(Base, LoggingMixin):
         session.commit()
 
     @provide_session
-    def refresh_from_db(self, session=None, lock_for_update=False, refresh_executor_config=False) -> None:
+    def refresh_from_db(self, session=None, lock_for_update=False) -> None:
         """
         Refreshes the task instance from the database based on the primary key
 
-        :param refresh_executor_config: if True, revert executor config to
-            result from DB. Often, however, we will want to keep the newest
-            version
         :param lock_for_update: if True, indicates that the database should
             lock the TaskInstance (issuing a FOR UPDATE clause) until the
             session is committed.
@@ -462,8 +476,6 @@ class TaskInstance(Base, LoggingMixin):
             self.operator = ti.operator
             self.queued_dttm = ti.queued_dttm
             self.pid = ti.pid
-            if refresh_executor_config:
-                self.executor_config = ti.executor_config
         else:
             self.state = None
 
@@ -728,7 +740,7 @@ class TaskInstance(Base, LoggingMixin):
         return dr
 
     @provide_session
-    def _check_and_change_state_before_execution(
+    def check_and_change_state_before_execution(
             self,
             verbose: bool = True,
             ignore_all_deps: bool = False,
@@ -915,6 +927,12 @@ class TaskInstance(Base, LoggingMixin):
                 start_time = time.time()
 
                 self.render_templates(context=context)
+                # Export context to make it available for operators to use.
+                airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+                self.log.info("Exporting the following env vars:\n%s",
+                              '\n'.join(["{}={}".format(k, v)
+                                         for k, v in airflow_context_vars.items()]))
+                os.environ.update(airflow_context_vars)
                 task_copy.pre_execute(context=context)
 
                 try:
@@ -1038,7 +1056,7 @@ class TaskInstance(Base, LoggingMixin):
             job_id: Optional[str] = None,
             pool: Optional[str] = None,
             session=None) -> None:
-        res = self._check_and_change_state_before_execution(
+        res = self.check_and_change_state_before_execution(
             verbose=verbose,
             ignore_all_deps=ignore_all_deps,
             ignore_depends_on_past=ignore_depends_on_past,

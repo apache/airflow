@@ -21,7 +21,7 @@ The tasks below trigger the computation of pi on the Spark instance
 using the Java and Python executables provided in the example library.
 """
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.providers.apache.livy.operators.livy import LivyOperator
 from airflow.utils.dates import days_ago
 

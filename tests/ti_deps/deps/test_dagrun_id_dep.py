@@ -20,9 +20,9 @@ import unittest
 
 from mock import Mock
 
-from airflow.jobs import BackfillJob
-from airflow.models import DagRun
+from airflow.models.dagrun import DagRun
 from airflow.ti_deps.deps.dagrun_id_dep import DagrunIdDep
+from airflow.utils.types import DagRunType
 
 
 class TestDagrunRunningDep(unittest.TestCase):
@@ -31,7 +31,7 @@ class TestDagrunRunningDep(unittest.TestCase):
         Task instances whose dagrun ID is a backfill dagrun ID should fail this dep.
         """
         dagrun = DagRun()
-        dagrun.run_id = BackfillJob.ID_PREFIX + '_something'
+        dagrun.run_id = DagRunType.BACKFILL_JOB.value + '_something'
         ti = Mock(get_dagrun=Mock(return_value=dagrun))
         self.assertFalse(DagrunIdDep().is_met(ti=ti))
 

@@ -24,6 +24,7 @@ from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.utils import timezone
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 
 def _trigger_dag(
@@ -68,7 +69,7 @@ def _trigger_dag(
                     min_dag_start_date.isoformat()))
 
     if not run_id:
-        run_id = "manual__{0}".format(execution_date.isoformat())
+        run_id = "{}{}".format(DagRunType.MANUAL.value, execution_date.isoformat())
 
     dag_run_id = dag_run.find(dag_id=dag_id, run_id=run_id)
     if dag_run_id:

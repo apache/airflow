@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional, cast
+from datetime import datetime
+from typing import List, Optional, Tuple, Union, cast
 
 from sqlalchemy import (
     Boolean, Column, DateTime, Index, Integer, PickleType, String, UniqueConstraint, and_, func, or_,
@@ -35,6 +36,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 
 class DagRun(Base, LoggingMixin):
@@ -44,7 +46,7 @@ class DagRun(Base, LoggingMixin):
     """
     __tablename__ = "dag_run"
 
-    ID_PREFIX = 'scheduled__'
+    ID_PREFIX = DagRunType.SCHEDULED.value
     ID_FORMAT_PREFIX = ID_PREFIX + '{0}'
 
     id = Column(Integer, primary_key=True)
@@ -125,18 +127,25 @@ class DagRun(Base, LoggingMixin):
 
     @staticmethod
     @provide_session
-    def find(dag_id=None, run_id=None, execution_date=None,
-             state=None, external_trigger=None, no_backfills=False,
-             session=None):
+    def find(
+        dag_id: Optional[Union[str, List[str]]] = None,
+        run_id: Optional[str] = None,
+        execution_date: Optional[datetime] = None,
+        state: Optional[str] = None,
+        external_trigger: Optional[bool] = None,
+        no_backfills: Optional[bool] = False,
+        session: Session = None,
+        execution_start_date=None, execution_end_date=None
+    ):
         """
         Returns a set of dag runs for the given search criteria.
 
-        :param dag_id: the dag_id to find dag runs for
-        :type dag_id: int, list
+        :param dag_id: the dag_id or list of dag_id to find dag runs for
+        :type dag_id: str or list[str]
         :param run_id: defines the run id for this dag run
         :type run_id: str
         :param execution_date: the execution date
-        :type execution_date: datetime.datetime
+        :type execution_date: datetime.datetime or list[datetime.datetime]
         :param state: the state of the dag run
         :type state: str
         :param external_trigger: whether this dag run is externally triggered
@@ -146,12 +155,17 @@ class DagRun(Base, LoggingMixin):
         :type no_backfills: bool
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
+        :param execution_start_date: dag run that was executed from this date
+        :type execution_start_date: datetime.datetime
+        :param execution_end_date: dag run that was executed until this date
+        :type execution_end_date: datetime.datetime
         """
         DR = DagRun
 
         qry = session.query(DR)
-        if dag_id:
-            qry = qry.filter(DR.dag_id == dag_id)
+        dag_ids = [dag_id] if isinstance(dag_id, str) else dag_id
+        if dag_ids:
+            qry = qry.filter(DR.dag_id.in_(dag_ids))
         if run_id:
             qry = qry.filter(DR.run_id == run_id)
         if execution_date:
@@ -159,14 +173,19 @@ class DagRun(Base, LoggingMixin):
                 qry = qry.filter(DR.execution_date.in_(execution_date))
             else:
                 qry = qry.filter(DR.execution_date == execution_date)
+        if execution_start_date and execution_end_date:
+            qry = qry.filter(DR.execution_date.between(execution_start_date, execution_end_date))
+        elif execution_start_date:
+            qry = qry.filter(DR.execution_date >= execution_start_date)
+        elif execution_end_date:
+            qry = qry.filter(DR.execution_date <= execution_end_date)
         if state:
             qry = qry.filter(DR.state == state)
         if external_trigger is not None:
             qry = qry.filter(DR.external_trigger == external_trigger)
         if no_backfills:
             # in order to prevent a circular dependency
-            from airflow.jobs import BackfillJob
-            qry = qry.filter(DR.run_id.notlike(BackfillJob.ID_PREFIX + '%'))
+            qry = qry.filter(DR.run_id.notlike(DagRunType.BACKFILL_JOB.value + '%'))
 
         dr = qry.order_by(DR.execution_date).all()
 
@@ -177,31 +196,30 @@ class DagRun(Base, LoggingMixin):
         """
         Returns the task instances for this dag run
         """
-        from airflow.models.taskinstance import TaskInstance  # Avoid circular import
-        tis = session.query(TaskInstance).filter(
-            TaskInstance.dag_id == self.dag_id,
-            TaskInstance.execution_date == self.execution_date,
+        tis = session.query(TI).filter(
+            TI.dag_id == self.dag_id,
+            TI.execution_date == self.execution_date,
         )
 
         if state:
             if isinstance(state, str):
-                tis = tis.filter(TaskInstance.state == state)
+                tis = tis.filter(TI.state == state)
             else:
                 # this is required to deal with NULL values
                 if None in state:
                     if all(x is None for x in state):
-                        tis = tis.filter(TaskInstance.state.is_(None))
+                        tis = tis.filter(TI.state.is_(None))
                     else:
                         not_none_state = [s for s in state if s]
                         tis = tis.filter(
-                            or_(TaskInstance.state.in_(not_none_state),
-                                TaskInstance.state.is_(None))
+                            or_(TI.state.in_(not_none_state),
+                                TI.state.is_(None))
                         )
                 else:
-                    tis = tis.filter(TaskInstance.state.in_(state))
+                    tis = tis.filter(TI.state.in_(state))
 
         if self.dag and self.dag.partial:
-            tis = tis.filter(TaskInstance.task_id.in_(self.dag.task_ids))
+            tis = tis.filter(TI.task_id.in_(self.dag.task_ids))
         return tis.all()
 
     @provide_session
@@ -211,9 +229,6 @@ class DagRun(Base, LoggingMixin):
 
         :param task_id: the task id
         """
-
-        from airflow.models.taskinstance import TaskInstance  # Avoid circular import
-        TI = TaskInstance
         ti = session.query(TI).filter(
             TI.dag_id == self.dag_id,
             TI.execution_date == self.execution_date,
@@ -277,7 +292,7 @@ class DagRun(Base, LoggingMixin):
         tis = [ti for ti in self.get_task_instances(session=session,
                                                     state=State.task_states + (State.SHUTDOWN,))]
         self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))
-        for ti in list(tis):
+        for ti in tis:
             ti.task = dag.get_task(ti.task_id)
 
         start_dttm = timezone.utcnow()
@@ -349,9 +364,14 @@ class DagRun(Base, LoggingMixin):
 
         return ready_tis
 
-    def _get_ready_tis(self, scheduleable_tasks, finished_tasks, session):
+    def _get_ready_tis(
+        self,
+        scheduleable_tasks: List[TI],
+        finished_tasks: List[TI],
+        session: Session,
+    ) -> Tuple[List[TI], bool]:
         old_states = {}
-        ready_tis = []
+        ready_tis: List[TI] = []
         changed_tis = False
 
         if not scheduleable_tasks:
@@ -377,8 +397,13 @@ class DagRun(Base, LoggingMixin):
 
         return ready_tis, changed_tis
 
-    def _are_premature_tis(self, unfinished_tasks, finished_tasks, session):
-        # there might be runnable tasks that are up for retry and from some reason(retry delay, etc) are
+    def _are_premature_tis(
+        self,
+        unfinished_tasks: List[TI],
+        finished_tasks: List[TI],
+        session: Session,
+    ) -> bool:
+        # there might be runnable tasks that are up for retry and for some reason(retry delay, etc) are
         # not ready yet so we set the flags to count them in
         for ut in unfinished_tasks:
             if ut.are_dependencies_met(
@@ -389,6 +414,7 @@ class DagRun(Base, LoggingMixin):
                     finished_tasks=finished_tasks),
                     session=session):
                 return True
+        return False
 
     def _emit_duration_stats_for_finished_state(self):
         if self.state == State.RUNNING:
@@ -406,8 +432,6 @@ class DagRun(Base, LoggingMixin):
         Verifies the DagRun by checking for removed tasks or tasks that are not in the
         database yet. It will set state to removed or add the task if required.
         """
-        from airflow.models.taskinstance import TaskInstance  # Avoid circular import
-
         dag = self.get_dag()
         tis = self.get_task_instances(session=session)
 
@@ -444,7 +468,7 @@ class DagRun(Base, LoggingMixin):
                 Stats.incr(
                     "task_instance_created-{}".format(task.__class__.__name__),
                     1, 1)
-                ti = TaskInstance(task, self.execution_date)
+                ti = TI(task, self.execution_date)
                 session.add(ti)
 
         session.commit()
@@ -469,10 +493,9 @@ class DagRun(Base, LoggingMixin):
 
     @property
     def is_backfill(self):
-        from airflow.jobs import BackfillJob
         return (
             self.run_id is not None and
-            self.run_id.startswith(BackfillJob.ID_PREFIX)
+            self.run_id.startswith(DagRunType.BACKFILL_JOB.value)
         )
 
     @classmethod

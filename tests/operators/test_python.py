@@ -19,7 +19,6 @@
 import copy
 import datetime
 import logging
-import os
 import sys
 import unittest
 import unittest.mock
@@ -120,12 +119,6 @@ class TestPythonBase(unittest.TestCase):
         self.assertDictEqual(first.kwargs, second.kwargs)
 
 
-@unittest.mock.patch('os.environ', {
-    'AIRFLOW_CTX_DAG_ID': None,
-    'AIRFLOW_CTX_TASK_ID': None,
-    'AIRFLOW_CTX_EXECUTION_DATE': None,
-    'AIRFLOW_CTX_DAG_RUN_ID': None
-})
 class TestPythonOperator(TestPythonBase):
 
     def do_run(self):
@@ -248,32 +241,6 @@ class TestPythonOperator(TestPythonBase):
         # shallow copy python_callable
         self.assertEqual(id(original_task.python_callable),
                          id(new_task.python_callable))
-
-    def _env_var_check_callback(self):
-        self.assertEqual('test_dag', os.environ['AIRFLOW_CTX_DAG_ID'])
-        self.assertEqual('hive_in_python_op', os.environ['AIRFLOW_CTX_TASK_ID'])
-        self.assertEqual(DEFAULT_DATE.isoformat(),
-                         os.environ['AIRFLOW_CTX_EXECUTION_DATE'])
-        self.assertEqual('manual__' + DEFAULT_DATE.isoformat(),
-                         os.environ['AIRFLOW_CTX_DAG_RUN_ID'])
-
-    def test_echo_env_variables(self):
-        """
-        Test that env variables are exported correctly to the
-        python callback in the task.
-        """
-        self.dag.create_dagrun(
-            run_id='manual__' + DEFAULT_DATE.isoformat(),
-            execution_date=DEFAULT_DATE,
-            start_date=DEFAULT_DATE,
-            state=State.RUNNING,
-            external_trigger=False,
-        )
-
-        op = PythonOperator(task_id='hive_in_python_op',
-                            dag=self.dag,
-                            python_callable=self._env_var_check_callback)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_conflicting_kwargs(self):
         self.dag.create_dagrun(

@@ -23,7 +23,7 @@ terminating the cluster.
 """
 from datetime import timedelta
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.providers.amazon.aws.operators.emr_add_steps import EmrAddStepsOperator
 from airflow.providers.amazon.aws.operators.emr_create_job_flow import EmrCreateJobFlowOperator
 from airflow.providers.amazon.aws.operators.emr_terminate_job_flow import EmrTerminateJobFlowOperator

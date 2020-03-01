@@ -22,7 +22,7 @@ when the operation actually finishes. That's why we have another task that check
 """
 from datetime import timedelta
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.providers.salesforce.operators.tableau_refresh_workbook import TableauRefreshWorkbookOperator
 from airflow.providers.salesforce.sensors.tableau_job_status import TableauJobStatusSensor
 from airflow.utils.dates import days_ago

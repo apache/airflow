@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 
 from six.moves.urllib.request import Request
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.providers.jenkins.operators.jenkins_job_trigger import JenkinsJobTriggerOperator

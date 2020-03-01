@@ -19,10 +19,8 @@ import pytest
 from psycopg2 import ProgrammingError
 
 from airflow.providers.postgres.hooks.postgres import PostgresHook
-from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
-from tests.test_utils.gcp_system_helpers import provide_gcp_context
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import GoogleSystemTest, provide_gcp_context
 
 GCS_BUCKET = "postgres_to_gcs_example"
 CREATE_QUERY = """
@@ -56,7 +54,9 @@ VALUES
 DELETE_QUERY = "DROP TABLE public.test_table;"
 
 
-class GcsHelper(LoggingCommandExecutor):
+@pytest.mark.backend("postgres")
+@pytest.mark.credential_file(GCP_GCS_KEY)
+class PostgresToGCSSystemTest(GoogleSystemTest):
     @staticmethod
     def init_db():
         try:
@@ -71,26 +71,11 @@ class GcsHelper(LoggingCommandExecutor):
         hook = PostgresHook()
         hook.run(DELETE_QUERY)
 
-    def create_bucket(self):
-        """Create a bucket."""
-        self.execute_cmd(["gsutil", "mb", "gs://{}".format(GCS_BUCKET)])
-
-    def delete_bucket(self):
-        """Delete bucket in Google Cloud Storage service"""
-        self.execute_cmd(["gsutil", "-m", "rm", "-r", "gs://{}".format(GCS_BUCKET)])
-
-
-@pytest.mark.backend("postgres")
-@pytest.mark.system("google.cloud")
-@pytest.mark.credential_file(GCP_GCS_KEY)
-class PostgresToGCSSystemTest(SystemTest):
-    helper = GcsHelper()
-
     @provide_gcp_context(GCP_GCS_KEY)
     def setUp(self):
         super().setUp()
-        self.helper.create_bucket()
-        self.helper.init_db()
+        self.create_gcs_bucket(GCS_BUCKET)
+        self.init_db()
 
     @provide_gcp_context(GCP_GCS_KEY)
     def test_run_example_dag(self):
@@ -98,6 +83,6 @@ class PostgresToGCSSystemTest(SystemTest):
 
     @provide_gcp_context(GCP_GCS_KEY)
     def tearDown(self):
-        self.helper.delete_bucket()
-        self.helper.drop_db()
+        self.delete_gcs_bucket(GCS_BUCKET)
+        self.drop_db()
         super().tearDown()

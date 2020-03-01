@@ -70,7 +70,7 @@ it will be retrieved from the GCP connection used. Basic usage of the operator:
 You can use :ref:`Jinja templating <jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.bigquery_dts.BigQueryCreateDataTransferOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`,
-which allows it to be used by other operators. Additionaly, id of the new config is accessible in
+which allows it to be used by other operators. Additionally, id of the new config is accessible in
 :ref:`XCom <concepts:xcom>` under ``transfer_config_id`` key.
 
 

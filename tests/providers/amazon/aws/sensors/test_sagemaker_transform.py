@@ -30,8 +30,8 @@ DESCRIBE_TRANSFORM_INPROGRESS_RESPONSE = {
         'HTTPStatusCode': 200,
     }
 }
-DESCRIBE_TRANSFORM_COMPELETED_RESPONSE = {
-    'TransformJobStatus': 'Compeleted',
+DESCRIBE_TRANSFORM_COMPLETED_RESPONSE = {
+    'TransformJobStatus': 'Completed',
     'ResponseMetadata': {
         'HTTPStatusCode': 200,
     }
@@ -74,7 +74,7 @@ class TestSageMakerTransformSensor(unittest.TestCase):
         mock_describe_job.side_effect = [
             DESCRIBE_TRANSFORM_INPROGRESS_RESPONSE,
             DESCRIBE_TRANSFORM_STOPPING_RESPONSE,
-            DESCRIBE_TRANSFORM_COMPELETED_RESPONSE
+            DESCRIBE_TRANSFORM_COMPLETED_RESPONSE
         ]
         sensor = SageMakerTransformSensor(
             task_id='test_task',
@@ -85,7 +85,7 @@ class TestSageMakerTransformSensor(unittest.TestCase):
 
         sensor.execute(None)
 
-        # make sure we called 3 times(terminated when its compeleted)
+        # make sure we called 3 times(terminated when its completed)
         self.assertEqual(mock_describe_job.call_count, 3)
 
         # make sure the hook was initialized with the specific params

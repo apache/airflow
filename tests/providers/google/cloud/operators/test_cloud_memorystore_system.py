@@ -16,31 +16,33 @@
 # specific language governing permissions and limitations
 # under the License.
 """System tests for Google Cloud Memorystore operators"""
+import os
+from urllib.parse import urlparse
+
 import pytest
 
-from tests.providers.google.cloud.operators.test_cloud_memorystore_system_helper import (
-    GCPCloudMemorystoreTestHelper,
-)
-from tests.providers.google.cloud.utils.gcp_authenticator import GCP_MEMORYSTORE  # TODO: Update it
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context
-from tests.test_utils.system_tests_class import SystemTest
+from tests.providers.google.cloud.utils.gcp_authenticator import GCP_MEMORYSTORE
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
+
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
+GCP_ARCHIVE_URL = os.environ.get("GCP_MEMORYSTORE_EXPORT_GCS_URL", "gs://test-memorystore/my-export.rdb")
+GCP_ARCHIVE_URL_PARTS = urlparse(GCP_ARCHIVE_URL)
+GCP_BUCKET_NAME = GCP_ARCHIVE_URL_PARTS.netloc
 
 
 @pytest.mark.backend("mysql", "postgres")
-@pytest.mark.system("google.cloud")
 @pytest.mark.credential_file(GCP_MEMORYSTORE)
-class CloudBuildExampleDagsSystemTest(SystemTest):
+class CloudMemorystoreSystemTest(GoogleSystemTest):
     """
     System tests for Google Cloud Memorystore operators
 
     It use a real service.
     """
-    helper = GCPCloudMemorystoreTestHelper()
 
     @provide_gcp_context(GCP_MEMORYSTORE)
     def setUp(self):
         super().setUp()
-        self.helper.create_bucket()
+        self.create_gcs_bucket(GCP_BUCKET_NAME, location="europe-north1")
 
     @provide_gcp_context(GCP_MEMORYSTORE)
     def test_run_example_dag(self):
@@ -48,5 +50,5 @@ class CloudBuildExampleDagsSystemTest(SystemTest):
 
     @provide_gcp_context(GCP_MEMORYSTORE)
     def tearDown(self):
-        self.helper.delete_bucket()
+        self.delete_gcs_bucket(GCP_BUCKET_NAME)
         super().tearDown()

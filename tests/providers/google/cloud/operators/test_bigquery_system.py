@@ -18,27 +18,25 @@
 """System tests for Google Cloud Build operators"""
 import pytest
 
-from tests.providers.google.cloud.operators.test_bigquery_system_helper import GCPBigQueryTestHelper
+from airflow.providers.google.cloud.example_dags.example_bigquery import DATA_EXPORT_BUCKET_NAME
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.system("google.cloud")
 @pytest.mark.credential_file(GCP_BIGQUERY_KEY)
-class BigQueryExampleDagsSystemTest(SystemTest):
+class BigQueryExampleDagsSystemTest(GoogleSystemTest):
     """
     System tests for Google BigQuery operators
 
     It use a real service.
     """
-    helper = GCPBigQueryTestHelper()
 
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     def setUp(self):
         super().setUp()
-        self.helper.create_repository_and_bucket()
+        self.create_gcs_bucket(DATA_EXPORT_BUCKET_NAME)
 
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     def test_run_example_dag(self):
@@ -46,5 +44,5 @@ class BigQueryExampleDagsSystemTest(SystemTest):
 
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     def tearDown(self):
-        self.helper.delete_bucket()
+        self.delete_gcs_bucket(DATA_EXPORT_BUCKET_NAME)
         super().tearDown()

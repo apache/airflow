@@ -135,19 +135,19 @@ If you wish to only run tests and not to drop into shell, apply the
 
 .. code-block:: bash
 
-     ./breeze --test-target tests/hooks/test_druid_hook.py -- --logging-level=DEBUG
+     ./breeze test-target tests/hooks/test_druid_hook.py -- --logging-level=DEBUG
 
 You can run the whole test suite with a special '.' test target:
 
 .. code-block:: bash
 
-    ./breeze --test-target .
+    ./breeze test-target .
 
 You can also specify individual tests or a group of tests:
 
 .. code-block:: bash
 
-    ./breeze --test-target tests/test_core.py::TestCore
+    ./breeze test-target tests/test_core.py::TestCore
 
 
 Airflow Integration Tests
@@ -169,8 +169,9 @@ switch when starting Breeze. You can specify multiple integrations by repeating 
 or by using the ``--integration all`` switch that enables all integrations.
 
 NOTE: Every integration requires a separate container with the corresponding integration image.
-So, they take precious resources on your PC, mainly, the memory. The started integrations are not stopped
-until you stop the Breeze environment with the ``--stop-environment`` switch.
+They take precious resources on your PC, mainly the memory. The started integrations are not stopped
+until you stop the Breeze environment with the ``stop-environment`` command  and restart it
+via ``restart-environment`` command.
 
 The following integrations are available:
 
@@ -318,11 +319,11 @@ Running Tests with Kubernetes
 Starting Kubernetes Cluster when Starting Breeze
 ................................................
 
-To run Kubernetes in Breeze, you can start Breeze with the ``--start-kind-cluster`` switch. This
+To run Kubernetes in Breeze, you can start Breeze with the ``--kind-cluster-start`` switch. This
 automatically creates a Kind Kubernetes cluster in the same ``docker`` engine that is used to run Breeze.
 Setting up the Kubernetes cluster takes some time so the cluster continues running
-until the it is stopped with the ``--stop-kind-cluster`` switch or until the ``--recreate-kind-cluster``
-switch is used rather than ``--start-kind-cluster``. Starting Breeze with the Kind Cluster automatically
+until the it is stopped with the ``--kind-cluster-stop`` switch or until the ``--kind-cluster-recreate``
+switch is used rather than ``--kind-cluster-start``. Starting Breeze with the Kind Cluster automatically
 sets ``runtime`` to ``kubernetes`` (see below).
 
 The cluster name follows the pattern ``airflow-python-X.Y.Z-vA.B.C`` where X.Y.Z is a Python version
@@ -355,7 +356,7 @@ Use the script ``./scripts/ci/in_container/kubernetes/docker/rebuild_airflow_ima
 3. Loads the image to the Kind Cluster using the ``kind load`` command.
 
 Deploying the Airflow Application in the Kubernetes Cluster
-.......................................................
+...........................................................
 
 Use the script ``./scripts/ci/in_container/kubernetes/app/deploy_app.sh`` that does the following:
 
@@ -381,7 +382,7 @@ Running Runtime-Specific Tests
 
 Tests using a specific runtime are marked with a custom pytest marker ``pytest.mark.runtime``.
 The marker has a single parameter - the name of a runtime. At the moment the only supported runtime is
-``kubernetes``. This runtime is set when you run Breeze with the ``--start-kind-cluster`` option.
+``kubernetes``. This runtime is set when you run Breeze with one of the ``--kind-cluster-*`` flags.
 Runtime-specific tests run only when the selectd runtime is started.
 
 
@@ -631,6 +632,21 @@ Also, with the Airflow CLI command ``airflow dags test``, you can execute one co
     # airflow dags test [dag_id] [execution_date]
     airflow dags test example_branch_operator 2018-01-01
 
+By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_SOURCES>/files/dags`` and this is
+the directory used by airflow scheduler and webserver to scan dags for. You can place your dags there
+to test them.
+
+The DAGs can be run in the master version of Airflow but they also work
+with older versions.
+
+To run the tests for Airflow 1.10.* series, you need to run Breeze with
+``--install-airflow-version==<VERSION>`` to install a different version of Airflow.
+If ``current`` is specified (default), then the current version of Airflow is used.
+Otherwise, the released version of Airflow is installed.
+
+You should also consider running it with ``restart-environment`` command when you change installed version.
+This will clean-up the database so that you start with a clean DB and not DB installed in a previous version.
+So typically you'd run it like ``breeze --install-ariflow-version=1.10.9 restart-environment``.
 
 BASH Unit Testing (BATS)
 ========================

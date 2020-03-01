@@ -28,7 +28,7 @@ import os
 
 from google.cloud.dlp_v2.types import ContentItem, InspectConfig, InspectTemplate
 
-from airflow.models import DAG
+from airflow import DAG
 from airflow.providers.google.cloud.operators.dlp import (
     CloudDLPCreateInspectTemplateOperator, CloudDLPDeleteInspectTemplateOperator,
     CloudDLPInspectContentOperator,
@@ -39,7 +39,7 @@ default_args = {"start_date": days_ago(1)}
 
 
 GCP_PROJECT = os.environ.get("GCP_PROJECT_ID", "example-project")
-TEMPLATE_ID = "dlp-inspect-8034856"
+TEMPLATE_ID = "dlp-inspect-838746"
 ITEM = ContentItem(
     table={
         "headers": [{"name": "column1"}],

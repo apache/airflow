@@ -18,27 +18,60 @@
 """System tests for Google Cloud Build operators"""
 import pytest
 
-from tests.providers.google.cloud.operators.test_gcs_to_gcs_system_helper import GcsToGcsTestHelper
+from airflow.providers.google.cloud.example_dags.example_gcs_to_gcs import (
+    BUCKET_1_DST, BUCKET_1_SRC, BUCKET_2_DST, BUCKET_2_SRC, BUCKET_3_DST, BUCKET_3_SRC,
+)
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 
 @pytest.mark.backend("mysql", "postgres")
-@pytest.mark.system("google.cloud")
 @pytest.mark.credential_file(GCP_GCS_KEY)
-class GcsToGcsExampleDagsSystemTest(SystemTest):
-    """
-    System tests for Google Cloud Storage to Google Cloud Storage transfer operators
+class GcsToGcsExampleDagsSystemTest(GoogleSystemTest):
 
-    It use a real service.
-    """
-    helper = GcsToGcsTestHelper()
+    def create_buckets(self):
+        """Create a buckets in Google Cloud Storage service with sample content."""
+
+        # 1. Create bucket
+        for name in [BUCKET_1_SRC, BUCKET_1_DST, BUCKET_2_SRC, BUCKET_2_DST, BUCKET_3_SRC, BUCKET_3_DST]:
+            self.create_gcs_bucket(name)
+
+        # 2. Prepare parents
+        first_parent = "gs://{}/parent-1.bin".format(BUCKET_1_SRC)
+        second_parent = "gs://{}/parent-2.bin".format(BUCKET_1_SRC)
+
+        self.execute_with_ctx(
+            [
+                "bash",
+                "-c",
+                "cat /dev/urandom | head -c $((1 * 1024 * 1024)) | gsutil cp - {}".format(first_parent),
+            ], key=GCP_GCS_KEY
+        )
+
+        self.execute_with_ctx(
+            [
+                "bash",
+                "-c",
+                "cat /dev/urandom | head -c $((1 * 1024 * 1024)) | gsutil cp - {}".format(second_parent),
+            ], key=GCP_GCS_KEY
+        )
+
+        self.upload_to_gcs(first_parent, f"gs://{BUCKET_1_SRC}/file.bin")
+        self.upload_to_gcs(first_parent, f"gs://{BUCKET_1_SRC}/subdir/file.bin")
+        self.upload_to_gcs(first_parent, f"gs://{BUCKET_2_SRC}/file.bin")
+        self.upload_to_gcs(first_parent, f"gs://{BUCKET_2_SRC}/subdir/file.bin")
+        self.upload_to_gcs(second_parent, f"gs://{BUCKET_2_DST}/file.bin")
+        self.upload_to_gcs(second_parent, f"gs://{BUCKET_2_DST}/subdir/file.bin")
+        self.upload_to_gcs(second_parent, f"gs://{BUCKET_3_DST}/file.bin")
+        self.upload_to_gcs(second_parent, f"gs://{BUCKET_3_DST}/subdir/file.bin")
+
+        self.delete_gcs_bucket(first_parent)
+        self.delete_gcs_bucket(second_parent)
 
     @provide_gcp_context(GCP_GCS_KEY)
     def setUp(self):
         super().setUp()
-        self.helper.create_buckets()
+        self.create_buckets()
 
     @provide_gcp_context(GCP_GCS_KEY)
     def test_run_example_dag(self):
@@ -46,5 +79,6 @@ class GcsToGcsExampleDagsSystemTest(SystemTest):
 
     @provide_gcp_context(GCP_GCS_KEY)
     def tearDown(self):
-        self.helper.delete_buckets()
+        for name in [BUCKET_1_SRC, BUCKET_1_DST, BUCKET_2_SRC, BUCKET_2_DST, BUCKET_3_SRC, BUCKET_3_DST]:
+            self.delete_gcs_bucket(name)
         super().tearDown()

@@ -222,6 +222,12 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
             self.kube_client_request_args = {}
         self._validate()
 
+        delete_option_kwargs = conf.get(self.kubernetes_section, 'delete_option_kwargs')
+        if delete_option_kwargs:
+            self.delete_option_kwargs = json.loads(delete_option_kwargs)
+        else:
+            self.delete_option_kwargs = {}
+
     # pod security context items should return integers
     # and only return a blank string if contexts are not set.
     def _get_security_context_val(self, scontext: str) -> Union[str, int]:
@@ -450,7 +456,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         """Deletes POD"""
         try:
             self.kube_client.delete_namespaced_pod(
-                pod_id, namespace, body=client.V1DeleteOptions(),
+                pod_id, namespace, body=client.V1DeleteOptions(**self.kube_config.delete_option_kwargs),
                 **self.kube_config.kube_client_request_args)
         except ApiException as e:
             # If the pod is already deleted

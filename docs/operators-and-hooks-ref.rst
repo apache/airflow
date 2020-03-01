@@ -680,6 +680,12 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.providers.google.cloud.operators.cloud_sql`
      -
 
+   * - `Cloud Stackdriver <https://cloud.google.com/stackdriver>`__
+     - :doc:`How to use <howto/operator/gcp/stackdriver>`
+     - :mod:`airflow.providers.google.cloud.hooks.stackdriver`
+     - :mod:`airflow.providers.google.cloud.operators.stackdriver`
+     -
+
    * - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/gcs>`
      - :mod:`airflow.providers.google.cloud.hooks.gcs`
