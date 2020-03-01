@@ -394,7 +394,7 @@ Mounting Local Sources to Breeze
 Important sources of Airflow are mounted inside the ``airflow-testing`` container that you enter.
 This means that you can continue editing your changes on the host in your favourite IDE and have them
 visible in the Docker immediately and ready to test without rebuilding images. You can disable mounting
-by specifying ``--skip-mounting-source-volume`` flag when running Breeze. In this case you will have sources
+by specifying ``--skip-mounting-local-sources`` flag when running Breeze. In this case you will have sources
 embedded in the container and changes to these sources will not be persistent.
 
 
@@ -877,7 +877,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
    Manage mounting local files
   ****************************************************************************************************
 
-  -l, --skip-mounting-source-volume
+  -l, --skip-mounting-local-sources
           Skips mounting local volume with sources - you get exactly what is in the
           docker image rather than your current local sources of airflow.
 

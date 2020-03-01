@@ -150,7 +150,14 @@ if [[ "${RUNTIME}" == "" ]]; then
 
     # SSH Service
     sudo service ssh restart >/dev/null 2>&1
-    ssh-keyscan -H localhost >> ~/.ssh/known_hosts
+
+    # Sometimes the server is not quick enough to load the keys!
+    while [[ $(ssh-keyscan -H localhost 2>/dev/null | wc -l) != "3" ]] ; do
+        echo "Not all keys yet loaded by the server"
+        sleep 0.05
+    done
+
+    ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
 fi
 
 

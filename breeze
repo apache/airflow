@@ -84,7 +84,7 @@ function setup_default_breeze_variables() {
     . "${MY_DIR}/breeze-complete"
 
     # Skips mounting local Airflow sources
-    SKIP_MOUNTING_LOCAL_SOURCES="false"
+    MOUNT_LOCAL_SOURCES="true"
 
     # Holds last subcommand used
     LAST_SUBCOMMAND=""
@@ -114,9 +114,6 @@ function setup_default_breeze_variables() {
     # Do not enable Kind Kubernetes cluster by default
     export ENABLE_KIND_CLUSTER="false"
 
-    # We use docker image caches by default to speed up the builds
-    export USE_PULLED_IMAGES_AS_CACHE=${USE_PULLED_IMAGES_AS_CACHE:="true"}
-
     # By default we do not push images. This can be overridden by -u flag.
     export PUSH_IMAGES=${PUSH_IMAGES:="false"}
 
@@ -128,14 +125,8 @@ function setup_default_breeze_variables() {
     export INSTALL_AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION:="current"}
 
     # Determine version of the Airflow from version.py
-    AIRFLOW_VERSION=$(cat airflow/version.py - << EOF | python
-print(version.replace("+",""))
-EOF
-    )
+    AIRFLOW_VERSION=$(grep version "airflow/version.py" | awk '{print $3}' | sed "s/['+]//g")
     export AIRFLOW_VERSION
-
-    # Verbosity in running ci scripts
-    export VERBOSE=${VERBOSE:="false"}
 
     # Whether to force build without checking if it is needed
     export FORCE_BUILD_IMAGES=${FORCE_BUILD_IMAGES:="false"}
@@ -282,7 +273,7 @@ EOF
 }
 
 function print_badge {
-    if [[ ! -f "${SUPPRESS_ASCIIART_FILE}" ]]; then
+    if [[ ! -f "${SUPPRESS_ASCIIART_FILE}" && ${COMMAND_TO_RUN} == "enter_breeze" ]]; then
         cat <<EOF
 
 
@@ -413,7 +404,7 @@ function prepare_command_files() {
 
     COMPOSE_FILE=${MAIN_DOCKER_COMPOSE_FILE}:${BACKEND_DOCKER_COMPOSE_FILE}
 
-    if [[ "${SKIP_MOUNTING_LOCAL_SOURCES}" != "true" ]]; then
+    if [[ "${MOUNT_LOCAL_SOURCES}" != "false" ]]; then
         COMPOSE_FILE=${COMPOSE_FILE}:${LOCAL_DOCKER_COMPOSE_FILE}
     fi
 
@@ -552,8 +543,8 @@ function parse_arguments() {
           echo
           shift 2 ;;
         -l|--skip-mounting-local-sources)
-          SKIP_MOUNTING_LOCAL_SOURCES="true"
-          echo "Skip mounting local sources: ${SKIP_MOUNTING_LOCAL_SOURCES}"
+          MOUNT_LOCAL_SOURCES="false"
+          echo "Mount local sources: ${MOUNT_LOCAL_SOURCES}"
           echo
           shift ;;
         -a|--install-airflow-version)
@@ -591,7 +582,7 @@ function parse_arguments() {
         -C|--force-clean-images)
           echo "Clean build of images without cache"
           echo
-          export USE_PULLED_IMAGES_AS_CACHE="false"
+          export DOCKER_CACHE="no-cache"
           export FORCE_BUILD_IMAGES="true"
           shift ;;
         -s|--kind-cluster-start)
@@ -618,8 +609,7 @@ function parse_arguments() {
         -L|--use-local-cache)
           echo "Use local cache to build images"
           echo
-          export USE_NO_CACHE="false"
-          export USE_PULLED_IMAGES_AS_CACHE="false"
+          export DOCKER_CACHE="local"
           shift ;;
         -P|--force-pull-images)
           echo "Force pulling images before build. Uses pulled images as cache."
@@ -1133,7 +1123,7 @@ $(print_star_line)
  Manage mounting local files
 $(print_star_line)
 
--l, --skip-mounting-source-volume
+-l, --skip-mounting-local-sources
         Skips mounting local volume with sources - you get exactly what is in the
         docker image rather than your current local sources of airflow.
 
@@ -1297,7 +1287,7 @@ function touch_local_files {
 }
 
 function print_cheatsheet() {
-    if [[ ! -f ${SUPPRESS_CHEATSHEET_FILE} ]]; then
+    if [[ ! -f ${SUPPRESS_CHEATSHEET_FILE} && ${COMMAND_TO_RUN} == "enter_breeze" ]]; then
         echo
         echo
         print_line
@@ -1352,25 +1342,27 @@ function print_cheatsheet() {
 }
 
 function print_setup_instructions {
-    # shellcheck disable=SC2034  # Unused variables left for comp_breeze usage
-    if ! typeset -f "_comp_breeze" > /dev/null; then
+    if [[ ${COMMAND_TO_RUN} == "enter_breeze" ]] ; then
+        # shellcheck disable=SC2034  # Unused variables left for comp_breeze usage
+        if ! typeset -f "_comp_breeze" > /dev/null; then
+            print_line
+            echo
+            echo "  You can setup autocomplete by running '${CMDNAME} setup-autocomplete'"
+            echo
+            echo
+        fi
         print_line
         echo
-        echo "  You can setup autocomplete by running '${CMDNAME} setup-autocomplete'"
+        echo "  You can toggle ascii/cheatsheet by running:"
+        echo "      * ${CMDNAME} toggle-suppress-cheatsheet"
+        echo "      * ${CMDNAME} toggle-suppress-asciiart"
+        echo
+        print_line
+        echo
+        echo
         echo
         echo
     fi
-    print_line
-    echo
-    echo "  You can toggle ascii/cheatsheet by running:"
-    echo "      * ${CMDNAME} toggle-suppress-cheatsheet"
-    echo "      * ${CMDNAME} toggle-suppress-asciiart"
-    echo
-    print_line
-    echo
-    echo
-    echo
-    echo
 }
 
 function make_sure_precommit_is_installed {
@@ -1420,6 +1412,7 @@ function run_static_checks {
 }
 
 function run_build_command {
+    prepare_build
     case "${COMMAND_TO_RUN}" in
         enter_breeze|build_docs|run_tests|run_docker_compose|run_in_bash)
             rebuild_ci_image_if_needed

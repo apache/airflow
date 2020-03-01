@@ -25,7 +25,6 @@ TMP_OUTPUT=$(mktemp)
 
 cd "${MY_DIR}/../../" || exit;
 
-export AIRFLOW_CI_SILENT="true"
 find  "licenses" -type f -exec echo "  " {} \; | sort >>"${TMP_FILE}"
 
 SETUP_CFG_FILE="${MY_DIR}/../../setup.cfg"

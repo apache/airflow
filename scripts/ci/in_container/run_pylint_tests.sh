@@ -32,9 +32,6 @@ if [[ ${#@} == "0" ]]; then
     xargs pylint -j 0 --disable="${DISABLE_CHECKS_FOR_TESTS}" --output-format=colorized
     RES=$?
 else
-    print_in_container_info
-    print_in_container_info "Running Pylint for tests with parameters: $*"
-    print_in_container_info
     # running pylint using built-in parallel functionality might speed it up
     pylint -j 0 --disable="${DISABLE_CHECKS_FOR_TESTS}" --output-format=colorized "$@"
     RES=$?

@@ -15,25 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-set -euo pipefail
-
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
-
 export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
 
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
+# shellcheck source=scripts/ci/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-initialize_breeze_environment
-
-basic_sanity_checks
-
-script_start
-
-cd "${MY_DIR}/../../backport_packages"
+cd "${MY_DIR}/../../backport_packages" || exit 1
 
 rm -rf dist/*
 rm -rf -- *.egg-info
@@ -68,5 +55,3 @@ echo "Packages are prepared in ${DUMP_FILE}"
 if [[ "${CI:=false}" == "true" ]]; then
     curl -F "file=@${DUMP_FILE}" https://file.io
 fi
-
-script_end

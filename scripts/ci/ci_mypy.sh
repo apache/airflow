@@ -20,8 +20,6 @@ export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-rebuild_ci_image_if_needed
-
 function run_mypy() {
     FILES=("$@")
     if [[ "${#FILES[@]}" == "0" ]]; then
@@ -41,5 +39,9 @@ function run_mypy() {
         "--" "/opt/airflow/scripts/ci/in_container/run_mypy.sh" "${FILES[@]}" \
         | tee -a "${OUTPUT_LOG}"
 }
+
+prepare_build
+
+rebuild_ci_image_if_needed
 
 run_mypy "$@"

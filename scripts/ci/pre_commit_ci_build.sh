@@ -21,4 +21,6 @@ export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-rebuild_all_images_if_needed_and_confirmed
+prepare_build
+
+rebuild_ci_image_if_needed_and_confirmed

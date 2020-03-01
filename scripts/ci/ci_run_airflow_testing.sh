@@ -24,9 +24,10 @@ if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
     echo
     echo "Skipping running tests !!!!!"
     echo
-    script_end
     exit
 fi
+
+prepare_build
 
 rebuild_ci_image_if_needed
 

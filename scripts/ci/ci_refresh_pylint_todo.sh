@@ -33,6 +33,8 @@ function refresh_pylint_todo() {
         | tee -a "${OUTPUT_LOG}"
 }
 
+prepare_build
+
 rebuild_ci_image_if_needed
 
 refresh_pylint_todo
