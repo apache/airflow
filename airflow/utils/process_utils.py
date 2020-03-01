@@ -17,14 +17,103 @@
 # under the License.
 #
 """
-Utilities for running process with writing output to logger
+Utilities for running or stopping processes
 """
+import errno
 import logging
+import os
 import shlex
+import signal
 import subprocess
 from typing import List
 
+import psutil
+
+from airflow.configuration import conf
+
 log = logging.getLogger(__name__)
+
+# When killing processes, time to wait after issuing a SIGTERM before issuing a
+# SIGKILL.
+DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = conf.getint(
+    'core', 'KILLED_TASK_CLEANUP_TIME'
+)
+
+
+def reap_process_group(pgid, logger, sig=signal.SIGTERM, timeout=DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM):
+    """
+    Tries really hard to terminate all processes in the group (including grandchildren). Will send
+    sig (SIGTERM) to the process group of pid. If any process is alive after timeout
+    a SIGKILL will be send.
+
+    :param pgid: process group id to kill
+    :param logger: log handler
+    :param sig: signal type
+    :param timeout: how much time a process has to terminate
+    """
+    returncodes = {}
+
+    def on_terminate(p):
+        logger.info("Process %s (%s) terminated with exit code %s", p, p.pid, p.returncode)
+        returncodes[p.pid] = p.returncode
+
+    def signal_procs(sig):
+        try:
+            os.killpg(pgid, sig)
+        except OSError as err:
+            # If operation not permitted error is thrown due to run_as_user,
+            # use sudo -n(--non-interactive) to kill the process
+            if err.errno == errno.EPERM:
+                subprocess.check_call(
+                    ["sudo", "-n", "kill", "-" + str(sig)] + [str(p.pid) for p in children]
+                )
+            else:
+                raise
+
+    if pgid == os.getpgid(0):
+        raise RuntimeError("I refuse to kill myself")
+
+    try:
+        parent = psutil.Process(pgid)
+
+        children = parent.children(recursive=True)
+        children.append(parent)
+    except psutil.NoSuchProcess:
+        # The process already exited, but maybe it's children haven't.
+        children = []
+        for proc in psutil.process_iter():
+            try:
+                if os.getpgid(proc.pid) == pgid and proc.pid != 0:
+                    children.append(proc)
+            except OSError:
+                pass
+
+    logger.info("Sending %s to GPID %s", sig, pgid)
+    try:
+        signal_procs(sig)
+    except OSError as err:
+        # No such process, which means there is no such process group - our job
+        # is done
+        if err.errno == errno.ESRCH:
+            return returncodes
+
+    _, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
+
+    if alive:
+        for proc in alive:
+            logger.warning("process %s did not respond to SIGTERM. Trying SIGKILL", proc)
+
+        try:
+            signal_procs(signal.SIGKILL)
+        except OSError as err:
+            if err.errno != errno.ESRCH:
+                raise
+
+        _, alive = psutil.wait_procs(alive, timeout=timeout, callback=on_terminate)
+        if alive:
+            for proc in alive:
+                logger.error("Process %s (%s) could not be killed. Giving up.", proc, proc.pid)
+    return returncodes
 
 
 def execute_in_subprocess(cmd: List[str]):

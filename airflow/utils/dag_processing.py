@@ -45,8 +45,8 @@ from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
-from airflow.utils.helpers import reap_process_group
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.process_utils import reap_process_group
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
@@ -484,7 +484,7 @@ class DagFileProcessorAgent(LoggingMixin):
         if not self._process:
             self.log.warning('Ending without manager process.')
             return
-        reap_process_group(self._process.pid, log=self.log)
+        reap_process_group(self._process.pid, logger=self.log)
         self._parent_signal_conn.close()
 
 
