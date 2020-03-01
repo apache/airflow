@@ -1495,6 +1495,7 @@ class DAG(BaseDag, LoggingMixin):
             dag = dag_by_ids[missing_dag_id]
             if dag.is_paused_upon_creation is not None:
                 orm_dag.is_paused = dag.is_paused_upon_creation
+            orm_dag.tags = []
             log.info("Creating ORM DAG for %s", dag.dag_id)
             session.add(orm_dag)
             orm_dags.append(orm_dag)
@@ -1515,7 +1516,17 @@ class DAG(BaseDag, LoggingMixin):
             orm_dag.default_view = dag.default_view
             orm_dag.description = dag.description
             orm_dag.schedule_interval = dag.schedule_interval
-            orm_dag.tags = dag.get_dagtags(session=session)
+            for orm_tag in list(orm_dag.tags):
+                if orm_tag.name not in orm_dag.tags:
+                    session.delete(orm_tag)
+                orm_dag.tags.remove(orm_tag)
+            if dag.tags:
+                orm_tag_names = [t.name for t in orm_dag.tags]
+                for dag_tag in list(dag.tags):
+                    if dag_tag not in orm_tag_names:
+                        dag_tag_orm = DagTag(name=dag_tag, dag_id=dag.dag_id)
+                        orm_dag.tags.append(dag_tag_orm)
+                        session.add(dag_tag_orm)
 
         session.commit()
 
@@ -1541,28 +1552,6 @@ class DAG(BaseDag, LoggingMixin):
         :return: None
         """
         self.bulk_sync_to_db([self], sync_time, session)
-
-    @provide_session
-    def get_dagtags(self, session=None):
-        """
-        Creating a list of DagTags, if one is missing from the DB, will insert.
-
-        :return: The DagTag list.
-        :rtype: list
-        """
-        tags = []
-        if not self.tags:
-            return tags
-
-        for name in set(self.tags):
-            tag = session.query(
-                DagTag).filter(DagTag.name == name).filter(DagTag.dag_id == self.dag_id).first()
-            if not tag:
-                tag = DagTag(name=name, dag_id=self.dag_id)
-                session.add(tag)
-            tags.append(tag)
-        session.commit()
-        return tags
 
     @staticmethod
     @provide_session

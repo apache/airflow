@@ -37,7 +37,7 @@ from airflow import models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowDagCycleException, AirflowException, DuplicateTaskIdFound
 from airflow.jobs.scheduler_job import DagFileProcessor
-from airflow.models import DAG, DagModel, DagRun, TaskFail, TaskInstance as TI
+from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
@@ -50,7 +50,7 @@ from airflow.utils.timezone import datetime as datetime_tz
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.db import clear_db_runs
+from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 
 class TestDag(unittest.TestCase):
@@ -775,6 +775,76 @@ class TestDag(unittest.TestCase):
 
         self.assertEqual(prev_local.isoformat(), "2018-03-24T03:00:00+01:00")
         self.assertEqual(prev.isoformat(), "2018-03-24T02:00:00+00:00")
+
+    def test_bulk_sync_to_db(self):
+        clear_db_dags()
+        dags = [
+            DAG(f'dag-bulk-sync-{i}', start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(0, 4)
+        ]
+
+        with assert_queries_count(3):
+            DAG.bulk_sync_to_db(dags)
+        with create_session() as session:
+            self.assertEqual(
+                {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'},
+                {row[0] for row in session.query(DagModel.dag_id).all()}
+            )
+            self.assertEqual(
+                {
+                    ('dag-bulk-sync-0', 'test-dag'),
+                    ('dag-bulk-sync-1', 'test-dag'),
+                    ('dag-bulk-sync-2', 'test-dag'),
+                    ('dag-bulk-sync-3', 'test-dag'),
+                },
+                set(session.query(DagTag.dag_id, DagTag.name).all())
+            )
+        # Re-sync should do fewer queries
+        with assert_queries_count(2):
+            DAG.bulk_sync_to_db(dags)
+        with assert_queries_count(2):
+            DAG.bulk_sync_to_db(dags)
+        # Adding tags
+        for dag in dags:
+            dag.tags.append("test-dag2")
+        with assert_queries_count(3):
+            DAG.bulk_sync_to_db(dags)
+        with create_session() as session:
+            self.assertEqual(
+                {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'},
+                {row[0] for row in session.query(DagModel.dag_id).all()}
+            )
+            self.assertEqual(
+                {
+                    ('dag-bulk-sync-0', 'test-dag'),
+                    ('dag-bulk-sync-0', 'test-dag2'),
+                    ('dag-bulk-sync-1', 'test-dag'),
+                    ('dag-bulk-sync-1', 'test-dag2'),
+                    ('dag-bulk-sync-2', 'test-dag'),
+                    ('dag-bulk-sync-2', 'test-dag2'),
+                    ('dag-bulk-sync-3', 'test-dag'),
+                    ('dag-bulk-sync-3', 'test-dag2'),
+                },
+                set(session.query(DagTag.dag_id, DagTag.name).all())
+            )
+        # Removing tags
+        for dag in dags:
+            dag.tags.remove("test-dag")
+        with assert_queries_count(3):
+            DAG.bulk_sync_to_db(dags)
+        with create_session() as session:
+            self.assertEqual(
+                {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'},
+                {row[0] for row in session.query(DagModel.dag_id).all()}
+            )
+            self.assertEqual(
+                {
+                    ('dag-bulk-sync-0', 'test-dag2'),
+                    ('dag-bulk-sync-1', 'test-dag2'),
+                    ('dag-bulk-sync-2', 'test-dag2'),
+                    ('dag-bulk-sync-3', 'test-dag2'),
+                },
+                set(session.query(DagTag.dag_id, DagTag.name).all())
+            )
 
     @patch('airflow.models.dag.timezone.utcnow')
     def test_sync_to_db(self, mock_now):
