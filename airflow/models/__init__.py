@@ -30,7 +30,7 @@ from airflow.models.pool import Pool  # noqa: F401
 from airflow.models.taskfail import TaskFail  # noqa: F401
 from airflow.models.skipmixin import SkipMixin  # noqa: F401
 from airflow.models.slamiss import SlaMiss  # noqa: F401
-from airflow.models.taskinstance import clear_task_instances, TaskInstance  # noqa: F401
+from airflow.models.taskinstance import clear_task_instances, cancel_task_instances, TaskInstance  # noqa: F401
 from airflow.models.taskreschedule import TaskReschedule  # noqa: F401
 from airflow.models.variable import Variable  # noqa: F401
 from airflow.models.xcom import XCom, XCOM_RETURN_KEY  # noqa: F401
