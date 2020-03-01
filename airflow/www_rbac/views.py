@@ -2671,6 +2671,9 @@ class TaskInstanceModelView(AirflowModelView):
             for dag, tis in dag_to_tis.items():
                 models.clear_task_instances(tis, session=session, dag=dag)
 
+            for ti in tis:
+                session.add(session.merge(ti))
+
             session.commit()
             flash("{0} task instances have been cleared".format(len(tis)))
             self.update_redirect()
@@ -2695,6 +2698,9 @@ class TaskInstanceModelView(AirflowModelView):
 
             for dag, tis in dag_to_tis.items():
                 models.cancel_task_instances(tis, session, dag=dag)
+
+            for ti in tis:
+                session.add(session.merge(ti))
 
             session.commit()
             flash("{0} task instances have been cancelled".format(len(tis)))
