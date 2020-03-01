@@ -170,7 +170,7 @@ create_endpoint_params = {
 
 update_endpoint_params = create_endpoint_params
 
-DESCRIBE_TRAINING_COMPELETED_RETURN = {
+DESCRIBE_TRAINING_COMPLETED_RETURN = {
     'TrainingJobStatus': 'Completed',
     'ResourceConfig': {
         'InstanceCount': 1,
@@ -184,14 +184,14 @@ DESCRIBE_TRAINING_COMPELETED_RETURN = {
     }
 }
 
-DESCRIBE_TRAINING_INPROGRESS_RETURN = dict(DESCRIBE_TRAINING_COMPELETED_RETURN)
+DESCRIBE_TRAINING_INPROGRESS_RETURN = dict(DESCRIBE_TRAINING_COMPLETED_RETURN)
 DESCRIBE_TRAINING_INPROGRESS_RETURN.update({'TrainingJobStatus': 'InProgress'})
 
-DESCRIBE_TRAINING_FAILED_RETURN = dict(DESCRIBE_TRAINING_COMPELETED_RETURN)
+DESCRIBE_TRAINING_FAILED_RETURN = dict(DESCRIBE_TRAINING_COMPLETED_RETURN)
 DESCRIBE_TRAINING_FAILED_RETURN.update({'TrainingJobStatus': 'Failed',
                                         'FailureReason': 'Unknown'})
 
-DESCRIBE_TRAINING_STOPPING_RETURN = dict(DESCRIBE_TRAINING_COMPELETED_RETURN)
+DESCRIBE_TRAINING_STOPPING_RETURN = dict(DESCRIBE_TRAINING_COMPLETED_RETURN)
 DESCRIBE_TRAINING_STOPPING_RETURN.update({'TrainingJobStatus': 'Stopping'})
 
 message = 'message'
@@ -339,8 +339,8 @@ class TestSageMakerHook(unittest.TestCase):
                  'describe_training_job.side_effect':
                  [DESCRIBE_TRAINING_INPROGRESS_RETURN,
                   DESCRIBE_TRAINING_STOPPING_RETURN,
-                  DESCRIBE_TRAINING_COMPELETED_RETURN,
-                  DESCRIBE_TRAINING_COMPELETED_RETURN]
+                  DESCRIBE_TRAINING_COMPLETED_RETURN,
+                  DESCRIBE_TRAINING_COMPLETED_RETURN]
                  }
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
@@ -361,7 +361,7 @@ class TestSageMakerHook(unittest.TestCase):
                  [DESCRIBE_TRAINING_INPROGRESS_RETURN,
                   DESCRIBE_TRAINING_STOPPING_RETURN,
                   DESCRIBE_TRAINING_FAILED_RETURN,
-                  DESCRIBE_TRAINING_COMPELETED_RETURN]
+                  DESCRIBE_TRAINING_COMPLETED_RETURN]
                  }
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
@@ -561,7 +561,7 @@ class TestSageMakerHook(unittest.TestCase):
         mock_session = mock.Mock()
         mock_log_session = mock.Mock()
         attrs = {'describe_training_job.return_value':
-                 DESCRIBE_TRAINING_COMPELETED_RETURN
+                 DESCRIBE_TRAINING_COMPLETED_RETURN
                  }
         log_attrs = {'describe_log_streams.side_effect':
                      LIFECYCLE_LOG_STREAMS,
@@ -589,7 +589,7 @@ class TestSageMakerHook(unittest.TestCase):
         mock_session = mock.Mock()
         mock_log_session = mock.Mock()
         attrs = {'describe_training_job.return_value':
-                 DESCRIBE_TRAINING_COMPELETED_RETURN
+                 DESCRIBE_TRAINING_COMPLETED_RETURN
                  }
         log_attrs = {'describe_log_streams.side_effect':
                      LIFECYCLE_LOG_STREAMS,
@@ -616,7 +616,7 @@ class TestSageMakerHook(unittest.TestCase):
         mock_session = mock.Mock()
         mock_log_session = mock.Mock()
         attrs = {'describe_training_job.return_value':
-                 DESCRIBE_TRAINING_COMPELETED_RETURN
+                 DESCRIBE_TRAINING_COMPLETED_RETURN
                  }
         log_attrs = {'describe_log_streams.side_effect':
                      LIFECYCLE_LOG_STREAMS,
@@ -646,13 +646,13 @@ class TestSageMakerHook(unittest.TestCase):
         mock_describe.side_effect = \
             [(LogState.WAIT_IN_PROGRESS, DESCRIBE_TRAINING_INPROGRESS_RETURN, 0),
              (LogState.JOB_COMPLETE, DESCRIBE_TRAINING_STOPPING_RETURN, 0),
-             (LogState.COMPLETE, DESCRIBE_TRAINING_COMPELETED_RETURN, 0)]
+             (LogState.COMPLETE, DESCRIBE_TRAINING_COMPLETED_RETURN, 0)]
         mock_session = mock.Mock()
         mock_log_session = mock.Mock()
         attrs = {'create_training_job.return_value':
                  test_arn_return,
                  'describe_training_job.return_value':
-                     DESCRIBE_TRAINING_COMPELETED_RETURN
+                     DESCRIBE_TRAINING_COMPLETED_RETURN
                  }
         log_attrs = {'describe_log_streams.side_effect':
                      LIFECYCLE_LOG_STREAMS,
