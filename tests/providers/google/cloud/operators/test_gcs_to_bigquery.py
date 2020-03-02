@@ -17,10 +17,10 @@
 # under the License.
 
 import unittest
+
 import mock
 
 from airflow.providers.google.cloud.operators.gcs_to_bigquery import GCSToBigQueryOperator
-
 
 TASK_ID = 'test-gcs-to-bq-operator'
 TEST_EXPLICIT_DEST = 'test-project.dataset.table'
@@ -34,7 +34,7 @@ class TestGoogleCloudStorageToBigQueryOperator(unittest.TestCase):
     # gotta be honest, I don't really get this?!
     @mock.patch('airflow.providers.google.cloud.operators.gcs_to_bigquery.BigQueryHook')
     @mock.patch('airflow.providers.google.cloud.operators.gcs_to_bigquery.GCSHook')
-    def test_execute_explicit_project_legacy(self, bq_hook, gcs_hook):
+    def test_execute_explicit_project_legacy(self, bq_hook):
         operator = GCSToBigQueryOperator(bucket=TEST_BUCKET,
                                          source_objects=TEST_SOURCE_OBJECTS,
                                          destination_project_dataset_table=TEST_EXPLICIT_DEST,
@@ -53,7 +53,7 @@ class TestGoogleCloudStorageToBigQueryOperator(unittest.TestCase):
 
     @mock.patch('airflow.providers.google.cloud.operators.gcs_to_bigquery.BigQueryHook')
     @mock.patch('airflow.providers.google.cloud.operators.gcs_to_bigquery.GCSHook')
-    def test_execute_explicit_project(self, bq_hook, gcs_hook):
+    def test_execute_explicit_project(self, bq_hook):
         operator = GCSToBigQueryOperator(bucket=TEST_BUCKET,
                                          source_objects=TEST_SOURCE_OBJECTS,
                                          destination_project_dataset_table=TEST_EXPLICIT_DEST,
