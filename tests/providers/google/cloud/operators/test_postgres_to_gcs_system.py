@@ -20,7 +20,7 @@ from psycopg2 import ProgrammingError
 
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
-from tests.test_utils.gcp_system_helpers import GoogleSystemTest, provide_gcp_context
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 GCS_BUCKET = "postgres_to_gcs_example"
 CREATE_QUERY = """
@@ -79,7 +79,7 @@ class PostgresToGCSSystemTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_GCS_KEY)
     def test_run_example_dag(self):
-        self.run_dag('example_postgres_to_gcs', 'airflow/example_dags')
+        self.run_dag('example_postgres_to_gcs', CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_GCS_KEY)
     def tearDown(self):
