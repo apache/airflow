@@ -12,22 +12,25 @@
 
 import logging
 
-from werkzeug.utils import cached_property
-
-from airflow.contrib.hooks.kafka_consumer_hook import KafkaConsumerHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from cached_property import cached_property
 from airflow.utils.decorators import apply_defaults
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.providers.apache.kafka.hooks.kafka_consumer_hook import KafkaConsumerHook
 
 
 class KafkaSensor(BaseSensorOperator):
     """
     Consumes the Kafka message with the specific topic
     """
-
-    templated_fields = ('topic',)
+    DEFAULT_HOST = 'kafka1'
+    DEFAULT_PORT = 9092
+    templated_fields = ('topic',
+                        'host',
+                        'port',
+                        )
 
     @apply_defaults
-    def __init__(self, conn_id, topic, *args, **kwargs):
+    def __init__(self, topic, host=DEFAULT_HOST, port=DEFAULT_PORT, *args, **kwargs):
         """
         Initialize the sensor, the connection establish
         is put off to it's first time usage.
@@ -38,12 +41,13 @@ class KafkaSensor(BaseSensorOperator):
             the subscribed topic
         """
         self.topic = topic
-        self.conn_id = conn_id
+        self.host = host
+        self.port = port
         super(KafkaSensor, self).__init__(*args, **kwargs)
 
     @cached_property
     def hook(self):
-        return KafkaConsumerHook(self.conn_id, self.topic)
+        return KafkaConsumerHook(self.topic, self.host, self.port)
 
     def poke(self, context):
         logging.info(
@@ -52,7 +56,9 @@ class KafkaSensor(BaseSensorOperator):
 
         messages = self.hook.get_messages()
 
-        logging.info(
-            'Got messages during poking: %s', messages)
-
-        return messages or False
+        if messages is not {}:
+            logging.info(
+                'Got messages during poking: %s', messages)
+            return messages
+        else:
+            return False
