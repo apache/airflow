@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,6 +22,14 @@ from datetime import timedelta
 from airflow import DAG
 from airflow.providers.apache.kafka.sensors.kafka_sensor import KafkaSensor
 from airflow.utils.timezone import datetime
+=======
+
+from airflow import DAG
+from datetime import timedelta
+
+from airflow.utils.timezone import datetime
+from airflow.providers.apache.kafka.sensors.kafka_sensor import KafkaSensor
+>>>>>>> Moved files to providers package.  Externalized connection logic from init function
 
 DAG_ID = "example_kafka_dag"
 dag_start_date = datetime(2015, 6, 1, hour=20, tzinfo=None)
