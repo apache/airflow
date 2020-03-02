@@ -141,14 +141,12 @@ class BaseJob(Base, LoggingMixin):
         """
         Will be called when an external kill command is received
         """
-        pass
 
     def on_failure(self, e):
         """
         Will be called when an exception happens during _execute.
         default just do nothing.
         """
-        pass
 
     def heartbeat_callback(self, session=None):
         """
