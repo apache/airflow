@@ -61,6 +61,11 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+
+### Use NULL as default value for dag.description
+
+Now use NULL as default value for dag.description in dag table
+
 ### Assigning task to a DAG using bitwise shift (bit-shift) operators are no longer supported
 
 Previously, you could assign a task to a DAG as follows:
