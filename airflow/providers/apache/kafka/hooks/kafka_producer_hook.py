@@ -15,9 +15,7 @@ from kafka import KafkaProducer
 
 
 class KafkaProducerHook(BaseHook):
-    """
-    KafkaProducerHook Class.
-    """
+
     DEFAULT_HOST = 'localhost'
     DEFAULT_PORT = 9092
 
@@ -29,13 +27,7 @@ class KafkaProducerHook(BaseHook):
         self.producer = None
         self.topic = topic
 
-    def get_conn(self) -> KafkaProducer:
-        """
-            Returns a Kafka Producer
-
-        :return:
-            A Kafka Producer object.
-        """
+    def get_conn(self):
         if not self._conn:
             conn = self.get_connection(self.conn_id)
             service_options = conn.extra_dejson
@@ -50,16 +42,6 @@ class KafkaProducerHook(BaseHook):
         return self.producer
 
     def send_message(self, topic, value=None, key=None, partition=None, timestamp_ms=None):
-        """
-            Sends a message on the specified topic and partition.  Keyed messages will be sent in order.
-
-        :param topic:
-        :param value:
-        :param key:
-        :param partition:
-        :param timestamp_ms:
-        :return:
-        """
         producer = self.get_conn()
         try:
             future_record_metadata = producer.send(topic, value=value, key=key, partition=partition,
@@ -70,12 +52,9 @@ class KafkaProducerHook(BaseHook):
 
     def __repr__(self):
         """
-            A pretty version of the connection string.
-
-        :return:
-            A pretty version of the connection string.
+        Pretty the hook with the connection info
         """
-        connected = self.producer is not None
+        connected = self.produer is not None
         return '<KafkaProducerHook ' \
                'connected?=%s server=%s topic=%s>' % \
                (connected, self.server, self.topic)
