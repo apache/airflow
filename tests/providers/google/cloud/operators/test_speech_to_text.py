@@ -18,7 +18,7 @@
 
 import unittest
 
-from mock import Mock, patch
+from mock import MagicMock, Mock, patch
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.speech_to_text import CloudSpeechToTextRecognizeSpeechOperator
@@ -32,7 +32,7 @@ AUDIO = {"uri": "gs://bucket/object"}
 class TestCloudSql(unittest.TestCase):
     @patch("airflow.providers.google.cloud.operators.speech_to_text.CloudSpeechToTextHook")
     def test_recognize_speech_green_path(self, mock_hook):
-        mock_hook.return_value.recognize_speech.return_value = True
+        mock_hook.return_value.recognize_speech.return_value = MagicMock()
 
         CloudSpeechToTextRecognizeSpeechOperator(  # pylint: disable=no-value-for-parameter
             project_id=PROJECT_ID, gcp_conn_id=GCP_CONN_ID, config=CONFIG, audio=AUDIO, task_id="id"
