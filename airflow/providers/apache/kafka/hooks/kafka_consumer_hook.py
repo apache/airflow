@@ -16,34 +16,36 @@ from kafka import KafkaConsumer
 
 class KafkaConsumerHook(BaseHook):
 
-    DEFAULT_HOST = 'localhost'
+    DEFAULT_HOST = 'kafka1'
     DEFAULT_PORT = 9092
 
-    def __init__(self, conn_id, topic):
+    def __init__(self, topic, host=DEFAULT_HOST, port=DEFAULT_PORT, kafka_conn_id='kafka_default'):
         super(KafkaConsumerHook, self).__init__(None)
-        self.conn = self.get_connection(conn_id)
+        self.conn_id = kafka_conn_id
+        self._conn = None
         self.server = None
         self.consumer = None
-        self.producer = None
+        self.extra_dejson = {}
         self.topic = topic
+        self.host = host
+        self.port = port
 
     def get_conn(self):
-        conf = self.conn.extra_dejson
-        host = self.conn.host or self.DEFAULT_HOST
-        port = self.conn.port or self.DEFAULT_PORT
+        if not self._conn:
+            conn = self.get_connection(self.conn_id)
+            service_options = conn.extra_dejson
+            host = conn.host or self.DEFAULT_HOST
+            port = conn.port or self.DEFAULT_PORT
 
-        # Disable auto commit as the hook will commit right
-        # after polling.
-        conf['enable_auto_commit'] = False
-
-        self.server = f"""{host}:{port}"""
-        self.consumer = KafkaConsumer(
-            self.topic,
-            bootstrap_servers=self.server, **conf)
-
+            self.server = f"""{host}:{port}"""
+            self.consumer = KafkaConsumer(
+                self.topic,
+                bootstrap_servers=self.server,
+                **service_options
+            )
         return self.consumer
 
-    def get_messages(self, timeout_ms=50):
+    def get_messages(self, timeout_ms=5000):
         """
         Get all the messages haven't been consumed, it doesn't
         block by default, then commit the offset.
@@ -52,11 +54,8 @@ class KafkaConsumerHook(BaseHook):
         """
         consumer = self.get_conn()
         try:
-            # `poll` returns a dict where keys are the partitions
-            # and values are the corresponding messages.
             messages = consumer.poll(timeout_ms)
-
-            consumer.commit()
+            # consumer.commit()
         finally:
             consumer.close()
         return messages
