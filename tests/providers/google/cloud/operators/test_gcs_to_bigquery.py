@@ -33,7 +33,6 @@ class TestGoogleCloudStorageToBigQueryOperator(unittest.TestCase):
 
     # gotta be honest, I don't really get this?!
     @mock.patch('airflow.providers.google.cloud.operators.gcs_to_bigquery.BigQueryHook')
-    @mock.patch('airflow.providers.google.cloud.operators.gcs_to_bigquery.GCSHook')
     def test_execute_explicit_project_legacy(self, bq_hook):
         operator = GCSToBigQueryOperator(bucket=TEST_BUCKET,
                                          source_objects=TEST_SOURCE_OBJECTS,
@@ -52,7 +51,6 @@ class TestGoogleCloudStorageToBigQueryOperator(unittest.TestCase):
             .assert_called_once_with("SELECT MAX(id) FROM [test-project.dataset.table]")
 
     @mock.patch('airflow.providers.google.cloud.operators.gcs_to_bigquery.BigQueryHook')
-    @mock.patch('airflow.providers.google.cloud.operators.gcs_to_bigquery.GCSHook')
     def test_execute_explicit_project(self, bq_hook):
         operator = GCSToBigQueryOperator(bucket=TEST_BUCKET,
                                          source_objects=TEST_SOURCE_OBJECTS,
