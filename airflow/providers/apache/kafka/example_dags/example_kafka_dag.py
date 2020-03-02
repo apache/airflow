@@ -22,6 +22,7 @@ from datetime import timedelta
 from airflow.utils.timezone import datetime
 from airflow.providers.apache.kafka.sensors.kafka_sensor import KafkaSensor
 
+
 DAG_ID = "example_kafka_dag"
 dag_start_date = datetime(2015, 6, 1, hour=20, tzinfo=None)
 default_args = {
