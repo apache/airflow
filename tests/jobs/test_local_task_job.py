@@ -85,7 +85,7 @@ class TestLocalTaskJob(unittest.TestCase):
 
     def test_invalid_return_code_with_bash_operator(self):
         with create_session() as session:
-            dagbag = models.DagBag(
+            dagbag = DagBag(
                 dag_folder=TEST_DAG_FOLDER,
                 include_examples=False,
             )
@@ -99,7 +99,8 @@ class TestLocalTaskJob(unittest.TestCase):
                                    execution_date=DEFAULT_DATE,
                                    start_date=DEFAULT_DATE,
                                    session=session)
-            invalid_ti = TI(task=invalid_task, execution_date=DEFAULT_DATE)
+            invalid_ti = TaskInstance(task=invalid_task,
+                                      execution_date=DEFAULT_DATE)
             invalid_ti.refresh_from_db()
             invalid_ti.state = State.RUNNING
             invalid_ti.hostname = get_hostname()
@@ -122,7 +123,8 @@ class TestLocalTaskJob(unittest.TestCase):
             self.assertEqual(invalid_job.state, State.FAILED)
 
             valid_task = dag.get_task(valid_task_id)
-            valid_ti = TI(task=valid_task, execution_date=DEFAULT_DATE)
+            valid_ti = TaskInstance(task=valid_task,
+                                    execution_date=DEFAULT_DATE)
             valid_ti.refresh_from_db()
             valid_ti.state = State.RUNNING
             valid_ti.hostname = get_hostname()
@@ -143,7 +145,7 @@ class TestLocalTaskJob(unittest.TestCase):
 
     def test_invalid_return_code_with_python_operator(self):
         with create_session() as session:
-            dagbag = models.DagBag(
+            dagbag = DagBag(
                 dag_folder=TEST_DAG_FOLDER,
                 include_examples=False,
             )
@@ -157,7 +159,8 @@ class TestLocalTaskJob(unittest.TestCase):
                                    execution_date=DEFAULT_DATE,
                                    start_date=DEFAULT_DATE,
                                    session=session)
-            invalid_ti = TI(task=invalid_task, execution_date=DEFAULT_DATE)
+            invalid_ti = TaskInstance(task=invalid_task,
+                                      execution_date=DEFAULT_DATE)
             invalid_ti.refresh_from_db()
             invalid_ti.state = State.RUNNING
             invalid_ti.hostname = get_hostname()
@@ -179,7 +182,8 @@ class TestLocalTaskJob(unittest.TestCase):
             self.assertEqual(invalid_job.state, State.FAILED)
 
             valid_task = dag.get_task(valid_task_id)
-            valid_ti = TI(task=valid_task, execution_date=DEFAULT_DATE)
+            valid_ti = TaskInstance(task=valid_task,
+                                    execution_date=DEFAULT_DATE)
             valid_ti.refresh_from_db()
             valid_ti.state = State.RUNNING
             valid_ti.hostname = get_hostname()
