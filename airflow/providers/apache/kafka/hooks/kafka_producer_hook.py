@@ -21,22 +21,24 @@ class KafkaProducerHook(BaseHook):
 
     def __init__(self, conn_id, topic):
         super(KafkaProducerHook, self).__init__(None)
-        self.conn = self.get_connection(conn_id)
+        self.conn = None
         self.server = None
         self.consumer = None
         self.producer = None
         self.topic = topic
 
     def get_conn(self):
-        conf = self.conn.extra_dejson
-        host = self.conn.host or self.DEFAULT_HOST
-        port = self.conn.port or self.DEFAULT_PORT
+        if not self._conn:
+            conn = self.get_connection(self.conn_id)
+            service_options = conn.extra_dejson
+            host = conn.host or self.DEFAULT_HOST
+            port = conn.port or self.DEFAULT_PORT
 
-        conf['enable_auto_commit'] = False
-        self.server = f"""{host}:{port}"""
-        self.producer = KafkaProducer(
-            bootstrap_servers=self.server, **conf)
-
+            self.server = f"""{host}:{port}"""
+            self.consumer = KafkaProducer(
+                bootstrap_servers=self.server,
+                **service_options
+            )
         return self.producer
 
     def send_message(self, topic, value=None, key=None, partition=None, timestamp_ms=None):
