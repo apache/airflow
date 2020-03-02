@@ -10,15 +10,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from airflow.hooks import base_hook as BaseHook
 from kafka import KafkaConsumer
-
-from airflow.hooks.base_hook import BaseHook
 
 
 class KafkaConsumerHook(BaseHook):
-    """
-    KafkaConsumerHook Class.
-    """
+
     DEFAULT_HOST = 'kafka1'
     DEFAULT_PORT = 9092
 
@@ -33,13 +30,7 @@ class KafkaConsumerHook(BaseHook):
         self.host = host
         self.port = port
 
-    def get_conn(self) -> KafkaConsumer:
-        """
-            A Kafka Consumer object.
-
-        :return:
-            A Kafka Consumer object.
-        """
+    def get_conn(self):
         if not self._conn:
             conn = self.get_connection(self.conn_id)
             service_options = conn.extra_dejson
@@ -54,12 +45,10 @@ class KafkaConsumerHook(BaseHook):
             )
         return self.consumer
 
-    def get_messages(self, timeout_ms=5000) -> dict:
+    def get_messages(self, timeout_ms=5000):
         """
         Get all the messages haven't been consumed, it doesn't
         block by default, then commit the offset.
-
-        :param timeout_ms:
         :return:
             A list of messages
         """
@@ -73,10 +62,7 @@ class KafkaConsumerHook(BaseHook):
 
     def __repr__(self):
         """
-            A pretty version of the connection string.
-
-        :return:
-            A pretty version of the connection string.
+        Pretty the hook with the connection info
         """
         connected = self.consumer is not None
         return '<KafkaConsumerHook ' \
