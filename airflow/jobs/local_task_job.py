@@ -100,7 +100,7 @@ class LocalTaskJob(BaseJob):
                 # Monitor the task to see if it's done
                 return_code = self.task_runner.return_code()
                 if return_code is not None:
-                    self.on_return_code(return_code)
+                    self.on_completion(return_code)
                     return
 
                 self.heartbeat()
@@ -119,11 +119,25 @@ class LocalTaskJob(BaseJob):
         finally:
             self.on_kill()
 
-    def on_return_code(self, return_code):
+    def on_completion(self, return_code):
+        """
+        When we get non-None return code from the task runner, it means the
+        task has finished. Whether the return code is zero tells us whether
+        the task suceeded.
+
+        "self.terminating" means job been killed externally but not
+        "state="failed". It's set in heartbeat_callback.
+        Basically it means whenever "ti.state != State.RUNNING",
+        it's terminating.
+        There are two cases this will happen
+            a. Explicitly calling terminate of a StandardTaskRunner, then the
+            return code is -9 and the task_instance.state is not failed. In such
+             case, we should not treat non zero exit code as failure.
+            b. The task instance is explicitly set as failed, in this case,
+            we should treat non zero exit code as failure.
+        """
         if return_code != 0:
             self.task_instance.refresh_from_db()
-            # there is one case we should not treat non zero return
-            # code as failed: the job has been killed externally.
             if not self.terminating or self.task_instance.state == State.FAILED:
                 msg = ("LocalTaskJob process exited with non zero "
                        "status {}".format(return_code))
