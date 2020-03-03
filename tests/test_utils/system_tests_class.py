@@ -17,10 +17,8 @@
 # under the License.
 import os
 import shutil
-from contextlib import ContextDecorator
+import sys
 from datetime import datetime
-from shutil import move
-from tempfile import mkdtemp
 from unittest import TestCase
 
 from airflow.configuration import AIRFLOW_HOME, AirflowConfigParser, get_airflow_config
@@ -32,20 +30,6 @@ from tests.contrib.utils.logging_command_executor import get_executor
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 
 DEFAULT_DAG_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "example_dags")
-
-
-def resolve_dags_folder() -> str:
-    """
-    Returns DAG folder specified in current Airflow config.
-    """
-    config_file = get_airflow_config(AIRFLOW_HOME)
-    conf = AirflowConfigParser()
-    conf.read(config_file)
-    try:
-        dags = conf.get("core", "dags_folder")
-    except AirflowException:
-        dags = os.path.join(AIRFLOW_HOME, 'dags')
-    return dags
 
 
 def resolve_logs_folder() -> str:
@@ -65,48 +49,6 @@ def resolve_logs_folder() -> str:
     return logs
 
 
-class EmptyDagsDirectory(  # pylint: disable=invalid-name
-    ContextDecorator, LoggingMixin
-):
-    """
-    Context manager that temporally removes DAGs from provided directory.
-    """
-
-    def __init__(self, dag_directory: str) -> None:
-        super().__init__()
-        self.dag_directory = dag_directory
-        self.temp_dir = mkdtemp()
-
-    def __enter__(self) -> str:
-        self._store_dags_to_temporary_directory(self.dag_directory, self.temp_dir)
-        return self.temp_dir
-
-    def __exit__(self, *args, **kwargs) -> None:
-        self._restore_dags_from_temporary_directory(self.dag_directory, self.temp_dir)
-
-    def _store_dags_to_temporary_directory(
-        self, dag_folder: str, temp_dir: str
-    ) -> None:
-        self.log.info(
-            "Storing DAGS from %s to temporary directory %s", dag_folder, temp_dir
-        )
-        try:
-            os.mkdir(dag_folder)
-        except OSError:
-            pass
-        for file in os.listdir(dag_folder):
-            move(os.path.join(dag_folder, file), os.path.join(temp_dir, file))
-
-    def _restore_dags_from_temporary_directory(
-        self, dag_folder: str, temp_dir: str
-    ) -> None:
-        self.log.info(
-            "Restoring DAGS to %s from temporary directory %s", dag_folder, temp_dir
-        )
-        for file in os.listdir(temp_dir):
-            move(os.path.join(temp_dir, file), os.path.join(dag_folder, file))
-
-
 class SystemTest(TestCase, LoggingMixin):
     @staticmethod
     def execute_cmd(*args, **kwargs):
@@ -123,9 +65,6 @@ class SystemTest(TestCase, LoggingMixin):
         We also remove all logs from logs directory to have a clear log state and see only logs from this
         test.
         """
-        dag_folder = resolve_dags_folder()
-        with EmptyDagsDirectory(dag_folder):
-            self.initial_db_init()
         print()
         print("Removing all log files except previous_runs")
         print()
@@ -157,15 +96,8 @@ class SystemTest(TestCase, LoggingMixin):
                 shutil.move(file_path, target_dir)
         super().setUp()
 
-    def initial_db_init(self):
-        if os.environ.get("RUN_AIRFLOW_1_10"):
-            print("Attempting to reset the db using airflow command")
-            os.system("airflow resetdb -y")
-        else:
-            from airflow.utils import db
-            db.resetdb()
-
-    def _print_all_log_files(self):
+    @staticmethod
+    def _print_all_log_files():
         print()
         print("Printing all log files")
         print()
@@ -180,25 +112,6 @@ class SystemTest(TestCase, LoggingMixin):
                     with open(filepath, "r") as f:
                         print(f.read())
 
-    def correct_imports_for_airflow_1_10(self, directory):
-        for dirpath, _, filenames in os.walk(directory):
-            for filename in filenames:
-                filepath = os.path.join(dirpath, filename)
-                if filepath.endswith(".py"):
-                    self.replace_airflow_1_10_imports(filepath)
-
-    def replace_airflow_1_10_imports(self, filepath):
-        replacements = [
-            ("airflow.operators.bash", "airflow.operators.bash_operator"),
-            ("airflow.operators.python", "airflow.operators.python_operator"),
-        ]
-        with open(filepath, "rt") as file:
-            data = file.read()
-        for replacement in replacements:
-            data = data.replace(replacement[0], replacement[1])
-        with open(filepath, "wt") as file:
-            file.write(data)
-
     def run_dag(self, dag_id: str, dag_folder: str = DEFAULT_DAG_FOLDER) -> None:
         """
         Runs example dag by it's ID.
@@ -209,14 +122,13 @@ class SystemTest(TestCase, LoggingMixin):
         :type dag_folder: str
         """
         if os.environ.get("RUN_AIRFLOW_1_10"):
-            # For system tests purpose we are mounting airflow/providers to /providers folder
-            # So that we can get example_dags from there
-            dag_folder = dag_folder.replace("/opt/airflow/airflow/providers", "/providers")
-            temp_dir = mkdtemp()
-            os.rmdir(temp_dir)
-            shutil.copytree(dag_folder, temp_dir)
-            dag_folder = temp_dir
-            self.correct_imports_for_airflow_1_10(temp_dir)
+            # For system tests purpose we are changing airflow/providers
+            # to side packages path of the installed providers package
+            python = f"python{sys.version_info.major}.{sys.version_info.minor}"
+            dag_folder = dag_folder.replace(
+                "/opt/airflow/airflow/providers",
+                f"/usr/local/lib/{python}/site-packages/airflow/providers",
+            )
         self.log.info("Looking for DAG: %s in %s", dag_id, dag_folder)
         dag_bag = DagBag(dag_folder=dag_folder, include_examples=False)
         dag = dag_bag.get_dag(dag_id)

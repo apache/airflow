@@ -27,6 +27,12 @@ rm -rf -- *.egg-info
 
 BACKPORT_PACKAGES=$(python3 setup_backport_packages.py list-backport-packages)
 
+echo "-----------------------------------------------------------------------------------"
+echo " Copying sources and doing refactor for backporting"
+echo "-----------------------------------------------------------------------------------"
+echo
+python3 setup_backport_packages.py prepare
+
 for BACKPORT_PACKAGE in ${BACKPORT_PACKAGES}
 do
     echo

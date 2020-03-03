@@ -26,10 +26,14 @@ import sys
 import textwrap
 from importlib import util
 from os.path import dirname
-from shutil import copytree, rmtree
+from shutil import copyfile, copytree, rmtree
 from typing import Dict, List
 
+from bowler import LN, TOKEN, BowlerTool, Capture, Filename, Query
+from fissix.pytree import Leaf
 from setuptools import Command, find_packages, setup as setuptools_setup
+
+BowlerTool.IN_PROCESS = True
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +142,71 @@ PROVIDERS_DEPENDENCIES: Dict[str, List[str]] = {
 DEPENDENCIES_JSON_FILE = os.path.join(os.pardir, "airflow", "providers", "dependencies.json")
 
 
+def change_import_paths_to_deprecated():
+    changes = [
+        ("airflow.operators.bash", "airflow.operators.bash_operator"),
+        ("airflow.operators.python", "airflow.operators.python_operator"),
+        ("airflow.utils.session", "airflow.utils.db"),
+    ]
+
+    qry = Query()
+    for new, old in changes:
+        qry.select_module(new).rename(old)
+
+    # Move and refactor imports for Dataflow
+    copyfile(
+        os.path.join(dirname(__file__), os.pardir, "airflow", "utils", "python_virtualenv.py"),
+        os.path.join(dirname(__file__), "airflow", "providers",
+                     "google", "cloud", "utils", "python_virtualenv.py"
+                     )
+    )
+    (
+        qry
+        .select_module("airflow.utils.python_virtualenv")
+        .rename("airflow.providers.google.cloud.utils.python_virtualenv")
+    )
+    copyfile(
+        os.path.join(dirname(__file__), os.pardir, "airflow", "utils", "process_utils.py"),
+        os.path.join(dirname(__file__), "airflow", "providers",
+                     "google", "cloud", "utils", "process_utils.py"
+                     )
+    )
+    (
+        qry
+        .select_module("airflow.utils.process_utils")
+        .rename("airflow.providers.google.cloud.utils.process_utils")
+    )
+
+    # Remove tags
+    qry.select_method("DAG").is_call().modify(remove_tags_modifier)
+
+    # Fix KubernetesPodOperator imports to use old path
+    qry.select_module(
+        "airflow.providers.cncf.kubernetes.operators.kubernetes_pod").rename(
+        "airflow.contrib.operators.kubernetes_pod_operator"
+    )
+
+    # Fix BaseOperatorLinks imports
+    files = r"bigquery\.py|mlengine\.py"  # noqa
+    qry.select_module("airflow.models").is_filename(include=files).filter(pure_airflow_models_filter).rename(
+        "airflow.models.baseoperator")
+
+    qry.execute(write=True, silent=False, interactive=False)
+
+
+def remove_tags_modifier(node: LN, capture: Capture, filename: Filename) -> None:
+    for node in capture['function_arguments'][0].post_order():
+        if isinstance(node, Leaf) and node.value == "tags" and node.type == TOKEN.NAME:
+            if node.parent.next_sibling and node.parent.next_sibling.value == ",":
+                node.parent.next_sibling.remove()
+            node.parent.remove()
+
+
+def pure_airflow_models_filter(node: LN, capture: Capture, filename: Filename) -> bool:
+    """Check if select is exactly [airflow, . , models]"""
+    return len([ch for ch in node.children[1].leaves()]) == 3
+
+
 def copy_provider_sources():
     build_dir = os.path.join(dirname(__file__), "build")
     if os.path.isdir(build_dir):
@@ -153,9 +222,13 @@ def get_provider_package_name(provider_module: str):
     return "apache-airflow-providers-" + provider_module.replace(".", "-")
 
 
+def copy_and_refactor_sources():
+    copy_provider_sources()
+    change_import_paths_to_deprecated()
+
+
 def do_setup_package_providers(provider_module: str, deps: List[str], extras: Dict[str, List[str]]):
     setup.write_version()
-    copy_provider_sources()
     provider_package_name = get_provider_package_name(provider_module)
     package_name = f'{provider_package_name}' if provider_module != "providers" \
         else f'apache-airflow-providers'
@@ -240,9 +313,12 @@ if __name__ == "__main__":
     possible_first_params.append(LIST_BACKPORT_PACKAGES)
     if len(sys.argv) == 1:
         print()
-        print("ERROR! Mising first param")
+        print("ERROR! Missing first param")
         print()
         usage()
+    elif sys.argv[1] == "prepare":
+        print("Copying sources and doing refactor")
+        copy_and_refactor_sources()
     elif sys.argv[1] not in possible_first_params:
         print()
         print(f"ERROR! Wrong first param: {sys.argv[1]}")
