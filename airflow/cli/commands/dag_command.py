@@ -68,7 +68,7 @@ def dag_backfill(args, dag=None):
     signal.signal(signal.SIGTERM, sigint_handler)
 
     import warnings
-    warnings.warn('--ignore_first_depends_on_past is deprecated as the value is always set to True',
+    warnings.warn('--ignore-first-depends-on-past is deprecated as the value is always set to True',
                   category=PendingDeprecationWarning)
 
     if args.ignore_first_depends_on_past is False:
