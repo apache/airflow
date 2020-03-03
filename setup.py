@@ -350,7 +350,7 @@ snowflake = [
     'snowflake-sqlalchemy>=1.1.0',
 ]
 ssh = [
-    'paramiko>=2.1.1',
+    'paramiko>=2.6.0',
     'pysftp>=0.2.9',
     'sshtunnel>=0.1.4,<0.2',
 ]
