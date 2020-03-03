@@ -23,15 +23,6 @@ from sqlalchemy import Table
 from airflow import settings
 from airflow.configuration import conf
 # noinspection PyUnresolvedReferences
-from airflow.jobs.base_job import BaseJob  # noqa: F401 # pylint: disable=unused-import
-# noinspection PyUnresolvedReferences
-from airflow.models.all_models import (  # noqa: F401 # pylint: disable=unused-import
-    DAG, XCOM_RETURN_KEY, BaseOperator, BaseOperatorLink, Connection, DagBag, DagModel, DagPickle, DagRun,
-    DagTag, Log, Pool, SkipMixin, SlaMiss, TaskFail, TaskInstance, TaskReschedule, Variable, XCom,
-)
-# We need to add this model manually to get reset working well
-# noinspection PyUnresolvedReferences
-from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401  # pylint: disable=unused-import
 # TODO: remove create_session once we decide to break backward compatibility
 from airflow.utils.session import (  # noqa: F401 # pylint: disable=unused-import
     create_session, provide_session,
@@ -45,6 +36,7 @@ def merge_conn(conn, session=None):
     """
     Add new Connection.
     """
+    from airflow.models.connection import Connection
     if not session.query(Connection).filter(Connection.conn_id == conn.conn_id).first():
         session.add(conn)
         session.commit()
@@ -55,6 +47,7 @@ def add_default_pool_if_not_exists(session=None):
     """
     Add default pool if it does not exist.
     """
+    from airflow.models.pool import Pool
     if not Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session):
         default_pool = Pool(
             pool=Pool.DEFAULT_POOL_NAME,
@@ -71,6 +64,7 @@ def create_default_connections(session=None):
     """
     Create default Airflow connections.
     """
+    from airflow.models.connection import Connection
     merge_conn(
         Connection(
             conn_id="airflow_db",
@@ -501,6 +495,9 @@ def initdb():
     """
     Initialize Airflow database.
     """
+    from airflow.models.dag import DAG
+    from airflow.models.dagbag import DagBag
+
     upgradedb()
 
     create_default_connections()
@@ -540,6 +537,11 @@ def resetdb():
     """
     Clear out the database
     """
+    from airflow.models.all_models import (  # noqa: F401 # pylint: disable=unused-import
+        DAG, XCOM_RETURN_KEY, BaseOperator, BaseOperatorLink, BaseJob, Connection, DagBag,
+        DagModel, DagPickle, DagRun, DagTag, Log, Pool, SerializedDagModel, SkipMixin, SlaMiss,
+        TaskFail, TaskInstance, TaskReschedule, Variable, XCom
+    )
 
     log.info("Dropping tables that exist")
 

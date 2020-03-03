@@ -22,7 +22,8 @@ from unittest.mock import call
 
 from watchtower import CloudWatchLogHandler
 
-from airflow.models import DAG, TaskInstance
+from airflow.models.dag import DAG
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.utils.log.cloudwatch_task_handler import CloudwatchTaskHandler

@@ -32,7 +32,7 @@ import os
 
 from future.backports.urllib.parse import urlparse
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.cloud_build import CloudBuildCreateOperator
 from airflow.utils import dates

@@ -18,7 +18,7 @@
 """
 Example DAG using PostgresToGoogleCloudStorageOperator.
 """
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.providers.google.cloud.operators.postgres_to_gcs import PostgresToGCSOperator
 from airflow.utils.dates import days_ago
 

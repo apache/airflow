@@ -21,7 +21,7 @@ Example Airflow DAG that uses Google PubSub services.
 """
 import os
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.pubsub import (
     PubSubCreateSubscriptionOperator, PubSubCreateTopicOperator, PubSubDeleteSubscriptionOperator,

@@ -22,7 +22,7 @@ Example Airflow DAG for Google ML Engine service.
 import os
 from typing import Dict
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.mlengine import (
     MLEngineCreateVersionOperator, MLEngineDeleteModelOperator, MLEngineDeleteVersionOperator,

@@ -48,7 +48,7 @@ This DAG relies on the following environment variables:
 import json
 from os import getenv
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.providers.google.cloud.operators.bigtable import (
     BigtableCreateInstanceOperator, BigtableCreateTableOperator, BigtableDeleteInstanceOperator,
     BigtableDeleteTableOperator, BigtableUpdateClusterOperator,

@@ -29,7 +29,7 @@ import os
 from google.api_core.retry import Retry
 
 # [START howto_operator_vision_retry_import]
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.video_intelligence import (
     CloudVideoIntelligenceDetectVideoExplicitContentOperator, CloudVideoIntelligenceDetectVideoLabelsOperator,

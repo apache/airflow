@@ -41,7 +41,7 @@ import subprocess
 from os.path import expanduser
 from urllib.parse import quote_plus
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.providers.google.cloud.operators.cloud_sql import CloudSQLExecuteQueryOperator
 from airflow.utils.dates import days_ago
 

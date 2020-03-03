@@ -22,7 +22,7 @@ Example Airflow DAG for Google BigQuery service.
 import os
 from urllib.parse import urlparse
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator,

@@ -21,7 +21,7 @@ Example Airflow DAG for Google Cloud Storage operators.
 
 import os
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import (
     GCSBucketCreateAclEntryOperator, GCSCreateBucketOperator, GCSDeleteBucketOperator,

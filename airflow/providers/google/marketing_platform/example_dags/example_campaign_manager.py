@@ -21,7 +21,7 @@ Example Airflow DAG that shows how to use CampaignManager.
 import os
 import time
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.providers.google.marketing_platform.operators.campaign_manager import (
     GoogleCampaignManagerBatchInsertConversionsOperator, GoogleCampaignManagerBatchUpdateConversionsOperator,
     GoogleCampaignManagerDeleteReportOperator, GoogleCampaignManagerDownloadReportOperator,

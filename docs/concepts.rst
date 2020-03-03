@@ -810,7 +810,7 @@ the main UI. For example:
 .. code:: python
 
   #dags/subdag.py
-  from airflow.models import DAG
+  from airflow import DAG
   from airflow.operators.dummy_operator import DummyOperator
 
 
@@ -835,7 +835,7 @@ This SubDAG can then be referenced in your main DAG file:
 
   # main_dag.py
   from datetime import datetime, timedelta
-  from airflow.models import DAG
+  from airflow import DAG
   from airflow.operators.subdag_operator import SubDagOperator
   from dags.subdag import sub_dag
 
@@ -953,7 +953,7 @@ For example, consider the following DAG:
   #dags/branch_without_trigger.py
   import datetime as dt
 
-  from airflow.models import DAG
+  from airflow import DAG
   from airflow.operators.dummy_operator import DummyOperator
   from airflow.operators.python import BranchPythonOperator
 
@@ -1025,7 +1025,7 @@ For example, consider the following DAG:
   #dags/latest_only_with_trigger.py
   import datetime as dt
 
-  from airflow.models import DAG
+  from airflow import DAG
   from airflow.operators.dummy_operator import DummyOperator
   from airflow.operators.latest_only_operator import LatestOnlyOperator
   from airflow.utils.trigger_rule import TriggerRule

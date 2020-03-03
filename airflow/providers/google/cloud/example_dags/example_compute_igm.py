@@ -40,7 +40,7 @@ Variables for update template in Group Manager:
 
 import os
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineCopyInstanceTemplateOperator, ComputeEngineInstanceGroupUpdateManagerTemplateOperator,
 )

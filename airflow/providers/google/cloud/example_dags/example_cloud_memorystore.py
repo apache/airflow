@@ -23,7 +23,7 @@ from urllib.parse import urlparse
 
 from google.cloud.redis_v1.gapic.enums import FailoverInstanceRequest, Instance
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.cloud_memorystore import (
     CloudMemorystoreCreateInstanceAndImportOperator, CloudMemorystoreCreateInstanceOperator,

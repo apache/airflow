@@ -18,7 +18,7 @@
 """
 Example Airflow DAG that shows how to use DisplayVideo.
 """
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.providers.google.marketing_platform.operators.display_video import (
     GoogleDisplayVideo360CreateReportOperator, GoogleDisplayVideo360DeleteReportOperator,
     GoogleDisplayVideo360DownloadReportOperator, GoogleDisplayVideo360RunReportOperator,

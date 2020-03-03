@@ -42,7 +42,7 @@ https://airflow.apache.org/concepts.html#variables
 
 import os
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.providers.google.cloud.operators.functions import (
     CloudFunctionDeleteFunctionOperator, CloudFunctionDeployFunctionOperator,
     CloudFunctionInvokeFunctionOperator,

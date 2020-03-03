@@ -28,7 +28,7 @@ This DAG relies on the following environment variables:
 
 from os import getenv
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.providers.amazon.aws.operators.datasync import AWSDataSyncOperator
 from airflow.utils.dates import days_ago
 

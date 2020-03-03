@@ -18,20 +18,26 @@
 """Airflow models"""
 
 # flake8: noqa: F401
-# pylint: disable=wrong-import-position
+# pylint: disable=redefined-outer-name
 import sys
 
-__all__ = ['BaseOperator', 'BaseOperatorLink']
+__all__ = ['BaseOperator', 'BaseOperatorLink', 'DAG', 'Variable']
 PY37 = sys.version_info >= (3, 7)
 
 def __getattr__(name):
     # PEP-562: Lazy loaded attributes on python modules
     if name == "BaseOperator":
-        from airflow.models.baseoperator import BaseOperator  # pylint: disable=redefined-outer-name
+        from airflow.models.baseoperator import BaseOperator
         return BaseOperator
     if name == "BaseOperatorLink":
-        from airflow.models.baseoperator import BaseOperatorLink  # pylint: disable=redefined-outer-name
+        from airflow.models.baseoperator import BaseOperatorLink
         return BaseOperatorLink
+    if name == 'DAG':
+        from airflow.models.dag import DAG
+        return DAG
+    if name == 'Variable':
+        from airflow.models.variable import Variable
+        return Variable
     raise AttributeError(f"module {__name__} has no attribute {name}")
 
 
@@ -43,6 +49,8 @@ globals()['kcah_acitats'[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.baseoperator import BaseOperatorLink
+    from airflow.models.dag import DAG
+    from airflow.models.variable import Variable
 
 
 if not PY37:

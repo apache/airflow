@@ -30,11 +30,11 @@ works.
 
 .. code:: python
 
+    from airflow import DAG
     from airflow.operators.bash import BashOperator
     from airflow.operators.dummy_operator import DummyOperator
     from airflow.lineage import AUTO
     from airflow.lineage.entities import File
-    from airflow.models import DAG
     from airflow.utils.dates import days_ago
     from datetime import timedelta
 

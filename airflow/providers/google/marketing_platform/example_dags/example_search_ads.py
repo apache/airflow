@@ -20,7 +20,7 @@ Example Airflow DAG that shows how to use SearchAds.
 """
 import os
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.providers.google.marketing_platform.operators.search_ads import (
     GoogleSearchAdsDownloadReportOperator, GoogleSearchAdsInsertReportOperator,
 )

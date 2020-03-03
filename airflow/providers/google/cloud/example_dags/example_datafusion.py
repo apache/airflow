@@ -18,7 +18,7 @@
 """
 Example Airflow DAG that shows how to use DataFusion.
 """
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.datafusion import (
     CloudDataFusionCreateInstanceOperator, CloudDataFusionCreatePipelineOperator,

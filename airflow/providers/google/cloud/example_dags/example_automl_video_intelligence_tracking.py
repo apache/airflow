@@ -21,7 +21,7 @@ Example Airflow DAG that uses Google AutoML services.
 """
 import os
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.automl import (
     AutoMLCreateDatasetOperator, AutoMLDeleteDatasetOperator, AutoMLDeleteModelOperator,

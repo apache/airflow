@@ -23,7 +23,7 @@ import os
 from copy import deepcopy
 from typing import Dict, List
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.automl import (
     AutoMLBatchPredictOperator, AutoMLCreateDatasetOperator, AutoMLDeleteDatasetOperator,

@@ -21,7 +21,7 @@ Example Airflow DAG that translates text in Google Cloud Translate
 service in the Google Cloud Platform.
 
 """
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.translate import CloudTranslateTextOperator
 from airflow.utils.dates import days_ago

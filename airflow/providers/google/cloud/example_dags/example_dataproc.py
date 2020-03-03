@@ -22,7 +22,7 @@ operators to manage a cluster and submit jobs.
 
 import os
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateClusterOperator, DataprocDeleteClusterOperator, DataprocSubmitJobOperator,
     DataprocUpdateClusterOperator,

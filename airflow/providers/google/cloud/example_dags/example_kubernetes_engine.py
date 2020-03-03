@@ -21,7 +21,7 @@ Example Airflow DAG for Google Kubernetes Engine.
 
 import os
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKECreateClusterOperator, GKEDeleteClusterOperator, GKEStartPodOperator,

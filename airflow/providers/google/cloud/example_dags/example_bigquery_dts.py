@@ -25,7 +25,7 @@ import time
 from google.cloud.bigquery_datatransfer_v1.types import TransferConfig
 from google.protobuf.json_format import ParseDict
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.providers.google.cloud.operators.bigquery_dts import (
     BigQueryCreateDataTransferOperator, BigQueryDataTransferServiceStartTransferRunsOperator,
     BigQueryDeleteDataTransferConfigOperator,

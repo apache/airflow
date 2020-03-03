@@ -21,7 +21,7 @@ Example Airflow DAG for Google Cloud Storage to SFTP transfer operators.
 
 import os
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.providers.google.cloud.operators.gcs_to_sftp import GCSToSFTPOperator
 from airflow.utils.dates import days_ago
 
