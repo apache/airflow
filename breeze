@@ -764,6 +764,8 @@ function parse_arguments() {
           LAST_SUBCOMMAND="${1}"
           if [[ "${TEST_TARGET}" == "." ]]; then
               export TEST_TARGET=""
+          else
+              export TEST_TARGET="${2}"
           fi
           COMMAND_TO_RUN="run_tests"
           shift 2 ;;
