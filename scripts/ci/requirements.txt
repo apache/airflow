@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-alembic
+alembic<0.9,>=0.8.3
 bcrypt
 boto
 celery
@@ -22,30 +22,31 @@ coverage
 coveralls
 croniter
 cryptography
-dill
+dill<0.3,>=0.2.2
 docker-py
 filechunkio
 flake8
-flask
-flask-admin
+flask<1.1.0
+flask-admin<=1.5.0,>=1.4.1
 flask-bcrypt
 flask-cache
 flask-login==0.2.11
-Flask-WTF
+Flask-WTF==0.14.0
 flower
 freezegun
-future
+future<0.16,>=0.15.0
 gunicorn
 hdfs
 hive-thrift-py
 impyla
 ipython
 jaydebeapi
-jinja2<2.9.0
+jinja2>=2.10,<3.0
 jira
+JPype1==0.7.1  # Dropped python2 support
 ldap3
-lxml
-markdown
+lxml>=3.6.0,<4.0
+markdown==2.5.2
 mock
 mysqlclient
 nose
@@ -62,11 +63,11 @@ pyhive
 pykerberos
 PyOpenSSL
 PySmbClient
-python-daemon
-python-dateutil
+python-daemon>=2.1.1, <2.2
+python-dateutil>=2.3, <3
 qds-sdk>=1.9.6
 redis
-requests
+requests>=2.5.1, <3
 requests-kerberos
 setproctitle
 slackclient
@@ -74,8 +75,9 @@ sphinx
 sphinx-argparse
 Sphinx-PyPI-upload
 sphinx_rtd_theme
-sqlalchemy
+sqlalchemy==1.3.0
 statsd
 thrift
 thrift_sasl
 unicodecsv
+werkzeug==0.14.0

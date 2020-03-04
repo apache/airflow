@@ -19,6 +19,7 @@ from airflow import configuration
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
+from airflow.executors.lyft_celery_executor import LyftCeleryExecutor
 
 try:
     from airflow.executors.celery_executor import CeleryExecutor
@@ -41,6 +42,8 @@ if _EXECUTOR == 'LocalExecutor':
     DEFAULT_EXECUTOR = LocalExecutor()
 elif _EXECUTOR == 'CeleryExecutor':
     DEFAULT_EXECUTOR = CeleryExecutor()
+elif _EXECUTOR == 'LyftCeleryExecutor':
+    DEFAULT_EXECUTOR = LyftCeleryExecutor()
 elif _EXECUTOR == 'SequentialExecutor':
     DEFAULT_EXECUTOR = SequentialExecutor()
 elif _EXECUTOR == 'MesosExecutor':
