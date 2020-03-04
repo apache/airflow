@@ -70,6 +70,24 @@ class SSHOperatorTest(TestCase):
         self.assertEqual(TIMEOUT, task.ssh_hook.timeout)
         self.assertEqual(SSH_ID, task.ssh_hook.ssh_conn_id)
 
+    def test_empty_command_is_none(self):
+        from airflow.exceptions import AirflowException
+        TIMEOUT = 20
+        COMMAND = None
+        task = SSHOperator(
+            task_id="test",
+            command=COMMAND,
+            dag=self.dag,
+            timeout=TIMEOUT,
+            ssh_conn_id="ssh_default"
+        )
+        self.assertIsNone(task.command)
+        if six.PY2:
+            self.assertRaisesRegex = self.assertRaisesRegexp
+            self.assertRaisesRegex(AirflowException,
+                                   "SSH command not specified. Aborting.$",
+                                   task.execute, None)
+
     @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
     def test_json_command_execution(self):
         task = SSHOperator(
