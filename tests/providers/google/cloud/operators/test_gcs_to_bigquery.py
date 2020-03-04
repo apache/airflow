@@ -31,10 +31,10 @@ TEST_SOURCE_OBJECTS = ['test/objects/*']
 
 class TestGoogleCloudStorageToBigQueryOperator(unittest.TestCase):
 
-    # gotta be honest, I don't really get this?!
     @mock.patch('airflow.providers.google.cloud.operators.gcs_to_bigquery.BigQueryHook')
     def test_execute_explicit_project_legacy(self, bq_hook):
-        operator = GCSToBigQueryOperator(bucket=TEST_BUCKET,
+        operator = GCSToBigQueryOperator(task_id=TASK_ID,
+                                         bucket=TEST_BUCKET,
                                          source_objects=TEST_SOURCE_OBJECTS,
                                          destination_project_dataset_table=TEST_EXPLICIT_DEST,
                                          max_id_key=MAX_ID_KEY)
@@ -52,7 +52,8 @@ class TestGoogleCloudStorageToBigQueryOperator(unittest.TestCase):
 
     @mock.patch('airflow.providers.google.cloud.operators.gcs_to_bigquery.BigQueryHook')
     def test_execute_explicit_project(self, bq_hook):
-        operator = GCSToBigQueryOperator(bucket=TEST_BUCKET,
+        operator = GCSToBigQueryOperator(task_id=TASK_ID,
+                                         bucket=TEST_BUCKET,
                                          source_objects=TEST_SOURCE_OBJECTS,
                                          destination_project_dataset_table=TEST_EXPLICIT_DEST,
                                          max_id_key=MAX_ID_KEY)
