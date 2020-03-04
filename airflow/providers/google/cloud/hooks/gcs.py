@@ -450,7 +450,6 @@ class GCSHook(CloudBaseHook):
         self.log.info('The md5Hash of %s is %s', object_name, blob_md5hash)
         return blob_md5hash
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def create_bucket(self,
                       bucket_name,
