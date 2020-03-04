@@ -167,13 +167,15 @@ class AwsBaseHook(BaseHook):
                         assume_role_method = extra_config['assume_role_method']
                     self.log.info("assume_role_method=%s", assume_role_method)
                     method = None
-                    if not assume_role_method:
+                    if not assume_role_method or assume_role_method == 'assume_role':
                         method = self._assume_role
                     elif assume_role_method == 'assume_role_with_saml':
                         method = self._assume_role_with_saml
                     else:
                         raise NotImplementedError(
-                            'assume_role_method=%s' % assume_role_method)
+                            f'assume_role_method={assume_role_method} in Connection {self.aws_conn_id} Extra.'
+                            'Currently "assume_role" or "assume_role_with_saml" are supported.'
+                            '(Exclude this setting will default to "assume_role").')
 
                     sts_response = method(
                         sts_client,
@@ -214,10 +216,10 @@ class AwsBaseHook(BaseHook):
 
     def _assume_role(
             self,
-            sts_client,
-            extra_config,
-            role_arn,
-            assume_role_kwargs):
+            sts_client: boto3.client,
+            extra_config: dict,
+            role_arn: str,
+            assume_role_kwargs: dict):
         if "external_id" in extra_config:  # Backwards compatibility
             assume_role_kwargs["ExternalId"] = extra_config.get(
                 "external_id"
@@ -236,10 +238,10 @@ class AwsBaseHook(BaseHook):
 
     def _assume_role_with_saml(
             self,
-            sts_client,
-            extra_config,
-            role_arn,
-            assume_role_kwargs):
+            sts_client: boto3.client,
+            extra_config: dict,
+            role_arn: str,
+            assume_role_kwargs: dict):
 
         saml_config = extra_config['assume_role_with_saml']
         principal_arn = saml_config['principal_arn']
@@ -259,17 +261,17 @@ class AwsBaseHook(BaseHook):
             if 'mutual_authentication' in saml_config:
                 mutual_auth = saml_config['mutual_authentication']
                 if mutual_auth == 'REQUIRED':
-                    auth = requests_gssapi.HTTPSPNEGOAuth(
-                        requests_gssapi.REQUIRED)
+                    auth = requests_gssapi.HTTPSPNEGOAuth(requests_gssapi.REQUIRED)
                 elif mutual_auth == 'OPTIONAL':
-                    auth = requests_gssapi.HTTPSPNEGOAuth(
-                        requests_gssapi.OPTIONAL)
+                    auth = requests_gssapi.HTTPSPNEGOAuth(requests_gssapi.OPTIONAL)
                 elif mutual_auth == 'DISABLED':
-                    auth = requests_gssapi.HTTPSPNEGOAuth(
-                        requests_gssapi.DISABLED)
+                    auth = requests_gssapi.HTTPSPNEGOAuth(requests_gssapi.DISABLED)
                 else:
                     raise NotImplementedError(
-                        'mutual_authentication=%s' % mutual_auth)
+                        f'mutual_authentication={mutual_auth} in Connection {self.aws_conn_id} Extra.'
+                        'Currently "REQUIRED", "OPTIONAL" and "DISABLED" are supported.'
+                        '(Exclude this setting will default to HTTPSPNEGOAuth() ).')
+
             # Query the IDP
             import requests
             idp_reponse = requests.get(
@@ -297,7 +299,9 @@ class AwsBaseHook(BaseHook):
             if not saml_assertion:
                 raise ValueError('Invalid SAML Assertion')
         else:
-            raise NotImplementedError('idp_auth_method=%s' % idp_auth_method)
+            raise NotImplementedError(
+                f'idp_auth_method={idp_auth_method} in Connection {self.aws_conn_id} Extra.'
+                'Currently only "http_spegno_auth" is supported, and must be specified.')
 
         self.log.info(
             "Doing sts_client.assume_role_with_saml to role_arn=%s",
