@@ -747,13 +747,13 @@ function parse_arguments() {
           export STATIC_CHECK_ALL_FILES="true"
           EXTRA_STATIC_CHECK_OPTIONS+=("--all-files" "--show-diff-on-failure")
           shift 2 ;;
-        stop-environment)
+        stop)
           LAST_SUBCOMMAND="${1}"
           COMMAND_TO_RUN="run_docker_compose"
           DOCKER_COMPOSE_COMMAND="down"
           EXTRA_DC_OPTIONS+=("--remove-orphans")
           shift ;;
-        restart-environment)
+        restart)
           LAST_SUBCOMMAND="${1}"
           COMMAND_TO_RUN="run_docker_compose"
           DOCKER_COMPOSE_COMMAND="down"
@@ -857,8 +857,8 @@ prepare_usage() {
     export USAGE_FLAGS="Shows all breeze's flags"
     export USAGE_INITIALIZE_LOCAL_VIRTUALENV="Initializes local virtualenv"
     export USAGE_SETUP_AUTOCOMPLETE="Sets up autocomplete for breeze"
-    export USAGE_STOP_ENVIRONMENT="Stops the docker-compose evironment"
-    export USAGE_RESTART_ENVIRONMENT="Stops the docker-compose evironment including DB cleanup"
+    export USAGE_STOP="Stops the docker-compose evironment"
+    export USAGE_RESTART="Stops the docker-compose evironment including DB cleanup"
     export USAGE_STATIC_CHECK="Performs selected static check for changed files"
     export USAGE_STATIC_CHECK_ALL_FILES="Performs selected static check for all files"
     export USAGE_TOGGLE_SUPPRESS_CHEATSHEET="Toggles on/off cheatsheet"
@@ -931,12 +931,12 @@ prepare_usage() {
       shell and when typing breeze command <TAB> will provide autocomplete for
       parameters and values.
 "
-    export DETAILED_USAGE_STOP_ENVIRONMENT="
+    export DETAILED_USAGE_STOP="
       Brings down running docker compose environment. When you start the environment, the docker
       containers will continue running so that startup time is shorter. But they take quite a lot of
       memory and CPU. This command stops all running containers from the environment.
 "
-    export DETAILED_USAGE_RESTART_ENVIRONMENT="
+    export DETAILED_USAGE_RESTART="
       Restarts running docker compose environment. When you restart the environment, the docker
       containers will be restarted. That includes cleaning up the databases. This is
       especially useful if you switch between different versions of airflow.
