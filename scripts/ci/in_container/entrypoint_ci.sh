@@ -150,6 +150,7 @@ if [[ "${RUNTIME}" == "" ]]; then
 
     # SSH Service
     sudo service ssh restart >/dev/null 2>&1
+    ssh-keyscan -H localhost >> ~/.ssh/known_hosts
 fi
 
 
