@@ -23,13 +23,14 @@ import re
 import json
 import multiprocessing
 from uuid import uuid4
+import time
 
 from dateutil import parser
 
 import kubernetes
 from kubernetes import watch, client
 from kubernetes.client.rest import ApiException
-from urllib3.exceptions import HTTPError
+from urllib3.exceptions import HTTPError, ReadTimeoutError
 
 from airflow.configuration import conf
 from airflow.contrib.kubernetes.pod_launcher import PodLauncher
@@ -338,6 +339,10 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             try:
                 self.resource_version = self._run(kube_client, self.resource_version,
                                                   self.worker_uuid, self.kube_config)
+            except ReadTimeoutError:
+                self.log.warning("There was a timeout error accessing the Kube API. "
+                                 "Retrying request.", exc_info=True)
+                time.sleep(1)
             except Exception:
                 self.log.exception('Unknown error in KubernetesJobWatcher. Failing')
                 raise
