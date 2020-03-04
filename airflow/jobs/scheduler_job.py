@@ -770,19 +770,20 @@ class DagFileProcessor(LoggingMixin):
         TI = models.TaskInstance
 
         for request in failure_callback_requests:
-            if request.simple_task_instance.dag_id in dagbag.dags:
-                dag = dagbag.dags[request.simple_task_instance.dag_id]
-                if request.simple_task_instance.task_id in dag.task_ids:
-                    task = dag.get_task(request.simple_task_instance.task_id)
-                    ti = TI(task, request.simple_task_instance.execution_date)
+            simple_ti = request.simple_task_instance
+            if simple_ti.dag_id in dagbag.dags:
+                dag = dagbag.dags[simple_ti.dag_id]
+                if simple_ti.task_id in dag.task_ids:
+                    task = dag.get_task(simple_ti.task_id)
+                    ti = TI(task, simple_ti.execution_date)
                     # Get properties needed for failure handling from SimpleTaskInstance.
-                    ti.start_date = request.simple_task_instance.start_date
-                    ti.end_date = request.simple_task_instance.end_date
-                    ti.try_number = request.simple_task_instance.try_number
-                    ti.state = request.simple_task_instance.state
+                    ti.start_date = simple_ti.start_date
+                    ti.end_date = simple_ti.end_date
+                    ti.try_number = simple_ti.try_number
+                    ti.state = simple_ti.state
                     ti.test_mode = self.UNIT_TEST_MODE
                     ti.handle_failure(request.msg, ti.test_mode, ti.get_template_context())
-                    self.log.info('Exeuted failure callback for %s in state %s', ti, ti.state)
+                    self.log.info('Executed failure callback for %s in state %s', ti, ti.state)
         session.commit()
 
     @provide_session
