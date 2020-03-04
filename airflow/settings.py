@@ -214,7 +214,7 @@ def dispose_orm():
 
 
 def configure_adapters():
-    from pendulum import Pendulum
+    from pendulum import DateTime as Pendulum
     try:
         from sqlite3 import register_adapter
         register_adapter(Pendulum, lambda val: val.isoformat(' '))

@@ -176,4 +176,4 @@ def parse(string, timezone=None):
 
     :param string: time string
     """
-    return pendulum.parse(string, tz=timezone or TIMEZONE)
+    return pendulum.parse(string, tz=timezone or TIMEZONE, strict=False)

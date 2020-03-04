@@ -21,7 +21,7 @@
 import multiprocessing
 import os
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from glob import glob
 from unittest import mock
 
@@ -327,9 +327,11 @@ class TestStringifiedDAGs(unittest.TestCase):
         self.assertEqual({}, task.executor_config)
 
     @parameterized.expand([
-        (datetime(2019, 8, 1), None, datetime(2019, 8, 1)),
-        (datetime(2019, 8, 1), datetime(2019, 8, 2), datetime(2019, 8, 2)),
-        (datetime(2019, 8, 1), datetime(2019, 7, 30), datetime(2019, 8, 1)),
+        (datetime(2019, 8, 1, tzinfo=timezone.utc), None, datetime(2019, 8, 1, tzinfo=timezone.utc)),
+        (datetime(2019, 8, 1, tzinfo=timezone.utc), datetime(2019, 8, 2, tzinfo=timezone.utc),
+         datetime(2019, 8, 2, tzinfo=timezone.utc)),
+        (datetime(2019, 8, 1, tzinfo=timezone.utc), datetime(2019, 7, 30, tzinfo=timezone.utc),
+         datetime(2019, 8, 1, tzinfo=timezone.utc)),
     ])
     def test_deserialization_start_date(self,
                                         dag_start_date,
@@ -351,9 +353,11 @@ class TestStringifiedDAGs(unittest.TestCase):
         self.assertEqual(simple_task.start_date, expected_task_start_date)
 
     @parameterized.expand([
-        (datetime(2019, 8, 1), None, datetime(2019, 8, 1)),
-        (datetime(2019, 8, 1), datetime(2019, 8, 2), datetime(2019, 8, 1)),
-        (datetime(2019, 8, 1), datetime(2019, 7, 30), datetime(2019, 7, 30)),
+        (datetime(2019, 8, 1, tzinfo=timezone.utc), None, datetime(2019, 8, 1, tzinfo=timezone.utc)),
+        (datetime(2019, 8, 1, tzinfo=timezone.utc), datetime(2019, 8, 2, tzinfo=timezone.utc),
+         datetime(2019, 8, 1, tzinfo=timezone.utc)),
+        (datetime(2019, 8, 1, tzinfo=timezone.utc), datetime(2019, 7, 30, tzinfo=timezone.utc),
+         datetime(2019, 7, 30, tzinfo=timezone.utc)),
     ])
     def test_deserialization_end_date(self,
                                       dag_end_date,
