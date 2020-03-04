@@ -175,7 +175,7 @@ Breeze script allows performing the following tasks:
     * Enter interactive environment when no command are specified (default behaviour)
     * Start integrations if specified as extra flags
     * Start Kind Kubernetes cluster for Kubernetes tests if specified
-    * Stop the interactive environment with "breeze stop-environment" command
+    * Stop the interactive environment with "breeze stop" command
     * Run static checks - either for currently staged change or for all files with
       "breeze static-check" or "breeze static-check-all-files" command
     * Build documentation with "breeze build-docs" command
@@ -222,7 +222,7 @@ You can always stop it via:
 
 .. code-block:: bash
 
-   ./breeze stop-environment
+   ./breeze stop
 
 Restarting Breeze
 -----------------
@@ -231,7 +231,7 @@ You can also  restart the environment and enter it via:
 
 .. code-block:: bash
 
-   ./breeze restart-environment
+   ./breeze restart
 
 Choosing a Breeze Environment
 -----------------------------
@@ -269,7 +269,7 @@ to start more than one integration at a time.
 Finally you can specify ``--integration all`` to start all integrations.
 
 Once integration is started, it will continue to run until the environment is stopped with
-``breeze stop-environment`` command. or restarted via ``breeze restart-environment`` command
+``breeze stop`` command. or restarted via ``breeze restart`` command
 
 Note that running integrations uses significant resources - CPU and memory.
 
@@ -282,7 +282,7 @@ them, you may end up with some unused image data.
 
 To clean up the Docker environment:
 
-1. `Stop Breeze <#stopping-breeze>`_ with ``./breeze stop-environment``.
+1. `Stop Breeze <#stopping-breeze>`_ with ``./breeze stop``.
 
 2. Run the ``docker system prune`` command.
 
@@ -591,8 +591,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
     cleanup-images                           Cleans up the container images created
     initialize-local-virtualenv              Initializes local virtualenv
     setup-autocomplete                       Sets up autocomplete for breeze
-    stop-environment                         Stops the docker-compose evironment
-    restart-environment                      Stops the docker-compose evironment including DB cleanup
+    stop                                     Stops the docker-compose evironment
+    restart                                  Stops the docker-compose evironment including DB cleanup
     toggle-suppress-cheatsheet               Toggles on/off cheatsheet
     toggle-suppress-asciiart                 Toggles on/off asciiart
 
@@ -666,13 +666,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
         shell and when typing breeze command <TAB> will provide autocomplete for
         parameters and values.
   ****************************************************************************************************
-  breeze [FLAGS] stop-environment -- <EXTRA_ARGS>
+  breeze [FLAGS] stop -- <EXTRA_ARGS>
 
         Brings down running docker compose environment. When you start the environment, the docker
         containers will continue running so that startup time is shorter. But they take quite a lot of
         memory and CPU. This command stops all running containers from the environment.
   ****************************************************************************************************
-  breeze [FLAGS] restart-environment -- <EXTRA_ARGS>
+  breeze [FLAGS] restart -- <EXTRA_ARGS>
 
         Restarts running docker compose environment. When you restart the environment, the docker
         containers will be restarted. That includes cleaning up the databases. This is
@@ -957,7 +957,7 @@ If you are having problems with the Breeze environment, try the steps below. Aft
 can check whether your problem is fixed.
 
 1. If you are on macOS, check if you have enough disk space for Docker.
-2. Restart Breeze with ``./breeze restart-environment``.
+2. Restart Breeze with ``./breeze restart``.
 3. Delete the ``.build`` directory and run ``./breeze build-only --force-pull-images``.
 4. `Clean up Docker images <#cleaning-up-the-images>`_.
 5. Restart your Docker Engine and try again.
