@@ -220,6 +220,7 @@ flask_oauth = [
 ]
 gcp = [
     'PyOpenSSL',
+    'google-ads>=4.0.0',
     'google-api-python-client>=1.6.0, <2.0.0dev',
     'google-auth>=1.0.0, <2.0.0dev',
     'google-auth-httplib2>=0.0.1',
