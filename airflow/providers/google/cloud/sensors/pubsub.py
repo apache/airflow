@@ -64,7 +64,7 @@ class PubSubPullSensor(BaseSensorOperator):
     :param return_immediately:
         (Deprecated) This is an underlying PubSub API implementation detail.
         It has no real effect on Sensor behaviour other than some internal wait time before retrying
-            on empty queue.
+        on empty queue.
         The Sensor task will (by definition) always wait for a message, regardless of this argument value.
 
         If you want a non-blocking task that does not to wait for messages, please use
@@ -85,7 +85,7 @@ class PubSubPullSensor(BaseSensorOperator):
         It's return value will be saved to XCom.
         If you are pulling large messages, you probably want to provide a custom callback.
         If not provided, the default implementation will convert `ReceivedMessage` objects
-            into JSON-serializable dicts using `google.protobuf.json_format.MessageToDict` function.
+        into JSON-serializable dicts using `google.protobuf.json_format.MessageToDict` function.
     :type messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]]
     """
     template_fields = ['project_id', 'subscription']

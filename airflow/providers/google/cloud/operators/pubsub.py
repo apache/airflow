@@ -672,9 +672,8 @@ class PubSubPublishMessageOperator(BaseOperator):
 class PubSubPullOperator(BaseOperator):
     """Pulls messages from a PubSub subscription and passes them through XCom.
     If the queue is empty, returns empty list - never waits for messages.
-        If you do need to wait, please use
-        :class:`airflow.providers.google.cloud.sensors.PubSubPullSensor`
-        instead.
+    If you do need to wait, please use :class:`airflow.providers.google.cloud.sensors.PubSubPullSensor`
+    instead.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -714,7 +713,7 @@ class PubSubPullOperator(BaseOperator):
         It's return value will be saved to XCom.
         If you are pulling large messages, you probably want to provide a custom callback.
         If not provided, the default implementation will convert `ReceivedMessage` objects
-            into JSON-serializable dicts using `google.protobuf.json_format.MessageToDict` function.
+        into JSON-serializable dicts using `google.protobuf.json_format.MessageToDict` function.
     :type messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]]
     """
     template_fields = ['project_id', 'subscription']
