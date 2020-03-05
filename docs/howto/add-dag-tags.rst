@@ -17,31 +17,26 @@
 
 
 
-How-to Guides
-=============
 
-Setting up the sandbox in the :doc:`../start` section was easy;
-building a production-grade environment requires a bit more work!
+Add tags to DAGs and use it for filtering in the UI
+===================================================
 
-These how-to guides will step you through common tasks in using and
-configuring an Airflow environment.
+In order to filter DAGs (e.g by team), you can add tags in each dag.
+The filter is saved in a cookie and can be reset by the reset button.
 
-.. toctree::
-    :maxdepth: 2
+For example:
 
-    add-dag-tags
-    add-new-role
-    set-config
-    initialize-database
-    operator/index
-    custom-operator
-    connection/index
-    write-logs
-    run-behind-proxy
-    run-with-systemd
-    run-with-upstart
-    use-test-config
-    check-health
-    define_extra_link
-    tracking-user-activity
-    email-config
+In your Dag file, pass a list of tags you want to add to DAG object:
+
+.. code-block:: python
+
+  dag = DAG(
+    dag_id='example_dag_tag',
+    schedule_interval='0 0 * * *',
+    tags=['example']
+  )
+
+
+**Screenshot**:
+
+.. image:: ../img/add-dag-tags.png
