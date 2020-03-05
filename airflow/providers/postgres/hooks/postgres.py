@@ -35,6 +35,10 @@ class PostgresHook(DbApiHook):
     Also you can choose cursor as ``{"cursor": "dictcursor"}``. Refer to the
     psycopg2.extras for more details.
 
+    You can specify arbitrary libpq arguments as ``{"options": ...}```. Refer
+    to `https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNECT-OPTIONS`
+    for more details.
+
     Note: For Redshift, use keepalives_idle in the extra connection parameters
     and set it to less than 300 seconds.
 
@@ -89,7 +93,7 @@ class PostgresHook(DbApiHook):
         for arg_name, arg_val in conn.extra_dejson.items():
             if arg_name in ['sslmode', 'sslcert', 'sslkey',
                             'sslrootcert', 'sslcrl', 'application_name',
-                            'keepalives_idle']:
+                            'keepalives_idle', 'options']:
                 conn_args[arg_name] = arg_val
 
         self.conn = psycopg2.connect(**conn_args)

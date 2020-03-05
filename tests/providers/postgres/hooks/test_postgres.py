@@ -63,6 +63,13 @@ class TestPostgresHookConn(unittest.TestCase):
                                              dbname='schema', port=None)
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
+    def test_get_conn_options(self, mock_connect):
+        self.connection.extra = '{"options": "-csearch_path=test"}'
+        self.db_hook.get_conn()
+        mock_connect.assert_called_once_with(user='login', password='password', host='host',
+                                             dbname='schema', port=None, options='-csearch_path=test')
+
+    @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     def test_get_conn_cursor(self, mock_connect):
         self.connection.extra = '{"cursor": "dictcursor"}'
         self.db_hook.get_conn()
