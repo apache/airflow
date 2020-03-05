@@ -503,7 +503,7 @@ class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
     :param encryption_source: Describes whether the encrypted cookie was received from ad serving
         (the %m macro) or from Data Transfer.
     :type encryption_source: str
-    :param max_failed_updates: The maximum number of conversions that failed to be updateed
+    :param max_failed_updates: The maximum number of conversions that failed to be updated
     :type max_failed_updates: int
     :param api_version: The version of the api that will be requested for example 'v3'.
     :type api_version: str
