@@ -31,6 +31,7 @@ from urllib.parse import quote
 import dill
 import lazy_object_proxy
 import pendulum
+from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import Column, Float, Index, Integer, PickleType, String, and_, func, or_
 from sqlalchemy.orm import reconstructor
 from sqlalchemy.orm.session import Session
@@ -1375,8 +1376,15 @@ class TaskInstance(Base, LoggingMixin):
                 for field_name, rendered_value in rtif.items():
                     setattr(self.task, field_name, rendered_value)
             else:
-                # TODO: Fetch Unrendered strings
-                ...
+                try:
+                    self.render_templates()
+                except (TemplateAssertionError, UndefinedError):
+                    raise AirflowException(
+                        "Webserver does not have access to User-defined Macros or Filters "
+                        "when Dag Serialization is enabled. Hence for the task that have not yet "
+                        "started running, please use 'airflow tasks render' for debugging the "
+                        "rendering of template_fields."
+                    )
         else:
             self.render_templates()
 

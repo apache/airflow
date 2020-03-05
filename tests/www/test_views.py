@@ -1914,10 +1914,20 @@ class TestRenderedView(TestBase):
     def setUp(self):
         super().setUp()
         self.default_date = datetime(2020, 3, 1)
-        self.dag = DAG("testdag", start_date=self.default_date)
-        self.task = BashOperator(
-            task_id='testtask',
+        self.dag = DAG(
+            "testdag",
+            start_date=self.default_date,
+            user_defined_filters={"hello": lambda name: f'Hello {name}'},
+            user_defined_macros={"fullname": lambda fname, lname: f'{fname} {lname}'}
+        )
+        self.task1 = BashOperator(
+            task_id='task1',
             bash_command='{{ task_instance_key_str }}',
+            dag=self.dag
+        )
+        self.task2 = BashOperator(
+            task_id='task2',
+            bash_command='echo {{ fullname("Apache", "Airflow") | hello }}',
             dag=self.dag
         )
         SerializedDagModel.write_dag(self.dag)
@@ -1938,17 +1948,61 @@ class TestRenderedView(TestBase):
         """
         get_dag_function.return_value = SerializedDagModel.get(self.dag.dag_id).dag
 
-        self.assertEqual(self.task.bash_command, '{{ task_instance_key_str }}')
-        ti = TaskInstance(self.task, self.default_date)
+        self.assertEqual(self.task1.bash_command, '{{ task_instance_key_str }}')
+        ti = TaskInstance(self.task1, self.default_date)
 
         with create_session() as session:
             session.add(RTIF(ti))
 
-        url = ('rendered?task_id=testtask&dag_id=testdag&execution_date={}'
+        url = ('rendered?task_id=task1&dag_id=testdag&execution_date={}'
                .format(self.percent_encode(self.default_date)))
 
         resp = self.client.get(url, follow_redirects=True)
-        self.check_content_in_response("testdag__testtask__20200301", resp)
+        self.check_content_in_response("testdag__task1__20200301", resp)
+
+    @mock.patch('airflow.www.views.STORE_SERIALIZED_DAGS', True)
+    @mock.patch('airflow.models.taskinstance.STORE_SERIALIZED_DAGS', True)
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_rendered_view_for_unexecuted_tis(self, get_dag_function):
+        """
+        Test that the Rendered View is able to show rendered values
+        even for TIs that have not yet executed
+        """
+        get_dag_function.return_value = SerializedDagModel.get(self.dag.dag_id).dag
+
+        self.assertEqual(self.task1.bash_command, '{{ task_instance_key_str }}')
+
+        url = ('rendered?task_id=task1&dag_id=task1&execution_date={}'
+               .format(self.percent_encode(self.default_date)))
+
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_in_response("testdag__task1__20200301", resp)
+
+    @mock.patch('airflow.www.views.STORE_SERIALIZED_DAGS', True)
+    @mock.patch('airflow.models.taskinstance.STORE_SERIALIZED_DAGS', True)
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_user_defined_filter_and_macros_raise_error(self, get_dag_function):
+        """
+        Test that the Rendered View is able to show rendered values
+        even for TIs that have not yet executed
+        """
+        get_dag_function.return_value = SerializedDagModel.get(self.dag.dag_id).dag
+
+        self.assertEqual(self.task2.bash_command,
+                         'echo {{ fullname("Apache", "Airflow") | hello }}')
+
+        url = ('rendered?task_id=task2&dag_id=testdag&execution_date={}'
+               .format(self.percent_encode(self.default_date)))
+
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_not_in_response("echo Hello Apache Airflow", resp)
+        self.check_content_in_response(
+            "Webserver does not have access to User-defined Macros or Filters "
+            "when Dag Serialization is enabled. Hence for the task that have not yet "
+            "started running, please use &#39;airflow tasks render&#39; for debugging the "
+            "rendering of template_fields.",
+            resp
+        )
 
 
 class TestTriggerDag(TestBase):
