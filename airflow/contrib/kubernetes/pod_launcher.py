@@ -121,7 +121,6 @@ class PodLauncher(LoggingMixin):
 
         if get_logs:
             logs = self.read_pod_logs(pod)
-            
             for line in logs:
                 self.log.info(line)
         result = None
