@@ -537,11 +537,7 @@ def resetdb():
     """
     Clear out the database
     """
-    from airflow.models.all_models import (  # noqa: F401 # pylint: disable=unused-import
-        DAG, XCOM_RETURN_KEY, BaseOperator, BaseOperatorLink, BaseJob, Connection, DagBag,
-        DagModel, DagPickle, DagRun, DagTag, Log, Pool, SerializedDagModel, SkipMixin, SlaMiss,
-        TaskFail, TaskInstance, TaskReschedule, Variable, XCom
-    )
+    load_sqla_models()
 
     log.info("Dropping tables that exist")
 
@@ -585,6 +581,18 @@ def drop_airflow_models(connection):
     version = migration_ctx._version  # pylint: disable=protected-access
     if version.exists(connection):
         version.drop(connection)
+
+
+def load_sqla_models():
+    """
+    Loads all models deriving from sqla's `Base` class for db reset
+    @return:
+    """
+    from airflow.models.all_models import (  # noqa: F401 # pylint: disable=unused-import, redefined-builtin
+        BaseJob, Connection, DagModel, DagTag, DagPickle, DagRun, ImportError,
+        KubeResourceVersion, KubeWorkerIdentifier, Log, Pool, SerializedDagModel,
+        SlaMiss, TaskFail, TaskInstance, TaskReschedule, Variable, XCom
+    )
 
 
 def drop_flask_models(connection):
