@@ -194,12 +194,13 @@ class HttpHook(BaseHook):
 
 
         .. code-block:: python
+            from tenacity import retry_if_exception_type
 
             hook = HttpHook(http_conn_id='my_conn',method='GET')
             retry_args = dict(
                  wait=tenacity.wait_exponential(),
                  stop=tenacity.stop_after_attempt(10),
-                 retry=requests.exceptions.ConnectionError
+                 retry=retry_if_exception_type(requests.exceptions.ConnectionError)
              )
              hook.run_with_advanced_retry(
                      endpoint='v1/test',
