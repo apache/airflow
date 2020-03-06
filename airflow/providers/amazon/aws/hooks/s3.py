@@ -425,7 +425,8 @@ class S3Hook(AwsBaseHook):
                   key,
                   bucket_name=None,
                   replace=False,
-                  encrypt=False):
+                  encrypt=False,
+                  acl=None):
         """
         Loads a local file to S3
 
@@ -442,6 +443,8 @@ class S3Hook(AwsBaseHook):
         :param encrypt: If True, the file will be encrypted on the server-side
             by S3 and will be stored in an encrypted form while at rest in S3.
         :type encrypt: bool
+        :param acl: The access control list for the upload file
+        :type acl: str
         """
 
         if not replace and self.check_for_key(key, bucket_name):
@@ -450,6 +453,8 @@ class S3Hook(AwsBaseHook):
         extra_args = {}
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
+        if acl:
+            extra_args['ACL'] = acl
 
         client = self.get_conn()
         client.upload_file(filename, bucket_name, key, ExtraArgs=extra_args)
@@ -495,7 +500,8 @@ class S3Hook(AwsBaseHook):
                    key,
                    bucket_name=None,
                    replace=False,
-                   encrypt=False):
+                   encrypt=False,
+                   acl=None):
         """
         Loads bytes to S3
 
@@ -514,9 +520,11 @@ class S3Hook(AwsBaseHook):
         :param encrypt: If True, the file will be encrypted on the server-side
             by S3 and will be stored in an encrypted form while at rest in S3.
         :type encrypt: bool
+        :param acl: The acess control list for the uploaded file
+        :type acl: str
         """
         file_obj = io.BytesIO(bytes_data)
-        self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt)
+        self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl)
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -525,7 +533,8 @@ class S3Hook(AwsBaseHook):
                       key,
                       bucket_name=None,
                       replace=False,
-                      encrypt=False):
+                      encrypt=False,
+                      acl=None):
         """
         Loads a file object to S3
 
@@ -541,21 +550,26 @@ class S3Hook(AwsBaseHook):
         :param encrypt: If True, S3 encrypts the file on the server,
             and the file is stored in encrypted form at rest in S3.
         :type encrypt: bool
+        :param acl: The access control list for the uploaded file
+        :type acl: str
         """
-        self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt)
+        self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl)
 
     def _upload_file_obj(self,
                          file_obj,
                          key,
                          bucket_name=None,
                          replace=False,
-                         encrypt=False):
+                         encrypt=False,
+                         acl=None):
         if not replace and self.check_for_key(key, bucket_name):
             raise ValueError("The key {key} already exists.".format(key=key))
 
         extra_args = {}
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
+        if acl:
+            extra_args['ACL'] = acl
 
         client = self.get_conn()
         client.upload_fileobj(file_obj, bucket_name, key, ExtraArgs=extra_args)
@@ -687,3 +701,17 @@ class S3Hook(AwsBaseHook):
             s3_obj.download_fileobj(local_tmp_file)
 
         return local_tmp_file.name
+
+    def get_object_permission(self,
+                              bucket,
+                              key):
+        """
+        :param bucket: Name of the bucker in which the object is
+        :type bucket: str
+        :param key: The key to get the object grantee permission.
+        :type key: str
+        """
+
+        response = self.get_conn().get_object_acl(Bucket=bucket,
+                                                  Key=key)
+        return response['Grants'][0]['Permission']

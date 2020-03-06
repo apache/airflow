@@ -223,6 +223,19 @@ class TestAwsS3Hook:
         assert hook.get_wildcard_key('s3://{}/a'.format(s3_bucket)) is None
         assert hook.get_wildcard_key('s3://{}/b'.format(s3_bucket)) is None
 
+    @mock_s3
+    def test_get_object_permission(self):
+        hook = S3Hook(aws_conn_id=None)
+        conn = hook.get_conn()
+        conn.create_bucket(Bucket="mybucket")
+        with tempfile.NamedTemporaryFile() as temp_file:
+            temp_file.write(b'Content')
+            temp_file.seek(0)
+            hook.load_file(temp_file.name, "my_key", "mybucket",
+                           acl="bucket-owner-full-control")
+            permission = hook.get_object_permission("mybucket", "my_key")
+            assert permission == "FULL_CONTROL"
+
     def test_load_string(self, s3_bucket):
         hook = S3Hook()
         hook.load_string("Contént", "my_key", s3_bucket)
