@@ -214,14 +214,14 @@ for path in glob(f"{ROOT_DIR}/airflow/*"):
     name = os.path.basename(path)
     if os.path.isfile(path):
         exclude_patterns.append(f"_api/airflow/{name.rpartition('.')[0]}")
-    browsable_packages = ["operators", "hooks", "sensors", "providers", "executors", "models"]
+    browsable_packages = ["creds", "operators", "hooks", "sensors", "providers", "executors", "models"]
     if os.path.isdir(path) and name not in browsable_packages:
         exclude_patterns.append(f"_api/airflow/{name}")
 
 # Generate list of package index
 providers_packages_roots = {
     name.rpartition("/")[0]
-    for entity in ["hooks", "operators", "sensors"]
+    for entity in ["creds", "hooks", "operators", "sensors"]
     for name in chain(glob(f"{ROOT_DIR}/airflow/providers/**/{entity}", recursive=True))
 }
 

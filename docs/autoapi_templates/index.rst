@@ -342,3 +342,19 @@ persisted in the database.
   :maxdepth: 1
 
   airflow/models/index
+
+
+Creds Backends
+--------------
+Airflow uses relies on creds backends to retrieve :class:`~airflow.models.connection.Connection` objects.
+All creds backends derive from :class:`~airflow.creds.BaseCredsBackend`.  See :ref:`using an alternative creds
+backend <alternative_creds_backend>` for more info.
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  airflow/creds/index
+
+  airflow/providers/amazon/aws/creds/index

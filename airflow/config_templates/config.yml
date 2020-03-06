@@ -486,6 +486,15 @@
       type: string
       example: ~
       default: "task"
+    - name: creds_backend
+      description: |
+        Classes to use for creds backend
+      version_added: ~
+      type: string
+      example: ~
+      default: >-
+        airflow.creds.environment_variables.EnvironmentVariablesCredsBackend,
+        airflow.creds.metastore.MetastoreCredsBackend
 - name: cli
   description: ~
   options:
@@ -1653,6 +1662,24 @@
       type: string
       example: ~
       default: "True"
+- name: aws_ssm_creds
+  description: ~
+  options:
+    - name: ssm_prefix
+      description: |
+        Use when using AWS SSM / airflow.providers.amazon.aws.creds.ssm.AwsSsmCredsBackend as creds provider
+        If prefix is ``/airflow``, then example param path is ``/airflow/AIRFLOW_CONN_SMTP_DEFAULT``
+        Use same URI format as you would with env vars, or ``conn_uri`` CLI param.
+      version_added: ~
+      type: string
+      example: ~
+      default: "/airflow"
+    - name: profile_name
+      description: ~
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
 - name: kubernetes
   description: ~
   options:

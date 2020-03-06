@@ -48,6 +48,7 @@ DEFAULT_AIRFLOW_SECTIONS = [
     'admin',
     'elasticsearch',
     'elasticsearch_configs',
+    'aws_ssm_creds',
     'kubernetes',
     'kubernetes_node_selectors',
     'kubernetes_environment_variables',

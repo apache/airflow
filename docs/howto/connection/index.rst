@@ -59,8 +59,58 @@ to the connection you wish to edit in the connection list.
 Modify the connection properties and click the ``Save`` button to save your
 changes.
 
+.. _connection/cli:
+
+Creating a Connection from the CLI
+----------------------------------
+
+You may add a connection to the database from the CLI.
+
+Obtain the URI for your connection (see :ref:`Generating a Connection URI <generating_connection_uri>`).
+
+Then add connection like so:
+
+.. code-block:: bash
+
+    airflow connections add --conn_id 'my_prod_db' --conn_uri 'my-conn-type://login:password@host:port/schema?param1=val1&param2=val2'
+
+Alternatively you may specify each parameter individually:
+
+.. code-block:: bash
+
+    airflow connections add \
+        --conn_id 'my_prod_db' \
+        --login 'login' \
+        --password 'password' \
+        ...
+
+.. _alternative_creds_backend:
+
+Alternative creds backends
+--------------------------
+
+Airflow provides a flexible creds provision framework.  For example, you may store credentials
+in environment variables, or as parameters in SSM parameter store.
+
+Configuration
+^^^^^^^^^^^^^
+
+Creds backend precedence is managed in through the ``creds_backend`` parameter in section ``[core]``
+of ``airflow.cfg``.
+
+Add creds backend class names in the order you want them to be searched.  For example:
+
+.. code-block:: ini
+
+    creds_backend = airflow.creds.environment_variables.EnvironmentVariablesCredsBackend, airflow.creds.metastore.MetastoreCredsBackend
+
+Configured as above, when retrieving a connection, airflow will check environment variables first and metastore
+database second.  This is the default behavior.
+
+.. _environment_variables_creds_backend:
+
 Storing a Connection in Environment Variables
----------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The environment variable naming convention is ``AIRFLOW_CONN_<conn_id>``, all uppercase.
 
@@ -75,7 +125,7 @@ The value of this environment variable must use airflow's URI format for connect
 :ref:`Generating a Connection URI <generating_connection_uri>` for more details.
 
 Using .bashrc (or similar)
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+""""""""""""""""""""""""""
 
 If storing the environment variable in something like ``~/.bashrc``, add as follows:
 
@@ -84,7 +134,7 @@ If storing the environment variable in something like ``~/.bashrc``, add as foll
     export AIRFLOW_CONN_MY_PROD_DATABASE='my-conn-type://login:password@host:port/schema?param1=val1&param2=val2'
 
 Using docker .env
-^^^^^^^^^^^^^^^^^
+"""""""""""""""""
 
 If using with a docker ``.env`` file, you may need to remove the single quotes.
 
@@ -92,31 +142,43 @@ If using with a docker ``.env`` file, you may need to remove the single quotes.
 
     AIRFLOW_CONN_MY_PROD_DATABASE=my-conn-type://login:password@host:port/schema?param1=val1&param2=val2
 
+.. _ssm_parameter_store_creds:
 
-.. _connection/cli:
+AWS SSM Parameter Store
+^^^^^^^^^^^^^^^^^^^^^^^
 
-Creating a Connection from the CLI
-----------------------------------
+To enable SSM parameter store, add :py:class:`~airflow.providers.amazon.aws.creds.ssm.AwsSsmCredsBackend` to
+the ``creds_backend`` key in the ``[core]`` section of ``airflow.cfg``.  For example:
 
-You may add a connection to the database from the CLI.
+.. code-block:: ini
 
-Obtain the URI for your connection (see :ref:`Generating a Connection URI <generating_connection_uri>`).
+    creds_backend = airflow.providers.amazon.aws.creds.ssm.AwsSsmCredsBackend, airflow.creds.metastore.MetastoreCredsBackend
 
-Then add connection like so:
+Additionally, there is an ``[aws_ssm_creds]`` config section:
 
-.. code-block:: bash
+.. code-block:: ini
 
-    airflow connections add --conn-id 'my_prod_db' --conn-uri 'my-conn-type://login:password@host:port/schema?param1=val1&param2=val2'
+    [aws_ssm_creds]
+    ssm_prefix = /airflow
+    profile_name =
 
-Alternatively you may specify each parameter individually:
+With an ``ssm_prefix`` of ``/airflow``, a connection with id ``my_postgres_conn`` would need to be stored at
+``/airflow/AIRFLOW_CONN_MY_POSTGRES_CONN``.
 
-.. code-block:: bash
+You may optionally supply a profile name to reference aws credentials stored in the ``~/.aws`` directory.
 
-    airflow connections add \
-        --conn-id 'my_prod_db' \
-        --login 'login' \
-        --password 'password' \
-        ...
+The value of the SSM parameter must be the :ref:`airflow connection URI representation <generating_connection_uri>` of the connection object.
+
+.. _roll_your_own_creds_backend:
+
+Roll your own creds backend
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A creds backend is a subclass of :py:class:`airflow.creds.BaseCredsBackend`, and just has to implement the
+:py:meth:`~airflow.creds.BaseCredsBackend.get_connections` method.
+
+Just create your class, and put it in the search path defined in the ``creds_backend`` param in the ``[core]``
+section of ``airflow.cfg``.
 
 
 Connection URI format

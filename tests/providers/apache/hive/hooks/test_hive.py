@@ -28,6 +28,7 @@ from unittest import mock
 import pandas as pd
 from hmsclient import HMSClient
 
+from airflow.creds import CONN_ENV_PREFIX
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
@@ -435,7 +436,6 @@ class TestHiveServer2Hook(unittest.TestCase):
 
     @mock.patch('pyhive.hive.connect')
     def test_get_conn_with_password(self, mock_connect):
-        from airflow.hooks.base_hook import CONN_ENV_PREFIX
         conn_id = "conn_with_password"
         conn_env = CONN_ENV_PREFIX + conn_id.upper()
 
