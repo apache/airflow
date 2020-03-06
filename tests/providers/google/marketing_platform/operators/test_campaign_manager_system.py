@@ -15,36 +15,32 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
-
 import pytest
 
-from tests.providers.google.cloud.utils.gcp_authenticator import GOOGLE_CAMPAIGN_MANAGER_KEY
+from airflow.providers.google.marketing_platform.example_dags.example_campaign_manager import BUCKET
+from tests.providers.google.cloud.utils.gcp_authenticator import GMP_KEY
 from tests.test_utils.gcp_system_helpers import MARKETING_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 # Required scopes
 SCOPES = [
     'https://www.googleapis.com/auth/dfatrafficking',
     'https://www.googleapis.com/auth/dfareporting',
-    'https://www.googleapis.com/auth/ddmconversions'
+    'https://www.googleapis.com/auth/ddmconversions',
+    'https://www.googleapis.com/auth/cloud-platform',
 ]
-
-BUCKET = os.environ.get("MARKETING_BUCKET", "test-cm-bucket")
 
 
 @pytest.mark.system("google.marketing_platform")
-@pytest.mark.credential_file(GOOGLE_CAMPAIGN_MANAGER_KEY)
+@pytest.mark.credential_file(GMP_KEY)
 class CampaignManagerSystemTest(GoogleSystemTest):
-    @provide_gcp_context(GOOGLE_CAMPAIGN_MANAGER_KEY)
     def setUp(self):
         super().setUp()
         self.create_gcs_bucket(BUCKET)
 
-    @provide_gcp_context(GOOGLE_CAMPAIGN_MANAGER_KEY)
     def tearDown(self):
         self.delete_gcs_bucket(BUCKET)
         super().tearDown()
 
-    @provide_gcp_context(GOOGLE_CAMPAIGN_MANAGER_KEY, scopes=SCOPES)
+    @provide_gcp_context(GMP_KEY, scopes=SCOPES)
     def test_run_example_dag(self):
         self.run_dag('example_campaign_manager', MARKETING_DAG_FOLDER)

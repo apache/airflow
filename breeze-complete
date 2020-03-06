@@ -92,8 +92,8 @@ build-only
 cleanup-images
 initialize-local-virtualenv
 setup-autocomplete
-stop-environment
-restart-environment
+stop
+restart
 toggle-suppress-cheatsheet
 toggle-suppress-asciiart"
 

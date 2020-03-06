@@ -31,7 +31,6 @@ python: "3.6"
 stages:
   - pre-test
   - test
-  - post-test
 services:
   - docker
 jobs:
@@ -113,7 +112,7 @@ jobs:
       stage: test
     - name: "Prepare backport packages"
       before_install: echo
-      stage: post-test
+      stage: test
       script: ./scripts/ci/ci_prepare_backport_packages.sh
 before_install:
   - ./scripts/ci/ci_before_install.sh

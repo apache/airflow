@@ -39,7 +39,7 @@ default_args = {"start_date": days_ago(1)}
 timestamp = timestamp_pb2.Timestamp()
 timestamp.FromDatetime(datetime.now() + timedelta(hours=12))  # pylint: disable=no-member
 
-LOCATION = "asia-east2"
+LOCATION = "europe-west1"
 QUEUE_ID = "cloud-tasks-queue"
 TASK_NAME = "task-to-run"
 

@@ -38,7 +38,7 @@ class TestCliVariables(unittest.TestCase):
         variable_command.variables_get(self.parser.parse_args([
             'variables', 'get', 'foo']))
         variable_command.variables_get(self.parser.parse_args([
-            'variables', 'get', 'baz', '-d', 'bar']))
+            'variables', 'get', 'baz', '--default', 'bar']))
         variable_command.variables_list(self.parser.parse_args([
             'variables', 'list']))
         variable_command.variables_delete(self.parser.parse_args([

@@ -26,7 +26,7 @@ from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
 from airflow.providers.amazon.aws.sensors.sagemaker_training import SageMakerTrainingSensor
 
-DESCRIBE_TRAINING_COMPELETED_RESPONSE = {
+DESCRIBE_TRAINING_COMPLETED_RESPONSE = {
     'TrainingJobStatus': 'Completed',
     'ResourceConfig': {
         'InstanceCount': 1,
@@ -40,14 +40,14 @@ DESCRIBE_TRAINING_COMPELETED_RESPONSE = {
     }
 }
 
-DESCRIBE_TRAINING_INPROGRESS_RESPONSE = dict(DESCRIBE_TRAINING_COMPELETED_RESPONSE)
+DESCRIBE_TRAINING_INPROGRESS_RESPONSE = dict(DESCRIBE_TRAINING_COMPLETED_RESPONSE)
 DESCRIBE_TRAINING_INPROGRESS_RESPONSE.update({'TrainingJobStatus': 'InProgress'})
 
-DESCRIBE_TRAINING_FAILED_RESPONSE = dict(DESCRIBE_TRAINING_COMPELETED_RESPONSE)
+DESCRIBE_TRAINING_FAILED_RESPONSE = dict(DESCRIBE_TRAINING_COMPLETED_RESPONSE)
 DESCRIBE_TRAINING_FAILED_RESPONSE.update({'TrainingJobStatus': 'Failed',
                                           'FailureReason': 'Unknown'})
 
-DESCRIBE_TRAINING_STOPPING_RESPONSE = dict(DESCRIBE_TRAINING_COMPELETED_RESPONSE)
+DESCRIBE_TRAINING_STOPPING_RESPONSE = dict(DESCRIBE_TRAINING_COMPLETED_RESPONSE)
 DESCRIBE_TRAINING_STOPPING_RESPONSE.update({'TrainingJobStatus': 'Stopping'})
 
 
@@ -78,7 +78,7 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
         mock_describe_job.side_effect = [
             DESCRIBE_TRAINING_INPROGRESS_RESPONSE,
             DESCRIBE_TRAINING_STOPPING_RESPONSE,
-            DESCRIBE_TRAINING_COMPELETED_RESPONSE
+            DESCRIBE_TRAINING_COMPLETED_RESPONSE
         ]
         sensor = SageMakerTrainingSensor(
             task_id='test_task',
@@ -90,7 +90,7 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
 
         sensor.execute(None)
 
-        # make sure we called 3 times(terminated when its compeleted)
+        # make sure we called 3 times(terminated when its completed)
         self.assertEqual(mock_describe_job.call_count, 3)
 
         # make sure the hook was initialized with the specific params
@@ -110,11 +110,11 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
                              hook_init, mock_log_client, mock_client):
         hook_init.return_value = None
 
-        mock_describe_job.return_value = DESCRIBE_TRAINING_COMPELETED_RESPONSE
+        mock_describe_job.return_value = DESCRIBE_TRAINING_COMPLETED_RESPONSE
         mock_describe_job_with_log.side_effect = [
             (LogState.WAIT_IN_PROGRESS, DESCRIBE_TRAINING_INPROGRESS_RESPONSE, 0),
             (LogState.JOB_COMPLETE, DESCRIBE_TRAINING_STOPPING_RESPONSE, 0),
-            (LogState.COMPLETE, DESCRIBE_TRAINING_COMPELETED_RESPONSE, 0)
+            (LogState.COMPLETE, DESCRIBE_TRAINING_COMPLETED_RESPONSE, 0)
         ]
         sensor = SageMakerTrainingSensor(
             task_id='test_task',

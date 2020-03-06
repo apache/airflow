@@ -67,6 +67,13 @@ def dag_backfill(args, dag=None):
 
     signal.signal(signal.SIGTERM, sigint_handler)
 
+    import warnings
+    warnings.warn('--ignore_first_depends_on_past is deprecated as the value is always set to True',
+                  category=PendingDeprecationWarning)
+
+    if args.ignore_first_depends_on_past is False:
+        args.ignore_first_depends_on_past = True
+
     dag = dag or get_dag(args.subdir, args.dag_id)
 
     if not args.start_date and not args.end_date:

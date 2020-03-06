@@ -24,6 +24,8 @@ import warnings
 from tempfile import NamedTemporaryFile
 from typing import Dict, Iterable, List, Optional, Union
 
+from google.api_core.exceptions import Conflict
+
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.xcom import MAX_XCOM_SIZE
@@ -133,13 +135,15 @@ class GCSCreateBucketOperator(BaseOperator):
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to
         )
-
-        hook.create_bucket(bucket_name=self.bucket_name,
-                           resource=self.resource,
-                           storage_class=self.storage_class,
-                           location=self.location,
-                           project_id=self.project_id,
-                           labels=self.labels)
+        try:
+            hook.create_bucket(bucket_name=self.bucket_name,
+                               resource=self.resource,
+                               storage_class=self.storage_class,
+                               location=self.location,
+                               project_id=self.project_id,
+                               labels=self.labels)
+        except Conflict:  # HTTP 409
+            self.log.warning("Bucket %s already exists", self.bucket_name)
 
 
 class GCSListObjectsOperator(BaseOperator):

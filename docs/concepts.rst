@@ -200,7 +200,7 @@ When we enable this DAG, the scheduler creates several DAG Runs - one with ``exe
 one with ``execution_date`` of 2016-01-02, and so on up to the current date.
 
 Each DAG Run will contain a task_1 Task Instance and a task_2 Task instance. Both Task Instances will
-have ``execution_date`` equal to the DAG Run's ``execution_date``, and each task_2 will be *upstream* of
+have ``execution_date`` equal to the DAG Run's ``execution_date``, and each task_2 will be *downstream* of
 (depends on) its task_1.
 
 We can also say that task_1 for 2016-01-01 is the *previous* task instance of the task_1 for 2016-01-02.

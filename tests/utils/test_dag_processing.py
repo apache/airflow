@@ -31,7 +31,9 @@ from airflow.jobs.scheduler_job import DagFileProcessorProcess
 from airflow.models import DagBag, TaskInstance as TI
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.utils import timezone
-from airflow.utils.dag_processing import DagFileProcessorAgent, DagFileProcessorManager, DagFileStat
+from airflow.utils.dag_processing import (
+    DagFileProcessorAgent, DagFileProcessorManager, DagFileStat, FailureCallbackRequest,
+)
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -190,6 +192,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
         with create_session() as session:
             session.query(LJ).delete()
             dag = dagbag.get_dag('example_branch_operator')
+            dag.sync_to_db()
             task = dag.get_task(task_id='run_this_first')
 
             ti = TI(task, DEFAULT_DATE, State.RUNNING)
@@ -205,27 +208,31 @@ class TestDagFileProcessorManager(unittest.TestCase):
             manager._last_zombie_query_time = timezone.utcnow() - timedelta(
                 seconds=manager._zombie_threshold_secs + 1)
             manager._find_zombies()  # pylint: disable=no-value-for-parameter
-            zombies = manager._zombies
-            self.assertEqual(1, len(zombies))
-            self.assertIsInstance(zombies[0], SimpleTaskInstance)
-            self.assertEqual(ti.dag_id, zombies[0].dag_id)
-            self.assertEqual(ti.task_id, zombies[0].task_id)
-            self.assertEqual(ti.execution_date, zombies[0].execution_date)
+            requests = manager._callback_to_execute[dag.full_filepath]
+            self.assertEqual(1, len(requests))
+            self.assertEqual(requests[0].full_filepath, dag.full_filepath)
+            self.assertEqual(requests[0].msg, "Detected as zombie")
+            self.assertIsInstance(requests[0].simple_task_instance, SimpleTaskInstance)
+            self.assertEqual(ti.dag_id, requests[0].simple_task_instance.dag_id)
+            self.assertEqual(ti.task_id, requests[0].simple_task_instance.task_id)
+            self.assertEqual(ti.execution_date, requests[0].simple_task_instance.execution_date)
 
             session.query(TI).delete()
             session.query(LJ).delete()
 
-    def test_zombies_are_correctly_passed_to_dag_file_processor(self):
+    def test_handle_failure_callback_with_zobmies_are_correctly_passed_to_dag_file_processor(self):
         """
-        Check that the same set of zombies are passed to the dag
+        Check that the same set of failure callback with zombies are passed to the dag
         file processors until the next zombie detection logic is invoked.
         """
+        test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_example_bash_operator.py')
         with conf_vars({('scheduler', 'max_threads'): '1',
                         ('core', 'load_examples'): 'False'}):
-            dagbag = DagBag(os.path.join(TEST_DAG_FOLDER, 'test_example_bash_operator.py'))
+            dagbag = DagBag(test_dag_path)
             with create_session() as session:
                 session.query(LJ).delete()
                 dag = dagbag.get_dag('test_example_bash_operator')
+                dag.sync_to_db()
                 task = dag.get_task(task_id='run_this_last')
 
                 ti = TI(task, DEFAULT_DATE, State.RUNNING)
@@ -237,15 +244,20 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 session.add(local_job)
                 session.add(ti)
                 session.commit()
-                fake_zombies = [SimpleTaskInstance(ti)]
+                fake_failure_callback_requests = [
+                    FailureCallbackRequest(
+                        full_filepath=dag.full_filepath,
+                        simple_task_instance=SimpleTaskInstance(ti),
+                        msg="Message"
+                    )
+                ]
 
             class FakeDagFileProcessorRunner(DagFileProcessorProcess):
                 # This fake processor will return the zombies it received in constructor
                 # as its processing result w/o actually parsing anything.
-                def __init__(self, file_path, pickle_dags, dag_id_white_list, zombies):
-                    super().__init__(file_path, pickle_dags, dag_id_white_list, zombies)
-
-                    self._result = zombies, 0
+                def __init__(self, file_path, pickle_dags, dag_id_white_list, failure_callback_requests):
+                    super().__init__(file_path, pickle_dags, dag_id_white_list, failure_callback_requests)
+                    self._result = failure_callback_requests, 0
 
                 def start(self):
                     pass
@@ -266,16 +278,14 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 def result(self):
                     return self._result
 
-            def processor_factory(file_path, zombies):
+            def processor_factory(file_path, failure_callback_requests):
                 return FakeDagFileProcessorRunner(
                     file_path,
                     False,
                     [],
-                    zombies
+                    failure_callback_requests
                 )
 
-            test_dag_path = os.path.join(TEST_DAG_FOLDER,
-                                         'test_example_bash_operator.py')
             async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
             processor_agent = DagFileProcessorAgent(test_dag_path,
                                                     1,
@@ -291,9 +301,11 @@ class TestDagFileProcessorManager(unittest.TestCase):
                     processor_agent.wait_until_finished()
                 parsing_result.extend(processor_agent.harvest_simple_dags())
 
-            self.assertEqual(len(fake_zombies), len(parsing_result))
-            self.assertEqual(set(zombie.key for zombie in fake_zombies),
-                             set(result.key for result in parsing_result))
+            self.assertEqual(len(fake_failure_callback_requests), len(parsing_result))
+            self.assertEqual(
+                set(zombie.simple_task_instance.key for zombie in fake_failure_callback_requests),
+                set(result.simple_task_instance.key for result in parsing_result)
+            )
 
     @mock.patch("airflow.jobs.scheduler_job.DagFileProcessorProcess.pid", new_callable=PropertyMock)
     @mock.patch("airflow.jobs.scheduler_job.DagFileProcessorProcess.kill")

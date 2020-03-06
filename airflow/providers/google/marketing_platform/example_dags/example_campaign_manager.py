@@ -150,6 +150,7 @@ with models.DAG(
         encryption_source="AD_SERVING",
         encryption_entity_type="DCM_ADVERTISER",
         encryption_entity_id=ENCRYPTION_ENTITY_ID,
+        max_failed_updates=1,
     )
     # [END howto_campaign_manager_update_conversions]
 

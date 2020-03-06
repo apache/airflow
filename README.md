@@ -426,6 +426,7 @@ Currently **officially** using Airflow:
 1. [TEK](https://www.tek.fi/en) [[@telac](https://github.com/telac)]
 1. [Telefonica Innovation Alpha](https://www.alpha.company/) [[@Alpha-Health](https://github.com/Alpha-health)]
 1. [Telia Company](https://www.teliacompany.com/en)
+1. [Ternary Data](https://ternarydata.com/) [[@mhousley](https://github.com/mhousley), [@JoeReis](https://github.com/JoeReis)]
 1. [Tesla](https://www.tesla.com/) [[@thoralf-gutierrez](https://github.com/thoralf-gutierrez)]
 1. [The Home Depot](https://www.homedepot.com/)[[@apekshithr](https://github.com/apekshithr)]
 1. [THE ICONIC](https://www.theiconic.com.au/) [[@revathijay](https://github.com/revathijay)] [[@ilikedata](https://github.com/ilikedata)]
@@ -458,6 +459,7 @@ Currently **officially** using Airflow:
 1. [WePay](http://www.wepay.com) [[@criccomini](https://github.com/criccomini) & [@mtagle](https://github.com/mtagle)]
 1. [WeTransfer](https://github.com/WeTransfer) [[@coredipper](https://github.com/coredipper) & [@higee](https://github.com/higee) & [@azclub](https://github.com/azclub)]
 1. [Whistle Labs](http://www.whistle.com) [[@ananya77041](https://github.com/ananya77041)]
+1. [Wildlifestudios](https://wildlifestudios.com/)
 1. [WiseBanyan](https://wisebanyan.com/)
 1. [Wooga](https://www.wooga.com/)
 1. [Wrike](https://www.wrike.com) [[@eliseealex](https://github.com/eliseealex) & [teoretic6](https://github.com/Teoretic6)]

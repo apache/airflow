@@ -85,8 +85,59 @@
 <script>
 $('span.status_square').tooltip({html: true});
 
+function ts_to_dtstr(ts) {
+  var dt = new Date(ts * 1000);
+  return dt.toISOString();
+}
+
+function is_dag_run(d) {
+  return d.run_id !== undefined;
+}
+
+var now_ts = Date.now()/1000;
+
+function populate_taskinstance_properties(node) {
+  // populate task instance properties for display purpose
+  var j;
+  for (j=0; j<node.instances.length; j++) {
+    var dr_instance = data.instances[j];
+    var row = node.instances[j];
+
+    if (row === null) {
+      node.instances[j] = {
+        task_id: node.name,
+        execution_date: dr_instance.execution_date,
+      };
+      continue;
+    }
+
+    var task_instance = {
+      state: row[0],
+      try_number: row[1],
+      start_ts: row[2],
+      duration: row[3],
+    };
+    node.instances[j] = task_instance;
+
+    task_instance.task_id = node.name;
+    task_instance.execution_date = dr_instance.execution_date;
+    task_instance.external_trigger = dr_instance.external_trigger;
+
+    // compute start_date and end_date if applicable
+    if (task_instance.start_ts !== null) {
+      task_instance.start_date = ts_to_dtstr(task_instance.start_ts);
+      if (task_instance.state === "running") {
+        task_instance.duration = now_ts - task_instance.start_ts;
+      } else if (task_instance.duration !== null) {
+        task_instance.end_date = ts_to_dtstr(task_instance.start_ts + task_instance.duration);
+      }
+    }
+  }
+}
+
 var devicePixelRatio = window.devicePixelRatio || 1;
-var data = {{ data|tojson|safe }};
+// JSON.parse is faster for large payloads than an object literal (because the JSON grammer is simpler!)
+var data = JSON.parse('{{ data }}');
 var barHeight = 20;
 var axisHeight = 40;
 var square_x = parseInt(500 * devicePixelRatio);
@@ -104,8 +155,25 @@ var tree = d3.layout.tree().nodeSize([0, 25]);
 var nodes = tree.nodes(data);
 var nodeobj = {};
 for (i=0; i<nodes.length; i++) {
-    node = nodes[i];
-    nodeobj[node.name] = node;
+  var node = nodes[i];
+  nodeobj[node.name] = node;
+
+  if (node.name === "[DAG]") {
+    // skip synthetic root node since it's doesn't contain actual task instances
+    continue;
+  }
+
+  if (node.start_ts !== undefined) {
+    node.start_date = ts_to_dtstr(node.start_ts);
+  }
+  if (node.end_ts !== undefined) {
+    node.end_date = ts_to_dtstr(node.end_ts);
+  }
+  if (node.depends_on_past === undefined) {
+    node.depends_on_past = false;
+  }
+
+  populate_taskinstance_properties(node);
 }
 
 var diagonal = d3.svg.diagonal()
@@ -214,6 +282,7 @@ function update(source) {
           if (d.operator != undefined) {
             tt += "operator: " + escapeHtml(d.operator) + "<br/>";
           }
+
           tt += "depends_on_past: " + escapeHtml(d.depends_on_past) + "<br/>";
           tt += "upstream: " + escapeHtml(d.num_dep) + "<br/>";
           tt += "retries: " + escapeHtml(d.retries) + "<br/>";
@@ -229,7 +298,7 @@ function update(source) {
       .on('mouseout', function(d, i) {
         taskTip.hide(d)
         d3.select(this).transition()
-         .style("stroke-width", function(d) {return (d.run_id != undefined)? "2": "1"})
+         .style("stroke-width", function(d) {return is_dag_run(d)? "2": "1"})
       })
       .attr("height", barHeight)
       .attr("width", function(d, i) {return barWidth - d.y;})
@@ -263,10 +332,10 @@ function update(source) {
       })
       .attr("class", function(d) {return "state " + d.state})
       .attr("data-toggle", "tooltip")
-      .attr("rx", function(d) {return (d.run_id != undefined)? "5": "0"})
-      .attr("ry", function(d) {return (d.run_id != undefined)? "5": "0"})
-      .style("shape-rendering", function(d) {return (d.run_id != undefined)? "auto": "crispEdges"})
-      .style("stroke-width", function(d) {return (d.run_id != undefined)? "2": "1"})
+      .attr("rx", function(d) {return is_dag_run(d)? "5": "0"})
+      .attr("ry", function(d) {return is_dag_run(d)? "5": "0"})
+      .style("shape-rendering", function(d) {return is_dag_run(d)? "auto": "crispEdges"})
+      .style("stroke-width", function(d) {return is_dag_run(d)? "2": "1"})
       .style("stroke-opacity", function(d) {return d.external_trigger ? "0": "1"})
       .on("mouseover", function(d){
         var s = "";
@@ -274,15 +343,18 @@ function update(source) {
           s += "Task_id: " + escapeHtml(d.task_id) + "<br>";
         }
         s += "Run: " + escapeHtml(d.execution_date) + "<br>";
-        if(d.run_id != undefined){
+        if(is_dag_run(d)){
           s += "run_id: <nobr>" + escapeHtml(d.run_id) + "</nobr><br>";
         }
-        if (d.operator != undefined) {
-          s += "Operator: " + escapeHtml(d.operator) + "<br>"
-        }
+
+        var task = nodeobj[d.task_id];
+
+        s += "Operator: " + escapeHtml(task.operator) + "<br>"
         if(d.start_date != undefined){
           s += "Started: " + escapeHtml(d.start_date) + "<br>";
-          s += "Ended: " + escapeHtml(d.end_date) + "<br>";
+          if(d.end_date != undefined){
+            s += "Ended: " + escapeHtml(d.end_date) + "<br>";
+          }
           if (d.duration != undefined) {
             s += "Duration: " + escapeHtml(convertSecsToHumanReadable(d.duration)) + "<br>";
           }
@@ -296,7 +368,7 @@ function update(source) {
       .on('mouseout', function(d,i) {
         taskTip.hide(d)
         d3.select(this).transition()
-         .style("stroke-width", function(d) {return (d.run_id != undefined)? "2": "1"})
+         .style("stroke-width", function(d) {return is_dag_run(d)? "2": "1"})
       })
       .attr('x', function(d, i) {return (i*(square_size+square_spacing));})
       .attr('y', -square_size/2)

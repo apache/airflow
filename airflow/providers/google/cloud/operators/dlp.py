@@ -24,12 +24,14 @@ Cloud DLP.
 """
 from typing import Dict, Optional, Sequence, Tuple, Union
 
+from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry
 from google.cloud.dlp_v2.types import (
     ByteContentItem, ContentItem, DeidentifyConfig, DeidentifyTemplate, FieldMask, InspectConfig,
     InspectJobConfig, InspectTemplate, JobTrigger, RedactImageRequest, RiskAnalysisJobConfig,
     StoredInfoTypeConfig,
 )
+from google.protobuf.json_format import MessageToDict
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
@@ -156,15 +158,27 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.create_deidentify_template(
-            organization_id=self.organization_id,
-            project_id=self.project_id,
-            deidentify_template=self.deidentify_template,
-            template_id=self.template_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
+        try:
+            template = hook.create_deidentify_template(
+                organization_id=self.organization_id,
+                project_id=self.project_id,
+                deidentify_template=self.deidentify_template,
+                template_id=self.template_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except AlreadyExists:
+            template = hook.get_deidentify_template(
+                organization_id=self.organization_id,
+                project_id=self.project_id,
+                template_id=self.template_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+
+        return MessageToDict(template)
 
 
 class CloudDLPCreateDLPJobOperator(BaseOperator):
@@ -228,16 +242,26 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.create_dlp_job(
-            project_id=self.project_id,
-            inspect_job=self.inspect_job,
-            risk_job=self.risk_job,
-            job_id=self.job_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-            wait_until_finished=self.wait_until_finished,
-        )
+        try:
+            job = hook.create_dlp_job(
+                project_id=self.project_id,
+                inspect_job=self.inspect_job,
+                risk_job=self.risk_job,
+                job_id=self.job_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+                wait_until_finished=self.wait_until_finished,
+            )
+        except AlreadyExists:
+            job = hook.get_dlp_job(
+                project_id=self.project_id,
+                dlp_job_id=self.job_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        return MessageToDict(job)
 
 
 class CloudDLPCreateInspectTemplateOperator(BaseOperator):
@@ -304,15 +328,26 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.create_inspect_template(
-            organization_id=self.organization_id,
-            project_id=self.project_id,
-            inspect_template=self.inspect_template,
-            template_id=self.template_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
+        try:
+            template = hook.create_inspect_template(
+                organization_id=self.organization_id,
+                project_id=self.project_id,
+                inspect_template=self.inspect_template,
+                template_id=self.template_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except AlreadyExists:
+            template = hook.get_inspect_template(
+                organization_id=self.organization_id,
+                project_id=self.project_id,
+                template_id=self.template_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        return MessageToDict(template)
 
 
 class CloudDLPCreateJobTriggerOperator(BaseOperator):
@@ -368,14 +403,24 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.create_job_trigger(
-            project_id=self.project_id,
-            job_trigger=self.job_trigger,
-            trigger_id=self.trigger_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
+        try:
+            trigger = hook.create_job_trigger(
+                project_id=self.project_id,
+                job_trigger=self.job_trigger,
+                trigger_id=self.trigger_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except AlreadyExists:
+            trigger = hook.get_job_trigger(
+                project_id=self.project_id,
+                job_trigger_id=self.trigger_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        return MessageToDict(trigger)
 
 
 class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
@@ -441,15 +486,26 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.create_stored_info_type(
-            organization_id=self.organization_id,
-            project_id=self.project_id,
-            config=self.config,
-            stored_info_type_id=self.stored_info_type_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
+        try:
+            info = hook.create_stored_info_type(
+                organization_id=self.organization_id,
+                project_id=self.project_id,
+                config=self.config,
+                stored_info_type_id=self.stored_info_type_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except AlreadyExists:
+            info = hook.get_stored_info_type(
+                organization_id=self.organization_id,
+                project_id=self.project_id,
+                stored_info_type_id=self.stored_info_type_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        return MessageToDict(info)
 
 
 class CloudDLPDeidentifyContentOperator(BaseOperator):
@@ -531,7 +587,7 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.deidentify_content(
+        response = hook.deidentify_content(
             project_id=self.project_id,
             deidentify_config=self.deidentify_config,
             inspect_config=self.inspect_config,
@@ -542,6 +598,7 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(response)
 
 
 class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
@@ -596,14 +653,17 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        hook.delete_deidentify_template(
-            template_id=self.template_id,
-            organization_id=self.organization_id,
-            project_id=self.project_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
+        try:
+            hook.delete_deidentify_template(
+                template_id=self.template_id,
+                organization_id=self.organization_id,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except NotFound:
+            self.log.info("Template %s not found.", self.template_id)
 
 
 class CloudDLPDeleteDLPJobOperator(BaseOperator):
@@ -654,13 +714,16 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        hook.delete_dlp_job(
-            dlp_job_id=self.dlp_job_id,
-            project_id=self.project_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
+        try:
+            hook.delete_dlp_job(
+                dlp_job_id=self.dlp_job_id,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except NotFound:
+            self.log.info("Job %s id not found.", self.dlp_job_id)
 
 
 class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
@@ -715,14 +778,17 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        hook.delete_inspect_template(
-            template_id=self.template_id,
-            organization_id=self.organization_id,
-            project_id=self.project_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
+        try:
+            hook.delete_inspect_template(
+                template_id=self.template_id,
+                organization_id=self.organization_id,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except NotFound:
+            self.log.info("Template %s not found", self.template_id)
 
 
 class CloudDLPDeleteJobTriggerOperator(BaseOperator):
@@ -772,13 +838,16 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        hook.delete_job_trigger(
-            job_trigger_id=self.job_trigger_id,
-            project_id=self.project_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
+        try:
+            hook.delete_job_trigger(
+                job_trigger_id=self.job_trigger_id,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except NotFound:
+            self.log.info("Trigger %s not found", self.job_trigger_id)
 
 
 class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
@@ -838,14 +907,17 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        hook.delete_stored_info_type(
-            stored_info_type_id=self.stored_info_type_id,
-            organization_id=self.organization_id,
-            project_id=self.project_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
+        try:
+            hook.delete_stored_info_type(
+                stored_info_type_id=self.stored_info_type_id,
+                organization_id=self.organization_id,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except NotFound:
+            self.log.info("Stored info %s not found", self.stored_info_type_id)
 
 
 class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
@@ -901,7 +973,7 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.get_deidentify_template(
+        template = hook.get_deidentify_template(
             template_id=self.template_id,
             organization_id=self.organization_id,
             project_id=self.project_id,
@@ -909,6 +981,7 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(template)
 
 
 class CloudDLPGetDLPJobOperator(BaseOperator):
@@ -959,13 +1032,14 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.get_dlp_job(
+        job = hook.get_dlp_job(
             dlp_job_id=self.dlp_job_id,
             project_id=self.project_id,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(job)
 
 
 class CloudDLPGetInspectTemplateOperator(BaseOperator):
@@ -1021,7 +1095,7 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.get_inspect_template(
+        template = hook.get_inspect_template(
             template_id=self.template_id,
             organization_id=self.organization_id,
             project_id=self.project_id,
@@ -1029,6 +1103,7 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(template)
 
 
 class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
@@ -1079,13 +1154,14 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.get_job_trigger(
+        trigger = hook.get_job_trigger(
             job_trigger_id=self.job_trigger_id,
             project_id=self.project_id,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(trigger)
 
 
 class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
@@ -1146,7 +1222,7 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.get_stored_info_type(
+        info = hook.get_stored_info_type(
             stored_info_type_id=self.stored_info_type_id,
             organization_id=self.organization_id,
             project_id=self.project_id,
@@ -1154,6 +1230,7 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(info)
 
 
 class CloudDLPInspectContentOperator(BaseOperator):
@@ -1221,7 +1298,7 @@ class CloudDLPInspectContentOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.inspect_content(
+        response = hook.inspect_content(
             project_id=self.project_id,
             inspect_config=self.inspect_config,
             item=self.item,
@@ -1230,6 +1307,7 @@ class CloudDLPInspectContentOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(response)
 
 
 class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
@@ -1291,7 +1369,7 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.list_deidentify_templates(
+        template = hook.list_deidentify_templates(
             organization_id=self.organization_id,
             project_id=self.project_id,
             page_size=self.page_size,
@@ -1300,6 +1378,7 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(template)
 
 
 class CloudDLPListDLPJobsOperator(BaseOperator):
@@ -1364,7 +1443,7 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.list_dlp_jobs(
+        job = hook.list_dlp_jobs(
             project_id=self.project_id,
             results_filter=self.results_filter,
             page_size=self.page_size,
@@ -1374,6 +1453,7 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(job)
 
 
 class CloudDLPListInfoTypesOperator(BaseOperator):
@@ -1424,13 +1504,14 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.list_info_types(
+        response = hook.list_info_types(
             language_code=self.language_code,
             results_filter=self.results_filter,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(response)
 
 
 class CloudDLPListInspectTemplatesOperator(BaseOperator):
@@ -1492,7 +1573,7 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.list_inspect_templates(
+        templates = hook.list_inspect_templates(
             organization_id=self.organization_id,
             project_id=self.project_id,
             page_size=self.page_size,
@@ -1501,6 +1582,7 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return [MessageToDict(t) for t in templates]
 
 
 class CloudDLPListJobTriggersOperator(BaseOperator):
@@ -1561,7 +1643,7 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.list_job_triggers(
+        jobs = hook.list_job_triggers(
             project_id=self.project_id,
             page_size=self.page_size,
             order_by=self.order_by,
@@ -1570,6 +1652,7 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return [MessageToDict(j) for j in jobs]
 
 
 class CloudDLPListStoredInfoTypesOperator(BaseOperator):
@@ -1631,7 +1714,7 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.list_stored_info_types(
+        infos = hook.list_stored_info_types(
             organization_id=self.organization_id,
             project_id=self.project_id,
             page_size=self.page_size,
@@ -1640,6 +1723,7 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return [MessageToDict(i) for i in infos]
 
 
 class CloudDLPRedactImageOperator(BaseOperator):
@@ -1714,7 +1798,7 @@ class CloudDLPRedactImageOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.redact_image(
+        response = hook.redact_image(
             project_id=self.project_id,
             inspect_config=self.inspect_config,
             image_redaction_configs=self.image_redaction_configs,
@@ -1724,6 +1808,7 @@ class CloudDLPRedactImageOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(response)
 
 
 class CloudDLPReidentifyContentOperator(BaseOperator):
@@ -1802,7 +1887,7 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.reidentify_content(
+        response = hook.reidentify_content(
             project_id=self.project_id,
             reidentify_config=self.reidentify_config,
             inspect_config=self.inspect_config,
@@ -1813,6 +1898,7 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(response)
 
 
 class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
@@ -1883,7 +1969,7 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.update_deidentify_template(
+        template = hook.update_deidentify_template(
             template_id=self.template_id,
             organization_id=self.organization_id,
             project_id=self.project_id,
@@ -1893,6 +1979,7 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(template)
 
 
 class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
@@ -1963,7 +2050,7 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.update_inspect_template(
+        template = hook.update_inspect_template(
             template_id=self.template_id,
             organization_id=self.organization_id,
             project_id=self.project_id,
@@ -1973,6 +2060,7 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(template)
 
 
 class CloudDLPUpdateJobTriggerOperator(BaseOperator):
@@ -2037,7 +2125,7 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.update_job_trigger(
+        trigger = hook.update_job_trigger(
             job_trigger_id=self.job_trigger_id,
             project_id=self.project_id,
             job_trigger=self.job_trigger,
@@ -2046,6 +2134,7 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(trigger)
 
 
 class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
@@ -2117,7 +2206,7 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudDLPHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.update_stored_info_type(
+        info = hook.update_stored_info_type(
             stored_info_type_id=self.stored_info_type_id,
             organization_id=self.organization_id,
             project_id=self.project_id,
@@ -2127,3 +2216,4 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(info)

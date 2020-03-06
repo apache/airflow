@@ -355,6 +355,7 @@
       description: |
         Storage bucket URL for remote logging
         S3 buckets should start with "s3://"
+        Cloudwatch log groups should start with "cloudwatch://"
         GCS buckets should start with "gs://"
         WASB buckets should start with "wasb" just to help Airflow select correct handler
       version_added: ~

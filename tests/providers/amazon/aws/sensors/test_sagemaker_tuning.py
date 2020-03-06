@@ -31,8 +31,8 @@ DESCRIBE_TUNING_INPROGRESS_RESPONSE = {
     }
 }
 
-DESCRIBE_TUNING_COMPELETED_RESPONSE = {
-    'HyperParameterTuningJobStatus': 'Compeleted',
+DESCRIBE_TUNING_COMPLETED_RESPONSE = {
+    'HyperParameterTuningJobStatus': 'Completed',
     'ResponseMetadata': {
         'HTTPStatusCode': 200,
     }
@@ -77,7 +77,7 @@ class TestSageMakerTuningSensor(unittest.TestCase):
         mock_describe_job.side_effect = [
             DESCRIBE_TUNING_INPROGRESS_RESPONSE,
             DESCRIBE_TUNING_STOPPING_RESPONSE,
-            DESCRIBE_TUNING_COMPELETED_RESPONSE
+            DESCRIBE_TUNING_COMPLETED_RESPONSE
         ]
         sensor = SageMakerTuningSensor(
             task_id='test_task',
@@ -88,7 +88,7 @@ class TestSageMakerTuningSensor(unittest.TestCase):
 
         sensor.execute(None)
 
-        # make sure we called 3 times(terminated when its compeleted)
+        # make sure we called 3 times(terminated when its completed)
         self.assertEqual(mock_describe_job.call_count, 3)
 
         # make sure the hook was initialized with the specific params

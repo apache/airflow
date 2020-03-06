@@ -85,7 +85,7 @@ class TestCliTasks(unittest.TestCase):
         task0_id = 'test_run_dependent_task'
         args0 = ['tasks',
                  'run',
-                 '-A',
+                 '--ignore-all-dependencies',
                  '--local',
                  dag_id,
                  task0_id,
@@ -108,27 +108,27 @@ class TestCliTasks(unittest.TestCase):
             'tasks', 'test', 'example_bash_operator', 'runme_0',
             DEFAULT_DATE.isoformat()]))
         task_command.task_test(self.parser.parse_args([
-            'tasks', 'test', 'example_bash_operator', 'runme_0', '--dry_run',
+            'tasks', 'test', 'example_bash_operator', 'runme_0', '--dry-run',
             DEFAULT_DATE.isoformat()]))
 
     def test_cli_test_with_params(self):
         task_command.task_test(self.parser.parse_args([
             'tasks', 'test', 'example_passing_params_via_test_command', 'run_this',
-            '-tp', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
+            '--task-params', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
         task_command.task_test(self.parser.parse_args([
             'tasks', 'test', 'example_passing_params_via_test_command', 'also_run_this',
-            '-tp', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
+            '--task-params', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
 
     def test_cli_run(self):
         task_command.task_run(self.parser.parse_args([
-            'tasks', 'run', 'example_bash_operator', 'runme_0', '-l',
+            'tasks', 'run', 'example_bash_operator', 'runme_0', '--local',
             DEFAULT_DATE.isoformat()]))
 
     @parameterized.expand(
         [
-            ("--ignore_all_dependencies", ),
-            ("--ignore_depends_on_past", ),
-            ("--ignore_dependencies",),
+            ("--ignore-all-dependencies", ),
+            ("--ignore-depends-on-past", ),
+            ("--ignore-dependencies",),
             ("--force",),
         ],
 
@@ -198,7 +198,7 @@ class TestCliTasks(unittest.TestCase):
             'tasks', 'clear', 'example_subdag_operator', '--yes'])
         task_command.task_clear(args)
         args = self.parser.parse_args([
-            'tasks', 'clear', 'example_subdag_operator', '--yes', '--exclude_subdags'])
+            'tasks', 'clear', 'example_subdag_operator', '--yes', '--exclude-subdags'])
         task_command.task_clear(args)
 
     def test_parentdag_downstream_clear(self):
@@ -207,7 +207,7 @@ class TestCliTasks(unittest.TestCase):
         task_command.task_clear(args)
         args = self.parser.parse_args([
             'tasks', 'clear', 'example_subdag_operator.section-1', '--yes',
-            '--exclude_parentdag'])
+            '--exclude-parentdag'])
         task_command.task_clear(args)
 
     def test_local_run(self):
@@ -256,7 +256,7 @@ class TestCliTaskBackfill(unittest.TestCase):
         task0_id = 'test_run_dependent_task'
         args0 = ['tasks',
                  'run',
-                 '-A',
+                 '--ignore-all-dependencies',
                  dag_id,
                  task0_id,
                  DEFAULT_DATE.isoformat()]
@@ -271,7 +271,7 @@ class TestCliTaskBackfill(unittest.TestCase):
         task1_id = 'test_run_dependency_task'
         args1 = ['tasks',
                  'run',
-                 '-A',
+                 '--ignore-all-dependencies',
                  dag_id,
                  task1_id,
                  (DEFAULT_DATE + timedelta(days=1)).isoformat()]
@@ -286,7 +286,7 @@ class TestCliTaskBackfill(unittest.TestCase):
         task2_id = 'test_run_dependent_task'
         args2 = ['tasks',
                  'run',
-                 '-A',
+                 '--ignore-all-dependencies',
                  dag_id,
                  task2_id,
                  (DEFAULT_DATE + timedelta(days=1)).isoformat()]

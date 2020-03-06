@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,17 +14,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import pytest
-from parameterized import parameterized
 
-from tests.test_utils.system_tests_class import SystemTest
+import os
+from datetime import datetime
+
+from airflow import DAG
+from airflow.operators.dummy_operator import DummyOperator
+
+DEFAULT_DATE = datetime(2016, 1, 1)
+
+args = {
+    'owner': 'airflow',
+    'start_date': DEFAULT_DATE,
+}
+
+dag = DAG(dag_id='test_om_failure_callback_dag', default_args=args)
 
 
-@pytest.mark.system("core")
-class TestExampleDagsSystem(SystemTest):
-    @parameterized.expand([
-        "example_bash_operator",
-        "example_branch_operator"
-    ])
-    def test_dag_example(self, dag_id):
-        self.run_dag(dag_id=dag_id)
+def write_data_to_callback(*arg, **kwargs):  # pylint: disable=unused-argument
+    with open(os.environ.get('AIRFLOW_CALLBACK_FILE'), "w+") as f:
+        f.write("Callback fired")
+
+
+task = DummyOperator(
+    task_id='test_om_failure_callback_task',
+    dag=dag,
+    on_failure_callback=write_data_to_callback
+)

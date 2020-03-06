@@ -17,6 +17,7 @@
 # under the License.
 
 import datetime
+import os
 import time
 import unittest
 import urllib
@@ -784,7 +785,7 @@ class TestTaskInstance(unittest.TestCase):
         ti = TI(task, run_date)
 
         # depends_on_past prevents the run
-        task.run(start_date=run_date, end_date=run_date)
+        task.run(start_date=run_date, end_date=run_date, ignore_first_depends_on_past=False)
         ti.refresh_from_db()
         self.assertIs(ti.state, None)
 
@@ -1220,9 +1221,9 @@ class TestTaskInstance(unittest.TestCase):
         ti.set_duration()
         self.assertIsNone(ti.duration)
 
-    def test_success_callbak_no_race_condition(self):
+    def test_success_callback_no_race_condition(self):
         callback_wrapper = CallbackWrapper()
-        dag = DAG('test_success_callbak_no_race_condition', start_date=DEFAULT_DATE,
+        dag = DAG('test_success_callback_no_race_condition', start_date=DEFAULT_DATE,
                   end_date=DEFAULT_DATE + datetime.timedelta(days=10))
         task = DummyOperator(task_id='op', email='test@test.test',
                              on_success_callback=callback_wrapper.success_handler, dag=dag)
@@ -1445,7 +1446,7 @@ class TestTaskInstance(unittest.TestCase):
                 'test_dagrun_execute_callback'
             )
 
-        dag = DAG('test_execute_callbak', start_date=DEFAULT_DATE,
+        dag = DAG('test_execute_callback', start_date=DEFAULT_DATE,
                   end_date=DEFAULT_DATE + datetime.timedelta(days=10))
         task = DummyOperator(task_id='op', email='test@test.test',
                              on_execute_callback=on_execute_callable,
@@ -1495,6 +1496,51 @@ class TestTaskInstance(unittest.TestCase):
 
         context_arg_2 = mock_on_retry_2.call_args[0][0]
         assert context_arg_2 and "task_instance" in context_arg_2
+
+    def _env_var_check_callback(self):
+        self.assertEqual('test_echo_env_variables', os.environ['AIRFLOW_CTX_DAG_ID'])
+        self.assertEqual('hive_in_python_op', os.environ['AIRFLOW_CTX_TASK_ID'])
+        self.assertEqual(DEFAULT_DATE.isoformat(),
+                         os.environ['AIRFLOW_CTX_EXECUTION_DATE'])
+        self.assertEqual('manual__' + DEFAULT_DATE.isoformat(),
+                         os.environ['AIRFLOW_CTX_DAG_RUN_ID'])
+
+    def test_echo_env_variables(self):
+        dag = DAG('test_echo_env_variables', start_date=DEFAULT_DATE,
+                  end_date=DEFAULT_DATE + datetime.timedelta(days=10))
+        op = PythonOperator(task_id='hive_in_python_op',
+                            dag=dag,
+                            python_callable=self._env_var_check_callback)
+        dag.create_dagrun(
+            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            external_trigger=False)
+        ti = TI(task=op, execution_date=DEFAULT_DATE)
+        ti.state = State.RUNNING
+        session = settings.Session()
+        session.merge(ti)
+        session.commit()
+        ti._run_raw_task()
+        ti.refresh_from_db()
+        self.assertEqual(ti.state, State.SUCCESS)
+
+    def test_generate_command_default_param(self):
+        dag_id = 'test_generate_command_default_param'
+        task_id = 'task'
+        assert_command = ['airflow', 'tasks', 'run', dag_id, task_id, DEFAULT_DATE.isoformat()]
+        generate_command = TI.generate_command(dag_id=dag_id, task_id=task_id, execution_date=DEFAULT_DATE)
+        assert assert_command == generate_command
+
+    def test_generate_command_specific_param(self):
+        dag_id = 'test_generate_command_specific_param'
+        task_id = 'task'
+        assert_command = ['airflow', 'tasks', 'run', dag_id,
+                          task_id, DEFAULT_DATE.isoformat(), '--mark-success']
+        generate_command = TI.generate_command(dag_id=dag_id, task_id=task_id,
+                                               execution_date=DEFAULT_DATE, mark_success=True)
+        assert assert_command == generate_command
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])

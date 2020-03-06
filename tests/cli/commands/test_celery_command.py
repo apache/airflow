@@ -80,7 +80,7 @@ class TestWorkerServeLogs(unittest.TestCase):
     @mock.patch('airflow.cli.commands.celery_command.worker_bin')
     def test_serve_logs_on_worker_start(self, mock_worker):
         with mock.patch('airflow.cli.commands.celery_command.Process') as mock_process:
-            args = self.parser.parse_args(['celery', 'worker', '-c', '1'])
+            args = self.parser.parse_args(['celery', 'worker', '--concurrency', '1'])
 
             with mock.patch('celery.platforms.check_privileges') as mock_privil:
                 mock_privil.return_value = 0
@@ -90,7 +90,7 @@ class TestWorkerServeLogs(unittest.TestCase):
     @mock.patch('airflow.cli.commands.celery_command.worker_bin')
     def test_skip_serve_logs_on_worker_start(self, mock_worker):
         with mock.patch('airflow.cli.commands.celery_command.Process') as mock_popen:
-            args = self.parser.parse_args(['celery', 'worker', '-c', '1', '-s'])
+            args = self.parser.parse_args(['celery', 'worker', '--concurrency', '1', '--skip-serve-logs'])
 
             with mock.patch('celery.platforms.check_privileges') as mock_privil:
                 mock_privil.return_value = 0
@@ -141,7 +141,7 @@ class TestCeleryStopCommand(unittest.TestCase):
         mock_read_pid_from_pidfile.return_value = None
 
         # Call worker
-        worker_args = self.parser.parse_args(['celery', 'worker', '-s'])
+        worker_args = self.parser.parse_args(['celery', 'worker', '--skip-serve-logs'])
         celery_command.worker(worker_args)
         run_mock = mock_celery_worker.return_value.run
         assert run_mock.call_args
@@ -181,7 +181,7 @@ class TestWorkerStart(unittest.TestCase):
             autoscale,
             '--concurrency',
             concurrency,
-            '--celery_hostname',
+            '--celery-hostname',
             celery_hostname,
             '--queues',
             queues

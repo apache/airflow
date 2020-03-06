@@ -655,7 +655,7 @@ class SageMakerHook(AwsBaseHook):
                 # ensure that the job gets killed if the max ingestion time is exceeded
                 raise AirflowException(f'SageMaker job took more than {max_ingestion_time} seconds')
 
-        self.log.info('SageMaker Job Compeleted')
+        self.log.info('SageMaker Job completed')
         response = describe_function(job_name)
         return response
 

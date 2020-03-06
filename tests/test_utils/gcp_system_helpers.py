@@ -147,15 +147,17 @@ class GoogleSystemTest(SystemTest):
 
     @staticmethod
     def create_gcs_bucket(name: str, location: Optional[str] = None) -> None:
+        bucket_name = f"gs://{name}" if not name.startswith("gs://") else name
         cmd = ["gsutil", "mb"]
         if location:
             cmd += ["-c", "regional", "-l", location]
-        cmd += [f"gs://{name}"]
+        cmd += [bucket_name]
         GoogleSystemTest.execute_with_ctx(cmd, key=GCP_GCS_KEY)
 
     @staticmethod
     def delete_gcs_bucket(name: str):
-        cmd = ["gsutil", "-m", "rm", "-r", f"gs://{name}"]
+        bucket_name = f"gs://{name}" if not name.startswith("gs://") else name
+        cmd = ["gsutil", "-m", "rm", "-r", bucket_name]
         GoogleSystemTest.execute_with_ctx(cmd, key=GCP_GCS_KEY)
 
     @staticmethod

@@ -21,6 +21,7 @@ import hashlib
 import json
 import multiprocessing
 import re
+import time
 from queue import Empty, Queue  # pylint: disable=unused-import
 from typing import Any, Dict, Optional, Tuple, Union
 
@@ -29,6 +30,7 @@ from dateutil import parser
 from kubernetes import client, watch
 from kubernetes.client import Configuration
 from kubernetes.client.rest import ApiException
+from urllib3.exceptions import ReadTimeoutError
 
 from airflow import settings
 from airflow.configuration import conf
@@ -289,6 +291,10 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             try:
                 self.resource_version = self._run(kube_client, self.resource_version,
                                                   self.worker_uuid, self.kube_config)
+            except ReadTimeoutError:
+                self.log.warning("There was a timeout error accessing the Kube API. "
+                                 "Retrying request.", exc_info=True)
+                time.sleep(1)
             except Exception:
                 self.log.exception('Unknown error in KubernetesJobWatcher. Failing')
                 raise

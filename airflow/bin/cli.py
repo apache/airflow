@@ -86,22 +86,22 @@ class CLIFactory:
             ("execution_date",), help="The execution date of the DAG",
             type=parsedate),
         'task_regex': Arg(
-            ("-t", "--task_regex"),
+            ("-t", "--task-regex"),
             "The regex to filter specific task_ids to backfill (optional)"),
         'subdir': Arg(
-            ("-sd", "--subdir"),
+            ("-S", "--subdir"),
             "File location or directory from which to look for the dag. "
             "Defaults to '[AIRFLOW_HOME]/dags' where [AIRFLOW_HOME] is the "
             "value you set for 'AIRFLOW_HOME' config you set in 'airflow.cfg' ",
             default=DAGS_FOLDER),
         'start_date': Arg(
-            ("-s", "--start_date"), "Override start_date YYYY-MM-DD",
+            ("-s", "--start-date"), "Override start_date YYYY-MM-DD",
             type=parsedate),
         'end_date': Arg(
-            ("-e", "--end_date"), "Override end_date YYYY-MM-DD",
+            ("-e", "--end-date"), "Override end_date YYYY-MM-DD",
             type=parsedate),
         'dry_run': Arg(
-            ("-dr", "--dry_run"), "Perform a dry run", "store_true"),
+            ("-n", "--dry-run"), "Perform a dry run", "store_true"),
         'pid': Arg(
             ("--pid",), "PID file location",
             nargs='?'),
@@ -130,7 +130,7 @@ class CLIFactory:
 
         # list_dag_runs
         'no_backfill': Arg(
-            ("--no_backfill",),
+            ("--no-backfill",),
             "filter all the backfill dagruns given the dag id", "store_true"),
         'state': Arg(
             ("--state",),
@@ -145,7 +145,7 @@ class CLIFactory:
 
         # backfill
         'mark_success': Arg(
-            ("-m", "--mark_success"),
+            ("-m", "--mark-success"),
             "Mark jobs as succeeded without running them", "store_true"),
         'verbose': Arg(
             ("-v", "--verbose"),
@@ -154,20 +154,20 @@ class CLIFactory:
             ("-l", "--local"),
             "Run the task using the LocalExecutor", "store_true"),
         'donot_pickle': Arg(
-            ("-x", "--donot_pickle"), (
+            ("-x", "--donot-pickle"), (
                 "Do not attempt to pickle the DAG object to send over "
                 "to the workers, just tell the workers to run their version "
                 "of the code"),
             "store_true"),
         'bf_ignore_dependencies': Arg(
-            ("-i", "--ignore_dependencies"),
+            ("-i", "--ignore-dependencies"),
             (
                 "Skip upstream tasks, run only the tasks "
                 "matching the regexp. Only works in conjunction "
                 "with task_regex"),
             "store_true"),
         'bf_ignore_first_depends_on_past': Arg(
-            ("-I", "--ignore_first_depends_on_past"),
+            ("-I", "--ignore-first-depends-on-past"),
             (
                 "Ignores depends_on_past dependencies for the first "
                 "set of tasks only (subsequent executions in the backfill "
@@ -175,7 +175,7 @@ class CLIFactory:
             "store_true"),
         'pool': Arg(("--pool",), "Resource pool to use"),
         'delay_on_limit': Arg(
-            ("--delay_on_limit",),
+            ("--delay-on-limit",),
             help=("Amount of time in seconds to wait when the limit "
                   "on maximum active dag runs (max_active_runs) has "
                   "been reached before trying to execute a dag run "
@@ -183,21 +183,21 @@ class CLIFactory:
             type=float,
             default=1.0),
         'reset_dag_run': Arg(
-            ("--reset_dagruns",),
+            ("--reset-dagruns",),
             (
                 "if set, the backfill will delete existing "
                 "backfill-related DAG runs and start "
                 "anew with fresh, running DAG runs"),
             "store_true"),
         'rerun_failed_tasks': Arg(
-            ("--rerun_failed_tasks",),
+            ("--rerun-failed-tasks",),
             (
                 "if set, the backfill will auto-rerun "
                 "all the failed tasks for the backfill date range "
                 "instead of throwing exceptions"),
             "store_true"),
         'run_backwards': Arg(
-            ("-B", "--run_backwards",),
+            ("-B", "--run-backwards",),
             (
                 "if set, the backfill will run tasks from the most "
                 "recent day first.  if there are tasks that depend_on_past "
@@ -213,20 +213,20 @@ class CLIFactory:
         'upstream': Arg(
             ("-u", "--upstream"), "Include upstream tasks", "store_true"),
         'only_failed': Arg(
-            ("-f", "--only_failed"), "Only failed jobs", "store_true"),
+            ("-f", "--only-failed"), "Only failed jobs", "store_true"),
         'only_running': Arg(
-            ("-r", "--only_running"), "Only running jobs", "store_true"),
+            ("-r", "--only-running"), "Only running jobs", "store_true"),
         'downstream': Arg(
             ("-d", "--downstream"), "Include downstream tasks", "store_true"),
         'exclude_subdags': Arg(
-            ("-x", "--exclude_subdags"),
+            ("-x", "--exclude-subdags"),
             "Exclude subdags", "store_true"),
         'exclude_parentdag': Arg(
-            ("-xp", "--exclude_parentdag"),
+            ("-X", "--exclude-parentdag"),
             "Exclude ParentDAGS if the task cleared is a part of a SubDAG",
             "store_true"),
         'dag_regex': Arg(
-            ("-dx", "--dag_regex"),
+            ("-R", "--dag-regex"),
             "Search dag_id as regex instead of exact string", "store_true"),
         # show_dag
         'save': Arg(
@@ -249,12 +249,12 @@ class CLIFactory:
             "For more information, see: https://www.iterm2.com/documentation-images.html",
             action='store_true'),
         # trigger_dag
-        'run_id': Arg(("-r", "--run_id"), "Helps to identify this run"),
+        'run_id': Arg(("-r", "--run-id"), "Helps to identify this run"),
         'conf': Arg(
             ('-c', '--conf'),
             "JSON string that gets pickled into the DagRun's conf attribute"),
         'exec_date': Arg(
-            ("-e", "--exec_date"), help="The execution date of the DAG",
+            ("-e", "--exec-date"), help="The execution date of the DAG",
             type=parsedate),
         # pool
         'pool_name': Arg(
@@ -303,7 +303,7 @@ class CLIFactory:
         'principal': Arg(
             ("principal",), "kerberos principal", nargs='?'),
         'keytab': Arg(
-            ("-kt", "--keytab"), "keytab",
+            ("-k", "--keytab"), "keytab",
             nargs='?', default=conf.get('kerberos', 'keytab')),
         # run
         # TODO(aoen): "force" is a poor choice of name here since it implies it overrides
@@ -312,7 +312,7 @@ class CLIFactory:
         # the "ignore_all_dependencies" command should be called the"force" command
         # instead.
         'interactive': Arg(
-            ('-int', '--interactive'),
+            ('-N', '--interactive'),
             help='Do not capture standard output and error streams '
                  '(useful for interactive debugging)',
             action='store_true'),
@@ -323,7 +323,7 @@ class CLIFactory:
             "store_true"),
         'raw': Arg(("-r", "--raw"), argparse.SUPPRESS, "store_true"),
         'ignore_all_dependencies': Arg(
-            ("-A", "--ignore_all_dependencies"),
+            ("-A", "--ignore-all-dependencies"),
             "Ignores all non-critical dependencies, including ignore_ti_state and "
             "ignore_task_deps",
             "store_true"),
@@ -333,25 +333,25 @@ class CLIFactory:
         # slightly better (as it ignores all dependencies that are specific to the task),
         # so deprecate the old command name and use this instead.
         'ignore_dependencies': Arg(
-            ("-i", "--ignore_dependencies"),
+            ("-i", "--ignore-dependencies"),
             "Ignore task-specific dependencies, e.g. upstream, depends_on_past, and "
             "retry delay dependencies",
             "store_true"),
         'ignore_depends_on_past': Arg(
-            ("-I", "--ignore_depends_on_past"),
+            ("-I", "--ignore-depends-on-past"),
             "Ignore depends_on_past dependencies (but respect "
             "upstream dependencies)",
             "store_true"),
         'ship_dag': Arg(
-            ("--ship_dag",),
+            ("--ship-dag",),
             "Pickles (serializes) the DAG and ships it to the worker",
             "store_true"),
         'pickle': Arg(
             ("-p", "--pickle"),
             "Serialized pickle object of the entire dag (used internally)"),
-        'job_id': Arg(("-j", "--job_id"), argparse.SUPPRESS),
+        'job_id': Arg(("-j", "--job-id"), argparse.SUPPRESS),
         'cfg_path': Arg(
-            ("--cfg_path",), "Path to config file to use instead of airflow.cfg"),
+            ("--cfg-path",), "Path to config file to use instead of airflow.cfg"),
         # webserver
         'port': Arg(
             ("-p", "--port"),
@@ -359,11 +359,11 @@ class CLIFactory:
             type=int,
             help="The port on which to run the server"),
         'ssl_cert': Arg(
-            ("--ssl_cert",),
+            ("--ssl-cert",),
             default=conf.get('webserver', 'WEB_SERVER_SSL_CERT'),
             help="Path to the SSL certificate for the webserver"),
         'ssl_key': Arg(
-            ("--ssl_key",),
+            ("--ssl-key",),
             default=conf.get('webserver', 'WEB_SERVER_SSL_KEY'),
             help="Path to the key to use with the SSL certificate"),
         'workers': Arg(
@@ -377,12 +377,12 @@ class CLIFactory:
             choices=['sync', 'eventlet', 'gevent', 'tornado'],
             help="The worker class to use for Gunicorn"),
         'worker_timeout': Arg(
-            ("-t", "--worker_timeout"),
+            ("-t", "--worker-timeout"),
             default=conf.get('webserver', 'WEB_SERVER_WORKER_TIMEOUT'),
             type=int,
             help="The timeout for waiting on webserver workers"),
         'hostname': Arg(
-            ("-hn", "--hostname"),
+            ("-H", "--hostname"),
             default=conf.get('webserver', 'WEB_SERVER_HOST'),
             help="Set the hostname on which to run the web server"),
         'debug': Arg(
@@ -390,24 +390,24 @@ class CLIFactory:
             "Use the server that ships with Flask in debug mode",
             "store_true"),
         'access_logfile': Arg(
-            ("-A", "--access_logfile"),
+            ("-A", "--access-logfile"),
             default=conf.get('webserver', 'ACCESS_LOGFILE'),
             help="The logfile to store the webserver access log. Use '-' to print to "
                  "stderr"),
         'error_logfile': Arg(
-            ("-E", "--error_logfile"),
+            ("-E", "--error-logfile"),
             default=conf.get('webserver', 'ERROR_LOGFILE'),
             help="The logfile to store the webserver error log. Use '-' to print to "
                  "stderr"),
         # scheduler
-        'dag_id_opt': Arg(("-d", "--dag_id"), help="The id of the dag to run"),
+        'dag_id_opt': Arg(("-d", "--dag-id"), help="The id of the dag to run"),
         'num_runs': Arg(
-            ("-n", "--num_runs"),
+            ("-n", "--num-runs"),
             default=conf.getint('scheduler', 'num_runs'), type=int,
             help="Set the number of runs to execute before exiting"),
         # worker
         'do_pickle': Arg(
-            ("-p", "--do_pickle"),
+            ("-p", "--do-pickle"),
             default=False,
             help=(
                 "Attempt to pickle the DAG object to send over "
@@ -424,13 +424,13 @@ class CLIFactory:
             help="The number of worker processes",
             default=conf.get('celery', 'worker_concurrency')),
         'celery_hostname': Arg(
-            ("-cn", "--celery_hostname"),
+            ("-H", "--celery-hostname"),
             help=("Set the hostname of celery worker "
                   "if you have multiple workers on a single machine")),
         # flower
-        'broker_api': Arg(("-a", "--broker_api"), help="Broker api"),
+        'broker_api': Arg(("-a", "--broker-api"), help="Broker api"),
         'flower_hostname': Arg(
-            ("-hn", "--hostname"),
+            ("-H", "--hostname"),
             default=conf.get('celery', 'FLOWER_HOST'),
             help="Set the hostname on which to run the server"),
         'flower_port': Arg(
@@ -439,23 +439,23 @@ class CLIFactory:
             type=int,
             help="The port on which to run the server"),
         'flower_conf': Arg(
-            ("-fc", "--flower_conf"),
+            ("-c", "--flower-conf"),
             help="Configuration file for flower"),
         'flower_url_prefix': Arg(
-            ("-u", "--url_prefix"),
+            ("-u", "--url-prefix"),
             default=conf.get('celery', 'FLOWER_URL_PREFIX'),
             help="URL prefix for Flower"),
         'flower_basic_auth': Arg(
-            ("-ba", "--basic_auth"),
+            ("-A", "--basic-auth"),
             default=conf.get('celery', 'FLOWER_BASIC_AUTH'),
             help=("Securing Flower with Basic Authentication. "
                   "Accepts user:password pairs separated by a comma. "
                   "Example: flower_basic_auth = user1:password1,user2:password2")),
         'task_params': Arg(
-            ("-tp", "--task_params"),
+            ("-t", "--task-params"),
             help="Sends a JSON params dict to the task"),
         'post_mortem': Arg(
-            ("-pm", "--post_mortem"),
+            ("-m", "--post-mortem"),
             action="store_true",
             help="Open debugger on uncaught exception",
         ),
@@ -465,35 +465,35 @@ class CLIFactory:
             help='Connection id, required to add/delete a connection',
             type=str),
         'conn_uri': Arg(
-            ('--conn_uri',),
+            ('--conn-uri',),
             help='Connection URI, required to add a connection without conn_type',
             type=str),
         'conn_type': Arg(
-            ('--conn_type',),
+            ('--conn-type',),
             help='Connection type, required to add a connection without conn_uri',
             type=str),
         'conn_host': Arg(
-            ('--conn_host',),
+            ('--conn-host',),
             help='Connection host, optional when adding a connection',
             type=str),
         'conn_login': Arg(
-            ('--conn_login',),
+            ('--conn-login',),
             help='Connection login, optional when adding a connection',
             type=str),
         'conn_password': Arg(
-            ('--conn_password',),
+            ('--conn-password',),
             help='Connection password, optional when adding a connection',
             type=str),
         'conn_schema': Arg(
-            ('--conn_schema',),
+            ('--conn-schema',),
             help='Connection schema, optional when adding a connection',
             type=str),
         'conn_port': Arg(
-            ('--conn_port',),
+            ('--conn-port',),
             help='Connection port, optional when adding a connection',
             type=str),
         'conn_extra': Arg(
-            ('--conn_extra',),
+            ('--conn-extra',),
             help='Connection `Extra` field, optional when adding a connection',
             type=str),
         # users
@@ -535,10 +535,10 @@ class CLIFactory:
         'password': Arg(
             ('--password',),
             help='Password of the user, required to create a user '
-                 'without --use_random_password',
+                 'without --use-random-password',
             type=str),
         'use_random_password': Arg(
-            ('--use_random_password',),
+            ('--use-random-password',),
             help='Do not prompt for password. Use random string instead.'
                  ' Required to create a user without --password ',
             default=False,
@@ -579,7 +579,7 @@ class CLIFactory:
             ('-a', '--autoscale'),
             help="Minimum and Maximum number of worker to autoscale"),
         'skip_serve_logs': Arg(
-            ("-s", "--skip_serve_logs"),
+            ("-s", "--skip-serve-logs"),
             default=False,
             help="Don't start the serve logs process along with the workers",
             action="store_true"),
@@ -740,8 +740,7 @@ class CLIFactory:
             'func': lazy_load_command('airflow.cli.commands.task_command.task_states_for_dag_run'),
             'name': 'states_for_dag_run',
             'help': "Get the status of all task instances in a dag run",
-            'args': (
-                'dag_id', 'execution_date', 'output'),
+            'args': ('dag_id', 'execution_date', 'output'),
         },
     )
     POOLS_COMMANDS = (
@@ -837,19 +836,19 @@ class CLIFactory:
             'func': lazy_load_command('airflow.cli.commands.db_command.upgradedb'),
             'name': 'upgrade',
             'help': "Upgrade the metadata database to latest version",
-            'args': tuple(),
+            'args': (),
         },
         {
             'func': lazy_load_command('airflow.cli.commands.db_command.shell'),
             'name': 'shell',
             'help': "Runs a shell to access the database",
-            'args': tuple(),
+            'args': (),
         },
         {
             'func': lazy_load_command('airflow.cli.commands.db_command.check'),
             'name': 'check',
             'help': "Check if the database can be reached.",
-            'args': tuple(),
+            'args': (),
         },
     )
     CONNECTIONS_COMMANDS = (
@@ -872,7 +871,7 @@ class CLIFactory:
             'args': ('conn_id',),
         },
     )
-    USERS_COMMANDSS = (
+    USERS_COMMANDS = (
         {
             'func': lazy_load_command('airflow.cli.commands.user_command.users_list'),
             'name': 'list',
@@ -978,7 +977,7 @@ class CLIFactory:
             'name': 'version',
             'func': lazy_load_command('airflow.cli.commands.version_command.version'),
             'help': "Show the version",
-            'args': tuple(),
+            'args': (),
         }, {
             'help': "List/Add/Delete connections",
             'name': 'connections',
@@ -986,7 +985,7 @@ class CLIFactory:
         }, {
             'help': "CRUD operations on users",
             'name': 'users',
-            'subcommands': USERS_COMMANDSS,
+            'subcommands': USERS_COMMANDS,
         }, {
             'help': 'Create/List roles',
             'name': 'roles',
@@ -995,7 +994,7 @@ class CLIFactory:
             'name': 'sync_perm',
             'func': lazy_load_command('airflow.cli.commands.sync_perm_command.sync_perm'),
             'help': "Update permissions for existing roles and DAGs",
-            'args': tuple(),
+            'args': (),
         },
         {
             'name': 'rotate_fernet_key',

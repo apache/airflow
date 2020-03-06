@@ -170,8 +170,8 @@ or by using the ``--integration all`` switch that enables all integrations.
 
 NOTE: Every integration requires a separate container with the corresponding integration image.
 They take precious resources on your PC, mainly the memory. The started integrations are not stopped
-until you stop the Breeze environment with the ``stop-environment`` command  and restart it
-via ``restart-environment`` command.
+until you stop the Breeze environment with the ``stop`` command  and restart it
+via ``restart`` command.
 
 The following integrations are available:
 
@@ -644,9 +644,9 @@ To run the tests for Airflow 1.10.* series, you need to run Breeze with
 If ``current`` is specified (default), then the current version of Airflow is used.
 Otherwise, the released version of Airflow is installed.
 
-You should also consider running it with ``restart-environment`` command when you change installed version.
+You should also consider running it with ``restart`` command when you change installed version.
 This will clean-up the database so that you start with a clean DB and not DB installed in a previous version.
-So typically you'd run it like ``breeze --install-ariflow-version=1.10.9 restart-environment``.
+So typically you'd run it like ``breeze --install-ariflow-version=1.10.9 restart``.
 
 BASH Unit Testing (BATS)
 ========================

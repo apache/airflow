@@ -67,7 +67,7 @@ class TestCliUsers(unittest.TestCase):
         args = self.parser.parse_args([
             'users', 'create', '--username', 'test1', '--lastname', 'doe',
             '--firstname', 'jon',
-            '--email', 'jdoe@foo.com', '--role', 'Viewer', '--use_random_password'
+            '--email', 'jdoe@foo.com', '--role', 'Viewer', '--use-random-password'
         ])
         user_command.users_create(args)
 
@@ -83,7 +83,7 @@ class TestCliUsers(unittest.TestCase):
         args = self.parser.parse_args([
             'users', 'create', '--username', 'test3', '--lastname', 'doe',
             '--firstname', 'jon',
-            '--email', 'jdoe@example.com', '--role', 'Viewer', '--use_random_password'
+            '--email', 'jdoe@example.com', '--role', 'Viewer', '--use-random-password'
         ])
         user_command.users_create(args)
         args = self.parser.parse_args([
@@ -97,7 +97,7 @@ class TestCliUsers(unittest.TestCase):
                 'users', 'create', '--username', 'user{}'.format(i), '--lastname',
                 'doe', '--firstname', 'jon',
                 '--email', 'jdoe+{}@gmail.com'.format(i), '--role', 'Viewer',
-                '--use_random_password'
+                '--use-random-password'
             ])
             user_command.users_create(args)
         with redirect_stdout(io.StringIO()) as stdout:
@@ -211,7 +211,7 @@ class TestCliUsers(unittest.TestCase):
         args = self.parser.parse_args([
             'users', 'create', '--username', 'test4', '--lastname', 'doe',
             '--firstname', 'jon',
-            '--email', TEST_USER1_EMAIL, '--role', 'Viewer', '--use_random_password'
+            '--email', TEST_USER1_EMAIL, '--role', 'Viewer', '--use-random-password'
         ])
         user_command.users_create(args)
 
@@ -234,7 +234,7 @@ class TestCliUsers(unittest.TestCase):
         args = self.parser.parse_args([
             'users', 'create', '--username', 'test4', '--lastname', 'doe',
             '--firstname', 'jon',
-            '--email', TEST_USER1_EMAIL, '--role', 'Viewer', '--use_random_password'
+            '--email', TEST_USER1_EMAIL, '--role', 'Viewer', '--use-random-password'
         ])
         user_command.users_create(args)
 

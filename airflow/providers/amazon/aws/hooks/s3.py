@@ -25,6 +25,8 @@ import io
 import re
 from functools import wraps
 from inspect import signature
+from tempfile import NamedTemporaryFile
+from typing import Optional
 from urllib.parse import urlparse
 
 from botocore.exceptions import ClientError
@@ -652,3 +654,36 @@ class S3Hook(AwsBaseHook):
             if "Errors" in response:
                 errors_keys = [x['Key'] for x in response.get("Errors", [])]
                 raise AirflowException("Errors when deleting: {}".format(errors_keys))
+
+    @provide_bucket_name
+    @unify_bucket_name_and_key
+    def download_file(
+        self,
+        key: str,
+        bucket_name: Optional[str] = None,
+        local_path: Optional[str] = None
+    ) -> str:
+        """
+        Downloads a file from the S3 location to the local file system.
+
+        :param key: The key path in S3.
+        :type key: str
+        :param bucket_name: The specific bucket to use.
+        :type bucket_name: Optional[str]
+        :param local_path: The local path to the downloaded file. If no path is provided it will use the
+            system's temporary directory.
+        :type local_path: Optional[str]
+        :return: the file name.
+        :rtype: str
+        """
+        self.log.info('Downloading source S3 file from Bucket %s with path %s', bucket_name, key)
+
+        if not self.check_for_key(key, bucket_name):
+            raise AirflowException(f'The source file in Bucket {bucket_name} with path {key} does not exist')
+
+        s3_obj = self.get_key(key, bucket_name)
+
+        with NamedTemporaryFile(dir=local_path, prefix='airflow_tmp_', delete=False) as local_tmp_file:
+            s3_obj.download_fileobj(local_tmp_file)
+
+        return local_tmp_file.name

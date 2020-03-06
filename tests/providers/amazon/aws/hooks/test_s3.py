@@ -17,6 +17,7 @@
 # under the License.
 #
 import tempfile
+from unittest.mock import Mock
 
 import boto3
 import mock
@@ -315,3 +316,20 @@ class TestAwsS3Hook:
         with pytest.raises(ValueError) as err:
             fake_s3_hook.test_function_with_test_key('s3://foo/bar.csv')
         assert isinstance(err.value, ValueError)
+
+    @mock.patch('airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile')
+    def test_download_file(self, mock_temp_file):
+        mock_temp_file.return_value.__enter__ = Mock(return_value=mock_temp_file)
+        s3_hook = S3Hook(aws_conn_id='s3_test')
+        s3_hook.check_for_key = Mock(return_value=True)
+        s3_obj = Mock()
+        s3_obj.download_fileobj = Mock(return_value=None)
+        s3_hook.get_key = Mock(return_value=s3_obj)
+        key = 'test_key'
+        bucket = 'test_bucket'
+
+        s3_hook.download_file(key=key, bucket_name=bucket)
+
+        s3_hook.check_for_key.assert_called_once_with(key, bucket)
+        s3_hook.get_key.assert_called_once_with(key, bucket)
+        s3_obj.download_fileobj.assert_called_once_with(mock_temp_file)

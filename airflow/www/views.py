@@ -27,7 +27,8 @@ import pkgutil
 import socket
 import traceback
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple
 from urllib.parse import quote, unquote
 
 import lazy_object_proxy
@@ -41,6 +42,7 @@ from flask_appbuilder import BaseView, ModelView, expose, has_access, permission
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_babel import lazy_gettext
+from jinja2.utils import htmlsafe_json_dumps  # type: ignore
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy import and_, desc, func, or_, union_all
@@ -139,7 +141,6 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
 ######################################################################################
 #                                    BaseViews
 ######################################################################################
-
 @app.errorhandler(404)
 def circles(error):
     return render_template(
@@ -1336,7 +1337,6 @@ class Airflow(AirflowBaseView):
     @gzipped
     @action_logging
     def tree(self):
-        default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
@@ -1353,7 +1353,10 @@ class Airflow(AirflowBaseView):
 
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs')
-        num_runs = int(num_runs) if num_runs else default_dag_run
+        if num_runs:
+            num_runs = int(num_runs)
+        else:
+            num_runs = conf.getint('webserver', 'default_dag_run_display_number')
 
         if base_date:
             base_date = timezone.parse(base_date)
@@ -1371,90 +1374,115 @@ class Airflow(AirflowBaseView):
                 .all()
             )
         dag_runs = {
-            dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
+            dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs
+        }
 
         dates = sorted(list(dag_runs.keys()))
         max_date = max(dates) if dates else None
         min_date = min(dates) if dates else None
 
         tis = dag.get_task_instances(start_date=min_date, end_date=base_date)
-        task_instances = {}
+        task_instances: Dict[Tuple[str, datetime], models.TaskInstance] = {}
         for ti in tis:
-            tid = alchemy_to_dict(ti)
-            dr = dag_runs.get(ti.execution_date)
-            tid['external_trigger'] = dr['external_trigger'] if dr else False
-            task_instances[(ti.task_id, ti.execution_date)] = tid
+            task_instances[(ti.task_id, ti.execution_date)] = ti
 
-        expanded = []
+        expanded = set()
         # The default recursion traces every path so that tree view has full
         # expand/collapse functionality. After 5,000 nodes we stop and fall
         # back on a quick DFS search for performance. See PR #320.
-        node_count = [0]
+        node_count = 0
         node_limit = 5000 / max(1, len(dag.leaves))
 
+        def encode_ti(ti: Optional[models.TaskInstance]) -> Optional[List]:
+            if not ti:
+                return None
+
+            # NOTE: order of entry is important here because client JS relies on it for
+            # tree node reconstruction. Remember to change JS code in tree.html
+            # whenever order is altered.
+            data = [
+                ti.state,
+                ti.try_number,
+                None,  # start_ts
+                None,  # duration
+            ]
+
+            if ti.start_date:
+                # round to seconds to reduce payload size
+                data[2] = int(ti.start_date.timestamp())
+                if ti.duration is not None:
+                    data[3] = int(ti.duration)
+
+            return data
+
         def recurse_nodes(task, visited):
+            nonlocal node_count
+            node_count += 1
             visited.add(task)
-            node_count[0] += 1
+            task_id = task.task_id
 
-            children = [
-                recurse_nodes(t, visited) for t in task.downstream_list
-                if node_count[0] < node_limit or t not in visited]
-
-            # D3 tree uses children vs _children to define what is
-            # expanded or not. The following block makes it such that
-            # repeated nodes are collapsed by default.
-            children_key = 'children'
-            if task.task_id not in expanded:
-                expanded.append(task.task_id)
-            elif children:
-                children_key = "_children"
-
-            def set_duration(tid):
-                if (isinstance(tid, dict) and tid.get("state") == State.RUNNING and
-                        tid["start_date"] is not None):
-                    d = timezone.utcnow() - timezone.parse(tid["start_date"])
-                    tid["duration"] = d.total_seconds()
-                return tid
-
-            return {
+            node = {
                 'name': task.task_id,
                 'instances': [
-                    set_duration(task_instances.get((task.task_id, d))) or {
-                        'execution_date': d.isoformat(),
-                        'task_id': task.task_id
-                    }
-                    for d in dates],
-                children_key: children,
+                    encode_ti(task_instances.get((task_id, d)))
+                    for d in dates
+                ],
                 'num_dep': len(task.downstream_list),
                 'operator': task.task_type,
                 'retries': task.retries,
                 'owner': task.owner,
-                'start_date': task.start_date,
-                'end_date': task.end_date,
-                'depends_on_past': task.depends_on_past,
                 'ui_color': task.ui_color,
-                'extra_links': task.extra_links,
             }
+
+            if task.downstream_list:
+                children = [
+                    recurse_nodes(t, visited) for t in task.downstream_list
+                    if node_count < node_limit or t not in visited]
+
+                # D3 tree uses children vs _children to define what is
+                # expanded or not. The following block makes it such that
+                # repeated nodes are collapsed by default.
+                if task.task_id not in expanded:
+                    children_key = 'children'
+                    expanded.add(task.task_id)
+                else:
+                    children_key = "_children"
+                node[children_key] = children
+
+            if task.depends_on_past:
+                node['depends_on_past'] = task.depends_on_past
+            if task.start_date:
+                # round to seconds to reduce payload size
+                node['start_ts'] = int(task.start_date.timestamp())
+                if task.end_date:
+                    # round to seconds to reduce payload size
+                    node['end_ts'] = int(task.end_date.timestamp())
+            if task.extra_links:
+                node['extra_links'] = task.extra_links
+            return node
 
         data = {
             'name': '[DAG]',
             'children': [recurse_nodes(t, set()) for t in dag.roots],
             'instances': [
                 dag_runs.get(d) or {'execution_date': d.isoformat()}
-                for d in dates],
+                for d in dates
+            ],
         }
-
-        session.commit()
 
         form = DateTimeWithNumRunsForm(data={'base_date': max_date,
                                              'num_runs': num_runs})
         external_logs = conf.get('elasticsearch', 'frontend')
+
         return self.render_template(
             'airflow/tree.html',
             operators=sorted({op.task_type: op for op in dag.tasks}.values(), key=lambda x: x.task_type),
             root=root,
             form=form,
-            dag=dag, data=data, blur=blur, num_runs=num_runs,
+            dag=dag,
+            # avoid spaces to reduce payload size
+            data=htmlsafe_json_dumps(data, separators=(',', ':')),
+            blur=blur, num_runs=num_runs,
             show_external_logs=bool(external_logs))
 
     @expose('/graph')
