@@ -72,6 +72,7 @@ shell
 build-docs
 build-only
 cleanup-images
+exec
 initialize-local-virtualenv
 setup-autocomplete
 stop
