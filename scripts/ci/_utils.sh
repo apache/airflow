@@ -469,7 +469,7 @@ function confirm_image_rebuild() {
         # shellcheck disable=SC1090
         source "${LAST_FORCE_ANSWER_FILE}"
     fi
-    set e
+    set +e
     local RES
     if [[ ${CI:="false"} == "true" ]]; then
         print_info
