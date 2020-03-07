@@ -245,6 +245,24 @@ When you enter the Breeze environment, automatically an environment file is sour
 automatically mounted to the container under ``/files`` path and you can put there any files you want
 to make available fot the Breeze container.
 
+Launching multiple terminals
+----------------------------
+
+Often if you want to run full airflow in the Breeze environment you need to launch multiple terminals and
+run ``airflow webserver``, ``airflow scheduler``, ``airflow worker`` in separate terminals.
+
+This can be achieved either via ``tmux`` or via exec-ing into the running container from the host. Tmux
+is installed inside the container and you can launch it with ``tmux`` command. Tmux provide you with the
+capability of creating multiple virtual terminals and multiplex between them. More about ``tmux`` can be
+found at `tmux github wiki page <https://github.com/tmux/tmux/wiki>`_ . Tmux has several useful shortcuts
+that allow you to split the terminals, open new tabs etc - it's pretty useful to learn it.
+
+Another - slightly easier - way is to exec into Breeze terminal from the host's terminal. Often you can
+have multiple terminals in the host (Linux/MacOS/WSL2 on Windows) and you can simply use those terminals
+to enter running container. It's as easy as launching ``breeze exec`` while you already started the
+Breeze environment. You will be dropped into bash and environment variables will be read in the same
+way as when you enter the environment. You can do it multiple times and open as many terminals as you need.
+
 Stopping Breeze
 ---------------
 
@@ -619,6 +637,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
     build-docs                               Builds documentation in the container
     build-only                               Only builds docker images without entering container
     cleanup-images                           Cleans up the container images created
+    exec                                     Execs into running breeze container in new terminal
     initialize-local-virtualenv              Initializes local virtualenv
     setup-autocomplete                       Sets up autocomplete for breeze
     stop                                     Stops the docker-compose evironment
@@ -682,6 +701,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
         Removes the breeze-related images created in your local docker image cache. This will
         not reclaim space in docker cache. You need to 'docker system prune' (optionally
         with --all) to reclaim that space.
+  ****************************************************************************************************
+  breeze [FLAGS] exec -- <EXTRA_ARGS>
+
+        Execs into interactive shell to an already running container. The container mus be started
+        already by breeze shell command. If you are not familiar with tmux, this is the best
+        way to run multiple processes in the same container at the same time for example scheduler,
+        webserver, workers, database console and interactive terminal.
   ****************************************************************************************************
   breeze [FLAGS] initialize-local-virtualenv -- <EXTRA_ARGS>
 

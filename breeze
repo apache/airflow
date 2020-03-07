@@ -659,6 +659,10 @@ function parse_arguments() {
         shell)
           LAST_SUBCOMMAND="${1}"
           shift ;;
+        exec)
+          LAST_SUBCOMMAND="${1}"
+          COMMAND_TO_RUN="run_exec"
+          shift ;;
         build-docs)
           LAST_SUBCOMMAND="${1}"
           COMMAND_TO_RUN="build_docs"
@@ -838,6 +842,7 @@ prepare_allowed_versions() {
 prepare_usage() {
     # Note that MacOS uses Bash 3.* and we cannot use associative arrays
     export USAGE_SHELL="[Default] Enters interactive shell in the container"
+    export USAGE_EXEC="Execs into running breeze container in new terminal"
     export USAGE_BUILD_DOCS="Builds documentation in the container"
     export USAGE_BUILD_ONLY="Only builds docker images without entering container"
     export USAGE_CLEANUP_IMAGES="Cleans up the container images created"
@@ -872,6 +877,12 @@ prepare_usage() {
       and setup. This file is automatically sourced when you enter the container. Database
       and webserver ports are forwarded to appropriate database/webserver so that you can
       connect to it from your host environment.
+"
+    export DETAILED_USAGE_EXEC="
+      Execs into interactive shell to an already running container. The container mus be started
+      already by breeze shell command. If you are not familiar with tmux, this is the best
+      way to run multiple processes in the same container at the same time for example scheduler,
+      webserver, workers, database console and interactive terminal.
 "
     export DETAILED_USAGE_BUILD_DOCS="
       Builds airflow documentation. The documentation is build inside docker container - to
@@ -1420,7 +1431,7 @@ function run_build_command {
         perform_static_checks|build_ci_images_only)
             rebuild_ci_image_if_needed
             ;;
-        cleanup_images)
+        cleanup_images|run_exec)
             ;;
         perform_initialize_local_virtualenv|perform_setup_autocomplete)
             ;;
@@ -1437,6 +1448,21 @@ function run_breeze_command {
     case "${COMMAND_TO_RUN}" in
         enter_breeze)
             "${BUILD_CACHE_DIR}/${LAST_DC_RUN_FILE}"
+            ;;
+        run_exec)
+            # Unfortunately docker-compose exec does not support execing into containers started with run :(
+            set +e
+            AIRFLOW_TESTING_CONTAINER=$("${BUILD_CACHE_DIR}/${LAST_DC_FILE}" ps | \
+                    grep airflow-testing | awk '{print $1}' 2>/dev/null)
+            if [[ -z ${AIRFLOW_TESTING_CONTAINER} ]]; then
+                echo
+                echo "ERROR! Breeze must be running in order to exec into running container"
+                echo
+                exit 1
+            fi
+            set -e
+            docker exec -it "${AIRFLOW_TESTING_CONTAINER}" \
+                "/opt/airflow/scripts/ci/in_container/entrypoint_exec.sh"
             ;;
         run_tests)
             "${BUILD_CACHE_DIR}/${LAST_DC_TEST_FILE}" "\"${TEST_TARGET}\"" "$@"

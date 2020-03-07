@@ -182,39 +182,8 @@ if [[ "${ENABLE_KIND_CLUSTER}" == "true" ]]; then
     fi
 fi
 
-export FILES_DIR="/files"
-export AIRFLOW_BREEZE_CONFIG_DIR="${FILES_DIR}/airflow-breeze-config"
-VARIABLES_ENV_FILE="variables.env"
-
-if [[ -d "${FILES_DIR}" ]]; then
-    export AIRFLOW__CORE__DAGS_FOLDER="/files/dags"
-    mkdir -pv "${AIRFLOW__CORE__DAGS_FOLDER}"
-    sudo chown "${HOST_USER_ID}":"${HOST_GROUP_ID}" "${AIRFLOW__CORE__DAGS_FOLDER}"
-    echo "Your dags for webserver and scheduler are read from ${AIRFLOW__CORE__DAGS_FOLDER} directory"
-    echo "which is mounted from your <AIRFLOW_SOURCES>/files/dags folder"
-    echo
-else
-    export AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_HOME}/dags"
-    echo "Your dags for webserver and scheduler are read from ${AIRFLOW__CORE__DAGS_FOLDER} directory"
-fi
-
-
-if [[ -d "${AIRFLOW_BREEZE_CONFIG_DIR}" && \
-    -f "${AIRFLOW_BREEZE_CONFIG_DIR}/${VARIABLES_ENV_FILE}" ]]; then
-    pushd "${AIRFLOW_BREEZE_CONFIG_DIR}" >/dev/null 2>&1 || exit 1
-    echo
-    echo "Sourcing environment variables from ${VARIABLES_ENV_FILE} in ${AIRFLOW_BREEZE_CONFIG_DIR}"
-    echo
-     # shellcheck disable=1090
-    source "${VARIABLES_ENV_FILE}"
-    popd >/dev/null 2>&1 || exit 1
-else
-    echo
-    echo "You can add ${AIRFLOW_BREEZE_CONFIG_DIR} directory and place ${VARIABLES_ENV_FILE}"
-    echo "In it to make breeze source the variables automatically for you"
-    echo
-fi
-
+# shellcheck source=scripts/ci/in_container/configure_environment.sh
+. "${MY_DIR}/configure_environment.sh"
 
 set +u
 # If we do not want to run tests, we simply drop into bash
