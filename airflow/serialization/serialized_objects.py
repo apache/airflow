@@ -326,14 +326,15 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     def deserialize_operator(cls, encoded_op: Dict[str, Any]) -> BaseOperator:
         """Deserializes an operator from a JSON object.
         """
-        from airflow.plugins_manager import operator_extra_links
+        from airflow import plugins_manager
+        plugins_manager.load_plugins()
 
         op = SerializedBaseOperator(task_id=encoded_op['task_id'])
 
         # Extra Operator Links defined in Plugins
         op_extra_links_from_plugin = {}
 
-        for ope in operator_extra_links:
+        for ope in plugins_manager.operator_extra_links:
             for operator in ope.operators:
                 if operator.__name__ == encoded_op["_task_type"] and \
                         operator.__module__ == encoded_op["_task_module"]:
@@ -397,7 +398,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         :param encoded_op_links: Serialized Operator Link
         :return: De-Serialized Operator Link
         """
-        from airflow.plugins_manager import registered_operator_link_classes
+        from airflow import plugins_manager
+        plugins_manager.load_plugins()
 
         op_predefined_extra_links = {}
 
@@ -433,8 +435,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             _operator_link_class_path, data = list(_operator_links_source.items())[0]
             if _operator_link_class_path in BUILTIN_OPERATOR_EXTRA_LINKS:
                 single_op_link_class = import_string(_operator_link_class_path)
-            elif _operator_link_class_path in registered_operator_link_classes:
-                single_op_link_class = registered_operator_link_classes[_operator_link_class_path]
+            elif _operator_link_class_path in plugins_manager.registered_operator_link_classes:
+                single_op_link_class = plugins_manager.registered_operator_link_classes[
+                    _operator_link_class_path
+                ]
             else:
                 raise KeyError("Operator Link class %r not registered" % _operator_link_class_path)
 

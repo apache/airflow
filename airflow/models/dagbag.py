@@ -33,6 +33,7 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDagBag
 from airflow.exceptions import AirflowDagCycleException
+from airflow.plugins_manager import integrate_dag_plugins
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.file import correct_maybe_zipped
@@ -191,6 +192,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         """
         from airflow.models.dag import DAG  # Avoid circular import
 
+        integrate_dag_plugins()
         found_dags = []
 
         # if the source file no longer exists in the DB or in the filesystem,
