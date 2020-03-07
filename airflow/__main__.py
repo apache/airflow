@@ -17,7 +17,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Main executable module"""
 
 import os
@@ -27,12 +26,15 @@ import argcomplete
 from airflow.cli import cli_parser
 from airflow.configuration import conf
 
+from airflow import settings
 
 def main():
     """Main executable function"""
     if conf.get("core", "security") == 'kerberos':
         os.environ['KRB5CCNAME'] = conf.get('kerberos', 'ccache')
         os.environ['KRB5_KTNAME'] = conf.get('kerberos', 'keytab')
+
+    settings.initialize()
 
     parser = cli_parser.get_parser()
     argcomplete.autocomplete(parser)

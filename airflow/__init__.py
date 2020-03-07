@@ -31,14 +31,11 @@ isort:skip_file
 import sys
 from typing import Callable, Optional
 
-from airflow import settings
 from airflow import version
 
 __version__ = version.version
 
 __all__ = ['__version__', 'login', 'DAG']
-
-settings.initialize()
 
 login: Optional[Callable] = None
 
