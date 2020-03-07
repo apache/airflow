@@ -28,7 +28,7 @@ from collections import defaultdict
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import timedelta
 from itertools import groupby
-from typing import List, Optional, Set
+from typing import List, Optional, Set, Tuple
 
 from setproctitle import setproctitle
 from sqlalchemy import and_, func, not_, or_
@@ -794,7 +794,9 @@ class DagFileProcessor(LoggingMixin):
         session.commit()
 
     @provide_session
-    def process_file(self, file_path, failure_callback_requests, pickle_dags=False, session=None):
+    def process_file(
+        self, file_path, failure_callback_requests, pickle_dags=False, session=None
+    ) -> Tuple[List[SimpleDag], int]:
         """
         Process a Python file containing Airflow DAGs.
 
@@ -818,8 +820,9 @@ class DagFileProcessor(LoggingMixin):
         :param pickle_dags: whether serialize the DAGs found in the file and
             save them to the db
         :type pickle_dags: bool
-        :return: a list of SimpleDags made from the Dags found in the file
-        :rtype: List[airflow.utils.dag_processing.SimpleDagBag]
+        :return: a tuple with list of SimpleDags made from the Dags found in the file and
+            count of import errors.
+        :rtype: Tuple[List[SimpleDag], int]
         """
         self.log.info("Processing file %s for tasks to queue", file_path)
         # As DAGs are parsed from this file, they will be converted into SimpleDags
@@ -830,7 +833,7 @@ class DagFileProcessor(LoggingMixin):
         except Exception:  # pylint: disable=broad-except
             self.log.exception("Failed at reloading the DAG file %s", file_path)
             Stats.incr('dag_file_refresh_error', 1, 1)
-            return [], []
+            return [], 0
 
         if len(dagbag.dags) > 0:
             self.log.info("DAG(s) %s retrieved from %s", dagbag.dags.keys(), file_path)
@@ -866,7 +869,7 @@ class DagFileProcessor(LoggingMixin):
         TI = models.TaskInstance
         filter_for_tis = TI.filter_for_tis(ti_keys_to_schedule)
 
-        refreshed_tis = []
+        refreshed_tis: List[models.TaskInstance] = []
 
         if filter_for_tis is not None:
             refreshed_tis = session.query(TI).filter(filter_for_tis).with_for_update().all()

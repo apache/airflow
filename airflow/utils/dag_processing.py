@@ -1002,15 +1002,20 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             if processor.done:
                 self.log.debug("Processor for %s finished", file_path)
                 Stats.decr('dag_processing.processes')
-                now = timezone.utcnow()
+                last_finish_time = timezone.utcnow()
                 finished_processors[file_path] = processor
 
+                if processor.result is not None:
+                    dags, count_import_errors = processor.result
+                else:
+                    dags, count_import_errors = [], -1
+
                 stat = DagFileStat(
-                    len(processor.result[0]) if processor.result is not None else 0,
-                    processor.result[1] if processor.result is not None else -1,
-                    now,
-                    (now - processor.start_time).total_seconds(),
-                    self.get_run_count(file_path) + 1,
+                    num_dags=len(dags),
+                    import_errors=count_import_errors,
+                    last_finish_time=last_finish_time,
+                    last_duration=(last_finish_time - processor.start_time).total_seconds(),
+                    run_count=self.get_run_count(file_path) + 1,
                 )
                 self._file_stats[file_path] = stat
             else:
