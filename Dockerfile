@@ -15,12 +15,12 @@
 #
 # WARNING: THIS DOCKERFILE IS NOT INTENDED FOR PRODUCTION USE OR DEPLOYMENT.
 #
-ARG PYTHON_BASE_IMAGE="python:3.6-slim-stretch"
+ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 FROM ${PYTHON_BASE_IMAGE} as main
 
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
-ARG PYTHON_BASE_IMAGE="python:3.6-slim-stretch"
+ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE}
 
 ARG AIRFLOW_VERSION="2.0.0.dev0"
@@ -61,6 +61,7 @@ RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
            freetds-bin \
            freetds-dev \
            git \
+           graphviz \
            gosu \
            libffi-dev \
            libkrb5-dev \
@@ -78,14 +79,6 @@ RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
            unixodbc \
            unixodbc-dev \
            yarn \
-    && apt-get autoremove -yqq --purge \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install graphviz - needed to build docs with diagrams
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-           graphviz \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -118,15 +111,16 @@ RUN adduser airflow \
     && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
     && chmod 0440 /etc/sudoers.d/airflow
 
-ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
-
-# Note missing man directories on debian-stretch
+# Note missing man directories on debian-buster
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
+    && echo "deb http://ftp.us.debian.org/debian sid main" \
+        > /etc/apt/sources.list.d/openjdk.list \
     && apt-get update \
     && apt-get install --no-install-recommends -y \
       gnupg \
+      openjdk-8-jdk \
       apt-transport-https \
       bash-completion \
       ca-certificates \
@@ -136,7 +130,6 @@ RUN mkdir -pv /usr/share/man/man1 \
       less \
       lsb-release \
       net-tools \
-      openjdk-8-jdk \
       openssh-client \
       openssh-server \
       postgresql-client \
@@ -149,6 +142,7 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
 
 # Install Hadoop and Hive
 # It is done in one step to share variables.

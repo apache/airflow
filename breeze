@@ -435,7 +435,7 @@ function prepare_command_files() {
     CI_ENTRYPOINT_FILE="/opt/airflow/scripts/ci/in_container/entrypoint_ci.sh"
 
     # Base python image for the build
-    export PYTHON_BASE_IMAGE=python:${PYTHON_VERSION}-slim-stretch
+    export PYTHON_BASE_IMAGE=python:${PYTHON_VERSION}-slim-buster
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-python${PYTHON_VERSION}-ci"
     export BUILT_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_VERSION}"
 
