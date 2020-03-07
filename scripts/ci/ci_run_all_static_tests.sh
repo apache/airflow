@@ -24,13 +24,11 @@ if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
     echo
     echo "Skip tests"
     echo
-    script_end
     exit
 fi
 
-rebuild_ci_image_if_needed
+prepare_build
 
-IMAGES_TO_CHECK=("CI")
-export IMAGES_TO_CHECK
+rebuild_ci_image_if_needed
 
 pre-commit run --all-files --show-diff-on-failure --verbose

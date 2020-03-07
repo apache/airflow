@@ -20,6 +20,15 @@ export VERBOSE=${VERBOSE:="false"}
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
+if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
+    echo
+    echo "Skipping running tests !!!!!"
+    echo
+    exit
+fi
+
+prepare_build
+
 rebuild_ci_image_if_needed
 
 # Test environment

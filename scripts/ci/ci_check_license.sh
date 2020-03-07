@@ -35,6 +35,8 @@ function run_check_license() {
             | tee -a "${OUTPUT_LOG}"
 }
 
+prepare_build
+
 rebuild_ci_image_if_needed
 
 run_check_license

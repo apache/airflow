@@ -18,16 +18,6 @@
 # shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-if [[ ${#@} == "0" ]]; then
-    echo
-    echo "Running flake8 with no parameters"
-    echo
-else
-    echo
-    echo "Running flake8 with parameters: $*"
-    echo
-fi
-
 set +e
 
 flake8 "$@"
