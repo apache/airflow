@@ -1067,7 +1067,7 @@ class TestDagFileProcessor(unittest.TestCase):
             os.remove(callback_file.name)
 
 
-class DagFileProcessorQueriesCount(unittest.TestCase):
+class TestDagFileProcessorQueriesCount(unittest.TestCase):
     """
     These tests are designed to detect changes in the number of queries for different DAG files.
 
@@ -1124,7 +1124,6 @@ class DagFileProcessorQueriesCount(unittest.TestCase):
         }), conf_vars({
             ('scheduler', 'use_job_schedule'): 'True',
         }):
-
             dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
             with assert_queries_count(expected_query_count):
                 processor = DagFileProcessor([], mock.MagicMock())
