@@ -202,6 +202,13 @@ repos:
         files: ^BREEZE.rst$|^breeze$|^breeze-complete$
         pass_filenames: false
         require_serial: true
+      - id: update-local-yml-file
+        name: Update mounts in the local yml file
+        entry: "./scripts/ci/pre_commit_local_yml_mounts.sh"
+        language: system
+        files: ^scripts/ci/_utils.sh$|s^scripts/ci/docker_compose/local.yml"
+        pass_filenames: false
+        require_serial: true
       - id: update-setup-cfg-file
         name: Update setup.cfg file with all licenses
         entry: "./scripts/ci/pre_commit_setup_cfg_file.sh"

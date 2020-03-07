@@ -114,7 +114,7 @@ function initialize_breeze_environment {
 
         while IFS= read -r LINE; do
             EXTRA_DOCKER_FLAGS+=( "${LINE}")
-        done < <(convert_docker_mounts_to_docker_params)
+        done < <(convert_local_mounts_to_docker_params)
     else
         print_info
         print_info "Skip mounting host volumes to Docker"
@@ -148,59 +148,51 @@ function print_info() {
     fi
 }
 
-# shellcheck disable=SC1087
-# Simple (?) no-dependency needed Yaml PARSER
-# From https://stackoverflow.com/questions/5014632/how-can-i-parse-a-yaml-file-from-a-linux-shell-script
-function parse_yaml {
-    if [[ -z $1 ]]; then
-        echo "Please provide yaml filename as first parameter."
-        exit 1
-    fi
-    local prefix=$2
-    local s='[[:space:]]*' w='[a-zA-Z0-9_-]*' FS
-    FS=$(echo @|tr @ '\034')
-    sed -ne "s|,$s\]$s\$|]|" \
-         -e ":1;s|^\($s\)\($w\)$s:$s\[$s\(.*\)$s,$s\(.*\)$s\]|\1\2: [\3]\n\1  - \4|;t1" \
-         -e "s|^\($s\)\($w\)$s:$s\[$s\(.*\)$s\]|\1\2:\n\1  - \3|;p" "${1}" | \
-    sed -ne "s|,$s}$s\$|}|" \
-         -e ":1;s|^\($s\)-$s{$s\(.*\)$s,$s\($w\)$s:$s\(.*\)$s}|\1- {\2}\n\1  \3: \4|;t1" \
-         -e    "s|^\($s\)-$s{$s\(.*\)$s}|\1-\n\1  \2|;p" | \
-    sed -ne "s|^\($s\):|\1|" \
-         -e "s|^\($s\)-$s[\"']\(.*\)[\"']$s\$|\1$FS$FS\2|p" \
-         -e "s|^\($s\)-$s\(.*\)$s\$|\1$FS$FS\2|p" \
-         -e "s|^\($s\)\($w\)$s:$s[\"']\(.*\)[\"']$s\$|\1$FS\2$FS\3|p" \
-         -e "s|^\($s\)\($w\)$s:$s\(.*\)$s\$|\1$FS\2$FS\3|p" | \
-    awk -F"${FS}" '{
-       indent = length($1)/2;
-       vname[indent] = $2;
-       for (i in vname) {if (i > indent) {delete vname[i]; idx[i]=0}}
-       if(length($2)== 0){  vname[indent]= ++idx[indent] };
-       if (length($3) > 0) {
-          vn=""; for (i=0; i<indent; i++) { vn=(vn)(vname[i])("_")}
-          printf("%s%s%s=\"%s\"\n", "'"${prefix}"'",vn, vname[indent], $3);
-       }
-    }'
-}
+LOCAL_MOUNTS="
+.bash_aliases /root/
+.bash_history /root/
+.coveragerc /opt/airflow/
+.dockerignore /opt/airflow/
+.flake8 /opt/airflow/
+.github /opt/airflow/
+.inputrc /root/
+.kube /root/
+.rat-excludes /opt/airflow/
+CHANGELOG.txt /opt/airflow/
+Dockerfile /opt/airflow/
+LICENSE /opt/airflow/
+MANIFEST.in /opt/airflow/
+NOTICE /opt/airflow/
+airflow /opt/airflow/
+common /opt/airflow/
+dags /opt/airflow/
+dev /opt/airflow/
+docs /opt/airflow/
+files /
+dist /
+hooks /opt/airflow/
+logs /root/airflow/
+pylintrc /opt/airflow/
+pytest.ini /opt/airflow/
+scripts /opt/airflow/
+scripts/ci/in_container/entrypoint_ci.sh /
+setup.cfg /opt/airflow/
+setup.py /opt/airflow/
+tests /opt/airflow/
+tmp /opt/airflow/
+"
 
 # parse docker-compose-local.yaml file to convert volumes entries
 # from airflow-testing section to "-v" "volume mapping" series of options
-function convert_docker_mounts_to_docker_params() {
-    ESCAPED_AIRFLOW_SOURCES=$(echo "${AIRFLOW_SOURCES}" | sed -e 's/[\/&]/\\&/g')
-    ESCAPED_HOME=$(echo "${HOME}" | sed -e 's/[\/&]/\\&/g')
-    # shellcheck disable=2046
-    while IFS= read -r LINE; do
-        echo "-v"
-        echo "${LINE}"
-    done < <(parse_yaml scripts/ci/docker-compose/local.yml COMPOSE_ | \
-            grep "COMPOSE_services_airflow-testing_volumes_" | \
-            sed "s/..\/..\/../${ESCAPED_AIRFLOW_SOURCES}/" | \
-            sed "s/\${HOME}/${ESCAPED_HOME}/" | \
-            sed "s/COMPOSE_services_airflow-testing_volumes_//" | \
-            sort -t "=" -k 1 -n | \
-            cut -d "=" -f 2- | \
-            sed -e 's/^"//' -e 's/"$//')
+function convert_local_mounts_to_docker_params() {
+    echo "${LOCAL_MOUNTS}" |sed '/^$/d' | awk -v AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
+    '
+    function basename(file) {
+        sub(".*/", "", file)
+        return file
+    }
+    { print "-v"; print AIRFLOW_SOURCES "/" $1 ":" $2 basename($1) ":cached" }'
 }
-
 
 function sanitize_file() {
     if [[ -d "${1}" ]]; then
