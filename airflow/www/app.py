@@ -77,7 +77,8 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     # Configure the JSON encoder used by `|tojson` filter from Flask
     app.json_encoder = AirflowJsonEncoder
 
-    csrf.init_app(app)
+    if conf.getboolean('webserver', 'WTF_CSRF_ENABLED'):
+        csrf.init_app(app)
 
     db = SQLA(app)
 

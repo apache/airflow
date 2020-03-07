@@ -652,6 +652,12 @@
       type: string
       example: ~
       default: ""
+    - name: wtf_csrf_enabled
+      description: |
+        This enables and disables csrf token on the flask webserver.
+      type: boolean
+      example: ~
+      default: "True"
     - name: web_server_master_timeout
       description: |
         Number of seconds the webserver waits before killing gunicorn master that doesn't respond
