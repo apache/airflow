@@ -119,6 +119,15 @@ class TestCliTasks(unittest.TestCase):
             'tasks', 'test', 'example_passing_params_via_test_command', 'also_run_this',
             '--task-params', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
 
+    def test_cli_test_with_env_vars(self):
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_test(self.parser.parse_args([
+                'tasks', 'test', 'example_passing_params_via_test_command', 'env_var_test_task',
+                '--env-vars', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
+        output = stdout.getvalue()
+        self.assertIn('foo=bar', output)
+        self.assertIn('AIRFLOW_TEST_MODE=True', output)
+
     def test_cli_run(self):
         task_command.task_run(self.parser.parse_args([
             'tasks', 'run', 'example_bash_operator', 'runme_0', '--local',

@@ -320,6 +320,11 @@ def task_test(args, dag=None):
     if not already_has_stream_handler:
         logging.getLogger('airflow.task').propagate = True
 
+    env_vars = {'AIRFLOW_TEST_MODE': 'True'}
+    if args.env_vars:
+        env_vars.update(args.env_vars)
+        os.environ.update(env_vars)
+
     dag = dag or get_dag(args.subdir, args.dag_id)
 
     task = dag.get_task(task_id=args.task_id)
