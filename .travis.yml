@@ -80,10 +80,17 @@ jobs:
         ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
         RUN_INTEGRATION_TESTS=all
       stage: test
-    - name: "Tests [Postgres][3.6]"
+    - name: "Tests [Postgres][3.6][providers]"
       env: >-
         BACKEND=postgres
         PYTHON_VERSION=3.6
+      script: "./scripts/ci/ci_run_airflow_testing.sh tests/providers"
+      stage: test
+    - name: "Tests [Postgres][3.6][core]"
+      env: >-
+        BACKEND=postgres
+        PYTHON_VERSION=3.6
+      script: "./scripts/ci/ci_run_airflow_testing.sh --ignore=tests/providers"
       stage: test
     - name: "Tests [Sqlite][3.7][integrations]"
       env: >-
@@ -104,11 +111,19 @@ jobs:
         ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
         RUN_INTEGRATION_TESTS=all
       stage: test
-    - name: "Tests [MySQL][3.7][kerberos]"
+    - name: "Tests [MySQL][3.7][providers][kerberos]"
       env: >-
         BACKEND=mysql
         PYTHON_VERSION=3.7
         ENABLED_INTEGRATIONS="kerberos"
+      script: "./scripts/ci/ci_run_airflow_testing.sh tests/providers"
+      stage: test
+    - name: "Tests [MySQL][3.7][core][kerberos]"
+      env: >-
+        BACKEND=mysql
+        PYTHON_VERSION=3.7
+        ENABLED_INTEGRATIONS="kerberos"
+      script: "./scripts/ci/ci_run_airflow_testing.sh --ignore=tests/providers"
       stage: test
     - name: "Prepare backport packages"
       before_install: echo
