@@ -69,6 +69,7 @@ jobs:
         BACKEND=postgres
         PYTHON_VERSION=2.7
         ENABLE_KIND_CLUSTER=true
+        RUNTIME=kubernetes
         KUBERNETES_MODE=persistent_mode
         KUBERNETES_VERSION=v1.15.3
       stage: test
@@ -77,6 +78,7 @@ jobs:
         BACKEND=postgres
         PYTHON_VERSION=2.7
         ENABLE_KIND_CLUSTER=true
+        RUNTIME=kubernetes
         KUBERNETES_MODE=git_mode
         KUBERNETES_VERSION=v1.15.3
       stage: test
