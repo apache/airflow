@@ -165,7 +165,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
         return branch
 
 
-def create_branch_join(branch_operator, *args, **kwargs):
+def create_branch_join_task(branch_operator, *args, **kwargs):
     """
     Create a join task for a branching logic. This join task is always executed regardless
     of which branches are followed. It is only skipped if the ``branch_operator`` is skipped.

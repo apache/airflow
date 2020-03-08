@@ -767,17 +767,17 @@ If you have more complicated workflows with multiple levels of branching,
 be careful about how the branches are joined together. The join tasks are usually
 given ``none_failed`` trigger rule, which are executed even if all its parents are
 skipped. But the join task in nested branching should logically be skipped whenever
-its parent ``BranchPythonOperator`` is skipped. Use ``create_branch_join()``
+its parent ``BranchPythonOperator`` is skipped. Use ``create_branch_join_task()``
 to create the join task that does this.
 
 .. code:: python
 
     branch_1 = BranchPythonOperator(task_id="branch_1", python_callable=lambda: "true_1")
-    join_1 = create_branch_join(task_id="join_1", branch_operator=branch_1)
+    join_1 = create_branch_join_task(task_id="join_1", branch_operator=branch_1)
     true_1 = DummyOperator(task_id="true_1")
     false_1 = DummyOperator(task_id="false_1")
     branch_2 = BranchPythonOperator(task_id="branch_2", python_callable=lambda: "true_2")
-    join_2 = create_branch_join(task_id="join_2", branch_operator=branch_2)
+    join_2 = create_branch_join_task(task_id="join_2", branch_operator=branch_2)
     true_2 = DummyOperator(task_id="true_2")
     false_2 = DummyOperator(task_id="false_2")
     false_3 = DummyOperator(task_id="false_3")

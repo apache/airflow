@@ -22,7 +22,7 @@ import random
 
 from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python import BranchPythonOperator, create_branch_join
+from airflow.operators.python import BranchPythonOperator, create_branch_join_task
 from airflow.utils.dates import days_ago
 
 args = {
@@ -51,7 +51,7 @@ branching = BranchPythonOperator(
 )
 run_this_first >> branching
 
-join = create_branch_join(task_id='join', branch_operator=branching, dag=dag)
+join = create_branch_join_task(task_id='join', branch_operator=branching, dag=dag)
 
 for option in options:
     t = DummyOperator(

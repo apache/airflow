@@ -18,22 +18,22 @@
 
 """
 Example DAG demonstrating a workflow with nested branching. The join tasks are created with
-``create_branch_join()`` which returns a ``PythonOperator`` with ``none_failed``
+``create_branch_join_task()`` which returns a ``PythonOperator`` with ``none_failed``
 trigger rule that skips itself whenever its corresponding ``BranchPythonOperator`` is skipped.
 """
 
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python import BranchPythonOperator, create_branch_join
+from airflow.operators.python import BranchPythonOperator, create_branch_join_task
 from airflow.utils.dates import days_ago
 
 with DAG(dag_id="example_nested_branch_dag", start_date=days_ago(2), schedule_interval="@daily") as dag:
     branch_1 = BranchPythonOperator(task_id="branch_1", python_callable=lambda: "true_1")
-    join_1 = create_branch_join(task_id="join_1", branch_operator=branch_1)
+    join_1 = create_branch_join_task(task_id="join_1", branch_operator=branch_1)
     true_1 = DummyOperator(task_id="true_1")
     false_1 = DummyOperator(task_id="false_1")
     branch_2 = BranchPythonOperator(task_id="branch_2", python_callable=lambda: "true_2")
-    join_2 = create_branch_join(task_id="join_2", branch_operator=branch_2)
+    join_2 = create_branch_join_task(task_id="join_2", branch_operator=branch_2)
     true_2 = DummyOperator(task_id="true_2")
     false_2 = DummyOperator(task_id="false_2")
     false_3 = DummyOperator(task_id="false_3")

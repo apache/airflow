@@ -219,7 +219,7 @@ behavior would skip if all parents of a task had also skipped.
 
 This fix may break workflows that depend on the previous behavior. If you really need the old behavior, you can make the task
 with ``none_failed`` trigger rule explicitly check the status of its upstream tasks and skip itself if all upstream tasks are
-skipped. As an example, look at ``airflow.operators.python.create_branch_join()``.
+skipped. As an example, look at ``airflow.operators.python.create_branch_join_task()``.
 
 
 ### Standardize handling http exception in BigQuery

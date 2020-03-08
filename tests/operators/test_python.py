@@ -36,7 +36,8 @@ from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.models.taskinstance import clear_task_instances
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import (
-    BranchPythonOperator, PythonOperator, PythonVirtualenvOperator, ShortCircuitOperator, create_branch_join,
+    BranchPythonOperator, PythonOperator, PythonVirtualenvOperator, ShortCircuitOperator,
+    create_branch_join_task,
 )
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -927,18 +928,18 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         self._run_as_operator(f, templates_dict={'ds': '{{ ds }}'})
 
 
-def test_create_branch_join():
+def test_create_branch_join_task():
     """
-    Test create_branch_join creates a PythonOperator with none_failed trigger_rule and skip
+    Test create_branch_join_task creates a PythonOperator with none_failed trigger_rule and skip
     itslef when its parent branch operator is skipped.
     """
     from airflow.exceptions import AirflowSkipException
     from airflow.utils.trigger_rule import TriggerRule
 
     execution_date = pendulum.datetime(2020, 1, 1)
-    dag = DAG(dag_id="test_create_branch_join", start_date=execution_date)
+    dag = DAG(dag_id="test_create_branch_join_task", start_date=execution_date)
     branch = BranchPythonOperator(task_id="branch", python_callable=lambda: "not_exist", dag=dag)
-    join = create_branch_join(branch, task_id="join", dag=dag)
+    join = create_branch_join_task(branch, task_id="join", dag=dag)
 
     assert join.trigger_rule == TriggerRule.NONE_FAILED
 
