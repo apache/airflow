@@ -72,7 +72,7 @@ s x r
 l a:
 v y n q f
 F P C L
-D: R:
+D: R: -u
 "
 
 _BREEZE_LONG_OPTIONS="
@@ -82,7 +82,7 @@ kind-cluster-start kind-cluster-stop kind-cluster-recreate
 skip-mounting-local-sources install-airflow-version:
 verbose assume-yes assume-no assume-quit forward-credentials
 force-build-images force-pull-images force-clean-images use-local-cache
-dockerhub-user: dockerhub-repo:
+dockerhub-user: dockerhub-repo: push-images
 "
 
 export BREEZE_COMMANDS="

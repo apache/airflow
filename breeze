@@ -1481,7 +1481,7 @@ function run_breeze_command {
             ;;
         build_ci_images_only)
             if [[ ${PUSH_IMAGES} == "true" ]]; then
-                push_ci_image
+                push_image
             fi
             ;;
         cleanup_images)

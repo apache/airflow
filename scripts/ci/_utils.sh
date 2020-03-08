@@ -321,7 +321,7 @@ function update_all_md5_files() {
 #
 function check_if_docker_build_is_needed() {
     print_info
-    print_info "Checking if docker image build is needed for ${THE_IMAGE_TYPE} image."
+    print_info "Checking if image build is needed for ${THE_IMAGE_TYPE} image."
     print_info
     if [[ ${FORCE_BUILD_IMAGES:=""} == "true" ]]; then
         echo "Docker image build is forced for ${THE_IMAGE_TYPE} image"
@@ -458,6 +458,10 @@ function forget_last_answer() {
 }
 
 function confirm_image_rebuild() {
+    ACTION="rebuild"
+    if [[ ${FORCE_PULL_IMAGES:=} == "true" ]]; then
+        ACTION="pull and rebuild"
+    fi
     if [[ -f "${LAST_FORCE_ANSWER_FILE}" ]]; then
         # set variable from last answered response given in the same pre-commit run - so that it can be
         # set in one pre-commit check (build) and then used in another (pylint/mypy/flake8 etc).
@@ -485,13 +489,13 @@ function confirm_image_rebuild() {
         esac
     elif [[ -t 0 ]]; then
         # Check if this script is run interactively with stdin open and terminal attached
-        "${AIRFLOW_SOURCES}/confirm" "Rebuild image ${THE_IMAGE_TYPE} (might take some time)"
+        "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE} (might take some time)"
         RES=$?
     elif [[ ${DETECTED_TERMINAL:=$(tty)} != "not a tty" ]]; then
         # Make sure to use output of tty rather than stdin/stdout when available - this way confirm
         # will works also in case of pre-commits (git does not pass stdin/stdout to pre-commit hooks)
         # shellcheck disable=SC2094
-        "${AIRFLOW_SOURCES}/confirm" "Rebuild image ${THE_IMAGE_TYPE} (might take some time)" \
+        "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE} (might take some time)" \
             <"${DETECTED_TERMINAL}" >"${DETECTED_TERMINAL}"
         RES=$?
         export DETECTED_TERMINAL
@@ -500,7 +504,7 @@ function confirm_image_rebuild() {
         # Make sure to use /dev/tty first rather than stdin/stdout when available - this way confirm
         # will works also in case of pre-commits (git does not pass stdin/stdout to pre-commit hooks)
         # shellcheck disable=SC2094
-        "${AIRFLOW_SOURCES}/confirm" "Rebuild image ${THE_IMAGE_TYPE} (might take some time)" \
+        "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE} (might take some time)" \
             <"${DETECTED_TERMINAL}" >"${DETECTED_TERMINAL}"
         RES=$?
     else
@@ -513,7 +517,7 @@ function confirm_image_rebuild() {
     set -e
     if [[ ${RES} == "1" ]]; then
         print_info
-        print_info "Skipping build for image ${THE_IMAGE_TYPE}"
+        print_info "Skipping rebuilding the image ${THE_IMAGE_TYPE}"
         print_info
         SKIP_REBUILD="true"
         # Force "no" also to subsequent questions so that if you answer it once, you are not asked
@@ -523,9 +527,9 @@ function confirm_image_rebuild() {
     elif [[ ${RES} == "2" ]]; then
         echo >&2
         echo >&2 "ERROR: The ${THE_IMAGE_TYPE} needs to be rebuilt - it is outdated. "
-        echo >&2 "   Make sure you build the images bu running run one of:"
-        echo >&2 "         * PYTHON_VERSION=${PYTHON_VERSION} ./scripts/ci/local_ci_build*.sh"
-        echo >&2 "         * PYTHON_VERSION=${PYTHON_VERSION} ./scripts/ci/local_ci_pull_and_build*.sh"
+        echo >&2 "   Make sure you build the images bu running"
+        echo >&2
+        echo >&2 "      ./breeze --python ${PYTHON_VERSION}" build-only
         echo >&2
         echo >&2 "   If you run it via pre-commit as individual hook, you can run 'pre-commit run build'."
         echo >&2
@@ -538,17 +542,144 @@ function confirm_image_rebuild() {
 
 function set_current_image_variables {
     if [[ ${THE_IMAGE_TYPE:=} == "CI" ]]; then
+        export AIRFLOW_BASE_TAG="${AIRFLOW_CI_BASE_TAG}"
         export AIRFLOW_IMAGE="${AIRFLOW_CI_IMAGE}"
         export AIRFLOW_IMAGE_DEFAULT="${AIRFLOW_CI_IMAGE_DEFAULT}"
+        export AIRFLOW_LOCAL_MANIFEST_IMAGE="${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE}"
+        export AIRFLOW_REMOTE_MANIFEST_IMAGE="${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
     else
         export AIRFLOW_IMAGE=""
         export AIRFLOW_IMAGE_DEFAULT=""
+        export AIRFLOW_LOCAL_MANIFEST_IMAGE=""
+        export AIRFLOW_REMOTE_MANIFEST_IMAGE=""
     fi
 
     if [[ "${PYTHON_VERSION_FOR_DEFAULT_DOCKERHUB_IMAGE}" == "${PYTHON_VERSION}" ]]; then
         export DEFAULT_IMAGE="${AIRFLOW_IMAGE_DEFAULT}"
     else
         export DEFAULT_IMAGE=""
+    fi
+}
+
+
+# Builds local image manifest
+# It contiains .json file - result of docker inspect - decscribing the image
+# We cannot use docker registry APIs as they are available only with authorisation
+# But this image can be pulled without authentication
+function build_image_manifest() {
+    verbose_docker inspect "${AIRFLOW_IMAGE}" > "manifests/${AIRFLOW_BASE_TAG}.json"
+    verbose_docker build \
+    --build-arg AIRFLOW_BASE_TAG="${AIRFLOW_BASE_TAG}" \
+    --tag="${AIRFLOW_LOCAL_MANIFEST_IMAGE}" \
+    -f- . <<EOF
+ARG AIRFLOW_BASE_TAG
+FROM scratch
+
+COPY "manifests/${AIRFLOW_BASE_TAG}.json" .
+
+CMD ""
+EOF
+}
+
+#
+# Retrieve information about layers in the local IMAGE
+# it stores list of SHAS of image layers in the file pointed at by TMP_MANIFEST_LOCAL_SHA
+#
+function get_local_image_info() {
+    TMP_MANIFEST_LOCAL_JSON=$(mktemp)
+    TMP_MANIFEST_LOCAL_SHA=$(mktemp)
+    set +e
+    # Remove the container just in case
+    verbose_docker rm --force "local-airflow-manifest"  >/dev/null 2>&1
+    # Create manifest from the local manifest image
+    if ! verbose_docker create --name "local-airflow-manifest" \
+        "${AIRFLOW_LOCAL_MANIFEST_IMAGE}"  >/dev/null 2>&1 ; then
+        echo
+        echo "Local manifest image not available"
+        echo
+        LOCAL_MANIFEST_IMAGE_UNAVAILABLE="true"
+        return
+    fi
+    set -e
+     # Create manifest from the local manifest image
+    verbose_docker cp "local-airflow-manifest:${AIRFLOW_BASE_TAG}.json" "${TMP_MANIFEST_LOCAL_JSON}" >/dev/null 2>&1
+    sed 's/ *//g' "${TMP_MANIFEST_LOCAL_JSON}" | grep '^"sha256:' >"${TMP_MANIFEST_LOCAL_SHA}" >/dev/null 2>&1
+    verbose_docker rm --force "local-airflow-manifest" >/dev/null 2>&1
+}
+
+#
+# Retrieve information about layers in the remote IMAGE
+# it stores list of SHAS of image layers in the file pointed at by TMP_MANIFEST_REMTOE_SHA
+# This cannot be done easily with existing APIs of Dockerhub because they require additional authentication
+# even for public images. Therefore instead we are downloading a specially prepared manifest image
+# which is built together with the main image. This special manifest image is prepared during
+# building of the main image and contains single JSON file being result of docker inspect on that image
+# This image is from scratch so it is very tiny
+function get_remote_image_info() {
+    set +e
+    # Pull remote manifest image
+    if ! verbose_docker pull "${AIRFLOW_REMOTE_MANIFEST_IMAGE}" >/dev/null 2>&1 ; then
+        echo
+        echo "Remote docker registry unreachable"
+        echo
+        REMOTE_DOCKER_REGISTRY_UNREACHABLE="true"
+        return
+    fi
+    TMP_MANIFEST_REMOTE_JSON=$(mktemp)
+    TMP_MANIFEST_REMOTE_SHA=$(mktemp)
+    # delete container just in case
+    verbose_docker rm --force "remote-airflow-manifest" >/dev/null 2>&1
+    set -e
+    # Create container out of the manifest image without runnning it
+    verbose_docker create --name "remote-airflow-manifest" "${AIRFLOW_REMOTE_MANIFEST_IMAGE}" >/dev/null 2>&1
+    # Extract manifest and store it in local file
+    verbose_docker cp "remote-airflow-manifest:${AIRFLOW_BASE_TAG}.json" "${TMP_MANIFEST_REMOTE_JSON}" >/dev/null 2>&1
+    # Filter everything except SHAs of image layers
+    sed 's/ *//g' "${TMP_MANIFEST_REMOTE_JSON}" | grep '^"sha256:' >"${TMP_MANIFEST_REMOTE_SHA}" >/dev/null  2>&1
+    verbose_docker rm --force "remote-airflow-manifest" >/dev/null 2>&1
+}
+
+# The Number is determines the cut-off between local building time and pull + build time.
+# It is a bit experimental and it will have to be kept
+# updated as we keep on changing layers. The cut-off point is at the moment when we do first
+# pip install "https://github.com/apache/airflow/archive/${AIRFLOW_BRANCH}.tar...
+# you can get it via this command:
+# docker history --no-trunc  apache/airflow:master-python3.6-ci | \
+#      grep ^sha256 | grep -n "pip uninstall" | awk 'BEGIN {FS=":"} {print $1 }'
+#
+# This command returns the number of layer in docker history where pip uninstall is called. This is the
+# line that will take a lot of time to run and at this point it's worth to pull the image from repo
+# if there are at least NN chaanged layers in your docker file, you should pull the image.
+#
+# Note that this only matters if you have any of the important files changed since the last build
+# of your image such as Dockerfile, setup.py etc.
+#
+MAGIC_CUT_OFF_NUMBER_OF_LAYERS=34
+
+# Compares layers from both remote and local image and set FORCE_PULL_IMAGES to true in case
+# More than the last NN layers are different.
+function compare_layers() {
+    NUM_DIFF=$(diff  -y --suppress-common-lines "${TMP_MANIFEST_REMOTE_SHA}" "${TMP_MANIFEST_LOCAL_SHA}" | \
+        wc -l || true)
+    rm -f "${TMP_MANIFEST_REMOTE_JSON}" "${TMP_MANIFEST_REMOTE_SHA}" "${TMP_MANIFEST_LOCAL_JSON}" "${TMP_MANIFEST_LOCAL_SHA}"
+    echo
+    echo "Numbe of layers differente between the local and remote image: ${NUM_DIFF}"
+    echo
+    # This is where setup py is rebuilt - it will usually take a looooot of time to build it, so it is
+    # Better to pull here
+    if (( NUM_DIFF >= MAGIC_CUT_OFF_NUMBER_OF_LAYERS )); then
+        echo
+        echo
+        echo "WARNING! Your image and the dockerhub image differ signifcantly"
+        echo
+        echo "Forcing pulling the images. It will be faster than rebuilding usually."
+        echo "You can avoid it by setting SKIP_CHECK_REMOTE_IMAGE to true"
+        echo
+        export FORCE_PULL_IMAGES="true"
+    else
+        echo
+        echo "No need to pull the image. Local rebuild will be faster"
+        echo
     fi
 }
 
@@ -568,7 +699,25 @@ function rebuild_image_if_needed() {
 
     NEEDS_DOCKER_BUILD="false"
     check_if_docker_build_is_needed
-    if [[ "${NEEDS_DOCKER_BUILD}" == "true" ]]; then
+    if [[ ${NEEDS_DOCKER_BUILD} == "true" ]]; then
+        if [[ ${SKIP_CHECK_REMOTE_IMAGE:=} != "true" && ${DOCKER_CACHE} == "pulled" ]]; then
+            # Check if remote image is different enough to force pull
+            # This is an optimisation pull vs. build time. When there
+            # are enough changes (specifically after setup.py changes) it is faster to pull
+            # and build the image rather than just build it
+            echo
+            echo "Checking if the remote image needs to be pulled"
+            echo
+            get_remote_image_info
+            if [[ ${REMOTE_DOCKER_REGISTRY_UNREACHABLE:=} != "true" ]]; then
+                get_local_image_info
+                if [[ ${LOCAL_MANIFEST_IMAGE_UNAVAILABLE:=} != "true" ]]; then
+                    compare_layers
+                else
+                    FORCE_PULL_IMAGES="true"
+                fi
+            fi
+        fi
         SKIP_REBUILD="false"
         if [[ ${CI:=} != "true" && "${FORCE_BUILD:=}" != "true" ]]; then
             confirm_image_rebuild
@@ -586,6 +735,7 @@ function rebuild_image_if_needed() {
             print_info
             build_image
             update_all_md5_files
+            build_image_manifest
             print_info
             print_info "Build completed: ${THE_IMAGE_TYPE} image."
             print_info
@@ -668,7 +818,6 @@ function basic_sanity_checks() {
     go_to_airflow_sources
     check_if_coreutils_installed
     create_cache_directory
-    forget_last_answer
     sanitize_mounted_files
 }
 
@@ -894,7 +1043,12 @@ function pull_image_if_needed() {
                 echo
                 echo "Force pull base image ${PYTHON_BASE_IMAGE}"
                 echo
-                verbose_docker pull "${PYTHON_BASE_IMAGE}"
+                if [[ -n ${DETECTED_TERMINAL:=""} ]]; then
+                    echo -n "
+Docker pulling ${PYTHON_BASE_IMAGE}.
+                    " > "${DETECTED_TERMINAL}"
+                fi
+                verbose_docker pull "${PYTHON_BASE_IMAGE}" | tee -a "${OUTPUT_LOG}"
                 echo
             fi
         fi
@@ -911,7 +1065,12 @@ function pull_image_if_needed() {
                 echo
                 echo "Pulling the image ${IMAGE}"
                 echo
-                verbose_docker pull "${IMAGE}" || true
+                if [[ -n ${DETECTED_TERMINAL:=""} ]]; then
+                    echo -n "
+Docker pulling ${IMAGE}.
+" > "${DETECTED_TERMINAL}"
+                fi
+                verbose_docker pull "${IMAGE}" | tee -a "${OUTPUT_LOG}" || true
                 echo
             fi
         done
@@ -927,13 +1086,16 @@ function print_build_info() {
 function spin() {
     local FILE_TO_MONITOR=${1}
     local SPIN=("-" "\\" "|" "/")
-    echo -n " Build log: ${FILE_TO_MONITOR} ${SPIN[0]}" > "${DETECTED_TERMINAL}"
+    echo -n "
+Build log: ${FILE_TO_MONITOR}
+" > "${DETECTED_TERMINAL}"
 
+    LAST_STEP=""
     while "true"
     do
       for i in "${SPIN[@]}"
       do
-            echo -ne "\b$i" > "${DETECTED_TERMINAL}"
+            echo -ne "\r${LAST_STEP}$i" > "${DETECTED_TERMINAL}"
             local LAST_FILE_SIZE
             local FILE_SIZE
             LAST_FILE_SIZE=$(set +e; wc -c "${FILE_TO_MONITOR}" 2>/dev/null | awk '{print $1}' || true)
@@ -948,6 +1110,8 @@ function spin() {
             if [[ ! -f "${FILE_TO_MONITOR}" ]]; then
                 exit
             fi
+            LAST_LINE=$(set +e; grep "Step" <"${FILE_TO_MONITOR}" | tail -1 || true)
+            [[ ${LAST_LINE} =~ ^(Step [0-9/]*)\ : ]] && LAST_STEP="${BASH_REMATCH[1]} :"
       done
     done
 }
@@ -955,8 +1119,16 @@ function spin() {
 function build_image() {
     print_build_info
     echo
-    echo Building image "${IMAGE_DESCRIPTION}"
+    echo Preparing image "${IMAGE_DESCRIPTION}"
     echo
+    if [[ -n ${DETECTED_TERMINAL:=""} ]]; then
+        echo -n "Preparing ${AIRFLOW_CI_IMAGE}.
+        " > "${DETECTED_TERMINAL}"
+        spin "${OUTPUT_LOG}" &
+        SPIN_PID=$!
+        # shellcheck disable=SC2064
+        trap "kill ${SPIN_PID}" SIGINT SIGTERM
+    fi
     pull_image_if_needed
 
     if [[ "${DOCKER_CACHE}" == "no-cache" ]]; then
@@ -974,12 +1146,9 @@ function build_image() {
         exit 1
     fi
     if [[ -n ${DETECTED_TERMINAL:=""} ]]; then
-        echo -n "Building ${THE_IMAGE_TYPE}.
-        " > "${DETECTED_TERMINAL}"
-        spin "${OUTPUT_LOG}" &
-        SPIN_PID=$!
-        # shellcheck disable=SC2064
-        trap "kill ${SPIN_PID}" SIGINT SIGTERM
+        echo -n "
+Docker building ${AIRFLOW_CI_IMAGE}.
+" > "${DETECTED_TERMINAL}"
     fi
     if [[ ${THE_IMAGE_TYPE} == "CI" ]]; then
         set +u
@@ -1062,9 +1231,10 @@ function fix_group_permissions() {
 }
 
 function set_common_image_variables {
-    export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci"
-    export AIRFLOW_CI_SAVED_IMAGE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci-image"
-    export AIRFLOW_CI_IMAGE_ID_FILE="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci-image.sha256"
+    export AIRFLOW_CI_BASE_TAG="${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci"
+    export AIRFLOW_CI_LOCAL_MANIFEST_IMAGE="local/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
+    export AIRFLOW_CI_REMOTE_MANIFEST_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
+    export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}"
     export AIRFLOW_CI_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DEFAULT_BRANCH}-ci"
     export PYTHON_BASE_IMAGE="python:${PYTHON_VERSION}-slim-buster"
     export BUILT_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_VERSION}"
@@ -1078,12 +1248,6 @@ function prepare_build() {
     fix_group_permissions
 }
 
-push_image() {
-    verbose_docker push "${AIRFLOW_IMAGE}"
-    if [[ -n ${DEFAULT_IMAGE:=""} ]]; then
-        verbose_docker push "${DEFAULT_IMAGE}"
-    fi
-}
 
 function rebuild_ci_image_if_needed() {
     export THE_IMAGE_TYPE="CI"
@@ -1091,10 +1255,16 @@ function rebuild_ci_image_if_needed() {
     export TARGET_IMAGE="main"
     export AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="true"
     export AIRFLOW_EXTRAS="devel_ci"
+    set_current_image_variables
     rebuild_image_if_needed
 }
 
-function push_ci_image() {
-    export THE_IMAGE_TYPE="CI"
-    push_image
+
+function push_image() {
+    verbose_docker push "${AIRFLOW_IMAGE}"
+    verbose_docker tag "${AIRFLOW_LOCAL_MANIFEST_IMAGE}" "${AIRFLOW_REMOTE_MANIFEST_IMAGE}"
+    verbose_docker push "${AIRFLOW_REMOTE_MANIFEST_IMAGE}"
+    if [[ -n ${DEFAULT_IMAGE:=""} ]]; then
+        verbose_docker push "${DEFAULT_IMAGE}"
+    fi
 }
