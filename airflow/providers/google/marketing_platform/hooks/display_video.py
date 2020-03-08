@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,10 +22,10 @@ from typing import Any, Dict, List, Optional
 
 from googleapiclient.discovery import Resource, build
 
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 
-class GoogleDisplayVideo360Hook(GoogleCloudBaseHook):
+class GoogleDisplayVideo360Hook(CloudBaseHook):
     """
     Hook for Google Display & Video 360.
     """
@@ -64,7 +63,7 @@ class GoogleDisplayVideo360Hook(GoogleCloudBaseHook):
         :type query: Dict[str, Any]
         """
         response = (
-            self.get_conn()  # pylint:disable=no-member
+            self.get_conn()  # pylint: disable=no-member
             .queries()
             .createquery(body=query)
             .execute(num_retries=self.num_retries)
@@ -79,7 +78,7 @@ class GoogleDisplayVideo360Hook(GoogleCloudBaseHook):
         :type query_id: str
         """
         (
-            self.get_conn()  # pylint:disable=no-member
+            self.get_conn()  # pylint: disable=no-member
             .queries()
             .deletequery(queryId=query_id)
             .execute(num_retries=self.num_retries)
@@ -93,7 +92,7 @@ class GoogleDisplayVideo360Hook(GoogleCloudBaseHook):
         :type query_id: str
         """
         response = (
-            self.get_conn()  # pylint:disable=no-member
+            self.get_conn()  # pylint: disable=no-member
             .queries()
             .getquery(queryId=query_id)
             .execute(num_retries=self.num_retries)
@@ -106,7 +105,7 @@ class GoogleDisplayVideo360Hook(GoogleCloudBaseHook):
 
         """
         response = (
-            self.get_conn()  # pylint:disable=no-member
+            self.get_conn()  # pylint: disable=no-member
             .queries()
             .listqueries()
             .execute(num_retries=self.num_retries)
@@ -123,7 +122,7 @@ class GoogleDisplayVideo360Hook(GoogleCloudBaseHook):
         :type params: Dict[str, Any]
         """
         (
-            self.get_conn()  # pylint:disable=no-member
+            self.get_conn()  # pylint: disable=no-member
             .queries()
             .runquery(queryId=query_id, body=params)
             .execute(num_retries=self.num_retries)

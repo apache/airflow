@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,7 +19,7 @@
 from functools import wraps
 from typing import Optional
 
-from airflow.typing import Protocol
+from airflow.typing_compat import Protocol
 
 
 class ClientAuthProtocol(Protocol):

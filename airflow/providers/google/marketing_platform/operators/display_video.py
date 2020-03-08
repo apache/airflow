@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -25,9 +24,9 @@ import urllib.request
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
-from airflow import AirflowException
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
-from airflow.models.baseoperator import BaseOperator
+from airflow.exceptions import AirflowException
+from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.utils.decorators import apply_defaults
 
@@ -241,7 +240,7 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
             delegate_to=self.delegate_to,
             api_version=self.api_version,
         )
-        gcs_hook = GoogleCloudStorageHook(
+        gcs_hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to
         )
 

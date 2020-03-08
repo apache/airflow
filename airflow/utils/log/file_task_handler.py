@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -53,7 +52,7 @@ class FileTaskHandler(logging.Handler):
         :param ti: task instance object
         """
         local_loc = self._init_file(ti)
-        self.handler = logging.FileHandler(local_loc)
+        self.handler = logging.FileHandler(local_loc, encoding='utf-8')
         if self.formatter:
             self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
@@ -125,6 +124,7 @@ class FileTaskHandler(logging.Handler):
                     pass
 
                 response = requests.get(url, timeout=timeout)
+                response.encoding = "utf-8"
 
                 # Check if the resource was properly fetched
                 response.raise_for_status()

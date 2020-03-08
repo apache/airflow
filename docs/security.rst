@@ -31,7 +31,7 @@ following CLI commands to create an account:
 .. code-block:: bash
 
     # create an admin user
-    airflow users -c --username admin --firstname Peter --lastname Parker --role Admin --email spiderman@superhero.org
+    airflow users create --username admin --firstname Peter --lastname Parker --role Admin --email spiderman@superhero.org
 
 It is however possible to switch on authentication by either using one of the supplied
 backends or creating your own.
@@ -50,7 +50,7 @@ Password
 
 One of the simplest mechanisms for authentication is requiring users to specify a password before logging in.
 
-Please use command line interface ``airflow users --create`` to create accounts, or do that in the UI.
+Please use command line interface ``airflow users create`` to create accounts, or do that in the UI.
 
 
 LDAP
@@ -64,7 +64,7 @@ you will need to change ``search_scope`` to "SUBTREE".
 
 Valid search_scope options can be found in the `ldap3 Documentation <http://ldap3.readthedocs.org/searches.html?highlight=search_scope>`_
 
-.. code-block:: bash
+.. code-block:: ini
 
     [webserver]
     authenticate = True
@@ -104,7 +104,7 @@ Airflow uses ``flask_login`` and
 exposes a set of hooks in the ``airflow.default_login`` module. You can
 alter the content and make it part of the ``PYTHONPATH`` and configure it as a backend in ``airflow.cfg``.
 
-.. code-block:: bash
+.. code-block:: ini
 
     [webserver]
     authenticate = True
@@ -182,7 +182,7 @@ To enable kerberos you will need to generate a (service) key tab.
 Now store this file in a location where the airflow user can read it (chmod 600). And then add the following to
 your ``airflow.cfg``
 
-.. code-block:: bash
+.. code-block:: ini
 
     [core]
     security = kerberos
@@ -204,7 +204,7 @@ Hadoop
 
 If want to use impersonation this needs to be enabled in ``core-site.xml`` of your hadoop config.
 
-.. code-block:: bash
+.. code-block:: xml
 
     <property>
       <name>hadoop.proxyuser.airflow.groups</name>
@@ -272,7 +272,7 @@ against an installation of GitHub Enterprise using OAuth2. You can optionally
 specify a team whitelist (composed of slug cased team names) to restrict login
 to only members of those teams.
 
-.. code-block:: bash
+.. code-block:: ini
 
     [webserver]
     authenticate = True
@@ -389,6 +389,17 @@ certs and keys.
     ssl_cert = <path to cert>
     ssl_cacert = <path to cacert>
 
+Rendering Airflow UI in a Web Frame from another site
+------------------------------------------------------
+
+Using Airflow in a web frame is enabled by default. To disable this (and prevent click jacking attacks)
+set the below:
+
+.. code-block:: ini
+
+    [webserver]
+    x_frame_enabled = False
+
 Impersonation
 -------------
 
@@ -428,11 +439,11 @@ Basic authentication for Celery Flower is supported.
 
 You can specify the details either as an optional argument in the Flower process launching
 command, or as a configuration item in your ``airflow.cfg``. For both cases, please provide
-`user:password` pairs separated by a comma.
+``user:password`` pairs separated by a comma.
 
 .. code-block:: bash
 
-    airflow flower --basic_auth=user1:password1,user2:password2
+    airflow flower --basic-auth=user1:password1,user2:password2
 
 .. code-block:: ini
 
@@ -531,7 +542,7 @@ The first time Airflow is started, the ``airflow.cfg`` file is generated with th
 key. The key is saved to option ``fernet_key`` of section ``[core]``.
 
 You can also configure a fernet key using environment variables. This will overwrite the value from the
-`airflow.cfg` file
+``airflow.cfg`` file
 
     .. code-block:: bash
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,18 +15,96 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.operators.spanner`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.operators.spanner`."""
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.operators.spanner import (  # noqa
-    CloudSpannerInstanceDatabaseDeleteOperator, CloudSpannerInstanceDatabaseDeployOperator,
-    CloudSpannerInstanceDatabaseQueryOperator, CloudSpannerInstanceDatabaseUpdateOperator,
-    CloudSpannerInstanceDeleteOperator, CloudSpannerInstanceDeployOperator,
+from airflow.providers.google.cloud.operators.spanner import (
+    SpannerDeleteDatabaseInstanceOperator, SpannerDeleteInstanceOperator,
+    SpannerDeployDatabaseInstanceOperator, SpannerDeployInstanceOperator,
+    SpannerQueryDatabaseInstanceOperator, SpannerUpdateDatabaseInstanceOperator,
 )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.spanner`.",
-    DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.spanner`.",
+    DeprecationWarning,
+    stacklevel=2,
 )
+
+
+class CloudSpannerInstanceDatabaseDeleteOperator(SpannerDeleteDatabaseInstanceOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.providers.google.cloud.operators.spanner.SpannerDeleteDatabaseInstanceOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            self.__doc__, DeprecationWarning, stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class CloudSpannerInstanceDatabaseDeployOperator(SpannerDeployDatabaseInstanceOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.providers.google.cloud.operators.spanner.SpannerDeployDatabaseInstanceOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            self.__doc__, DeprecationWarning, stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class CloudSpannerInstanceDatabaseQueryOperator(SpannerQueryDatabaseInstanceOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.providers.google.cloud.operators.spanner.SpannerQueryDatabaseInstanceOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            self.__doc__, DeprecationWarning, stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class CloudSpannerInstanceDatabaseUpdateOperator(SpannerUpdateDatabaseInstanceOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.providers.google.cloud.operators.spanner.SpannerUpdateDatabaseInstanceOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            self.__doc__, DeprecationWarning, stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class CloudSpannerInstanceDeleteOperator(SpannerDeleteInstanceOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.providers.google.cloud.operators.spanner.SpannerDeleteInstanceOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            self.__doc__, DeprecationWarning, stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class CloudSpannerInstanceDeployOperator(SpannerDeployInstanceOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.providers.google.cloud.operators.spanner.SpannerDeployInstanceOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            self.__doc__, DeprecationWarning, stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

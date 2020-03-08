@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,34 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.contrib.hooks.vertica_hook import VerticaHook
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
+"""This module is deprecated. Please use `airflow.providers.vertica.operators.vertica`."""
 
+import warnings
 
-class VerticaOperator(BaseOperator):
-    """
-    Executes sql code in a specific Vertica database
+# pylint: disable=unused-import
+from airflow.providers.vertica.operators.vertica import VerticaOperator  # noqa
 
-    :param vertica_conn_id: reference to a specific Vertica database
-    :type vertica_conn_id: str
-    :param sql: the sql code to be executed. (templated)
-    :type sql: Can receive a str representing a sql statement,
-        a list of str (sql statements), or reference to a template file.
-        Template reference are recognized by str ending in '.sql'
-    """
-
-    template_fields = ('sql',)
-    template_ext = ('.sql',)
-    ui_color = '#b4e0ff'
-
-    @apply_defaults
-    def __init__(self, sql, vertica_conn_id='vertica_default', *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.vertica_conn_id = vertica_conn_id
-        self.sql = sql
-
-    def execute(self, context):
-        self.log.info('Executing: %s', self.sql)
-        hook = VerticaHook(vertica_conn_id=self.vertica_conn_id)
-        hook.run(sql=self.sql)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.vertica.operators.vertica`.",
+    DeprecationWarning, stacklevel=2
+)

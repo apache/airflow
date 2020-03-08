@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,22 +19,23 @@
 """Unit tests for stringified DAGs."""
 
 import multiprocessing
+import os
 import unittest
 from datetime import datetime, timedelta
+from glob import glob
 from unittest import mock
 
 from dateutil.relativedelta import FR, relativedelta
 from parameterized import parameterized
 
-from airflow import example_dags
-from airflow.contrib import example_dags as contrib_example_dags
-from airflow.gcp import example_dags as gcp_example_dags
 from airflow.hooks.base_hook import BaseHook
-from airflow.models import DAG, BaseOperator, Connection, DagBag
-from airflow.operators.bash_operator import BashOperator
+from airflow.models import DAG, Connection, DagBag, TaskInstance
+from airflow.models.baseoperator import BaseOperator
+from airflow.operators.bash import BashOperator
 from airflow.operators.subdag_operator import SubDagOperator
-from airflow.serialization import SerializedBaseOperator, SerializedDAG
-from airflow.utils.tests import CustomBaseOperator, GoogleLink
+from airflow.serialization.json_schema import load_dag_schema_dict
+from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
 
 serialized_simple_dag_ground_truth = {
     "__version": 1,
@@ -52,7 +52,7 @@ serialized_simple_dag_ground_truth = {
             }
         },
         "start_date": 1564617600.0,
-        "params": {},
+        "is_paused_upon_creation": False,
         "_dag_id": "simple_dag",
         "fileloc": None,
         "tasks": [
@@ -62,10 +62,8 @@ serialized_simple_dag_ground_truth = {
                 "retries": 1,
                 "retry_delay": 300.0,
                 "_downstream_task_ids": [],
-                "_inlets": {
-                    "auto": False, "task_ids": [], "datasets": []
-                },
-                "_outlets": {"datasets": []},
+                "_inlets": [],
+                "_outlets": [],
                 "ui_color": "#fff",
                 "ui_fgcolor": "#000",
                 "template_fields": [],
@@ -77,25 +75,28 @@ serialized_simple_dag_ground_truth = {
                 "retries": 1,
                 "retry_delay": 300.0,
                 "_downstream_task_ids": [],
-                "_inlets": {
-                    "auto": False, "task_ids": [], "datasets": []
-                },
-                "_outlets": {"datasets": []},
+                "_inlets": [],
+                "_outlets": [],
+                "_operator_extra_links": [{"tests.test_utils.mock_operators.CustomOpLink": {}}],
                 "ui_color": "#fff",
                 "ui_fgcolor": "#000",
                 "template_fields": [],
-                "_task_type": "CustomBaseOperator",
-                "_task_module": "airflow.utils.tests",
+                "_task_type": "CustomOperator",
+                "_task_module": "tests.test_utils.mock_operators",
             },
         ],
         "timezone": "UTC",
     },
 }
 
+ROOT_FOLDER = os.path.realpath(
+    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
+)
 
-def make_example_dags(module):
+
+def make_example_dags(module_path):
     """Loads DAGs from a module for test."""
-    dagbag = DagBag(module.__path__[0])
+    dagbag = DagBag(module_path)
     return dagbag.dags
 
 
@@ -109,9 +110,10 @@ def make_simple_dag():
             "depends_on_past": False,
         },
         start_date=datetime(2019, 8, 1),
+        is_paused_upon_creation=False,
     )
     BaseOperator(task_id='simple_task', dag=dag, owner='airflow')
-    CustomBaseOperator(task_id='custom_task', dag=dag)
+    CustomOperator(task_id='custom_task', dag=dag)
     return {'simple_dag': dag}
 
 
@@ -155,9 +157,17 @@ def collect_dags():
     dags = {}
     dags.update(make_simple_dag())
     dags.update(make_user_defined_macro_filter_dag())
-    dags.update(make_example_dags(example_dags))
-    dags.update(make_example_dags(contrib_example_dags))
-    dags.update(make_example_dags(gcp_example_dags))
+    patterns = [
+        "airflow/example_dags",
+        "airflow/providers/*/example_dags",
+        "airflow/providers/*/*/example_dags",
+    ]
+    for pattern in patterns:
+        for directory in glob(f"{ROOT_FOLDER}/{pattern}"):
+            dags.update(make_example_dags(directory))
+
+    # Filter subdags as they are stored in same row in Serialized Dag table
+    dags = {dag_id: dag for dag_id, dag in dags.items() if not dag.is_subdag}
     return dags
 
 
@@ -240,6 +250,9 @@ class TestStringifiedDAGs(unittest.TestCase):
         self.assertTrue(set(stringified_dags.keys()) == set(dags.keys()))
 
         # Verify deserialized DAGs.
+        for dag_id in stringified_dags:
+            self.validate_deserialized_dag(stringified_dags[dag_id], dags[dag_id])
+
         example_skip_dag = stringified_dags['example_skip_dag']
         skip_operator_1_task = example_skip_dag.task_dict['skip_operator_1']
         self.validate_deserialized_task(
@@ -259,9 +272,21 @@ class TestStringifiedDAGs(unittest.TestCase):
             SubDagOperator.ui_fgcolor
         )
 
-        simple_dag = stringified_dags['simple_dag']
-        custom_task = simple_dag.task_dict['custom_task']
-        self.validate_operator_extra_links(custom_task)
+    def validate_deserialized_dag(self, serialized_dag, dag):
+        """
+        Verify that all example DAGs work with DAG Serialization by
+        checking fields between Serialized Dags & non-Serialized Dags
+        """
+        fields_to_check = [
+            "task_ids", "params", "fileloc", "max_active_runs", "concurrency",
+            "is_paused_upon_creation", "doc_md", "safe_dag_id", "is_subdag",
+            "catchup", "description", "start_date", "end_date", "parent_dag",
+            "template_searchpath"
+        ]
+
+        # fields_to_check = dag.get_serialized_fields()
+        for field in fields_to_check:
+            self.assertEqual(getattr(serialized_dag, field), getattr(dag, field))
 
     def validate_deserialized_task(self, task, task_type, ui_color, ui_fgcolor):
         """Verify non-airflow operators are casted to BaseOperator."""
@@ -278,22 +303,8 @@ class TestStringifiedDAGs(unittest.TestCase):
             self.assertTrue(isinstance(task.subdag, DAG))
         else:
             self.assertIsNone(task.subdag)
-
-    def validate_operator_extra_links(self, task):
-        """
-        This tests also depends on GoogleLink() registered as a plugin
-        in tests/plugins/test_plugin.py
-
-        The function tests that if extra operator links are registered in plugin
-        in ``operator_extra_links`` and the same is also defined in
-        the Operator in ``BaseOperator.operator_extra_links``, it has the correct
-        extra link.
-        """
-        self.assertEqual(
-            task.operator_extra_link_dict[GoogleLink.name].get_link(
-                task, datetime(2019, 8, 1)),
-            "https://www.google.com"
-        )
+        self.assertEqual({}, task.params)
+        self.assertEqual({}, task.executor_config)
 
     @parameterized.expand([
         (datetime(2019, 8, 1), None, datetime(2019, 8, 1)),
@@ -354,7 +365,6 @@ class TestStringifiedDAGs(unittest.TestCase):
             "__version": 1,
             "dag": {
                 "default_args": {"__type": "dict", "__var": {}},
-                "params": {},
                 "_dag_id": "simple_dag",
                 "fileloc": __file__,
                 "tasks": [],
@@ -383,6 +393,224 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         round_tripped = SerializedDAG._deserialize(serialized)
         self.assertEqual(val, round_tripped)
+
+    @parameterized.expand([
+        (None, {}),
+        ({"param_1": "value_1"}, {"param_1": "value_1"}),
+    ])
+    def test_dag_params_roundtrip(self, val, expected_val):
+        """
+        Test that params work both on Serialized DAGs & Tasks
+        """
+        dag = DAG(dag_id='simple_dag', params=val)
+        BaseOperator(task_id='simple_task', dag=dag, start_date=datetime(2019, 8, 1))
+
+        serialized_dag = SerializedDAG.to_dict(dag)
+        if val:
+            self.assertIn("params", serialized_dag["dag"])
+        else:
+            self.assertNotIn("params", serialized_dag["dag"])
+
+        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+        deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
+        self.assertEqual(expected_val, deserialized_dag.params)
+        self.assertEqual(expected_val, deserialized_simple_task.params)
+
+    @parameterized.expand([
+        (None, {}),
+        ({"param_1": "value_1"}, {"param_1": "value_1"}),
+    ])
+    def test_task_params_roundtrip(self, val, expected_val):
+        """
+        Test that params work both on Serialized DAGs & Tasks
+        """
+        dag = DAG(dag_id='simple_dag')
+        BaseOperator(task_id='simple_task', dag=dag, params=val,
+                     start_date=datetime(2019, 8, 1))
+
+        serialized_dag = SerializedDAG.to_dict(dag)
+        if val:
+            self.assertIn("params", serialized_dag["dag"]["tasks"][0])
+        else:
+            self.assertNotIn("params", serialized_dag["dag"]["tasks"][0])
+
+        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+        deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
+        self.assertEqual(expected_val, deserialized_simple_task.params)
+
+    def test_extra_serialized_field_and_operator_links(self):
+        """
+        Assert extra field exists & OperatorLinks defined in Plugins and inbuilt Operator Links.
+
+        This tests also depends on GoogleLink() registered as a plugin
+        in tests/plugins/test_plugin.py
+
+        The function tests that if extra operator links are registered in plugin
+        in ``operator_extra_links`` and the same is also defined in
+        the Operator in ``BaseOperator.operator_extra_links``, it has the correct
+        extra link.
+        """
+        test_date = datetime(2019, 8, 1)
+        dag = DAG(dag_id='simple_dag', start_date=test_date)
+        CustomOperator(task_id='simple_task', dag=dag, bash_command="true")
+
+        serialized_dag = SerializedDAG.to_dict(dag)
+        self.assertIn("bash_command", serialized_dag["dag"]["tasks"][0])
+
+        dag = SerializedDAG.from_dict(serialized_dag)
+        simple_task = dag.task_dict["simple_task"]
+        self.assertEqual(getattr(simple_task, "bash_command"), "true")
+
+        #########################################################
+        # Verify Operator Links work with Serialized Operator
+        #########################################################
+        # Check Serialized version of operator link only contains the inbuilt Op Link
+        self.assertEqual(
+            serialized_dag["dag"]["tasks"][0]["_operator_extra_links"],
+            [{'tests.test_utils.mock_operators.CustomOpLink': {}}]
+        )
+
+        # Test all the extra_links are set
+        self.assertCountEqual(simple_task.extra_links, ['Google Custom', 'airflow', 'github', 'google'])
+
+        ti = TaskInstance(task=simple_task, execution_date=test_date)
+        ti.xcom_push('search_query', "dummy_value_1")
+
+        # Test Deserialized inbuilt link
+        custom_inbuilt_link = simple_task.get_extra_links(test_date, CustomOpLink.name)
+        self.assertEqual('http://google.com/custom_base_link?search=dummy_value_1', custom_inbuilt_link)
+
+        # Test Deserialized link registered via Airflow Plugin
+        google_link_from_plugin = simple_task.get_extra_links(test_date, GoogleLink.name)
+        self.assertEqual("https://www.google.com", google_link_from_plugin)
+
+    def test_extra_serialized_field_and_multiple_operator_links(self):
+        """
+        Assert extra field exists & OperatorLinks defined in Plugins and inbuilt Operator Links.
+
+        This tests also depends on GoogleLink() registered as a plugin
+        in tests/plugins/test_plugin.py
+
+        The function tests that if extra operator links are registered in plugin
+        in ``operator_extra_links`` and the same is also defined in
+        the Operator in ``BaseOperator.operator_extra_links``, it has the correct
+        extra link.
+        """
+        test_date = datetime(2019, 8, 1)
+        dag = DAG(dag_id='simple_dag', start_date=test_date)
+        CustomOperator(task_id='simple_task', dag=dag, bash_command=["echo", "true"])
+
+        serialized_dag = SerializedDAG.to_dict(dag)
+        self.assertIn("bash_command", serialized_dag["dag"]["tasks"][0])
+
+        dag = SerializedDAG.from_dict(serialized_dag)
+        simple_task = dag.task_dict["simple_task"]
+        self.assertEqual(getattr(simple_task, "bash_command"), ["echo", "true"])
+
+        #########################################################
+        # Verify Operator Links work with Serialized Operator
+        #########################################################
+        # Check Serialized version of operator link only contains the inbuilt Op Link
+        self.assertEqual(
+            serialized_dag["dag"]["tasks"][0]["_operator_extra_links"],
+            [
+                {'tests.test_utils.mock_operators.CustomBaseIndexOpLink': {'index': 0}},
+                {'tests.test_utils.mock_operators.CustomBaseIndexOpLink': {'index': 1}},
+            ]
+        )
+
+        # Test all the extra_links are set
+        self.assertCountEqual(simple_task.extra_links, [
+            'BigQuery Console #1', 'BigQuery Console #2', 'airflow', 'github', 'google'])
+
+        ti = TaskInstance(task=simple_task, execution_date=test_date)
+        ti.xcom_push('search_query', ["dummy_value_1", "dummy_value_2"])
+
+        # Test Deserialized inbuilt link #1
+        custom_inbuilt_link = simple_task.get_extra_links(test_date, "BigQuery Console #1")
+        self.assertEqual('https://console.cloud.google.com/bigquery?j=dummy_value_1', custom_inbuilt_link)
+
+        # Test Deserialized inbuilt link #2
+        custom_inbuilt_link = simple_task.get_extra_links(test_date, "BigQuery Console #2")
+        self.assertEqual('https://console.cloud.google.com/bigquery?j=dummy_value_2', custom_inbuilt_link)
+
+        # Test Deserialized link registered via Airflow Plugin
+        google_link_from_plugin = simple_task.get_extra_links(test_date, GoogleLink.name)
+        self.assertEqual("https://www.google.com", google_link_from_plugin)
+
+    def test_dag_serialized_fields_with_schema(self):
+        """
+        Additional Properties are disabled on DAGs. This test verifies that all the
+        keys in DAG.get_serialized_fields are listed in Schema definition.
+        """
+        dag_schema: dict = load_dag_schema_dict()["definitions"]["dag"]["properties"]
+
+        # The parameters we add manually in Serialization needs to be ignored
+        ignored_keys: set = {"is_subdag", "tasks"}
+        dag_params: set = set(dag_schema.keys()) - ignored_keys
+        self.assertEqual(set(DAG.get_serialized_fields()), dag_params)
+
+    def test_no_new_fields_added_to_base_operator(self):
+        """
+        This test verifies that there are no new fields added to BaseOperator. And reminds that
+        tests should be added for it.
+        """
+        base_operator = BaseOperator(task_id="10")
+        fields = base_operator.__dict__
+        self.assertEqual({'_dag': None,
+                          '_downstream_task_ids': set(),
+                          '_inlets': [],
+                          '_log': base_operator.log,
+                          '_outlets': [],
+                          '_upstream_task_ids': set(),
+                          'depends_on_past': False,
+                          'do_xcom_push': True,
+                          'email': None,
+                          'email_on_failure': True,
+                          'email_on_retry': True,
+                          'end_date': None,
+                          'execution_timeout': None,
+                          'executor_config': {},
+                          'inlets': [],
+                          'max_retry_delay': None,
+                          'on_execute_callback': None,
+                          'on_failure_callback': None,
+                          'on_retry_callback': None,
+                          'on_success_callback': None,
+                          'outlets': [],
+                          'owner': 'airflow',
+                          'params': {},
+                          'pool': 'default_pool',
+                          'pool_slots': 1,
+                          'priority_weight': 1,
+                          'queue': 'default',
+                          'resources': None,
+                          'retries': 0,
+                          'retry_delay': timedelta(0, 300),
+                          'retry_exponential_backoff': False,
+                          'run_as_user': None,
+                          'sla': None,
+                          'start_date': None,
+                          'subdag': None,
+                          'task_concurrency': None,
+                          'task_id': '10',
+                          'trigger_rule': 'all_success',
+                          'wait_for_downstream': False,
+                          'weight_rule': 'downstream'}, fields,
+                         """
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+     ACTION NEEDED! PLEASE READ THIS CAREFULLY AND CORRECT TESTS CAREFULLY
+
+ Some fields were added to the BaseOperator! Please add them to the list above and make sure that
+ you add support for DAG serialization - you should add the field to
+ `airflow/serialization/schema.json` - they should have correct type defined there.
+
+ Note that we do not support versioning yet so you should only add optional fields to BaseOperator.
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                         """
+                         )
 
 
 if __name__ == '__main__':

@@ -15,26 +15,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+export AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
+export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
 
-set -uo pipefail
+# shellcheck source=scripts/ci/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+function run_check_license() {
+    docker run "${EXTRA_DOCKER_FLAGS[@]}" -t \
+            --entrypoint "/usr/local/bin/dumb-init"  \
+            --env PYTHONDONTWRITEBYTECODE \
+            --env VERBOSE \
+            --env VERBOSE_COMMANDS \
+            --env HOST_USER_ID="$(id -ur)" \
+            --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
+            "${AIRFLOW_CI_IMAGE}" \
+            "--" "/opt/airflow/scripts/ci/in_container/run_check_licence.sh" \
+            | tee -a "${OUTPUT_LOG}"
+}
 
-export PYTHON_VERSION=3.5
-export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
-export MOUNT_LOCAL_SOURCES="true"
-
-export PYTHON_VERSION=3.5
-
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
-
-basic_sanity_checks
-
-script_start
+prepare_build
 
 rebuild_ci_image_if_needed
 
 run_check_license
-
-script_end

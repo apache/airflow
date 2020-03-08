@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -36,7 +35,6 @@ TASK_ID = "test_task"
 OPERATOR = "test_operator"
 TRY_NUMBER = 1
 STATE = State.SUCCESS
-DURATION = None
 TEST_SCOPE = {
     "dag_id": DAG_ID,
     "task_id": TASK_ID,
@@ -48,7 +46,7 @@ TASK_DATA = {
     "task_id": TASK_ID,
     "state": STATE,
     "operator": OPERATOR,
-    "duration": DURATION,
+    "duration": None,
 }
 
 CRUMB_DATE = datetime.datetime(2019, 5, 15)
@@ -71,7 +69,7 @@ class TestSentryHook(unittest.TestCase):
         self.dag.task_ids = [TASK_ID]
 
         # Mock the task
-        self.task = Mock(dag=self.dag, dag_id=DAG_ID, task_id=TASK_ID, params=[])
+        self.task = Mock(dag=self.dag, dag_id=DAG_ID, task_id=TASK_ID, params=[], pool_slots=1)
         self.task.__class__.__name__ = OPERATOR
 
         self.ti = TaskInstance(self.task, execution_date=EXECUTION_DATE)

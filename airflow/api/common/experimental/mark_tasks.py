@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,11 +22,12 @@ from typing import Iterable
 
 from sqlalchemy import or_
 
-from airflow.jobs import BackfillJob
-from airflow.models import BaseOperator, DagRun, TaskInstance
+from airflow.jobs.backfill_job import BackfillJob
+from airflow.models import DagRun, TaskInstance
+from airflow.models.baseoperator import BaseOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 
@@ -120,6 +120,9 @@ def set_state(
             tis_altered += qry_sub_dag.with_for_update().all()
         for task_instance in tis_altered:
             task_instance.state = state
+            if state in State.finished():
+                task_instance.end_date = timezone.utcnow()
+                task_instance.set_duration()
     else:
         tis_altered = qry_dag.all()
         if sub_dag_run_ids:

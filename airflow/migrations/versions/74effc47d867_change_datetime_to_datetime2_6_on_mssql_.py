@@ -31,7 +31,7 @@ from sqlalchemy.dialects import mssql
 
 # revision identifiers, used by Alembic.
 revision = '74effc47d867'
-down_revision = 'b3b105409875'
+down_revision = '6e96a59344a4'
 branch_labels = None
 depends_on = None
 
@@ -249,7 +249,7 @@ def reorder_columns(columns):
     :param columns: columns retrieved from DB related to constraint
     :return: ordered column
     """
-    ordered_columns = list()
+    ordered_columns = []
     for column in ['task_id', 'dag_id', 'execution_date']:
         if column in columns:
             ordered_columns.append(column)

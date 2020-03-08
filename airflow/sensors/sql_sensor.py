@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -29,7 +28,6 @@ class SqlSensor(BaseSensorOperator):
     """
     Runs a sql statement repeatedly until a criteria is met. It will keep trying until
     success or failure criteria are met, or if the first cell is not in (0, '0', '', None).
-    An allow_null parameter exclude 'None' results from failure criteria.
     Optional success and failure callables are called with the first cell returned as the argument.
     If success callable is defined the sensor will keep retrying until the criteria is met.
     If failure callable is defined and the criteria is met the sensor will raise AirflowException.
@@ -51,8 +49,6 @@ class SqlSensor(BaseSensorOperator):
     :type: failure: Optional<Callable[[Any], bool]>
     :param fail_on_empty: Explicitly fail on no rows returned.
     :type: fail_on_empty: bool
-    :param allow_null: Treat NULL in first cell as success.
-    :type: allow_null: bool
     """
 
     template_fields = ('sql',)  # type: Iterable[str]
@@ -61,21 +57,20 @@ class SqlSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(self, conn_id, sql, parameters=None, success=None, failure=None, fail_on_empty=False,
-                 allow_null=True, *args, **kwargs):
+                 *args, **kwargs):
         self.conn_id = conn_id
         self.sql = sql
         self.parameters = parameters
         self.success = success
         self.failure = failure
         self.fail_on_empty = fail_on_empty
-        self.allow_null = allow_null
         super().__init__(*args, **kwargs)
 
     def _get_hook(self):
         conn = BaseHook.get_connection(self.conn_id)
 
         allowed_conn_type = {'google_cloud_platform', 'jdbc', 'mssql',
-                             'mysql', 'oracle', 'postgres',
+                             'mysql', 'odbc', 'oracle', 'postgres',
                              'presto', 'sqlite', 'vertica'}
         if conn.conn_type not in allowed_conn_type:
             raise AirflowException("The connection type is not supported by SqlSensor. " +
@@ -105,6 +100,4 @@ class SqlSensor(BaseSensorOperator):
                 return self.success(first_cell)
             else:
                 raise AirflowException("self.success is present, but not callable -> {}".format(self.success))
-        if self.allow_null:
-            return first_cell is None or bool(first_cell)
         return bool(first_cell)

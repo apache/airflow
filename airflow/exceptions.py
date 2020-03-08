@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -93,6 +92,10 @@ class DagRunAlreadyExists(AirflowBadRequest):
 
 class DagFileExists(AirflowBadRequest):
     """Raise when a DAG ID is still in DagBag i.e., DAG file is in DAG folder"""
+
+
+class DuplicateTaskIdFound(AirflowException):
+    """Raise when a Task with duplicate task_id is defined in the same DAG"""
 
 
 class TaskNotFound(AirflowNotFoundException):

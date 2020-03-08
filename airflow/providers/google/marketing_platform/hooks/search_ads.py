@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,10 +22,10 @@ from typing import Any, Dict, Optional
 
 from googleapiclient.discovery import build
 
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 
-class GoogleSearchAdsHook(GoogleCloudBaseHook):
+class GoogleSearchAdsHook(CloudBaseHook):
     """
     Hook for Google Search Ads 360.
     """
