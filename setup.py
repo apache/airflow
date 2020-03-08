@@ -252,6 +252,7 @@ hive = [
     'pyhive>=0.6.0',
 ]
 jdbc = [
+    'JPype1==0.7.1',
     'jaydebeapi>=1.1.1',
 ]
 jenkins = [
