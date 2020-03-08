@@ -312,8 +312,8 @@ class AirflowConfigParser(ConfigParser):
 
         .. code-block:: ini
 
-            [core]
-            creds_backend = airflow.creds.environment_variables.EnvironmentVariablesCredsBackend, airflow.creds.metastore.MetastoreCredsBackend
+            [creds_backend]
+            class_list = airflow.creds.environment_variables.EnvironmentVariablesCredsBackend, airflow.creds.metastore.MetastoreCredsBackend
 
         :return: List of string
         :rtype List[str]

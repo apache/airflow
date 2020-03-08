@@ -95,7 +95,7 @@ in environment variables, or as parameters in SSM parameter store.
 Configuration
 ^^^^^^^^^^^^^
 
-Creds backend precedence is managed in through the ``creds_backend`` parameter in section ``[core]``
+Creds backend precedence is managed in through the ``class_list`` parameter in section ``[creds_backend]``
 of ``airflow.cfg``.
 
 Add creds backend class names in the order you want them to be searched.  For example:
@@ -148,24 +148,19 @@ AWS SSM Parameter Store
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 To enable SSM parameter store, add :py:class:`~airflow.providers.amazon.aws.creds.ssm.AwsSsmCredsBackend` to
-the ``creds_backend`` key in the ``[core]`` section of ``airflow.cfg``.  For example:
+the class list in  ``[creds_backend]`` section of ``airflow.cfg``.  For example:
 
 .. code-block:: ini
 
-    creds_backend = airflow.providers.amazon.aws.creds.ssm.AwsSsmCredsBackend, airflow.creds.metastore.MetastoreCredsBackend
+    [creds_backend]
+    class_list = airflow.providers.amazon.aws.creds.ssm.AwsSsmCredsBackend, airflow.creds.metastore.MetastoreCredsBackend
+    aws_ssm_prefix = /airflow
+    aws_profile_name =
 
-Additionally, there is an ``[aws_ssm_creds]`` config section:
-
-.. code-block:: ini
-
-    [aws_ssm_creds]
-    ssm_prefix = /airflow
-    profile_name =
-
-With an ``ssm_prefix`` of ``/airflow``, a connection with id ``my_postgres_conn`` would need to be stored at
+With an ``aws_ssm_prefix`` of ``/airflow``, a connection with id ``my_postgres_conn`` would need to be stored at
 ``/airflow/AIRFLOW_CONN_MY_POSTGRES_CONN``.
 
-You may optionally supply a profile name to reference aws credentials stored in the ``~/.aws`` directory.
+You may optionally supply a profile name to reference aws profile defined in ``~/.aws`` directory.
 
 The value of the SSM parameter must be the :ref:`airflow connection URI representation <generating_connection_uri>` of the connection object.
 
@@ -177,7 +172,7 @@ Roll your own creds backend
 A creds backend is a subclass of :py:class:`airflow.creds.BaseCredsBackend`, and just has to implement the
 :py:meth:`~airflow.creds.BaseCredsBackend.get_connections` method.
 
-Just create your class, and put it in the search path defined in the ``creds_backend`` param in the ``[core]``
+Just create your class, and put it in the search path defined in the ``class_list`` key in the ``[creds_backend]``
 section of ``airflow.cfg``.
 
 

@@ -36,19 +36,20 @@ class AwsSsmCredsBackend(BaseCredsBackend):
 
     .. code-block:: ini
 
-        [aws_ssm_creds]
-        ssm_prefix = /airflow
-        profile_name = default
+        [creds_backend]
+        class_list = airflow.providers.amazon.aws.creds.ssm.AwsSsmCredsBackend
+        aws_ssm_prefix = /airflow
+        aws_ssm_profile_name = default
 
     For example, if ssm path is ``/airflow/AIRFLOW_CONN_SMTP_DEFAULT``, this would be accessible if you
-    provide ``ssm_prefix = /airflow`` and conn_id ``smtp_default``.
+    provide ``aws_ssm_prefix = /airflow`` and conn_id ``smtp_default``.
 
     """
 
-    CONF_SECTION = "aws_ssm_creds"
-    CONF_KEY_SSM_PREFIX = "ssm_prefix"
+    CONF_SECTION = "creds_backend"
+    CONF_KEY_SSM_PREFIX = "aws_ssm_prefix"
     DEFAULT_PREFIX = "/airflow"
-    CONF_KEY_PROFILE_NAME = "profile_name"
+    CONF_KEY_PROFILE_NAME = "aws_ssm_profile_name"
 
     def __init__(self, *args, **kwargs):
         pass

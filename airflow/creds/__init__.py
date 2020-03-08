@@ -36,7 +36,7 @@ CONN_ENV_PREFIX = "AIRFLOW_CONN_"
 
 class BaseCredsBackend(ABC):
     """
-    Abstract base class to provide connection objects given a conn_id
+    Abstract base class to retrieve creds given a conn_id and construct a Connection object
     """
 
     @abstractmethod
@@ -57,8 +57,8 @@ def get_connections(conn_id: str) -> List[Connection]:
     :return: array of connections
     """
     creds_backends = conf.getlist(
-        section="core",
-        key="creds_backend",
+        section="creds_backend",
+        key="class_list",
         fallback=', '.join(
             [
                 "airflow.creds.environment_variables.EnvironmentVariablesCredsBackend",

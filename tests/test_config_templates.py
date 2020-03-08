@@ -27,6 +27,7 @@ CONFIG_TEMPLATES_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "config_t
 DEFAULT_AIRFLOW_SECTIONS = [
     'core',
     "logging",
+    'creds_backend',
     'cli',
     'debug',
     'api',
@@ -48,7 +49,6 @@ DEFAULT_AIRFLOW_SECTIONS = [
     'admin',
     'elasticsearch',
     'elasticsearch_configs',
-    'aws_ssm_creds',
     'kubernetes',
     'kubernetes_node_selectors',
     'kubernetes_environment_variables',
