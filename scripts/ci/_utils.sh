@@ -414,6 +414,9 @@ function check_if_coreutils_installed() {
 # Asserts that we are not inside of the container
 #
 function assert_not_in_container() {
+    if [[ ${SKIP_IN_CONTAINER_CHECK:=} == "true" ]]; then
+        return
+    fi
     if [[ -f /.dockerenv ]]; then
         echo >&2
         echo >&2 "You are inside the Airflow docker container!"
