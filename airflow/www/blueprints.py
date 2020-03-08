@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from flask import Blueprint, redirect, url_for
+import os
+
+from flask import Blueprint, redirect, send_from_directory, url_for
 
 routes = Blueprint('routes', __name__)
 
@@ -24,3 +26,10 @@ routes = Blueprint('routes', __name__)
 @routes.route('/')
 def index():
     return redirect(url_for('Airflow.index'))
+
+
+@routes.route("/robots.txt", methods=["GET"])
+def robotstxt():
+    return send_from_directory(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static',
+                     'txt'), 'robots.txt')
