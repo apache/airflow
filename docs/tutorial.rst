@@ -186,17 +186,6 @@ json, yaml
     :start-after: [START documentation]
     :end-before: [END documentation]
 
-Adding DAG and Tasks documentation
-----------------------------------
-We can add documentation for DAG or each single task. DAG documentation only support
-markdown so far and task documentation support plain text, markdown, reStructuredText,
-json, yaml
-
-.. exampleinclude:: ../airflow/example_dags/tutorial.py
-    :language: python
-    :start-after: [START documentation]
-    :end-before: [END documentation]
-
 Setting up Dependencies
 -----------------------
 We have tasks ``t1``, ``t2`` and ``t3`` that do not depend on each other. Here's a few ways
