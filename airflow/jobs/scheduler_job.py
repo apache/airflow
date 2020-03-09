@@ -28,7 +28,7 @@ from collections import defaultdict
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import timedelta
 from itertools import groupby
-from typing import List, Optional, Set, Tuple
+from typing import List, Optional, Tuple
 
 from setproctitle import setproctitle
 from sqlalchemy import and_, func, not_, or_
@@ -747,21 +747,16 @@ class DagFileProcessor(LoggingMixin):
 
         return tis_out
 
-    def _find_dags_to_process(self, dags: List[DAG], paused_dag_ids: Set[str]) -> List[DAG]:
+    def _find_dags_to_process(self, dags: List[DAG]) -> List[DAG]:
         """
         Find the DAGs that are not paused to process.
 
         :param dags: specified DAGs
-        :param paused_dag_ids: paused DAG IDs
         :return: DAGs to process
         """
         if len(self.dag_ids) > 0:
             dags = [dag for dag in dags
-                    if dag.dag_id in self.dag_ids and
-                    dag.dag_id not in paused_dag_ids]
-        else:
-            dags = [dag for dag in dags
-                    if dag.dag_id not in paused_dag_ids]
+                    if dag.dag_id in self.dag_ids]
         return dags
 
     @provide_session
@@ -852,16 +847,16 @@ class DagFileProcessor(LoggingMixin):
 
         paused_dag_ids = DagModel.get_paused_dag_ids(dag_ids=dagbag.dag_ids)
 
-        # Pickle the DAGs (if necessary) and put them into a SimpleDag
-        for dag_id, dag in dagbag.dags.items():
-            # Only return DAGs that are not paused
-            if dag_id not in paused_dag_ids:
-                pickle_id = None
-                if pickle_dags:
-                    pickle_id = dag.pickle(session).id
-                simple_dags.append(SimpleDag(dag, pickle_id=pickle_id))
+        active_dags = [dag for dag_id, dag in dagbag.dags.items() if dag_id not in paused_dag_ids]
 
-        dags = self._find_dags_to_process(dagbag.dags.values(), paused_dag_ids)
+        # Pickle the DAGs (if necessary) and put them into a SimpleDag
+        for dag in active_dags:
+            pickle_id = None
+            if pickle_dags:
+                pickle_id = dag.pickle(session).id
+            simple_dags.append(SimpleDag(dag, pickle_id=pickle_id))
+
+        dags = self._find_dags_to_process(active_dags)
 
         ti_keys_to_schedule = self._process_dags(dags, session)
 
