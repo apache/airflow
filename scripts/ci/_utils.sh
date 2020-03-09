@@ -809,7 +809,7 @@ function build_image_on_ci() {
         else
             touch "${BUILD_CACHE_DIR}"/.skip_tests
         fi
-    elif [[ ${TRAVIS_JOB_NAME} == "Build documentation"* ]]; then
+    elif [[ ${TRAVIS_JOB_NAME} == *"documentation"* ]]; then
         rebuild_ci_image_if_needed
     else
         echo
