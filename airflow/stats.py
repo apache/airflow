@@ -200,6 +200,7 @@ class _Stats(type):
                     self.__class__.instance = DummyStatsLogger()
             except (socket.gaierror, ImportError) as e:
                 log.warning("Could not configure StatsClient: %s, using DummyStatsLogger instead.", e)
+                self.__class__.instance = DummyStatsLogger()
 
     def get_statsd_logger(self):
         if conf.getboolean('scheduler', 'statsd_on'):
@@ -217,6 +218,9 @@ class _Stats(type):
                         raise Exception(
                             """Your custom Statsd client must extend the statsd.StatsClient in order to ensure backwards
                             compatibility.""")
+                    else:
+                        log.info("Successfully loaded custom Statsd client "
+                                 f"from {custom_statsd_module_path}")
 
                 except Exception as err:
                     raise ImportError('Unable to load custom Statsd client from '
