@@ -21,7 +21,6 @@ import importlib
 import inspect
 import logging
 import os
-import re
 import sys
 import types
 from typing import Any, Dict, List, Optional, Type
@@ -35,8 +34,6 @@ log = logging.getLogger(__name__)
 import_errors = {}
 
 plugins = None  # type: Optional[List[AirflowPlugin]]
-
-norm_pattern = re.compile(r'[/|.]')
 
 # Plugin components to integrate as modules
 operators_modules = []
@@ -202,9 +199,10 @@ def make_module(name: str, objects: List[Any]):
 # pylint: enable=protected-access
 
 
-def load_plugins():
+def endure_plugins_loaded():
     """
     Load plugins from plugins directory and entrypoints.
+
     Plugins are only loaded if they have not been previously loaded.
     """
     global plugins  # pylint: disable=global-statement
@@ -280,7 +278,7 @@ def initialize_plugins():
 
 def integrate_executor_plugins() -> None:
     """Integrate executor plugins to the context."""
-    load_plugins()
+    endure_plugins_loaded()
 
     log.debug("Integrate executor plugins")
 
@@ -292,7 +290,7 @@ def integrate_executor_plugins() -> None:
 
 def integrate_dag_plugins() -> None:
     """Integrates operator, sensor, hook, macro plugins."""
-    load_plugins()
+    endure_plugins_loaded()
 
     log.debug("Integrate DAG plugins.")
 

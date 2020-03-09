@@ -175,7 +175,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                 """Integrate plugins to the context"""
                 from airflow import plugins_manager
 
-                plugins_manager.load_plugins()
+                plugins_manager.endure_plugins_loaded()
 
                 for v in plugins_manager.flask_appbuilder_views:
                     log.debug("Adding view %s", v["name"])
