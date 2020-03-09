@@ -94,6 +94,9 @@ class S3Hook(AwsBaseHook):
     Interact with AWS S3, using the boto3 library.
     """
 
+    def __init__(self):
+        self.s3_conn = self.get_conn()
+
     def get_conn(self):
         return self.get_client_type('s3')
 
@@ -128,7 +131,7 @@ class S3Hook(AwsBaseHook):
         :rtype: bool
         """
         try:
-            self.get_conn().head_bucket(Bucket=bucket_name)
+            self.s3_conn.head_bucket(Bucket=bucket_name)
             return True
         except ClientError as e:
             self.log.info(e.response["Error"]["Message"])
@@ -157,14 +160,14 @@ class S3Hook(AwsBaseHook):
         :param region_name: The name of the aws region in which to create the bucket.
         :type region_name: str
         """
-        s3_conn = self.get_conn()
+        s3_conn = self.s3_conn
         if not region_name:
             region_name = s3_conn.meta.region_name
         if region_name == 'us-east-1':
-            self.get_conn().create_bucket(Bucket=bucket_name)
+            self.s3_conn.create_bucket(Bucket=bucket_name)
         else:
-            self.get_conn().create_bucket(Bucket=bucket_name,
-                                          CreateBucketConfiguration={
+            self.s3_conn.create_bucket(Bucket=bucket_name,
+                                       CreateBucketConfiguration={
                                               'LocationConstraint': region_name
                                           })
 
@@ -212,7 +215,7 @@ class S3Hook(AwsBaseHook):
             'MaxItems': max_items,
         }
 
-        paginator = self.get_conn().get_paginator('list_objects_v2')
+        paginator = self.s3_conn.get_paginator('list_objects_v2')
         response = paginator.paginate(Bucket=bucket_name,
                                       Prefix=prefix,
                                       Delimiter=delimiter,
@@ -254,7 +257,7 @@ class S3Hook(AwsBaseHook):
             'MaxItems': max_items,
         }
 
-        paginator = self.get_conn().get_paginator('list_objects_v2')
+        paginator = self.s3_conn.get_paginator('list_objects_v2')
         response = paginator.paginate(Bucket=bucket_name,
                                       Prefix=prefix,
                                       Delimiter=delimiter,
@@ -287,7 +290,7 @@ class S3Hook(AwsBaseHook):
         """
 
         try:
-            self.get_conn().head_object(Bucket=bucket_name, Key=key)
+            self.s3_conn.head_object(Bucket=bucket_name, Key=key)
             return True
         except ClientError as e:
             self.log.info(e.response["Error"]["Message"])
@@ -362,7 +365,7 @@ class S3Hook(AwsBaseHook):
         if output_serialization is None:
             output_serialization = {'CSV': {}}
 
-        response = self.get_conn().select_object_content(
+        response = self.s3_conn.select_object_content(
             Bucket=bucket_name,
             Key=key,
             Expression=expression,
@@ -451,7 +454,7 @@ class S3Hook(AwsBaseHook):
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
 
-        client = self.get_conn()
+        client = self.s3_conn
         client.upload_file(filename, bucket_name, key, ExtraArgs=extra_args)
 
     @provide_bucket_name
@@ -557,7 +560,7 @@ class S3Hook(AwsBaseHook):
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
 
-        client = self.get_conn()
+        client = self.s3_conn
         client.upload_fileobj(file_obj, bucket_name, key, ExtraArgs=extra_args)
 
     def copy_object(self,
@@ -616,9 +619,9 @@ class S3Hook(AwsBaseHook):
         copy_source = {'Bucket': source_bucket_name,
                        'Key': source_bucket_key,
                        'VersionId': source_version_id}
-        response = self.get_conn().copy_object(Bucket=dest_bucket_name,
-                                               Key=dest_bucket_key,
-                                               CopySource=copy_source)
+        response = self.s3_conn.copy_object(Bucket=dest_bucket_name,
+                                            Key=dest_bucket_key,
+                                            CopySource=copy_source)
         return response
 
     def delete_objects(self, bucket, keys):
@@ -639,7 +642,7 @@ class S3Hook(AwsBaseHook):
         if isinstance(keys, str):
             keys = [keys]
 
-        s3 = self.get_conn()
+        s3 = self.s3_conn
 
         # We can only send a maximum of 1000 keys per request.
         # For details see:
