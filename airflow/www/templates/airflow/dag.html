@@ -563,13 +563,23 @@ function updateQueryStringParameter(uri, key, value) {
 
     $("#pause_resume").change(function() {
       var dag_id = $(this).attr('dag_id');
-      if ($(this).prop('checked')) {
+      var $input = $(this);
+      var $buttons = $input.parent('.toggle').find('.btn');
+      $buttons.removeClass('btn-danger');
+      if ($input.prop('checked')) {
         is_paused = 'true'
       } else {
         is_paused = 'false'
       }
-      url = "{{ url_for('Airflow.paused') }}" + '?is_paused=' + is_paused + '&dag_id=' + encodeURIComponent(dag_id);
-      $.post(url);
+      var url = "{{ url_for('Airflow.paused') }}" + '?is_paused=' + is_paused + '&dag_id=' + encodeURIComponent(dag_id);
+      $.post(url).fail(function() {
+        if (is_paused === 'true') {
+          $input.data('bs.toggle').off(true);
+        } else {
+          $input.data('bs.toggle').on(true);
+        }
+        $buttons.addClass('btn-danger');
+      });
     });
 
   </script>

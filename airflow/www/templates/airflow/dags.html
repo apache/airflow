@@ -283,17 +283,27 @@
       var encoded_dag_ids = new URLSearchParams();
 
       $.each($("[id^=toggle]"), function(i, v) {
-        var dag_id = $(v).attr('dag_id');
+        var $input = $(v);
+        var dag_id = $input.attr('dag_id');
         encoded_dag_ids.append('dag_ids', dag_id);
 
-        $(v).change (function() {
-          if ($(v).prop('checked')) {
+        $input.change(function() {
+          var $buttons = $input.parent('.toggle').find('.btn');
+          $buttons.removeClass('btn-danger');
+          if ($input.prop('checked')) {
             is_paused = 'true'
           } else {
             is_paused = 'false'
           }
-          url = 'paused?is_paused=' + is_paused + '&dag_id=' + dag_id;
-          $.post(url);
+          var url = 'paused?is_paused=' + is_paused + '&dag_id=' + dag_id;
+          $.post(url).fail(function() {
+            if (is_paused === 'true') {
+              $input.data('bs.toggle').off(true);
+            } else {
+              $input.data('bs.toggle').on(true);
+            }
+            $buttons.addClass('btn-danger');
+          });
         });
       });
 
