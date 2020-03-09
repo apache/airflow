@@ -785,7 +785,7 @@ function build_image_on_ci() {
         fi
     elif [[ ${TRAVIS_JOB_NAME} == "Static"* ]]; then
         rebuild_ci_image_if_needed
-    elif [[ ${TRAVIS_JOB_NAME} == "Build documentation"* ]]; then
+    elif [[ ${TRAVIS_JOB_NAME} == *"documentation"* ]]; then
         rebuild_ci_image_if_needed
     else
         echo
