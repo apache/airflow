@@ -853,6 +853,32 @@ class DagFileProcessor(LoggingMixin):
 
         ti_keys_to_schedule = self._process_dags(dags, session)
 
+        self._schedule_task_instances(dagbag, ti_keys_to_schedule, session)
+
+        # Record import errors into the ORM
+        try:
+            self.update_import_errors(session, dagbag)
+        except Exception:  # pylint: disable=broad-except
+            self.log.exception("Error logging import errors!")
+
+        return simple_dags, len(dagbag.import_errors)
+
+    @provide_session
+    def _schedule_task_instances(
+        self,
+        dagbag: models.DagBag,
+        ti_keys_to_schedule: List[TaskInstanceKeyType],
+        session=None
+    ) -> None:
+        """
+        Checks whether the tasks specified by `ti_keys_to_schedule` parameter can be scheduled and
+        updates the information in the database,
+
+        :param dagbag: DagBag
+        :type dagbag: models.DagBag
+        :param ti_keys_to_schedule:  List of task instnace keys which can be scheduled.
+        :param ti_keys_to_schedule:
+        """
         # Refresh all task instances that will be scheduled
         TI = models.TaskInstance
         filter_for_tis = TI.filter_for_tis(ti_keys_to_schedule)
@@ -890,16 +916,8 @@ class DagFileProcessor(LoggingMixin):
         # commit batch
         session.commit()
 
-        # Record import errors into the ORM
-        try:
-            self.update_import_errors(session, dagbag)
-        except Exception:  # pylint: disable=broad-except
-            self.log.exception("Error logging import errors!")
-
-        return simple_dags, len(dagbag.import_errors)
-
     @provide_session
-    def _prepare_simple_dags(self, dags: List[DAG], pickle_dags: bool, session) -> List[SimpleDag]:
+    def _prepare_simple_dags(self, dags: List[DAG], pickle_dags: bool, session=None) -> List[SimpleDag]:
         """
         Convert DAGS to  SimpleDags. If necessary, it also Pickle the DAGs
 
