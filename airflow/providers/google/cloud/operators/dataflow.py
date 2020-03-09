@@ -87,7 +87,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
 
     .. seealso::
         For more detail on job submission have a look at the reference:
-        https://cloud.google.com/ldataflow/pipelines/specifying-exec-params
+        https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 
     :param jar: The reference to a self executing DataFlow jar (templated).
     :type jar: str

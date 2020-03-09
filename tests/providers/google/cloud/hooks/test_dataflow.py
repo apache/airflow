@@ -699,8 +699,13 @@ class TestDataflowJob(unittest.TestCase):
     def test_dataflow_job_cancel_job(self):
         job = {"id": TEST_JOB_ID, "name": TEST_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_RUNNING}
 
-        self.mock_dataflow.projects.return_value.locations.return_value. \
-            jobs.return_value.get.return_value.execute.return_value = job
+        get_method = (
+            self.mock_dataflow.projects.return_value.
+            locations.return_value.
+            jobs.return_value.
+            get
+        )
+        get_method.return_value.execute.return_value = job
 
         (
             self.mock_dataflow.projects.return_value.
@@ -721,15 +726,13 @@ class TestDataflowJob(unittest.TestCase):
         )
         dataflow_job.cancel()
 
-        self.mock_dataflow.projects.return_value.locations.return_value. \
-            jobs.return_value.get.assert_called_once_with(
-                jobId=TEST_JOB_ID,
-                location=TEST_LOCATION,
-                projectId=TEST_PROJECT
+        get_method.assert_called_once_with(
+            jobId=TEST_JOB_ID,
+            location=TEST_LOCATION,
+            projectId=TEST_PROJECT
         )
 
-        self.mock_dataflow.projects.return_value.locations.return_value. \
-            jobs.return_value.get.return_value.execute.assert_called_once_with(num_retries=20)
+        get_method.return_value.execute.assert_called_once_with(num_retries=20)
 
         self.mock_dataflow.new_batch_http_request.assert_called_once_with()
 
