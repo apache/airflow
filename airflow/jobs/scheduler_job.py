@@ -820,8 +820,6 @@ class DagFileProcessor(LoggingMixin):
         :rtype: Tuple[List[SimpleDag], int]
         """
         self.log.info("Processing file %s for tasks to queue", file_path)
-        # As DAGs are parsed from this file, they will be converted into SimpleDags
-        simple_dags = []
 
         try:
             dagbag = models.DagBag(file_path, include_examples=False)
@@ -849,12 +847,7 @@ class DagFileProcessor(LoggingMixin):
 
         active_dags = [dag for dag_id, dag in dagbag.dags.items() if dag_id not in paused_dag_ids]
 
-        # Pickle the DAGs (if necessary) and put them into a SimpleDag
-        for dag in active_dags:
-            pickle_id = None
-            if pickle_dags:
-                pickle_id = dag.pickle(session).id
-            simple_dags.append(SimpleDag(dag, pickle_id=pickle_id))
+        simple_dags = self._prepare_simple_dags(active_dags, pickle_dags, session)
 
         dags = self._find_dags_to_process(active_dags)
 
@@ -904,6 +897,28 @@ class DagFileProcessor(LoggingMixin):
             self.log.exception("Error logging import errors!")
 
         return simple_dags, len(dagbag.import_errors)
+
+    @provide_session
+    def _prepare_simple_dags(self, dags: List[DAG], pickle_dags: bool, session) -> List[SimpleDag]:
+        """
+        Convert DAGS to  SimpleDags. If necessary, it also Pickle the DAGs
+
+        :param dags: List of DAGs
+        :param pickle_dags: whether serialize the DAGs found in the file and
+            save them to the db
+        :type pickle_dags: bool
+        :return: List of SimpleDag
+        :rtype: List[airflow.utils.dag_processing.SimpleDag]
+        """
+
+        simple_dags = []
+        # Pickle the DAGs (if necessary) and put them into a SimpleDag
+        for dag in dags:
+            pickle_id = None
+            if pickle_dags:
+                pickle_id = dag.pickle(session).id
+            simple_dags.append(SimpleDag(dag, pickle_id=pickle_id))
+        return simple_dags
 
 
 class SchedulerJob(BaseJob):
