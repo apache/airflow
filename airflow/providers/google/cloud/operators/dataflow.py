@@ -360,7 +360,6 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             variables=self.dataflow_default_options,
             parameters=self.parameters,
             dataflow_template=self.template,
-            project_id=self.project_id,
             on_new_job_id_callback=set_current_job_id
         )
 
