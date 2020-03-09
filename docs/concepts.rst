@@ -562,9 +562,9 @@ with the same ``conn_id``, the :py:meth:`~airflow.hooks.base_hook.BaseHook.get_c
 :py:class:`~airflow.hooks.base_hook.BaseHook` will choose one connection randomly. This can be be used to
 provide basic load balancing and fault tolerance, when used in conjunction with retries.
 
-Airflow also provides a mechanism to store connections outside the database, e.g. in :ref:`environment variables <environment_variables_creds_backend>`.
-Additonal sources may be enabled, e.g. :ref:`AWS SSM Parameter Store <ssm_parameter_store_creds>`, or you may
-:ref:`roll your own creds backend <roll_your_own_creds_backend>`.
+Airflow also provides a mechanism to store connections outside the database, e.g. in :ref:`environment variables <environment_variables_secrets_backend>`.
+Additonal sources may be enabled, e.g. :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>`, or you may
+:ref:`roll your own secrets backend <roll_your_own_secrets_backend>`.
 
 Many hooks have a default ``conn_id``, where operators using that hook do not
 need to supply an explicit connection ID. For example, the default

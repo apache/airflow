@@ -84,30 +84,30 @@ Alternatively you may specify each parameter individually:
         --password 'password' \
         ...
 
-.. _alternative_creds_backend:
+.. _alternative_secrets_backend:
 
-Alternative creds backends
---------------------------
+Alternative secrets backends
+----------------------------
 
-Airflow provides a flexible creds provision framework.  For example, you may store credentials
+Airflow provides a flexible secrets provision framework.  For example, you may store credentials
 in environment variables, or as parameters in SSM parameter store.
 
 Configuration
 ^^^^^^^^^^^^^
 
-Creds backend precedence is managed in through the ``class_list`` parameter in section ``[creds_backend]``
+Secrets backend precedence is managed in through the ``class_list`` parameter in section ``[secrets_backend]``
 of ``airflow.cfg``.
 
-Add creds backend class names in the order you want them to be searched.  For example:
+Add secrets backend class names in the order you want them to be searched.  For example:
 
 .. code-block:: ini
 
-    creds_backend = airflow.creds.environment_variables.EnvironmentVariablesCredsBackend, airflow.creds.metastore.MetastoreCredsBackend
+    secrets_backend = airflow.secrets.environment_variables.EnvironmentVariablesSecretsBackend, airflow.secrets.metastore.MetastoreSecretsBackend
 
 Configured as above, when retrieving a connection, airflow will check environment variables first and metastore
 database second.  This is the default behavior.
 
-.. _environment_variables_creds_backend:
+.. _environment_variables_secrets_backend:
 
 Storing a Connection in Environment Variables
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -142,18 +142,18 @@ If using with a docker ``.env`` file, you may need to remove the single quotes.
 
     AIRFLOW_CONN_MY_PROD_DATABASE=my-conn-type://login:password@host:port/schema?param1=val1&param2=val2
 
-.. _ssm_parameter_store_creds:
+.. _ssm_parameter_store_secrets:
 
 AWS SSM Parameter Store
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-To enable SSM parameter store, add :py:class:`~airflow.providers.amazon.aws.creds.ssm.AwsSsmCredsBackend` to
-the class list in  ``[creds_backend]`` section of ``airflow.cfg``.  For example:
+To enable SSM parameter store, add :py:class:`~airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend` to
+the class list in  ``[secrets_backend]`` section of ``airflow.cfg``.  For example:
 
 .. code-block:: ini
 
-    [creds_backend]
-    class_list = airflow.providers.amazon.aws.creds.ssm.AwsSsmCredsBackend, airflow.creds.metastore.MetastoreCredsBackend
+    [secrets_backend]
+    class_list = airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend, airflow.secrets.metastore.MetastoreSecretsBackend
     aws_ssm_prefix = /airflow
     aws_profile_name =
 
@@ -164,15 +164,15 @@ You may optionally supply a profile name to reference aws profile defined in ``~
 
 The value of the SSM parameter must be the :ref:`airflow connection URI representation <generating_connection_uri>` of the connection object.
 
-.. _roll_your_own_creds_backend:
+.. _roll_your_own_secrets_backend:
 
-Roll your own creds backend
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Roll your own secrets backend
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A creds backend is a subclass of :py:class:`airflow.creds.BaseCredsBackend`, and just has to implement the
-:py:meth:`~airflow.creds.BaseCredsBackend.get_connections` method.
+A secrets backend is a subclass of :py:class:`airflow.secrets.BaseSecretsBackend`, and just has to implement the
+:py:meth:`~airflow.secrets.BaseSecretsBackend.get_connections` method.
 
-Just create your class, and put it in the search path defined in the ``class_list`` key in the ``[creds_backend]``
+Just create your class, and put it in the search path defined in the ``class_list`` key in the ``[secrets_backend]``
 section of ``airflow.cfg``.
 
 

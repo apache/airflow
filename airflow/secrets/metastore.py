@@ -16,26 +16,26 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Objects relating to sourcing connections from environment variables
+Objects relating to sourcing connections from metastore database
 """
 
-import os
 from typing import List
 
-from airflow.creds import CONN_ENV_PREFIX, BaseCredsBackend
 from airflow.models import Connection
+from airflow.secrets import BaseSecretsBackend
+from airflow.utils.session import provide_session
 
 
-class EnvironmentVariablesCredsBackend(BaseCredsBackend):
+class MetastoreSecretsBackend(BaseSecretsBackend):
     """
-    Retrieves Connection object from environment variable.
+    Retrieves Connection object from airflow metastore database.
     """
 
     # pylint: disable=missing-docstring
-    def get_connections(self, conn_id) -> List[Connection]:
-        environment_uri = os.environ.get(CONN_ENV_PREFIX + conn_id.upper())
-        if environment_uri:
-            conn = Connection(conn_id=conn_id, uri=environment_uri)
-            return [conn]
-        else:
-            return []
+    @provide_session
+    def get_connections(self, conn_id, session=None) -> List[Connection]:
+        conn_list = (
+            session.query(Connection).filter(Connection.conn_id == conn_id).all()
+        )
+        session.expunge_all()
+        return conn_list

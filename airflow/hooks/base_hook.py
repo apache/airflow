@@ -20,7 +20,7 @@ import logging
 import random
 from typing import List
 
-from airflow import creds
+from airflow import secrets
 from airflow.models import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -44,7 +44,7 @@ class BaseHook(LoggingMixin):
         :param conn_id: connection id
         :return: array of connections
         """
-        return creds.get_connections(conn_id)
+        return secrets.get_connections(conn_id)
 
     @classmethod
     def get_connection(cls, conn_id: str) -> Connection:

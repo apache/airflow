@@ -17,12 +17,12 @@
 
 from unittest import mock
 
-from airflow.providers.amazon.aws.creds.ssm import AwsSsmCredsBackend
+from airflow.providers.amazon.aws.secrets.ssm import AwsSsmSecretsBackend
 
 
-@mock.patch("airflow.providers.amazon.aws.creds.ssm.AwsSsmCredsBackend.get_conn_uri")
+@mock.patch("airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend.get_conn_uri")
 def test_aws_ssm_get_connections(mock_get_uri):
     mock_get_uri.side_effect = ["scheme://user:pass@host:100"]
-    conn_list = AwsSsmCredsBackend().get_connections("fake_conn")
+    conn_list = AwsSsmSecretsBackend().get_connections("fake_conn")
     conn = conn_list[0]
     assert conn.host == 'host'

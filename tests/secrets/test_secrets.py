@@ -19,20 +19,20 @@
 import unittest
 from unittest import mock
 
-from airflow.creds import get_connections
+from airflow.secrets import get_connections
 
 
-class TestCreds(unittest.TestCase):
-    @mock.patch("airflow.creds.metastore.MetastoreCredsBackend.get_connections")
-    @mock.patch("airflow.creds.environment_variables.EnvironmentVariablesCredsBackend.get_connections")
+class TestSecrets(unittest.TestCase):
+    @mock.patch("airflow.secrets.metastore.MetastoreSecretsBackend.get_connections")
+    @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesSecretsBackend.get_connections")
     def test_get_connections_second_try(self, mock_env_get, mock_meta_get):
         mock_env_get.side_effect = [[]]  # return empty list
         get_connections("fake_conn_id")
         mock_meta_get.assert_called_once_with(conn_id="fake_conn_id")
         mock_env_get.assert_called_once_with(conn_id="fake_conn_id")
 
-    @mock.patch("airflow.creds.metastore.MetastoreCredsBackend.get_connections")
-    @mock.patch("airflow.creds.environment_variables.EnvironmentVariablesCredsBackend.get_connections")
+    @mock.patch("airflow.secrets.metastore.MetastoreSecretsBackend.get_connections")
+    @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesSecretsBackend.get_connections")
     def test_get_connections_first_try(self, mock_env_get, mock_meta_get):
         mock_env_get.side_effect = [["something"]]  # returns nonempty list
         get_connections("fake_conn_id")

@@ -24,11 +24,11 @@ from typing import List, Optional
 import boto3
 
 from airflow.configuration import conf
-from airflow.creds import CONN_ENV_PREFIX, BaseCredsBackend
 from airflow.models import Connection
+from airflow.secrets import CONN_ENV_PREFIX, BaseSecretsBackend
 
 
-class AwsSsmCredsBackend(BaseCredsBackend):
+class AwsSsmSecretsBackend(BaseSecretsBackend):
     """
     Retrieves Connection object from AWS SSM Parameter Store
 
@@ -36,8 +36,8 @@ class AwsSsmCredsBackend(BaseCredsBackend):
 
     .. code-block:: ini
 
-        [creds_backend]
-        class_list = airflow.providers.amazon.aws.creds.ssm.AwsSsmCredsBackend
+        [secrets_backend]
+        class_list = airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend
         aws_ssm_prefix = /airflow
         aws_ssm_profile_name = default
 
@@ -46,7 +46,7 @@ class AwsSsmCredsBackend(BaseCredsBackend):
 
     """
 
-    CONF_SECTION = "creds_backend"
+    CONF_SECTION = "secrets_backend"
     CONF_KEY_SSM_PREFIX = "aws_ssm_prefix"
     DEFAULT_PREFIX = "/airflow"
     CONF_KEY_PROFILE_NAME = "aws_ssm_profile_name"

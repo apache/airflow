@@ -344,17 +344,17 @@ persisted in the database.
   airflow/models/index
 
 
-Creds Backends
---------------
-Airflow uses relies on creds backends to retrieve :class:`~airflow.models.connection.Connection` objects.
-All creds backends derive from :class:`~airflow.creds.BaseCredsBackend`.  See :ref:`using an alternative creds
-backend <alternative_creds_backend>` for more info.
+Secrets Backends
+----------------
+Airflow uses relies on secrets backends to retrieve :class:`~airflow.models.connection.Connection` objects.
+All secrets backends derive from :class:`~airflow.secrets.BaseSecretsBackend`.  See :ref:`using an alternative secrets
+backend <alternative_secrets_backend>` for more info.
 
 .. toctree::
   :includehidden:
   :glob:
   :maxdepth: 1
 
-  airflow/creds/index
+  airflow/secrets/index
 
-  airflow/providers/amazon/aws/creds/index
+  airflow/providers/amazon/aws/secrets/index

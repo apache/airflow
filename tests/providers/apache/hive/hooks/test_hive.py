@@ -28,12 +28,12 @@ from unittest import mock
 import pandas as pd
 from hmsclient import HMSClient
 
-from airflow.creds import CONN_ENV_PREFIX
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
 from airflow.providers.apache.hive.operators.hive import HiveOperator
+from airflow.secrets import CONN_ENV_PREFIX
 from airflow.utils import timezone
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces

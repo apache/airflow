@@ -19,9 +19,9 @@
 import os
 import unittest
 
-from airflow.creds.environment_variables import EnvironmentVariablesCredsBackend
-from airflow.creds.metastore import MetastoreCredsBackend
 from airflow.models import Connection
+from airflow.secrets.environment_variables import EnvironmentVariablesSecretsBackend
+from airflow.secrets.metastore import MetastoreSecretsBackend
 from airflow.utils.session import create_session
 
 
@@ -36,26 +36,26 @@ class SampleConn:
         self.conn = Connection(conn_id=self.conn_id, uri=self.conn_uri)
 
 
-class TestBaseCredsBackend(unittest.TestCase):
-    def test_env_creds_backend(self):
+class TestBaseSecretsBackend(unittest.TestCase):
+    def test_env_secrets_backend(self):
         sample_conn_1 = SampleConn("sample_1", "A")
-        env_creds_backend = EnvironmentVariablesCredsBackend()
+        env_secrets_backend = EnvironmentVariablesSecretsBackend()
         os.environ[sample_conn_1.var_name] = sample_conn_1.conn_uri
-        conn_list = env_creds_backend.get_connections(sample_conn_1.conn_id)
+        conn_list = env_secrets_backend.get_connections(sample_conn_1.conn_id)
         self.assertEqual(1, len(conn_list))
         conn = conn_list[0]
 
         # we could make this more precise by defining __eq__ method for Connection
         self.assertEqual(sample_conn_1.host.lower(), conn.host)
 
-    def test_metastore_creds_backend(self):
+    def test_metastore_secrets_backend(self):
         sample_conn_2a = SampleConn("sample_2", "A")
         sample_conn_2b = SampleConn("sample_2", "B")
         with create_session() as session:
             session.add(sample_conn_2a.conn)
             session.add(sample_conn_2b.conn)
             session.commit()
-        metastore_backend = MetastoreCredsBackend()
+        metastore_backend = MetastoreSecretsBackend()
         conn_list = metastore_backend.get_connections("sample_2")
         host_list = {x.host for x in conn_list}
         self.assertEqual(

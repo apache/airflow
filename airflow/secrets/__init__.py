@@ -16,12 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Creds framework provides means of getting connection objects from various sources, e.g. the following:
+Secrets framework provides means of getting connection objects from various sources, e.g. the following:
     * Environment variables
     * Metatsore database
     * AWS SSM Parameter store
 """
-__all__ = ['CONN_ENV_PREFIX', 'BaseCredsBackend', 'get_connections']
+__all__ = ['CONN_ENV_PREFIX', 'BaseSecretsBackend', 'get_connections']
 
 from abc import ABC, abstractmethod
 from typing import List
@@ -34,9 +34,9 @@ from airflow.utils.module_loading import import_string
 CONN_ENV_PREFIX = "AIRFLOW_CONN_"
 
 
-class BaseCredsBackend(ABC):
+class BaseSecretsBackend(ABC):
     """
-    Abstract base class to retrieve creds given a conn_id and construct a Connection object
+    Abstract base class to retrieve secrets given a conn_id and construct a Connection object
     """
 
     @abstractmethod
@@ -56,19 +56,19 @@ def get_connections(conn_id: str) -> List[Connection]:
     :param conn_id: connection id
     :return: array of connections
     """
-    creds_backends = conf.getlist(
-        section="creds_backend",
+    secrets_backends = conf.getlist(
+        section="secrets_backend",
         key="class_list",
         fallback=', '.join(
             [
-                "airflow.creds.environment_variables.EnvironmentVariablesCredsBackend",
-                "airflow.creds.metastore.MetastoreCredsBackend",
+                "airflow.secrets.environment_variables.EnvironmentVariablesSecretsBackend",
+                "airflow.secrets.metastore.MetastoreSecretsBackend",
             ]
         ),
     )
-    for creds_backend_name in creds_backends:
-        creds_backend_cls = import_string(creds_backend_name)
-        conn_list = creds_backend_cls().get_connections(conn_id=conn_id)
+    for secrets_backend_name in secrets_backends:
+        secrets_backend_cls = import_string(secrets_backend_name)
+        conn_list = secrets_backend_cls().get_connections(conn_id=conn_id)
         if conn_list:
             return list(conn_list)
 
