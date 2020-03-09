@@ -22,4 +22,7 @@
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+# Dockerhub builds are run inside Docker container
+export SKIP_IN_CONTAINER_CHECK="true"
+
 exec "${MY_DIR}/../scripts/ci/ci_build_dockerhub.sh"
