@@ -150,7 +150,7 @@ def load_entrypoint_plugins():
 
 def load_plugins_from_plugin_directory():
     """
-    Load and register Airflow Plugin from plugin directory
+    Load and register Airflow Plugins from plugins directory.
     """
     global import_errors  # pylint: disable=global-statement
     global plugins  # pylint: disable=global-statement
@@ -199,7 +199,7 @@ def make_module(name: str, objects: List[Any]):
 # pylint: enable=protected-access
 
 
-def endure_plugins_loaded():
+def ensure_plugins_loaded():
     """
     Load plugins from plugins directory and entrypoints.
 
@@ -278,7 +278,7 @@ def initialize_plugins():
 
 def integrate_executor_plugins() -> None:
     """Integrate executor plugins to the context."""
-    endure_plugins_loaded()
+    ensure_plugins_loaded()
 
     log.debug("Integrate executor plugins")
 
@@ -290,7 +290,7 @@ def integrate_executor_plugins() -> None:
 
 def integrate_dag_plugins() -> None:
     """Integrates operator, sensor, hook, macro plugins."""
-    endure_plugins_loaded()
+    ensure_plugins_loaded()
 
     log.debug("Integrate DAG plugins.")
 

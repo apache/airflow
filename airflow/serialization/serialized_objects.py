@@ -327,7 +327,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         """Deserializes an operator from a JSON object.
         """
         from airflow import plugins_manager
-        plugins_manager.endure_plugins_loaded()
+        plugins_manager.ensure_plugins_loaded()
 
         op = SerializedBaseOperator(task_id=encoded_op['task_id'])
 
@@ -399,7 +399,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         :return: De-Serialized Operator Link
         """
         from airflow import plugins_manager
-        plugins_manager.endure_plugins_loaded()
+        plugins_manager.ensure_plugins_loaded()
 
         op_predefined_extra_links = {}
 
