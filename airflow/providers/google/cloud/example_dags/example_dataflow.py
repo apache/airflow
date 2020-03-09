@@ -54,7 +54,7 @@ with models.DAG(
     start_java_job = DataflowCreateJavaJobOperator(
         task_id="start-java-job",
         jar=GCS_JAR,
-        job_name='{{task.task_id}}22222255sss{{ macros.uuid.uuid4() }}',
+        job_name='{{task.task_id}}',
         options={
             'output': GCS_OUTPUT,
         },
