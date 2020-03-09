@@ -517,138 +517,140 @@ class DagFileProcessor(LoggingMixin):
         Returns DagRun if one is scheduled. Otherwise returns None.
         """
         # pylint: disable=too-many-nested-blocks
-        if dag.schedule_interval and conf.getboolean('scheduler', 'USE_JOB_SCHEDULE'):
-            if dag_runs is None:
-                active_runs = DagRun.find(
-                    dag_id=dag.dag_id,
-                    state=State.RUNNING,
-                    external_trigger=False,
-                    session=session
-                )
-            else:
-                active_runs = [
-                    dag_run
-                    for dag_run in dag_runs
-                    if not dag_run.external_trigger
-                ]
-            # return if already reached maximum active runs and no timeout setting
-            if len(active_runs) >= dag.max_active_runs and not dag.dagrun_timeout:
-                return None
-            timedout_runs = 0
-            for dr in active_runs:
-                if (
-                    dr.start_date and dag.dagrun_timeout and
-                    dr.start_date < timezone.utcnow() - dag.dagrun_timeout
-                ):
-                    dr.state = State.FAILED
-                    dr.end_date = timezone.utcnow()
-                    dag.handle_callback(dr, success=False, reason='dagrun_timeout',
-                                        session=session)
-                    timedout_runs += 1
-            session.commit()
-            if len(active_runs) - timedout_runs >= dag.max_active_runs:
-                return None
+        if not dag.schedule_interval:
+            return None
 
-            # this query should be replaced by find dagrun
-            qry = (
-                session.query(func.max(DagRun.execution_date))
-                    .filter_by(dag_id=dag.dag_id)
-                    .filter(or_(
-                        DagRun.external_trigger == False,  # noqa: E712 pylint: disable=singleton-comparison
-                        # add % as a wildcard for the like query
-                        DagRun.run_id.like(DagRunType.SCHEDULED.value + '%')
-                    )
+        if dag_runs is None:
+            active_runs = DagRun.find(
+                dag_id=dag.dag_id,
+                state=State.RUNNING,
+                external_trigger=False,
+                session=session
+            )
+        else:
+            active_runs = [
+                dag_run
+                for dag_run in dag_runs
+                if not dag_run.external_trigger
+            ]
+        # return if already reached maximum active runs and no timeout setting
+        if len(active_runs) >= dag.max_active_runs and not dag.dagrun_timeout:
+            return None
+        timedout_runs = 0
+        for dr in active_runs:
+            if (
+                dr.start_date and dag.dagrun_timeout and
+                dr.start_date < timezone.utcnow() - dag.dagrun_timeout
+            ):
+                dr.state = State.FAILED
+                dr.end_date = timezone.utcnow()
+                dag.handle_callback(dr, success=False, reason='dagrun_timeout',
+                                    session=session)
+                timedout_runs += 1
+        session.commit()
+        if len(active_runs) - timedout_runs >= dag.max_active_runs:
+            return None
+
+        # this query should be replaced by find dagrun
+        qry = (
+            session.query(func.max(DagRun.execution_date))
+                .filter_by(dag_id=dag.dag_id)
+                .filter(or_(
+                    DagRun.external_trigger == False,  # noqa: E712 pylint: disable=singleton-comparison
+                    # add % as a wildcard for the like query
+                    DagRun.run_id.like(DagRunType.SCHEDULED.value + '%')
                 )
             )
-            last_scheduled_run = qry.scalar()
+        )
+        last_scheduled_run = qry.scalar()
 
-            # don't schedule @once again
-            if dag.schedule_interval == '@once' and last_scheduled_run:
-                return None
+        # don't schedule @once again
+        if dag.schedule_interval == '@once' and last_scheduled_run:
+            return None
 
-            # don't do scheduler catchup for dag's that don't have dag.catchup = True
-            if not (dag.catchup or dag.schedule_interval == '@once'):
-                # The logic is that we move start_date up until
-                # one period before, so that timezone.utcnow() is AFTER
-                # the period end, and the job can be created...
-                now = timezone.utcnow()
-                next_start = dag.following_schedule(now)
-                last_start = dag.previous_schedule(now)
-                if next_start <= now:
-                    new_start = last_start
-                else:
-                    new_start = dag.previous_schedule(last_start)
-
-                if dag.start_date:
-                    if new_start >= dag.start_date:
-                        dag.start_date = new_start
-                else:
-                    dag.start_date = new_start
-
-            next_run_date = None
-            if not last_scheduled_run:
-                # First run
-                task_start_dates = [t.start_date for t in dag.tasks]
-                if task_start_dates:
-                    next_run_date = dag.normalize_schedule(min(task_start_dates))
-                    self.log.debug(
-                        "Next run date based on tasks %s",
-                        next_run_date
-                    )
+        # don't do scheduler catchup for dag's that don't have dag.catchup = True
+        if not (dag.catchup or dag.schedule_interval == '@once'):
+            # The logic is that we move start_date up until
+            # one period before, so that timezone.utcnow() is AFTER
+            # the period end, and the job can be created...
+            now = timezone.utcnow()
+            next_start = dag.following_schedule(now)
+            last_start = dag.previous_schedule(now)
+            if next_start <= now:
+                new_start = last_start
             else:
-                next_run_date = dag.following_schedule(last_scheduled_run)
+                new_start = dag.previous_schedule(last_start)
 
-            # make sure backfills are also considered
-            last_run = dag.get_last_dagrun(session=session)
-            if last_run and next_run_date:
-                while next_run_date <= last_run.execution_date:
-                    next_run_date = dag.following_schedule(next_run_date)
-
-            # don't ever schedule prior to the dag's start_date
             if dag.start_date:
-                next_run_date = (dag.start_date if not next_run_date
-                                 else max(next_run_date, dag.start_date))
-                if next_run_date == dag.start_date:
-                    next_run_date = dag.normalize_schedule(dag.start_date)
+                if new_start >= dag.start_date:
+                    dag.start_date = new_start
+            else:
+                dag.start_date = new_start
 
+        next_run_date = None
+        if not last_scheduled_run:
+            # First run
+            task_start_dates = [t.start_date for t in dag.tasks]
+            if task_start_dates:
+                next_run_date = dag.normalize_schedule(min(task_start_dates))
                 self.log.debug(
-                    "Dag start date: %s. Next run date: %s",
-                    dag.start_date, next_run_date
+                    "Next run date based on tasks %s",
+                    next_run_date
                 )
+        else:
+            next_run_date = dag.following_schedule(last_scheduled_run)
 
-            # don't ever schedule in the future or if next_run_date is None
-            if not next_run_date or next_run_date > timezone.utcnow():
-                return None
+        # make sure backfills are also considered
+        last_run = dag.get_last_dagrun(session=session)
+        if last_run and next_run_date:
+            while next_run_date <= last_run.execution_date:
+                next_run_date = dag.following_schedule(next_run_date)
 
-            # this structure is necessary to avoid a TypeError from concatenating
-            # NoneType
-            if dag.schedule_interval == '@once':
-                period_end = next_run_date
-            elif next_run_date:
-                period_end = dag.following_schedule(next_run_date)
+        # don't ever schedule prior to the dag's start_date
+        if dag.start_date:
+            next_run_date = (dag.start_date if not next_run_date
+                             else max(next_run_date, dag.start_date))
+            if next_run_date == dag.start_date:
+                next_run_date = dag.normalize_schedule(dag.start_date)
 
-            # Don't schedule a dag beyond its end_date (as specified by the dag param)
-            if next_run_date and dag.end_date and next_run_date > dag.end_date:
-                return None
+            self.log.debug(
+                "Dag start date: %s. Next run date: %s",
+                dag.start_date, next_run_date
+            )
 
-            # Don't schedule a dag beyond its end_date (as specified by the task params)
-            # Get the min task end date, which may come from the dag.default_args
-            min_task_end_date = []
-            task_end_dates = [t.end_date for t in dag.tasks if t.end_date]
-            if task_end_dates:
-                min_task_end_date = min(task_end_dates)
-            if next_run_date and min_task_end_date and next_run_date > min_task_end_date:
-                return None
+        # don't ever schedule in the future or if next_run_date is None
+        if not next_run_date or next_run_date > timezone.utcnow():
+            return None
 
-            if next_run_date and period_end and period_end <= timezone.utcnow():
-                next_run = dag.create_dagrun(
-                    run_id=DagRunType.SCHEDULED.value + next_run_date.isoformat(),
-                    execution_date=next_run_date,
-                    start_date=timezone.utcnow(),
-                    state=State.RUNNING,
-                    external_trigger=False
-                )
-                return next_run
+        # this structure is necessary to avoid a TypeError from concatenating
+        # NoneType
+        if dag.schedule_interval == '@once':
+            period_end = next_run_date
+        elif next_run_date:
+            period_end = dag.following_schedule(next_run_date)
+
+        # Don't schedule a dag beyond its end_date (as specified by the dag param)
+        if next_run_date and dag.end_date and next_run_date > dag.end_date:
+            return None
+
+        # Don't schedule a dag beyond its end_date (as specified by the task params)
+        # Get the min task end date, which may come from the dag.default_args
+        min_task_end_date = []
+        task_end_dates = [t.end_date for t in dag.tasks if t.end_date]
+        if task_end_dates:
+            min_task_end_date = min(task_end_dates)
+        if next_run_date and min_task_end_date and next_run_date > min_task_end_date:
+            return None
+
+        if next_run_date and period_end and period_end <= timezone.utcnow():
+            next_run = dag.create_dagrun(
+                run_id=DagRunType.SCHEDULED.value + next_run_date.isoformat(),
+                execution_date=next_run_date,
+                start_date=timezone.utcnow(),
+                state=State.RUNNING,
+                external_trigger=False
+            )
+            return next_run
 
         return None
 
@@ -712,8 +714,9 @@ class DagFileProcessor(LoggingMixin):
         :return: A list of generated TaskInstance objects
         """
         check_slas = conf.getboolean('core', 'CHECK_SLAS', fallback=True)
-        # pylint: disable=too-many-nested-blocks
+        use_job_schedule = conf.getboolean('scheduler', 'USE_JOB_SCHEDULE')
 
+        # pylint: disable=too-many-nested-blocks
         tis_out: List[TaskInstanceKeyType] = []
         dag_ids = [dag.dag_id for dag in dags]
         dag_runs = DagRun.find(dag_id=dag_ids, state=State.RUNNING, session=session)
@@ -728,7 +731,7 @@ class DagFileProcessor(LoggingMixin):
 
             # Only creates DagRun for DAGs that are not subdag since
             # DagRun of subdags are created when SubDagOperator executes.
-            if not dag.is_subdag:
+            if not dag.is_subdag and use_job_schedule:
                 dag_run = self.create_dag_run(dag, dag_runs=dag_runs_for_dag)
                 if dag_run:
                     dag_runs_for_dag.append(dag_run)
