@@ -269,7 +269,7 @@ Once that is done, you can run -
 
 .. note::
 
- Do not use ``airflow db init`` as it can create a lot of default connections, charts, etc. which are not required in a production DB.
+ Do not use ``airflow db init`` as it can create a lot of default connection, charts, etc. which are not required in production DB.
 
 
 Multi-Node Cluster
@@ -310,7 +310,7 @@ e.g. metadata DB, password. You can do it using the format ``$AIRFLOW__{SECTION}
  AIRFLOW__CORE__SQL_ALCHEMY_CONN=my_conn_id
  AIRFLOW__WEBSERVER__BASE_URL=http://host:port
 
-Some configurations such as the Airflow Backend connection URI can be derived from bash commands as well:
+Some configurations such as Airflow Backend connection URI can be derived from bash commands as well:
 
 .. code::
 
