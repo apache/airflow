@@ -17,6 +17,7 @@
 # under the License.
 
 import copy
+import html
 import io
 import json
 import logging.config
@@ -326,8 +327,8 @@ class TestAirflowBaseViews(TestBase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        dagbag = models.DagBag(include_examples=True)
-        DAG.bulk_sync_to_db(dagbag.dags.values())
+        cls.dagbag = models.DagBag(include_examples=True)
+        DAG.bulk_sync_to_db(cls.dagbag.dags.values())
 
     def setUp(self):
         super().setUp()
@@ -337,10 +338,9 @@ class TestAirflowBaseViews(TestBase):
         self.prepare_dagruns()
 
     def prepare_dagruns(self):
-        dagbag = models.DagBag(include_examples=True)
-        self.bash_dag = dagbag.dags['example_bash_operator']
-        self.sub_dag = dagbag.dags['example_subdag_operator']
-        self.xcom_dag = dagbag.dags['example_xcom']
+        self.bash_dag = self.dagbag.dags['example_bash_operator']
+        self.sub_dag = self.dagbag.dags['example_subdag_operator']
+        self.xcom_dag = self.dagbag.dags['example_xcom']
 
         self.bash_dagrun = self.bash_dag.create_dagrun(
             run_id=self.run_id,
@@ -487,6 +487,34 @@ class TestAirflowBaseViews(TestBase):
         url = 'dag_details?dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('DAG details', resp)
+
+    def test_dag_details_trigger_origin_tree_view(self):
+        dag = self.dagbag.dags['test_tree_view']
+        dag.create_dagrun(
+            run_id=self.run_id,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            start_date=timezone.utcnow(),
+            state=State.RUNNING)
+
+        url = 'dag_details?dag_id=test_tree_view'
+        resp = self.client.get(url, follow_redirects=True)
+        params = {'dag_id': 'test_tree_view', 'origin': '/tree?dag_id=test_tree_view'}
+        href = "/trigger?{}".format(html.escape(urllib.parse.urlencode(params)))
+        self.check_content_in_response(href, resp)
+
+    def test_dag_details_trigger_origin_graph_view(self):
+        dag = self.dagbag.dags['test_graph_view']
+        dag.create_dagrun(
+            run_id=self.run_id,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            start_date=timezone.utcnow(),
+            state=State.RUNNING)
+
+        url = 'dag_details?dag_id=test_graph_view'
+        resp = self.client.get(url, follow_redirects=True)
+        params = {'dag_id': 'test_graph_view', 'origin': '/graph?dag_id=test_graph_view'}
+        href = "/trigger?{}".format(html.escape(urllib.parse.urlencode(params)))
+        self.check_content_in_response(href, resp)
 
     def test_dag_details_subdag(self):
         url = 'dag_details?dag_id=example_subdag_operator.section-1'
