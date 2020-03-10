@@ -114,6 +114,8 @@ All operators are in the following packages:
 
   airflow/providers/google/cloud/sensors/index
 
+  airflow/providers/google/firebase/operators/index
+
   airflow/providers/google/marketing_platform/operators/index
 
   airflow/providers/google/marketing_platform/sensors/index
@@ -248,6 +250,8 @@ All hooks are in the following packages:
   airflow/providers/ftp/hooks/index
 
   airflow/providers/google/cloud/hooks/index
+
+  airflow/providers/google/firebase/hooks/index
 
   airflow/providers/google/marketing_platform/hooks/index
 

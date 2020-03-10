@@ -638,6 +638,12 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.providers.google.cloud.operators.functions`
      -
 
+   * - `Cloud Firestore <https://firebase.google.com/docs/firestore>`__
+     - :doc:`How to use <howto/operator/gcp/firestore>`
+     - :mod:`airflow.providers.google.firebase.hooks.firestore`
+     - :mod:`airflow.providers.google.firebase.operators.firestore`
+     -
+
    * - `Cloud Key Management Service (KMS) <https://cloud.google.com/kms/>`__
      -
      - :mod:`airflow.providers.google.cloud.hooks.kms`
@@ -792,6 +798,11 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      - `Google BigQuery <https://cloud.google.com/bigquery/>`__
      -
      - :mod:`airflow.providers.google.cloud.operators.bigquery_to_bigquery`
+
+   * - `Cloud Firestore <https://firebase.google.com/docs/firestore>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/gcp/firestore>`
+     - :mod:`airflow.providers.google.firebase.operators.firestore`
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
