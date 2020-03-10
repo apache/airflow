@@ -482,6 +482,22 @@ class BaseOperator(Operator, LoggingMixin):
         self.set_upstream(other)
         return other
 
+    def __rrshift__(self, other):
+        """
+        Called for Operator >> [Operator] because list don't have
+        __rshift__ operators.
+        """
+        self.__lshift__(other)
+        return self
+
+    def __rlshift__(self, other):
+        """
+        Called for Operator << [Operator] because list don't have
+        __lshift__ operators.
+        """
+        self.__rshift__(other)
+        return self
+
     # including lineage information
     def __or__(self, other):
         """
