@@ -98,7 +98,15 @@ def run_migrations_online():
         )
 
         with context.begin_transaction():
+            if connection.dialect.name == 'mysql':
+                connection.execute(
+                    "select GET_LOCK('alembic',1800);"
+                )
             context.run_migrations()
+            if connection.dialect.name == 'mysql':
+                connection.execute(
+                    "select RELEASE_LOCK('alembic');"
+                )
 
 
 if context.is_offline_mode():
