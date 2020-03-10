@@ -414,9 +414,9 @@ devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
 devel_azure = azure_cosmos + azure_data_lake + devel_minreq
 devel_all = (all_dbs + atlas + aws +
              azure_blob_storage + azure_container_instances + azure_cosmos + azure_data_lake +
-             celery + cgroups + crypto + datadog + devel + doc + docker + druid +
+             celery + cgroups + crypto + datadog + devel + doc + docker +
              elasticsearch + gcp + grpc + jdbc + jenkins + kerberos + kubernetes + ldap + oracle +
-             papermill + password + pinot +
+             papermill + password +
              redis + samba + segment + sendgrid + sentry + slack + snowflake + ssh +
              virtualenv + webhdfs + zendesk)
 
