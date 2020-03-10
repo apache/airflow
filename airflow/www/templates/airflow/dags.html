@@ -105,7 +105,7 @@
                     </span>
 
                     <div style="float: right; max-width: 70%; text-align: right; line-height: 160%;">
-                    {% for tag in dag.tags %}
+                    {% for tag in dag.tags | sort(attribute='name') %}
                       <span class="label label-success" style="margin: 3px;">{{ tag.name }}</span>
                     {% endfor %}
                     </div>
