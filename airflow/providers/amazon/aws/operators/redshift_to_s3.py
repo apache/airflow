@@ -24,6 +24,7 @@ from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.decorators import apply_defaults
+from airflow.exceptions import AirflowBadRequest
 
 
 class RedshiftToS3Transfer(BaseOperator):
@@ -72,10 +73,11 @@ class RedshiftToS3Transfer(BaseOperator):
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
             self,
-            schema: str,
-            table: str,
             s3_bucket: str,
             s3_key: str,
+            schema: str = None,
+            table: str = None,
+            custom_select_query: str = None,
             redshift_conn_id: str = 'redshift_default',
             aws_conn_id: str = 'aws_default',
             verify: Optional[Union[bool, str]] = None,
@@ -87,6 +89,7 @@ class RedshiftToS3Transfer(BaseOperator):
         super().__init__(*args, **kwargs)
         self.schema = schema
         self.table = table
+        self.custom_select_query = custom_select_query
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
         self.redshift_conn_id = redshift_conn_id
@@ -107,7 +110,12 @@ class RedshiftToS3Transfer(BaseOperator):
         credentials = s3_hook.get_credentials()
         unload_options = '\n\t\t\t'.join(self.unload_options)
         s3_key = '{}/{}_'.format(self.s3_key, self.table) if self.table_as_file_name else self.s3_key
-        select_query = "SELECT * FROM {schema}.{table}".format(schema=self.schema, table=self.table)
+        if self.custom_select_query is None:
+            if self.schema is None or self.table is None:
+                raise AirflowBadRequest("schema, table set to None")
+            select_query = "SELECT * FROM {schema}.{table}".format(schema=self.schema, table=self.table)
+        else:
+            select_query = self.custom_select_query
         unload_query = """
                     UNLOAD ('{select_query}')
                     TO 's3://{s3_bucket}/{s3_key}'
