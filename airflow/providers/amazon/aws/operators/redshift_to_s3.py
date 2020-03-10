@@ -31,15 +31,17 @@ class RedshiftToS3Transfer(BaseOperator):
     """
     Executes an UNLOAD command to s3 as a CSV with headers
 
-    :param schema: reference to a specific schema in redshift database
-    :type schema: str
-    :param table: reference to a specific table in redshift database
-    :type table: str
     :param s3_bucket: reference to a specific S3 bucket
     :type s3_bucket: str
     :param s3_key: reference to a specific S3 key. If ``table_as_file_name`` is set
         to False, this param must include the desired file name
     :type s3_key: str
+    :param schema: reference to a specific schema in redshift database
+    :type schema: str
+    :param table: reference to a specific table in redshift database
+    :type table: str
+    :param custom_select_query: query string with parameters
+    :type custom_select_query: str
     :param redshift_conn_id: reference to a specific redshift database
     :type redshift_conn_id: str
     :param aws_conn_id: reference to a specific S3 connection
