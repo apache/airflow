@@ -482,7 +482,8 @@ running the webserver in order to log in. This can be done with the following co
 
 .. code-block:: bash
 
-    airflow users create --role Admin --username admin --password admin --email admin@example.com --firstname foo --lastname bar
+    airflow users create --email EMAIL --firstname FIRSTNAME --lastname LASTNAME --password PASSWORD --role Admin --username USERNAME
+
 
 For databases, you need to run ``airflow db reset`` at least once (or run some tests) after you started
 Airflow Breeze to get the database/tables created. You can connect to databases with IDE or any other
