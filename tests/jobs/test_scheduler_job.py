@@ -842,20 +842,11 @@ class TestDagFileProcessor(unittest.TestCase):
         print(self.dagbag.dag_folder)
         self.assertGreater(len(dag.subdags), 0)
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        dags = dag_file_processor._find_dags_to_process(self.dagbag.dags.values(), paused_dag_ids=())
+        dags = dag_file_processor._find_dags_to_process(self.dagbag.dags.values())
 
         self.assertIn(dag, dags)
         for subdag in dag.subdags:
             self.assertIn(subdag, dags)
-
-    def test_find_dags_to_run_skip_paused_dags(self):
-        dagbag = DagBag(include_examples=False)
-
-        dag = dagbag.get_dag('test_subdag_operator')
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        dags = dag_file_processor._find_dags_to_process(dagbag.dags.values(), paused_dag_ids=[dag.dag_id])
-
-        self.assertNotIn(dag, dags)
 
     def test_dag_catchup_option(self):
         """
