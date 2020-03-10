@@ -90,11 +90,14 @@ class TestDockerOperator(unittest.TestCase):
         client_mock.pull.assert_called_once_with('ubuntu:latest', stream=True)
         client_mock.wait.assert_called_once_with('some_id')
 
-    @staticmethod
-    def test_private_environment_is_private():
-        operator = DockerOperator(private_environment={'PRIVATE': 'MESSAGE'}, image='ubuntu:latest')
-        message = "To keep this private, it must be an underscored attribute."
-        assert operator._private_environment == {'PRIVATE': 'MESSAGE'}, message
+    def test_private_environment_is_private(self):
+        operator = DockerOperator(private_environment={'PRIVATE': 'MESSAGE'},
+                                  image='ubuntu:latest',
+                                  task_id='unittest')
+        self.assertEqual(
+            operator._private_environment, {'PRIVATE': 'MESSAGE'},
+            "To keep this private, it must be an underscored attribute."
+        )
 
     @mock.patch('airflow.providers.docker.operators.docker.tls.TLSConfig')
     @mock.patch('airflow.providers.docker.operators.docker.APIClient')
