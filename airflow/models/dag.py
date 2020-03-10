@@ -1829,13 +1829,14 @@ class DagModel(Base):
         :type session: sqlalchemy.orm.session.Session
         """
 
-        return self.get_dag().create_dagrun(run_id=run_id,
-                                            state=state,
-                                            execution_date=execution_date,
-                                            start_date=start_date,
-                                            external_trigger=external_trigger,
-                                            conf=conf,
-                                            session=session)
+        return self.get_dag(STORE_SERIALIZED_DAGS)\
+            .create_dagrun(run_id=run_id,
+                           state=state,
+                           execution_date=execution_date,
+                           start_date=start_date,
+                           external_trigger=external_trigger,
+                           conf=conf,
+                           session=session)
 
     @provide_session
     def set_is_paused(self,
