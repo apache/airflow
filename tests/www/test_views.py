@@ -646,6 +646,7 @@ class TestAirflowBaseViews(TestBase):
             downstream="false",
             future="false",
             past="false",
+            include_dag="true",
         )
         resp = self.client.post("failed", data=form)
         self.check_content_in_response('Wait a minute', resp)
@@ -659,6 +660,7 @@ class TestAirflowBaseViews(TestBase):
             downstream="false",
             future="false",
             past="false",
+            include_dag="true",
         )
         resp = self.client.post('success', data=form)
         self.check_content_in_response('Wait a minute', resp)
@@ -1760,6 +1762,7 @@ class TestDagACLView(TestBase):
             downstream="false",
             future="false",
             past="false",
+            include_dag="true",
         )
         resp = self.client.post('failed', data=form)
         self.check_content_in_response('Redirecting', resp, 302)
@@ -1841,7 +1844,7 @@ class TestDagACLView(TestBase):
         self.check_content_not_in_response('example_bash_operator', resp)
 
     def test_success_fail_for_read_only_role(self):
-        # succcess endpoint need can_dag_edit, which read only role can not access
+        # success endpoint need can_dag_edit, which read only role can not access
         self.logout()
         self.login(username='dag_read_only',
                    password='dag_read_only')
@@ -1854,6 +1857,7 @@ class TestDagACLView(TestBase):
             downstream="false",
             future="false",
             past="false",
+            include_dag="true",
         )
         resp = self.client.post('success', data=form)
         self.check_content_not_in_response('Wait a minute', resp, resp_code=302)

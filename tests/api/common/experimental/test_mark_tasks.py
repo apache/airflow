@@ -19,13 +19,14 @@
 import time
 import unittest
 from datetime import datetime, timedelta
+from unittest import mock
 
 import pytest
 
 from airflow import models
 from airflow.api.common.experimental.mark_tasks import (
-    _create_dagruns, set_dag_run_state_to_failed, set_dag_run_state_to_running, set_dag_run_state_to_success,
-    set_state,
+    _create_dagruns, _set_dag_run_state_according_ti, set_dag_run_state_to_failed,
+    set_dag_run_state_to_running, set_dag_run_state_to_success, set_state,
 )
 from airflow.models import DagRun
 from airflow.utils import timezone
@@ -316,7 +317,7 @@ class TestMarkDAGRun(unittest.TestCase):
     @provide_session
     def _verify_task_instance_states(self, dag, date, state, session=None):
         TI = models.TaskInstance
-        tis = session.query(TI)\
+        tis = session.query(TI) \
             .filter(TI.dag_id == dag.dag_id, TI.execution_date == date)
         for ti in tis:
             self.assertEqual(ti.state, state)
@@ -585,6 +586,100 @@ class TestMarkDAGRun(unittest.TestCase):
             dr.get_task_instance(task.task_id).set_state(State.SUCCESS)
 
         set_dag_run_state_to_failed(self.dag1, date)
+
+    def test_set_dag_run_state_according_ti_edge_cases(self):
+        """
+        Test _set_dag_run_state_according_ti edge cases
+        """
+        date = self.execution_dates[0]
+        dr = self._create_test_dag_run(State.SUCCESS, date)
+        for task in self.dag1.tasks:
+            dr.get_task_instance(task.task_id).set_state(State.SUCCESS)
+        self.assertRaises(TypeError, _set_dag_run_state_according_ti, self.dag1, State.FAILED, date)
+
+    def test_set_dag_run_state_according_ti_state_failed(self):
+        """
+        Test _set_dag_run_state_according_ti set to failed state
+        """
+        date = self.execution_dates[0]
+        dr = self._create_test_dag_run(State.SUCCESS, date)
+        middle_time = timezone.utcnow()
+        for task in self.dag1.tasks:
+            dr.get_task_instance(task.task_id).set_state(State.SUCCESS)
+        _set_dag_run_state_according_ti(self.dag1, State.FAILED, [date])
+        self._verify_dag_run_state(self.dag1, date, State.FAILED)
+        self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time)
+
+    def test_set_dag_run_state_according_ti_state_success(self):
+        """
+        Test _set_dag_run_state_according_ti set to success state
+        """
+        date = self.execution_dates[0]
+        dr = self._create_test_dag_run(State.FAILED, date)
+        middle_time = timezone.utcnow()
+        for task in self.dag1.tasks:
+            dr.get_task_instance(task.task_id).set_state(State.SUCCESS)
+        _set_dag_run_state_according_ti(self.dag1, State.SUCCESS, [date])
+        self._verify_dag_run_state(self.dag1, date, State.SUCCESS)
+        self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time)
+
+    def test_set_dag_run_state_according_ti_state_success_have_failed_ti(self):
+        """
+        Test _set_dag_run_state_according_ti set to success state with failed task instance
+        """
+        date = self.execution_dates[0]
+        dr = self._create_test_dag_run(State.FAILED, date)
+        for task in self.dag1.tasks:
+            dr.get_task_instance(task.task_id).set_state(State.FAILED)
+        _set_dag_run_state_according_ti(self.dag1, State.SUCCESS, [date])
+        self.assertEqual(State.FAILED, dr.get_state())
+
+    def test_set_dag_run_state_according_ti_invalid_state(self):
+        """
+        Test _set_dag_run_state_according_ti with invalid state
+        """
+        date = self.execution_dates[0]
+        dr = self._create_test_dag_run(State.SUCCESS, date)
+        for task in self.dag1.tasks:
+            dr.get_task_instance(task.task_id).set_state(State.SUCCESS)
+        self.assertRaises(ValueError,
+                          _set_dag_run_state_according_ti, self.dag1, State.RUNNING, [date])
+
+    @mock.patch("airflow.api.common.experimental.mark_tasks._set_dag_run_state")
+    def test_set_dag_run_state_according_ti_failed_call(self, mock_set_dr_state):
+        """
+        Test _set_dag_run_state_according_ti failed call
+        """
+        date = self.execution_dates[0]
+        dr = self._create_test_dag_run(State.SUCCESS, date)
+        for task in self.dag1.tasks:
+            dr.get_task_instance(task.task_id).set_state(State.SUCCESS)
+        _set_dag_run_state_according_ti(self.dag1, State.FAILED, [date])
+        mock_set_dr_state.assert_called()
+
+    @mock.patch("airflow.api.common.experimental.mark_tasks._set_dag_run_state")
+    def test_set_dag_run_state_according_ti_success_call(self, mock_set_dr_state):
+        """
+        Test _set_dag_run_state_according_ti success call
+        """
+        date = self.execution_dates[0]
+        dr = self._create_test_dag_run(State.FAILED, date)
+        for task in self.dag1.tasks:
+            dr.get_task_instance(task.task_id).set_state(State.SUCCESS)
+        _set_dag_run_state_according_ti(self.dag1, State.SUCCESS, [date])
+        mock_set_dr_state.assert_called()
+
+    @mock.patch("airflow.api.common.experimental.mark_tasks._set_dag_run_state")
+    def test_set_dag_run_state_according_ti_success_not_call(self, mock_set_dr_state):
+        """
+        Test _set_dag_run_state_according_ti success not call, have failed task instance
+        """
+        date = self.execution_dates[0]
+        dr = self._create_test_dag_run(State.FAILED, date)
+        for task in self.dag1.tasks:
+            dr.get_task_instance(task.task_id).set_state(State.FAILED)
+        _set_dag_run_state_according_ti(self.dag1, State.SUCCESS, [date])
+        mock_set_dr_state.assert_not_called()
 
     def tearDown(self):
         self.dag1.clear()

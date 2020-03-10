@@ -228,7 +228,8 @@
                 <input type="checkbox" value="true" name="downstream" checked autocomplete="off">
                 Downstream
               </label>
-              <label class="btn active">
+              <label class="btn active"
+                title="Also include subdags">
                 <input type="checkbox" value="true" name="recursive" checked autocomplete="off">
                  Recursive
               </label>
@@ -240,48 +241,68 @@
             </span>
             <hr/>
             <button id="btn_failed" type="button" class="btn btn-primary"
+                title="Change task instance state to failed"
                 data-action="{{ url_for('Airflow.failed') }}">
               Mark Failed
             </button>
             <span class="btn-group" data-toggle="buttons">
-              <label class="btn">
+              <label class="btn"
+                title="Also include past task instances when clearing this one">
                 <input type="checkbox" value="true" name="failed_past" autocomplete="off">
                 Past
               </label>
-              <label class="btn">
+              <label class="btn"
+                title="Also include future task instances when clearing this one">
                 <input type="checkbox" value="true" name="failed_future" autocomplete="off">
                 Future
               </label>
-              <label class="btn">
+              <label class="btn"
+                title="Also include upstream dependencies">
                 <input type="checkbox" value="true" name="failed_upstream" autocomplete="off">
                 Upstream
               </label>
-              <label class="btn">
+              <label class="btn"
+                title="Also include downstream dependencies">
                 <input type="checkbox" value="true" name="failed_downstream" autocomplete="off">
                 Downstream
+              </label>
+              <label class="btn active"
+                title="Also include DAG run">
+                <input type="checkbox" value="true" name="failed_include_dag" checked autocomplete="off">
+                DAG
               </label>
             </span>
             <hr/>
             <button id="btn_success" type="button" class="btn btn-primary"
+                title="Change task instance state to success"
                 data-action="{{ url_for('Airflow.success') }}">
               Mark Success
             </button>
             <span class="btn-group" data-toggle="buttons">
-              <label class="btn">
+              <label class="btn"
+                title="Also include past task instances when clearing this one">
                 <input type="checkbox" value="true" name="success_past" autocomplete="off">
                 Past
               </label>
-              <label class="btn">
+              <label class="btn"
+                title="Also include future task instances when clearing this one">
                 <input type="checkbox" value="true" name="success_future" autocomplete="off">
                 Future
               </label>
-              <label class="btn">
+              <label class="btn"
+                title="Also include upstream dependencies">
                 <input type="checkbox" value="true" name="success_upstream" autocomplete="off">
                 Upstream
               </label>
-              <label class="btn">
+              <label class="btn"
+                title="Also include downstream dependencies">
                 <input type="checkbox" value="true" name="success_downstream" autocomplete="off">
                 Downstream
+              </label>
+              <label class="btn active"
+                title="Also include DAG run if all task instance success">
+                <input type="checkbox" value="true" name="success_include_dag" checked autocomplete="off">
+                DAG
               </label>
             </span>
           </form>

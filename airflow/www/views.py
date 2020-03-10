@@ -1205,7 +1205,7 @@ class Airflow(AirflowBaseView):
 
             response = self.render_template(
                 'airflow/confirm.html',
-                message=("Here's the list of task instances you are about to mark as failed"),
+                message="Here's the list of task instances you are about to mark as failed",
                 details=details)
 
             return response
@@ -1234,7 +1234,7 @@ class Airflow(AirflowBaseView):
 
             response = self.render_template(
                 'airflow/confirm.html',
-                message=("Here's the list of task instances you are about to mark as success"),
+                message="Here's the list of task instances you are about to mark as success",
                 details=details)
 
             return response
@@ -1265,7 +1265,7 @@ class Airflow(AirflowBaseView):
 
     def _mark_task_instance_state(self, dag_id, task_id, origin, execution_date,
                                   confirmed, upstream, downstream,
-                                  future, past, state):
+                                  future, past, include_dag, state):
         dag = dagbag.get_dag(dag_id)
         task = dag.get_task(task_id)
         task.dag = dag
@@ -1285,16 +1285,16 @@ class Airflow(AirflowBaseView):
         if confirmed:
             altered = set_state(tasks=[task], execution_date=execution_date,
                                 upstream=upstream, downstream=downstream,
-                                future=future, past=past, state=state,
-                                commit=True)
+                                future=future, past=past, include_dag=include_dag,
+                                state=state, commit=True)
 
             flash("Marked {} on {} task instances".format(state, len(altered)))
             return redirect(origin)
 
         to_be_altered = set_state(tasks=[task], execution_date=execution_date,
                                   upstream=upstream, downstream=downstream,
-                                  future=future, past=past, state=state,
-                                  commit=False)
+                                  future=future, past=past, include_dag=include_dag,
+                                  state=state, commit=False)
 
         details = "\n".join([str(t) for t in to_be_altered])
 
@@ -1320,10 +1320,11 @@ class Airflow(AirflowBaseView):
         downstream = request.form.get('failed_downstream') == "true"
         future = request.form.get('failed_future') == "true"
         past = request.form.get('failed_past') == "true"
+        include_dag = request.form.get('failed_include_dag') == "true"
 
         return self._mark_task_instance_state(dag_id, task_id, origin, execution_date,
                                               confirmed, upstream, downstream,
-                                              future, past, State.FAILED)
+                                              future, past, include_dag, State.FAILED)
 
     @expose('/success', methods=['POST'])
     @has_dag_access(can_dag_edit=True)
@@ -1340,10 +1341,11 @@ class Airflow(AirflowBaseView):
         downstream = request.form.get('success_downstream') == "true"
         future = request.form.get('success_future') == "true"
         past = request.form.get('success_past') == "true"
+        include_dag = request.form.get('success_include_dag') == "true"
 
         return self._mark_task_instance_state(dag_id, task_id, origin, execution_date,
                                               confirmed, upstream, downstream,
-                                              future, past, State.SUCCESS)
+                                              future, past, include_dag, State.SUCCESS)
 
     @expose('/tree')
     @has_dag_access(can_dag_read=True)

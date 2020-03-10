@@ -18,11 +18,12 @@
 """Marks tasks APIs."""
 
 import datetime
-from typing import Iterable
+from typing import Iterable, List, Optional
 
 from sqlalchemy import or_
 
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.subdag_operator import SubDagOperator
@@ -63,12 +64,13 @@ def _create_dagruns(dag, execution_dates, state, run_type):
 def set_state(
         tasks: Iterable[BaseOperator],
         execution_date: datetime.datetime,
-        upstream: bool = False,
-        downstream: bool = False,
-        future: bool = False,
-        past: bool = False,
-        state: str = State.SUCCESS,
-        commit: bool = False,
+        upstream: Optional[bool] = False,
+        downstream: Optional[bool] = False,
+        future: Optional[bool] = False,
+        past: Optional[bool] = False,
+        include_dag: Optional[bool] = False,
+        state: Optional[str] = State.SUCCESS,
+        commit: Optional[bool] = False,
         session=None):  # pylint: disable=too-many-arguments,too-many-locals
     """
     Set the state of a task instance and if needed its relatives. Can set state
@@ -78,14 +80,24 @@ def set_state(
     on the schedule (but it will as for subdag dag runs if needed).
 
     :param tasks: the iterable of tasks from which to work. task.task.dag needs to be set
+    :type tasks: Iterable[BaseOperator]
     :param execution_date: the execution date from which to start looking
+    :type execution_date: datetime.datetime
     :param upstream: Mark all parents (upstream tasks)
+    :type upstream: Optional[bool]
     :param downstream: Mark all siblings (downstream tasks) of task_id, including SubDags
+    :type downstream: Optional[bool]
     :param future: Mark all future tasks on the interval of the dag up until
         last execution date.
+    :type future: Optional[bool]
     :param past: Retroactively mark all tasks starting from start_date of the DAG
+    :type past: Optional[bool]
+    :param include_dag: Set dag run state or not when set task instance state
+    :type include_dag: Optional[bool]
     :param state: State to which the tasks need to be set
+    :type state: Optional[str]
     :param commit: Commit tasks to be altered to the database
+    :type commit: Optional[bool]
     :param session: database session
     :return: list of tasks that have been created and updated
     """
@@ -124,6 +136,10 @@ def set_state(
             if state in State.finished():
                 task_instance.end_date = timezone.utcnow()
                 task_instance.set_duration()
+        if include_dag:
+            # Persistent task instance to avoid abnormal state
+            session.commit()
+            _set_dag_run_state_according_ti(dag, state, confirmed_dates, session)
     else:
         tis_altered = qry_dag.all()
         if sub_dag_run_ids:
@@ -269,13 +285,19 @@ def get_execution_dates(dag, execution_date, future, past):
 
 
 @provide_session
-def _set_dag_run_state(dag_id, execution_date, state, session=None):
+def _set_dag_run_state(dag_id: str,
+                       execution_date: datetime.datetime,
+                       state: str,
+                       session=None) -> None:
     """
     Helper method that set dag run state in the DB.
 
     :param dag_id: dag_id of target dag run
+    :type dag_id: str
     :param execution_date: the execution date from which to start looking
+    :type execution_date: datetime.datetime
     :param state: target state
+    :type state: str
     :param session: database session
     """
     dag_run = session.query(DagRun).filter(
@@ -292,14 +314,61 @@ def _set_dag_run_state(dag_id, execution_date, state, session=None):
 
 
 @provide_session
-def set_dag_run_state_to_success(dag, execution_date, commit=False, session=None):
+def _set_dag_run_state_according_ti(dag: DAG,
+                                    state: str,
+                                    confirmed_dates: List[datetime.datetime],
+                                    session=None) -> None:
+    """
+    Helper method that set dag run state base on all task instance in dag,
+    with list of give datetime.
+
+    :param dag: The DAG of which to alter state
+    :type dag: DAG
+    :param state: State to which the DAG need to be set
+    :type state: str
+    :param confirmed_dates: Date lists to set DAG run in specific state
+    :type confirmed_dates: List[datetime.datetime]
+    :param session: database session
+    """
+    if state == State.FAILED:
+        for date in confirmed_dates:
+            _set_dag_run_state(dag.dag_id, date, state, session)
+    elif state == State.SUCCESS:
+        dag_task_ids = dag.task_ids
+        for date in confirmed_dates:
+            task_no_success = session.query(TaskInstance). \
+                filter(
+                TaskInstance.dag_id == dag.dag_id,
+                TaskInstance.execution_date == date,
+                TaskInstance.task_id.in_(dag_task_ids)
+            ). \
+                filter(
+                or_(
+                    TaskInstance.state.is_(None),
+                    TaskInstance.state != state
+                )
+            ).all()
+            if not task_no_success:
+                _set_dag_run_state(dag.dag_id, date, state, session)
+    else:
+        raise ValueError(f"Only support set {State.SUCCESS} and {State.FAILED} state for now.")
+
+
+@provide_session
+def set_dag_run_state_to_success(dag: DAG,
+                                 execution_date: datetime.datetime,
+                                 commit: Optional[bool] = False,
+                                 session=None):
     """
     Set the dag run for a specific execution date and its task instances
     to success.
 
     :param dag: the DAG of which to alter state
+    :type dag: DAG
     :param execution_date: the execution date from which to start looking
-    :param commit: commit DAG and tasks to be altered to the database
+    :type execution_date: datetime.datetime
+    :param commit: commit DAG and tasks to be altered to the database, default False
+    :type commit: Optional[bool]
     :param session: database session
     :return: If commit is true, list of tasks that have been updated,
              otherwise list of tasks that will be updated
@@ -313,21 +382,25 @@ def set_dag_run_state_to_success(dag, execution_date, commit=False, session=None
         _set_dag_run_state(dag.dag_id, execution_date, State.SUCCESS, session)
 
     # Mark all task instances of the dag run to success.
-    for task in dag.tasks:
-        task.dag = dag
     return set_state(tasks=dag.tasks, execution_date=execution_date,
                      state=State.SUCCESS, commit=commit, session=session)
 
 
 @provide_session
-def set_dag_run_state_to_failed(dag, execution_date, commit=False, session=None):
+def set_dag_run_state_to_failed(dag: DAG,
+                                execution_date: datetime.datetime,
+                                commit: Optional[bool] = False,
+                                session=None):
     """
     Set the dag run for a specific execution date and its running task instances
     to failed.
 
     :param dag: the DAG of which to alter state
+    :type dag: DAG
     :param execution_date: the execution date from which to start looking
-    :param commit: commit DAG and tasks to be altered to the database
+    :type execution_date: datetime.datetime
+    :param commit: commit DAG and tasks to be altered to the database, default False
+    :type commit: Optional[bool]
     :param session: database session
     :return: If commit is true, list of tasks that have been updated,
              otherwise list of tasks that will be updated
@@ -341,19 +414,12 @@ def set_dag_run_state_to_failed(dag, execution_date, commit=False, session=None)
         _set_dag_run_state(dag.dag_id, execution_date, State.FAILED, session)
 
     # Mark only RUNNING task instances.
-    task_ids = [task.task_id for task in dag.tasks]
     tis = session.query(TaskInstance).filter(
         TaskInstance.dag_id == dag.dag_id,
-        TaskInstance.execution_date == execution_date,
-        TaskInstance.task_id.in_(task_ids)).filter(TaskInstance.state == State.RUNNING)
+        TaskInstance.execution_date == execution_date
+    ).filter(TaskInstance.state == State.RUNNING)
     task_ids_of_running_tis = [task_instance.task_id for task_instance in tis]
-
-    tasks = []
-    for task in dag.tasks:
-        if task.task_id not in task_ids_of_running_tis:
-            continue
-        task.dag = dag
-        tasks.append(task)
+    tasks = [task for task in dag.tasks if task.task_id in task_ids_of_running_tis]
 
     return set_state(tasks=tasks, execution_date=execution_date,
                      state=State.FAILED, commit=commit, session=session)
