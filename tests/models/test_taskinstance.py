@@ -219,35 +219,16 @@ class TestTaskInstance(unittest.TestCase):
 
     def test_bitshift_compose_operators(self):
         dag = DAG('dag', start_date=DEFAULT_DATE)
-        op1 = DummyOperator(task_id='test_op_1', owner='test')
-        op2 = DummyOperator(task_id='test_op_2', owner='test')
-        op3 = DummyOperator(task_id='test_op_3', owner='test')
-        op4 = DummyOperator(task_id='test_op_4', owner='test')
-        op5 = DummyOperator(task_id='test_op_5', owner='test')
+        with dag:
+            op1 = DummyOperator(task_id='test_op_1', owner='test')
+            op2 = DummyOperator(task_id='test_op_2', owner='test')
+            op3 = DummyOperator(task_id='test_op_3', owner='test')
 
-        # can't compose operators without dags
-        with self.assertRaises(AirflowException):
-            op1 >> op2
-
-        dag >> op1 >> op2 << op3
-
-        # make sure dag assignment carries through
-        # using __rrshift__
-        self.assertIs(op1.dag, dag)
-        self.assertIs(op2.dag, dag)
-        self.assertIs(op3.dag, dag)
+            op1 >> op2 << op3
 
         # op2 should be downstream of both
         self.assertIn(op2, op1.downstream_list)
         self.assertIn(op2, op3.downstream_list)
-
-        # test dag assignment with __rlshift__
-        dag << op4
-        self.assertIs(op4.dag, dag)
-
-        # dag assignment with __rrshift__
-        dag >> op5
-        self.assertIs(op5.dag, dag)
 
     @patch.object(DAG, 'concurrency_reached')
     def test_requeue_over_dag_concurrency(self, mock_concurrency_reached):

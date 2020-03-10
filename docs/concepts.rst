@@ -353,19 +353,6 @@ is equivalent to:
     op2.set_downstream(op3)
     op3.set_upstream(op4)
 
-For convenience, the bitshift operators can also be used with DAGs. For example:
-
-.. code:: python
-
-    dag >> op1 >> op2
-
-is equivalent to:
-
-.. code:: python
-
-    op1.dag = dag
-    op1.set_downstream(op2)
-
 We can put this all together to build a simple pipeline:
 
 .. code:: python

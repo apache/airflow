@@ -196,8 +196,7 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
 
         with DAG('failing DAG') as dag:
             (
-                dag
-                >> PubSubSubscriptionCreateOperator(
+                PubSubSubscriptionCreateOperator(
                     topic_project='my-project', topic='my-topic',
                     subscription='my-subscription')
                 >> PubSubSubscriptionCreateOperator(
@@ -210,7 +209,7 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
 
         with DAG('DAG') as dag:
             (
-                dag >> PubSubSubscriptionCreateOperator(
+                PubSubSubscriptionCreateOperator(
                     topic_project='my-project', topic='my-topic')
             )
 
