@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+
+import gzip as gz
 import tempfile
 from unittest.mock import Mock
 
@@ -243,6 +245,15 @@ class TestAwsS3Hook:
             hook.load_file_obj(temp_file, "my_key", s3_bucket)
             resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
             assert resource.get()['Body'].read() == b'Content'
+
+    def test_load_file_gzip(self, s3_bucket):
+        hook = S3Hook()
+        with tempfile.NamedTemporaryFile() as temp_file:
+            temp_file.write(b"Content")
+            temp_file.seek(0)
+            hook.load_file(temp_file, "my_key", s3_bucket, gzip=True)
+            resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
+            assert gz.decompress(resource.get()['Body'].read()) == b'Content'
 
     @mock.patch.object(S3Hook, 'get_connection', return_value=Connection(schema='test_bucket'))
     def test_provide_bucket_name(self, mock_get_connection):
