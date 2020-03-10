@@ -363,6 +363,9 @@ class DagBag(BaseDagBag, LoggingMixin):
         un-anchored regexes, not shell-like glob patterns.
         """
         if self.store_serialized_dags:
+            self.log.info(
+                "Not filling up the DagBag because store_serialized_dags is set to true"
+            )
             return
 
         self.log.info("Filling up the DagBag from %s", dag_folder)

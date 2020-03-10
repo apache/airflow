@@ -86,7 +86,7 @@ FILTER_STATUS_COOKIE = 'dag_status_filter'
 if os.environ.get('SKIP_DAGS_PARSING') != 'True':
     dagbag = models.DagBag(settings.DAGS_FOLDER, store_serialized_dags=STORE_SERIALIZED_DAGS)
 else:
-    dagbag = models.DagBag(os.devnull, include_examples=False)
+    dagbag = models.DagBag(os.devnull, include_examples=False, store_serialized_dags=STORE_SERIALIZED_DAGS)
 
 
 def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
@@ -1884,7 +1884,8 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         is_paused = True if request.args.get('is_paused') == 'false' else False
         models.DagModel.get_dagmodel(dag_id).set_is_paused(
-            is_paused=is_paused)
+            is_paused=is_paused,
+            store_serialized_dags=STORE_SERIALIZED_DAGS)
         return "OK"
 
     @expose('/refresh', methods=['POST'])
