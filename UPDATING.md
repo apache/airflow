@@ -26,6 +26,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Airflow Master](#airflow-master)
+- [Airflow 2.0](#airflow-20)
 - [Airflow 1.10.9](#airflow-1109)
 - [Airflow 1.10.8](#airflow-1108)
 - [Airflow 1.10.7](#airflow-1107)
@@ -1046,6 +1047,21 @@ No change is needed if only the default trigger rule `all_success` is being used
 If the DAG relies on tasks with other trigger rules (i.e. `all_done`) being skipped by the `LatestOnlyOperator`, adjustments to the DAG need to be made to commodate the change in behaviour, i.e. with additional edges from the `LatestOnlyOperator`.
 
 The goal of this change is to achieve a more consistent and configurale cascading behaviour based on the `BaseBranchOperator` (see [AIRFLOW-2923](https://jira.apache.org/jira/browse/AIRFLOW-2923) and [AIRFLOW-1784](https://jira.apache.org/jira/browse/AIRFLOW-1784)).
+
+## Airflow 2.0
+
+### RedshiftToS3Transfer:: signature changed
+
+Previous versions of the `RedshiftToS3Transfer` operator required `schema` and `table` arguments as the first 2
+positional arguments. This signature was changed in 2.0 and
+the `s3_bucket` and `s3_key` are the first 2 positional reguements.
+
+In order to use this operator:
+```python
+result = RedshiftToS3Transfer('schema', 'table')  # Pre-2.0 call
+...
+result = RedshiftToS3Transfer('s3_bucket', 's3_key')  # Post-2.0 call
+```
 
 ## Airflow 1.10.9
 
