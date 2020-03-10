@@ -91,8 +91,6 @@ class TestDockerOperator(unittest.TestCase):
         client_mock.pull.assert_called_once_with('ubuntu:latest', stream=True)
         client_mock.wait.assert_called_once_with('some_id')
 
-    @mock.patch('airflow.providers.docker.operators.docker.tls.TLSConfig')
-    @mock.patch('airflow.providers.docker.operators.docker.APIClient')
     def test_private_environment_is_private(self):
         operator = DockerOperator(api_version='1.19', command='env', environment={'UNIT': 'TEST'},
                                   private_environment={'PRIVATE': 'MESSAGE'}, image='ubuntu:latest',
