@@ -76,6 +76,8 @@ ${AIRFLOW_SOURCES}/pylintrc:/opt/airflow/pylintrc:cached
 -v
 ${AIRFLOW_SOURCES}/pytest.ini:/opt/airflow/pytest.ini:cached
 -v
+${AIRFLOW_SOURCES}/requirements.txt:/opt/airflow/requirements.txt:cached
+-v
 ${AIRFLOW_SOURCES}/scripts:/opt/airflow/scripts:cached
 -v
 ${AIRFLOW_SOURCES}/scripts/ci/in_container/entrypoint_ci.sh:/entrypoint_ci.sh:cached

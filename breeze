@@ -177,7 +177,7 @@ function initialize_virtualenv() {
         echo
         pushd "${MY_DIR}"
         set +e
-        pip install -e ".[devel]"
+        pip install -e ".[devel]" --constraint requirements.txt
         RES=$?
         set -e
         popd
@@ -954,7 +954,8 @@ prepare_usage() {
       Explains in detail all the flags that can be used with breeze.
 "
     export DETAILED_USAGE_INITIALIZE_LOCAL_VIRTUALENV="
-      Initializes locally created virtualenv installing all dependencies of Airflow.
+      Initializes locally created virtualenv installing all dependencies of Airflow
+      taking into account the frozen requirements from requirements.txt.
       This local virtualenv can be used to aid autocompletion and IDE support as
       well as run unit tests directly from the IDE. You need to have virtualenv
       activated before running this command.

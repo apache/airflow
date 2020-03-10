@@ -15,26 +15,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -x
+# shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-# shellcheck source=scripts/ci/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
-
-export UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD="false"
-
-# In case of CRON jobs on Travis we run builds without cache
-if [[ "${TRAVIS_EVENT_TYPE:=}" == "cron" ]]; then
+if [[ ${UPGRADE_WHILE_GENERATING_REQUIREMENTS} == "true" ]]; then
     echo
-    echo "Disabling cache for CRON jobs"
+    echo "Upgrading requirements"
     echo
-    export DOCKER_CACHE="no-cache"
-    export PULL_BASE_IMAGES="true"
-    export UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD="true"
+    pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade
 fi
 
+echo
+echo "Freezing requirements"
+echo
 
-build_image_on_ci
+pip freeze | \
+    grep -v "apache_airflow" | \
+    grep -v "/opt/airflow" >"${AIRFLOW_SOURCES}/requirements.txt"
 
-# We need newer version of six for Travis as they bundle 1.11.0 version
-# Bowler is installed for backport packages build
-pip install pre-commit bowler 'six~=1.14'
+echo
+echo "Requirements generated in requirements.txt"
+echo
+
+in_container_fix_ownership

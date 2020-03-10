@@ -15,26 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -x
+export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
+export REMEMBER_LAST_ANSWER="true"
 
-# shellcheck source=scripts/ci/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
-
-export UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD="false"
-
-# In case of CRON jobs on Travis we run builds without cache
-if [[ "${TRAVIS_EVENT_TYPE:=}" == "cron" ]]; then
-    echo
-    echo "Disabling cache for CRON jobs"
-    echo
-    export DOCKER_CACHE="no-cache"
-    export PULL_BASE_IMAGES="true"
-    export UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD="true"
-fi
-
-
-build_image_on_ci
-
-# We need newer version of six for Travis as they bundle 1.11.0 version
-# Bowler is installed for backport packages build
-pip install pre-commit bowler 'six~=1.14'
+# shellcheck source=scripts/ci/ci_generate_requirements.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/ci_generate_requirements.sh"

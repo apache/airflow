@@ -368,10 +368,20 @@ COPY airflow/version.py ${AIRFLOW_SOURCES}/airflow/version.py
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 COPY airflow/bin/airflow ${AIRFLOW_SOURCES}/airflow/bin/airflow
 
+COPY requirements.txt ${AIRFLOW_SOURCES}/requirements.txt
+
+ENV UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD=${UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD}
 # The goal of this line is to install the dependencies from the most current setup.py from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
 # In non-CI optimized build this will install all dependencies before installing sources.
-RUN pip install -e ".[${AIRFLOW_EXTRAS}]"
+# Usually we will install versions constrained to the current requirements.txt
+# But in cron job we will install latest versions matching setup.py to see if there is no breaking change
+RUN \
+    if [[ "${UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD}" == "true" ]]; then \
+        pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade; \
+    else \
+        pip install -e ".[${AIRFLOW_EXTRAS}]" --constraint ${AIRFLOW_SOURCES}/requirements.txt ; \
+    fi
 
 # Copy all the www/ files we need to compile assets. Done as two separate COPY
 # commands so as otherwise it copies the _contents_ of static/ in to www/

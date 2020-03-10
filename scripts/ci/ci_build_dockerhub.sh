@@ -22,15 +22,6 @@
 export FORCE_ANSWER_TO_QUESTIONS="yes"
 export PULL_BASE_IMAGES="true"
 
-# In case of CRON jobs on Travis we run builds without cache
-if [[ "${TRAVIS_EVENT_TYPE:=}" == "cron" ]]; then
-    echo
-    echo "Disabling cache for CRON jobs"
-    echo
-    export DOCKER_CACHE="no-cache"
-    export PULL_BASE_IMAGES="true"
-fi
-
 if [[ -z ${DOCKER_REPO} ]]; then
    echo
    echo "Error! Missing DOCKER_REPO environment variable"

@@ -43,7 +43,7 @@ jobs:
       env: >-
         PYTHON_VERSION=3.6
         AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
-        SKIP=pylint-tests
+        SKIP=pylint-tests,generate-requirements
     - name: "Static checks - pylint tests only"
       stage: pre-test
       script: ./scripts/ci/ci_run_static_checks_pylint_tests.sh
@@ -133,10 +133,10 @@ jobs:
         ENABLED_INTEGRATIONS="kerberos"
       script: "./scripts/ci/ci_run_airflow_testing.sh --ignore=tests/providers"
       stage: test
-    - name: "Prepare backport packages"
+    - name: "Prepare packages and generate requirements"
       before_install: pip install bowler
       stage: test
-      script: ./scripts/ci/ci_prepare_backport_packages.sh
+      script: ./scripts/ci/ci_prepare_packages.sh && ./scripts/ci/ci_generate_requirements.sh
 before_install:
   - ./scripts/ci/ci_before_install.sh
 script: ./scripts/ci/ci_run_airflow_testing.sh

@@ -25,6 +25,7 @@ import sys
 import unittest
 from importlib import util
 from os.path import dirname
+from textwrap import wrap
 from typing import List
 
 from setuptools import Command, find_packages, setup
@@ -41,9 +42,11 @@ version = mod.version  # type: ignore
 
 PY3 = sys.version_info[0] == 3
 
+my_dir = dirname(__file__)
+
 # noinspection PyUnboundLocalVariable
 try:
-    with io.open('README.md', encoding='utf-8') as f:
+    with io.open(os.path.join(my_dir, 'README.md'), encoding='utf-8') as f:
         long_description = f.read()
 except FileNotFoundError:
     long_description = ''
@@ -52,7 +55,7 @@ except FileNotFoundError:
 def airflow_test_suite():
     """Test suite for Airflow tests"""
     test_loader = unittest.TestLoader()
-    test_suite = test_loader.discover('tests', pattern='test_*.py')
+    test_suite = test_loader.discover(os.path.join(my_dir, 'tests'), pattern='test_*.py')
     return test_suite
 
 
@@ -74,7 +77,7 @@ class CleanCommand(Command):
     # noinspection PyMethodMayBeStatic
     def run(self):
         """Run command to remove temporary files and directories."""
-        os.chdir(dirname(__file__))
+        os.chdir(my_dir)
         os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')
 
 
@@ -99,6 +102,27 @@ class CompileAssets(Command):
         subprocess.check_call('./airflow/www/compile_assets.sh')
 
 
+class ListExtras(Command):
+    """
+    List all available extras
+    Registered as cmdclass in setup() so it can be called with ``python setup.py list_extras``.
+    """
+
+    description = "List available extras"
+    user_options = []  # type: List[str]
+
+    def initialize_options(self):
+        """Set default values for options."""
+
+    def finalize_options(self):
+        """Set final values for options."""
+
+    # noinspection PyMethodMayBeStatic
+    def run(self):
+        """List extras."""
+        print("\n".join(wrap(", ".join(EXTRAS_REQUIREMENTS.keys()), 100)))
+
+
 def git_version(version_: str) -> str:
     """
     Return a version to identify the state of the underlying git repo. The version will
@@ -115,7 +139,7 @@ def git_version(version_: str) -> str:
     try:
         import git
         try:
-            repo = git.Repo(os.path.join(*[dirname(__file__), '.git']))
+            repo = git.Repo(os.path.join(*[my_dir, '.git']))
         except git.NoSuchPathError:
             logger.warning('.git directory not found: Cannot compute the git version')
             return ''
@@ -135,7 +159,7 @@ def git_version(version_: str) -> str:
         return 'no_git_version'
 
 
-def write_version(filename: str = os.path.join(*[dirname(__file__), "airflow", "git_version"])):
+def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version"])):
     """
     Write the Semver version + git hash to file, e.g. ".dev0+2f635dc265e78db6708f59f68e8009abb92c1e65".
 
@@ -445,12 +469,178 @@ if PY3:
 else:
     devel_ci = devel_all
 
+EXTRAS_REQUIREMENTS = {
+    'all': devel_all,
+    'all_dbs': all_dbs,
+    'async': async_packages,
+    'atlas': atlas,
+    'aws': aws,
+    'azure': azure,
+    'cassandra': cassandra,
+    'celery': celery,
+    'cgroups': cgroups,
+    'cloudant': cloudant,
+    'dask': dask,
+    'databricks': databricks,
+    'datadog': datadog,
+    'devel': devel_minreq,
+    'devel_ci': devel_ci,
+    'devel_hadoop': devel_hadoop,
+    'doc': doc,
+    'docker': docker,
+    'druid': druid,
+    'elasticsearch': elasticsearch,
+    'gcp': gcp,
+    'gcp_api': gcp,  # TODO: remove this in Airflow 2.1
+    'github_enterprise': flask_oauth,
+    'google_auth': flask_oauth,
+    'grpc': grpc,
+    'hdfs': hdfs,
+    'hive': hive,
+    'hvac': hashicorp,
+    'jdbc': jdbc,
+    'jira': jira,
+    'kerberos': kerberos,
+    'kubernetes': kubernetes,
+    'ldap': ldap,
+    'mongo': mongo,
+    'mssql': mssql,
+    'mysql': mysql,
+    'odbc': odbc,
+    'oracle': oracle,
+    'pagerduty': pagerduty,
+    'papermill': papermill,
+    'password': password,
+    'pinot': pinot,
+    'postgres': postgres,
+    'presto': presto,
+    'qds': qds,
+    'rabbitmq': rabbitmq,
+    'redis': redis,
+    'salesforce': salesforce,
+    'samba': samba,
+    'segment': segment,
+    'sendgrid': sendgrid,
+    'sentry': sentry,
+    'singularity': singularity,
+    'slack': slack,
+    'snowflake': snowflake,
+    'ssh': ssh,
+    'statsd': statsd,
+    'tableau': tableau,
+    'vertica': vertica,
+    'webhdfs': webhdfs,
+    'winrm': winrm,
+    'yandexcloud': yandexcloud,
+}
 
-def do_setup():
+#####################################################################################################
+# IMPORTANT NOTE!!!!!!!!!!!!!!!
+# IF you are removing dependencies from this list, please make sure that you also increase
+# DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
+#####################################################################################################
+INSTALL_REQUIREMENTS = [
+    'alembic>=1.2, <2.0',
+    'argcomplete~=1.10',
+    'attrs~=19.3',
+    'cached_property~=1.5',
+    'cattrs~=1.0',
+    'colorlog==4.0.2',
+    'croniter>=0.3.17, <0.4',
+    'cryptography>=0.9.3',
+    'dill>=0.2.2, <0.4',
+    'flask>=1.1.0, <2.0',
+    'flask-appbuilder~=2.2',
+    'flask-caching>=1.3.3, <1.4.0',
+    'flask-login>=0.3, <0.5',
+    'flask-swagger==0.2.13',
+    'flask-wtf>=0.14.2, <0.15',
+    'funcsigs>=1.0.0, <2.0.0',
+    'graphviz>=0.12',
+    'gunicorn>=19.5.0, <20.0',
+    'iso8601>=0.1.12',
+    'jinja2>=2.10.1, <2.11.0',
+    'json-merge-patch==0.2',
+    'jsonschema~=3.0',
+    'lazy_object_proxy~=1.3',
+    'lockfile>=0.12.2',
+    'markdown>=2.5.2, <3.0',
+    'pandas>=0.17.1, <1.0.0',
+    'pendulum==1.4.4',
+    'pep562~=1.0;python_version<"3.7"',
+    'psutil>=4.2.0, <6.0.0',
+    'pygments>=2.0.1, <3.0',
+    'python-daemon>=2.1.1, <2.2',
+    'python-dateutil>=2.3, <3',
+    'requests>=2.20.0, <3',
+    'setproctitle>=1.1.8, <2',
+    'sqlalchemy~=1.3',
+    'sqlalchemy_jsonfield~=0.9',
+    'tabulate>=0.7.5, <0.9',
+    'tenacity==4.12.0',
+    'termcolor==1.1.0',
+    'text-unidecode==1.2',
+    'thrift>=0.9.2',
+    'typing;python_version<"3.6"',
+    'typing-extensions>=3.7.4;python_version<"3.8"',
+    'tzlocal>=1.4,<2.0.0',
+    'unicodecsv>=0.14.1',
+    'werkzeug<1.0.0',
+]
+
+
+def get_dependency_name(dep):
+    """Get name of a dependency."""
+    return dep.replace(">", '=').replace("<", "=").split("=")[0]
+
+
+def read_requirements_txt():
+    """Returns dictionary of requirements read from requirements.txt"""
+    with open(os.path.join(my_dir, "requirements.txt"), "rt") as requirement_file:
+        requirements_content = requirement_file.readlines()
+        requirements = {}
+        for requirements_line in requirements_content:
+            if requirements_line.strip().startswith("#"):
+                continue
+            split_requirement = requirements_line.split("==")
+            requirements[split_requirement[0]] = requirements_line.rstrip("\n")
+    return requirements
+
+
+def get_extras_required(pinned=False):
+    """Get dict of extras requirements - pinned if specified."""
+    if not pinned:
+        return EXTRAS_REQUIREMENTS
+    pinned_extras_required = {}
+    requirements = read_requirements_txt()
+    for extra, dependencies in EXTRAS_REQUIREMENTS.items():
+        pinned_deps = []
+        for dependency in dependencies:
+            dep_name = get_dependency_name(dependency)
+            if requirements.get(dep_name):
+                pinned_deps.append(requirements[dep_name])
+        pinned_extras_required[extra] = pinned_deps
+    return pinned_extras_required
+
+
+def get_install_requires(pinned=False):
+    """Get list of install requirements - pinned if specified."""
+    if not pinned:
+        return INSTALL_REQUIREMENTS
+    pinned_install_requires = []
+    requirements = read_requirements_txt()
+    for dependency in INSTALL_REQUIREMENTS:
+        dep_name = get_dependency_name(dependency)
+        if requirements.get(dep_name):
+            pinned_install_requires.append(requirements[dep_name])
+    return pinned_install_requires
+
+
+def do_setup(pinned=False):
     """Perform the Airflow package setup."""
     write_version()
     setup(
-        name='apache-airflow',
+        name='apache-airflow' + ("" if not pinned else "-pinned"),
         description='Programmatically author, schedule and monitor data pipelines',
         long_description=long_description,
         long_description_content_type='text/markdown',
@@ -465,132 +655,15 @@ def do_setup():
         include_package_data=True,
         zip_safe=False,
         scripts=['airflow/bin/airflow'],
-        #####################################################################################################
-        # IMPORTANT NOTE!!!!!!!!!!!!!!!
-        # IF you are removing dependencies from this list, please make sure that you also increase
-        # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
-        #####################################################################################################
-        install_requires=[
-            'alembic>=1.2, <2.0',
-            'argcomplete~=1.10',
-            'attrs~=19.3',
-            'cached_property~=1.5',
-            'cattrs~=1.0',
-            'colorlog==4.0.2',
-            'croniter>=0.3.17, <0.4',
-            'cryptography>=0.9.3',
-            'dill>=0.2.2, <0.4',
-            'flask>=1.1.0, <2.0',
-            'flask-appbuilder~=2.2',
-            'flask-caching>=1.3.3, <1.4.0',
-            'flask-login>=0.3, <0.5',
-            'flask-swagger==0.2.13',
-            'flask-wtf>=0.14.2, <0.15',
-            'funcsigs>=1.0.0, <2.0.0',
-            'graphviz>=0.12',
-            'gunicorn>=19.5.0, <20.0',
-            'iso8601>=0.1.12',
-            'jinja2>=2.10.1, <2.11.0',
-            'json-merge-patch==0.2',
-            'jsonschema~=3.0',
-            'lazy_object_proxy~=1.3',
-            'lockfile>=0.12.2',
-            'markdown>=2.5.2, <3.0',
-            'pandas>=0.17.1, <1.0.0',
-            'pendulum==1.4.4',
-            'pep562~=1.0;python_version<"3.7"',
-            'psutil>=4.2.0, <6.0.0',
-            'pygments>=2.0.1, <3.0',
-            'python-daemon>=2.1.1, <2.2',
-            'python-dateutil>=2.3, <3',
-            'requests>=2.20.0, <3',
-            'setproctitle>=1.1.8, <2',
-            'sqlalchemy~=1.3',
-            'sqlalchemy_jsonfield~=0.9',
-            'tabulate>=0.7.5, <0.9',
-            'tenacity==4.12.0',
-            'termcolor==1.1.0',
-            'text-unidecode==1.2',
-            'thrift>=0.9.2',
-            'typing;python_version<"3.6"',
-            'typing-extensions>=3.7.4;python_version<"3.8"',
-            'tzlocal>=1.4,<2.0.0',
-            'unicodecsv>=0.14.1',
-            'werkzeug<1.0.0',
-        ],
-        #####################################################################################################
-        # IMPORTANT NOTE!!!!!!!!!!!!!!!
-        # IF you are removing dependencies from this list, please make sure that you also increase
-        # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
-        #####################################################################################################
+        install_requires=get_install_requires(pinned=pinned),
         setup_requires=[
+            'bowler',
             'docutils>=0.14, <0.16'
             'gitpython>=2.0.2',
+            'setuptools',
+            'wheel',
         ],
-        extras_require={
-            'all': devel_all,
-            'all_dbs': all_dbs,
-            'async': async_packages,
-            'atlas': atlas,
-            'aws': aws,
-            'azure': azure,
-            'cassandra': cassandra,
-            'celery': celery,
-            'cgroups': cgroups,
-            'cloudant': cloudant,
-            'dask': dask,
-            'databricks': databricks,
-            'datadog': datadog,
-            'devel': devel_minreq,
-            'devel_ci': devel_ci,
-            'devel_hadoop': devel_hadoop,
-            'doc': doc,
-            'docker': docker,
-            'druid': druid,
-            'elasticsearch': elasticsearch,
-            'gcp': gcp,
-            'gcp_api': gcp,  # TODO: remove this in Airflow 2.1
-            'github_enterprise': flask_oauth,
-            'google_auth': flask_oauth,
-            'grpc': grpc,
-            'hdfs': hdfs,
-            'hive': hive,
-            'hvac': hashicorp,
-            'jdbc': jdbc,
-            'jira': jira,
-            'kerberos': kerberos,
-            'kubernetes': kubernetes,
-            'ldap': ldap,
-            'mongo': mongo,
-            'mssql': mssql,
-            'mysql': mysql,
-            'odbc': odbc,
-            'oracle': oracle,
-            'pagerduty': pagerduty,
-            'papermill': papermill,
-            'password': password,
-            'pinot': pinot,
-            'postgres': postgres,
-            'presto': presto,
-            'qds': qds,
-            'rabbitmq': rabbitmq,
-            'redis': redis,
-            'salesforce': salesforce,
-            'samba': samba,
-            'segment': segment,
-            'sendgrid': sendgrid,
-            'sentry': sentry,
-            'singularity': singularity,
-            'slack': slack,
-            'snowflake': snowflake,
-            'ssh': ssh,
-            'statsd': statsd,
-            'tableau': tableau,
-            'vertica': vertica,
-            'webhdfs': webhdfs,
-            'winrm': winrm,
-            'yandexcloud': yandexcloud,
-        },
+        extras_require=get_extras_required(pinned=pinned),
         classifiers=[
             'Development Status :: 5 - Production/Stable',
             'Environment :: Console',
@@ -609,7 +682,8 @@ def do_setup():
             'https://dist.apache.org/repos/dist/release/airflow/' + version),
         cmdclass={
             'extra_clean': CleanCommand,
-            'compile_assets': CompileAssets
+            'compile_assets': CompileAssets,
+            'list_extras': ListExtras,
         },
         test_suite='setup.airflow_test_suite',
         python_requires='~=3.6',
@@ -617,4 +691,12 @@ def do_setup():
 
 
 if __name__ == "__main__":
-    do_setup()
+    pinned_requirements = False
+    if len(sys.argv) > 1 and sys.argv[1] == "pinned":
+        pinned_requirements = True
+        del sys.argv[1]
+    do_setup(pinned=pinned_requirements)
+    if sys.argv[1] == "--help":
+        print()
+        print("You can add 'pinned' as first argument to build pinned version of apache-airflow")
+        print()

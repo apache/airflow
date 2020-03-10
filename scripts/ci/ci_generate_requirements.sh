@@ -15,26 +15,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -x
+export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
 
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-export UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD="false"
+function run_generate_requirements() {
+        docker run "${EXTRA_DOCKER_FLAGS[@]}" \
+            --entrypoint "/usr/local/bin/dumb-init"  \
+            --env PYTHONDONTWRITEBYTECODE \
+            --env VERBOSE \
+            --env VERBOSE_COMMANDS \
+            --env HOST_USER_ID="$(id -ur)" \
+            --env HOST_GROUP_ID="$(id -gr)" \
+            --env UPGRADE_WHILE_GENERATING_REQUIREMENTS \
+            --rm \
+            "${AIRFLOW_CI_IMAGE}" \
+            "--" "/opt/airflow/scripts/ci/in_container/run_generate_requirements.sh" \
+            | tee -a "${OUTPUT_LOG}"
+}
 
-# In case of CRON jobs on Travis we run builds without cache
-if [[ "${TRAVIS_EVENT_TYPE:=}" == "cron" ]]; then
-    echo
-    echo "Disabling cache for CRON jobs"
-    echo
-    export DOCKER_CACHE="no-cache"
-    export PULL_BASE_IMAGES="true"
-    export UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD="true"
-fi
+prepare_build
 
+rebuild_ci_image_if_needed
 
-build_image_on_ci
-
-# We need newer version of six for Travis as they bundle 1.11.0 version
-# Bowler is installed for backport packages build
-pip install pre-commit bowler 'six~=1.14'
+run_generate_requirements

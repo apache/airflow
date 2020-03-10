@@ -133,6 +133,8 @@ function initialize_breeze_environment {
     # We use pulled docker image cache by default to speed up the builds
     export DOCKER_CACHE=${DOCKER_CACHE:="pulled"}
 
+    # We use requirements.txt by default rather than trying to upgrade to latest versions
+    export UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD=${UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD:="false"}
 
     STAT_BIN=stat
     if [[ "${OSTYPE}" == "darwin"* ]]; then
@@ -144,6 +146,21 @@ function initialize_breeze_environment {
 
     # default version for dockerhub images
     export PYTHON_VERSION_FOR_DEFAULT_DOCKERHUB_IMAGE=3.6
+
+
+    if [[ ${CI:="false"} == "true" ]]; then
+        export LOCAL_RUN="false"
+    else
+        export LOCAL_RUN="true"
+    fi
+
+    # upgrade while generating requirements should only happen in localy run
+    # pre-commits or in cron job
+    if [[ ${LOCAL_RUN} == "true" || "${TRAVIS_EVENT_TYPE:=}" != "cron" ]]; then
+        export UPGRADE_WHILE_GENERATING_REQUIREMENTS="true"
+    else
+        export UPGRADE_WHILE_GENERATING_REQUIREMENTS="false"
+    fi
 }
 
 function print_info() {
@@ -178,6 +195,7 @@ hooks /opt/airflow/
 logs /root/airflow/
 pylintrc /opt/airflow/
 pytest.ini /opt/airflow/
+requirements.txt /opt/airflow/
 scripts /opt/airflow/
 scripts/ci/in_container/entrypoint_ci.sh /
 setup.cfg /opt/airflow/
@@ -1162,6 +1180,7 @@ Docker building ${AIRFLOW_CI_IMAGE}.
             --build-arg AIRFLOW_BRANCH="${BRANCH_NAME}" \
             --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
             --build-arg AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" \
+            --build-arg UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD="${UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD}" \
             "${DOCKER_CACHE_CI_DIRECTIVE[@]}" \
             -t "${AIRFLOW_CI_IMAGE}" \
             --target "${TARGET_IMAGE}" \

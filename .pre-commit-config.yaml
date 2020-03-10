@@ -223,6 +223,13 @@ repos:
         files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$
         pass_filenames: false
         require_serial: true
+      - id: update-extras
+        name: Update extras in documentation
+        entry: "./scripts/ci/pre_commit_update_extras.sh"
+        language: system
+        files: ^setup.py$|^INSTALL$|^CONTRIBUTING.rst$
+        pass_filenames: false
+        require_serial: true
       - id: pydevd
         language: pygrep
         name: Check for pydevd debug statements accidentally left
@@ -286,6 +293,13 @@ repos:
         language: system
         always_run: true
         pass_filenames: false
+      - id: generate-requirements
+        name: Generate requirements
+        entry: "./scripts/ci/pre_commit_generate_requirements.sh"
+        language: system
+        files: ^setup.py$
+        pass_filenames: false
+        require_serial: true
       - id: check-apache-license
         name: Check if licenses are OK for Apache
         entry: "./scripts/ci/pre_commit_check_license.sh"

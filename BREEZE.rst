@@ -711,7 +711,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
   ****************************************************************************************************
   breeze [FLAGS] initialize-local-virtualenv -- <EXTRA_ARGS>
 
-        Initializes locally created virtualenv installing all dependencies of Airflow.
+        Initializes locally created virtualenv installing all dependencies of Airflow
+        taking into account the frozen requirements from requirements.txt.
         This local virtualenv can be used to aid autocompletion and IDE support as
         well as run unit tests directly from the IDE. You need to have virtualenv
         activated before running this command.

@@ -302,6 +302,71 @@ Limitations:
 They are optimized for repeatability of tests, maintainability and speed of building rather
 than production performance. The production images are not yet officially published.
 
+Extras
+------
+
+There are a number of extras that can be specified when installing Airflow. Those
+extras can be specified after the usual pip install - for example
+``pip install -e .[gcp]``. For development purpose there is a ``devel`` extra that
+installs all development dependencies. There is also ``devel_ci`` that installs
+all dependencies needed in CI envioronment.
+
+This is the full list of those extras:
+
+  .. START EXTRAS HERE
+
+all, all_dbs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant, dask, databricks,
+datadog, devel, devel_ci, devel_hadoop, doc, docker, druid, elasticsearch, gcp, gcp_api,
+github_enterprise, google_auth, grpc, hdfs, hive, hvac, jdbc, jira, kerberos, kubernetes, ldap,
+mongo, mssql, mysql, odbc, oracle, pagerduty, papermill, password, pinot, postgres, presto, qds,
+rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry, singularity, slack, snowflake, ssh,
+statsd, tableau, vertica, webhdfs, winrm, yandexcloud
+
+  .. END EXTRAS HERE
+
+
+Pinned Airflow requirements.txt file
+------------------------------------
+
+Airflow is not a standard python project. Most of the python projects fall into one of two types -
+application or library. As described in
+[StackOverflow Question](https://stackoverflow.com/questions/28509481/should-i-pin-my-python-dependencies-versions)
+decision whether to pin (freeze) requirements for a python project depdends on the type. For
+applications, dependencies should be pinned, but for libraries, they should be open.
+
+For application, pinning the dependencies makes it more stable to install in the future - because new
+(even transitive) dependencies might cause installation to fail. For libraries - the dependencies should
+be open to allow several different libraries with the same requirements to be installed at the same time.
+
+The problem is that Apache Airflow is a bit of both - application to install and library to be used when
+you are developing your own operators and DAGs.
+
+This - seemingly unsolvable - puzzle is solved as follows:
+
+* by default when you install ``apache-airflow`` package - the dependencies are as open as possible while
+  still allowing the apache-airflow to install. This means that 'apache-airflow' package might fail to
+  install in case a direct or transitive dependency is released that breaks the installation. In such case
+  when installing ``apache-airflow``, you might need to provide additional constraints (for
+  example ``pip install apache-airflow==1.10.2 Werkzeug<1.0.0``)
+
+* we have ``requirements.txt`` file generated automatically based on the set of all latest working
+  and tested requirement versions. You can also use that file as a constraints file when installing
+  apache airflow - either from the sources ``pip install -e . --constraint requirements.txt`` or
+  from the pypi package ``pip install apache-airflow --constraint requirements.txt``. Note that
+  this will also work with extras for example ``pip install .[gcp] --constraint requirements.txt`` or
+  ``pip install apache-airflow[gcp] --constraint requirements.txt``
+
+The ``requirements.txt`` file should be updated automatically via pre-commit whenever you update dependencies
+It reflects the current set of dependencies installed in the CI image of Apache Airflow.
+The same set of requirements will be used to produce the production image.
+
+If you do not use pre-commits and the CI builds fails / you need to regenerate it, you can do it manually:
+``pre-commit run generate-requirements --all-files`` or via script
+``./scripts/ci/ci_generate_requirements.sh``.
+This will try to regenerate the requirements.txt file with the latest requirements matching
+the setup.py constraints.
+
+
 Backport providers packages
 ---------------------------
 
@@ -712,6 +777,7 @@ useful for "bisecting" when looking for a commit that introduced some bugs.
 
 
 First of all - you can read about rebase workflow here:
+`Merging vs. rebasing <https://www.atlassian.com/git/tutorials/merging-vs-rebasing>`_ - this is an
 `Merging vs. rebasing <https://www.atlassian.com/git/tutorials/merging-vs-rebasing>`_ - this is an
 excellent article that describes all ins/outs of rebase. I recommend reading it and keeping it as reference.
 

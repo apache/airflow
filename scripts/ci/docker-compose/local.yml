@@ -50,6 +50,7 @@ services:
       - ../../../logs:/root/airflow/logs:cached
       - ../../../pylintrc:/opt/airflow/pylintrc:cached
       - ../../../pytest.ini:/opt/airflow/pytest.ini:cached
+      - ../../../requirements.txt:/opt/airflow/requirements.txt:cached
       - ../../../scripts:/opt/airflow/scripts:cached
       - ../../../scripts/ci/in_container/entrypoint_ci.sh:/entrypoint_ci.sh:cached
       - ../../../setup.cfg:/opt/airflow/setup.cfg:cached

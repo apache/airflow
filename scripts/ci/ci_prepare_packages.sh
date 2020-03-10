@@ -20,7 +20,7 @@ export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-cd "${MY_DIR}/../../backport_packages" || exit 1
+pushd "${MY_DIR}/../../backport_packages" || exit 1
 
 rm -rf dist/*
 rm -rf -- *.egg-info
@@ -28,6 +28,7 @@ rm -rf -- *.egg-info
 if [[ -z "$*" ]]; then
     BACKPORT_PACKAGES=$(python3 setup_backport_packages.py list-backport-packages)
     BUILD_COMMON_PROVIDERS_PACKAGE="true"
+    BUILD_AIRFLOW_PACKAGE="true"
 else
     if [[ "$1" == "--help" ]]; then
         echo
@@ -42,6 +43,7 @@ else
     fi
     BACKPORT_PACKAGES="$*"
     BUILD_COMMON_PROVIDERS_PACKAGE="false"
+    BUILD_AIRFLOW_PACKAGE="false"
 fi
 
 echo "-----------------------------------------------------------------------------------"
@@ -71,12 +73,36 @@ if [[ ${BUILD_COMMON_PROVIDERS_PACKAGE} == "true" ]]; then
     python3 setup_backport_packages.py providers sdist bdist_wheel >/dev/null
 fi
 
-DUMP_FILE="/tmp/airflow_provider_packages_$(date +"%Y%m%d-%H%M%S").tar.gz"
+popd || exit 1
 
-tar -cvzf "${DUMP_FILE}" "dist"
+cd "${MY_DIR}/../../" || exit 1
 
-echo "Packages are in dist bit also tar-gzipped in ${DUMP_FILE}"
+if [[ ${BUILD_AIRFLOW_PACKAGE} == "true" ]]; then
+    echo
+    echo "-----------------------------------------------------------------------------------"
+    echo " Preparing apache-airflow package"
+    echo "-----------------------------------------------------------------------------------"
+    echo
+    python3 setup.py clean --all
+    python3 setup.py sdist bdist_wheel >/dev/null
+    echo
+    echo "-----------------------------------------------------------------------------------"
+    echo " Preparing apache-airflow-pinned package"
+    echo "-----------------------------------------------------------------------------------"
+    echo
+    python3 setup.py clean --all
+    python3 setup.py pinned sdist bdist_wheel >/dev/null
+fi
 
+AIRFLOW_PACKAGES_TGZ_FILE="/tmp/airflow-packages-$(date +"%Y%m%d-%H%M%S").tar.gz"
+tar -cvzf "${AIRFLOW_PACKAGES_TGZ_FILE}" dist/*.whl dist/*.tar.gz
+echo
+echo "Airflow packages are in dist folder and tar-gzipped in ${AIRFLOW_PACKAGES_TGZ_FILE}"
+echo
 if [[ "${CI:=false}" == "true" ]]; then
-    curl -F "file=@${DUMP_FILE}" https://file.io
+    echo
+    echo "Sending all airflow packages to file.io"
+    echo
+    curl -F "file=@${AIRFLOW_PACKAGES_TGZ_FILE}" https://file.io
+    echo
 fi
