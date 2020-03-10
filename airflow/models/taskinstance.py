@@ -55,7 +55,6 @@ from airflow.models.xcom import XCom, XCOM_RETURN_KEY
 from airflow.sentry import Sentry
 from airflow.settings import Stats
 from airflow.ti_deps.dep_context import DepContext, REQUEUEABLE_DEPS, RUNNING_DEPS
-from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.email import send_email
@@ -962,7 +961,7 @@ class TaskInstance(Base, LoggingMixin):
                 start_time = time.time()
 
                 self.render_templates(context=context)
-                if STORE_SERIALIZED_DAGS:
+                if conf.getboolean('core', 'store_dag_code', fallback=False):
                     RTIF.write(RTIF(ti=self, render_templates=False), session=session)
                     RTIF.delete_old_records(self.task_id, self.dag_id, session=session)
 
@@ -1396,7 +1395,7 @@ class TaskInstance(Base, LoggingMixin):
         Else just render the templates
         """
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
-        if STORE_SERIALIZED_DAGS:
+        if conf.getboolean('core', 'store_dag_code', fallback=False):
             rtif = RenderedTaskInstanceFields.get_templated_fields(self)
             if rtif:
                 for field_name, rendered_value in rtif.items():

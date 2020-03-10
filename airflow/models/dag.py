@@ -40,6 +40,7 @@ from future.standard_library import install_aliases
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, func, or_
 from sqlalchemy.orm import backref, relationship
 
+from airflow import configuration
 from airflow import settings, utils
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag
@@ -53,7 +54,6 @@ from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
-from airflow.settings import STORE_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE_INTERVAL
 from airflow.utils import timezone
 from airflow.utils.dag_processing import correct_maybe_zipped
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
@@ -1540,10 +1540,12 @@ class DAG(BaseDag, LoggingMixin):
         # Write DAGs to serialized_dag table in DB.
         # subdags are not written into serialized_dag, because they are not displayed
         # in the DAG list on UI. They are included in the serialized parent DAG.
-        if STORE_SERIALIZED_DAGS and not self.is_subdag:
+        if conf.getboolean('core', 'store_serialized_dags', fallback=False) and\
+                not self.is_subdag:
             SerializedDagModel.write_dag(
                 self,
-                min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
+                min_update_interval=conf.getint(
+                    'core', 'min_serialized_dag_update_interval', fallback=30),
                 session=session
             )
 
@@ -1789,7 +1791,9 @@ class DagModel(Base):
     def safe_dag_id(self):
         return self.dag_id.replace('.', '__dot__')
 
-    def get_dag(self, store_serialized_dags=False):
+    def get_dag(self,
+        store_serialized_dags=False
+    ):
         """Creates a dagbag to load and return a DAG.
         Calling it from UI should set store_serialized_dags = STORE_SERIALIZED_DAGS.
         There may be a delay for scheduler to write serialized DAG into database,
@@ -1797,7 +1801,8 @@ class DagModel(Base):
         FIXME: remove it when webserver does not access to DAG folder in future.
         """
         dag = DagBag(
-            dag_folder=self.fileloc, store_serialized_dags=store_serialized_dags).get_dag(self.dag_id)
+            dag_folder=self.fileloc, store_serialized_dags=store_serialized_dags
+        ).get_dag(self.dag_id)
         if store_serialized_dags and dag is None:
             dag = self.get_dag()
         return dag
@@ -1829,13 +1834,15 @@ class DagModel(Base):
         :type session: sqlalchemy.orm.session.Session
         """
 
-        return self.get_dag().create_dagrun(run_id=run_id,
-                                            state=state,
-                                            execution_date=execution_date,
-                                            start_date=start_date,
-                                            external_trigger=external_trigger,
-                                            conf=conf,
-                                            session=session)
+        return self.get_dag(configuration.conf.getboolean('core', 'store_serialized_dags', fallback=False))\
+            .create_dagrun(
+                run_id=run_id,
+                state=state,
+                execution_date=execution_date,
+                start_date=start_date,
+                external_trigger=external_trigger,
+                conf=conf,
+                session=session)
 
     @provide_session
     def set_is_paused(self,

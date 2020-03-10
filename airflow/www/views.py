@@ -72,8 +72,7 @@ from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_run
                                                         set_dag_run_state_to_failed)
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, Connection, DagRun, errors, XCom
-from airflow.models.dagcode import DagCode
-from airflow.settings import STORE_SERIALIZED_DAGS
+from airflow.models import DagModel
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import timezone
@@ -84,6 +83,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow._vendor import nvd3
+from airflow.www import dagbag_loader
 from airflow.www import utils as wwwutils
 from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                DateTimeWithNumRunsWithDagRunsForm)
@@ -94,7 +94,16 @@ CHART_LIMIT = 200000
 
 UTF8_READER = codecs.getreader('utf-8')
 
-dagbag = models.DagBag(settings.DAGS_FOLDER, store_serialized_dags=STORE_SERIALIZED_DAGS)
+try:
+    async_dagbag_loader = conf.getboolean('webserver', 'async_dagbag_loader')
+except Exception:
+    async_dagbag_loader = False
+
+if not async_dagbag_loader:
+    dagbag = models.DagBag(
+        settings.DAGS_FOLDER, store_serialized_dags=conf.getboolean('core', 'store_serialized_dags'))
+else:
+    dagbag = dagbag_loader.create_async_dagbag(settings.DAGS_FOLDER)
 
 login_required = airflow.login.login_required
 current_user = airflow.login.current_user
@@ -691,8 +700,10 @@ class Airflow(AirflowViewMixin, BaseView):
         all_errors = ""
         try:
             dag_id = request.args.get('dag_id')
-            dag_orm = models.DagModel.get_dagmodel(dag_id, session=session)
-            code = DagCode.get_code_by_fileloc(dag_orm.fileloc)
+            dag_orm = DagModel.get_dagmodel(dag_id, session=session)
+            dag = dag_orm.get_dag(
+                store_serialized_dags=conf.getboolean('core', 'store_serialized_dags'))
+            code = dag.code()
             html_code = highlight(
                 code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
 
@@ -2031,7 +2042,7 @@ class Airflow(AirflowViewMixin, BaseView):
         is_paused = True if request.args.get('is_paused') == 'false' else False
         models.DagModel.get_dagmodel(dag_id).set_is_paused(
             is_paused=is_paused,
-            store_serialized_dags=STORE_SERIALIZED_DAGS)
+            store_serialized_dags=conf.getboolean('core', 'store_serialized_dags'))
         return "OK"
 
     @expose('/refresh', methods=['POST'])

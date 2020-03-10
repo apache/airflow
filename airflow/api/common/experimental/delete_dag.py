@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Delete DAGs APIs."""
-
+from airflow.configuration import conf
 from sqlalchemy import or_
 
 from airflow import models
@@ -25,7 +25,6 @@ from airflow.models import TaskFail, DagModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.db import provide_session
 from airflow.exceptions import DagNotFound
-from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -47,7 +46,8 @@ def delete_dag(dag_id, keep_records_in_log=True, session=None):
 
     # Scheduler removes DAGs without files from serialized_dag table every dag_dir_list_interval.
     # There may be a lag, so explicitly removes serialized DAG here.
-    if STORE_SERIALIZED_DAGS and SerializedDagModel.has_dag(dag_id=dag_id, session=session):
+    if conf.getboolean('core', 'store_serialized_dags', fallback=False) and\
+            SerializedDagModel.has_dag(dag_id=dag_id, session=session):
         SerializedDagModel.remove_dag(dag_id=dag_id, session=session)
 
     count = 0
