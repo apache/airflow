@@ -31,15 +31,36 @@ if [[ "${TRAVIS_EVENT_TYPE:=}" == "cron" ]]; then
     export PULL_BASE_IMAGES="true"
 fi
 
+if [[ -z ${DOCKER_REPO} ]]; then
+   echo
+   echo "Error! Missing DOCKER_REPO environment variable"
+   echo "Please specify DOCKER_REPO variable following the pattern HOST/DOCKERHUB_USER/DOCKERHUB_REPO"
+   echo
+   exit 1
+else
+   echo "DOCKER_REPO=${DOCKER_REPO}"
+fi
+
+[[ ${DOCKER_REPO:=} =~ [^/]*/([^/]*)/([^/]*) ]] && \
+    export DOCKERHUB_USER=${BASH_REMATCH[1]} &&
+    export DOCKERHUB_REPO=${BASH_REMATCH[2]}
+
+echo
+echo "DOCKERHUB_USER=${DOCKERHUB_USER}"
+echo "DOCKERHUB_REPO=${DOCKERHUB_REPO}"
+echo
+
 if [[ -z ${DOCKER_TAG:=} ]]; then
    echo
    echo "Error! Missing DOCKER_TAG environment variable"
    echo "Please specify DOCKER_TAG variable following the pattern BRANCH-pythonX.Y[-ci]"
    echo
    exit 1
+else
+   echo "DOCKER_TAG=${DOCKER_TAG}"
 fi
 
-[[ ${DOCKER_TAG:=} =~ ${DEFAULT_BRANCH}-python([0-9.]*) ]] && export PYTHON_VERSION=${BASH_REMATCH[1]}
+[[ ${DOCKER_TAG:=} =~ ${DEFAULT_BRANCH}-python([0-9.]*)(.*) ]] && export PYTHON_VERSION=${BASH_REMATCH[1]}
 
 if [[ -z ${PYTHON_VERSION:=} ]]; then
     echo

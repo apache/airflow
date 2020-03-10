@@ -53,8 +53,8 @@ function initialize_breeze_environment {
     mkdir -p "${AIRFLOW_SOURCES}/files"
     mkdir -p "${AIRFLOW_SOURCES}/dist"
 
-    # shellcheck source=common/_autodetect_variables.sh
-    . "${AIRFLOW_SOURCES}/common/_autodetect_variables.sh"
+    # shellcheck source=common/_image_variables.sh
+    . "${AIRFLOW_SOURCES}/common/_image_variables.sh"
     # shellcheck source=common/_files_for_rebuild_check.sh
     . "${AIRFLOW_SOURCES}/common/_files_for_rebuild_check.sh"
 
