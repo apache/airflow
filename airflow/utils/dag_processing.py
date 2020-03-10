@@ -39,7 +39,7 @@ from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
 from airflow.jobs.local_task_job import LocalTaskJob as LJ
-from airflow.models import Connection, errors
+from airflow.models import errors
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.stats import Stats
@@ -551,7 +551,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                      AbstractDagFileProcessorProcess
                  ],
                  processor_timeout: timedelta,
-                 signal_conn: Connection,
+                 signal_conn: multiprocessing.connection.Connection,
                  async_mode: bool = True):
         self._file_paths: List[str] = []
         self._file_path_queue: List[str] = []
