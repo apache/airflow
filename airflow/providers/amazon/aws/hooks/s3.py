@@ -21,8 +21,10 @@
 Interact with AWS S3, using the boto3 library.
 """
 import fnmatch
+import gzip as gz
 import io
 import re
+import shutil
 from functools import wraps
 from inspect import signature
 from tempfile import NamedTemporaryFile
@@ -425,7 +427,8 @@ class S3Hook(AwsBaseHook):
                   key,
                   bucket_name=None,
                   replace=False,
-                  encrypt=False):
+                  encrypt=False,
+                  gzip=False):
         """
         Loads a local file to S3
 
@@ -442,6 +445,8 @@ class S3Hook(AwsBaseHook):
         :param encrypt: If True, the file will be encrypted on the server-side
             by S3 and will be stored in an encrypted form while at rest in S3.
         :type encrypt: bool
+        :param gzip: If True, the file will be compressed locally
+        :type gzip: bool
         """
 
         if not replace and self.check_for_key(key, bucket_name):
@@ -450,6 +455,12 @@ class S3Hook(AwsBaseHook):
         extra_args = {}
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
+        if gzip:
+            filename_gz = filename.name + '.gz'
+            with open(filename.name, 'rb') as f_in:
+                with gz.open(filename_gz, 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+                    filename = filename_gz
 
         client = self.get_conn()
         client.upload_file(filename, bucket_name, key, ExtraArgs=extra_args)
