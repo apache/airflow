@@ -1057,6 +1057,31 @@ class TestDagFileProcessor(unittest.TestCase):
             self.assertEqual("Callback fired", content)
             os.remove(callback_file.name)
 
+    def test_should_parse_only_active_dags(self):
+        dag_file = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), '../dags/test_multiple_dags.py'
+        )
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        dagbag.sync_to_db()
+        with create_session() as session:
+            session.query(TaskInstance).delete()
+            (
+                session.query(DagModel)
+                .filter(DagModel.dag_id == "test_multiple_dags__dag_1")
+                .update({DagModel.is_paused: True}, synchronize_session=False)
+            )
+
+        simple_dags, import_errors_count = dag_file_processor.process_file(
+            file_path=dag_file, failure_callback_requests=[]
+        )
+        with create_session() as session:
+            tis = session.query(TaskInstance).all()
+
+        self.assertEqual(0, import_errors_count)
+        self.assertEqual(['test_multiple_dags__dag_2'], [dag.dag_id for dag in simple_dags])
+        self.assertEqual({'test_multiple_dags__dag_2'}, {ti.dag_id for ti in tis})
+
 
 class TestDagFileProcessorQueriesCount(unittest.TestCase):
     """

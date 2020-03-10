@@ -754,7 +754,7 @@ class DagFileProcessor(LoggingMixin):
         :param dags: specified DAGs
         :return: DAGs to process
         """
-        if len(self.dag_ids) > 0:
+        if self.dag_ids:
             dags = [dag for dag in dags
                     if dag.dag_id in self.dag_ids]
         return dags
@@ -932,9 +932,7 @@ class DagFileProcessor(LoggingMixin):
         simple_dags = []
         # Pickle the DAGs (if necessary) and put them into a SimpleDag
         for dag in dags:
-            pickle_id = None
-            if pickle_dags:
-                pickle_id = dag.pickle(session).id
+            pickle_id = dag.pickle(session).id if pickle_dags else None
             simple_dags.append(SimpleDag(dag, pickle_id=pickle_id))
         return simple_dags
 
