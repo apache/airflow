@@ -392,6 +392,7 @@ Currently **officially** using Airflow:
 1. [Qubole](https://qubole.com) [[@msumit](https://github.com/msumit)]
 1. [Quizlet](https://quizlet.com) [[@quizlet](https://github.com/quizlet)]
 1. [Quora](https://www.quora.com/)
+1. [Rakuten](https://www.rakuten.com)
 1. [Raízen](https://www.raizen.com.br/) [[@rudlac](https://github.com/rudlac) & [@guifneves](https://github.com/guifneves)]
 1. [Rapido](https://rapido.bike/) [[@ChethanUK](https://github.com/ChethanUK)]
 1. [REA Group](https://www.rea-group.com/)
