@@ -193,8 +193,7 @@ class DockerOperator(BaseOperator):
         self.shm_size = shm_size
         self.tty = tty
         if kwargs.get('xcom_push') is not None:
-            raise AirflowException(
-                "'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
+            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
         self.cli = None
         self.container = None
@@ -256,8 +255,7 @@ class DockerOperator(BaseOperator):
 
             result = self.cli.wait(self.container['Id'])
             if result['StatusCode'] != 0:
-                raise AirflowException(
-                    'docker container failed: ' + repr(result))
+                raise AirflowException('docker container failed: ' + repr(result))
 
             # duplicated conditional logic because of expensive operation
             if self.do_xcom_push:

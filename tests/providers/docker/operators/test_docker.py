@@ -45,7 +45,7 @@ class TestDockerOperator(unittest.TestCase):
         client_mock.attach.return_value = ['container log']
         client_mock.logs.return_value = ['container log']
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.wait.return_value = {'StatusCode': 0}
+        client_mock.wait.return_value = {"StatusCode": 0}
 
         client_class_mock.return_value = client_mock
 
@@ -83,24 +83,18 @@ class TestDockerOperator(unittest.TestCase):
                                                                auto_remove=False,
                                                                dns=None,
                                                                dns_search=None)
-        tempdir_mock.assert_called_once_with(
-            dir='/host/airflow', prefix='airflowtmp')
+        tempdir_mock.assert_called_once_with(dir='/host/airflow', prefix='airflowtmp')
         client_mock.images.assert_called_once_with(name='ubuntu:latest')
         client_mock.attach.assert_called_once_with(container='some_id', stdout=True,
                                                    stderr=True, stream=True)
         client_mock.pull.assert_called_once_with('ubuntu:latest', stream=True)
         client_mock.wait.assert_called_once_with('some_id')
 
-    def test_private_environment_is_private(self):
-        operator = DockerOperator(api_version='1.19', command='env', environment={'UNIT': 'TEST'},
-                                  private_environment={'PRIVATE': 'MESSAGE'}, image='ubuntu:latest',
-                                  network_mode='bridge', owner='unittest', task_id='unittest',
-                                  volumes=['/host/path:/container/path'],
-                                  working_dir='/container/path', shm_size=1000,
-                                  host_tmp_dir='/host/airflow', container_name='test_container',
-                                  tty=True)
-        self.assertEqual(getattr(operator, '_private_environment'), {
-                         'PRIVATE': 'MESSAGE'})
+    @staticmethod
+    def test_private_environment_is_private():
+        operator = DockerOperator(private_environment={'PRIVATE': 'MESSAGE'}, image='ubuntu:latest')
+        message = "To keep this private, it must be an underscored attribute."
+        assert operator._private_environment == {'PRIVATE': 'MESSAGE'}, message
 
     @mock.patch('airflow.providers.docker.operators.docker.tls.TLSConfig')
     @mock.patch('airflow.providers.docker.operators.docker.APIClient')
@@ -123,8 +117,7 @@ class TestDockerOperator(unittest.TestCase):
         operator.execute(None)
 
         tls_class_mock.assert_called_once_with(assert_hostname=None, ca_cert='ca.pem',
-                                               client_cert=(
-                                                   'cert.pem', 'key.pem'),
+                                               client_cert=('cert.pem', 'key.pem'),
                                                ssl_version=None, verify=True)
 
         client_class_mock.assert_called_once_with(base_url='https://127.0.0.1:2376',
@@ -145,8 +138,7 @@ class TestDockerOperator(unittest.TestCase):
         originalRaiseExceptions = logging.raiseExceptions  # pylint: disable=invalid-name
         logging.raiseExceptions = True
 
-        operator = DockerOperator(
-            image='ubuntu', owner='unittest', task_id='unittest')
+        operator = DockerOperator(image='ubuntu', owner='unittest', task_id='unittest')
 
         with mock.patch('traceback.print_exception') as print_exception_mock:
             operator.execute(None)
@@ -165,8 +157,7 @@ class TestDockerOperator(unittest.TestCase):
 
         client_class_mock.return_value = client_mock
 
-        operator = DockerOperator(
-            image='ubuntu', owner='unittest', task_id='unittest')
+        operator = DockerOperator(image='ubuntu', owner='unittest', task_id='unittest')
 
         with self.assertRaises(AirflowException):
             operator.execute(None)
@@ -175,8 +166,7 @@ class TestDockerOperator(unittest.TestCase):
     def test_on_kill():
         client_mock = mock.Mock(spec=APIClient)
 
-        operator = DockerOperator(
-            image='ubuntu', owner='unittest', task_id='unittest')
+        operator = DockerOperator(image='ubuntu', owner='unittest', task_id='unittest')
         operator.cli = client_mock
         operator.container = {'Id': 'some_id'}
 
@@ -187,8 +177,7 @@ class TestDockerOperator(unittest.TestCase):
     @mock.patch('airflow.providers.docker.operators.docker.APIClient')
     def test_execute_no_docker_conn_id_no_hook(self, operator_client_mock):
         # Mock out a Docker client, so operations don't raise errors
-        client_mock = mock.Mock(
-            name='DockerOperator.APIClient mock', spec=APIClient)
+        client_mock = mock.Mock(name='DockerOperator.APIClient mock', spec=APIClient)
         client_mock.images.return_value = []
         client_mock.create_container.return_value = {'Id': 'some_id'}
         client_mock.attach.return_value = []
@@ -223,8 +212,7 @@ class TestDockerOperator(unittest.TestCase):
     def test_execute_with_docker_conn_id_use_hook(self, operator_client_mock,
                                                   operator_docker_hook):
         # Mock out a Docker client, so operations don't raise errors
-        client_mock = mock.Mock(
-            name='DockerOperator.APIClient mock', spec=APIClient)
+        client_mock = mock.Mock(name='DockerOperator.APIClient mock', spec=APIClient)
         client_mock.images.return_value = []
         client_mock.create_container.return_value = {'Id': 'some_id'}
         client_mock.attach.return_value = []
@@ -270,7 +258,7 @@ class TestDockerOperator(unittest.TestCase):
         client_mock.create_container.return_value = {'Id': 'some_id'}
         client_mock.attach.return_value = ['container log']
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.wait.return_value = {'StatusCode': 0}
+        client_mock.wait.return_value = {"StatusCode": 0}
 
         client_class_mock.return_value = client_mock
 
