@@ -35,7 +35,7 @@ depends_on = None
 
 
 def upgrade():
-    """Increase column length of pool name from 50 to 250 characters"""
+    """Increase column length of pool name from 50 to 256 characters"""
     # use batch_alter_table to support SQLite workaround
     with op.batch_alter_table('slot_pool', table_args=sa.UniqueConstraint('pool')) as batch_op:
         batch_op.alter_column('pool', type_=sa.String(256))
