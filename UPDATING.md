@@ -63,8 +63,7 @@ https://developers.google.com/style/inclusive-documentation
 
 ### Assigning task to a DAG using bitwise shift (bit-shift) operators are no longer supported
 
-**Previous Behaviour**:
-You could assign a task to a DAG was previously possible as following:
+Previously, you could assign a task to a DAG as follows:
 
 ```python
 dag = DAG('my_dag')
@@ -74,8 +73,6 @@ dag >> dummy
 ```
 
 This is no longer supported. Instead, we recommend using the DAG as context manager:
-
-**Recommended Behaviour**:
 
 ```python
 with DAG('my_dag):
