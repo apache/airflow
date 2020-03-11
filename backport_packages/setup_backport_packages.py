@@ -29,11 +29,7 @@ from os.path import dirname
 from shutil import copyfile, copytree, rmtree
 from typing import Dict, List
 
-from bowler import LN, TOKEN, BowlerTool, Capture, Filename, Query
-from fissix.pytree import Leaf
 from setuptools import Command, find_packages, setup as setuptools_setup
-
-BowlerTool.IN_PROCESS = True
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +139,20 @@ DEPENDENCIES_JSON_FILE = os.path.join(os.pardir, "airflow", "providers", "depend
 
 
 def change_import_paths_to_deprecated():
+    from bowler import LN, TOKEN, Capture, Filename, Query
+    from fissix.pytree import Leaf
+
+    def remove_tags_modifier(node: LN, capture: Capture, filename: Filename) -> None:
+        for node in capture['function_arguments'][0].post_order():
+            if isinstance(node, Leaf) and node.value == "tags" and node.type == TOKEN.NAME:
+                if node.parent.next_sibling and node.parent.next_sibling.value == ",":
+                    node.parent.next_sibling.remove()
+                node.parent.remove()
+
+    def pure_airflow_models_filter(node: LN, capture: Capture, filename: Filename) -> bool:
+        """Check if select is exactly [airflow, . , models]"""
+        return len([ch for ch in node.children[1].leaves()]) == 3
+
     changes = [
         ("airflow.operators.bash", "airflow.operators.bash_operator"),
         ("airflow.operators.python", "airflow.operators.python_operator"),
@@ -192,19 +202,6 @@ def change_import_paths_to_deprecated():
         "airflow.models.baseoperator")
 
     qry.execute(write=True, silent=False, interactive=False)
-
-
-def remove_tags_modifier(node: LN, capture: Capture, filename: Filename) -> None:
-    for node in capture['function_arguments'][0].post_order():
-        if isinstance(node, Leaf) and node.value == "tags" and node.type == TOKEN.NAME:
-            if node.parent.next_sibling and node.parent.next_sibling.value == ",":
-                node.parent.next_sibling.remove()
-            node.parent.remove()
-
-
-def pure_airflow_models_filter(node: LN, capture: Capture, filename: Filename) -> bool:
-    """Check if select is exactly [airflow, . , models]"""
-    return len([ch for ch in node.children[1].leaves()]) == 3
 
 
 def copy_provider_sources():
