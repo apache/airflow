@@ -112,7 +112,7 @@ class RedshiftToS3Transfer(BaseOperator):
         credentials = s3_hook.get_credentials()
         unload_options = '\n\t\t\t'.join(self.unload_options)
         s3_key = '{}/{}_'.format(self.s3_key, self.table) if self.table_as_file_name else self.s3_key
-        if self.custom_select_query is None:
+        if not self.custom_select_query:
             if self.schema is None or self.table is None:
                 raise AirflowBadRequest("schema, table set to None")
             select_query = "SELECT * FROM {schema}.{table}".format(schema=self.schema, table=self.table)
