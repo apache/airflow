@@ -78,7 +78,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
 
     @parameterized.expand([
-        [True, "key/table_"],
+        [True, "key/None_"],
         [False, "key"],
     ])
     @mock.patch("boto3.session.Session")
