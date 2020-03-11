@@ -2170,8 +2170,8 @@ class SlaMissModelView(AirflowModelView):
 
     formatters_columns = {
         'task_id': wwwutils.task_instance_link,
-        'execution_date': wwwutils.datetime_f('execution_date'),
-        'timestamp': wwwutils.datetime_f('timestamp'),
+        'execution_date': wwwutils.localized_f('execution_date'),
+        'timestamp': wwwutils.localized_f('timestamp'),
         'dag_id': wwwutils.dag_link,
     }
 
@@ -2193,8 +2193,8 @@ class XComModelView(AirflowModelView):
 
     formatters_columns = {
         'task_id': wwwutils.task_instance_link,
-        'execution_date': wwwutils.datetime_f('execution_date'),
-        'timestamp': wwwutils.datetime_f('timestamp'),
+        'execution_date': wwwutils.localized_f('execution_date'),
+        'timestamp': wwwutils.localized_f('timestamp'),
         'dag_id': wwwutils.dag_link,
     }
 
@@ -2456,11 +2456,11 @@ class JobModelView(AirflowModelView):
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
     formatters_columns = {
-        'start_date': wwwutils.datetime_f('start_date'),
-        'end_date': wwwutils.datetime_f('end_date'),
+        'start_date': wwwutils.localized_f('start_date'),
+        'end_date': wwwutils.localized_f('end_date'),
         'hostname': wwwutils.nobr_f('hostname'),
         'state': wwwutils.state_f,
-        'latest_heartbeat': wwwutils.datetime_f('latest_heartbeat'),
+        'latest_heartbeat': wwwutils.localized_f('latest_heartbeat'),
     }
 
 
@@ -2482,9 +2482,9 @@ class DagRunModelView(AirflowModelView):
     add_form = edit_form = DagRunForm
 
     formatters_columns = {
-        'execution_date': wwwutils.datetime_f('execution_date'),
+        'execution_date': wwwutils.localized_f('execution_date'),
         'state': wwwutils.state_f,
-        'start_date': wwwutils.datetime_f('start_date'),
+        'start_date': wwwutils.localized_f('start_date'),
         'dag_id': wwwutils.dag_link,
         'run_id': wwwutils.dag_run_link,
     }
@@ -2592,8 +2592,8 @@ class LogModelView(AirflowModelView):
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
     formatters_columns = {
-        'dttm': wwwutils.datetime_f('dttm'),
-        'execution_date': wwwutils.datetime_f('execution_date'),
+        'dttm': wwwutils.localized_f('dttm'),
+        'execution_date': wwwutils.localized_f('execution_date'),
         'dag_id': wwwutils.dag_link,
     }
 
@@ -2637,10 +2637,10 @@ class TaskInstanceModelView(AirflowModelView):
         'task_id': wwwutils.task_instance_link,
         'hostname': wwwutils.nobr_f('hostname'),
         'state': wwwutils.state_f,
-        'execution_date': wwwutils.datetime_f('execution_date'),
-        'start_date': wwwutils.datetime_f('start_date'),
-        'end_date': wwwutils.datetime_f('end_date'),
-        'queued_dttm': wwwutils.datetime_f('queued_dttm'),
+        'execution_date': wwwutils.localized_f('execution_date'),
+        'start_date': wwwutils.localized_f('start_date'),
+        'end_date': wwwutils.localized_f('end_date'),
+        'queued_dttm': wwwutils.localized_f('queued_dttm'),
         'dag_id': wwwutils.dag_link,
         'duration': duration_f,
     }

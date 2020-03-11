@@ -41,8 +41,7 @@ window.escapeHtml = escapeHtml;
 // Handle i18n localization of date + time (D MMMM YYYY HH:mm)
 export function localizedDate(date) {
   const locale = window.navigator.userLanguage || window.navigator.language;
-  moment.locale(locale);
-  if (date) return moment(date).format('LLL');
+  if (date) return moment(date).locale(locale).format('LLL');
   return '';
 }
 
@@ -51,10 +50,10 @@ window.localizedDate = localizedDate;
 // Handle i18n localization of time (HH:mm:ss)
 export function localizedTime(time) {
   const locale = window.navigator.userLanguage || window.navigator.language;
-  moment.locale(locale);
-  if (time) return moment(time).format('LTS');
+  if (time) return moment(time).locale(locale).format('LTS');
   return '';
 }
+
 window.localizedTime = localizedTime;
 
 export function convertSecsToHumanReadable(seconds) {

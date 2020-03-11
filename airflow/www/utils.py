@@ -24,6 +24,7 @@ import os
 import re
 import time
 import zipfile
+import datetime
 from typing import Any, Optional
 from urllib.parse import urlencode
 
@@ -41,6 +42,14 @@ from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.utils.state import State
+
+
+# Localizing format of datetime
+import locale
+this_locale = locale.getlocale()
+locale.setlocale(locale.LC_ALL, this_locale)
+date_format = locale.nl_langinfo(locale.D_T_FMT)
+
 
 DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
     'password',
@@ -282,7 +291,18 @@ def datetime_f(attr_name):
         f = f.isoformat() if f else ''
         if timezone.utcnow().isoformat()[:4] == f[:4]:
             f = f[5:]
-        return Markup("<nobr>{}</nobr>").format(f)
+        return Markup('<time datetime="{}">{}</time>').format(f, f)
+    return dt
+
+
+def localized_f(attr_name):
+    def dt(attr):
+        f = attr.get(attr_name)
+        if f is None:
+            return Markup('<time datetime="{}">{}</time>').format(f, f)
+        else:
+            f = f.strftime(date_format)
+            return Markup('<time datetime="{}">{}</time>').format(f, f)
     return dt
 
 
