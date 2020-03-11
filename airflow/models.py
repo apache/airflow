@@ -2351,7 +2351,12 @@ class BaseOperator(object):
 
         for k, v in list(self.__dict__.items()):
             if k not in shallow_copy:
-                setattr(result, k, copy.deepcopy(v, memo))
+                try:
+                    setattr(result, k, copy.deepcopy(v, memo))
+                except Exception as e:
+                    logging.exception('Failed deepcopy on member variable '
+                                      'key: {k} ,value: {v}'.format(k=k, v=v))
+                    raise e
             else:
                 setattr(result, k, copy.copy(v))
         return result
