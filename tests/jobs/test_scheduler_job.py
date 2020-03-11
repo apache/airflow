@@ -1057,7 +1057,7 @@ class TestDagFileProcessor(unittest.TestCase):
             self.assertEqual("Callback fired", content)
             os.remove(callback_file.name)
 
-    def test_should_parse_only_active_dags(self):
+    def test_should_parse_only_unpaused_dags(self):
         dag_file = os.path.join(
             os.path.dirname(os.path.realpath(__file__)), '../dags/test_multiple_dags.py'
         )

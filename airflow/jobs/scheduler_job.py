@@ -845,11 +845,11 @@ class DagFileProcessor(LoggingMixin):
 
         paused_dag_ids = DagModel.get_paused_dag_ids(dag_ids=dagbag.dag_ids)
 
-        active_dags = [dag for dag_id, dag in dagbag.dags.items() if dag_id not in paused_dag_ids]
+        unpaaused_dags = [dag for dag_id, dag in dagbag.dags.items() if dag_id not in paused_dag_ids]
 
-        simple_dags = self._prepare_simple_dags(active_dags, pickle_dags, session)
+        simple_dags = self._prepare_simple_dags(unpaaused_dags, pickle_dags, session)
 
-        dags = self._find_dags_to_process(active_dags)
+        dags = self._find_dags_to_process(unpaaused_dags)
 
         ti_keys_to_schedule = self._process_dags(dags, session)
 
