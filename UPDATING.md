@@ -1052,7 +1052,7 @@ The goal of this change is to achieve a more consistent and configurale cascadin
 
 Previous versions of the `RedshiftToS3Transfer` operator required `schema` and `table` arguments as the first 2
 positional arguments. This signature was changed in 2.0 and
-the `s3_bucket` and `s3_key` are the first 2 positional reguements. This should be followed by either `schema` and `table` and table arguements or a single `custom_select_query` arguement. 
+the `s3_bucket` and `s3_key` are the first 2 positional arguments. This should be followed by either `schema` and `table` and table arguements or a single `custom_select_query` arguement. 
 The `schema` and `table` arg combo unloads everything from the given table into an s3 object while `custom_select_query` allows you to specify your own redshift select query to filter data on and unload to s3. 
 
 In order to use this operator:
