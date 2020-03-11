@@ -40,7 +40,7 @@ class TestGoogleCloudStorageToBigQueryOperator(unittest.TestCase):
                                          max_id_key=MAX_ID_KEY)
 
         # using legacy SQL
-        bq_hook.return_value.get_conn.return_value.cursor.return_value.use_legacy_sql.return_value = True
+        bq_hook.return_value.get_conn.return_value.cursor.return_value.use_legacy_sql = True
 
         operator.execute(None)
 
@@ -59,7 +59,7 @@ class TestGoogleCloudStorageToBigQueryOperator(unittest.TestCase):
                                          max_id_key=MAX_ID_KEY)
 
         # using non-legacy SQL
-        bq_hook.return_value.get_conn.return_value.cursor.return_value.use_legacy_sql.return_value = False
+        bq_hook.return_value.get_conn.return_value.cursor.return_value.use_legacy_sql = False
 
         operator.execute(None)
 
