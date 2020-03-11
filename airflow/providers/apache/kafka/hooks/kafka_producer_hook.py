@@ -10,8 +10,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from airflow.hooks import base_hook as BaseHook
 from kafka import KafkaProducer
+from airflow.hooks.base_hook import BaseHook
 
 
 class KafkaProducerHook(BaseHook):
