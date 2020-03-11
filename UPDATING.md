@@ -26,7 +26,6 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Airflow Master](#airflow-master)
-- [Airflow 2.0](#airflow-20)
 - [Airflow 1.10.9](#airflow-1109)
 - [Airflow 1.10.8](#airflow-1108)
 - [Airflow 1.10.7](#airflow-1107)
@@ -1048,7 +1047,6 @@ If the DAG relies on tasks with other trigger rules (i.e. `all_done`) being skip
 
 The goal of this change is to achieve a more consistent and configurale cascading behaviour based on the `BaseBranchOperator` (see [AIRFLOW-2923](https://jira.apache.org/jira/browse/AIRFLOW-2923) and [AIRFLOW-1784](https://jira.apache.org/jira/browse/AIRFLOW-1784)).
 
-## Airflow 2.0
 
 ### RedshiftToS3Transfer:: signature changed
 
