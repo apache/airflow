@@ -61,7 +61,7 @@ d3.gantt = function() {
   var tickFormat = "%H:%M";
 
   var keyFunction = function(d) {
-    return d.startDate + d.taskName + d.endDate;
+    return window.localizedDate(d.startDate) + d.taskName + window.localizedDate(d.endDate);
   };
 
   var rectTransform = function(d) {

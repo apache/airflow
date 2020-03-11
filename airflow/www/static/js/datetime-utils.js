@@ -20,10 +20,15 @@ export const moment = require('moment-timezone');
 export const defaultFormat = 'YYYY-MM-DD, HH:mm:ss';
 export const defaultFormatWithTZ = 'YYYY-MM-DD, HH:mm:ss z';
 
-
 const makeDateTimeHTML = (start, end) => {
   return (
-    `Started: ${start.format(defaultFormat)} <br> Ended: ${end.format(defaultFormat)} <br>`
+    `Started: ${start.format()} <br> Ended: ${end.format()} <br>`
+  )
+};
+
+const makei18nDateTimeHTML = (start, end) => {
+  return (
+    `Started: ${window.localizedDate(start)} <br> Ended: ${window.localizedDate(end)} <br>`
   )
 };
 
@@ -40,7 +45,7 @@ export const generateTooltipDateTime = (startDate, endDate, dagTZ) => {
 
   // Generate User's Local Start and End Date
   tooltipHTML += `<br><strong>Local: ${moment.tz(localTZ).format(tzFormat)}</strong><br>`;
-  tooltipHTML += makeDateTimeHTML(startDate.local(), endDate.local());
+  tooltipHTML += makei18nDateTimeHTML(startDate, endDate);
 
   // Generate DAG's Start and End Date
   if (dagTZ !== 'UTC' && dagTZ !== localTZ) {

@@ -287,8 +287,8 @@ function update(source) {
           tt += "upstream: " + escapeHtml(d.num_dep) + "<br/>";
           tt += "retries: " + escapeHtml(d.retries) + "<br/>";
           tt += "owner: " + escapeHtml(d.owner) + "<br/>";
-          tt += "start_date: " + escapeHtml(d.start_date) + "<br/>";
-          tt += "end_date: " + escapeHtml(d.end_date) + "<br/>";
+          tt += "start_date: " + window.localizedDate(d.start_date) + "<br/>";
+          tt += "end_date: " + window.localizedDate(d.end_date) + "<br/>";
         }
         taskTip.direction('e')
         taskTip.show(tt, this)
@@ -351,9 +351,9 @@ function update(source) {
 
         s += "Operator: " + escapeHtml(task.operator) + "<br>"
         if(d.start_date != undefined){
-          s += "Started: " + escapeHtml(d.start_date) + "<br>";
+          s += "Started: " + window.localizedDate(d.start_date) + "<br>";
           if(d.end_date != undefined){
-            s += "Ended: " + escapeHtml(d.end_date) + "<br>";
+            s += "Ended: " + window.localizedDate(d.end_date) + "<br>";
           }
           if (d.duration != undefined) {
             s += "Duration: " + escapeHtml(convertSecsToHumanReadable(d.duration)) + "<br>";

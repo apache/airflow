@@ -102,10 +102,6 @@ const config = {
     new CleanWebpackPlugin(['static/dist']),
     new MiniCssExtractPlugin({ filename: '[name].[chunkhash].css' }),
 
-    // MomentJS loads all the locale, making it a huge JS file.
-    // This will ignore the locales from momentJS
-    new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/),
-
     new webpack.DefinePlugin({
       'process.env': {
         NODE_ENV: JSON.stringify(process.env.NODE_ENV),
