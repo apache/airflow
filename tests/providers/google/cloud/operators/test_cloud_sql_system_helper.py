@@ -25,8 +25,8 @@ from os.path import expanduser
 from threading import Thread
 from urllib.parse import urlsplit
 
-from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_CLOUDSQL_KEY, GcpAuthenticator
+from tests.utils.logging_command_executor import LoggingCommandExecutor
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCP_LOCATION = os.environ.get('GCP_LOCATION', 'europe-west1')
