@@ -28,7 +28,7 @@ from base64 import b64encode
 from collections import OrderedDict
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 import yaml
 from cryptography.fernet import Fernet
@@ -303,24 +303,6 @@ class AirflowConfigParser(ConfigParser):
 
     def getfloat(self, section, key, **kwargs):
         return float(self.get(section, key, **kwargs))
-
-    def getlist(self, section: str, key: str, **kwargs) -> List[str]:
-        """
-        Obtains list of string.
-
-        In the configuration file, the value should be represented as a comma-separated list
-
-        .. code-block:: ini
-
-            [secrets_backend]
-            class_list = airflow.secrets.environment_variables.EnvironmentVariablesSecretsBackend, airflow.secrets.metastore.MetastoreSecretsBackend
-
-        :return: List of string
-        :rtype List[str]
-        """  # noqa: E501 pylint: disable=line-too-long
-        csv = str(conf.get(section, key, **kwargs))
-        values_list = [x.strip() for x in csv.split(',')]
-        return values_list
 
     def read(self, filenames, **kwargs):
         super().read(filenames, **kwargs)
