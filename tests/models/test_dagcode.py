@@ -43,6 +43,14 @@ class TestDagCode(unittest.TestCase):
     def tearDown(self):
         clear_db_dag_code()
 
+    def _write_two_example_dags(self):
+        example_dags = make_example_dags(example_dags_module)
+        bash_dag = example_dags['example_bash_operator']
+        DagCode(bash_dag.fileloc).sync_to_db()
+        xcom_dag = example_dags['example_xcom']
+        DagCode(xcom_dag.fileloc).sync_to_db()
+        return [bash_dag, xcom_dag]
+
     def _write_example_dags(self):
         example_dags = make_example_dags(example_dags_module)
         for dag in example_dags.values():
@@ -85,7 +93,7 @@ class TestDagCode(unittest.TestCase):
         mock_hash.return_value = 0
 
         with self.assertRaises(AirflowException):
-            self._write_example_dags()
+            self._write_two_example_dags()
 
     def _compare_example_dags(self, example_dags):
         with create_session() as session:

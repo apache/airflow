@@ -51,7 +51,7 @@ class DagCode(Base):
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
     last_updated = Column(UtcDateTime, nullable=False)
-    source_code = Column(UnicodeText(), nullable=False)
+    source_code = Column(UnicodeText, nullable=False)
 
     def __init__(self, full_filepath: str):
         self.fileloc = full_filepath
@@ -71,25 +71,7 @@ class DagCode(Base):
 
         :param session: ORM Session
         """
-        old_version = session.query(
-            DagCode.fileloc, DagCode.fileloc_hash, DagCode.last_updated) \
-            .filter(DagCode.fileloc_hash == self.fileloc_hash) \
-            .first()
-
-        if old_version and old_version.fileloc != self.fileloc:
-            raise AirflowException(
-                "Filename '{}' causes a hash collision in the database with "
-                "'{}'. Please rename the file.".format(
-                    self.fileloc, old_version.fileloc))
-
-        file_modified = datetime.fromtimestamp(
-            os.path.getmtime(correct_maybe_zipped(self.fileloc)), tz=timezone.utc)
-
-        if old_version and (file_modified - timedelta(seconds=120)) < \
-                old_version.last_updated:
-            return
-
-        session.merge(self)
+        self.bulk_sync_to_db([self.fileloc], session)
 
     @classmethod
     @provide_session
@@ -110,6 +92,25 @@ class DagCode(Base):
             .with_for_update(of=DagCode)
             .all()
         )
+        existing_orm_dag_codes_by_fileloc_hashes = {
+            orm.fileloc_hash: orm for orm in existing_orm_dag_codes
+        }
+        exisitng_orm_filelocs = {
+            orm.fileloc for orm in existing_orm_dag_codes_by_fileloc_hashes.values()
+        }
+        if not exisitng_orm_filelocs.issubset(filelocs):
+            conflicting_filelocs = exisitng_orm_filelocs.difference(filelocs)
+            hashes_to_filelocs = {
+                DagCode.dag_fileloc_hash(fileloc): fileloc for fileloc in filelocs
+            }
+            message = ""
+            for fileloc in conflicting_filelocs:
+                message += ("Filename '{}' causes a hash collision in the " +
+                            "database with '{}'. Please rename the file.")\
+                    .format(
+                        hashes_to_filelocs[DagCode.dag_fileloc_hash(fileloc)],
+                        fileloc)
+            raise AirflowException(message)
 
         existing_filelocs = {
             dag_code.fileloc for dag_code in existing_orm_dag_codes
@@ -120,18 +121,10 @@ class DagCode(Base):
             orm_dag_code = DagCode(fileloc)
             session.add(orm_dag_code)
 
-        existing_orm_dag_codes_by_fileloc_hashes = {
-            orm.fileloc_hash: orm for orm in existing_orm_dag_codes
-        }
         for fileloc in existing_filelocs:
             old_version = existing_orm_dag_codes_by_fileloc_hashes[
                 filelocs_to_hashes[fileloc]
             ]
-            if old_version.fileloc != fileloc:
-                raise AirflowException(
-                    "Filename '{}' causes a hash collision in the database with "
-                    "'{}'. Please rename the file.".format(
-                        fileloc, old_version.fileloc))
             file_modified = datetime.fromtimestamp(
                 os.path.getmtime(correct_maybe_zipped(fileloc)), tz=timezone.utc)
 
