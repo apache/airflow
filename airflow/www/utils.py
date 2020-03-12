@@ -20,6 +20,7 @@ import functools
 import inspect
 import io
 import json
+import locale
 import os
 import re
 import time
@@ -42,9 +43,7 @@ from airflow.utils import timezone
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.utils.state import State
 
-
 # Localizing format of datetime
-import locale
 this_locale = locale.getlocale()
 locale.setlocale(locale.LC_ALL, this_locale)
 date_format = locale.nl_langinfo(locale.D_T_FMT)
