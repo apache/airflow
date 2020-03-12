@@ -1406,7 +1406,6 @@
         If you want to utilise your own custom Statsd client set the relevant
         module path below.
         Note: The module path must exist on your PYTHONPATH for Airflow to pick it up
-        for Airflow to pick it up
       version_added: ~
       type: string
       example: ~
