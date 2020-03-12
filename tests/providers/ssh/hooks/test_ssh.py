@@ -48,9 +48,12 @@ def generate_key_string(pkey: paramiko.PKey):
     key_str = key_fh.read()
     return key_str
 
+# TODO - GENERATE_PUBLIC KEY FUNCTION
+
 
 TEST_PKEY = paramiko.RSAKey.generate(4096)
 TEST_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY)
+# TODO - GENERATE PUBLIC KEY AND PUBLIC KEY TYPE VARS
 
 
 class TestSSHHook(unittest.TestCase):
@@ -88,6 +91,7 @@ class TestSSHHook(unittest.TestCase):
                 })
             )
         )
+        # TODO - MAKE CONN FOR PUBLIC KEY EXTRAS
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
     def test_ssh_connection_with_password(self, ssh_mock):
@@ -249,6 +253,12 @@ class TestSSHHook(unittest.TestCase):
                 port='port',
                 sock=None
             )
+
+    # TODO - TEST THAT CONNECTION GETS CREATED WITH PUBLIC KEY EXTRAS
+
+    # TODO - CHECK THAT KNOWN_HOSTS GETS CREATED APPROPRIATELY GIVEN DIFFERENT CONFIGS OF PARAMS
+
+    # TODO - TEST PRIVATE HELPER METHOD FOR CREATING FILE
 
 
 if __name__ == '__main__':

@@ -274,3 +274,5 @@ class SSHHook(BaseHook):
                       category=DeprecationWarning)
 
         return self.get_tunnel(remote_port, remote_host, local_port)
+
+    # TODO - PRIVATE HELPER METHOD TO WRITE TO KNOWN HOSTS
