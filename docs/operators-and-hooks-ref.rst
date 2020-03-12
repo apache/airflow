@@ -644,6 +644,12 @@ These integrations allow you to perform various operations within the Google Clo
      -
      -
 
+   * - `Google Ads <https://ads.google.com/home/>`__
+     - :doc: `How to use <howto/operator/gcp/google_ads>`
+     - :mod:`airflow.providers.google.marketing_platform.hooks.google_ads`
+     - :mod:`airflow.providers.google.marketing_platform.operators.google_ads`
+     -
+
    * - `Kubernetes Engine <https://cloud.google.com/kubernetes_engine/>`__
      -
      - :mod:`airflow.providers.google.cloud.hooks.kubernetes_engine`
