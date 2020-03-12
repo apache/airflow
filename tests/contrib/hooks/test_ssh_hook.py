@@ -250,6 +250,8 @@ class TestSSHHook(unittest.TestCase):
                 sock=None
             )
 
+    # TODO - SSHHook public_key fingerprint tests
+
 
 if __name__ == '__main__':
     unittest.main()
