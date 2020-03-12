@@ -15,18 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# Script to check licences for all code. Can be started from any working directory
-set -uo pipefail
-
-MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
-
-# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
-. "${MY_DIR}/_in_container_utils.sh"
-
-in_container_basic_sanity_check
-
-in_container_script_start
+# shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
 echo
 echo "Running Licence check"
@@ -44,9 +34,9 @@ if ! java -jar "/opt/apache-rat.jar" -E "${AIRFLOW_SOURCES}"/.rat-excludes \
    exit 1
 fi
 
+set +e
 ERRORS=$(grep -e "??" "${AIRFLOW_SOURCES}/logs/rat-results.txt")
-
-in_container_script_end
+set -e
 
 in_container_fix_ownership
 
@@ -59,4 +49,5 @@ if test ! -z "${ERRORS}"; then
 else
     echo "RAT checks passed."
     echo
+    exit 0
 fi

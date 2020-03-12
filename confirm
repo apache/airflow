@@ -31,13 +31,13 @@ if [[ "${FORCE_ANSWER_TO_QUESTIONS:=""}" != "" ]]; then
     esac
 else
     echo
-    echo "Please confirm ${1} images. Are you sure? [y/N/q]"
+    echo "Please confirm ${1}. Are you sure? [y/N/q]"
     read -r RESPONSE
 fi
 
 case "${RESPONSE}" in
     [yY][eE][sS]|[yY])
-        echo "The answer is 'yes'. Attempting to ${1} images. This can take some time !"
+        echo "The answer is 'yes'. ${1}. This can take some time !"
         exit 0
         ;;
     [qQ][uU][iI][tT]|[qQ])
@@ -45,7 +45,7 @@ case "${RESPONSE}" in
         exit 2
         ;;
     *)
-        echo "The answer is 'no'. Skipping attempt to ${1} images."
+        echo "The answer is 'no'. Skipping ${1}."
         exit 1
         ;;
 esac

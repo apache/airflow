@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -29,19 +28,22 @@ import sqlalchemy
 from mock import Mock, patch
 from parameterized import parameterized
 
-from airflow import AirflowException, settings
+from airflow import settings
 from airflow.bin import cli
 from airflow.exceptions import (
-    AirflowTaskTimeout, DagConcurrencyLimitReached, NoAvailablePoolSlot, TaskConcurrencyLimitReached,
+    AirflowException, AirflowTaskTimeout, DagConcurrencyLimitReached, NoAvailablePoolSlot,
+    TaskConcurrencyLimitReached,
 )
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.jobs.scheduler_job import DagFileProcessor
-from airflow.models import DAG, DagBag, DagRun, Pool, TaskInstance as TI
+from airflow.models import DAG, DagBag, Pool, TaskInstance as TI
+from airflow.models.dagrun import DagRun
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
+from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_pools, clear_db_runs, set_default_pool_slots
 from tests.test_utils.mock_executor import MockExecutor
 
@@ -137,12 +139,11 @@ class TestBackfillJob(unittest.TestCase):
         target_dag.sync_to_db()
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=Mock())
-        task_instances_list = Mock()
-        dag_file_processor._process_task_instances(
+        task_instances_list = dag_file_processor._process_task_instances(
             target_dag,
-            task_instances_list=task_instances_list
+            dag_runs=DagRun.find(dag_id='example_trigger_target_dag')
         )
-        self.assertFalse(task_instances_list.append.called)
+        self.assertFalse(task_instances_list)
 
         job = BackfillJob(
             dag=dag,
@@ -152,12 +153,12 @@ class TestBackfillJob(unittest.TestCase):
         )
         job.run()
 
-        dag_file_processor._process_task_instances(
+        task_instances_list = dag_file_processor._process_task_instances(
             target_dag,
-            task_instances_list=task_instances_list
+            dag_runs=DagRun.find(dag_id='example_trigger_target_dag')
         )
 
-        self.assertTrue(task_instances_list.append.called)
+        self.assertTrue(task_instances_list)
 
     @pytest.mark.backend("postgres", "mysql")
     def test_backfill_multi_dates(self):
@@ -857,7 +858,7 @@ class TestBackfillJob(unittest.TestCase):
             dag_id,
             '-s',
             run_date.isoformat(),
-            '--delay_on_limit',
+            '--delay-on-limit',
             '0.5',
         ]
         parsed_args = self.parser.parse_args(args)
@@ -1294,7 +1295,7 @@ class TestBackfillJob(unittest.TestCase):
         job = BackfillJob(dag=dag)
 
         session = settings.Session()
-        dr = dag.create_dagrun(run_id=DagRun.ID_PREFIX,
+        dr = dag.create_dagrun(run_id=DagRunType.SCHEDULED.value,
                                state=State.RUNNING,
                                execution_date=DEFAULT_DATE,
                                start_date=DEFAULT_DATE,

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -57,7 +56,7 @@ class S3ToSnowflakeTransfer(BaseOperator):
                  autocommit=True,
                  snowflake_conn_id='snowflake_default',
                  *args, **kwargs):
-        super(S3ToSnowflakeTransfer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.s3_keys = s3_keys
         self.table = table
         self.stage = stage

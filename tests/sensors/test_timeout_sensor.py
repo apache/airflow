@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,8 +19,8 @@ import time
 import unittest
 from datetime import timedelta
 
-from airflow import DAG
 from airflow.exceptions import AirflowSensorTimeout, AirflowSkipException
+from airflow.models.dag import DAG
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults

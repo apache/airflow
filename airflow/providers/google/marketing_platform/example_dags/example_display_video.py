@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,6 +18,7 @@
 """
 Example Airflow DAG that shows how to use DisplayVideo.
 """
+import os
 
 from airflow import models
 from airflow.providers.google.marketing_platform.operators.display_video import (
@@ -31,7 +31,7 @@ from airflow.providers.google.marketing_platform.sensors.display_video import (
 from airflow.utils import dates
 
 # [START howto_display_video_env_variables]
-BUCKET = "gs://test-display-video-bucket"
+BUCKET = os.environ.get("GMP_DISPLAY_VIDEO_BUCKET", "gs://test-display-video-bucket")
 REPORT = {
     "kind": "doubleclickbidmanager#query",
     "metadata": {

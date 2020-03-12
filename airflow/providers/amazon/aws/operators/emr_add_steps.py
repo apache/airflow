@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import ast
+
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
@@ -57,7 +58,7 @@ class EmrAddStepsOperator(BaseOperator):
             *args, **kwargs):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
-        if not ((job_flow_id is None) ^ (job_flow_name is None)):
+        if not (job_flow_id is None) ^ (job_flow_name is None):
             raise AirflowException('Exactly one of job_flow_id or job_flow_name must be specified.')
         super().__init__(*args, **kwargs)
         steps = steps or []
@@ -81,7 +82,14 @@ class EmrAddStepsOperator(BaseOperator):
             context['ti'].xcom_push(key='job_flow_id', value=job_flow_id)
 
         self.log.info('Adding steps to %s', job_flow_id)
-        response = emr.add_job_flow_steps(JobFlowId=job_flow_id, Steps=self.steps)
+
+        # steps may arrive as a string representing a list
+        # eg, if we used XCom then: steps="[{ step1 }, { step2 }]"
+        steps = self.steps
+        if isinstance(steps, str):
+            steps = ast.literal_eval(steps)
+
+        response = emr.add_job_flow_steps(JobFlowId=job_flow_id, Steps=steps)
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
             raise AirflowException('Adding steps failed: %s' % response)

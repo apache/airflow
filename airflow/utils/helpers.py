@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,25 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import errno
-import os
 import re
-import signal
-import subprocess
 from datetime import datetime
 from functools import reduce
+from typing import Any, Dict, Optional
 
-import psutil
 from jinja2 import Template
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-
-# When killing processes, time to wait after issuing a SIGTERM before issuing a
-# SIGKILL.
-DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = conf.getint(
-    'core', 'KILLED_TASK_CLEANUP_TIME'
-)
 
 KEY_REGEX = re.compile(r'^[\w.-]+$')
 
@@ -57,7 +45,7 @@ def validate_key(k, max_length=250):
         return True
 
 
-def alchemy_to_dict(obj):
+def alchemy_to_dict(obj: Any) -> Optional[Dict]:
     """
     Transforms a SQLAlchemy model instance into a dictionary
     """
@@ -139,127 +127,6 @@ def as_flattened_list(iterable):
     ['blue', 'red', 'green', 'yellow', 'pink']
     """
     return [e for i in iterable for e in i]
-
-
-def pprinttable(rows):
-    """Returns a pretty ascii table from tuples
-
-    If namedtuple are used, the table will have headers
-    """
-    if not rows:
-        return None
-    if hasattr(rows[0], '_fields'):  # if namedtuple
-        headers = rows[0]._fields
-    else:
-        headers = ["col{}".format(i) for i in range(len(rows[0]))]
-    lens = [len(s) for s in headers]
-
-    for row in rows:
-        for i in range(len(rows[0])):
-            slenght = len("{}".format(row[i]))
-            if slenght > lens[i]:
-                lens[i] = slenght
-    formats = []
-    hformats = []
-    for i in range(len(rows[0])):
-        if isinstance(rows[0][i], int):
-            formats.append("%%%dd" % lens[i])
-        else:
-            formats.append("%%-%ds" % lens[i])
-        hformats.append("%%-%ds" % lens[i])
-    pattern = " | ".join(formats)
-    hpattern = " | ".join(hformats)
-    separator = "-+-".join(['-' * n for n in lens])
-    tab = ""
-    tab += separator + '\n'
-    tab += (hpattern % tuple(headers)) + '\n'
-    tab += separator + '\n'
-
-    def _format(t):
-        return "{}".format(t) if isinstance(t, str) else t
-
-    for line in rows:
-        tab += pattern % tuple(_format(t) for t in line) + '\n'
-    tab += separator + '\n'
-    return tab
-
-
-def reap_process_group(pgid, log, sig=signal.SIGTERM,
-                       timeout=DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM):
-    """
-    Tries really hard to terminate all processes in the group (including grandchildren). Will send
-    sig (SIGTERM) to the process group of pid. If any process is alive after timeout
-    a SIGKILL will be send.
-
-    :param log: log handler
-    :param pgid: process group id to kill
-    :param sig: signal type
-    :param timeout: how much time a process has to terminate
-    """
-
-    returncodes = {}
-
-    def on_terminate(p):
-        log.info("Process %s (%s) terminated with exit code %s", p, p.pid, p.returncode)
-        returncodes[p.pid] = p.returncode
-
-    def signal_procs(sig):
-        try:
-            os.killpg(pgid, sig)
-        except OSError as err:
-            # If operation not permitted error is thrown due to run_as_user,
-            # use sudo -n(--non-interactive) to kill the process
-            if err.errno == errno.EPERM:
-                subprocess.check_call(
-                    ["sudo", "-n", "kill", "-" + str(sig)] + map(children, lambda p: str(p.pid))
-                )
-            else:
-                raise
-
-    if pgid == os.getpgid(0):
-        raise RuntimeError("I refuse to kill myself")
-
-    try:
-        parent = psutil.Process(pgid)
-
-        children = parent.children(recursive=True)
-        children.append(parent)
-    except psutil.NoSuchProcess:
-        # The process already exited, but maybe it's children haven't.
-        children = []
-        for proc in psutil.process_iter():
-            try:
-                if os.getpgid(proc.pid) == pgid and proc.pid != 0:
-                    children.append(proc)
-            except OSError:
-                pass
-
-    log.info("Sending %s to GPID %s", sig, pgid)
-    try:
-        signal_procs(sig)
-    except OSError as err:
-        # No such process, which means there is no such process group - our job
-        # is done
-        if err.errno == errno.ESRCH:
-            return returncodes
-
-    _, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
-
-    if alive:
-        for proc in alive:
-            log.warning("process %s did not respond to SIGTERM. Trying SIGKILL", proc)
-
-        try:
-            signal_procs(signal.SIGKILL)
-        except OSError as err:
-            if err.errno != errno.ESRCH:
-                raise
-
-        _, alive = psutil.wait_procs(alive, timeout=timeout, callback=on_terminate)
-        if alive:
-            for proc in alive:
-                log.error("Process %s (%s) could not be killed. Giving up.", proc, proc.pid)
-    return returncodes
 
 
 def parse_template_string(template_string):

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -30,6 +29,7 @@ class SnowflakeHook(DbApiHook):
     Interact with Snowflake.
     get_sqlalchemy_engine() depends on snowflake-sqlalchemy
     """
+    conn_name_attr = 'snowflake_conn_id'
     default_conn_name = 'snowflake_default'
     supports_autocommit = True
 

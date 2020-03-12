@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -42,7 +41,7 @@ def my_py_command(test_mode, params):
     """
     Print out the "foo" param passed in via
     `airflow tasks test example_passing_params_via_test_command run_this <date>
-    -tp '{"foo":"bar"}'`
+    -t '{"foo":"bar"}'`
     """
     if test_mode:
         print(" 'foo' was passed in via test={} command : kwargs[params][foo] \

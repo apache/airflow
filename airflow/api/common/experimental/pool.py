@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -51,6 +50,11 @@ def create_pool(name, slots, description, session=None):
         slots = int(slots)
     except ValueError:
         raise AirflowBadRequest("Bad value for `slots`: %s" % slots)
+
+    # Get the length of the pool column
+    pool_name_length = Pool.pool.property.columns[0].type.length
+    if len(name) > pool_name_length:
+        raise AirflowBadRequest("Pool name can't be more than %d characters" % pool_name_length)
 
     session.expire_on_commit = False
     pool = session.query(Pool).filter_by(pool=name).first()

@@ -60,7 +60,7 @@ def connections_add(args):
         raise SystemExit(msg)
     if invalid_args:
         msg = ('The following args are not compatible with the ' +
-               '--add flag and --conn_uri flag: {invalid!r}')
+               '--add flag and --conn-uri flag: {invalid!r}')
         msg = msg.format(invalid=invalid_args)
         raise SystemExit(msg)
 

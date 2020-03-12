@@ -200,7 +200,7 @@ When we enable this DAG, the scheduler creates several DAG Runs - one with ``exe
 one with ``execution_date`` of 2016-01-02, and so on up to the current date.
 
 Each DAG Run will contain a task_1 Task Instance and a task_2 Task instance. Both Task Instances will
-have ``execution_date`` equal to the DAG Run's ``execution_date``, and each task_2 will be *upstream* of
+have ``execution_date`` equal to the DAG Run's ``execution_date``, and each task_2 will be *downstream* of
 (depends on) its task_1.
 
 We can also say that task_1 for 2016-01-01 is the *previous* task instance of the task_1 for 2016-01-02.
@@ -210,7 +210,7 @@ and *upstream* refers to a dependency within the same run and having the same ``
 
 .. note::
     The Airflow documentation sometimes refers to *previous* instead of *upstream* in places, and vice-versa.
-    If you find any occurances of this, please help us improve by contributing some corrections!
+    If you find any occurrences of this, please help us improve by contributing some corrections!
 
 Task Lifecycle
 ==============
@@ -265,21 +265,21 @@ Airflow provides operators for many common tasks, including:
 
 - :class:`~airflow.operators.bash.BashOperator` - executes a bash command
 - :class:`~airflow.operators.python.PythonOperator` - calls an arbitrary Python function
-- :class:`~airflow.operators.email_operator.EmailOperator` - sends an email
-- :class:`~airflow.operators.http_operator.SimpleHttpOperator` - sends an HTTP request
+- :class:`~airflow.providers.email.operators.email.EmailOperator` - sends an email
+- :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` - sends an HTTP request
 - :class:`~airflow.providers.mysql.operators.mysql.MySqlOperator`,
   :class:`~airflow.providers.sqlite.operators.sqlite.SqliteOperator`,
   :class:`~airflow.providers.postgres.operators.postgres.PostgresOperator`,
   :class:`~airflow.providers.microsoft.mssql.operators.mssql.MsSqlOperator`,
   :class:`~airflow.providers.oracle.operators.oracle.OracleOperator`,
-  :class:`~airflow.operators.jdbc_operator.JdbcOperator`, etc. - executes a SQL command
+  :class:`~airflow.providers.jdbc.operators.jdbc.JdbcOperator`, etc. - executes a SQL command
 - ``Sensor`` - an Operator that waits (polls) for a certain time, file, database row, S3 key, etc...
 
 In addition to these basic building blocks, there are many more specific
 operators: :class:`~airflow.providers.docker.operators.docker.DockerOperator`,
 :class:`~airflow.providers.apache.hive.operators.hive.HiveOperator`, :class:`~airflow.providers.amazon.aws.operators.s3_file_transform.S3FileTransformOperator`,
-:class:`~airflow.operators.presto_to_mysql.PrestoToMySqlTransfer`,
-:class:`~airflow.operators.slack_operator.SlackAPIOperator`... you get the idea!
+:class:`~airflow.providers.mysql.operators.presto_to_mysql.PrestoToMySqlTransfer`,
+:class:`~airflow.providers.slack.operators.slack.SlackAPIOperator`... you get the idea!
 
 Operators are only loaded by Airflow if they are assigned to a DAG.
 
@@ -352,19 +352,6 @@ is equivalent to:
     op1.set_downstream(op2)
     op2.set_downstream(op3)
     op3.set_upstream(op4)
-
-For convenience, the bitshift operators can also be used with DAGs. For example:
-
-.. code:: python
-
-    dag >> op1 >> op2
-
-is equivalent to:
-
-.. code:: python
-
-    op1.dag = dag
-    op1.set_downstream(op2)
 
 We can put this all together to build a simple pipeline:
 
@@ -1014,9 +1001,9 @@ a pause just wastes CPU cycles.
 
 For situations like this, you can use the ``LatestOnlyOperator`` to skip
 tasks that are not being run during the most recent scheduled run for a
-DAG. The ``LatestOnlyOperator`` skips all downstream tasks, if the time
+DAG. The ``LatestOnlyOperator`` skips all direct downstream tasks, if the time
 right now is not between its ``execution_time`` and the next scheduled
-``execution_time``.
+``execution_time`` or the DagRun has been externally triggered.
 
 For example, consider the following DAG:
 
@@ -1051,15 +1038,14 @@ For example, consider the following DAG:
                         trigger_rule=TriggerRule.ALL_DONE)
   task4.set_upstream([task1, task2])
 
-In the case of this DAG, the ``latest_only`` task will show up as skipped
-for all runs except the latest run. ``task1`` is directly downstream of
-``latest_only`` and will also skip for all runs except the latest.
+In the case of this DAG, the task ``task1`` is directly downstream of
+``latest_only`` and will be skipped for all runs except the latest.
 ``task2`` is entirely independent of ``latest_only`` and will run in all
 scheduled periods. ``task3`` is downstream of ``task1`` and ``task2`` and
 because of the default ``trigger_rule`` being ``all_success`` will receive
 a cascaded skip from ``task1``. ``task4`` is downstream of ``task1`` and
-``task2``. It will be first skipped directly by ``LatestOnlyOperator``,
-even its ``trigger_rule`` is set to ``all_done``.
+``task2``, but it will not be skipped, since its ``trigger_rule`` is set to
+``all_done``.
 
 .. image:: img/latest_only_with_trigger.png
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,17 +17,25 @@
 # under the License.
 
 import copy
+import datetime
 import logging
-import os
+import sys
 import unittest
 import unittest.mock
 from collections import namedtuple
 from datetime import date, timedelta
+from subprocess import CalledProcessError
+from typing import List
+
+import funcsigs
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
+from airflow.models.taskinstance import clear_task_instances
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python import BranchPythonOperator, PythonOperator, ShortCircuitOperator
+from airflow.operators.python import (
+    BranchPythonOperator, PythonOperator, PythonVirtualenvOperator, ShortCircuitOperator,
+)
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -112,12 +119,6 @@ class TestPythonBase(unittest.TestCase):
         self.assertDictEqual(first.kwargs, second.kwargs)
 
 
-@unittest.mock.patch('os.environ', {
-    'AIRFLOW_CTX_DAG_ID': None,
-    'AIRFLOW_CTX_TASK_ID': None,
-    'AIRFLOW_CTX_EXECUTION_DATE': None,
-    'AIRFLOW_CTX_DAG_RUN_ID': None
-})
 class TestPythonOperator(TestPythonBase):
 
     def do_run(self):
@@ -241,32 +242,6 @@ class TestPythonOperator(TestPythonBase):
         self.assertEqual(id(original_task.python_callable),
                          id(new_task.python_callable))
 
-    def _env_var_check_callback(self):
-        self.assertEqual('test_dag', os.environ['AIRFLOW_CTX_DAG_ID'])
-        self.assertEqual('hive_in_python_op', os.environ['AIRFLOW_CTX_TASK_ID'])
-        self.assertEqual(DEFAULT_DATE.isoformat(),
-                         os.environ['AIRFLOW_CTX_EXECUTION_DATE'])
-        self.assertEqual('manual__' + DEFAULT_DATE.isoformat(),
-                         os.environ['AIRFLOW_CTX_DAG_RUN_ID'])
-
-    def test_echo_env_variables(self):
-        """
-        Test that env variables are exported correctly to the
-        python callback in the task.
-        """
-        self.dag.create_dagrun(
-            run_id='manual__' + DEFAULT_DATE.isoformat(),
-            execution_date=DEFAULT_DATE,
-            start_date=DEFAULT_DATE,
-            state=State.RUNNING,
-            external_trigger=False,
-        )
-
-        op = PythonOperator(task_id='hive_in_python_op',
-                            dag=self.dag,
-                            python_callable=self._env_var_check_callback)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
     def test_conflicting_kwargs(self):
         self.dag.create_dagrun(
             run_id='manual__' + DEFAULT_DATE.isoformat(),
@@ -389,7 +364,7 @@ class TestBranchOperator(unittest.TestCase):
                 elif ti.task_id == 'branch_2':
                     self.assertEqual(ti.state, State.SKIPPED)
                 else:
-                    raise Exception
+                    raise ValueError(f'Invalid task id {ti.task_id} found!')
 
     def test_branch_list_without_dag_run(self):
         """This checks if the BranchPythonOperator supports branching off to a list of tasks."""
@@ -421,7 +396,7 @@ class TestBranchOperator(unittest.TestCase):
                 if ti.task_id in expected:
                     self.assertEqual(ti.state, expected[ti.task_id])
                 else:
-                    raise Exception
+                    raise ValueError(f'Invalid task id {ti.task_id} found!')
 
     def test_with_dag_run(self):
         branch_op = BranchPythonOperator(task_id='make_choice',
@@ -450,7 +425,7 @@ class TestBranchOperator(unittest.TestCase):
             elif ti.task_id == 'branch_2':
                 self.assertEqual(ti.state, State.SKIPPED)
             else:
-                raise Exception
+                raise ValueError(f'Invalid task id {ti.task_id} found!')
 
     def test_with_skip_in_branch_downstream_dependencies(self):
         branch_op = BranchPythonOperator(task_id='make_choice',
@@ -479,7 +454,7 @@ class TestBranchOperator(unittest.TestCase):
             elif ti.task_id == 'branch_2':
                 self.assertEqual(ti.state, State.NONE)
             else:
-                raise Exception
+                raise ValueError(f'Invalid task id {ti.task_id} found!')
 
     def test_with_skip_in_branch_downstream_dependencies2(self):
         branch_op = BranchPythonOperator(task_id='make_choice',
@@ -508,7 +483,7 @@ class TestBranchOperator(unittest.TestCase):
             elif ti.task_id == 'branch_2':
                 self.assertEqual(ti.state, State.NONE)
             else:
-                raise Exception
+                raise ValueError(f'Invalid task id {ti.task_id} found!')
 
     def test_xcom_push(self):
         branch_op = BranchPythonOperator(task_id='make_choice',
@@ -533,6 +508,62 @@ class TestBranchOperator(unittest.TestCase):
             if ti.task_id == 'make_choice':
                 self.assertEqual(
                     ti.xcom_pull(task_ids='make_choice'), 'branch_1')
+
+    def test_clear_skipped_downstream_task(self):
+        """
+        After a downstream task is skipped by BranchPythonOperator, clearing the skipped task
+        should not cause it to be executed.
+        """
+        branch_op = BranchPythonOperator(task_id='make_choice',
+                                         dag=self.dag,
+                                         python_callable=lambda: 'branch_1')
+        branches = [self.branch_1, self.branch_2]
+        branch_op >> branches
+        self.dag.clear()
+
+        dr = self.dag.create_dagrun(
+            run_id="manual__",
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+
+        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        for task in branches:
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        tis = dr.get_task_instances()
+        for ti in tis:
+            if ti.task_id == 'make_choice':
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == 'branch_1':
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == 'branch_2':
+                self.assertEqual(ti.state, State.SKIPPED)
+            else:
+                raise ValueError(f'Invalid task id {ti.task_id} found!')
+
+        children_tis = [ti for ti in tis if ti.task_id in branch_op.get_direct_relative_ids()]
+
+        # Clear the children tasks.
+        with create_session() as session:
+            clear_task_instances(children_tis, session=session, dag=self.dag)
+
+        # Run the cleared tasks again.
+        for task in branches:
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        # Check if the states are correct after children tasks are cleared.
+        for ti in dr.get_task_instances():
+            if ti.task_id == 'make_choice':
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == 'branch_1':
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == 'branch_2':
+                self.assertEqual(ti.state, State.SKIPPED)
+            else:
+                raise ValueError(f'Invalid task id {ti.task_id} found!')
 
 
 class TestShortCircuitOperator(unittest.TestCase):
@@ -584,11 +615,11 @@ class TestShortCircuitOperator(unittest.TestCase):
                     self.assertEqual(ti.state, State.SUCCESS)
                 elif ti.task_id == 'upstream':
                     # should not exist
-                    raise Exception
+                    raise ValueError(f'Invalid task id {ti.task_id} found!')
                 elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
                     self.assertEqual(ti.state, State.SKIPPED)
                 else:
-                    raise Exception
+                    raise ValueError(f'Invalid task id {ti.task_id} found!')
 
             value = True
             dag.clear()
@@ -599,11 +630,11 @@ class TestShortCircuitOperator(unittest.TestCase):
                     self.assertEqual(ti.state, State.SUCCESS)
                 elif ti.task_id == 'upstream':
                     # should not exist
-                    raise Exception
+                    raise ValueError(f'Invalid task id {ti.task_id} found!')
                 elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
                     self.assertEqual(ti.state, State.NONE)
                 else:
-                    raise Exception
+                    raise ValueError(f'Invalid task id {ti.task_id} found!')
 
     def test_with_dag_run(self):
         value = False
@@ -645,7 +676,7 @@ class TestShortCircuitOperator(unittest.TestCase):
             elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
                 self.assertEqual(ti.state, State.SKIPPED)
             else:
-                raise Exception
+                raise ValueError(f'Invalid task id {ti.task_id} found!')
 
         value = True
         dag.clear()
@@ -663,4 +694,232 @@ class TestShortCircuitOperator(unittest.TestCase):
             elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
                 self.assertEqual(ti.state, State.NONE)
             else:
+                raise ValueError(f'Invalid task id {ti.task_id} found!')
+
+    def test_clear_skipped_downstream_task(self):
+        """
+        After a downstream task is skipped by ShortCircuitOperator, clearing the skipped task
+        should not cause it to be executed.
+        """
+        dag = DAG('shortcircuit_clear_skipped_downstream_task',
+                  default_args={
+                      'owner': 'airflow',
+                      'start_date': DEFAULT_DATE
+                  },
+                  schedule_interval=INTERVAL)
+        short_op = ShortCircuitOperator(task_id='make_choice',
+                                        dag=dag,
+                                        python_callable=lambda: False)
+        downstream = DummyOperator(task_id='downstream', dag=dag)
+
+        short_op >> downstream
+
+        dag.clear()
+
+        dr = dag.create_dagrun(
+            run_id="manual__",
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+
+        short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        downstream.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        tis = dr.get_task_instances()
+
+        for ti in tis:
+            if ti.task_id == 'make_choice':
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == 'downstream':
+                self.assertEqual(ti.state, State.SKIPPED)
+            else:
+                raise ValueError(f'Invalid task id {ti.task_id} found!')
+
+        # Clear downstream
+        with create_session() as session:
+            clear_task_instances([t for t in tis if t.task_id == "downstream"],
+                                 session=session,
+                                 dag=dag)
+
+        # Run downstream again
+        downstream.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        # Check if the states are correct.
+        for ti in dr.get_task_instances():
+            if ti.task_id == 'make_choice':
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == 'downstream':
+                self.assertEqual(ti.state, State.SKIPPED)
+            else:
+                raise ValueError(f'Invalid task id {ti.task_id} found!')
+
+
+virtualenv_string_args: List[str] = []
+
+
+class TestPythonVirtualenvOperator(unittest.TestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.dag = DAG(
+            'test_dag',
+            default_args={
+                'owner': 'airflow',
+                'start_date': DEFAULT_DATE},
+            schedule_interval=INTERVAL)
+        self.addCleanup(self.dag.clear)
+
+    def _run_as_operator(self, fn, python_version=sys.version_info[0], **kwargs):
+        task = PythonVirtualenvOperator(
+            python_callable=fn,
+            python_version=python_version,
+            task_id='task',
+            dag=self.dag,
+            **kwargs)
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_dill_warning(self):
+        def f():
+            pass
+        with self.assertRaises(AirflowException):
+            PythonVirtualenvOperator(
+                python_callable=f,
+                task_id='task',
+                dag=self.dag,
+                use_dill=True,
+                system_site_packages=False)
+
+    def test_no_requirements(self):
+        """Tests that the python callable is invoked on task run."""
+        def f():
+            pass
+        self._run_as_operator(f)
+
+    def test_no_system_site_packages(self):
+        def f():
+            try:
+                import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
+            except ImportError:
+                return True
+            raise Exception
+        self._run_as_operator(f, system_site_packages=False, requirements=['dill'])
+
+    def test_system_site_packages(self):
+        def f():
+            import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
+        self._run_as_operator(f, requirements=['funcsigs'], system_site_packages=True)
+
+    def test_with_requirements_pinned(self):
+        self.assertNotEqual(
+            '0.4', funcsigs.__version__, 'Please update this string if this fails')
+
+        def f():
+            import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported
+            if funcsigs.__version__ != '0.4':
                 raise Exception
+
+        self._run_as_operator(f, requirements=['funcsigs==0.4'])
+
+    def test_unpinned_requirements(self):
+        def f():
+            import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
+        self._run_as_operator(
+            f, requirements=['funcsigs', 'dill'], system_site_packages=False)
+
+    def test_range_requirements(self):
+        def f():
+            import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
+        self._run_as_operator(
+            f, requirements=['funcsigs>1.0', 'dill'], system_site_packages=False)
+
+    def test_fail(self):
+        def f():
+            raise Exception
+        with self.assertRaises(CalledProcessError):
+            self._run_as_operator(f)
+
+    def test_python_2(self):
+        def f():
+            {}.iteritems()  # pylint: disable=no-member
+        self._run_as_operator(f, python_version=2, requirements=['dill'])
+
+    def test_python_2_7(self):
+        def f():
+            {}.iteritems()  # pylint: disable=no-member
+            return True
+        self._run_as_operator(f, python_version='2.7', requirements=['dill'])
+
+    def test_python_3(self):
+        def f():
+            import sys  # pylint: disable=reimported,unused-import,redefined-outer-name
+            print(sys.version)
+            try:
+                {}.iteritems()  # pylint: disable=no-member
+            except AttributeError:
+                return
+            raise Exception
+        self._run_as_operator(f, python_version=3, use_dill=False, requirements=['dill'])
+
+    @staticmethod
+    def _invert_python_major_version():
+        if sys.version_info[0] == 2:
+            return 3
+        else:
+            return 2
+
+    def test_wrong_python_op_args(self):
+        if sys.version_info[0] == 2:
+            version = 3
+        else:
+            version = 2
+
+        def f():
+            pass
+
+        with self.assertRaises(AirflowException):
+            self._run_as_operator(f, python_version=version, op_args=[1])
+
+    def test_without_dill(self):
+        def f(a):
+            return a
+        self._run_as_operator(f, system_site_packages=False, use_dill=False, op_args=[4])
+
+    def test_string_args(self):
+        def f():
+            global virtualenv_string_args  # pylint: disable=global-statement
+            print(virtualenv_string_args)
+            if virtualenv_string_args[0] != virtualenv_string_args[2]:
+                raise Exception
+        self._run_as_operator(
+            f, python_version=self._invert_python_major_version(), string_args=[1, 2, 1])
+
+    def test_with_args(self):
+        def f(a, b, c=False, d=False):
+            if a == 0 and b == 1 and c and not d:
+                return True
+            else:
+                raise Exception
+        self._run_as_operator(f, op_args=[0, 1], op_kwargs={'c': True})
+
+    def test_return_none(self):
+        def f():
+            return None
+        self._run_as_operator(f)
+
+    def test_lambda(self):
+        with self.assertRaises(AirflowException):
+            PythonVirtualenvOperator(
+                python_callable=lambda x: 4,
+                task_id='task',
+                dag=self.dag)
+
+    def test_nonimported_as_arg(self):
+        def f(_):
+            return None
+        self._run_as_operator(f, op_args=[datetime.datetime.utcnow()])
+
+    def test_context(self):
+        def f(templates_dict):
+            return templates_dict['ds']
+        self._run_as_operator(f, templates_dict={'ds': '{{ ds }}'})

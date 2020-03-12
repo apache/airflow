@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -59,7 +58,7 @@ class SnowflakeOperator(BaseOperator):
             self, sql, snowflake_conn_id='snowflake_default', parameters=None,
             autocommit=True, warehouse=None, database=None, role=None,
             schema=None, *args, **kwargs):
-        super(SnowflakeOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.snowflake_conn_id = snowflake_conn_id
         self.sql = sql
         self.autocommit = autocommit

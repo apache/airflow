@@ -24,7 +24,7 @@ You can configure Airflow to route anonymous data to
 
 Edit ``airflow.cfg`` and set the ``webserver`` block to have an ``analytics_tool`` and ``analytics_id``:
 
-.. code-block:: python
+.. code-block:: ini
 
   [webserver]
   # Send anonymous user activity to Google Analytics, Segment, or Metarouter

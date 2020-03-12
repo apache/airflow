@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,16 +19,15 @@
 """Unit tests for stringified DAGs."""
 
 import multiprocessing
+import os
 import unittest
 from datetime import datetime, timedelta
+from glob import glob
 from unittest import mock
 
 from dateutil.relativedelta import FR, relativedelta
 from parameterized import parameterized
 
-from airflow import example_dags
-from airflow.contrib import example_dags as contrib_example_dags
-from airflow.gcp import example_dags as gcp_example_dags
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import DAG, Connection, DagBag, TaskInstance
 from airflow.models.baseoperator import BaseOperator
@@ -91,10 +89,14 @@ serialized_simple_dag_ground_truth = {
     },
 }
 
+ROOT_FOLDER = os.path.realpath(
+    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
+)
 
-def make_example_dags(module):
+
+def make_example_dags(module_path):
     """Loads DAGs from a module for test."""
-    dagbag = DagBag(module.__path__[0])
+    dagbag = DagBag(module_path)
     return dagbag.dags
 
 
@@ -155,9 +157,14 @@ def collect_dags():
     dags = {}
     dags.update(make_simple_dag())
     dags.update(make_user_defined_macro_filter_dag())
-    dags.update(make_example_dags(example_dags))
-    dags.update(make_example_dags(contrib_example_dags))
-    dags.update(make_example_dags(gcp_example_dags))
+    patterns = [
+        "airflow/example_dags",
+        "airflow/providers/*/example_dags",
+        "airflow/providers/*/*/example_dags",
+    ]
+    for pattern in patterns:
+        for directory in glob(f"{ROOT_FOLDER}/{pattern}"):
+            dags.update(make_example_dags(directory))
 
     # Filter subdags as they are stored in same row in Serialized Dag table
     dags = {dag_id: dag for dag_id, dag in dags.items() if not dag.is_subdag}

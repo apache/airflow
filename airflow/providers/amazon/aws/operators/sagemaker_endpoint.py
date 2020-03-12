@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,8 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.sagemaker_base import SageMakerBaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -91,6 +90,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         self.create_integer_fields()
 
     def create_integer_fields(self):
+        """Set fields which should be casted to integers."""
         if 'EndpointConfig' in self.config:
             self.integer_fields = [
                 ['EndpointConfig', 'ProductionVariants', 'InitialInstanceCount']
@@ -99,7 +99,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
     def expand_role(self):
         if 'Model' not in self.config:
             return
-        hook = AwsHook(self.aws_conn_id)
+        hook = AwsBaseHook(self.aws_conn_id)
         config = self.config['Model']
         if 'ExecutionRoleArn' in config:
             config['ExecutionRoleArn'] = hook.expand_role(config['ExecutionRoleArn'])

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -22,15 +21,16 @@ import unittest
 
 from airflow import models, settings
 from airflow.exceptions import AirflowException
-from airflow.jobs import BackfillJob
-from airflow.models import DAG, DagRun, TaskInstance as TI, clear_task_instances
+from airflow.models import DAG, TaskInstance as TI, clear_task_instances
+from airflow.models.dagrun import DagRun
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
-from tests.executors.test_executor import TestExecutor
+from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
+from tests.test_utils.mock_executor import MockExecutor
 
 
 class TestDagRun(unittest.TestCase):
@@ -45,7 +45,7 @@ class TestDagRun(unittest.TestCase):
         if execution_date is None:
             execution_date = now
         if is_backfill:
-            run_id = BackfillJob.ID_PREFIX + now.isoformat()
+            run_id = DagRunType.BACKFILL_JOB.value + now.isoformat()
         else:
             run_id = 'manual__' + now.isoformat()
         dag_run = dag.create_dagrun(
@@ -525,7 +525,7 @@ class TestDagRun(unittest.TestCase):
         dag = DAG(dag_id='test_is_backfill', start_date=DEFAULT_DATE)
 
         dagrun = self.create_dag_run(dag, execution_date=DEFAULT_DATE)
-        dagrun.run_id = BackfillJob.ID_PREFIX + '_sfddsffds'
+        dagrun.run_id = DagRunType.BACKFILL_JOB.value + '_sfddsffds'
 
         dagrun2 = self.create_dag_run(
             dag, execution_date=DEFAULT_DATE + datetime.timedelta(days=1))
@@ -576,7 +576,7 @@ class TestDagRun(unittest.TestCase):
             dag.run(
                 start_date=timezone.datetime(2016, 1, 2, 0, 0, 0),
                 end_date=timezone.datetime(2016, 1, 2, 0, 0, 0),
-                executor=TestExecutor()
+                executor=MockExecutor()
             )
 
         # 2nd run of task fails by itself
@@ -616,7 +616,7 @@ class TestDagRun(unittest.TestCase):
             dag.run(
                 start_date=timezone.datetime(2016, 1, 2, 0, 0, 0),
                 end_date=timezone.datetime(2016, 1, 2, 0, 0, 0),
-                executor=TestExecutor()
+                executor=MockExecutor()
             )
 
         # doesn't run if downstream task for previous day has a null state

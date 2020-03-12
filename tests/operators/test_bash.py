@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -25,7 +24,8 @@ from tempfile import NamedTemporaryFile
 
 import mock
 
-from airflow import DAG, AirflowException
+from airflow.exceptions import AirflowException
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.state import State

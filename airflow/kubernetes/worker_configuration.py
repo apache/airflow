@@ -28,7 +28,12 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class WorkerConfiguration(LoggingMixin):
-    """Contains Kubernetes Airflow Worker configuration logic"""
+    """
+    Contains Kubernetes Airflow Worker configuration logic
+
+    :param kube_config: the kubernetes configuration from airflow.cfg
+    :type kube_config: airflow.executors.kubernetes_executor.KubeConfig
+    """
 
     dags_volume_name = 'airflow-dags'
     logs_volume_name = 'airflow-logs'
@@ -280,10 +285,14 @@ class WorkerConfiguration(LoggingMixin):
 
         # Mount the airflow_local_settings.py file via a configmap the user has specified
         if self.kube_config.airflow_local_settings_configmap:
-            config_volume_name = 'airflow-local-settings'
+            if self.kube_config.airflow_local_settings_configmap != self.kube_config.airflow_configmap:
+                volume_mount_name = 'airflow-local-settings'
+            else:
+                volume_mount_name = 'airflow-config'
+
             config_path = '{}/config/airflow_local_settings.py'.format(self.worker_airflow_home)
-            volume_mounts[config_volume_name] = k8s.V1VolumeMount(
-                name='airflow-config',
+            volume_mounts['airflow-local-settings'] = k8s.V1VolumeMount(
+                name=volume_mount_name,
                 mount_path=config_path,
                 sub_path='airflow_local_settings.py',
                 read_only=True
@@ -350,13 +359,14 @@ class WorkerConfiguration(LoggingMixin):
 
         # Mount the airflow_local_settings.py file via a configmap the user has specified
         if self.kube_config.airflow_local_settings_configmap:
-            config_volume_name = 'airflow-config'
-            volumes[config_volume_name] = k8s.V1Volume(
-                name=config_volume_name,
-                config_map=k8s.V1ConfigMapVolumeSource(
-                    name=self.kube_config.airflow_local_settings_configmap
+            if self.kube_config.airflow_local_settings_configmap != self.kube_config.airflow_configmap:
+                config_volume_name = 'airflow-local-settings'
+                volumes[config_volume_name] = k8s.V1Volume(
+                    name=config_volume_name,
+                    config_map=k8s.V1ConfigMapVolumeSource(
+                        name=self.kube_config.airflow_local_settings_configmap
+                    )
                 )
-            )
 
         # Mount the airflow.cfg file via a configmap the user has specified
         if self.kube_config.airflow_configmap:
@@ -379,9 +389,12 @@ class WorkerConfiguration(LoggingMixin):
 
     def as_pod(self) -> k8s.V1Pod:
         """Creates POD."""
-        pod_generator = PodGenerator(
+        if self.kube_config.pod_template_file:
+            return PodGenerator(pod_template_file=self.kube_config.pod_template_file).gen_pod()
+
+        pod = PodGenerator(
             image=self.kube_config.kube_image,
-            image_pull_policy=self.kube_config.kube_image_pull_policy,
+            image_pull_policy=self.kube_config.kube_image_pull_policy or 'IfNotPresent',
             image_pull_secrets=self.kube_config.image_pull_secrets,
             volumes=self._get_volumes(),
             volume_mounts=self._get_volume_mounts(),
@@ -391,10 +404,10 @@ class WorkerConfiguration(LoggingMixin):
             tolerations=self.kube_config.kube_tolerations,
             envs=self._get_environment(),
             node_selectors=self.kube_config.kube_node_selectors,
-            service_account_name=self.kube_config.worker_service_account_name,
-        )
+            service_account_name=self.kube_config.worker_service_account_name or 'default',
+            restart_policy='Never'
+        ).gen_pod()
 
-        pod = pod_generator.gen_pod()
         pod.spec.containers[0].env_from = pod.spec.containers[0].env_from or []
         pod.spec.containers[0].env_from.extend(self._get_env_from())
         pod.spec.security_context = self._get_security_context()

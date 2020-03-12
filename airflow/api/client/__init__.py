@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -22,8 +21,9 @@ API Client that allows interacting with Airflow API
 from importlib import import_module
 from typing import Any
 
-from airflow import api, conf
+from airflow import api
 from airflow.api.client.api_client import Client
+from airflow.configuration import conf
 
 
 def get_current_api_client() -> Client:

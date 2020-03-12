@@ -33,14 +33,14 @@ GcpTextToSpeechSynthesizeOperator
 Synthesizes text to audio file and stores it to Google Cloud Storage
 
 For parameter definition, take a look at
-:class:`airflow.gcp.operators.text_to_speech.GcpTextToSpeechSynthesizeOperator`
+:class:`airflow.providers.google.cloud.operators.text_to_speech.GcpTextToSpeechSynthesizeOperator`
 
 Arguments
 """""""""
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_speech.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_speech.py
       :language: python
       :start-after: [START howto_operator_text_to_speech_env_variables]
       :end-before: [END howto_operator_text_to_speech_env_variables]
@@ -50,14 +50,14 @@ google.cloud.texttospeech_v1.types module
 
 for more information, see: https://googleapis.github.io/google-cloud-python/latest/texttospeech/gapic/v1/api.html#google.cloud.texttospeech_v1.TextToSpeechClient.synthesize_speech
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_speech.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_speech.py
       :language: python
       :start-after: [START howto_operator_text_to_speech_api_arguments]
       :end-before: [END howto_operator_text_to_speech_api_arguments]
 
 filename is a simple string argument:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_speech.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_speech.py
       :language: python
       :start-after: [START howto_operator_text_to_speech_gcp_filename]
       :end-before: [END howto_operator_text_to_speech_gcp_filename]
@@ -65,7 +65,7 @@ filename is a simple string argument:
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_speech.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_speech.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_text_to_speech_synthesize]
@@ -74,7 +74,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/text_to_speech.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/text_to_speech.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_text_to_speech_synthesize_template_fields]
@@ -91,7 +91,7 @@ CloudSpeechToTextRecognizeSpeechOperator
 Recognizes speech in audio input and returns text.
 
 For parameter definition, take a look at
-:class:`airflow.gcp.operators.speech_to_text.CloudSpeechToTextRecognizeSpeechOperator`
+:class:`airflow.providers.google.cloud.operators.speech_to_text.CloudSpeechToTextRecognizeSpeechOperator`
 
 Arguments
 """""""""
@@ -101,14 +101,14 @@ google.cloud.speech_v1.types module
 
 for more information, see: https://googleapis.github.io/google-cloud-python/latest/speech/gapic/v1/api.html#google.cloud.speech_v1.SpeechClient.recognize
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_speech.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_speech.py
       :language: python
       :start-after: [START howto_operator_text_to_speech_api_arguments]
       :end-before: [END howto_operator_text_to_speech_api_arguments]
 
 filename is a simple string argument:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_speech.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_speech.py
       :language: python
       :start-after: [START howto_operator_speech_to_text_api_arguments]
       :end-before: [END howto_operator_speech_to_text_api_arguments]
@@ -116,7 +116,7 @@ filename is a simple string argument:
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_speech.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_speech.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_speech_to_text_recognize]
@@ -125,7 +125,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/speech_to_text.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/speech_to_text.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_speech_to_text_synthesize_template_fields]
