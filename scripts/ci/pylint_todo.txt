@@ -115,7 +115,6 @@
 ./airflow/providers/zendesk/hooks/zendesk.py
 ./airflow/settings.py
 ./airflow/stats.py
-./airflow/version.py
 ./airflow/www/api/experimental/endpoints.py
 ./airflow/www/app.py
 ./airflow/www/blueprints.py
@@ -128,5 +127,4 @@
 ./airflow/www/validators.py
 ./airflow/www/views.py
 ./airflow/www/widgets.py
-./dags/test_dag.py
 ./scripts/perf/scheduler_ops_metrics.py
