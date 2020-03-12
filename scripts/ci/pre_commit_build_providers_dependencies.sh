@@ -28,7 +28,6 @@ cd "${MY_DIR}/../../" || exit;
 PYTHONPATH="$(pwd)"
 export PYTHONPATH
 find airflow/providers -name '*.py' -print0 | \
-    xargs --null \
-        python3 tests/build_provider_packages_dependencies.py \
-            --provider-dependencies-file "airflow/providers/dependencies.json" \
-            --documentation-file CONTRIBUTING.rst
+    xargs -0 python3 tests/build_provider_packages_dependencies.py \
+        --provider-dependencies-file "airflow/providers/dependencies.json" \
+        --documentation-file CONTRIBUTING.rst
