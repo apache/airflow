@@ -124,7 +124,8 @@ def create_dag_runs(dag, num_runs, session):
 @click.command()
 @click.option('--num-runs', default=1, help='number of DagRun, to run for each DAG')
 @click.option('--repeat', default=3, help='number of times to run test, to reduce variance')
-@click.option('--pre-create-dag-runs', is_flag=True, default=False, help='''Pre-create the dag runs and stop the scheduler creating more.
+@click.option('--pre-create-dag-runs', is_flag=True, default=False,
+              help='''Pre-create the dag runs and stop the scheduler creating more.
 
         Warning: this makes the scheduler do (slightly) less work so may skew your numbers. Use sparingly!
         ''')
