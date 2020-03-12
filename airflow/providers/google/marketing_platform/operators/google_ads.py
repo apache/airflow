@@ -35,6 +35,10 @@ class GoogleAdsToGcsOperator(BaseOperator):
     Converts and saves the data as a temporary CSV file
     Uploads the CSV to Google Cloud Storage
 
+    .. seealso::
+    For more information on the Google Ads API, take a look at the API docs:
+    https://developers.google.com/google-ads/api/docs/start
+
     :param client_ids: Google Ads client IDs to query
     :type client_ids: List[str]
     :param query: Google Ads Query Language API query

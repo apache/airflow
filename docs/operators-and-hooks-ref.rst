@@ -645,7 +645,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Google Ads <https://ads.google.com/home/>`__
-     - :doc: `How to use <howto/operator/gcp/google_ads>`
+     - :doc:`How to use <howto/operator/gcp/google_ads>`
      - :mod:`airflow.providers.google.marketing_platform.hooks.google_ads`
      - :mod:`airflow.providers.google.marketing_platform.operators.google_ads`
      -

@@ -35,6 +35,10 @@ class GoogleAdsHook(BaseHook):
     """
     Hook for the Google Ads API
 
+    .. seealso::
+    For more information on the Google Ads API, take a look at the API docs:
+    https://developers.google.com/google-ads/api/docs/start
+
     :param gcp_conn_id: The connection ID with the service account details.
     :type gcp_conn_id: str
     :param google_ads_conn_id: The connection ID with the details of Google Ads config.yaml file.
@@ -48,10 +52,12 @@ class GoogleAdsHook(BaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         google_ads_conn_id: str = "google_ads_default",
+        api_version: str = "v2",
     ) -> None:
         self.gcp_conn_id = gcp_conn_id
         self.google_ads_conn_id = google_ads_conn_id
         self.gcp_conn_id = gcp_conn_id
+        self.api_version = api_version
         self.google_ads_config: Dict[str, Any] = {}
 
     def _get_service(self) -> GoogleAdsClient:
@@ -62,7 +68,7 @@ class GoogleAdsHook(BaseHook):
                 self._get_config()
                 self._update_config_with_secret(secrets_temp)
                 client = GoogleAdsClient.load_from_dict(self.google_ads_config)
-                return client.get_service("GoogleAdsService", version="v2")
+                return client.get_service("GoogleAdsService", version=self.api_version)
 
         except GoogleAuthError as e:
             self.log.error("Google Auth Error: %s", e)
