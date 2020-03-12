@@ -53,6 +53,7 @@ from airflow.models.xcom import XCom, XCOM_RETURN_KEY
 from airflow.sentry import Sentry
 from airflow.settings import Stats
 from airflow.ti_deps.dep_context import DepContext, REQUEUEABLE_DEPS, RUNNING_DEPS
+from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.email import send_email
@@ -909,6 +910,7 @@ class TaskInstance(Base, LoggingMixin):
         :type pool: str
         """
         from airflow.sensors.base_sensor_operator import BaseSensorOperator
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 
         task = self.task
         self.pool = pool or task.pool
@@ -949,6 +951,10 @@ class TaskInstance(Base, LoggingMixin):
                 start_time = time.time()
 
                 self.render_templates(context=context)
+                if STORE_SERIALIZED_DAGS:
+                    RTIF.write(RTIF(ti=self, render_templates=False), session=session)
+                    RTIF.delete_old_records(self.task_id, self.dag_id, session=session)
+
                 task_copy.pre_execute(context=context)
 
                 # If a timeout is specified for the task, make it fail
@@ -1372,6 +1378,23 @@ class TaskInstance(Base, LoggingMixin):
             'inlets': task.inlets,
             'outlets': task.outlets,
         }
+
+    def get_rendered_template_fields(self):
+        """
+        Fetch rendered template fields from DB if Serialization is enabled.
+        Else just render the templates
+        """
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields
+        if STORE_SERIALIZED_DAGS:
+            rtif = RenderedTaskInstanceFields.get_templated_fields(self)
+            if rtif:
+                for field_name, rendered_value in rtif.items():
+                    setattr(self.task, field_name, rendered_value)
+            else:
+                # TODO: Fetch Unrendered strings
+                pass
+        else:
+            self.render_templates()
 
     def overwrite_params_with_dag_run_conf(self, params, dag_run):
         if dag_run and dag_run.conf:

@@ -25,9 +25,16 @@ import sys
 
 import os
 import shutil
+import urllib
+
 import pytest
 import tempfile
 import unittest
+
+from flask._compat import PY2
+
+from airflow.operators.bash_operator import BashOperator
+from airflow.utils.db import create_session
 from tests.compat import mock
 
 from six.moves.urllib.parse import quote_plus
@@ -40,6 +47,8 @@ from airflow import models
 from airflow.configuration import conf
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.utils.timezone import datetime
@@ -877,6 +886,56 @@ class TestDeleteDag(unittest.TestCase):
 
         session.query(DM).filter(DM.dag_id == test_dag_id).update({'dag_id': dag_id})
         session.commit()
+
+
+class TestRenderedView(unittest.TestCase):
+
+    def setUp(self):
+        app = application.create_app(testing=True)
+        app.config['WTF_CSRF_METHODS'] = []
+        self.app = app.test_client()
+        self.default_date = datetime(2020, 3, 1)
+        self.dag = DAG("testdag", start_date=self.default_date)
+        self.task = BashOperator(
+            task_id='testtask',
+            bash_command='{{ task_instance_key_str }}',
+            dag=self.dag
+        )
+        SerializedDagModel.write_dag(self.dag)
+        with create_session() as session:
+            session.query(RTIF).delete()
+
+    def tearDown(self):
+        super(TestRenderedView, self).tearDown()
+        with create_session() as session:
+            session.query(RTIF).delete()
+
+    def percent_encode(self, obj):
+        if PY2:
+            return urllib.quote_plus(str(obj))
+        else:
+            return urllib.parse.quote_plus(str(obj))
+
+    @mock.patch('airflow.www.views.STORE_SERIALIZED_DAGS', True)
+    @mock.patch('airflow.models.taskinstance.STORE_SERIALIZED_DAGS', True)
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_rendered_view(self, get_dag_function):
+        """
+        Test that the Rendered View contains the values from RenderedTaskInstanceFields
+        """
+        get_dag_function.return_value = SerializedDagModel.get(self.dag.dag_id).dag
+
+        self.assertEqual(self.task.bash_command, '{{ task_instance_key_str }}')
+        ti = TaskInstance(self.task, self.default_date)
+
+        with create_session() as session:
+            session.add(RTIF(ti))
+
+        url = ('/admin/airflow/rendered?task_id=testtask&dag_id=testdag&execution_date={}'
+               .format(self.percent_encode(self.default_date)))
+
+        resp = self.app.get(url, follow_redirects=True)
+        self.assertIn("testdag__testtask__20200301", resp.data.decode('utf-8'))
 
 
 class TestTriggerDag(unittest.TestCase):
