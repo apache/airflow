@@ -118,4 +118,4 @@ class TestBaseJob(unittest.TestCase):
 
             job.heartbeat()
 
-            self.assertEqual(job.latest_heartbeat, when, "attriubte not updated when heartbeat fails")
+            self.assertEqual(job.latest_heartbeat, when, "attribute not updated when heartbeat fails")
