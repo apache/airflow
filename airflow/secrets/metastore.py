@@ -34,8 +34,6 @@ class MetastoreSecretsBackend(BaseSecretsBackend):
     # pylint: disable=missing-docstring
     @provide_session
     def get_connections(self, conn_id, session=None) -> List[Connection]:
-        conn_list = (
-            session.query(Connection).filter(Connection.conn_id == conn_id).all()
-        )
+        conn_list = session.query(Connection).filter(Connection.conn_id == conn_id).all()
         session.expunge_all()
         return conn_list

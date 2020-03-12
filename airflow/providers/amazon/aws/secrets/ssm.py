@@ -18,12 +18,10 @@
 """
 Objects relating to sourcing connections from AWS SSM Parameter Store
 """
-
 from typing import List, Optional
 
 import boto3
 
-from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.secrets import CONN_ENV_PREFIX, BaseSecretsBackend
 
@@ -37,22 +35,17 @@ class AwsSsmSecretsBackend(BaseSecretsBackend):
     .. code-block:: ini
 
         [secrets_backend]
-        class_list = airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend
-        aws_ssm_prefix = /airflow
-        aws_ssm_profile_name = default
+        secrets_backend_class_name = airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend
+        secrets_backend_config_json = {"prefix": "/airflow", "profile_name": null}
 
     For example, if ssm path is ``/airflow/AIRFLOW_CONN_SMTP_DEFAULT``, this would be accessible if you
-    provide ``aws_ssm_prefix = /airflow`` and conn_id ``smtp_default``.
+    provide ``{"prefix": "/airflow"}`` and request conn_id ``smtp_default``.
 
     """
 
-    CONF_SECTION = "secrets_backend"
-    CONF_KEY_SSM_PREFIX = "aws_ssm_prefix"
+    CONFIG_KEY_PREFIX = "prefix"
+    CONFIG_KEY_PROFILE_NAME = "profile_name"
     DEFAULT_PREFIX = "/airflow"
-    CONF_KEY_PROFILE_NAME = "aws_ssm_profile_name"
-
-    def __init__(self, *args, **kwargs):
-        pass
 
     @property
     def ssm_prefix(self) -> str:
@@ -61,23 +54,18 @@ class AwsSsmSecretsBackend(BaseSecretsBackend):
 
         Ensures that there is no trailing slash.
 
-        :return:
+        Default value is ``''``
         """
-        ssm_prefix = conf.get(
-            section=self.CONF_SECTION, key=self.CONF_KEY_SSM_PREFIX, fallback=self.DEFAULT_PREFIX
-        )
+        ssm_prefix = self.config_dict.get(self.CONFIG_KEY_PREFIX, self.DEFAULT_PREFIX)
         return ssm_prefix.rstrip("/")
 
     @property
     def aws_profile_name(self) -> Optional[str]:
         """
         Gets AWS profile to use from conf.
-
-        :return:
         """
-        profile_name = conf.get(
-            section=self.CONF_SECTION, key=self.CONF_KEY_PROFILE_NAME, fallback=None
-        )
+
+        profile_name = self.config_dict.get(self.CONFIG_KEY_PROFILE_NAME)
         return profile_name or None
 
     def build_ssm_path(self, conn_id: str):
@@ -86,19 +74,17 @@ class AwsSsmSecretsBackend(BaseSecretsBackend):
 
         Assumes connection params use same naming convention as env vars, but may have arbitrary prefix.
 
-        :param conn_id:
-        :return:
+        :param conn_id: connection id
         """
         param_name = (CONN_ENV_PREFIX + conn_id).upper()
         param_path = self.ssm_prefix + "/" + param_name
         return param_path
 
-    def get_conn_uri(self, conn_id):
+    def get_conn_uri(self, conn_id: str):
         """
         Get param value
 
-        :param conn_id:
-        :return:
+        :param conn_id: connection id
         """
         session = boto3.Session(profile_name=self.aws_profile_name)
         client = session.client("ssm")
@@ -108,12 +94,11 @@ class AwsSsmSecretsBackend(BaseSecretsBackend):
         value = response["Parameter"]["Value"]
         return value
 
-    def get_connections(self, conn_id) -> List[Connection]:
+    def get_connections(self, conn_id: str) -> List[Connection]:
         """
         Create connection object.
 
-        :param conn_id:
-        :return:
+        :param conn_id: connection id
         """
         conn_uri = self.get_conn_uri(conn_id=conn_id)
         conn = Connection(conn_id=conn_id, uri=conn_uri)

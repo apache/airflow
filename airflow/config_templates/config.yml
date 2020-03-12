@@ -489,25 +489,16 @@
 - name: secrets_backend
   description: ~
   options:
-    - name: class_list
-      description: List of secrets backend classes to use in order of desired search path
+    - name: class_name
+      description: Name of secrets backend to enable (will precede env vars and metastore in search path)
       version_added: ~
       type: string
       example: ~
-      default: >-
-        airflow.secrets.environment_variables.EnvironmentVariablesSecretsBackend,
-        airflow.secrets.metastore.MetastoreSecretsBackend
-    - name: aws_ssm_prefix
+      default: ""
+    - name: config_json
       description: |
-        Use when using AWS SSM / airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend as secrets
-        provider. If prefix is `/airflow`, then example param path is `/airflow/AIRFLOW_CONN_SMTP_DEFAULT`.
-        Use same URI format as you would with env vars, or `conn_uri` CLI param.
-      version_added: ~
-      type: string
-      example: ~
-      default: "/airflow"
-    - name: aws_ssm_profile_name
-      description: ~
+        See documentation for the secrets backend you are using. JSON is expected.
+        Example for AWS SSM: {{"prefix": "/airflow", "profile_name": "my_aws_profile"}}
       version_added: ~
       type: string
       example: ~

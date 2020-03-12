@@ -23,6 +23,7 @@ Secrets framework provides means of getting connection objects from various sour
 """
 __all__ = ['CONN_ENV_PREFIX', 'BaseSecretsBackend', 'get_connections']
 
+import json
 from abc import ABC, abstractmethod
 from typing import List
 
@@ -32,6 +33,20 @@ from airflow.models import Connection
 from airflow.utils.module_loading import import_string
 
 CONN_ENV_PREFIX = "AIRFLOW_CONN_"
+CONFIG_SECTION = "secrets_backend"
+CONFIG_KEY_CONFIG_JSON = 'config_json'
+CONFIG_KEY_CLASS_NAME = 'class_name'
+
+default_secrets_search_path = [
+    "airflow.secrets.environment_variables.EnvironmentVariablesSecretsBackend",
+    "airflow.secrets.metastore.MetastoreSecretsBackend",
+]
+secrets_backend = conf.get(section=CONFIG_SECTION, key=CONFIG_KEY_CLASS_NAME, fallback='',)
+secrets_search_path = (
+    [secrets_backend, *default_secrets_search_path]
+    if secrets_backend
+    else default_secrets_search_path
+)
 
 
 class BaseSecretsBackend(ABC):
@@ -39,12 +54,26 @@ class BaseSecretsBackend(ABC):
     Abstract base class to retrieve secrets given a conn_id and construct a Connection object
     """
 
+    def __init__(self, *args, **kwargs):
+        self._config_dict = None
+
+    @property
+    def config_dict(self):
+        """
+        Parse ``secrets_backend_config_json`` as dictionary.
+        """
+        if not self._config_dict:
+            self._config_dict = json.loads(
+                conf.get(section=CONFIG_SECTION, key=CONFIG_KEY_CONFIG_JSON)
+            )
+        return self._config_dict
+
     @abstractmethod
     def get_connections(self, conn_id) -> List[Connection]:
         """
-        Get list of connection objects
+        Return list of connection objects matching a given ``conn_id``.
 
-        :param conn_id:
+        :param conn_id: connection id to search for
         :return:
         """
 
@@ -56,18 +85,8 @@ def get_connections(conn_id: str) -> List[Connection]:
     :param conn_id: connection id
     :return: array of connections
     """
-    secrets_backends = conf.getlist(
-        section="secrets_backend",
-        key="class_list",
-        fallback=', '.join(
-            [
-                "airflow.secrets.environment_variables.EnvironmentVariablesSecretsBackend",
-                "airflow.secrets.metastore.MetastoreSecretsBackend",
-            ]
-        ),
-    )
-    for secrets_backend_name in secrets_backends:
-        secrets_backend_cls = import_string(secrets_backend_name)
+    for class_name in secrets_search_path:
+        secrets_backend_cls = import_string(class_name)
         conn_list = secrets_backend_cls().get_connections(conn_id=conn_id)
         if conn_list:
             return list(conn_list)

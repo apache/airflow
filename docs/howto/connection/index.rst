@@ -95,17 +95,17 @@ in environment variables, or as parameters in SSM parameter store.
 Configuration
 ^^^^^^^^^^^^^
 
-Secrets backend precedence is managed in through the ``class_list`` parameter in section ``[secrets_backend]``
-of ``airflow.cfg``.
+When looking up a connection, by default airflow will search environment variables first and metastore database second.
 
-Add secrets backend class names in the order you want them to be searched.  For example:
+You may enable an alternative secrets backend by specifying the ``secrets_backend_class_name`` in the ``[secrets_backend]``
+section in ``airflow.cfg``.
 
-.. code-block:: ini
+If you enable an alternative secrets backend, it will be searched first, followed by environment variables,
+then metastore.  This search ordering is not configurable.
 
-    secrets_backend = airflow.secrets.environment_variables.EnvironmentVariablesSecretsBackend, airflow.secrets.metastore.MetastoreSecretsBackend
+Secrets backends may be configured by supplying a json value to parameter ``secrets_backend_kwargs`` in the same config section.
 
-Configured as above, when retrieving a connection, airflow will check environment variables first and metastore
-database second.  This is the default behavior.
+See :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>` for an example configuration.
 
 .. _environment_variables_secrets_backend:
 
@@ -144,21 +144,22 @@ If using with a docker ``.env`` file, you may need to remove the single quotes.
 
 .. _ssm_parameter_store_secrets:
 
-AWS SSM Parameter Store
-^^^^^^^^^^^^^^^^^^^^^^^
+AWS SSM Parameter Store Secrets Backend
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To enable SSM parameter store, add :py:class:`~airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend` to
-the class list in  ``[secrets_backend]`` section of ``airflow.cfg``.  For example:
+To enable SSM parameter store, specify :py:class:`~airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend`
+as the ``secrets_backend_class_name`` in  ``[secrets_backend]`` section of ``airflow.cfg``.
+
+Here is a sample configuration:
 
 .. code-block:: ini
 
     [secrets_backend]
-    class_list = airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend, airflow.secrets.metastore.MetastoreSecretsBackend
-    aws_ssm_prefix = /airflow
-    aws_profile_name =
+    class_name = airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend
+    config_json = {"prefix": "/airflow", "profile_name": "default"}
 
-With an ``aws_ssm_prefix`` of ``/airflow``, a connection with id ``my_postgres_conn`` would need to be stored at
-``/airflow/AIRFLOW_CONN_MY_POSTGRES_CONN``.
+If prefix is ``/airflow``, then example param path is ``/airflow/AIRFLOW_CONN_SMTP_DEFAULT`` for connection
+``smtp_default``.
 
 You may optionally supply a profile name to reference aws profile defined in ``~/.aws`` directory.
 
