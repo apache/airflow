@@ -81,5 +81,5 @@ rm -rf "${BUILD_CACHE_DIR}"
 
 if [[ ${DOCKER_TAG} == *-ci ]]; then
     rebuild_ci_image_if_needed
-    push_ci_image
+    push_image
 fi
