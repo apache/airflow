@@ -422,7 +422,7 @@ function assert_not_in_container() {
         echo >&2 "You are inside the Airflow docker container!"
         echo >&2 "You should only run this script from the host."
         echo >&2 "Learn more about how we develop and test airflow in:"
-        echo >&2 "https://github.com/apache/airflow/blob/master/CONTRIBUTING.md"
+        echo >&2 "https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst"
         echo >&2
         exit 1
     fi
