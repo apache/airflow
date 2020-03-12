@@ -151,6 +151,10 @@ AssumeRoleWithSAML
     * ``saml_response_xpath``: How to query the IDP response using XML / HTML xpath.
     * ``assume_role_kwargs``: Additional ``kwargs`` passed to ``sts_client.assume_role_with_saml``.
 
+.. note:: The ``requests_gssapi`` library is used to obtain a SAML response from your IDP.
+    You may need to ``pip uninstall python-gssapi`` and ``pip install gssapi`` instead for this to work.
+    The ``python-gssapi`` library is outdated, and conflicts with some versions of ``paramiko`` which Airflow uses elsewhere.
+
 .. seealso::
     :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#api_assumerolewithsaml
