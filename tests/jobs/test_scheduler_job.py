@@ -1228,7 +1228,7 @@ class TestSchedulerJob(unittest.TestCase):
         dags_folder.
 
         :param dags_folder: the directory to traverse
-        :type directory: str
+        :type dags_folder: str
         """
         scheduler = SchedulerJob(
             executor=self.null_exec,
