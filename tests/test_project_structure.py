@@ -48,8 +48,7 @@ MISSING_TEST_FILES = {
     'tests/providers/oracle/operators/test_oracle.py',
     'tests/providers/qubole/hooks/test_qubole.py',
     'tests/providers/samba/hooks/test_samba.py',
-    'tests/providers/sqlite/operators/test_sqlite.py',
-    'tests/providers/vertica/hooks/test_vertica.py'
+    'tests/providers/sqlite/operators/test_sqlite.py'
 }
 
 
