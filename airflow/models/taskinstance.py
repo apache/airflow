@@ -1378,13 +1378,13 @@ class TaskInstance(Base, LoggingMixin):
             else:
                 try:
                     self.render_templates()
-                except (TemplateAssertionError, UndefinedError):
+                except (TemplateAssertionError, UndefinedError) as e:
                     raise AirflowException(
                         "Webserver does not have access to User-defined Macros or Filters "
                         "when Dag Serialization is enabled. Hence for the task that have not yet "
                         "started running, please use 'airflow tasks render' for debugging the "
                         "rendering of template_fields."
-                    )
+                    ) from e
         else:
             self.render_templates()
 

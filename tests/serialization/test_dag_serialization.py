@@ -599,6 +599,9 @@ class TestStringifiedDAGs(unittest.TestCase):
     def test_templated_fields_exist_in_serialized_dag(self, templated_field, expected_field):
         """
         Test that templated_fields exists for all Operators in Serialized DAG
+
+        Since we don't want to inflate arbitrary python objects (it poses a RCE/security risk etc.)
+        we want check that non-"basic" objects are turned in to strings after deserializing.
         """
 
         dag = DAG("test_serialized_template_fields", start_date=datetime(2019, 8, 1))

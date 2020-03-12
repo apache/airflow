@@ -2000,7 +2000,7 @@ class TestRenderedView(TestBase):
             "Webserver does not have access to User-defined Macros or Filters "
             "when Dag Serialization is enabled. Hence for the task that have not yet "
             "started running, please use &#39;airflow tasks render&#39; for debugging the "
-            "rendering of template_fields.",
+            "rendering of template_fields.<br/><br/>OriginalError: no filter named &#39;hello&#39",
             resp
         )
 

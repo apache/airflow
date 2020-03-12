@@ -56,6 +56,7 @@ from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed, set_dag_run_state_to_success,
 )
 from airflow.configuration import AIRFLOW_CONFIG, conf
+from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
@@ -587,6 +588,11 @@ class Airflow(AirflowBaseView):
         ti = models.TaskInstance(task=task, execution_date=dttm)
         try:
             ti.get_rendered_template_fields()
+        except AirflowException as e:
+            msg = "Error rendering template: " + escape(e)
+            if e.__cause__:
+                msg += Markup("<br/><br/>OriginalError: ") + escape(e.__cause__)
+            flash(msg, "error")
         except Exception as e:
             flash("Error rendering template: " + str(e), "error")
         title = "Rendered Template"
