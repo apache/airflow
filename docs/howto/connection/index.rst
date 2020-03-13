@@ -84,33 +84,10 @@ Alternatively you may specify each parameter individually:
         --password 'password' \
         ...
 
-.. _alternative_secrets_backend:
-
-Alternative secrets backends
-----------------------------
-
-Airflow provides a flexible secrets provision framework.  For example, you may store credentials
-in environment variables, or as parameters in SSM parameter store.
-
-Configuration
-^^^^^^^^^^^^^
-
-When looking up a connection, by default airflow will search environment variables first and metastore database second.
-
-You may enable an alternative secrets backend by specifying the ``class_name`` in the ``[secrets_backend]``
-section in ``airflow.cfg``.
-
-If you enable an alternative secrets backend, it will be searched first, followed by environment variables,
-then metastore.  This search ordering is not configurable.
-
-Secrets backends may be configured by supplying a json value to parameter ``secrets_backend_kwargs`` in the same config section.
-
-See :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>` for an example configuration.
-
 .. _environment_variables_secrets_backend:
 
 Storing a Connection in Environment Variables
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+---------------------------------------------
 
 The environment variable naming convention is ``AIRFLOW_CONN_<conn_id>``, all uppercase.
 
@@ -125,7 +102,7 @@ The value of this environment variable must use airflow's URI format for connect
 :ref:`Generating a Connection URI <generating_connection_uri>` for more details.
 
 Using .bashrc (or similar)
-""""""""""""""""""""""""""
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If storing the environment variable in something like ``~/.bashrc``, add as follows:
 
@@ -134,7 +111,7 @@ If storing the environment variable in something like ``~/.bashrc``, add as foll
     export AIRFLOW_CONN_MY_PROD_DATABASE='my-conn-type://login:password@host:port/schema?param1=val1&param2=val2'
 
 Using docker .env
-"""""""""""""""""
+^^^^^^^^^^^^^^^^^
 
 If using with a docker ``.env`` file, you may need to remove the single quotes.
 
@@ -142,26 +119,63 @@ If using with a docker ``.env`` file, you may need to remove the single quotes.
 
     AIRFLOW_CONN_MY_PROD_DATABASE=my-conn-type://login:password@host:port/schema?param1=val1&param2=val2
 
+.. _alternative_secrets_backend:
+
+Alternative secrets backend
+---------------------------
+
+In addition to retrieving connections from environment variables or the metastore database, you can enable
+an alternative secrets backend, such as :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>`, or you
+can :ref:`roll your own <roll_your_own_secrets_backend>`.
+
+Search path
+^^^^^^^^^^^
+When looking up a connection, by default airflow will search environment variables first and metastore
+database second.
+
+If you enable an alternative secrets backend, it will be searched first, followed by environment variables,
+then metastore.  This search ordering is not configurable.
+
+.. _secrets_backend_configuration:
+
+Configuration
+^^^^^^^^^^^^^
+
+The ``[secrets]`` section has the following options:
+
+.. code-block:: ini
+
+    [secrets]
+    backend_name =
+    backend_kwargs =
+
+Set ``backend_name`` to the fully qualified class name of the backend you want to enable.
+
+You can provide ``backend_kwargs`` with json and it will be passed as kwargs to the ``__init__`` method of
+your secrets backend.
+
+See :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>` for an example configuration.
+
 .. _ssm_parameter_store_secrets:
 
 AWS SSM Parameter Store Secrets Backend
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To enable SSM parameter store, specify :py:class:`~airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend`
-as the ``class_name`` in  ``[secrets_backend]`` section of ``airflow.cfg``.
+as the ``backend_name`` in  ``[secrets]`` section of ``airflow.cfg``.
 
 Here is a sample configuration:
 
 .. code-block:: ini
 
-    [secrets_backend]
-    class_name = airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend
-    config_json = {"prefix": "/airflow", "profile_name": "default"}
+    [secrets]
+    backend_name = airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend
+    backend_kwargs = {"prefix": "/airflow", "profile_name": "default"}
 
-If prefix is ``/airflow``, then example param path is ``/airflow/AIRFLOW_CONN_SMTP_DEFAULT`` for connection
-``smtp_default``.
+If you have set your prefix as ``/airflow``, then for a connection id of ``smtp_default``, you would want to
+store your connection at ``/airflow/AIRFLOW_CONN_SMTP_DEFAULT``.
 
-You may optionally supply a profile name to reference aws profile defined in ``~/.aws`` directory.
+Optionally you can supply a profile name to reference aws profile, e.g. defined in ``~/.aws/config``.
 
 The value of the SSM parameter must be the :ref:`airflow connection URI representation <generating_connection_uri>` of the connection object.
 
@@ -173,9 +187,15 @@ Roll your own secrets backend
 A secrets backend is a subclass of :py:class:`airflow.secrets.BaseSecretsBackend`, and just has to implement the
 :py:meth:`~airflow.secrets.BaseSecretsBackend.get_connections` method.
 
-Just create your class, and put it in the search path defined in the ``class_list`` key in the ``[secrets_backend]``
-section of ``airflow.cfg``.
+Just create your class, and put the fully qualified class name in ``backend_name`` key in the ``[secrets]``
+section of ``airflow.cfg``.  You can you can also pass kwargs to ``__init__`` by supplying json to the
+``backend_kwargs`` config param.  See :ref:`Configuration <secrets_backend_configuration>` for more details,
+and :ref:`SSM Parameter Store <ssm_parameter_store_secrets>` for an example.
 
+.. note::
+
+    If you are rolling your own secrets backend, you don't strictly need to use airflow's URI format. But
+    doing so makes it easier to switch between environment variables, the metastore, and your secrets backend.
 
 Connection URI format
 ---------------------
@@ -216,7 +236,6 @@ You can verify a URI is parsed correctly like so:
     my-login
     >>> print(c.password)
     my-password
-
 
 .. _generating_connection_uri:
 

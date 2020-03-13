@@ -34,7 +34,7 @@ from airflow.models import Connection
 from airflow.utils.module_loading import import_string
 
 CONN_ENV_PREFIX = "AIRFLOW_CONN_"
-CONFIG_SECTION = "secrets_backend"
+CONFIG_SECTION = "secrets"
 DEFAULT_SECRETS_SEARCH_PATH = [
     "airflow.secrets.environment_variables.EnvironmentVariablesSecretsBackend",
     "airflow.secrets.metastore.MetastoreSecretsBackend",
