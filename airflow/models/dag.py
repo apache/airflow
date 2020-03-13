@@ -1077,12 +1077,15 @@ class DAG(BaseDag, LoggingMixin):
         if get_tis:
             return tis
 
+        tis = tis.all()
+
         if dry_run:
-            tis = tis.all()
             session.expunge_all()
             return tis
 
-        count = tis.count()
+        # Do not use count() here, it's actually much slower than just retrieving all the rows when
+        # tis has multiple UNION statements.
+        count = len(tis)
         do_it = True
         if count == 0:
             return 0
@@ -1095,7 +1098,7 @@ class DAG(BaseDag, LoggingMixin):
             do_it = utils.helpers.ask_yesno(question)
 
         if do_it:
-            clear_task_instances(tis.all(),
+            clear_task_instances(tis,
                                  session,
                                  dag=self,
                                  )
