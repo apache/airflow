@@ -73,3 +73,24 @@ class GoogleAnalyticsHook(CloudBaseHook):
             if response["totalResults"] <= len(result):
                 break
         return result
+
+    def list_ad_words_links(self, account_id: str, web_property_id: str) -> dict:
+        """
+        Lists webProperty-Google Ads links for a given web property.
+
+        # :param account_id: ID of the account which the given web property belongs to.
+        # :type account_id: str
+        # :param web_property_id: Web property ID to retrieve the Google Ads links for.
+        # :type web_property_id: str
+
+        """
+
+        self.log.info("Retrieving ad words list...")
+        result = (
+            self.get_conn()
+            .management()  # pylint: disable=no-member
+            .webPropertyAdWordsLinks()
+            .list(accountId=account_id, webPropertyId=web_property_id)
+            .execute(num_retries=self.num_retries)
+        )
+        return result
