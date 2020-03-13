@@ -77,8 +77,6 @@ Limitations
     Use ``airflow tasks render`` cli command in such situation to debug or test rendering of you template_fields.
     Once the tasks execution starts the Rendered Template Fields will be stored in the DB in a separate table and
     after which the correct values would be showed in the Webserver (Rendered View tab).
-*   **Code View** will read the DAG File & show it using Pygments.
-    However, it does not need to Parse the Python file so it is still a small operation.
 
 .. note::
     You need Airflow >= 1.10.10 for completely stateless Webserver.
