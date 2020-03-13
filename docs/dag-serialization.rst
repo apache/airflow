@@ -81,7 +81,7 @@ Limitations
 .. note::
     You need Airflow >= 1.10.10 for completely stateless Webserver.
     Airflow 1.10.7 to 1.10.9 needed access to Dag files in some cases.
-    More Information: http://airflow.apache.org/docs/stable/dag-serialization.html#limitations
+    More Information: https://airflow.apache.org/docs/1.10.9/dag-serialization.html#limitations
 
 Using a different JSON Library
 ------------------------------
