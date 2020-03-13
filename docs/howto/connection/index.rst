@@ -97,7 +97,7 @@ Configuration
 
 When looking up a connection, by default airflow will search environment variables first and metastore database second.
 
-You may enable an alternative secrets backend by specifying the ``secrets_backend_class_name`` in the ``[secrets_backend]``
+You may enable an alternative secrets backend by specifying the ``class_name`` in the ``[secrets_backend]``
 section in ``airflow.cfg``.
 
 If you enable an alternative secrets backend, it will be searched first, followed by environment variables,
@@ -148,7 +148,7 @@ AWS SSM Parameter Store Secrets Backend
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To enable SSM parameter store, specify :py:class:`~airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend`
-as the ``secrets_backend_class_name`` in  ``[secrets_backend]`` section of ``airflow.cfg``.
+as the ``class_name`` in  ``[secrets_backend]`` section of ``airflow.cfg``.
 
 Here is a sample configuration:
 

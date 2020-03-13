@@ -30,13 +30,13 @@ class AwsSsmSecretsBackend(BaseSecretsBackend):
     """
     Retrieves Connection object from AWS SSM Parameter Store
 
-    Configurable via airflow config like so:
+    Configurable via ``airflow.cfg`` like so:
 
     .. code-block:: ini
 
         [secrets_backend]
-        secrets_backend_class_name = airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend
-        secrets_backend_config_json = {"prefix": "/airflow", "profile_name": null}
+        class_name = airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend
+        config_json = {"prefix": "/airflow", "profile_name": null}
 
     For example, if ssm path is ``/airflow/AIRFLOW_CONN_SMTP_DEFAULT``, this would be accessible if you
     provide ``{"prefix": "/airflow"}`` and request conn_id ``smtp_default``.
@@ -51,18 +51,13 @@ class AwsSsmSecretsBackend(BaseSecretsBackend):
     @property
     def prefix(self) -> str:
         """
-        Gets ssm prefix from conf.
-
         Ensures that there is no trailing slash.
-
-        Default value is ``''``
         """
         return self._prefix.rstrip("/")
 
     def build_ssm_path(self, conn_id: str):
         """
         Given conn_id, build SSM path.
-
         Assumes connection params use same naming convention as env vars, but may have arbitrary prefix.
 
         :param conn_id: connection id

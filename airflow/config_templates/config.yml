@@ -497,6 +497,7 @@
       default: ""
     - name: config_json
       description: |
+        The config_json param is loaded into a dictionary and passed to secrets backend __init__.
         See documentation for the secrets backend you are using. JSON is expected.
         Example for AWS SSM: {{"prefix": "/airflow", "profile_name": "my_aws_profile"}}
       version_added: ~
