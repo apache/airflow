@@ -26,14 +26,10 @@ from builtins import str, object
 from io import BytesIO as IO
 import functools
 import gzip
-import io
 import json
-import os
-import re
 import time
 import wtforms
 from wtforms.compat import text_type
-import zipfile
 
 from flask import after_this_request, request, Markup, Response
 from flask_admin.model import filters
@@ -384,24 +380,6 @@ def gzipped(f):
         return f(*args, **kwargs)
 
     return view_func
-
-
-ZIP_REGEX = re.compile(r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)))
-
-
-def open_maybe_zipped(f, mode='r'):
-    """
-    Opens the given file. If the path contains a folder with a .zip suffix, then
-    the folder is treated as a zip archive, opening the file inside the archive.
-
-    :return: a file object, as in `open`, or as in `ZipFile.open`.
-    """
-
-    _, archive, filename = ZIP_REGEX.search(f).groups()
-    if archive and zipfile.is_zipfile(archive):
-        return zipfile.ZipFile(archive, mode=mode).open(filename)
-    else:
-        return io.open(f, mode=mode)
 
 
 def make_cache_key(*args, **kwargs):

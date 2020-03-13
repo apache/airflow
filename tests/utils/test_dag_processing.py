@@ -31,9 +31,10 @@ from airflow.jobs import DagFileProcessor, LocalTaskJob as LJ
 from airflow.models import DagBag, TaskInstance as TI
 from airflow.utils import timezone
 from airflow.utils.dag_processing import (
-    DagFileProcessorAgent, DagFileProcessorManager, DagFileStat, SimpleTaskInstance, correct_maybe_zipped,
+    DagFileProcessorAgent, DagFileProcessorManager, DagFileStat, SimpleTaskInstance
 )
 from airflow.utils.db import create_session
+from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
 from airflow.utils.state import State
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
@@ -480,3 +481,33 @@ class TestCorrectMaybeZipped(unittest.TestCase):
         self.assertEqual('/path/to/archive.zip', args[0])
 
         self.assertEqual(dag_folder, '/path/to/archive.zip')
+
+
+class TestOpenMaybeZipped(unittest.TestCase):
+    def test_open_maybe_zipped_normal_file(self):
+        with mock.patch(
+            'io.open', mock.mock_open(read_data="data")
+        ) as mock_file:
+            open_maybe_zipped('/path/to/some/file.txt')
+            mock_file.assert_called_once_with('/path/to/some/file.txt', mode='r')
+
+    def test_open_maybe_zipped_normal_file_with_zip_in_name(self):
+        path = '/path/to/fakearchive.zip.other/file.txt'
+        with mock.patch(
+            'io.open', mock.mock_open(read_data="data")
+        ) as mock_file:
+            open_maybe_zipped(path)
+            mock_file.assert_called_once_with(path, mode='r')
+
+    @mock.patch("zipfile.is_zipfile")
+    @mock.patch("zipfile.ZipFile")
+    def test_open_maybe_zipped_archive(self, mocked_zip_file, mocked_is_zipfile):
+        mocked_is_zipfile.return_value = True
+        instance = mocked_zip_file.return_value
+        instance.open.return_value = mock.mock_open(read_data="data")
+
+        open_maybe_zipped('/path/to/archive.zip/deep/path/to/file.txt')
+
+        mocked_is_zipfile.assert_called_once_with('/path/to/archive.zip')
+        mocked_zip_file.assert_called_once_with('/path/to/archive.zip', mode='r')
+        instance.open.assert_called_once_with('deep/path/to/file.txt')

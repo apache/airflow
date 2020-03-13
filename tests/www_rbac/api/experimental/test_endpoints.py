@@ -48,11 +48,11 @@ class TestBase(unittest.TestCase):
 
 
 @parameterized_class([
-    {"dag_serialzation": "False"},
-    {"dag_serialzation": "True"},
+    {"dag_serialization": "False"},
+    {"dag_serialization": "True"},
 ])
 class TestApiExperimental(TestBase):
-    dag_serialzation = "False"
+    dag_serialization = "False"
 
     @classmethod
     def setUpClass(cls):
@@ -80,7 +80,7 @@ class TestApiExperimental(TestBase):
 
     def test_task_info(self):
         with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
+            {("core", "store_serialized_dags"): self.dag_serialization}
         ):
             url_template = '/api/experimental/dags/{}/tasks/{}'
 
@@ -105,7 +105,7 @@ class TestApiExperimental(TestBase):
 
     def test_get_dag_code(self):
         with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
+            {("core", "store_serialized_dags"): self.dag_serialization}
         ):
             url_template = '/api/experimental/dags/{}/code'
 
@@ -122,7 +122,7 @@ class TestApiExperimental(TestBase):
 
     def test_task_paused(self):
         with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
+            {("core", "store_serialized_dags"): self.dag_serialization}
         ):
             url_template = '/api/experimental/dags/{}/paused/{}'
 
@@ -142,7 +142,7 @@ class TestApiExperimental(TestBase):
 
     def test_trigger_dag(self):
         with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
+            {("core", "store_serialized_dags"): self.dag_serialization}
         ):
             url_template = '/api/experimental/dags/{}/dag_runs'
             run_id = 'my_run' + utcnow().isoformat()
@@ -174,7 +174,7 @@ class TestApiExperimental(TestBase):
 
     def test_trigger_dag_for_date(self):
         with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
+            {("core", "store_serialized_dags"): self.dag_serialization}
         ):
             url_template = '/api/experimental/dags/{}/dag_runs'
             dag_id = 'example_bash_operator'
@@ -233,7 +233,7 @@ class TestApiExperimental(TestBase):
 
     def test_task_instance_info(self):
         with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
+            {("core", "store_serialized_dags"): self.dag_serialization}
         ):
             url_template = '/api/experimental/dags/{}/dag_runs/{}/tasks/{}'
             dag_id = 'example_bash_operator'
@@ -288,7 +288,7 @@ class TestApiExperimental(TestBase):
 
     def test_dagrun_status(self):
         with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
+            {("core", "store_serialized_dags"): self.dag_serialization}
         ):
             url_template = '/api/experimental/dags/{}/dag_runs/{}'
             dag_id = 'example_bash_operator'

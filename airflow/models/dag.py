@@ -49,6 +49,7 @@ from airflow.exceptions import (
     AirflowDagCycleException, AirflowException, DagNotFound, TaskNotFound,
 )
 from airflow.models.dagbag import DagBag
+from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
@@ -1513,6 +1514,9 @@ class DAG(BaseDag, LoggingMixin):
         orm_dag.description = self.description
         orm_dag.schedule_interval = self.schedule_interval
         orm_dag.tags = self.get_dagtags(session=session)
+
+        if conf.getboolean('core', 'store_dag_code', fallback=False):
+            DagCode.bulk_sync_to_db([dag.fileloc for dag in orm_dag])
 
         session.commit()
 

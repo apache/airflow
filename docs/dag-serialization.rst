@@ -63,6 +63,8 @@ Add the following settings in ``airflow.cfg``:
     If set to True, Webserver reads from DB instead of parsing DAG files
 *   ``min_serialized_dag_update_interval``: This flag sets the minimum interval (in seconds) after which
     the serialized DAG in DB should be updated. This helps in reducing database write rate.
+*   ``store_dag_code``: This flag decides whether to persist DAG files code in DB.
+    If set to True, Webserver reads file contents from DB instead of trying to access files in a DAG folder.
 
 If you are updating Airflow from <1.10.7, please do not forget to run ``airflow db upgrade``.
 

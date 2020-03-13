@@ -25,10 +25,6 @@ import inspect
 import json
 import time
 import markdown
-import re
-import zipfile
-import os
-import io
 
 from builtins import str
 from past.builtins import basestring
@@ -215,24 +211,6 @@ def json_response(obj):
             obj, indent=4, cls=AirflowJsonEncoder),
         status=200,
         mimetype="application/json")
-
-
-ZIP_REGEX = re.compile(r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)))
-
-
-def open_maybe_zipped(f, mode='r'):
-    """
-    Opens the given file. If the path contains a folder with a .zip suffix, then
-    the folder is treated as a zip archive, opening the file inside the archive.
-
-    :return: a file object, as in `open`, or as in `ZipFile.open`.
-    """
-
-    _, archive, filename = ZIP_REGEX.search(f).groups()
-    if archive and zipfile.is_zipfile(archive):
-        return zipfile.ZipFile(archive, mode=mode).open(filename)
-    else:
-        return io.open(f, mode=mode)
 
 
 def make_cache_key(*args, **kwargs):

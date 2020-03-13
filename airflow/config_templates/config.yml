@@ -437,6 +437,16 @@
       type: string
       example: ~
       default: "30"
+    - name: store_dag_code
+      description: |
+        Whether to persist DAG files code in DB.
+        If set to True, Webserver reads file contents from DB instead of
+        trying to access files in a DAG folder. Defaults to same as the
+        store_serialized_dags setting.
+      version_added: 2.0.0
+      type: string
+      example: ~
+      default: "%(store_serialized_dags)s"
     - name: max_num_rendered_ti_fields_per_task
       description: |
         Maximum number of Rendered Task Instance Fields (Template Fields) per task to store
