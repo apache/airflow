@@ -295,15 +295,12 @@ class SSHHook(BaseHook):
         with open(known_hosts_file_ref, 'r') as known_hosts:
             file_content = known_hosts.read()
 
-        if len(file_content) == 0:
+        if len(file_content) == 0 or record not in file_content:
             with open(known_hosts_file_ref, 'a') as known_hosts:
                 SSHHook._add_new_record_to_known_hosts(
                     record,
                     known_hosts
                 )
-        elif record not in file_content:
-            with open(known_hosts_file_ref, 'a') as known_hosts:
-                SSHHook._add_new_record_to_known_hosts(record, known_hosts)
 
     @staticmethod
     def _format_known_hosts_record(host, key_type, public_key):

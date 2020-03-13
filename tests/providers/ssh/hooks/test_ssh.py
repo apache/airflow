@@ -300,72 +300,32 @@ class TestSSHHook(unittest.TestCase):
             )
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.open', mock.mock_open(read_data=''))
-    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
-    def test_ssh_connection_with_public_key_extra(self, ssh_mock):
-        hook = SSHHook(
-            ssh_conn_id=self.CONN_SSH_WITH_PUBLIC_KEY_EXTRA,
-            remote_host='remote_host',
-            port='port',
-            username='username',
-            timeout=10,
-        )
+    def test_ssh_connection_with_public_key_extra(self):
+        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_PUBLIC_KEY_EXTRA)
+        conn = hook.get_connection(self.CONN_SSH_WITH_PUBLIC_KEY_EXTRA)
+        assert {
+                    "private_key": TEST_PRIVATE_KEY,
+                    "host_key": TEST_HOST_PUBLIC_KEY
+                } == conn.extra_dejson
 
-        with hook.get_conn():
-            ssh_mock.return_value.connect.assert_called_once_with(
-                hostname='remote_host',
-                username='username',
-                pkey=TEST_PKEY,
-                timeout=10,
-                compress=True,
-                port='port',
-                sock=None
-            )
-
-        # TODO - mock and check known_hosts file not touched
+    def test_ssh_connection_with_public_key_and_no_host_key_check_true_extra(self):
+        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_TRUE_EXTRA)
+        conn = hook.get_connection(self.CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_TRUE_EXTRA)
+        assert {
+                    "private_key": TEST_PRIVATE_KEY,
+                    "host_key": TEST_HOST_PUBLIC_KEY,
+                    "no_host_key_check": True
+                } == conn.extra_dejson
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.open', mock.mock_open(read_data=''))
-    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
-    def test_ssh_connection_with_public_key_and_no_host_key_check_true_extra(self, ssh_mock):
-        hook = SSHHook(
-            ssh_conn_id=self.CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_TRUE_EXTRA,
-            remote_host='remote_host',
-            port='port',
-            username='username',
-            timeout=10,
-        )
-
-        with hook.get_conn():
-            ssh_mock.return_value.connect.assert_called_once_with(
-                hostname='remote_host',
-                username='username',
-                pkey=TEST_PKEY,
-                timeout=10,
-                compress=True,
-                port='port',
-                sock=None
-            )
-
-    @mock.patch('airflow.providers.ssh.hooks.ssh.open', mock.mock_open(read_data=''))
-    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
-    def test_ssh_connection_with_public_key_and_no_host_key_check_false_extra(self, ssh_mock):
-        hook = SSHHook(
-            ssh_conn_id=self.CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_FALSE_EXTRA,
-            remote_host='remote_host',
-            port='port',
-            username='username',
-            timeout=10,
-        )
-
-        with hook.get_conn():
-            ssh_mock.return_value.connect.assert_called_once_with(
-                hostname='remote_host',
-                username='username',
-                pkey=TEST_PKEY,
-                timeout=10,
-                compress=True,
-                port='port',
-                sock=None
-            )
+    def test_ssh_connection_with_public_key_and_no_host_key_check_false_extra(self):
+        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_FALSE_EXTRA)
+        conn = hook.get_connection(self.CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_FALSE_EXTRA)
+        assert {
+                    "private_key": TEST_PRIVATE_KEY,
+                    "host_key": TEST_HOST_PUBLIC_KEY,
+                    "no_host_key_check": False
+                } == conn.extra_dejson
 
     @staticmethod
     def test_format_known_hosts_record():
