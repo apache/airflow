@@ -120,11 +120,11 @@ class SSHHook(BaseHook):
                         and\
                         str(extra_options["allow_host_key_change"]).lower() == 'true':
                     self.allow_host_key_change = True
-                if "host_public_key" in extra_options and self.no_host_key_check is False:
+                if "host_key" in extra_options and self.no_host_key_check is False:
                     self.add_host_to_known_hosts(
                         self.remote_host,
                         'ssh-rsa',
-                        extra_options["host_public_key"]
+                        extra_options["host_key"]
                     )
 
         if self.pkey and self.key_file:
@@ -283,27 +283,27 @@ class SSHHook(BaseHook):
 
     @staticmethod
     def _add_new_record_to_known_hosts(record, file):
-        file.write(''.join([record]))
+        file.write(''.join([record, '\n']))
 
     @staticmethod
-    def add_host_to_known_hosts(host, key_type, public_key):
+    def add_host_to_known_hosts(host, key_type, host_key):
         """This adds a specified remote_host public key to the known_hosts
             in order to prevent man-in-the-middle attacks."""
         # The .ssh hidden directory is required and not present on all airflow deployments
         known_hosts_file_ref = SSHHook._create_known_hosts()
-
+        record = SSHHook._format_known_hosts_record(host, key_type, host_key)
         with open(known_hosts_file_ref, 'r') as known_hosts:
-            content = known_hosts.read()
+            file_content = known_hosts.read()
 
-        if len(content) == 0:
+        if len(file_content) == 0:
             with open(known_hosts_file_ref, 'a') as known_hosts:
                 SSHHook._add_new_record_to_known_hosts(
-                    SSHHook._format_known_hosts_record(host, key_type, public_key),
+                    record,
                     known_hosts
                 )
-        elif SSHHook._format_known_hosts_record(host, key_type, public_key) not in content:
+        elif record not in file_content:
             with open(known_hosts_file_ref, 'a') as known_hosts:
-                SSHHook._add_new_record_to_known_hosts('\n' + SSHHook._format_known_hosts_record(host, key_type, public_key), known_hosts)
+                SSHHook._add_new_record_to_known_hosts(record, known_hosts)
 
     @staticmethod
     def _format_known_hosts_record(host, key_type, public_key):
