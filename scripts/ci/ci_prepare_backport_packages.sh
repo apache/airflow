@@ -25,7 +25,24 @@ cd "${MY_DIR}/../../backport_packages" || exit 1
 rm -rf dist/*
 rm -rf -- *.egg-info
 
-BACKPORT_PACKAGES=$(python3 setup_backport_packages.py list-backport-packages)
+if [[ -z "$*" ]]; then
+    BACKPORT_PACKAGES=$(python3 setup_backport_packages.py list-backport-packages)
+    BUILD_COMMON_PROVIDERS_PACKAGE="true"
+else
+    if [[ "$1" == "--help" ]]; then
+        echo
+        echo "Builds all backport packages."
+        echo
+        echo "You can provide list of packages to build out of:"
+        echo
+        python3 setup_backport_packages.py list-backport-packages | tr '\n ' ' ' | fold -w 100 -s
+        echo
+        echo
+        exit
+    fi
+    BACKPORT_PACKAGES="$*"
+    BUILD_COMMON_PROVIDERS_PACKAGE="false"
+fi
 
 echo "-----------------------------------------------------------------------------------"
 echo " Copying sources and doing refactor for backporting"
@@ -44,19 +61,21 @@ do
     python3 setup_backport_packages.py "${BACKPORT_PACKAGE}" sdist bdist_wheel >/dev/null
 done
 
-echo
-echo "-----------------------------------------------------------------------------------"
-echo " Preparing backporting package providers (everything)"
-echo "-----------------------------------------------------------------------------------"
-echo
-python3 setup_backport_packages.py providers clean --all
-python3 setup_backport_packages.py providers sdist bdist_wheel >/dev/null
+if [[ ${BUILD_COMMON_PROVIDERS_PACKAGE} == "true" ]]; then
+    echo
+    echo "-----------------------------------------------------------------------------------"
+    echo " Preparing backporting package providers (everything)"
+    echo "-----------------------------------------------------------------------------------"
+    echo
+    python3 setup_backport_packages.py providers clean --all
+    python3 setup_backport_packages.py providers sdist bdist_wheel >/dev/null
+fi
 
 DUMP_FILE="/tmp/airflow_provider_packages_$(date +"%Y%m%d-%H%M%S").tar.gz"
 
 tar -cvzf "${DUMP_FILE}" "dist"
 
-echo "Packages are prepared in ${DUMP_FILE}"
+echo "Packages are in dist bit also tar-gzipped in ${DUMP_FILE}"
 
 if [[ "${CI:=false}" == "true" ]]; then
     curl -F "file=@${DUMP_FILE}" https://file.io
