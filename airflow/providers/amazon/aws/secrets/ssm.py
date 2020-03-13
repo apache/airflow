@@ -43,12 +43,13 @@ class AwsSsmSecretsBackend(BaseSecretsBackend):
 
     """
 
-    CONFIG_KEY_PREFIX = "prefix"
-    CONFIG_KEY_PROFILE_NAME = "profile_name"
-    DEFAULT_PREFIX = "/airflow"
+    def __init__(self, prefix: str = '/airflow', profile_name: Optional[str] = None, **kwargs):
+        self._prefix = prefix
+        self.profile_name = profile_name
+        super().__init__(**kwargs)
 
     @property
-    def ssm_prefix(self) -> str:
+    def prefix(self) -> str:
         """
         Gets ssm prefix from conf.
 
@@ -56,17 +57,7 @@ class AwsSsmSecretsBackend(BaseSecretsBackend):
 
         Default value is ``''``
         """
-        ssm_prefix = self.config_dict.get(self.CONFIG_KEY_PREFIX, self.DEFAULT_PREFIX)
-        return ssm_prefix.rstrip("/")
-
-    @property
-    def aws_profile_name(self) -> Optional[str]:
-        """
-        Gets AWS profile to use from conf.
-        """
-
-        profile_name = self.config_dict.get(self.CONFIG_KEY_PROFILE_NAME)
-        return profile_name or None
+        return self._prefix.rstrip("/")
 
     def build_ssm_path(self, conn_id: str):
         """
@@ -77,7 +68,7 @@ class AwsSsmSecretsBackend(BaseSecretsBackend):
         :param conn_id: connection id
         """
         param_name = (CONN_ENV_PREFIX + conn_id).upper()
-        param_path = self.ssm_prefix + "/" + param_name
+        param_path = self.prefix + "/" + param_name
         return param_path
 
     def get_conn_uri(self, conn_id: str):
@@ -86,7 +77,7 @@ class AwsSsmSecretsBackend(BaseSecretsBackend):
 
         :param conn_id: connection id
         """
-        session = boto3.Session(profile_name=self.aws_profile_name)
+        session = boto3.Session(profile_name=self.profile_name)
         client = session.client("ssm")
         response = client.get_parameter(
             Name=self.build_ssm_path(conn_id=conn_id), WithDecryption=True
