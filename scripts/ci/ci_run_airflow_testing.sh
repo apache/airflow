@@ -31,6 +31,8 @@ prepare_build
 
 rebuild_ci_image_if_needed
 
+set_mysql_encoding
+
 # Test environment
 export BACKEND=${BACKEND:="sqlite"}
 

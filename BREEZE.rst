@@ -808,7 +808,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Python version used for the image. This is always major/minor version.
           One of:
 
-                 2.7 3.5 3.6
+                 2.7 3.5 3.6 3.7
 
   -b, --backend <BACKEND>
           Backend to use for tests - it determines which database is used.

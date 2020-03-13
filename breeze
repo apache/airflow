@@ -403,6 +403,7 @@ export POSTGRES_HOST_PORT="${POSTGRES_HOST_PORT}"
 export POSTGRES_VERSION="${POSTGRES_VERSION}"
 export MYSQL_HOST_PORT="${MYSQL_HOST_PORT}"
 export MYSQL_VERSION="${MYSQL_VERSION}"
+export MYSQL_ENCODING="${MYSQL_ENCODING}"
 export AIRFLOW_CI_IMAGE="${AIRFLOW_CI_IMAGE}"
 docker-compose --log-level INFO ${CMD}\$${EXPANSION}"
 EOF
@@ -1566,6 +1567,8 @@ function run_breeze_command {
 setup_default_breeze_variables
 
 initialize_breeze_environment
+
+set_mysql_encoding
 
 basic_sanity_checks
 

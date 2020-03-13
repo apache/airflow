@@ -65,6 +65,7 @@ function initialize_breeze_environment {
     export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}
     export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:="25433"}
     export MYSQL_HOST_PORT=${MYSQL_HOST_PORT:="23306"}
+    export MYSQL_VERSION=${MYSQL_VERSION:="5.6"}
 
     # Default MySQL/Postgres versions
     export POSTGRES_VERSION=${POSTGRES_VERSION:="9.6"}
@@ -1246,5 +1247,18 @@ function push_image() {
     verbose_docker push "${AIRFLOW_REMOTE_MANIFEST_IMAGE}"
     if [[ -n ${DEFAULT_IMAGE:=""} ]]; then
         verbose_docker push "${DEFAULT_IMAGE}"
+    fi
+}
+
+
+function set_mysql_encoding() {
+    export MYSQL_ENCODING="utf8mb4"
+
+    if [[ ${MYSQL_VERSION:="5.7"} == "5.6" ]]; then
+        # In MySQL 5.6 maximum size of the index is 1536 bytes and it is too small for
+        # Airflow for utf8mb4 encoding (it takes 4 bytes per character and some indexes
+        # Are bigger than 1536 in this case. So for MySQL 5.6 we need to change the encoding
+        # to utf8 (which is an alias to utf8mb3)
+        export MYSQL_ENCODING=utf8
     fi
 }

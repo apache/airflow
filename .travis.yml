@@ -106,6 +106,21 @@ jobs:
         ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
         RUN_INTEGRATION_TESTS=all
       stage: test
+    - name: "Tests [Postgres9.6][Py3.7][kerberos]"
+      env: >-
+        BACKEND=postgres
+        POSTGRES_VERSION=9.6
+        ENABLED_INTEGRATIONS="kerberos"
+        PYTHON_VERSION=3.6
+      stage: test
+    - name: "Tests [Postgres10][Py3.7][integrations]"
+      env: >-
+        BACKEND=postgres
+        PYTHON_VERSION=3.6
+        POSTGRES_VERSION=10
+        ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
+        RUN_INTEGRATION_TESTS=all
+      stage: test
     - name: "Tests [Postgres10][Py3.6][kerberos]"
       env: >-
         BACKEND=postgres
@@ -154,6 +169,12 @@ jobs:
         ENABLED_INTEGRATIONS="kerberos"
         MYSQL_VERSION=5.7
         PYTHON_VERSION=2.7
+      stage: test
+    - name: "Tests [MySQL5.7][Py3.7]"
+      env: >-
+        BACKEND=mysql
+        MYSQL_VERSION=5.7
+        PYTHON_VERSION=3.7
       stage: test
 before_install:
   - ./scripts/ci/ci_before_install.sh
