@@ -103,7 +103,7 @@ class UtcDateTime(TypeDecorator):
             # See https://issues.apache.org/jira/browse/AIRFLOW-7001
             if using_mysql:
                 from airflow.utils.timezone import make_naive
-                return make_naive(value.astimezone(utc))
+                return make_naive(value, timezone=utc)
             return value.astimezone(utc)
 
     def process_result_value(self, value, dialect):
