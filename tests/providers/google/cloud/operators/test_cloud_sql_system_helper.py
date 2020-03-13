@@ -23,6 +23,7 @@ import os
 import time
 from os.path import expanduser
 from threading import Thread
+from typing import Optional
 from urllib.parse import urlsplit
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_CLOUDSQL_KEY, GcpAuthenticator
@@ -60,6 +61,11 @@ DV_VERSION_POSTGRES = 'POSTGRES_9_6'
 
 HOME_DIR = expanduser("~")
 
+TEARDOWN_LOCK_FILE = "/tmp/do_not_teardown_cloudsql_database"
+TEARDOWN_LOCK_FILE_QUERY = "/tmp/do_not_teardown_cloudsql_database_query"
+
+QUERY_SUFFIX = "-query"
+
 
 def get_absolute_path(path):
     if path.startswith("/"):
@@ -78,32 +84,47 @@ client_key_file_mysql = get_absolute_path(GCSQL_MYSQL_CLIENT_KEY_FILE)
 
 
 def get_postgres_instance_name(instance_suffix=''):
-    return os.environ.get('GCSQL_POSTGRES_INSTANCE_NAME' + instance_suffix,
-                          'testpostgres')
+    if instance_suffix is None:
+        return None
+    return os.environ.get('GCSQL_POSTGRES_INSTANCE_NAME', 'testpostgres') + instance_suffix
 
 
 def get_mysql_instance_name(instance_suffix=''):
-    return os.environ.get('GCSQL_MYSQL_INSTANCE_NAME' + instance_suffix,
-                          'testmysql')
+    if instance_suffix is None:
+        return None
+    return os.environ.get('GCSQL_MYSQL_INSTANCE_NAME', 'testmysql') + instance_suffix
 
 
 class CloudSqlQueryTestHelper(LoggingCommandExecutor):
 
-    def create_instances(self, instance_suffix=''):
+    def create_instances(self, instance_suffix='',
+                         failover_instance_suffix=None,
+                         master_instance_suffix=None):
         thread_mysql = Thread(target=lambda: self.__create_instance(
-            get_mysql_instance_name(instance_suffix), DB_VERSION_MYSQL))
+            get_mysql_instance_name(instance_suffix), DB_VERSION_MYSQL,
+            master_instance_name=get_mysql_instance_name(master_instance_suffix),
+            failover_replica_name=get_mysql_instance_name(failover_instance_suffix)
+        ))
         thread_postgres = Thread(target=lambda: self.__create_instance(
-            get_postgres_instance_name(instance_suffix), DV_VERSION_POSTGRES))
+            get_postgres_instance_name(instance_suffix), DV_VERSION_POSTGRES,
+            master_instance_name=get_postgres_instance_name(master_instance_suffix),
+            failover_replica_name=get_postgres_instance_name(failover_instance_suffix)
+        ))
         thread_mysql.start()
         thread_postgres.start()
         thread_mysql.join()
         thread_postgres.join()
 
-    def delete_instances(self, instance_suffix=''):
+    def delete_instances(self, instance_suffix='',
+                         master_instance_suffix=None):
         thread_mysql = Thread(target=lambda: self.__delete_instance(
-            get_mysql_instance_name(instance_suffix)))
+            get_mysql_instance_name(instance_suffix),
+            master_instance_name=get_mysql_instance_name(master_instance_suffix)
+        ))
         thread_postgres = Thread(target=lambda: self.__delete_instance(
-            get_postgres_instance_name(instance_suffix)))
+            get_postgres_instance_name(instance_suffix),
+            master_instance_name=get_mysql_instance_name(master_instance_suffix)
+        ))
         thread_mysql.start()
         thread_postgres.start()
         thread_mysql.join()
@@ -181,10 +202,16 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
     def delete_service_account_acls(self):
         self.__delete_service_accounts_acls()
 
-    def __create_instance(self, instance_name, db_version):
-        self.log.info('Creating a test %s instance "%s"...', db_version, instance_name)
+    def __create_instance(self, instance_name, db_version,
+                          failover_replica_name=None,
+                          master_instance_name=None):
+        self.log.info('Creating a test %s instance "%s"... Failover(%s), Master(%s)',
+                      db_version, instance_name, failover_replica_name, master_instance_name)
         try:
-            create_instance_opcode = self.__create_sql_instance(instance_name, db_version)
+            create_instance_opcode = self.__create_sql_instance(
+                instance_name, db_version,
+                failover_replica_name=failover_replica_name,
+                master_instance_name=master_instance_name)
             if create_instance_opcode:  # return code 1, some error occurred
                 operation_name = self.__get_operation_name(instance_name)
                 self.log.info('Waiting for operation: %s ...', operation_name)
@@ -270,7 +297,12 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
                            'Aborting setting up test instance and certs.\n\n%s', ex)
             raise ex
 
-    def __delete_instance(self, instance_name: str) -> None:
+    def __delete_instance(self,
+                          instance_name: str,
+                          master_instance_name: Optional[str]) -> None:
+        if master_instance_name is not None:
+            self.__wait_for_operations(master_instance_name)
+        self.__wait_for_operations(instance_name)
         self.log.info('Deleting Cloud SQL instance "%s"...', instance_name)
         self.execute_cmd(['gcloud', 'sql', 'instances', 'delete',
                           instance_name, '--quiet'])
@@ -280,13 +312,22 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
         return self.check_output(
             ['curl', 'https://ipinfo.io/ip']).decode('utf-8').strip()
 
-    def __create_sql_instance(self, instance_name: str, db_version: str) -> int:
-        return self.execute_cmd(
-            ['gcloud', 'sql', 'instances', 'create', instance_name,
-             '--region', GCP_LOCATION,
-             '--project', GCP_PROJECT_ID,
-             '--database-version', db_version,
-             '--tier', 'db-f1-micro'])
+    def __create_sql_instance(self, instance_name: str, db_version: str, master_instance_name: Optional[str],
+                              failover_replica_name: Optional[str]) -> int:
+        cmd = ['gcloud', 'sql', 'instances', 'create', instance_name,
+               '--region', GCP_LOCATION,
+               '--project', GCP_PROJECT_ID,
+               '--database-version', db_version,
+               '--tier', 'db-f1-micro']
+        if master_instance_name:
+            cmd.extend(['--master-instance-name', master_instance_name])
+            self.__wait_for_operations(master_instance_name)
+
+        if failover_replica_name and failover_replica_name.find('mysql') >= 0:
+            if failover_replica_name:
+                cmd.extend(['--failover-replica-name', failover_replica_name])
+                cmd.extend(['--enable-bin-log'])
+        return self.execute_cmd(cmd)
 
     def __get_server_ca_cert(self, instance_name: str) -> bytes:
         self.log.info('Getting server CA cert for "%s"...', instance_name)
@@ -356,7 +397,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
     def __delete_client_cert(self, instance_name, common_name):
         self.log.info('Deleting client key and cert for "%s"...', instance_name)
         self.execute_cmd(['gcloud', 'sql', 'ssl', 'client-certs', 'delete', common_name,
-                          '-i', instance_name, '--quiet'])
+                          '--instance', instance_name, '--quiet'])
         self.log.info('... Done.')
 
     def __create_client_cert(self, instance_name, client_key_file, common_name):
@@ -371,8 +412,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
 
     def __get_operation_name(self, instance_name: str) -> str:
         op_name_bytes = self.check_output(
-            ['gcloud', 'sql', 'operations', 'list', '-i',
-             instance_name, '--format=get(name)'])
+            ['gcloud', 'sql', 'operations', 'list', '--instance', instance_name, '--format=get(name)'])
         return op_name_bytes.decode('utf-8').strip()
 
     def __print_operations(self, operations):
@@ -385,15 +425,14 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
             operations = self.__get_operations(instance_name)
             self.__print_operations(operations)
             if "RUNNING" in operations:
-                self.log.info("Found a running operation. Sleeping 5s before retrying...")
+                self.log.info("Found a running operation %s. Sleeping 5s before retrying...", operations)
                 time.sleep(5)
             else:
                 break
 
     def __get_ip_address(self, instance_name: str, env_var: str) -> str:
         ip_address = self.check_output(
-            ['gcloud', 'sql', 'instances', 'describe',
-             instance_name,
+            ['gcloud', 'sql', 'instances', 'describe', instance_name,
              '--format=get(ipAddresses[0].ipAddress)']
         ).decode('utf-8').strip()
         os.environ[env_var] = ip_address
@@ -415,8 +454,7 @@ if __name__ == '__main__':
         description='Create or delete Cloud SQL instances for system tests.')
     parser.add_argument('--action', required=True,
                         choices=('create', 'delete', 'setup-instances',
-                                 'create2', 'delete2', 'setup-instances2',
-                                 'before-tests', 'after-tests',
+                                 'create-query', 'delete-query',
                                  'delete-service-accounts-acls'))
     action = parser.parse_args().action
 
@@ -427,21 +465,40 @@ if __name__ == '__main__':
     gcp_authenticator.gcp_store_authentication()
     try:
         gcp_authenticator.gcp_authenticate()
-        if action == 'before-tests':
-            pass
-        elif action == 'after-tests':
-            pass
-        elif action == 'create':
-            helper.create_instances()
-        elif action == 'delete':
-            helper.delete_instances()
-        elif action == 'create2':
+        if action == 'create':
+            helper.create_instances(failover_instance_suffix='-failover-replica')
+            helper.create_instances(instance_suffix="-read-replica",
+                                    master_instance_suffix='')
             helper.create_instances(instance_suffix="2")
-        elif action == 'delete2':
+            helper.create_instances(instance_suffix=QUERY_SUFFIX)
+            helper.setup_instances(instance_suffix=QUERY_SUFFIX)
+            with open(TEARDOWN_LOCK_FILE, "wt") as teardown_file:
+                teardown_file.write("")
+
+        elif action == 'delete':
             helper.delete_instances(instance_suffix="2")
+            helper.delete_instances(instance_suffix="-failover-replica", master_instance_suffix='')
+            helper.delete_instances(instance_suffix="-read-replica", master_instance_suffix='')
+            helper.delete_instances()
+            try:
+                os.remove(TEARDOWN_LOCK_FILE)
+            except FileNotFoundError:
+                pass
+        elif action == 'create-query':
+            helper.create_instances(instance_suffix=QUERY_SUFFIX)
+            helper.setup_instances(instance_suffix=QUERY_SUFFIX)
+            with open(TEARDOWN_LOCK_FILE_QUERY, "wt") as teardown_file:
+                teardown_file.write("")
+
+        elif action == 'delete-query':
+            helper.delete_instances(instance_suffix=QUERY_SUFFIX)
+            try:
+                os.remove(TEARDOWN_LOCK_FILE_QUERY)
+            except FileNotFoundError:
+                pass
+
         elif action == 'setup-instances':
             helper.setup_instances()
-        elif action == 'setup-instances2':
             helper.setup_instances(instance_suffix="2")
         elif action == 'delete-service-accounts-acls':
             helper.delete_service_account_acls()

@@ -84,7 +84,7 @@ def provide_gcp_context(
     )
 
 
-@pytest.mark.system("google.cloud")
+@pytest.mark.system("google")
 class GoogleSystemTest(SystemTest):
     @staticmethod
     def _project_id():

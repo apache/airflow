@@ -202,7 +202,7 @@ with models.DAG(
     sql_instance_read_replica_create = CloudSQLCreateInstanceOperator(
         project_id=GCP_PROJECT_ID,
         body=read_replica_body,
-        instance=INSTANCE_NAME2,
+        instance=READ_REPLICA_NAME,
         task_id='sql_instance_read_replica_create'
     )
 
@@ -217,13 +217,14 @@ with models.DAG(
         instance=INSTANCE_NAME,
         task_id='sql_instance_patch_task'
     )
+    # [END howto_operator_cloudsql_patch]
 
     sql_instance_patch_task2 = CloudSQLInstancePatchOperator(
+        project_id=GCP_PROJECT_ID,
         body=patch_body,
         instance=INSTANCE_NAME,
         task_id='sql_instance_patch_task2'
     )
-    # [END howto_operator_cloudsql_patch]
 
     # [START howto_operator_cloudsql_db_create]
     sql_db_create_task = CloudSQLCreateInstanceDatabaseOperator(

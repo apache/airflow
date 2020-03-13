@@ -20,7 +20,9 @@ import os
 import pytest
 
 from airflow.exceptions import AirflowException
-from tests.providers.google.cloud.operators.test_cloud_sql_system_helper import CloudSqlQueryTestHelper
+from tests.providers.google.cloud.operators.test_cloud_sql_system_helper import (
+    TEARDOWN_LOCK_FILE, CloudSqlQueryTestHelper,
+)
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_CLOUDSQL_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
@@ -34,13 +36,16 @@ SQL_QUERY_TEST_HELPER = CloudSqlQueryTestHelper()
 class CloudSqlExampleDagsIntegrationTest(GoogleSystemTest):
     @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def tearDown(self):
-        # Delete instances just in case the test failed and did not cleanup after itself
-        with self.authentication():
-            SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="-failover-replica")
-            SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="-read-replica")
-            SQL_QUERY_TEST_HELPER.delete_instances()
-            SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="2")
-            SQL_QUERY_TEST_HELPER.delete_service_account_acls()
+        if os.path.exists(TEARDOWN_LOCK_FILE):
+            self.log.info("Skip deleting instances as they were created manually (helps to iterate on tests)")
+        else:
+            # Delete instances just in case the test failed and did not cleanup after itself
+            with self.authentication():
+                SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="-failover-replica")
+                SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="-read-replica")
+                SQL_QUERY_TEST_HELPER.delete_instances()
+                SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="2")
+                SQL_QUERY_TEST_HELPER.delete_service_account_acls()
         super().tearDown()
 
     @provide_gcp_context(GCP_CLOUDSQL_KEY)
@@ -51,8 +56,8 @@ class CloudSqlExampleDagsIntegrationTest(GoogleSystemTest):
             self.log.warning(
                 "In case you see 'The instance or operation is not in an appropriate "
                 "state to handle the request' error - you "
-                "can remove '.random' file from airflow folder and re-run "
-                "the test. This will generate random name of the database for next run "
+                "can remove 'random.txt' file from /files/airflow-breeze-config/ folder and restart "
+                "breeze environment. This will generate random name of the database for next run "
                 "(the problem is that Cloud SQL keeps names of deleted instances in "
                 "short-term cache).")
             raise e

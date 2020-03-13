@@ -19,7 +19,6 @@
 """
 This module contains a Google Cloud API base hook.
 """
-
 import functools
 import json
 import logging
@@ -39,6 +38,7 @@ from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequ
 from google.api_core.gapic_v1.client_info import ClientInfo
 from google.auth import _cloud_sdk
 from google.auth.environment_vars import CREDENTIALS
+from googleapiclient.errors import HttpError
 from googleapiclient.http import set_user_agent
 
 from airflow import version
@@ -92,11 +92,30 @@ def is_soft_quota_exception(exception: Exception):
     return False
 
 
+def is_operation_in_progress_exception(exception: Exception):
+    """
+    Some of the calls return 429 (too many requests!) or 409 errors (Conflict)
+    in case of operation in progress.
+
+    * Google Cloud SQL
+    """
+    if isinstance(exception, HttpError):
+        return exception.resp.status == 429 or exception.resp.status == 409
+    return False
+
+
 class retry_if_temporary_quota(tenacity.retry_if_exception):  # pylint: disable=invalid-name
     """Retries if there was an exception for exceeding the temporary quote limit."""
 
     def __init__(self):
         super().__init__(is_soft_quota_exception)
+
+
+class retry_if_operation_in_progress(tenacity.retry_if_exception):  # pylint: disable=invalid-name
+    """Retries if there was an exception for exceeding the temporary quote limit."""
+
+    def __init__(self):
+        super().__init__(is_operation_in_progress_exception)
 
 
 RT = TypeVar('RT')  # pylint: disable=invalid-name
@@ -295,13 +314,33 @@ class CloudBaseHook(BaseHook):
     @staticmethod
     def quota_retry(*args, **kwargs) -> Callable:
         """
-        A decorator who provides a mechanism to repeat requests in response to exceeding a temporary quote
+        A decorator that provides a mechanism to repeat requests in response to exceeding a temporary quote
         limit.
         """
         def decorator(fun: Callable):
             default_kwargs = {
                 'wait': tenacity.wait_exponential(multiplier=1, max=100),
                 'retry': retry_if_temporary_quota(),
+                'before': tenacity.before_log(log, logging.DEBUG),
+                'after': tenacity.after_log(log, logging.DEBUG),
+            }
+            default_kwargs.update(**kwargs)
+            return tenacity.retry(
+                *args, **default_kwargs
+            )(fun)
+        return decorator
+
+    @staticmethod
+    def operation_in_progress_retry(*args, **kwargs) -> Callable:
+        """
+        A decorator that provides a mechanism to repeat requests in response to
+        operation in progress (HTTP 409)
+        limit.
+        """
+        def decorator(fun: Callable):
+            default_kwargs = {
+                'wait': tenacity.wait_exponential(multiplier=1, max=300),
+                'retry': retry_if_operation_in_progress(),
                 'before': tenacity.before_log(log, logging.DEBUG),
                 'after': tenacity.after_log(log, logging.DEBUG),
             }
