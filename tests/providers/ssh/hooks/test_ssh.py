@@ -345,9 +345,7 @@ class TestSSHHook(unittest.TestCase):
                 sock=None
             )
 
-        # TODO - mock and check known_hosts file not touched
-
-    #@mock.patch('airflow.providers.ssh.hooks.ssh.open', mock.mock_open(read_data=''))
+    @mock.patch('airflow.providers.ssh.hooks.ssh.open', mock.mock_open(read_data=''))
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
     def test_ssh_connection_with_public_key_and_no_host_key_check_false_extra(self, ssh_mock):
         hook = SSHHook(
