@@ -30,7 +30,7 @@ class GoogleAnalyticsHook(CloudBaseHook):
     def __init__(
         self,
         api_version: str = "v3",
-        gcp_connection_id: str = "google cloud default",
+        gcp_connection_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
@@ -66,10 +66,45 @@ class GoogleAnalyticsHook(CloudBaseHook):
             # start index has value 1
             request = accounts.list(start_index=len(result) + 1)
             response = request.execute(num_retries=self.num_retries)
-            result.extend(response.get('items', []))
+            result.extend(response.get("items", []))
             # result is the number of fetched accounts from Analytics
             # when all accounts will be add to the result
             # the loop will be break
+            if response["totalResults"] <= len(result):
+                break
+        return result
+
+    def list_ad_words_links(
+        self, account_id: str, web_property_id: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Lists webProperty-Google Ads links for a given web property.
+
+        :param account_id: ID of the account which the given web property belongs to.
+        :type account_id: str
+        :param web_property_id: Web property UA-string to retrieve the Google Ads links for.
+        :type web_property_id: str
+
+        :returns: list of entity Google Ads links.
+        :rtype: list
+        """
+
+        self.log.info("Retrieving ad words list...")
+        result = []  # type: List[Dict]
+        conn = self.get_conn()
+        ads_links = conn.management().webPropertyAdWordsLinks()  # pylint: disable=no-member
+        while True:
+            # start index has value 1
+            request = ads_links.list(
+                accountId=account_id,
+                webPropertyId=web_property_id,
+                start_index=len(result) + 1,
+            )
+            response = request.execute(num_retries=self.num_retries)
+            result.extend(response.get("items", []))
+            # result is the number of fetched links from Analytics
+            # when all links will be added to the result
+            # the loop will break
             if response["totalResults"] <= len(result):
                 break
         return result

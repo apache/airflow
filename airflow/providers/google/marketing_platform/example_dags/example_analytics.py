@@ -17,14 +17,18 @@
 """
 Example Airflow DAG that shows how to use Google Analytics 360.
 """
+import os
 
 from airflow import models
 from airflow.providers.google.marketing_platform.operators.analytics import (
-    GoogleAnalyticsListAccountsOperator,
+    GoogleAnalyticsListAccountsOperator, GoogleAnalyticsRetrieveAdsLinksListOperator,
 )
 from airflow.utils import dates
 
 default_args = {"start_date": dates.days_ago(1)}
+
+ACCOUNT_ID = os.environ.get("GA_ACCOUNT_ID", "123456789")
+WEB_PROPERTY = os.environ.get("GA_WEB_PROPERTY", "UA-12345678-1")
 
 with models.DAG(
     "example_google_analytics",
@@ -34,3 +38,9 @@ with models.DAG(
     # [START howto_marketing_platform_list_accounts_operator]
     list_account = GoogleAnalyticsListAccountsOperator(task_id="list_account")
     # [END howto_marketing_platform_list_accounts_operator]
+
+    # [START howto_marketing_platform_retrieve_ads_links_list_operator]
+    list_ad_link = GoogleAnalyticsRetrieveAdsLinksListOperator(task_id="list_ad_link",
+                                                               account_id=ACCOUNT_ID,
+                                                               web_property_id=WEB_PROPERTY)
+    # [END howto_marketing_platform_retrieve_ads_links_list_operator]
