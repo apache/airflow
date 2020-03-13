@@ -18,7 +18,6 @@
 # under the License.
 
 """Unit tests for stringified DAGs."""
-
 import multiprocessing
 import unittest
 
@@ -62,7 +61,7 @@ serialized_simple_dag_ground_truth = {
         "fileloc": None,
         "tasks": [
             {
-                "task_id": "simple_task",
+                "task_id": "bash_task",
                 "owner": "airflow",
                 "retries": 1,
                 "retry_delay": 300.0,
@@ -71,11 +70,12 @@ serialized_simple_dag_ground_truth = {
                     "auto": False, "task_ids": [], "datasets": []
                 },
                 "_outlets": {"datasets": []},
-                "ui_color": "#fff",
+                "ui_color": "#f0ede4",
                 "ui_fgcolor": "#000",
-                "template_fields": [],
-                "_task_type": "BaseOperator",
-                "_task_module": "airflow.models.baseoperator",
+                "template_fields": ['bash_command', 'env'],
+                "bash_command": "echo {{ task.task_id }}",
+                "_task_type": "BashOperator",
+                "_task_module": "airflow.operators.bash_operator",
             },
             {
                 "task_id": "custom_task",
@@ -107,7 +107,7 @@ def make_example_dags(module):
 
 def make_simple_dag():
     """Make very simple DAG to verify serialization result."""
-    dag = DAG(
+    with DAG(
         dag_id='simple_dag',
         default_args={
             "retries": 1,
@@ -116,9 +116,9 @@ def make_simple_dag():
         },
         start_date=datetime(2019, 8, 1),
         is_paused_upon_creation=False,
-    )
-    BaseOperator(task_id='simple_task', dag=dag, owner='airflow')
-    CustomOperator(task_id='custom_task', dag=dag)
+    ) as dag:
+        CustomOperator(task_id='custom_task')
+        BashOperator(task_id='bash_task', bash_command='echo {{ task.task_id }}', owner='airflow')
     return {'simple_dag': dag}
 
 
@@ -538,6 +538,82 @@ class TestStringifiedDAGs(unittest.TestCase):
         # Test Deserialized link registered via Airflow Plugin
         google_link_from_plugin = simple_task.get_extra_links(test_date, GoogleLink.name)
         self.assertEqual("https://www.google.com", google_link_from_plugin)
+
+    class ClassWithCustomAttributes:
+        """
+        Class for testing purpose: allows to create objects with custom attributes in one single statement.
+        """
+
+        def __init__(self, **kwargs):
+            for key, value in kwargs.items():
+                setattr(self, key, value)
+
+        def __str__(self):
+            return "{}({})".format(self.__class__.__name__, str(sorted(self.__dict__)))
+
+        def __repr__(self):
+            return self.__str__()
+
+        def __eq__(self, other):
+            return self.__dict__ == other.__dict__
+
+        def __ne__(self, other):
+            return not self.__eq__(other)
+
+    @parameterized.expand([
+        (None, None),
+        ([], []),
+        ({}, {}),
+        ("{{ task.task_id }}", "{{ task.task_id }}"),
+        (["{{ task.task_id }}", "{{ task.task_id }}"]),
+        ({"foo": "{{ task.task_id }}"}, {"foo": "{{ task.task_id }}"}),
+        ({"foo": {"bar": "{{ task.task_id }}"}}, {"foo": {"bar": "{{ task.task_id }}"}}),
+        (
+            [{"foo1": {"bar": "{{ task.task_id }}"}}, {"foo2": {"bar": "{{ task.task_id }}"}}],
+            [{"foo1": {"bar": "{{ task.task_id }}"}}, {"foo2": {"bar": "{{ task.task_id }}"}}],
+        ),
+        (
+            {"foo": {"bar": {"{{ task.task_id }}": ["sar"]}}},
+            {"foo": {"bar": {"{{ task.task_id }}": ["sar"]}}}),
+        (
+            ClassWithCustomAttributes(
+                att1="{{ task.task_id }}", att2="{{ task.task_id }}", template_fields=["att1"]),
+            str(ClassWithCustomAttributes(
+                att1="{{ task.task_id }}", att2="{{ task.task_id }}", template_fields=["att1"]))
+        ),
+        (
+            ClassWithCustomAttributes(nested1=ClassWithCustomAttributes(att1="{{ task.task_id }}",
+                                                                        att2="{{ task.task_id }}",
+                                                                        template_fields=["att1"]),
+                                      nested2=ClassWithCustomAttributes(att3="{{ task.task_id }}",
+                                                                        att4="{{ task.task_id }}",
+                                                                        template_fields=["att3"]),
+                                      template_fields=["nested1"]),
+            str(ClassWithCustomAttributes(nested1=ClassWithCustomAttributes(att1="{{ task.task_id }}",
+                                                                            att2="{{ task.task_id }}",
+                                                                            template_fields=["att1"]),
+                                          nested2=ClassWithCustomAttributes(att3="{{ task.task_id }}",
+                                                                            att4="{{ task.task_id }}",
+                                                                            template_fields=["att3"]),
+                                          template_fields=["nested1"]))
+        ),
+    ])
+    def test_templated_fields_exist_in_serialized_dag(self, templated_field, expected_field):
+        """
+        Test that templated_fields exists for all Operators in Serialized DAG
+
+        Since we don't want to inflate arbitrary python objects (it poses a RCE/security risk etc.)
+        we want check that non-"basic" objects are turned in to strings after deserializing.
+        """
+
+        dag = DAG("test_serialized_template_fields", start_date=datetime(2019, 8, 1))
+        with dag:
+            BashOperator(task_id="test", bash_command=templated_field)
+
+        serialized_dag = SerializedDAG.to_dict(dag)
+        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+        deserialized_test_task = deserialized_dag.task_dict["test"]
+        self.assertEqual(expected_field, getattr(deserialized_test_task, "bash_command"))
 
     def test_dag_serialized_fields_with_schema(self):
         """

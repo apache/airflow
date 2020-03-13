@@ -33,8 +33,10 @@ from urllib.parse import quote
 import dill
 import lazy_object_proxy
 import pendulum
+import six
 from six.moves.urllib.parse import quote_plus
-from sqlalchemy import Column, String, Float, Integer, PickleType, Index, func
+from jinja2 import TemplateAssertionError, UndefinedError
+from sqlalchemy import Column, Float, Index, Integer, PickleType, String, func
 from sqlalchemy.orm import reconstructor
 from sqlalchemy.orm.session import Session
 
@@ -1391,8 +1393,15 @@ class TaskInstance(Base, LoggingMixin):
                 for field_name, rendered_value in rtif.items():
                     setattr(self.task, field_name, rendered_value)
             else:
-                # TODO: Fetch Unrendered strings
-                pass
+                try:
+                    self.render_templates()
+                except (TemplateAssertionError, UndefinedError) as e:
+                    six.raise_from(AirflowException(
+                        "Webserver does not have access to User-defined Macros or Filters "
+                        "when Dag Serialization is enabled. Hence for the task that have not yet "
+                        "started running, please use 'airflow tasks render' for debugging the "
+                        "rendering of template_fields."
+                    ), e)
         else:
             self.render_templates()
 

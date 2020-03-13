@@ -36,7 +36,7 @@ import markdown
 import pendulum
 import sqlalchemy as sqla
 from flask import (
-    Markup, Response, flash, jsonify, make_response, redirect, render_template, request,
+    Markup, Response, escape, flash, jsonify, make_response, redirect, render_template, request,
     session as flask_session, url_for,
 )
 from flask._compat import PY2
@@ -58,6 +58,7 @@ from airflow.configuration import conf
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
 from airflow.models import Connection, DagModel, DagRun, DagTag, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.exceptions import AirflowException
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import timezone
@@ -600,6 +601,12 @@ class Airflow(AirflowBaseView):
         ti = models.TaskInstance(task=task, execution_date=dttm)
         try:
             ti.get_rendered_template_fields()
+        except AirflowException as e:
+            msg = "Error rendering template: " + escape(e)
+            if not PY2:
+                if e.__cause__:
+                    msg += Markup("<br/><br/>OriginalError: ") + escape(e.__cause__)
+            flash(msg, "error")
         except Exception as e:
             flash("Error rendering template: " + str(e), "error")
         title = "Rendered Template"
