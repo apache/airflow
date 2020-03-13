@@ -112,7 +112,10 @@ class GoogleAdsToGcsOperator(BaseOperator):
         Converts the returned Google Ad Rows objects to CSV and uploads to GCS
         """
 
-        service = GoogleAdsHook(self.gcp_conn_id, self.google_ads_conn_id)
+        service = GoogleAdsHook(
+            gcp_conn_id=self.gcp_conn_id,
+            google_ads_conn_id=self.google_ads_conn_id
+        )
         rows = service.search(
             client_ids=self.client_ids, query=self.query, page_size=self.page_size
         )

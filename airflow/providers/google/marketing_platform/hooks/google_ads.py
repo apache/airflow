@@ -62,23 +62,20 @@ class GoogleAdsHook(BaseHook):
 
     def _get_service(self) -> GoogleAdsClient:
         """Connects and authenticates with the Google Ads API using a service account"""
-
-        try:
-            with NamedTemporaryFile("w", suffix=".json") as secrets_temp:
-                self._get_config()
-                self._update_config_with_secret(secrets_temp)
+        with NamedTemporaryFile("w", suffix=".json") as secrets_temp:
+            self._get_config()
+            self._update_config_with_secret(secrets_temp)
+            try:
                 client = GoogleAdsClient.load_from_dict(self.google_ads_config)
                 return client.get_service("GoogleAdsService", version=self.api_version)
-
-        except GoogleAuthError as e:
-            self.log.error("Google Auth Error: %s", e)
-            raise
+            except GoogleAuthError as e:
+                self.log.error("Google Auth Error: %s", e)
+                raise
 
     def _get_config(self) -> None:
         """
         Gets google ads connection from meta db and sets google_ads_config attribute with returned config file
         """
-
         conn = self.get_connection(self.google_ads_conn_id)
         if "google_ads_client" not in conn.extra_dejson:
             raise AirflowException("google_ads_client not found in extra field")
@@ -91,7 +88,6 @@ class GoogleAdsHook(BaseHook):
         Updates google ads config with file path of the temp file containing the secret
         Note, the secret must be passed as a file path for Google Ads API
         """
-
         secret_conn = self.get_connection(self.gcp_conn_id)
         secret = secret_conn.extra_dejson["extra__google_cloud_platform__keyfile_dict"]
         secrets_temp.write(secret)
@@ -115,7 +111,6 @@ class GoogleAdsHook(BaseHook):
         :return: Google Ads API response, converted to Google Ads Row objects
         :rtype: list[GoogleAdsRow]
         """
-
         service = self._get_service()
         iterators = (
             service.search(client_id, query=query, page_size=page_size, **kwargs)
@@ -137,7 +132,6 @@ class GoogleAdsHook(BaseHook):
         :return: API response for all clients in the form of Google Ads Row object(s)
         :rtype: list[GoogleAdsRow]
         """
-
         try:
             self.log.info("Extracting data from returned Google Ads Iterators")
             return [row for iterator in iterators for row in iterator]

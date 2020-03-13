@@ -76,8 +76,6 @@ with models.DAG(
         attributes=FIELDS_TO_EXTRACT,
         obj=GCS_OBJ_PATH,
         bucket=BUCKET,
-        task_id=f"run_operator",
+        task_id="run_operator",
     )
     # [END howto_google_ads_to_gcs_operator]
-
-    run_operator
