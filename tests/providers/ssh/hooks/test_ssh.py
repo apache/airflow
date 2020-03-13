@@ -108,8 +108,8 @@ class TestSSHHook(unittest.TestCase):
                 host='localhost',
                 conn_type='ssh',
                 extra=json.dumps({
-                    "private_key": TEST_PRIVATE_KEY,
-                    "host_public_key": TEST_HOST_PUBLIC_KEY
+                    'private_key': TEST_PRIVATE_KEY,
+                    'host_key': TEST_HOST_PUBLIC_KEY
                 })
             )
         )
@@ -120,7 +120,7 @@ class TestSSHHook(unittest.TestCase):
                 conn_type='ssh',
                 extra=json.dumps({
                     'private_key': TEST_PRIVATE_KEY,
-                    "host_public_key": TEST_HOST_PUBLIC_KEY,
+                    'host_key': TEST_HOST_PUBLIC_KEY,
                     'no_host_key_check': True
                 })
             )
@@ -132,7 +132,7 @@ class TestSSHHook(unittest.TestCase):
                 conn_type='ssh',
                 extra=json.dumps({
                     'private_key': TEST_PRIVATE_KEY,
-                    "host_public_key": TEST_HOST_PUBLIC_KEY,
+                    'host_key': TEST_HOST_PUBLIC_KEY,
                     'no_host_key_check': False
                 })
             )
