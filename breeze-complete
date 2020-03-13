@@ -69,7 +69,7 @@ _BREEZE_SHORT_OPTIONS="
 h p: b: i:
 K: V:
 s x r
-l a:
+l a: d:
 v y n q f
 F P C L
 D: R: -u
@@ -79,7 +79,7 @@ _BREEZE_LONG_OPTIONS="
 help python: backend: integration:
 kubernetes-mode: kubernetes-version:
 kind-cluster-start kind-cluster-stop kind-cluster-recreate
-skip-mounting-local-sources install-airflow-version:
+skip-mounting-local-sources install-airflow-version: db-reset
 verbose assume-yes assume-no assume-quit forward-credentials
 force-build-images force-pull-images force-clean-images use-local-cache
 dockerhub-user: dockerhub-repo: push-images

@@ -120,6 +120,9 @@ function setup_default_breeze_variables() {
     # Forward credentials to docker
     export FORWARD_CREDENTIALS="false"
 
+    # Reset DB at entry
+    export DB_RESET="false"
+
     # If install released airflow is set to specified version, then the source version of airflow
     # is removed and the specified version of airflow is installed from pypi
     export INSTALL_AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION:="current"}
@@ -552,6 +555,11 @@ function parse_arguments() {
           echo "Installs version of Airflow: ${INSTALL_AIRFLOW_VERSION}"
           echo
           shift 2 ;;
+        -d|--db-reset)
+          echo "Resetting the DB!"
+          echo
+          export DB_RESET="true"
+          shift 1 ;;
         -v|--verbose)
           export VERBOSE="true"
           echo "Verbose output"
@@ -1078,6 +1086,13 @@ ${ALLOWED_PYTHON_VERSIONS}
 ${ALLOWED_BACKENDS}
 
         Default: ${_BREEZE_DEFAULT_BACKEND:=}
+
+-d, --db-reset
+        Resets the database at entry to the envvironment. It will drop all the tables
+        and data and recreate the DB from scratch even if 'restart' command was not used.
+        Combined with 'restart' command it enters the environment in the state that is
+        ready to start airflow webserver/scheduler/worker. Without the switch, the database
+        does not have any tables and you need to run reset db manually.
 
 -i, --integration <INTEGRATION>
         Integration to start during tests - it determines which integrations are started

@@ -121,7 +121,7 @@ class SystemTest(TestCase, LoggingMixin):
         :param dag_folder: directory where to look for the specific DAG. Relative to AIRFLOW_HOME.
         :type dag_folder: str
         """
-        if os.environ.get("RUN_AIRFLOW_1_10"):
+        if os.environ.get("RUN_AIRFLOW_1_10") == "true":
             # For system tests purpose we are changing airflow/providers
             # to side packages path of the installed providers package
             python = f"python{sys.version_info.major}.{sys.version_info.minor}"

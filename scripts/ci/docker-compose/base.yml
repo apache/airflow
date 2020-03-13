@@ -56,6 +56,7 @@ services:
       - RUN_INTEGRATION_TESTS
       - BREEZE
       - INSTALL_AIRFLOW_VERSION
+      - DB_RESET
       - ENABLED_SYSTEMS
       - RUN_SYSTEM_TESTS
     volumes:

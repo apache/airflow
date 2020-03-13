@@ -848,6 +848,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Default: sqlite
 
+  -d, --db-reset
+          Resets the database at entry to the envvironment. It will drop all the tables
+          and data and recreate the DB from scratch even if 'restart' command was not used.
+          Combined with 'restart' command it enters the environment in the state that is
+          ready to start airflow webserver/scheduler/worker. Without the switch, the database
+          does not have any tables and you need to run reset db manually.
+
   -i, --integration <INTEGRATION>
           Integration to start during tests - it determines which integrations are started
           for integration tests. There can be more than one integration started, or all to

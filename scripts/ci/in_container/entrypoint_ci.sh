@@ -89,6 +89,9 @@ else
     install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}"
 fi
 
+
+export RUN_AIRFLOW_1_10=${RUN_AIRFLOW_1_10:="false"}
+
 export HADOOP_DISTRO="${HADOOP_DISTRO:="cdh"}"
 export HADOOP_HOME="${HADOOP_HOME:="/opt/hadoop-cdh"}"
 
