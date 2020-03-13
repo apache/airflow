@@ -144,6 +144,8 @@ function setup_default_breeze_variables() {
     _BREEZE_DEFAULT_KUBERNETES_MODE="git_mode"
     _BREEZE_DEFAULT_KUBERNETES_VERSION="v1.15.3"
     _BREEZE_DEFAULT_INSTALL_AIRFLOW_VERSION="current"
+    _BREEZE_DEFAULT_POSTGRES_VERSION="9.6"
+    _BREEZE_DEFAULT_MYSQL_VERSION="5.7"
 
     STATIC_CHECK_PYTHON_VERSION=3.6
 }
@@ -276,6 +278,13 @@ EOF
 }
 
 function print_badge {
+    if [[ ${BACKEND} == "postgres" ]]; then
+        BACKEND_VERSION="${POSTGRES_VERSION}"
+    elif [[ ${BACKEND} == "mysql" ]]; then
+        BACKEND_VERSION="${MYSQL_VERSION}"
+    else
+        BACKEND_VERSION=""
+    fi
     if [[ ! -f "${SUPPRESS_ASCIIART_FILE}" && ${COMMAND_TO_RUN} == "enter_breeze" ]]; then
         cat <<EOF
 
@@ -327,7 +336,7 @@ function print_badge {
                                Python version:         ${PYTHON_VERSION}
                                DockerHub user:         ${DOCKERHUB_USER}
                                DockerHub repo:         ${DOCKERHUB_REPO}
-                               Backend:                ${BACKEND}
+                               Backend:                ${BACKEND} ${BACKEND_VERSION}
 EOF
         if [[ ${RUNTIME} == "kubernetes" ]]; then
             cat <<EOF
@@ -351,7 +360,7 @@ EOF
    Python version:          ${PYTHON_VERSION}
    DockerHub user:          ${DOCKERHUB_USER}
    DockerHub repo:          ${DOCKERHUB_REPO}
-   Backend:                 ${BACKEND}
+   Backend:                 ${BACKEND} ${BACKEND_VERSION}
 EOF
         if [[ ${RUNTIME} == "kubernetes" ]]; then
             cat <<EOF
@@ -390,7 +399,9 @@ export INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
 export RUN_TESTS="${TESTS}"
 export WEBSERVER_HOST_PORT="${WEBSERVER_HOST_PORT}"
 export POSTGRES_HOST_PORT="${POSTGRES_HOST_PORT}"
+export POSTGRES_VERSION="${POSTGRES_VERSION}"
 export MYSQL_HOST_PORT="${MYSQL_HOST_PORT}"
+export MYSQL_VERSION="${MYSQL_VERSION}"
 export AIRFLOW_CI_IMAGE="${AIRFLOW_CI_IMAGE}"
 docker-compose --log-level INFO ${CMD}\$${EXPANSION}"
 EOF
@@ -543,6 +554,16 @@ function parse_arguments() {
         -V|--kubernetes-version)
           export KUBERNETES_VERSION="${2}";
           echo "Kubernetes version: ${KUBERNETES_VERSION}"
+          echo
+          shift 2 ;;
+        --postgres-version)
+          export POSTGRES_VERSION="${2}";
+          echo "Postgres version: ${POSTGRES_VERSION}"
+          echo
+          shift 2 ;;
+        --mysql-version)
+          export MYSQL_VERSION="${2}";
+          echo "MySQL version: ${MYSQL_VERSION}"
           echo
           shift 2 ;;
         -l|--skip-mounting-local-sources)
@@ -844,6 +865,10 @@ prepare_allowed_versions() {
     ALLOWED_KUBERNETES_VERSIONS=$(echo "${_BREEZE_ALLOWED_KUBERNETES_VERSIONS=""}" | tr '\n' ' ' | \
       fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
     ALLOWED_INSTALL_AIRFLOW_VERSIONS=$(echo "${_BREEZE_ALLOWED_INSTALL_AIRFLOW_VERSIONS=""}" | \
+      tr '\n' ' ' | fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
+    ALLOWED_POSTGRES_VERSIONS=$(echo "${_BREEZE_ALLOWED_POSTGRES_VERSIONS=""}" | \
+      tr '\n' ' ' | fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
+    ALLOWED_MYSQL_VERSIONS=$(echo "${_BREEZE_ALLOWED_MYSQL_VERSIONS=""}" | \
       tr '\n' ' ' | fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
 }
 
@@ -1166,6 +1191,22 @@ ${ALLOWED_INSTALL_AIRFLOW_VERSIONS}
         Default: ${_BREEZE_DEFAULT_INSTALL_AIRFLOW_VERSION:=}.
 
 $(print_star_line)
+ Database versions
+$(print_star_line)
+
+--postgres-version <POSTGRES_VERSION>
+        Postgres version used. One of:
+
+${ALLOWED_POSTGRES_VERSIONS}
+
+
+--mysql-version <MYSQL_VERSION>
+        Mysql version used. One of:
+
+${ALLOWED_MYSQL_VERSIONS}
+
+
+$(print_star_line)
  Assume answers to questions
 $(print_star_line)
 
@@ -1267,6 +1308,12 @@ function read_saved_environment_variables {
     export KUBERNETES_VERSION="${KUBERNETES_VERSION:=$(read_from_file KUBERNETES_VERSION)}"
     export KUBERNETES_VERSION=${KUBERNETES_VERSION:=${_BREEZE_DEFAULT_KUBERNETES_VERSION}}
 
+    export POSTGRES_VERSION="${POSTGRES_VERSION:=$(read_from_file POSTGRES_VERSION)}"
+    export POSTGRES_VERSION=${POSTGRES_VERSION:=${_BREEZE_DEFAULT_POSTGRES_VERSION}}
+
+    export MYSQL_VERSION="${MYSQL_VERSION:=$(read_from_file MYSQL_VERSION)}"
+    export MYSQL_VERSION=${MYSQL_VERSION:=${_BREEZE_DEFAULT_MYSQL_VERSION}}
+
     # Here you read DockerHub user/account that you use
     # You can populate your own images in DockerHub this way and work with the,
     # You can override it with "-d" option and it will be stored in .build directory
@@ -1286,6 +1333,8 @@ function check_and_save_all_params() {
     check_and_save_allowed_param "KUBERNETES_MODE"  "Kubernetes mode" "--kubernetes-mode"
     check_and_save_allowed_param "KUBERNETES_VERSION"  "Kubernetes version" "--kubernetes-version"
     check_and_save_allowed_param "INSTALL_AIRFLOW_VERSION"  "Install airflow version" "--install-airflow-version"
+    check_and_save_allowed_param "POSTGRES_VERSION"  "Postgres version" "--postgres-version"
+    check_and_save_allowed_param "MYSQL_VERSION"  "Mysql version" "--mysql-version"
 
     # Can't verify those
     save_to_file DOCKERHUB_USER

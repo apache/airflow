@@ -22,6 +22,8 @@ _BREEZE_ALLOWED_BACKENDS="sqlite mysql postgres"
 _BREEZE_ALLOWED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis all"
 _BREEZE_ALLOWED_KUBERNETES_MODES="persistent_mode git_mode"
 _BREEZE_ALLOWED_KUBERNETES_VERSIONS="v1.15.3 v1.16.2"
+_BREEZE_ALLOWED_MYSQL_VERSIONS="5.7 8"
+_BREEZE_ALLOWED_POSTGRES_VERSIONS="9.6 10"
 
 _BREEZE_ALLOWED_INSTALL_AIRFLOW_VERSIONS=$(cat <<-EOF
 current
@@ -83,6 +85,7 @@ skip-mounting-local-sources install-airflow-version: db-reset
 verbose assume-yes assume-no assume-quit forward-credentials
 force-build-images force-pull-images force-clean-images use-local-cache
 dockerhub-user: dockerhub-repo: push-images
+postgres-version: mysql-version:
 "
 
 export BREEZE_COMMANDS="
@@ -148,6 +151,12 @@ function _get_known_values_breeze() {
             _docker_compose
         fi
         _BREEZE_KNOWN_VALUES=""
+        ;;
+    --postgres-version)
+        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_POSTGRES_VERSIONS}
+        ;;
+    --mysql-version)
+        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_MYSQL_VERSIONS}
         ;;
     -D | --dockerhub-user)
         _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_DOCKERHUB_USER}"

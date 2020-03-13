@@ -38,6 +38,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Requirements](#requirements)
 - [Getting started](#getting-started)
 - [Beyond the Horizon](#beyond-the-horizon)
 - [Principles](#principles)
@@ -50,6 +51,24 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Links](#links)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## Requirements
+
+Apache Airflow is tested with:
+
+### Master version (2.0.0dev)
+
+* Python versions: 3.6, 3.7
+* Postgres DB: 9.6 10
+* MySQL DB: 5.7
+* Sqlite - latest stable (it is used mainly for development purpose)
+
+### Stable version (1.10.9)
+
+* Python versions: 2.7, 3.5, 3.6
+* Postgres DB: 9.6
+* MySQL DB: 5.6, 5.7
+* Sqlite - latest stable (it is used mainly for development purpose)
 
 ## Getting started
 

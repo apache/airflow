@@ -54,7 +54,7 @@ jobs:
         PYTHON_VERSION=3.6
       stage: test
       script: ./scripts/ci/ci_docs.sh
-    - name: "Tests [Postgres][3.6][Kubernetes][persistent]"
+    - name: "Tests [Py3.6][Kubernetes][persistent]"
       env: >-
         BACKEND=postgres
         PYTHON_VERSION=3.6
@@ -64,7 +64,7 @@ jobs:
         KUBERNETES_VERSION=v1.15.3
       python: "3.6"
       stage: test
-    - name: "Tests [Postgres][3.7][Kubernetes][git]"
+    - name: "Tests [Py3.7][Kubernetes][git]"
       env: >-
         BACKEND=postgres
         PYTHON_VERSION=3.7
@@ -74,55 +74,61 @@ jobs:
         KUBERNETES_VERSION=v1.15.3
       python: "3.6"
       stage: test
-    - name: "Tests [Postgres][3.6][integrations]"
+    - name: "Tests [Postgres10][Py3.6][integrations]"
       env: >-
         BACKEND=postgres
         PYTHON_VERSION=3.6
+        POSTGRES_VERSION=9.6
         ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
         RUN_INTEGRATION_TESTS=all
       stage: test
-    - name: "Tests [Postgres][3.6][providers]"
+    - name: "Tests [Postgres10][Py3.6][providers]"
       env: >-
         BACKEND=postgres
+        POSTGRES_VERSION=10
         PYTHON_VERSION=3.6
       script: "./scripts/ci/ci_run_airflow_testing.sh tests/providers"
       stage: test
-    - name: "Tests [Postgres][3.6][core]"
+    - name: "Tests [Postgres9.6][Py3.6][core]"
       env: >-
         BACKEND=postgres
+        POSTGRES_VERSION=9.6
         PYTHON_VERSION=3.6
       script: "./scripts/ci/ci_run_airflow_testing.sh --ignore=tests/providers"
       stage: test
-    - name: "Tests [Sqlite][3.7][integrations]"
+    - name: "Tests [Sqlite][Py3.7][integrations]"
       env: >-
         BACKEND=sqlite
         PYTHON_VERSION=3.7
         ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
         RUN_INTEGRATION_TESTS=all
       stage: test
-    - name: "Tests [Sqlite][3.6]"
+    - name: "Tests [Sqlite][Py3.6]"
       env: >-
         BACKEND=sqlite
         PYTHON_VERSION=3.6
       stage: test
-    - name: "Tests [MySQL][3.6][integrations]"
+    - name: "Tests [MySQL5.7][Py3.6][integrations]"
       env: >-
         BACKEND=mysql
         PYTHON_VERSION=3.6
+        MYSQL_VERSION=5.7
         ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
         RUN_INTEGRATION_TESTS=all
       stage: test
-    - name: "Tests [MySQL][3.7][providers][kerberos]"
+    - name: "Tests [MySQL5.7][3.7][providers][kerberos]"
       env: >-
         BACKEND=mysql
         PYTHON_VERSION=3.7
+        MYSQL_VERSION=5.7
         ENABLED_INTEGRATIONS="kerberos"
       script: "./scripts/ci/ci_run_airflow_testing.sh tests/providers"
       stage: test
-    - name: "Tests [MySQL][3.7][core][kerberos]"
+    - name: "Tests [MySQL5.7][Py3.7][core][kerberos]"
       env: >-
         BACKEND=mysql
         PYTHON_VERSION=3.7
+        MYSQL_VERSION=5.7
         ENABLED_INTEGRATIONS="kerberos"
       script: "./scripts/ci/ci_run_airflow_testing.sh --ignore=tests/providers"
       stage: test
