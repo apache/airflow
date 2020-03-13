@@ -74,3 +74,25 @@ class TestGoogleAnalyticsHook(unittest.TestCase):
         ]
         list_accounts = self.hook.list_accounts()
         self.assertEqual(list_accounts, ["a", "b"])
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "analytics.GoogleAnalyticsHook.get_conn"
+    )
+    def test_call_get_ad_words_links(self, get_conn_mock):
+        account_id = "123456"
+        web_property_id = "UA-123456-1"
+        web_property_ad_words_linkd_id = "AABBCCDDEEFFGG"
+
+        self.hook.list_ad_words_links(
+            account_id,
+            web_property_id,
+            web_property_ad_words_linkd_id,
+        )
+
+        get_conn_mock.return_value. \
+            management.return_value. \
+            webPropertyAdWordsLinks.return_value. \
+            get.return_value.execute.assert_called_once_with(num_retries=self.NUM_RETRIES)
+
+
