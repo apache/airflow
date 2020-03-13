@@ -73,7 +73,7 @@ def pytest_addoption(parser):
         action="store",
         metavar="INTEGRATIONS",
         help="only run tests matching comma separated integrations: "
-             "[cassandra,mongo,openldap,rabbitmq,redis]. "
+             "[cassandra,mongo,openldap,presto,rabbitmq,redis]. "
              "Use 'all' to select all integrations.",
     )
     group.addoption(
