@@ -22,9 +22,7 @@ from io import StringIO
 
 import mock
 import paramiko
-import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils import db
@@ -68,8 +66,10 @@ class TestSSHHook(unittest.TestCase):
     CONN_SSH_WITH_PRIVATE_KEY_EXTRA = 'ssh_with_private_key_extra'
     CONN_SSH_WITH_EXTRA = 'ssh_with_extra'
     CONN_SSH_WITH_PUBLIC_KEY_EXTRA = 'ssh_with_public_key_extra'
-    CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_TRUE_EXTRA = 'ssh_with_public_key_and_no_host_key_check_true_extra'
-    CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_FALSE_EXTRA = 'ssh_with_public_key_and_no_host_key_check_false_extra'
+    CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_TRUE_EXTRA = \
+        'ssh_with_public_key_and_no_host_key_check_true_extra'
+    CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_FALSE_EXTRA = \
+        'ssh_with_public_key_and_no_host_key_check_false_extra'
 
     @classmethod
     def tearDownClass(cls) -> None:
