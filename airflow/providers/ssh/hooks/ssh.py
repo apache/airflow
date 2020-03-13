@@ -121,7 +121,7 @@ class SSHHook(BaseHook):
                         str(extra_options["allow_host_key_change"]).lower() == 'true':
                     self.allow_host_key_change = True
                 if "host_public_key" in extra_options and self.no_host_key_check is False:
-                    self._add_host_to_known_hosts(
+                    self.add_host_to_known_hosts(
                         self.remote_host,
                         'ssh-rsa',
                         extra_options["host_public_key"]
@@ -282,29 +282,37 @@ class SSHHook(BaseHook):
         return self.get_tunnel(remote_port, remote_host, local_port)
 
     @staticmethod
-    def _add_host_to_known_hosts(host, key_type, public_key):
+    def _add_new_record_to_known_hosts(record, file):
+        file.write(''.join([record]))
+
+    @staticmethod
+    def add_host_to_known_hosts(host, key_type, public_key):
         """This adds a specified remote_host public key to the known_hosts
             in order to prevent man-in-the-middle attacks."""
         # The .ssh hidden directory is required and not present on all airflow deployments
+        known_hosts_file_ref = SSHHook._create_known_hosts()
+
+        with open(known_hosts_file_ref, 'r') as known_hosts:
+            content = known_hosts.read()
+
+        if len(content) == 0:
+            with open(known_hosts_file_ref, 'a') as known_hosts:
+                SSHHook._add_new_record_to_known_hosts(
+                    SSHHook._format_known_hosts_record(host, key_type, public_key),
+                    known_hosts
+                )
+        elif SSHHook._format_known_hosts_record(host, key_type, public_key) not in content:
+            with open(known_hosts_file_ref, 'a') as known_hosts:
+                SSHHook._add_new_record_to_known_hosts('\n' + SSHHook._format_known_hosts_record(host, key_type, public_key), known_hosts)
+
+    @staticmethod
+    def _format_known_hosts_record(host, key_type, public_key):
+        return ' '.join([host, key_type, public_key])
+
+    @staticmethod
+    def _create_known_hosts():
         if not os.path.exists(os.path.expanduser('~/.ssh')):
             os.mkdir(os.path.expanduser('~/.ssh'))
-
-        known_hosts_file_ref = os.path.expanduser('~/.ssh/known_hosts')
-
-        line_to_write = ' '.join([host, key_type, public_key])
-
-        if os.path.exists(known_hosts_file_ref):
-            with open(known_hosts_file_ref, 'r') as f:
-                known_hosts = f.read()
-
-            with open(known_hosts_file_ref, 'w') as f:
-                f.write(known_hosts)
-                # only add the entry if it doesn't already exist.
-                if line_to_write not in known_hosts:
-                    f.write('\n')
-                    f.write(line_to_write)
-        else:
-            # the known_hosts file doesn't exist so we create a new one with the required contents.
-            with open(known_hosts_file_ref, 'w') as f:
-                f.write(line_to_write)
-                f.write('\n')
+        with open(os.path.expanduser('~/.ssh/known_hosts'), 'a') as f:
+            f.write(str())
+        return os.path.expanduser('~/.ssh/known_hosts')

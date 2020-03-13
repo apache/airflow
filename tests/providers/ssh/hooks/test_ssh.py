@@ -108,6 +108,7 @@ class TestSSHHook(unittest.TestCase):
                 host='localhost',
                 conn_type='ssh',
                 extra=json.dumps({
+                    "private_key": TEST_PRIVATE_KEY,
                     "host_public_key": TEST_HOST_PUBLIC_KEY
                 })
             )
@@ -118,6 +119,7 @@ class TestSSHHook(unittest.TestCase):
                 host='localhost',
                 conn_type='ssh',
                 extra=json.dumps({
+                    'private_key': TEST_PRIVATE_KEY,
                     "host_public_key": TEST_HOST_PUBLIC_KEY,
                     'no_host_key_check': True
                 })
@@ -129,6 +131,7 @@ class TestSSHHook(unittest.TestCase):
                 host='localhost',
                 conn_type='ssh',
                 extra=json.dumps({
+                    'private_key': TEST_PRIVATE_KEY,
                     "host_public_key": TEST_HOST_PUBLIC_KEY,
                     'no_host_key_check': False
                 })
@@ -296,6 +299,7 @@ class TestSSHHook(unittest.TestCase):
                 sock=None
             )
 
+    @mock.patch('airflow.providers.ssh.hooks.ssh.open', mock.mock_open(read_data=''))
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
     def test_ssh_connection_with_public_key_extra(self, ssh_mock):
         hook = SSHHook(
@@ -319,6 +323,7 @@ class TestSSHHook(unittest.TestCase):
 
         # TODO - mock and check known_hosts file not touched
 
+    @mock.patch('airflow.providers.ssh.hooks.ssh.open', mock.mock_open(read_data=''))
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
     def test_ssh_connection_with_public_key_and_no_host_key_check_true_extra(self, ssh_mock):
         hook = SSHHook(
@@ -342,22 +347,40 @@ class TestSSHHook(unittest.TestCase):
 
         # TODO - mock and check known_hosts file not touched
 
+    @mock.patch('airflow.providers.ssh.hooks.ssh.open', mock.mock_open(read_data=''))
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
     def test_ssh_connection_with_public_key_and_no_host_key_check_false_extra(self, ssh_mock):
-        with pytest.raises(AirflowException):
-            SSHHook(
-                ssh_conn_id=self.CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_FALSE_EXTRA,
-                remote_host='remote_host',
-                port='port',
+        hook = SSHHook(
+            ssh_conn_id=self.CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_FALSE_EXTRA,
+            remote_host='remote_host',
+            port='port',
+            username='username',
+            timeout=10,
+        )
+
+        with hook.get_conn():
+            ssh_mock.return_value.connect.assert_called_once_with(
+                hostname='remote_host',
                 username='username',
+                pkey=TEST_PKEY,
                 timeout=10,
+                compress=True,
+                port='port',
+                sock=None
             )
 
-        # TODO - mock and check known_hosts file touched
-
     # TODO - TEST PRIVATE HELPER METHOD FOR CREATING FILE WITH MOCKS
-    def test_add_host_to_known_hosts(self):
-        SSHHook._add_host_to_known_hosts()
+    @staticmethod
+    def test_add_new_record_to_known_hosts():
+        assert False
+
+    @staticmethod
+    def test_format_known_hosts_record():
+        assert False
+
+    @staticmethod
+    def test_create_known_hosts():
+        assert False
 
 
 if __name__ == '__main__':
