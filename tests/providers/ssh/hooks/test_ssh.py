@@ -304,54 +304,60 @@ class TestSSHHook(unittest.TestCase):
         hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_PUBLIC_KEY_EXTRA)
         conn = hook.get_connection(self.CONN_SSH_WITH_PUBLIC_KEY_EXTRA)
         assert {
-                    "private_key": TEST_PRIVATE_KEY,
-                    "host_key": TEST_HOST_PUBLIC_KEY
-                } == conn.extra_dejson
+            "private_key": TEST_PRIVATE_KEY,
+            "host_key": TEST_HOST_PUBLIC_KEY
+        } == conn.extra_dejson
 
     def test_ssh_connection_with_public_key_and_no_host_key_check_true_extra(self):
         hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_TRUE_EXTRA)
         conn = hook.get_connection(self.CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_TRUE_EXTRA)
         assert {
-                    "private_key": TEST_PRIVATE_KEY,
-                    "host_key": TEST_HOST_PUBLIC_KEY,
-                    "no_host_key_check": True
-                } == conn.extra_dejson
+            "private_key": TEST_PRIVATE_KEY,
+            "host_key": TEST_HOST_PUBLIC_KEY,
+            "no_host_key_check": True
+        } == conn.extra_dejson
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.open', mock.mock_open(read_data=''))
     @mock.patch('airflow.providers.ssh.hooks.ssh.SSHHook._add_new_record_to_known_hosts')
-    def test_ssh_connection_with_public_key_and_no_host_key_check_false_extra_and_empty_known_hosts(self, mocked):
+    def test_ssh_connection_with_public_key_and_no_host_key_check_false_extra_and_empty_known_hosts(self, m):
         hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_FALSE_EXTRA)
         conn = hook.get_connection(self.CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_FALSE_EXTRA)
         assert {
-                    "private_key": TEST_PRIVATE_KEY,
-                    "host_key": TEST_HOST_PUBLIC_KEY,
-                    "no_host_key_check": False
-                } == conn.extra_dejson
-        assert mocked.called is True
+            "private_key": TEST_PRIVATE_KEY,
+            "host_key": TEST_HOST_PUBLIC_KEY,
+            "no_host_key_check": False
+        } == conn.extra_dejson
+        assert m.called is True
 
-    @mock.patch('airflow.providers.ssh.hooks.ssh.open', mock.mock_open(read_data='some_host ssh-rsa AAAB\n'))
+    @mock.patch(
+        'airflow.providers.ssh.hooks.ssh.open',
+        mock.mock_open(read_data='some_host ssh-rsa AAAB\n')
+    )
     @mock.patch('airflow.providers.ssh.hooks.ssh.SSHHook._add_new_record_to_known_hosts')
-    def test_ssh_connection_with_public_key_and_no_host_key_check_false_extra_and_populated_known_hosts(self, mocked):
+    def test_ssh_connection_with_public_key_and_no_host_key_check_false_extra_and_in_known_hosts(self, m):
         hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_FALSE_EXTRA)
         conn = hook.get_connection(self.CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_FALSE_EXTRA)
         assert {
-                   "private_key": TEST_PRIVATE_KEY,
-                   "host_key": TEST_HOST_PUBLIC_KEY,
-                   "no_host_key_check": False
-               } == conn.extra_dejson
-        assert mocked.called is True
+            "private_key": TEST_PRIVATE_KEY,
+            "host_key": TEST_HOST_PUBLIC_KEY,
+            "no_host_key_check": False
+        } == conn.extra_dejson
+        assert m.called is True
 
-    @mock.patch('airflow.providers.ssh.hooks.ssh.open', mock.mock_open(read_data=f'localhost ssh-rsa {TEST_HOST_PUBLIC_KEY}\n'))
+    @mock.patch(
+        'airflow.providers.ssh.hooks.ssh.open',
+        mock.mock_open(read_data=f'localhost ssh-rsa {TEST_HOST_PUBLIC_KEY}\n')
+    )
     @mock.patch('airflow.providers.ssh.hooks.ssh.SSHHook._add_new_record_to_known_hosts')
-    def test_ssh_connection_with_public_key_and_no_host_key_check_false_extra_and_record_in_known_hosts(self, mocked):
+    def test_ssh_connection_with_public_key_and_no_host_key_check_false_extra_and_rec_in_known_hosts(self, m):
         hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_FALSE_EXTRA)
         conn = hook.get_connection(self.CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_FALSE_EXTRA)
         assert {
-                   "private_key": TEST_PRIVATE_KEY,
-                   "host_key": TEST_HOST_PUBLIC_KEY,
-                   "no_host_key_check": False
-               } == conn.extra_dejson
-        assert mocked.called is False
+            "private_key": TEST_PRIVATE_KEY,
+            "host_key": TEST_HOST_PUBLIC_KEY,
+            "no_host_key_check": False
+        } == conn.extra_dejson
+        assert m.called is False
 
     @staticmethod
     def test_format_known_hosts_record():
