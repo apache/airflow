@@ -14,19 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import logging
 
-from airflow.configuration import conf
-
-PROVIDERS_GOOGLE_VERBOSE_LOGGING: bool = conf.getboolean('providers_google',
-                                                         'VERBOSE_LOGGING', fallback=False)
-if PROVIDERS_GOOGLE_VERBOSE_LOGGING:
-    for logger_name in ["google_auth_httplib2", "httplib2", "googleapiclient"]:
-        logger = logging.getLogger(logger_name)
-        logger.handlers += [handler for handler in
-                            logging.getLogger().handlers if handler.name in ["task", "console"]]
-        logger.level = logging.DEBUG
-        logger.propagate = False
-
-    import httplib2
-    httplib2.debuglevel = 4
+- name: providers_google
+  description: Options for google provider
+  options:
+    - name: verbose_logging
+      description: |
+        Sets verbose logging for google provider
+      version_added: 2.0.0
+      type: boolean
+      example: ~
+      default: "False"

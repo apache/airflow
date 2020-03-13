@@ -296,7 +296,7 @@ repos:
       - id: airflow-config-yaml
         name: Checks for consistency between config.yml and default_config.cfg
         language: python
-        files: "^airflow/config_templates/config.yml$|^airflow/config_templates/default_airflow.cfg$"
+        files: "config.yml$|default_airflow.cfg$|default.cfg$"
         pass_filenames: false
         require_serial: false
         entry: scripts/ci/pre_commit_yaml_to_cfg.py
