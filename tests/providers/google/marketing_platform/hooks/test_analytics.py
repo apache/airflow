@@ -26,6 +26,8 @@ GCP_CONN_ID = "google_cloud_default"
 
 
 class TestGoogleAnalyticsHook(unittest.TestCase):
+    NUM_RETRIES = 5
+
     def setUp(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.base.CloudBaseHook.__init__",
@@ -82,17 +84,13 @@ class TestGoogleAnalyticsHook(unittest.TestCase):
     def test_call_get_ad_words_links(self, get_conn_mock):
         account_id = "123456"
         web_property_id = "UA-123456-1"
-        web_property_ad_words_linkd_id = "AABBCCDDEEFFGG"
 
         self.hook.list_ad_words_links(
             account_id,
             web_property_id,
-            web_property_ad_words_linkd_id,
         )
 
         get_conn_mock.return_value. \
             management.return_value. \
             webPropertyAdWordsLinks.return_value. \
             get.return_value.execute.assert_called_once_with(num_retries=self.NUM_RETRIES)
-
-
