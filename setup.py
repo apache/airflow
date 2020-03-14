@@ -607,10 +607,9 @@ def do_setup():
             'compile_assets': CompileAssets
         },
         test_suite='setup.airflow_test_suite',
-        python_requires='~=3.6',
+        python_requires="~=3.6",
     )
 
 
 if __name__ == "__main__":
     do_setup()
-
