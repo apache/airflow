@@ -35,7 +35,7 @@ with models.DAG(
     schedule_interval=None,  # Override to match your needs
 ) as dag:
     # [START howto_marketing_platform_list_accounts_operator]
-    # list_account = GoogleAnalyticsListAccountsOperator(task_id="list_account")
+    list_account = GoogleAnalyticsListAccountsOperator(task_id="list_account")
     # [END howto_marketing_platform_list_accounts_operator]
 
     list_ad_link = GoogleAnalyticsRetrieveAdsLinksListOperator(task_id="list_ad_link",
