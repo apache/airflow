@@ -73,7 +73,7 @@ This operator never deletes data in the destination bucket and it deletes object
 if the file move option is active.
 
 When you use this operator, you can specify whether objects should be deleted from the source after
-they are transferred to the sink. Source objects can be specified using single wildcard, as
+they are transferred to the sink. Source objects can be specified as prefixes in a list, as
 well as based on the file modification date.
 
 The way this operator works can be compared to the ``cp`` command.
