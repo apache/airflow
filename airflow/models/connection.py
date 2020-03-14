@@ -112,7 +112,7 @@ class Connection(Base, LoggingMixin):
     port = Column(Integer())
     is_encrypted = Column(Boolean, unique=False, default=False)
     is_extra_encrypted = Column(Boolean, unique=False, default=False)
-    _extra = Column('extra', String(5000))
+    _extra = Column('extra', String(12000))
 
     _types = [
         ('docker', 'Docker Registry'),
