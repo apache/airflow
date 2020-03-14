@@ -489,7 +489,7 @@
 - name: secrets
   description: ~
   options:
-    - name: backend_name
+    - name: backend
       description: |
         Full class name of secrets backend to enable (will precede env vars and metastore in search path)
       version_added: ~

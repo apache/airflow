@@ -35,7 +35,7 @@ class AwsSsmSecretsBackend(BaseSecretsBackend):
     .. code-block:: ini
 
         [secrets]
-        backend_name = airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend
+        backend = airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend
         backend_kwargs = {"prefix": "/airflow", "profile_name": null}
 
     For example, if ssm path is ``/airflow/AIRFLOW_CONN_SMTP_DEFAULT``, this would be accessible if you

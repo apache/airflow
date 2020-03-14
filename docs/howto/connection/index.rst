@@ -146,10 +146,10 @@ The ``[secrets]`` section has the following options:
 .. code-block:: ini
 
     [secrets]
-    backend_name =
+    backend =
     backend_kwargs =
 
-Set ``backend_name`` to the fully qualified class name of the backend you want to enable.
+Set ``backend`` to the fully qualified class name of the backend you want to enable.
 
 You can provide ``backend_kwargs`` with json and it will be passed as kwargs to the ``__init__`` method of
 your secrets backend.
@@ -162,14 +162,14 @@ AWS SSM Parameter Store Secrets Backend
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To enable SSM parameter store, specify :py:class:`~airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend`
-as the ``backend_name`` in  ``[secrets]`` section of ``airflow.cfg``.
+as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg``.
 
 Here is a sample configuration:
 
 .. code-block:: ini
 
     [secrets]
-    backend_name = airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend
+    backend = airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend
     backend_kwargs = {"prefix": "/airflow", "profile_name": "default"}
 
 If you have set your prefix as ``/airflow``, then for a connection id of ``smtp_default``, you would want to
@@ -187,7 +187,7 @@ Roll your own secrets backend
 A secrets backend is a subclass of :py:class:`airflow.secrets.BaseSecretsBackend`, and just has to implement the
 :py:meth:`~airflow.secrets.BaseSecretsBackend.get_connections` method.
 
-Just create your class, and put the fully qualified class name in ``backend_name`` key in the ``[secrets]``
+Just create your class, and put the fully qualified class name in ``backend`` key in the ``[secrets]``
 section of ``airflow.cfg``.  You can you can also pass kwargs to ``__init__`` by supplying json to the
 ``backend_kwargs`` config param.  See :ref:`Configuration <secrets_backend_configuration>` for more details,
 and :ref:`SSM Parameter Store <ssm_parameter_store_secrets>` for an example.
