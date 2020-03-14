@@ -25,7 +25,7 @@ services:
     depends_on:
       - mysql
   mysql:
-    image: mysql:5.6
+    image: mysql:${MYSQL_VERSION}
     environment:
       - MYSQL_ALLOW_EMPTY_PASSWORD=true
       - MYSQL_ROOT_HOST=%

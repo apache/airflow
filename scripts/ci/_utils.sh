@@ -66,6 +66,10 @@ function initialize_breeze_environment {
     export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:="25433"}
     export MYSQL_HOST_PORT=${MYSQL_HOST_PORT:="23306"}
 
+    # Default MySQL/Postgres versions
+    export POSTGRES_VERSION=${POSTGRES_VERSION:="9.6"}
+    export MYSQL_VERSION=${MYSQL_VERSION:="5.7"}
+
     # Do not push images from here by default (push them directly from the build script on Dockerhub)
     export PUSH_IMAGES=${PUSH_IMAGES:="false"}
 
