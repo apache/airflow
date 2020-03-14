@@ -74,7 +74,7 @@ class GoogleAnalyticsHook(CloudBaseHook):
                 break
         return result
 
-    def list_ad_words_links(self, account_id: str, web_property_id: str) -> dict:
+    def list_ad_words_links(self, account_id: str, web_property_id: str) -> List[Dict[str, Any]]:
         """
         Lists webProperty-Google Ads links for a given web property.
 
