@@ -72,7 +72,7 @@ class StreamLogWriter:
         """
         self.logger = logger
         self.level = level
-        self._buffer = str()
+        self._buffer = []
 
     @property
     def closed(self):
@@ -97,19 +97,20 @@ class StreamLogWriter:
         :param message: message to log
         """
         if not message.endswith("\n"):
-            self._buffer += message
+            self._buffer.append(message)
         else:
-            self._buffer += message
-            self._propagate_log(self._buffer.rstrip())
-            self._buffer = str()
+            self._buffer.append(message)
+            full_message = ''.join(self._buffer)
+            self._propagate_log(full_message.rstrip())
+            self._buffer.clear()
 
     def flush(self):
         """
         Ensure all logging output has been flushed
         """
-        if len(self._buffer) > 0:
-            self._propagate_log(self._buffer)
-            self._buffer = str()
+        if self._buffer:
+            self._propagate_log(''.join(self._buffer))
+            self._buffer.clear()
 
     def isatty(self):
         """
