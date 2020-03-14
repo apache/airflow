@@ -183,7 +183,6 @@ class BaseSQLToGCSOperator(BaseOperator, metaclass=abc.ABCMeta):
             else:
                 row_dict = dict(zip(schema, row))
 
-                # TODO: validate that row isn't > 2MB. BQ enforces a hard row size of 2MB.
                 tmp_file_handle.write(
                     json.dumps(row_dict, sort_keys=True, ensure_ascii=False).encode("utf-8")
                 )

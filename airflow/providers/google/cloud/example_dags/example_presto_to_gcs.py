@@ -23,9 +23,7 @@ import re
 
 from airflow import models
 from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateExternalTableOperator,
-    BigQueryDeleteDatasetOperator,
+    BigQueryCreateEmptyDatasetOperator, BigQueryCreateExternalTableOperator, BigQueryDeleteDatasetOperator,
     BigQueryExecuteQueryOperator,
 )
 from airflow.providers.google.cloud.operators.presto_to_gcs import PrestoToGCSOperator

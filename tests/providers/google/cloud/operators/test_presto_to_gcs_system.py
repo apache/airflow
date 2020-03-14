@@ -18,7 +18,6 @@
 import os
 
 import pytest
-from psycopg2 import ProgrammingError
 
 from airflow.models import Connection
 from airflow.providers.presto.hooks.presto import PrestoHook
@@ -86,7 +85,8 @@ INSERT INTO memory.default.test_multiple_types VALUES(
   TIME '01:02:03.456',                                     -- z_time TIME,
   TIME '01:02:03.456 America/Los_Angeles',                 -- z_time_with_time_zone TIME WITH TIME ZONE,
   TIMESTAMP '2001-08-22 03:04:05.321',                     -- z_timestamp TIMESTAMP,
-  TIMESTAMP '2001-08-22 03:04:05.321 America/Los_Angeles', -- z_timestamp_with_time_zone TIMESTAMP WITH TIME ZONE,
+  TIMESTAMP '2001-08-22 03:04:05.321 America/Los_Angeles', -- z_timestamp_with_time_zone TIMESTAMP WITH TIME
+                                                           -- ZONE,
   -- Network Address
   IPADDRESS '10.0.0.1',                                    -- z_ipaddress_v4 IPADDRESS,
   IPADDRESS '2001:db8::1',                                 -- z_ipaddress_v6 IPADDRESS,
@@ -111,12 +111,9 @@ class PrestoToGCSSystemTest(GoogleSystemTest):
 
     @staticmethod
     def init_db():
-        try:
-            hook = PrestoHook()
-            hook.run(CREATE_QUERY)
-            hook.run(LOAD_QUERY)
-        except ProgrammingError:
-            pass
+        hook = PrestoHook()
+        hook.run(CREATE_QUERY)
+        hook.run(LOAD_QUERY)
 
     @staticmethod
     def drop_db():

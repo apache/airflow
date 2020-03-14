@@ -840,7 +840,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      -
      - :mod:`airflow.providers.google.cloud.operators.postgres_to_gcs`
 
-   * - `Presto <https://prestosql.io/>`__
+   * - `Presto <https://prestodb.io/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/presto_to_gcs>`
      - :mod:`airflow.providers.google.cloud.operators.presto_to_gcs`

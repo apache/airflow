@@ -19,7 +19,7 @@
 Presto to Google Cloud Storage Transfer Operator
 ================================================
 
-`Presto <https://prestosql.io/>`__ is an open source distributed SQL query engine for running interactive
+`Presto <https://prestodb.io/>`__ is an open source distributed SQL query engine for running interactive
 analytic queries against data sources of all sizes ranging from gigabytes to petabytes. Presto allows
 querying data where it lives, including Hive, Cassandra, relational databases or even proprietary data stores.
 A single Presto query can combine data from multiple sources, allowing for analytics across your entire
@@ -60,10 +60,10 @@ Choice of data format
 
 The operator supports two output formats:
 
-* `json` - JSON Lines (default)
-* `csv`
+* ``json`` - JSON Lines (default)
+* ``csv``
 
-You can specify these options by the `export_format` parameter.
+You can specify these options by the ``export_format`` parameter.
 
 If you want a CSV file to be created, your operator call might look like this:
 
@@ -76,7 +76,7 @@ If you want a CSV file to be created, your operator call might look like this:
 Generating BigQuery schema
 ==========================
 
-If you set `schema_filename` parameter, a ``.json`` file containing the BigQuery schema fields for the table
+If you set ``schema_filename`` parameter, a ``.json`` file containing the BigQuery schema fields for the table
 will be dumped from the database and upload to the bucket.
 
 If you want to create a schema file, then an example operator call might look like this:
@@ -113,9 +113,9 @@ Querying data using the BigQuery
 
 The data available in Google Cloud Storage can be used by BigQuery. You can load data to BigQuery or
 refer in queries directly to GCS data. For information about the loading data to the BigQuery, please look at
-`https://cloud.google.com/bigquery/docs/loading-data-cloud-storage` in
-the BigQuery documentation. For information about the querying GCS data, please look at
-`Querying Cloud Storage data <https://cloud.google.com/bigquery/docs/loading-data-cloud-storage>` in
+`Introduction to loading data from Cloud Storage <https://cloud.google.com/bigquery/docs/loading-data-cloud-storage>`__
+in the BigQuery documentation. For information about the querying GCS data, please look at
+`Querying Cloud Storage data <https://cloud.google.com/bigquery/docs/loading-data-cloud-storage>`__ in
 the BigQuery documentation.
 
 Airflow also has numerous operators that allow you to create the use of BigQuery.
@@ -137,6 +137,6 @@ Reference
 
 For further information, look at:
 
-* `Presto Documentation <https://prestosql.io/docs/current/>`__
+* `Presto Documentation <https://prestodb.io//docs/current/>`__
 
 * `Google Cloud Storage Documentation <https://cloud.google.com/storage/docs/>`__

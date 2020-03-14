@@ -35,6 +35,7 @@
     "microsoft.mssql",
     "mysql",
     "postgres",
+    "presto",
     "sftp"
   ],
   "microsoft.azure": [

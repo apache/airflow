@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import json
 import unittest
 
 import pytest
@@ -24,7 +23,8 @@ from mock import patch
 from airflow.providers.google.cloud.operators.presto_to_gcs import PrestoToGCSOperator
 
 TASK_ID = "test-presto-to-gcs"
-PRESTO_CONN_ID = "presto_default"
+PRESTO_CONN_ID = "my-presto-conn"
+GCP_CONN_ID = "my-gcp-conn"
 SQL = "SELECT * FROM memory.default.test_multiple_types"
 BUCKET = "gs://test"
 FILENAME = "test_{}.ndjson"
@@ -54,9 +54,9 @@ class TestPrestoToGCSOperator(unittest.TestCase):
         self.assertEqual(op.bucket, BUCKET)
         self.assertEqual(op.filename, FILENAME)
 
-    @patch("airflow.providers.google.cloud.operators.sql_to_gcs.GCSHook")
     @patch("airflow.providers.google.cloud.operators.presto_to_gcs.PrestoHook")
-    def test_save_as_json(self, mock_presto_hook, mock_gcs_hook):
+    @patch("airflow.providers.google.cloud.operators.sql_to_gcs.GCSHook")
+    def test_save_as_json(self, mock_gcs_hook, mock_presto_hook):
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):
             self.assertEqual(BUCKET, bucket)
             self.assertEqual(FILENAME.format(0), obj)
@@ -82,10 +82,18 @@ class TestPrestoToGCSOperator(unittest.TestCase):
         ]
 
         op = PrestoToGCSOperator(
-            task_id=TASK_ID, presto_conn_id=PRESTO_CONN_ID, sql=SQL, bucket=BUCKET, filename=FILENAME
+            task_id=TASK_ID,
+            sql=SQL,
+            bucket=BUCKET,
+            filename=FILENAME,
+            presto_conn_id=PRESTO_CONN_ID,
+            gcp_conn_id=GCP_CONN_ID,
         )
 
         op.execute(None)
+
+        mock_presto_hook.assert_called_once_with(presto_conn_id=PRESTO_CONN_ID)
+        mock_gcs_hook.assert_called_once_with(delegate_to=None, gcp_conn_id=GCP_CONN_ID)
 
         mock_gcs_hook.return_value.upload.assert_called()
 
@@ -167,6 +175,8 @@ class TestPrestoToGCSOperator(unittest.TestCase):
             filename=FILENAME,
             schema_filename=SCHEMA_FILENAME,
             export_format="csv",
+            presto_conn_id=PRESTO_CONN_ID,
+            gcp_conn_id=GCP_CONN_ID,
         )
         op.execute(None)
 
@@ -202,16 +212,20 @@ class TestPrestoToGCSOperator(unittest.TestCase):
 
         op = PrestoToGCSOperator(
             task_id=TASK_ID,
-            presto_conn_id=PRESTO_CONN_ID,
             sql=SQL,
             bucket=BUCKET,
             filename=FILENAME,
             export_format="csv",
+            presto_conn_id=PRESTO_CONN_ID,
+            gcp_conn_id=GCP_CONN_ID,
         )
 
         op.execute(None)
 
         mock_gcs_hook.return_value.upload.assert_called()
+
+        mock_presto_hook.assert_called_once_with(presto_conn_id=PRESTO_CONN_ID)
+        mock_gcs_hook.assert_called_once_with(delegate_to=None, gcp_conn_id=GCP_CONN_ID)
 
     @patch("airflow.providers.google.cloud.operators.presto_to_gcs.PrestoHook")
     @patch("airflow.providers.google.cloud.operators.sql_to_gcs.GCSHook")
