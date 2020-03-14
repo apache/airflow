@@ -456,6 +456,26 @@
       type: string
       example: ~
       default: "True"
+
+- name: secrets
+  description: ~
+  options:
+    - name: backend
+      description: |
+        Full class name of secrets backend to enable (will precede env vars and metastore in search path)
+      version_added: 1.10.10
+      type: string
+      example: ~
+      default: ""
+    - name: backend_kwargs
+      description: |
+        The backend_kwargs param is loaded into a dictionary and passed to __init__ of secrets backend class.
+        See documentation for the secrets backend you are using. JSON is expected.
+        Example for AWS SSM: {{"prefix": "/airflow", "profile_name": "my_aws_profile"}}
+      version_added: 1.10.10
+      type: string
+      example: ~
+      default: ""
 - name: cli
   description: ~
   options:

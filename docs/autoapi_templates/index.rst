@@ -131,3 +131,18 @@ was passed to the Apache community and currently the entire code is
 maintained by the community, so now the division has no justification,
 and it is only due to historical reasons. Currently, all new classes are
 added only to the contrib package.
+
+Secrets Backends
+----------------
+Airflow uses relies on secrets backends to retrieve :class:`~airflow.models.connection.Connection` objects.
+All secrets backends derive from :class:`~airflow.secrets.BaseSecretsBackend`.  See :ref:`using an alternative secrets
+backend <alternative_secrets_backend>` for more info.
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  airflow/secrets/index
+
+  airflow/contrib/secrets/index
