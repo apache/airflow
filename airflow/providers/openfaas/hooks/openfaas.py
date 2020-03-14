@@ -30,7 +30,7 @@ class OpenFaasHook(BaseHook):
 
     :param function_name: Name of the function, Defaults to None
     :type query: str
-    :param conn_id: openfass connection to use, Defaults to open_faas_default
+    :param conn_id: openfaas connection to use, Defaults to open_faas_default
         for example host : http://openfaas.faas.com, Conn Type : Http
     :type conn_id: str
     """

@@ -87,7 +87,7 @@
 ./airflow/providers/mysql/hooks/mysql.py
 ./airflow/providers/mysql/operators/presto_to_mysql.py
 ./airflow/providers/mysql/operators/vertica_to_mysql.py
-./airflow/providers/openfass/hooks/openfaas.py
+./airflow/providers/openfaas/hooks/openfaas.py
 ./airflow/providers/opsgenie/hooks/opsgenie_alert.py
 ./airflow/providers/opsgenie/operators/opsgenie_alert.py
 ./airflow/providers/oracle/hooks/oracle.py

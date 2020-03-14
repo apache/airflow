@@ -113,7 +113,7 @@ PROVIDERS_DEPENDENCIES: Dict[str, List[str]] = {
     "mongo": setup.mongo,
     "mysql": setup.mysql,
     "odbc": setup.odbc,
-    "openfass": [],
+    "openfaas": [],
     "opsgenie": [],
     "oracle": setup.oracle,
     "pagerduty": setup.pagerduty,

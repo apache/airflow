@@ -277,7 +277,7 @@ All hooks are in the following packages:
 
   airflow/providers/odbc/hooks/index
 
-  airflow/providers/openfass/hooks/index
+  airflow/providers/openfaas/hooks/index
 
   airflow/providers/opsgenie/hooks/index
 
