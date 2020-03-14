@@ -82,15 +82,23 @@ class TestGoogleAnalyticsHook(unittest.TestCase):
         "analytics.GoogleAnalyticsHook.get_conn"
     )
     def test_call_get_ad_words_links(self, get_conn_mock):
-        account_id = "123456"
-        web_property_id = "UA-123456-1"
+        account_id = "42"
+        web_property_id = "web_property_id"
+        response = ["the knights who say Ni!"]
+        list_ad_words = get_conn_mock.return_value\
+            .management.return_value\
+            .webPropertyAdWordsLinks.return_value\
+            .list
 
-        self.hook.list_ad_words_links(
-            account_id,
-            web_property_id,
-        )
+        get_conn_mock.return_value\
+            .management.return_value\
+            .webPropertyAdWordsLinks.return_value\
+            .list.return_value\
+            .execute.return_value = response
 
-        get_conn_mock.return_value. \
-            management.return_value. \
-            webPropertyAdWordsLinks.return_value. \
-            get.return_value.execute.assert_called_once_with(num_retries=self.NUM_RETRIES)
+        result = self.hook.list_ad_words_links(account_id=account_id, web_property_id=web_property_id)
+
+        list_ad_words.assert_called_once()
+        list_ad_words.assert_called_once_with(accountId=account_id, webPropertyId=web_property_id)
+
+        self.assertEqual(result, response)
