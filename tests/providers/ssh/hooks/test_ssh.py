@@ -59,7 +59,7 @@ def generate_public_key_string(pkey: paramiko.PKey):
 
 TEST_PKEY = paramiko.RSAKey.generate(4096)
 TEST_PRIVATE_KEY = str(generate_key_string(pkey=TEST_PKEY))
-TEST_HOST_PUBLIC_KEY = str(generate_public_key_string(pkey=TEST_PKEY))
+TEST_HOST_PUBLIC_KEY = 'AAA'  # str(generate_public_key_string(pkey=TEST_PKEY))
 
 
 class TestSSHHook(unittest.TestCase):
@@ -323,7 +323,7 @@ class TestSSHHook(unittest.TestCase):
                 conn_type='ssh',
                 extra=json.dumps({
                     "private_key": TEST_PRIVATE_KEY,
-                    "host_key": 'AAA',
+                    "host_key": TEST_HOST_PUBLIC_KEY,
                     "no_host_key_check": False
                 })
             )
@@ -351,7 +351,7 @@ class TestSSHHook(unittest.TestCase):
                 conn_type='ssh',
                 extra=json.dumps({
                     "private_key": TEST_PRIVATE_KEY,
-                    "host_key": 'AAA',
+                    "host_key": TEST_HOST_PUBLIC_KEY,
                     "no_host_key_check": False
                 })
             )
@@ -376,7 +376,7 @@ class TestSSHHook(unittest.TestCase):
                 conn_type='ssh',
                 extra=json.dumps({
                     "private_key": TEST_PRIVATE_KEY,
-                    "host_key": 'AAA',
+                    "host_key": TEST_HOST_PUBLIC_KEY,
                     "no_host_key_check": False
                 })
             )
