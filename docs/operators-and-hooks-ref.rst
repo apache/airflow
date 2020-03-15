@@ -417,11 +417,17 @@ These integrations allow you to perform various operations within the Amazon Web
      -
      -
 
-   * - `Amazon EC2 <https://aws.amazon.com/ec2/>`__
+   * - `Amazon ECS <https://aws.amazon.com/ecs/>`__
      - :doc:`How to use <howto/operator/amazon/aws/ecs>`
      -
      - :mod:`airflow.providers.amazon.aws.operators.ecs`
      -
+
+   * - `Amazon EC2 <https://aws.amazon.com/ec2/>`__
+     -
+     - :mod:`airflow.providers.amazon.aws.hooks.ec2`
+     - :mod:`airflow.providers.amazon.aws.operators.ec2`
+     - :mod:`airflow.providers.amazon.aws.sensors.ec2`
 
    * - `Amazon EMR <https://aws.amazon.com/emr/>`__
      -
