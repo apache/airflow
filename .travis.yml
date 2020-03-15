@@ -74,7 +74,7 @@ jobs:
         KUBERNETES_VERSION=v1.15.3
       python: "3.6"
       stage: test
-    - name: "Tests [Postgres10][Py3.6][integrations]"
+    - name: "Tests [Postgres9.6][Py3.6][integrations]"
       env: >-
         BACKEND=postgres
         PYTHON_VERSION=3.6
