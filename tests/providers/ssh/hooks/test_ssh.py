@@ -359,7 +359,7 @@ class TestSSHHook(unittest.TestCase):
         hook = SSHHook(ssh_conn_id='no_host_key_check_false_extra_and_in_known_hosts')
         with hook.get_conn():
             assert ssh_mock.return_value.connect.called is True
-        assert f.call_count == 0
+        assert f.call_count == 1
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.open', mock.mock_open(read_data='localhost ssh-rsa AAA\n'))
     @mock.patch('airflow.providers.ssh.hooks.ssh.SSHHook._add_new_record_to_known_hosts')
