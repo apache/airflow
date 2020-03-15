@@ -65,19 +65,13 @@ TEST_HOST_PUBLIC_KEY = str(generate_public_key_string(pkey=TEST_PKEY))
 class TestSSHHook(unittest.TestCase):
     CONN_SSH_WITH_PRIVATE_KEY_EXTRA = None
     CONN_SSH_WITH_EXTRA = None
-    CONN_SSH_WITH_PUBLIC_KEY_EXTRA = None
-    CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_TRUE_EXTRA = None
-    CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_FALSE_EXTRA = None
 
     @classmethod
     def tearDownClass(cls) -> None:
         with create_session() as session:
             conns_to_reset = [
                 cls.CONN_SSH_WITH_PRIVATE_KEY_EXTRA,
-                cls.CONN_SSH_WITH_EXTRA,
-                cls.CONN_SSH_WITH_PUBLIC_KEY_EXTRA,
-                cls.CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_TRUE_EXTRA,
-                cls.CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_FALSE_EXTRA
+                cls.CONN_SSH_WITH_EXTRA
             ]
             connections = session.query(Connection).filter(Connection.conn_id.in_(conns_to_reset))
             connections.delete(synchronize_session=False)
@@ -87,11 +81,6 @@ class TestSSHHook(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.CONN_SSH_WITH_PRIVATE_KEY_EXTRA = 'ssh_with_private_key_extra'
         cls.CONN_SSH_WITH_EXTRA = 'ssh_with_extra'
-        cls.CONN_SSH_WITH_PUBLIC_KEY_EXTRA = 'ssh_with_public_key_extra'
-        cls.CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_TRUE_EXTRA = \
-            'ssh_with_public_key_and_no_host_key_check_true_extra'
-        cls.CONN_SSH_WITH_PUBLIC_KEY_AND_NO_HOST_KEY_CHECK_FALSE_EXTRA = \
-            'ssh_with_public_key_and_no_host_key_check_false_extra'
         db.merge_conn(
             Connection(
                 conn_id=cls.CONN_SSH_WITH_EXTRA,
@@ -342,7 +331,7 @@ class TestSSHHook(unittest.TestCase):
         hook = SSHHook(ssh_conn_id='no_host_key_check_false_extra_and_empty_known_hosts')
         with hook.get_conn():
             assert ssh_mock.return_value.connect.called is True
-        assert f.call_count == 2
+        assert f.call_count == 1
 
     @mock.patch(
         'airflow.providers.ssh.hooks.ssh.open',
