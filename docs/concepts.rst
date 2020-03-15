@@ -784,54 +784,17 @@ Note that SubDAG operators should contain a factory method that returns a DAG
 object. This will prevent the SubDAG from being treated like a separate DAG in
 the main UI. For example:
 
-.. code:: python
-
-  #dags/subdag.py
-  from airflow.models import DAG
-  from airflow.operators.dummy_operator import DummyOperator
-
-
-  # Dag is returned by a factory method
-  def sub_dag(parent_dag_name, child_dag_name, start_date, schedule_interval):
-    dag = DAG(
-      '%s.%s' % (parent_dag_name, child_dag_name),
-      schedule_interval=schedule_interval,
-      start_date=start_date,
-    )
-
-    dummy_operator = DummyOperator(
-      task_id='dummy_task',
-      dag=dag,
-    )
-
-    return dag
+.. exampleinclude:: ../airflow/example_dags/subdags/subdag.py
+    :language: python
+    :start-after: [START subdag]
+    :end-before: [END subdag]
 
 This SubDAG can then be referenced in your main DAG file:
 
-.. code:: python
-
-  # main_dag.py
-  from datetime import datetime, timedelta
-  from airflow.models import DAG
-  from airflow.operators.subdag_operator import SubDagOperator
-  from dags.subdag import sub_dag
-
-
-  PARENT_DAG_NAME = 'parent_dag'
-  CHILD_DAG_NAME = 'child_dag'
-
-  main_dag = DAG(
-    dag_id=PARENT_DAG_NAME,
-    schedule_interval=timedelta(hours=1),
-    start_date=datetime(2016, 1, 1)
-  )
-
-  sub_dag = SubDagOperator(
-    subdag=sub_dag(PARENT_DAG_NAME, CHILD_DAG_NAME, main_dag.start_date,
-                   main_dag.schedule_interval),
-    task_id=CHILD_DAG_NAME,
-    dag=main_dag,
-  )
+.. exampleinclude:: ../airflow/example_dags/example_subdag_operator.py
+    :language: python
+    :start-after: [START example_subdag_operator]
+    :end-before: [END example_subdag_operator]
 
 You can zoom into a SubDagOperator from the graph view of the main DAG to show
 the tasks contained within the SubDAG:
@@ -997,36 +960,10 @@ right now is not between its ``execution_time`` and the next scheduled
 
 For example, consider the following DAG:
 
-.. code:: python
-
-  #dags/latest_only_with_trigger.py
-  import datetime as dt
-
-  from airflow.models import DAG
-  from airflow.operators.dummy_operator import DummyOperator
-  from airflow.operators.latest_only_operator import LatestOnlyOperator
-  from airflow.utils.trigger_rule import TriggerRule
-
-
-  dag = DAG(
-      dag_id='latest_only_with_trigger',
-      schedule_interval=dt.timedelta(hours=1),
-      start_date=dt.datetime(2019, 2, 28),
-  )
-
-  latest_only = LatestOnlyOperator(task_id='latest_only', dag=dag)
-
-  task1 = DummyOperator(task_id='task1', dag=dag)
-  task1.set_upstream(latest_only)
-
-  task2 = DummyOperator(task_id='task2', dag=dag)
-
-  task3 = DummyOperator(task_id='task3', dag=dag)
-  task3.set_upstream([task1, task2])
-
-  task4 = DummyOperator(task_id='task4', dag=dag,
-                        trigger_rule=TriggerRule.ALL_DONE)
-  task4.set_upstream([task1, task2])
+.. exampleinclude:: ../airflow/example_dags/example_latest_only_with_trigger.py
+    :language: python
+    :start-after: [START example]
+    :end-before: [END example]
 
 In the case of this DAG, the task ``task1`` is directly downstream of
 ``latest_only`` and will be skipped for all runs except the latest.
