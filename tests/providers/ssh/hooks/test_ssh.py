@@ -304,15 +304,6 @@ class TestSSHHook(unittest.TestCase):
         )
         with hook.get_conn():
             assert ssh_mock.return_value.connect.called is True
-            ssh_mock.return_value.connect.assert_called_once_with(
-                hostname='localhost',
-                username='username',
-                pkey=TEST_PKEY,
-                timeout=10,
-                compress=True,
-                port='port',
-                sock=None
-            )
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.open', mock.mock_open(read_data=''))
     @mock.patch('airflow.providers.ssh.hooks.ssh.SSHHook._add_new_record_to_known_hosts')
@@ -367,7 +358,10 @@ class TestSSHHook(unittest.TestCase):
             assert ssh_mock.return_value.connect.called is True
         assert f.call_count == 1
 
-    @mock.patch('airflow.providers.ssh.hooks.ssh.open', mock.mock_open(read_data=f'{TEST_HOST_PUBLIC_KEY}\n'))
+    @mock.patch(
+        'airflow.providers.ssh.hooks.ssh.open',
+        mock.mock_open(read_data=f'localhost ssh-rsa {TEST_HOST_PUBLIC_KEY}\n')
+    )
     @mock.patch('airflow.providers.ssh.hooks.ssh.SSHHook._add_new_record_to_known_hosts')
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
     def test_ssh_connection_with_public_key_and_no_host_key_check_false_extra_and_rec_in_known_hosts(
