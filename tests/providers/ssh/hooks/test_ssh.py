@@ -59,7 +59,11 @@ def generate_public_key_string(pkey: paramiko.PKey):
 
 TEST_PKEY = paramiko.RSAKey.generate(4096)
 TEST_PRIVATE_KEY = str(generate_key_string(pkey=TEST_PKEY))
-TEST_HOST_PUBLIC_KEY = 'AAA'  # str(generate_public_key_string(pkey=TEST_PKEY))
+TEST_HOST_PUBLIC_KEY = 'AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCP' \
+    'y6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZ' \
+    'ETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoa' \
+    'SjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4' \
+    'yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ=='
 
 
 class TestSSHHook(unittest.TestCase):
@@ -294,7 +298,9 @@ class TestSSHHook(unittest.TestCase):
         )
         hook = SSHHook(
             ssh_conn_id='no_host_key_check_true_extra',
-            username='username'
+            username='username',
+            port='port',
+            timeout=10
         )
         with hook.get_conn():
             assert ssh_mock.return_value.connect.called is True
@@ -361,7 +367,7 @@ class TestSSHHook(unittest.TestCase):
             assert ssh_mock.return_value.connect.called is True
         assert f.call_count == 1
 
-    @mock.patch('airflow.providers.ssh.hooks.ssh.open', mock.mock_open(read_data='localhost ssh-rsa AAA\n'))
+    @mock.patch('airflow.providers.ssh.hooks.ssh.open', mock.mock_open(read_data=f'{TEST_HOST_PUBLIC_KEY}\n'))
     @mock.patch('airflow.providers.ssh.hooks.ssh.SSHHook._add_new_record_to_known_hosts')
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
     def test_ssh_connection_with_public_key_and_no_host_key_check_false_extra_and_rec_in_known_hosts(
