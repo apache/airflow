@@ -195,14 +195,15 @@ class TestCloudDataFusionStartPipelineOperator:
             namespace=NAMESPACE,
             location=LOCATION,
             project_id=PROJECT_ID,
+            runtime_args='{"foo":"bar"}'
         )
         op.execute({})
         mock_hook.return_value.get_instance.assert_called_once_with(
-            instance_name=INSTANCE_NAME, location=LOCATION, project_id=PROJECT_ID
+            instance_name=INSTANCE_NAME, location=LOCATION, project_id=PROJECT_ID, runtime_args='{"foo":"bar"}'
         )
 
         mock_hook.return_value.start_pipeline.assert_called_once_with(
-            instance_url=INSTANCE_URL, pipeline_name=PIPELINE_NAME, namespace=NAMESPACE
+            instance_url=INSTANCE_URL, pipeline_name=PIPELINE_NAME, namespace=NAMESPACE, runtime_args='{"foo":"bar"}'
         )
 
 
