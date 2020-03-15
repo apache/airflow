@@ -26,5 +26,6 @@ FILES_FOR_REBUILD_CHECK=(
  "airflow/www/package.json"
  "airflow/www/yarn.lock"
  "airflow/www/webpack.config.js"
+ "airflow/models/connection.py"
 )
 export FILES_FOR_REBUILD_CHECK
