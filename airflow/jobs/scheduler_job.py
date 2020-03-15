@@ -25,7 +25,6 @@ import sys
 import threading
 import time
 from collections import defaultdict
-from contextlib import redirect_stderr, redirect_stdout
 from datetime import timedelta
 from itertools import groupby
 from typing import List, Optional, Tuple
@@ -52,7 +51,7 @@ from airflow.utils.dag_processing import (
     AbstractDagFileProcessorProcess, DagFileProcessorAgent, FailureCallbackRequest, SimpleDag, SimpleDagBag,
 )
 from airflow.utils.email import get_email_address_list, send_email
-from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
+from airflow.utils.log.logging_mixin import LoggingMixin, StderrToLog, StdoutToLog, set_context
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -141,8 +140,8 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
 
         try:
             # redirect stdout/stderr to log
-            with redirect_stdout(StreamLogWriter(log, logging.INFO)),\
-                    redirect_stderr(StreamLogWriter(log, logging.WARN)):
+            with StdoutToLog(log, logging.INFO), \
+                    StderrToLog(log, logging.WARN):
 
                 # Re-configure the ORM engine as there are issues with multiple processes
                 settings.configure_orm()

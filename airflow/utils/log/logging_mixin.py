@@ -18,7 +18,10 @@
 import logging
 import re
 import sys
+from contextlib import AbstractContextManager
+from io import IOBase
 from logging import Handler, Logger, StreamHandler
+from typing import List
 
 # 7-bit C1 ANSI escape sequences
 ANSI_ESCAPE = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
@@ -58,21 +61,23 @@ class LoggingMixin:
             set_context(self.log, context)
 
 
-# TODO: Formally inherit from io.IOBase
 class StreamLogWriter:
     """
     Allows to redirect stdout and stderr to logger
     """
     encoding: None = None
+    _buffer: List[str]
+    _additional_stream_targets: List[IOBase]
 
-    def __init__(self, logger, level):
+    def __init__(self, logger: logging.Logger, level: int):
         """
-        :param log: The log level method to write to, ie. log.debug, log.warning
-        :return:
+        :param logger: Logger to propagate the stream to.
+        :param level: log level enum for propagation to the provided logger ie. logging.WARNING
         """
         self.logger = logger
         self.level = level
         self._buffer = []
+        self._additional_stream_targets = []
 
     @property
     def closed(self):
@@ -96,6 +101,10 @@ class StreamLogWriter:
 
         :param message: message to log
         """
+
+        for target in self._additional_stream_targets:
+            target.write(message)
+
         if not message.endswith("\n"):
             self._buffer.append(message)
         else:
@@ -118,6 +127,53 @@ class StreamLogWriter:
         For compatibility reasons.
         """
         return False
+
+    def add_stream_target(self, target: IOBase):
+        """
+        Adds a stream target to propagate messages to in addition to the provided logger.
+        :param target: File like to write to.
+        :return:
+        """
+        if not hasattr(target, 'write'):
+            raise TypeError('Stream target must be writeable.')
+
+        self._additional_stream_targets.append(target)
+
+
+class _StreamToLogRedirector(AbstractContextManager):
+    """Context manager to redirect console stream to a StreamLogWriter"""
+    stream_to_replace: str
+    _existing_stream_target: List[IOBase]
+
+    def __init__(self, logger: logging.Logger, level: int, propagate_to_existing_stream: bool = False):
+        self.propagate_to_existing_stream = propagate_to_existing_stream
+        self._existing_stream_target = []
+        self._replacement_stream = StreamLogWriter(logger, level)
+
+    def __enter__(self):
+        """Saves existing stream target and replaces it will this instance."""
+        existing_stream = getattr(sys, self.stream_to_replace)
+        self._existing_stream_target.append(existing_stream)
+
+        if self.propagate_to_existing_stream:
+            self._replacement_stream.add_stream_target(existing_stream)
+
+        setattr(sys, self.stream_to_replace, self._replacement_stream)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Puts back existing stream target"""
+        self._replacement_stream.flush()
+        setattr(sys, self.stream_to_replace, self._existing_stream_target.pop())
+
+
+class StdoutToLog(_StreamToLogRedirector):
+    """Redirect stdout to StreamLogHandler"""
+    stream_to_replace = 'stdout'
+
+
+class StderrToLog(_StreamToLogRedirector):
+    """Redirect stderr to StreamLogHandler"""
+    stream_to_replace = 'stderr'
 
 
 class RedirectStdHandler(StreamHandler):

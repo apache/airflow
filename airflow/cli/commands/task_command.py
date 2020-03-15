@@ -21,7 +21,6 @@ import json
 import logging
 import os
 import textwrap
-from contextlib import redirect_stderr, redirect_stdout
 from typing import List
 
 from tabulate import tabulate
@@ -37,7 +36,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies import SCHEDULER_QUEUED_DEPS
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import get_dag, get_dag_by_file_location, get_dag_by_pickle, get_dags
-from airflow.utils.log.logging_mixin import StreamLogWriter
+from airflow.utils.log.logging_mixin import StderrToLog, StdoutToLog
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 
@@ -182,8 +181,10 @@ def task_run(args, dag=None):
     if args.interactive:
         _run_task_by_selected_method(args, dag, ti)
     else:
-        with redirect_stdout(StreamLogWriter(ti.log, logging.INFO)), \
-                redirect_stderr(StreamLogWriter(ti.log, logging.WARN)):
+        to_console = conf.get('logging', 'task_console_output', fallback=False)
+        with StdoutToLog(ti.log, logging.INFO, propagate_to_existing_stream=to_console), \
+                StderrToLog(ti.log, logging.WARN, propagate_to_existing_stream=to_console):
+
             _run_task_by_selected_method(args, dag, ti)
     logging.shutdown()
 

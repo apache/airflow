@@ -496,6 +496,13 @@
       type: string
       example: ~
       default: "task"
+    - name: task_console_output
+      description: |
+        When true, propagates task STDOUT and STDERR output to console as well as capturing in log file.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: false
 - name: secrets
   description: ~
   options:
