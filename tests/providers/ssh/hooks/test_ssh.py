@@ -296,12 +296,7 @@ class TestSSHHook(unittest.TestCase):
                 })
             )
         )
-        hook = SSHHook(
-            ssh_conn_id='no_host_key_check_true_extra',
-            username='username',
-            port='port',
-            timeout=10
-        )
+        hook = SSHHook(ssh_conn_id='no_host_key_check_true_extra',)
         with hook.get_conn():
             assert ssh_mock.return_value.connect.called is True
 
