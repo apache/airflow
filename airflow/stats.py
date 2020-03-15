@@ -204,16 +204,13 @@ class _Stats(type):
 
     def get_statsd_logger(self):
         if conf.getboolean('scheduler', 'statsd_on'):
-
             from statsd import StatsClient
 
             if conf.has_option('scheduler', 'statsd_custom_client_path'):
-
                 custom_statsd_module_path = conf.get('scheduler', 'statsd_custom_client_path')
 
                 try:
                     stats_class = import_string(custom_statsd_module_path)
-
                     if not issubclass(stats_class, StatsClient):
                         raise Exception(
                             """Your custom Statsd client must extend the statsd.StatsClient in order to ensure backwards
