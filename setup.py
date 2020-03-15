@@ -545,7 +545,7 @@ def do_setup():
             'druid': druid,
             'elasticsearch': elasticsearch,
             'gcp': gcp,
-            'gcp_api': gcp,  # TODO: remove this in Airflow 2.1
+            'gcp_api': gcp,   # TODO: remove this in Airflow 2.1
             'github_enterprise': flask_oauth,
             'google_auth': flask_oauth,
             'grpc': grpc,
@@ -607,7 +607,7 @@ def do_setup():
             'compile_assets': CompileAssets
         },
         test_suite='setup.airflow_test_suite',
-        python_requires='~=3.6',
+        python_requires="~=3.6",
     )
 
 
