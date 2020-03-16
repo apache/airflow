@@ -46,3 +46,25 @@ class EC2Hook(AwsBaseHook):
         if not self.conn:
             self.conn = self.get_resource_type("ec2", self.region_name)
         return self.conn
+
+    def get_instance(self, instance_id: str):
+        """
+        Get EC2 instance by id and return it.
+
+        :param instance_id: id of the AWS EC2 instance
+        :type instance_id: str
+        :return: Instance object
+        :rtype: ec2.Instance
+        """
+        return self.get_conn().Instance(id=instance_id)
+
+    def get_instance_state(self, instance_id: str) -> str:
+        """
+        Get EC2 instance state by id and return it.
+
+        :param instance_id: id of the AWS EC2 instance
+        :type instance_id: str
+        :return: current state of the instance
+        :rtype: str
+        """
+        return self.get_instance(instance_id=instance_id).state["Name"]

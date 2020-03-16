@@ -40,6 +40,36 @@ class TestEC2Hook(unittest.TestCase):
         instances = list(ec2_hook.get_conn().instances.all())
         self.assertIsNotNone(instances)
 
+    @mock_ec2
+    def test_get_instance(self):
+        ec2_hook = EC2Hook()
+        created_instances = ec2_hook.get_conn().create_instances(
+            MaxCount=1,
+            MinCount=1,
+        )
+        created_instance_id = created_instances[0].instance_id
+        # test get_instance method
+        existing_instance = ec2_hook.get_instance(
+            instance_id=created_instance_id
+        )
+        self.assertEqual(created_instance_id, existing_instance.instance_id)
+
+    @mock_ec2
+    def test_get_instance_state(self):
+        ec2_hook = EC2Hook()
+        created_instances = ec2_hook.get_conn().create_instances(
+            MaxCount=1,
+            MinCount=1,
+        )
+        created_instance_id = created_instances[0].instance_id
+        all_instances = list(ec2_hook.get_conn().instances.all())
+        created_instance_state = all_instances[0].state["Name"]
+        # test get_instance_state method
+        existing_instance_state = ec2_hook.get_instance_state(
+            instance_id=created_instance_id
+        )
+        self.assertEqual(created_instance_state, existing_instance_state)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -61,7 +61,7 @@ class EC2Sensor(BaseSensorOperator):
         self.hook = self.get_hook()
 
     def poke(self, context):
-        instance = self.hook.get_conn().Instance(id=self.instance_id)
+        instance = self.hook.get_instance(instance_id=self.instance_id)
         self.log.info("instance state: %s", instance.state)
         return instance.state["Name"] == self.target_state
 

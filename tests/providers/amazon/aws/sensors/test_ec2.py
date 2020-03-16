@@ -63,7 +63,7 @@ class TestEC2Sensor(unittest.TestCase):
         )
         instance_id = instances[0].instance_id
         # stop instance
-        ec2_hook.get_conn().Instance(id=instance_id).stop()
+        ec2_hook.get_instance(instance_id=instance_id).stop()
 
         # start sensor, waits until ec2 instance state became running
         start_sensor = EC2Sensor(
@@ -74,7 +74,7 @@ class TestEC2Sensor(unittest.TestCase):
         # assert instance state is not running
         self.assertFalse(start_sensor.poke(None))
         # start instance
-        ec2_hook.get_conn().Instance(id=instance_id).start()
+        ec2_hook.get_instance(instance_id=instance_id).start()
         # assert instance state is running
         self.assertTrue(start_sensor.poke(None))
 
@@ -88,7 +88,7 @@ class TestEC2Sensor(unittest.TestCase):
         )
         instance_id = instances[0].instance_id
         # start instance
-        ec2_hook.get_conn().Instance(id=instance_id).start()
+        ec2_hook.get_instance(instance_id=instance_id).start()
 
         # stop sensor, waits until ec2 instance state became stopped
         stop_sensor = EC2Sensor(
@@ -99,7 +99,7 @@ class TestEC2Sensor(unittest.TestCase):
         # assert instance state is not stopped
         self.assertFalse(stop_sensor.poke(None))
         # stop instance
-        ec2_hook.get_conn().Instance(id=instance_id).stop()
+        ec2_hook.get_instance(instance_id=instance_id).stop()
         # assert instance state is stopped
         self.assertTrue(stop_sensor.poke(None))
 
