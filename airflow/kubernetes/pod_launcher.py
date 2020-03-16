@@ -17,6 +17,7 @@
 """Launches PODs"""
 import json
 import time
+import re
 from datetime import datetime as dt
 from typing import Optional, Tuple
 
@@ -64,6 +65,7 @@ class PodLauncher(LoggingMixin):
                                                       cluster_context=cluster_context)
         self._watch = watch.Watch()
         self.extract_xcom = extract_xcom
+        self._spark_exit_code = None
 
     def run_pod_async(self, pod: V1Pod, **kwargs):
         """Runs POD asynchronously"""
@@ -122,6 +124,7 @@ class PodLauncher(LoggingMixin):
         if get_logs:
             logs = self.read_pod_logs(pod)
             for line in logs:
+                self._handle_exit_code(line)
                 self.log.info(line)
         result = None
         if self.extract_xcom:
@@ -135,6 +138,13 @@ class PodLauncher(LoggingMixin):
             self.log.info('Pod %s has state %s', pod.metadata.name, State.RUNNING)
             time.sleep(2)
         return self._task_status(self.read_pod(pod)), result
+
+    def _handle_exit_code(self, line):
+        # Store the Spark Exit code
+        line = str(line, 'utf-8', 'ignore')
+        match_exit_code = re.search(r'\s*exit code: (\d+)', line)
+        if match_exit_code:
+            self._spark_exit_code = int(match_exit_code.groups()[0])
 
     def _task_status(self, event):
         self.log.info(
@@ -249,7 +259,7 @@ class PodLauncher(LoggingMixin):
         status = status.lower()
         if status == PodStatus.PENDING:
             return State.QUEUED
-        elif status == PodStatus.FAILED:
+        elif status == PodStatus.FAILED or (self._spark_exit_code is not None and self._spark_exit_code > 0):
             self.log.info('Event with job id %s Failed', job_id)
             return State.FAILED
         elif status == PodStatus.SUCCEEDED:
