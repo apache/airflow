@@ -102,6 +102,31 @@ class TestEC2InstanceStateSensor(unittest.TestCase):
         # assert instance state is stopped
         self.assertTrue(stop_sensor.poke(None))
 
+    @mock_ec2
+    def test_terminated(self):
+        # create instance
+        ec2_hook = EC2Hook()
+        instances = ec2_hook.get_conn().create_instances(
+            MaxCount=1,
+            MinCount=1,
+        )
+        instance_id = instances[0].instance_id
+        # start instance
+        ec2_hook.get_instance(instance_id=instance_id).start()
+
+        # stop sensor, waits until ec2 instance state became terminated
+        stop_sensor = EC2InstanceStateSensor(
+            task_id="stop_sensor",
+            target_state="terminated",
+            instance_id=instance_id,
+        )
+        # assert instance state is not terminated
+        self.assertFalse(stop_sensor.poke(None))
+        # stop instance
+        ec2_hook.get_instance(instance_id=instance_id).terminate()
+        # assert instance state is terminated
+        self.assertTrue(stop_sensor.poke(None))
+
 
 if __name__ == '__main__':
     unittest.main()
