@@ -63,5 +63,6 @@ class TestEC2Operator(unittest.TestCase):
             "stopped"
         )
 
+
 if __name__ == '__main__':
     unittest.main()

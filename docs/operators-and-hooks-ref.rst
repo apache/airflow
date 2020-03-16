@@ -428,7 +428,7 @@ These integrations allow you to perform various operations within the Amazon Web
      - :mod:`airflow.providers.amazon.aws.hooks.ec2`
      - :mod:`airflow.providers.amazon.aws.operators.ec2_start_instance`,
        :mod:`airflow.providers.amazon.aws.operators.ec2_stop_instance`,
-     - :mod:`airflow.providers.amazon.aws.sensors.ec2`
+     - :mod:`airflow.providers.amazon.aws.sensors.ec2_instance_state`
 
    * - `Amazon EMR <https://aws.amazon.com/emr/>`__
      -

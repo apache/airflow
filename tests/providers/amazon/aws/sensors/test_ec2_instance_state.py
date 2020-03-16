@@ -23,13 +23,13 @@ from moto import mock_ec2
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
-from airflow.providers.amazon.aws.sensors.ec2 import EC2Sensor
+from airflow.providers.amazon.aws.sensors.ec2_instance_state import EC2InstanceStateSensor
 
 
-class TestEC2Sensor(unittest.TestCase):
+class TestEC2InstanceStateSensor(unittest.TestCase):
 
     def test_init(self):
-        ec2_operator = EC2Sensor(
+        ec2_operator = EC2InstanceStateSensor(
             task_id="task_test",
             target_state="stopped",
             instance_id="i-123abc",
@@ -45,7 +45,7 @@ class TestEC2Sensor(unittest.TestCase):
     def test_init_invalid_target_state(self):
         invalid_target_state = "target_state_test"
         with self.assertRaises(AirflowException) as cm:
-            EC2Sensor(
+            EC2InstanceStateSensor(
                 task_id="task_test",
                 target_state=invalid_target_state,
                 instance_id="i-123abc",
@@ -66,7 +66,7 @@ class TestEC2Sensor(unittest.TestCase):
         ec2_hook.get_instance(instance_id=instance_id).stop()
 
         # start sensor, waits until ec2 instance state became running
-        start_sensor = EC2Sensor(
+        start_sensor = EC2InstanceStateSensor(
             task_id="start_sensor",
             target_state="running",
             instance_id=instance_id,
@@ -91,7 +91,7 @@ class TestEC2Sensor(unittest.TestCase):
         ec2_hook.get_instance(instance_id=instance_id).start()
 
         # stop sensor, waits until ec2 instance state became stopped
-        stop_sensor = EC2Sensor(
+        stop_sensor = EC2InstanceStateSensor(
             task_id="stop_sensor",
             target_state="stopped",
             instance_id=instance_id,
