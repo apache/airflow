@@ -22,6 +22,7 @@ This module contains Google Dataproc operators.
 # pylint: disable=C0302
 
 import inspect
+import ntpath
 import os
 import re
 import time
@@ -30,7 +31,6 @@ import warnings
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
 
-import ntpath
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.retry import Retry
 from google.cloud.dataproc_v1beta2.types import (  # pylint: disable=no-name-in-module
