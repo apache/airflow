@@ -351,8 +351,7 @@ persisted in the database.
 Secrets Backends
 ----------------
 Airflow uses relies on secrets backends to retrieve :class:`~airflow.models.connection.Connection` objects.
-All secrets backends derive from :class:`~airflow.secrets.BaseSecretsBackend`.  See :ref:`using an alternative secrets
-backend <alternative_secrets_backend>` for more info.
+All secrets backends derive from :class:`~airflow.secrets.BaseSecretsBackend`.
 
 .. toctree::
   :includehidden:
@@ -362,3 +361,4 @@ backend <alternative_secrets_backend>` for more info.
   airflow/secrets/index
 
   airflow/providers/amazon/aws/secrets/index
+  airflow/providers/hashicorp/secrets/index

@@ -251,6 +251,9 @@ gcp = [
 grpc = [
     'grpcio>=1.15.0',
 ]
+hashicorp = [
+    'hvac~=0.10',
+]
 hdfs = [
     'snakebite>=2.7.8',
 ]
@@ -429,7 +432,7 @@ else:
 devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
 devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
 devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + datadog + devel + doc + docker +
-             elasticsearch + gcp + grpc + jdbc + jenkins + kerberos + kubernetes + ldap + odbc +
+             elasticsearch + gcp + grpc + hashicorp + jdbc + jenkins + kerberos + kubernetes + ldap + odbc +
              oracle + pagerduty + papermill + password + redis + salesforce + samba + segment +
              sendgrid + sentry + singularity + slack + snowflake + ssh + statsd + tableau +
              virtualenv + webhdfs + yandexcloud + zendesk)
@@ -551,6 +554,7 @@ def do_setup():
             'grpc': grpc,
             'hdfs': hdfs,
             'hive': hive,
+            'hvac': hashicorp,
             'jdbc': jdbc,
             'jira': jira,
             'kerberos': kerberos,
