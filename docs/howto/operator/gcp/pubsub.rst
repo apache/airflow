@@ -89,8 +89,13 @@ and pass them through XCom.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_pubsub.py
     :language: python
-    :start-after: [START howto_operator_gcp_pubsub_pull_message]
-    :end-before: [END howto_operator_gcp_pubsub_pull_message]
+    :start-after: [START howto_operator_gcp_pubsub_pull_message_with_sensor]
+    :end-before: [END howto_operator_gcp_pubsub_pull_message_with_sensor]
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_pubsub.py
+    :language: python
+    :start-after: [START howto_operator_gcp_pubsub_pull_message_with_operator]
+    :end-before: [END howto_operator_gcp_pubsub_pull_message_with_operator]
 
 To pull messages from XCom use the :class:`~airflow.operators.bash.BashOperator`.
 
