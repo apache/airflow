@@ -19,7 +19,6 @@
 
 from typing import Optional
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
@@ -52,7 +51,7 @@ class EC2InstanceStateSensor(BaseSensorOperator):
                  *args,
                  **kwargs):
         if target_state not in self.valid_states:
-            raise AirflowException(f"Invalid target_state: {target_state}")
+            raise ValueError(f"Invalid target_state: {target_state}")
         super().__init__(*args, **kwargs)
         self.target_state = target_state
         self.instance_id = instance_id
