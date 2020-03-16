@@ -1425,15 +1425,6 @@ class TaskInstance(Base, LoggingMixin):
             'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
         )
 
-        default_html_content_err = (
-            'Try {{try_number}} out of {{max_tries + 1}}<br>'
-            'Exception:<br>Failed attempt to attach error logs<br>'
-            'Log: <a href="{{ti.log_url}}">Link</a><br>'
-            'Host: {{ti.hostname}}<br>'
-            'Log file: {{ti.log_filepath}}<br>'
-            'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
-        )
-
         def render(key, content):
             if conf.has_option('email', key):
                 path = conf.get('email', key)
@@ -1444,10 +1435,18 @@ class TaskInstance(Base, LoggingMixin):
 
         subject = render('subject_template', default_subject)
         html_content = render('html_content_template', default_html_content)
-        html_content_err = render('html_content_template', default_html_content_err)
         try:
             send_email(self.task.email, subject, html_content)
         except Exception:
+            default_html_content_err = (
+                'Try {{try_number}} out of {{max_tries + 1}}<br>'
+                'Exception:<br>Failed attempt to attach error logs<br>'
+                'Log: <a href="{{ti.log_url}}">Link</a><br>'
+                'Host: {{ti.hostname}}<br>'
+                'Log file: {{ti.log_filepath}}<br>'
+                'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+            )
+            html_content_err = render('html_content_template', default_html_content_err)
             send_email(self.task.email, subject, html_content_err)
 
     def set_duration(self) -> None:
