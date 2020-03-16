@@ -606,3 +606,87 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
         )
         self.assertEqual(response, new_response)
         self.assertEqual(content, new_content)
+
+
+class TestProvideAuthorizedGcloud(unittest.TestCase):
+    def setUp(self):
+        with mock.patch(
+            MODULE_NAME + '.CloudBaseHook.__init__',
+            new=mock_base_gcp_hook_default_project_id,
+        ):
+            self.instance = hook.CloudBaseHook(gcp_conn_id="google-cloud-default")
+
+    @mock.patch(MODULE_NAME + '.check_output')
+    def test_provide_authorized_gcloud_key_path_and_keyfile_dict(self, mock_check_output):
+        key_path = '/test/key-path'
+        self.instance.extras = {
+            'extra__google_cloud_platform__key_path': key_path,
+            'extra__google_cloud_platform__keyfile_dict': '{"foo": "bar"}'
+        }
+
+        with self.assertRaisesRegexp(
+            AirflowException,
+            'The `keyfile_dict` and `key_path` fields are mutually exclusive. '
+            'Please provide only one value.'
+        ):
+            with self.instance.provide_authorized_gcloud():
+                self.assertEqual(os.environ[CREDENTIALS], key_path)
+
+    @mock.patch(MODULE_NAME + '.check_output')
+    def test_provide_authorized_gcloud_key_path(self, mock_check_output):
+        key_path = '/test/key-path'
+        self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
+
+        with self.instance.provide_authorized_gcloud():
+            self.assertEqual(os.environ[CREDENTIALS], key_path)
+
+        mock_check_output.assert_called_once_with(
+            ['gcloud', 'auth', 'activate-service-account', '--key-file=/test/key-path']
+        )
+
+    @mock.patch(MODULE_NAME + '.check_output')
+    @mock.patch('tempfile.NamedTemporaryFile')
+    def test_provide_authorized_gcloud_keyfile_dict(self, mock_file, mock_check_output):
+        string_file = StringIO()
+        file_content = '{"foo": "bar"}'
+        file_name = '/test/mock-file'
+        self.instance.extras = {'extra__google_cloud_platform__keyfile_dict': file_content}
+        mock_file_handler = mock_file.return_value.__enter__.return_value
+        mock_file_handler.name = file_name
+        mock_file_handler.write = string_file.write
+
+        with self.instance.provide_authorized_gcloud():
+            self.assertEqual(os.environ[CREDENTIALS], file_name)
+
+        mock_check_output.assert_called_once_with(
+            ['gcloud', 'auth', 'activate-service-account', '--key-file=/test/mock-file']
+        )
+
+    @mock.patch(MODULE_NAME + '._cloud_sdk')
+    @mock.patch(MODULE_NAME + '.check_output')
+    @mock.patch('tempfile.NamedTemporaryFile')
+    def test_provide_authorized_gcloud_via_gcloud_application_default(
+        self, mock_file, mock_check_output, mock_cloud_sdk
+    ):
+        # This file always exists.
+        mock_cloud_sdk.get_application_default_credentials_path.return_value = __file__
+
+        file_content = json.dumps({
+            "client_id": "CLIENT_ID",
+            "client_secret": "CLIENT_SECRET",
+            "refresh_token": "REFRESH_TOKEN",
+            "type": "authorized_user"
+        })
+        with mock.patch(MODULE_NAME + '.open', mock.mock_open(read_data=file_content)) as m:
+            with self.instance.provide_authorized_gcloud():
+                # Do nothing
+                pass
+
+        mock_check_output.has_calls(
+            [
+                mock.call(['gcloud', 'config', 'set', 'auth/client_id', 'CLIENT_ID']),
+                mock.call(['gcloud', 'config', 'set', 'auth/client_secret', 'CLIENT_SECRET']),
+                mock.call(['gcloud', 'auth', 'activate-refresh-token', 'CLIENT_ID', 'REFRESH_TOKEN'])
+            ],
+            any_order=False
+        )
