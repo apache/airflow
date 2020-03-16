@@ -21,7 +21,6 @@ This module contains Google Kubernetes Engine operators.
 """
 
 import os
-import subprocess
 import tempfile
 from typing import Dict, Optional, Union
 

@@ -212,7 +212,7 @@ class TestProvideGcpCredentialFile(unittest.TestCase):
         def assert_gcp_credential_file_in_env(_):
             self.assertEqual(os.environ[CREDENTIALS], key_path)
 
-        with self.assertRaisesRegexp(
+        with self.assertRaisesRegex(
             AirflowException,
             'The `keyfile_dict` and `key_path` fields are mutually exclusive. '
             'Please provide only one value.'
@@ -624,7 +624,7 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
             'extra__google_cloud_platform__keyfile_dict': '{"foo": "bar"}'
         }
 
-        with self.assertRaisesRegexp(
+        with self.assertRaisesRegex(
             AirflowException,
             'The `keyfile_dict` and `key_path` fields are mutually exclusive. '
             'Please provide only one value.'
@@ -677,7 +677,7 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
             "refresh_token": "REFRESH_TOKEN",
             "type": "authorized_user"
         })
-        with mock.patch(MODULE_NAME + '.open', mock.mock_open(read_data=file_content)) as m:
+        with mock.patch(MODULE_NAME + '.open', mock.mock_open(read_data=file_content)):
             with self.instance.provide_authorized_gcloud():
                 # Do nothing
                 pass

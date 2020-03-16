@@ -199,7 +199,7 @@ def patch_environ(new_env_variables: Dict[str, str]):
         for key in new_env_variables.keys()
     }
     os.environ.update(new_env_variables)
-    try:
+    try:  # pylint: disable=too-many-nested-blocks
         yield
     finally:
         for key, old_value in current_env_state.items():
