@@ -16,7 +16,7 @@
 # under the License.
 from unittest import mock
 
-from airflow.providers.google.marketing_platform.operators.google_ads import GoogleAdsToGcsOperator
+from airflow.providers.google.ads.operators.ads import GoogleAdsToGcsOperator
 
 CLIENT_IDS = ["1111111111", "2222222222"]
 BUCKET = "gs://test-google-ads-bucket"
@@ -39,12 +39,8 @@ google_ads_conn_id = "google_ads_conn_id"
 
 
 class TestGoogleAdsToGcsOperator:
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.operators.google_ads.GoogleAdsHook"
-    )
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.operators.google_ads.GCSHook"
-    )
+    @mock.patch("airflow.providers.google.ads.operators.google_ads.GoogleAdsHook")
+    @mock.patch("airflow.providers.google.ads.operators.google_ads.GCSHook")
     def test_execute(self, mock_gcs_hook, mock_ads_hook):
         op = GoogleAdsToGcsOperator(
             gcp_conn_id=gcp_conn_id,

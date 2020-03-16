@@ -21,7 +21,7 @@ Example Airflow DAG that shows how to use GoogleAdsToGcsOperator.
 import os
 
 from airflow import models
-from airflow.providers.google.marketing_platform.operators.google_ads import GoogleAdsToGcsOperator
+from airflow.providers.google.ads.operators.ads import GoogleAdsToGcsOperator
 from airflow.utils import dates
 
 # [START howto_google_ads_env_variables]

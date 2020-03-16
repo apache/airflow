@@ -24,8 +24,8 @@ from tempfile import NamedTemporaryFile
 from typing import Dict, List
 
 from airflow.models import BaseOperator
+from airflow.providers.google.ads.hooks.ads import GoogleAdsHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.marketing_platform.hooks.google_ads import GoogleAdsHook
 from airflow.utils.decorators import apply_defaults
 
 

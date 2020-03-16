@@ -985,6 +985,11 @@ These integrations allow you to perform various operations within various servic
      - :mod:`airflow.providers.discord.operators.discord_webhook`
      -
 
+   * - `Google Ads <https://ads.google.com/home/>`__
+     - :doc:`How to use <howto/operator/gcp/google_ads>`
+     - :mod:`airflow.providers.google.ads.hooks.ads`
+     - :mod:`airflow.providers.google.ads.operators.ads`
+
    * - `Google Campaign Manager <https://developers.google.com/doubleclick-advertisers>`__
      - :doc:`How to use <howto/operator/gcp/campaign_manager>`
      - :mod:`airflow.providers.google.marketing_platform.hooks.campaign_manager`
