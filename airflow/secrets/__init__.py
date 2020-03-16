@@ -79,10 +79,10 @@ def initialize_secrets_backends() -> List[BaseSecretsBackend]:
     * import secrets backend classes
     * instantiate them and return them in a list
     """
-    alternative_secrets_backend = conf.get(section=CONFIG_SECTION, key='class_name', fallback='')
+    alternative_secrets_backend = conf.get(section=CONFIG_SECTION, key='backend', fallback='')
     try:
         alternative_secrets_config_dict = json.loads(
-            conf.get(section=CONFIG_SECTION, key='config_json', fallback='{}')
+            conf.get(section=CONFIG_SECTION, key='backend_kwargs', fallback='{}')
         )
     except JSONDecodeError:
         alternative_secrets_config_dict = {}
