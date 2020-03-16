@@ -17,6 +17,7 @@
 # under the License.
 #
 
+import time
 from typing import Optional
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -68,3 +69,30 @@ class EC2Hook(AwsBaseHook):
         :rtype: str
         """
         return self.get_instance(instance_id=instance_id).state["Name"]
+
+    def wait_for_state(self,
+                       instance_id: str,
+                       target_state: str,
+                       check_interval: float) -> None:
+        """
+        Wait EC2 instance until its state is equal to the target_state.
+
+        :param instance_id: id of the AWS EC2 instance
+        :type instance_id: str
+        :param target_state: target state of instance
+        :type target_state: str
+        :param check_interval: time in seconds that the job should wait in
+            between each instance state checks until operation is completed
+        :type check_interval: float
+        :return: None
+        :rtype: None
+        """
+        instance_state = self.get_instance_state(
+            instance_id=instance_id
+        )
+        while instance_state != target_state:
+            self.log.info("instance state: %s", instance_state)
+            time.sleep(check_interval)
+            instance_state = self.get_instance_state(
+                instance_id=instance_id
+            )

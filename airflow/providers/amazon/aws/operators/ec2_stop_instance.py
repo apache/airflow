@@ -17,7 +17,6 @@
 # under the License.
 #
 
-import time
 from typing import Optional
 
 from airflow.models import BaseOperator
@@ -61,19 +60,13 @@ class EC2StopInstanceOperator(BaseOperator):
     def execute(self, context):
         ec2_hook = self.get_hook()
         self.log.info("Stopping EC2 instance %s", self.instance_id)
-
         instance = ec2_hook.get_instance(instance_id=self.instance_id)
         instance.stop()
-        instance_state = ec2_hook.get_instance_state(
-            instance_id=self.instance_id
+        ec2_hook.wait_for_state(
+            instance_id=self.instance_id,
+            target_state="stopped",
+            check_interval=self.check_interval,
         )
-
-        while instance_state != "stopped":
-            self.log.info("instance state: %s", instance_state)
-            time.sleep(self.check_interval)
-            instance_state = ec2_hook.get_instance_state(
-                instance_id=self.instance_id
-            )
 
     def get_hook(self):
         """
