@@ -41,7 +41,7 @@ class EC2Sensor(BaseSensorOperator):
     template_fields = ["target_state", "region_name"]
     ui_color = "#cc8811"
     ui_fgcolor = "#ffffff"
-    valid_states = ["running", "stopped"]
+    valid_states = ["running", "stopped", "terminated"]
 
     @apply_defaults
     def __init__(self,
