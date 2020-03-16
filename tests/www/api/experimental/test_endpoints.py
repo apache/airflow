@@ -131,25 +131,35 @@ class TestApiExperimental(TestBase):
             )
             self.assertEqual(404, response.status_code)
 
-    def test_task_paused(self):
+    def test_dag_paused(self):
         with conf_vars(
             {("core", "store_serialized_dags"): self.dag_serialization}
         ):
-            url_template = '/api/experimental/dags/{}/paused/{}'
+            pause_url_template = '/api/experimental/dags/{}/paused/{}'
+            paused_url_template = '/api/experimental/dags/{}/paused'
+            paused_url = paused_url_template.format('example_bash_operator')
 
             response = self.client.get(
-                url_template.format('example_bash_operator', 'true')
+                pause_url_template.format('example_bash_operator', 'true')
             )
             self.assertIn('ok', response.data.decode('utf-8'))
             self.assertEqual(200, response.status_code)
 
-            url_template = '/api/experimental/dags/{}/paused/{}'
+            paused_response = self.client.get(paused_url)
+
+            self.assertEqual(200, paused_response.status_code)
+            self.assertEqual({"is_paused": True}, paused_response.json)
 
             response = self.client.get(
-                url_template.format('example_bash_operator', 'false')
+                pause_url_template.format('example_bash_operator', 'false')
             )
             self.assertIn('ok', response.data.decode('utf-8'))
             self.assertEqual(200, response.status_code)
+
+            paused_response = self.client.get(paused_url)
+
+            self.assertEqual(200, paused_response.status_code)
+            self.assertEqual({"is_paused": False}, paused_response.json)
 
     def test_trigger_dag(self):
         with conf_vars(
