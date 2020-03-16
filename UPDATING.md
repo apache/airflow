@@ -1047,24 +1047,6 @@ If the DAG relies on tasks with other trigger rules (i.e. `all_done`) being skip
 
 The goal of this change is to achieve a more consistent and configurale cascading behaviour based on the `BaseBranchOperator` (see [AIRFLOW-2923](https://jira.apache.org/jira/browse/AIRFLOW-2923) and [AIRFLOW-1784](https://jira.apache.org/jira/browse/AIRFLOW-1784)).
 
-
-### RedshiftToS3Transfer:: signature changed
-
-Previous versions of the `RedshiftToS3Transfer` operator required `schema` and `table` arguments as the first 2
-positional arguments. This signature was changed in 2.0 and
-the `s3_bucket` and `s3_key` are the first 2 positional arguments. This should be followed by either `schema` and `table` and table arguements or a single `custom_select_query` arguement. 
-The `schema` and `table` arg combo unloads everything from the given table into an s3 object while `custom_select_query` allows you to specify your own redshift select query to filter data on and unload to s3. 
-
-In order to use this operator:
-```python
-result = RedshiftToS3Transfer('schema', 'table', 's3_bucket', 's3_key')  # Pre-2.0 call
-...
-option1: call for copying entire table into s3 object
-result = RedshiftToS3Transfer('s3_bucket', 's3_key', 'schema', 'table')  # Post-2.0 call
-option2: call for copying table with custom select query into s3 object
-result = RedshiftToS3Transfer('s3_bucket', 's3_key', 'custom_select_query')  # Post-2.0 call
-```
-
 ## Airflow 1.10.9
 
 No breaking changes.
