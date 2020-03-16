@@ -88,12 +88,16 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         secret_key = "aws_secret_access_key"
         mock_session.return_value = Session(access_key, secret_key)
         custom_select_query = "SELECT * FROM schema.table;"
+        schema = "schema"
+        table = "table"
         s3_bucket = "bucket"
         s3_key = "key"
         unload_options = ['HEADER', ]
 
         RedshiftToS3Transfer(
             custom_select_query=custom_select_query,
+            schema=schema,
+            table=table,
             s3_bucket=s3_bucket,
             s3_key=s3_key,
             unload_options=unload_options,
@@ -105,7 +109,10 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         ).execute(None)
 
         unload_options = '\n\t\t\t'.join(unload_options)
-        select_query = expected_custom_select_query
+        if expected_custom_select_query:
+            select_query = expected_custom_select_query
+        else:
+            select_query = "SELECT * FROM schema.table;"
         unload_query = """
                     UNLOAD ('{select_query}')
                     TO 's3://{s3_bucket}/{s3_key}'
