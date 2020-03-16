@@ -78,16 +78,16 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
 
     @parameterized.expand([
-        [True, "key/None_"],
-        [False, "key"],
+        [None],
+        ["SELECT * FROM schema.table;"],
     ])
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.run")
-    def test_queryresult_transfer(self, table_as_file_name, expected_s3_key, mock_run, mock_session,):
+    def test_transfer_customquery_success(self, expected_custom_select_query, mock_run, mock_session,):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
         mock_session.return_value = Session(access_key, secret_key)
-        custom_select_query = "SELECT * FROM schema.table limit 10;"
+        custom_select_query = "SELECT * FROM schema.table;"
         s3_bucket = "bucket"
         s3_key = "key"
         unload_options = ['HEADER', ]
@@ -101,12 +101,11 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
             redshift_conn_id="redshift_conn_id",
             aws_conn_id="aws_conn_id",
             task_id="task_id",
-            table_as_file_name=table_as_file_name,
             dag=None
         ).execute(None)
 
         unload_options = '\n\t\t\t'.join(unload_options)
-        select_query = custom_select_query
+        select_query = expected_custom_select_query
         unload_query = """
                     UNLOAD ('{select_query}')
                     TO 's3://{s3_bucket}/{s3_key}'
@@ -115,7 +114,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
                     {unload_options};
                     """.format(select_query=select_query,
                                s3_bucket=s3_bucket,
-                               s3_key=expected_s3_key,
+                               s3_key=s3_key,
                                access_key=access_key,
                                secret_key=secret_key,
                                unload_options=unload_options)
