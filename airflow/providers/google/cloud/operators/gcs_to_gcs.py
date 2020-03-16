@@ -18,12 +18,15 @@
 """
 This module contains a Google Cloud Storage operator.
 """
+import warnings
 from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils.decorators import apply_defaults
+
+WILDCARD = '*'
 
 
 class GCSToGCSOperator(BaseOperator):
@@ -37,9 +40,9 @@ class GCSToGCSOperator(BaseOperator):
     :param source_bucket: The source Google Cloud Storage bucket where the
          object is. (templated)
     :type source_bucket: str
-    :param source_objects: A list of prefix of the objects to copy in the Google cloud
+    :param source_object: A list of prefix of the objects to copy in the Google cloud
         storage bucket. (templated)
-    :type source_objects: List[str]
+    :type source_object: List[str]
     :param destination_bucket: The destination Google Cloud Storage bucket
         where the object should be. If the destination_bucket is None, it defaults
         to source_bucket. (templated)
@@ -47,17 +50,17 @@ class GCSToGCSOperator(BaseOperator):
     :param destination_object: The destination name of the object in the
         destination Google Cloud Storage bucket. (templated)
         If destination object is not specified, then it defaults to each of the source objects.
-        For example, if source_objects = ['foo/sales','bah/inventory'], then destination will be
+        For example, if source_object = ['foo/sales','bah/inventory'], then destination will be
         'foo/sales' and 'bah/inventory' if destination_object is not specified.
     :type destination_object: str
     :param move_object: When move object is True, the object is moved instead
         of copied to the new location. This is the equivalent of a mv command
         as opposed to a cp command.
     :type move_object: bool
-    :type delimiter: str
-    :param delimiter: This is used to restrict the result to only the 'files' in a given 'folder'.
-        If source_objects = ['foo/bah/'] and delimiter = '.avro', then only the 'files' in the
+    :param suffix: This is used to restrict the result to only the 'files' in a given 'folder'.
+        If source_object = ['foo/bah/'] and suffix = '.avro', then only the 'files' in the
         folder 'foo/bah/' with '.avro' suffix will be copied to the destination object.
+    :type suffix: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
@@ -97,7 +100,18 @@ class GCSToGCSOperator(BaseOperator):
             source_object=['sales/sales-2017'],
             destination_bucket='data_backup',
             destination_object='copied_sales/2017/',
-            delimiter='.avro'
+            suffix='.avro'
+            gcp_conn_id=google_cloud_conn_id
+        )
+
+        Or ::
+
+        copy_files = GCSToGCSOperator(
+            task_id='copy_files',
+            source_bucket='data',
+            source_object='sales/sales-2017/*.avro',
+            destination_bucket='data_backup',
+            destination_object='copied_sales/2017/',
             gcp_conn_id=google_cloud_conn_id
         )
 
@@ -109,38 +123,57 @@ class GCSToGCSOperator(BaseOperator):
         move_files = GCSToGCSOperator(
             task_id='move_files',
             source_bucket='data',
-            source_objects=['sales/sales-2017'],
+            source_object='sales/sales-2017/*.avro',
             destination_bucket='data_backup',
-            delimiter='.avro',
+            move_object=True,
+            gcp_conn_id=google_cloud_conn_id
+        )
+
+    The following Operator would move all the Avro files from ``sales/sales-2019``
+     and ``sales/sales-2020` folder in ``data`` bucket to the same folder in the
+     ``data_backup`` bucket, deleting the original files in the process. ::
+
+        move_files = GCSToGCSOperator(
+            task_id='move_files',
+            source_bucket='data',
+            source_object=['sales/sales-2019/*.avro', 'sales/sales-2020'],
+            destination_bucket='data_backup',
+            suffix='.avro',
             move_object=True,
             gcp_conn_id=google_cloud_conn_id
         )
 
     """
-    template_fields = ('source_bucket', 'source_objects', 'destination_bucket',
+    template_fields = ('source_bucket', 'source_object', 'destination_bucket',
                        'destination_object', 'delimiter')
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self,  # pylint: disable=too-many-arguments
                  source_bucket,
-                 source_objects,
+                 source_object,
                  destination_bucket=None,
                  destination_object=None,
-                 delimiter=None,
+                 suffix=None,
                  move_object=False,
                  gcp_conn_id='google_cloud_default',
+                 google_cloud_storage_conn_id=None,
                  delegate_to=None,
                  last_modified_time=None,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
+        if google_cloud_storage_conn_id:
+            warnings.warn(
+                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+            gcp_conn_id = google_cloud_storage_conn_id
 
         self.source_bucket = source_bucket
-        self.source_objects = source_objects
+        self.source_object = source_object
         self.destination_bucket = destination_bucket
         self.destination_object = destination_object
-        self.delimiter = delimiter
+        self.suffix = suffix
         self.move_object = move_object
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
@@ -158,25 +191,63 @@ class GCSToGCSOperator(BaseOperator):
                 'destination_bucket is None. Defaulting it to source_bucket (%s)',
                 self.source_bucket)
             self.destination_bucket = self.source_bucket
-        if not all(isinstance(item, str) for item in self.source_objects):
-            raise AirflowException('At least, one of the `objects` in the `source_objects` is not a string')
-        # An empty source_objects means to copy all files
-        if len(self.source_objects) == 0:
-            self.source_objects = ['']
-        # Raise exception if `''` is used twice in source_objects, this is to avoid double copy
-        if self.source_objects.count('') > 1:
-            raise AirflowException("You can't have two empty strings inside source_objects")
-        # Iterate over the source_objects and do the copy
-        for prefix in self.source_objects:
-            objects = hook.list(self.source_bucket, prefix=prefix, delimiter=self.delimiter)
-            for source_object in objects:
-                if self.destination_object is None:
-                    destination_object = source_object
-                    self._copy_single_object(hook=hook, source_object=source_object,
-                                             destination_object=destination_object)
-                else:
-                    self._copy_single_object(hook=hook, source_object=source_object,
-                                             destination_object=self.destination_object)
+        if not isinstance(self.source_object, list) and not isinstance(self.source_object, tuple)\
+                and isinstance(self.source_object, str):
+            self.source_object = [self.source_object]
+        if not all(isinstance(item, str) for item in self.source_object):
+            raise AirflowException('At least, one of the `objects` in the `source_object` is not a string')
+        # An empty source_object means to copy all files
+        if len(self.source_object) == 0:
+            self.source_object = ['']
+        # Raise exception if `''` is used twice in source_object, this is to avoid double copy
+        if self.source_object.count('') > 1:
+            raise AirflowException("You can't have two empty strings inside source_object")
+
+        # Iterate over the source_object and do the copy
+        for prefix in self.source_object:
+            # Check if prefix contains wildcard
+            if WILDCARD in prefix:
+                self._copy_source_with_wildcard(hook=hook, prefix=prefix)
+            # Now search with prefix using provided suffix if any
+            else:
+                self._copy_source_without_wildcard(hook=hook, prefix=prefix)
+
+    def _copy_source_without_wildcard(self, hook, prefix):
+        objects = hook.list(self.source_bucket, prefix=prefix, delimiter=self.suffix)
+
+        # If objects is empty and we have prefix, let's check if prefix is a blob
+        # and copy directly
+        if len(objects) == 0 and prefix:
+            if hook.exists(self.source_bucket, prefix):
+                self._copy_single_object(hook=hook, source_object=prefix,
+                                         destination_object=self.destination_object)
+        for source_obj in objects:
+            if self.destination_object is None:
+                destination_object = source_obj
+            else:
+                destination_object = self.destination_object
+            self._copy_single_object(hook=hook, source_object=source_obj,
+                                     destination_object=destination_object)
+
+    def _copy_source_with_wildcard(self, hook, prefix):
+        total_wildcards = prefix.count(WILDCARD)
+        if total_wildcards > 1:
+            error_msg = "Only one wildcard '*' is allowed in source_object parameter. " \
+                        "Found {} in {}.".format(total_wildcards, prefix)
+
+            raise AirflowException(error_msg)
+        self.log.info('Suffix ignored because wildcard is in prefix')
+        prefix_, delimiter = prefix.split(WILDCARD, 1)
+        objects = hook.list(self.source_bucket, prefix=prefix_, delimiter=delimiter)
+        for source_object in objects:
+            if self.destination_object is None:
+                destination_object = source_object
+            else:
+                destination_object = source_object.replace(prefix_,
+                                                           self.destination_object, 1)
+
+            self._copy_single_object(hook=hook, source_object=source_object,
+                                     destination_object=destination_object)
 
     def _copy_single_object(self, hook, source_object, destination_object):
         if self.last_modified_time is not None:
