@@ -16,15 +16,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# pylint: disable=invalid-name
+"""
+Interact with AWS S3, using the boto3 library.
+"""
+import fnmatch
+import gzip as gz
+import re
+import shutil
+from urllib.parse import urlparse
+
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
 
 from six import BytesIO
-from urllib.parse import urlparse
-import re
-import fnmatch
 
 
 class S3Hook(AwsHook):
@@ -318,7 +326,8 @@ class S3Hook(AwsHook):
                   key,
                   bucket_name=None,
                   replace=False,
-                  encrypt=False):
+                  encrypt=False,
+                  gzip=False):
         """
         Loads a local file to S3
 
@@ -335,6 +344,8 @@ class S3Hook(AwsHook):
         :param encrypt: If True, the file will be encrypted on the server-side
             by S3 and will be stored in an encrypted form while at rest in S3.
         :type encrypt: bool
+        :param gzip: If True, the file will be compressed locally
+        :type gzip: bool
         """
         if not bucket_name:
             (bucket_name, key) = self.parse_s3_url(key)
@@ -345,6 +356,12 @@ class S3Hook(AwsHook):
         extra_args = {}
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
+        if gzip:
+            filename_gz = filename.name + '.gz'
+            with open(filename.name, 'rb') as f_in:
+                with gz.open(filename_gz, 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+                    filename = filename_gz
 
         client = self.get_conn()
         client.upload_file(filename, bucket_name, key, ExtraArgs=extra_args)
