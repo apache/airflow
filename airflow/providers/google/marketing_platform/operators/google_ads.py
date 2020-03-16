@@ -132,6 +132,7 @@ class GoogleAdsToGcsOperator(BaseOperator):
         with NamedTemporaryFile("w", suffix=".csv") as csvfile:
             writer = csv.writer(csvfile)
             writer.writerows(converted_rows)
+            csvfile.flush()
 
             hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
             hook.upload(
