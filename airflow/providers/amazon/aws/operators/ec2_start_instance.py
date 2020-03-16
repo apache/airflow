@@ -58,7 +58,10 @@ class EC2StartInstanceOperator(BaseOperator):
         self.check_interval = check_interval
 
     def execute(self, context):
-        ec2_hook = self.get_hook()
+        ec2_hook = EC2Hook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name
+        )
         self.log.info("Starting EC2 instance %s", self.instance_id)
         instance = ec2_hook.get_instance(instance_id=self.instance_id)
         instance.start()
@@ -66,16 +69,4 @@ class EC2StartInstanceOperator(BaseOperator):
             instance_id=self.instance_id,
             target_state="running",
             check_interval=self.check_interval,
-        )
-
-    def get_hook(self):
-        """
-        Return EC2Hook object.
-
-        :return: ec2 hook
-        :rtype: EC2Hook
-        """
-        return EC2Hook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region_name
         )
