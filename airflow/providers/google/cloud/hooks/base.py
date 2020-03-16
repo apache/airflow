@@ -26,6 +26,7 @@ import logging
 import os
 import tempfile
 from contextlib import contextmanager
+from subprocess import check_output
 from typing import Any, Callable, Dict, Optional, Sequence, TypeVar
 
 import google.auth
@@ -37,6 +38,7 @@ from google.api_core.exceptions import (
     AlreadyExists, Forbidden, GoogleAPICallError, ResourceExhausted, RetryError, TooManyRequests,
 )
 from google.api_core.gapic_v1.client_info import ClientInfo
+from google.auth import _cloud_sdk
 from google.auth.environment_vars import CREDENTIALS
 from googleapiclient.errors import HttpError
 from googleapiclient.http import set_user_agent
@@ -44,6 +46,7 @@ from googleapiclient.http import set_user_agent
 from airflow import version
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.utils.process_utils import patch_environ
 
 log = logging.getLogger(__name__)
 
@@ -387,28 +390,71 @@ class CloudBaseHook(BaseHook):
         It can be used to provide credentials for external programs (e.g. gcloud) that expect authorization
         file in ``GOOGLE_APPLICATION_CREDENTIALS`` environment variable.
         """
-        with tempfile.NamedTemporaryFile(mode='w+t') as conf_file:
-            key_path = self._get_field('key_path', None)  # type: Optional[str]  # noqa: E501  #  pylint: disable=protected-access
-            keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[Dict]  # noqa: E501  # pylint: disable=protected-access
-            current_env_state = os.environ.get(CREDENTIALS)
-            try:
-                if key_path:
-                    if key_path.endswith('.p12'):
-                        raise AirflowException(
-                            'Legacy P12 key file are not supported, use a JSON key file.'
-                        )
-                    os.environ[CREDENTIALS] = key_path
-                elif keyfile_dict:
-                    conf_file.write(keyfile_dict)
-                    conf_file.flush()
-                    os.environ[CREDENTIALS] = conf_file.name
-                else:
-                    # We will use the default service account credentials.
-                    pass
-                yield conf_file
-            finally:
-                if current_env_state is None:
-                    if CREDENTIALS in os.environ:
-                        del os.environ[CREDENTIALS]
-                else:
-                    os.environ[CREDENTIALS] = current_env_state
+        key_path = self._get_field('key_path', None)  # type: Optional[str]  # noqa: E501  #  pylint: disable=protected-access
+        keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[Dict]  # noqa: E501  # pylint: disable=protected-access
+        if key_path and keyfile_dict:
+            raise AirflowException(
+                "The `keyfile_dict` and `key_path` fields are mutually exclusive. "
+                "Please provide only one value."
+            )
+        elif key_path:
+            if key_path.endswith('.p12'):
+                raise AirflowException(
+                    'Legacy P12 key file are not supported, use a JSON key file.'
+                )
+            with patch_environ({CREDENTIALS: key_path}):
+                yield key_path
+        elif keyfile_dict:
+            with tempfile.NamedTemporaryFile(mode='w+t') as conf_file:
+                conf_file.write(keyfile_dict)
+                conf_file.flush()
+                with patch_environ({CREDENTIALS: conf_file.name}):
+                    yield conf_file.name
+        else:
+            # We will use the default service account credentials.
+            yield None
+
+    @contextmanager
+    def provide_authorized_gcloud(self):
+        """
+        Provides a separate gcloud configuration with current credentials.
+
+        The gcloud allows you to login to GCP only - ``gcloud auth login`` and
+        for the needs of Application Default Credentials ``gcloud auth application-default login``.
+        In our case, we want all commands to use only the credentials from ADCm so
+        we need to configure the credentials in gcloud manually.
+        """
+        with self.provide_gcp_credential_file_as_context(), \
+                tempfile.TemporaryDirectory() as gcloud_config_tmp, \
+                patch_environ({'CLOUDSDK_CONFIG': gcloud_config_tmp}):
+
+            credentials_path = _cloud_sdk.get_application_default_credentials_path()
+
+            if CREDENTIALS in os.environ:
+                # This solves most cases when we are logged in using the service key in Airflow.
+                # Don't display stdout/stderr for security reason
+                check_output([
+                    "gcloud", "auth", "activate-service-account", f"--key-file={os.environ[CREDENTIALS]}",
+                ])
+            elif os.path.exists(credentials_path):
+                # If we are logged in by `gcloud auth application-default` then we need to log in manually.
+                # This will make the `gcloud auth application-default` and `gcloud auth` credentials equals.
+                with open(credentials_path) as creds_file:
+                    creds_content = json.loads(creds_file.read())
+                    # Don't display stdout/stderr for security reason
+                    check_output([
+                        "gcloud", "config", "set", "auth/client_id", creds_content["client_id"]
+                    ])
+                    # Don't display stdout/stderr for security reason
+                    check_output([
+                        "gcloud", "config", "set", "auth/client_secret", creds_content["client_secret"]
+                    ])
+                    # Don't display stdout/stderr for security reason
+                    check_output([
+                        "gcloud",
+                        "auth",
+                        "activate-refresh-token",
+                        creds_content["client_id"],
+                        creds_content["refresh_token"],
+                    ])
+            yield

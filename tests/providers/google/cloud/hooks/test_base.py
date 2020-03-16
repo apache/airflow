@@ -201,6 +201,24 @@ class TestProvideGcpCredentialFile(unittest.TestCase):
         ):
             self.instance = hook.CloudBaseHook(gcp_conn_id="google-cloud-default")
 
+    def test_provide_gcp_credential_file_decorator_key_path_and_keyfile_dict(self):
+        key_path = '/test/key-path'
+        self.instance.extras = {
+            'extra__google_cloud_platform__key_path': key_path,
+            'extra__google_cloud_platform__keyfile_dict': '{"foo": "bar"}'
+        }
+
+        @hook.CloudBaseHook.provide_gcp_credential_file
+        def assert_gcp_credential_file_in_env(_):
+            self.assertEqual(os.environ[CREDENTIALS], key_path)
+
+        with self.assertRaisesRegexp(
+            AirflowException,
+            'The `keyfile_dict` and `key_path` fields are mutually exclusive. '
+            'Please provide only one value.'
+        ):
+            assert_gcp_credential_file_in_env(self.instance)
+
     def test_provide_gcp_credential_file_decorator_key_path(self):
         key_path = '/test/key-path'
         self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}

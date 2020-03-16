@@ -23,11 +23,14 @@ import signal
 import subprocess
 import time
 import unittest
+from contextlib import suppress
 from subprocess import CalledProcessError
 from time import sleep
+from unittest import mock
 
 import psutil
 
+from airflow import AirflowException
 from airflow.utils import process_utils
 
 
@@ -150,3 +153,35 @@ class TestKillChildProcessesByPids(unittest.TestCase):
 
         num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
         self.assertEqual(before_num_process, num_process)
+
+
+class TestPatchEnviron(unittest.TestCase):
+    def test_should_update_variable_and_restore_state_when_exit(self):
+        with mock.patch.dict("os.environ", {"TEST_NOT_EXISTS": "BEFORE", "TEST_EXISTS": "BEFORE"}):
+            del os.environ["TEST_NOT_EXISTS"]
+
+            self.assertEqual("BEFORE", os.environ["TEST_EXISTS"])
+            self.assertNotIn("TEST_NOT_EXISTS", os.environ)
+
+            with process_utils.patch_environ({"TEST_NOT_EXISTS": "AFTER", "TEST_EXISTS": "AFTER"}):
+                self.assertEqual("AFTER", os.environ["TEST_NOT_EXISTS"])
+                self.assertEqual("AFTER", os.environ["TEST_EXISTS"])
+
+            self.assertEqual("BEFORE", os.environ["TEST_EXISTS"])
+            self.assertNotIn("TEST_NOT_EXISTS", os.environ)
+
+    def test_should_restore_state_when_exception(self):
+        with mock.patch.dict("os.environ", {"TEST_NOT_EXISTS": "BEFORE", "TEST_EXISTS": "BEFORE"}):
+            del os.environ["TEST_NOT_EXISTS"]
+
+            self.assertEqual("BEFORE", os.environ["TEST_EXISTS"])
+            self.assertNotIn("TEST_NOT_EXISTS", os.environ)
+
+            with suppress(AirflowException):
+                with process_utils.patch_environ({"TEST_NOT_EXISTS": "AFTER", "TEST_EXISTS": "AFTER"}):
+                    self.assertEqual("AFTER", os.environ["TEST_NOT_EXISTS"])
+                    self.assertEqual("AFTER", os.environ["TEST_EXISTS"])
+                    raise AirflowException("Unknown excepiton")
+
+            self.assertEqual("BEFORE", os.environ["TEST_EXISTS"])
+            self.assertNotIn("TEST_NOT_EXISTS", os.environ)

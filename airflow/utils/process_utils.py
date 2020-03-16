@@ -25,7 +25,8 @@ import os
 import shlex
 import signal
 import subprocess
-from typing import List
+from contextlib import contextmanager
+from typing import Dict, List
 
 import psutil
 
@@ -184,3 +185,26 @@ def kill_child_processes_by_pids(pids_to_kill: List[int], timeout: int = 5) -> N
             log.info("Killing child PID: %s", child.pid)
             child.kill()
             child.wait()
+
+
+@contextmanager
+def patch_environ(new_env_variables: Dict[str, str]):
+    """
+    Sets environment variables in context. After leaving the context, it restores its original state.
+
+    :param new_env_variables: Environment variables to set
+    """
+    current_env_state = {
+        key: os.environ.get(key)
+        for key in new_env_variables.keys()
+    }
+    os.environ.update(new_env_variables)
+    try:
+        yield
+    finally:
+        for key, old_value in current_env_state.items():
+            if old_value is None:
+                if key in os.environ:
+                    del os.environ[key]
+            else:
+                os.environ[key] = old_value
