@@ -292,7 +292,7 @@ class TestSSHHook(unittest.TestCase):
                 })
             )
         )
-        hook = SSHHook(ssh_conn_id='no_host_key_check_true_extra',)
+        hook = SSHHook(ssh_conn_id='no_host_key_check_true_extra')
         with hook.get_conn():
             assert ssh_mock.return_value.connect.called is True
 
@@ -302,7 +302,7 @@ class TestSSHHook(unittest.TestCase):
     def test_ssh_connection_with_public_key_and_no_host_key_check_false_extra_and_empty_known_hosts(
         self,
         ssh_mock,
-        f
+        _add_new_record_to_known_hosts
     ):
         db.merge_conn(
             Connection(
@@ -319,7 +319,7 @@ class TestSSHHook(unittest.TestCase):
         hook = SSHHook(ssh_conn_id='no_host_key_check_false_extra_and_empty_known_hosts')
         with hook.get_conn():
             assert ssh_mock.return_value.connect.called is True
-        assert f.call_count == 1
+        assert _add_new_record_to_known_hosts.call_count == 1
 
     @mock.patch(
         'airflow.providers.ssh.hooks.ssh.open',
@@ -330,7 +330,7 @@ class TestSSHHook(unittest.TestCase):
     def test_ssh_connection_with_public_key_and_no_host_key_check_false_extra_and_in_known_hosts(
         self,
         ssh_mock,
-        f
+        _add_new_record_to_known_hosts
     ):
         db.merge_conn(
             Connection(
@@ -347,7 +347,7 @@ class TestSSHHook(unittest.TestCase):
         hook = SSHHook(ssh_conn_id='no_host_key_check_false_extra_and_in_known_hosts')
         with hook.get_conn():
             assert ssh_mock.return_value.connect.called is True
-        assert f.call_count == 1
+        assert _add_new_record_to_known_hosts.call_count == 1
 
     @mock.patch(
         'airflow.providers.ssh.hooks.ssh.open',
@@ -358,7 +358,7 @@ class TestSSHHook(unittest.TestCase):
     def test_ssh_connection_with_public_key_and_no_host_key_check_false_extra_and_rec_in_known_hosts(
         self,
         ssh_mock,
-        f
+        _add_new_record_to_known_hosts
     ):
         db.merge_conn(
             Connection(
@@ -375,7 +375,7 @@ class TestSSHHook(unittest.TestCase):
         hook = SSHHook(ssh_conn_id='no_host_key_check_false_extra_and_rec_in_known_hosts')
         with hook.get_conn():
             assert ssh_mock.return_value.connect.called is True
-        assert f.call_count == 0
+        assert _add_new_record_to_known_hosts.call_count == 0
 
     def test_format_known_hosts_record(self):
         assert f'remote_host ssh-rsa {TEST_HOST_PUBLIC_KEY}' == \
