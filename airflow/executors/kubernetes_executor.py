@@ -335,7 +335,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         )
 
 
-    def process_status(self, pod_id: str, status: str, labels: Dict[str, str], resource_version: str) -> None:
+    def process_status(self, pod_id: str, status: str, labels: Dict[str, str], resource_version: str, event: Any) -> None:
         """Process status response"""
         if status == 'Pending':
             if event['type'] == 'DELETED':
