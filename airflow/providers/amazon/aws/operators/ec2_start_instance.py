@@ -20,20 +20,15 @@
 import time
 from typing import Optional
 
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 from airflow.utils.decorators import apply_defaults
 
 
-class EC2Operator(BaseOperator):
+class EC2StartInstanceOperator(BaseOperator):
     """
-    Manage AWS EC2 instance using boto3.
-    Change instance state by applying given operation.
+    Start AWS EC2 instance using boto3.
 
-    :param operation: action to be taken on AWS EC2 instance
-        valid values: "start", "stop"
-    :type operation: str
     :param instance_id: id of the AWS EC2 instance
     :type instance_id: str
     :param aws_conn_id: aws connection to use
@@ -45,49 +40,40 @@ class EC2Operator(BaseOperator):
     :type check_interval: float
     """
 
-    template_fields = ["operation", "region_name"]
+    template_fields = ["region_name"]
     ui_color = "#eeaa11"
     ui_fgcolor = "#ffffff"
-    valid_operations = ["start", "stop"]
-    operation_target_state_map = {
-        "start": "running",
-        "stop": "stopped",
-    }
 
     @apply_defaults
     def __init__(self,
-                 operation: str,
                  instance_id: str,
                  aws_conn_id: str = "aws_default",
                  region_name: Optional[str] = None,
                  check_interval: float = 15,
                  *args,
                  **kwargs):
-        if operation not in self.valid_operations:
-            raise AirflowException(f"Invalid operation: {operation}")
         super().__init__(*args, **kwargs)
-        self.operation = operation
         self.instance_id = instance_id
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
         self.check_interval = check_interval
-        self.target_state = self.operation_target_state_map[self.operation]
         self.hook = self.get_hook()
 
     def execute(self, context):
-        self.log.info("Executing: %s %s", self.operation, self.instance_id)
+        self.log.info("Starting EC2 instance %s", self.instance_id)
 
-        instance = self.hook.get_conn().Instance(id=self.instance_id)
+        instance = self.hook.get_instance(instance_id=self.instance_id)
+        instance.start()
+        instance_state = self.hook.get_instance_state(
+            instance_id=self.instance_id
+        )
 
-        if self.operation == "start":
-            instance.start()
-        elif self.operation == "stop":
-            instance.stop()
-
-        while instance.state["Name"] != self.target_state:
-            self.log.info("instance state: %s", instance.state)
+        while instance_state != "running":
+            self.log.info("instance state: %s", instance_state)
             time.sleep(self.check_interval)
-            instance = self.hook.get_conn().Instance(id=self.instance_id)
+            instance_state = self.hook.get_instance_state(
+                instance_id=self.instance_id
+            )
 
     def get_hook(self):
         """
