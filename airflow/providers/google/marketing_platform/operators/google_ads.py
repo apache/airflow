@@ -36,8 +36,12 @@ class GoogleAdsToGcsOperator(BaseOperator):
     Uploads the CSV to Google Cloud Storage
 
     .. seealso::
-    For more information on the Google Ads API, take a look at the API docs:
-    https://developers.google.com/google-ads/api/docs/start
+        For more information on the Google Ads API, take a look at the API docs:
+        https://developers.google.com/google-ads/api/docs/start
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleAdsToGcsOperator`
 
     :param client_ids: Google Ads client IDs to query
     :type client_ids: List[str]
@@ -57,25 +61,6 @@ class GoogleAdsToGcsOperator(BaseOperator):
     :type page_size: int
     :param gzip: Option to compress local file or file data for upload
     :type gzip: bool
-
-    :Example:
-    google_ads_query = \"""
-        SELECT segments.date, customer.id, campaign.id, metrics.impressions
-        FROM ad_group_ad
-        WHERE segments.date >= '2020-01-01'
-        \"""
-
-    GoogleAdsToGcsOperator(
-        client_ids=["123456", "11223344"],
-        query=google_ads_query,
-        attributes=[
-            "segments.date.value",
-            "customer.id.value",
-            "campaign.id.value",
-            "metrics.impressions.value"],
-        bucket="bucket_name",
-        obj="the_path/to_save_the_file_to/results.csv"
-    )
     """
 
     template_fields = ("client_ids", "query", "attributes", "bucket", "obj")
@@ -107,11 +92,6 @@ class GoogleAdsToGcsOperator(BaseOperator):
         self.gzip = gzip
 
     def execute(self, context: Dict):
-        """
-        Gets the authenticated Google Ads service and queries the API for each client
-        Converts the returned Google Ad Rows objects to CSV and uploads to GCS
-        """
-
         service = GoogleAdsHook(
             gcp_conn_id=self.gcp_conn_id,
             google_ads_conn_id=self.google_ads_conn_id
@@ -124,9 +104,7 @@ class GoogleAdsToGcsOperator(BaseOperator):
             getter = attrgetter(*self.attributes)
             converted_rows = [getter(row) for row in rows]
         except Exception as e:
-            self.log.error(
-                "An error occurred in converting the Google Ad Rows. /n Error %s", e
-            )
+            self.log.error("An error occurred in converting the Google Ad Rows. \n Error %s", e)
             raise
 
         with NamedTemporaryFile("w", suffix=".csv") as csvfile:

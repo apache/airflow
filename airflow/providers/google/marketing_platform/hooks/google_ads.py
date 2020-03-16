@@ -36,8 +36,8 @@ class GoogleAdsHook(BaseHook):
     Hook for the Google Ads API
 
     .. seealso::
-    For more information on the Google Ads API, take a look at the API docs:
-    https://developers.google.com/google-ads/api/docs/start
+        For more information on the Google Ads API, take a look at the API docs:
+        https://developers.google.com/google-ads/api/docs/start
 
     :param gcp_conn_id: The connection ID with the service account details.
     :type gcp_conn_id: str
