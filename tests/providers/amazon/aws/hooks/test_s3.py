@@ -231,11 +231,27 @@ class TestAwsS3Hook:
         resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
         assert resource.get()['Body'].read() == b'Cont\xC3\xA9nt'
 
+    def test_load_string_acl(self, s3_bucket):
+        hook = S3Hook()
+        hook.load_string("Contént", "my_key", s3_bucket,
+                         acl_policy='public-read')
+        response = boto3.client('s3').get_object_acl(Bucket=s3_bucket, Key="my_key", RequestPayer='requester')
+        assert ((response['Grants'][1]['Permission'] == 'READ') and
+                (response['Grants'][0]['Permission'] == 'FULL_CONTROL'))
+
     def test_load_bytes(self, s3_bucket):
         hook = S3Hook()
         hook.load_bytes(b"Content", "my_key", s3_bucket)
         resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
         assert resource.get()['Body'].read() == b'Content'
+
+    def test_load_bytes_acl(self, s3_bucket):
+        hook = S3Hook()
+        hook.load_bytes(b"Content", "my_key", s3_bucket,
+                        acl_policy='public-read')
+        response = boto3.client('s3').get_object_acl(Bucket=s3_bucket, Key="my_key", RequestPayer='requester')
+        assert ((response['Grants'][1]['Permission'] == 'READ') and
+                (response['Grants'][0]['Permission'] == 'FULL_CONTROL'))
 
     def test_load_fileobj(self, s3_bucket):
         hook = S3Hook()
@@ -246,6 +262,19 @@ class TestAwsS3Hook:
             resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
             assert resource.get()['Body'].read() == b'Content'
 
+    def test_load_fileobj_acl(self, s3_bucket):
+        hook = S3Hook()
+        with tempfile.TemporaryFile() as temp_file:
+            temp_file.write(b"Content")
+            temp_file.seek(0)
+            hook.load_file_obj(temp_file, "my_key", s3_bucket,
+                               acl_policy='public-read')
+            response = boto3.client('s3').get_object_acl(Bucket=s3_bucket,
+                                                         Key="my_key",
+                                                         RequestPayer='requester')  # pylint: disable=no-member # noqa: E501 # pylint: disable=C0301
+            assert ((response['Grants'][1]['Permission'] == 'READ') and
+                    (response['Grants'][0]['Permission'] == 'FULL_CONTROL'))
+
     def test_load_file_gzip(self, s3_bucket):
         hook = S3Hook()
         with tempfile.NamedTemporaryFile() as temp_file:
@@ -254,6 +283,32 @@ class TestAwsS3Hook:
             hook.load_file(temp_file, "my_key", s3_bucket, gzip=True)
             resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
             assert gz.decompress(resource.get()['Body'].read()) == b'Content'
+
+    def test_load_file_acl(self, s3_bucket):
+        hook = S3Hook()
+        with tempfile.NamedTemporaryFile() as temp_file:
+            temp_file.write(b"Content")
+            temp_file.seek(0)
+            hook.load_file(temp_file, "my_key", s3_bucket, gzip=True,
+                           acl_policy='public-read')
+            response = boto3.client('s3').get_object_acl(Bucket=s3_bucket,
+                                                         Key="my_key",
+                                                         RequestPayer='requester')  # pylint: disable=no-member # noqa: E501 # pylint: disable=C0301
+            assert ((response['Grants'][1]['Permission'] == 'READ') and
+                    (response['Grants'][0]['Permission'] == 'FULL_CONTROL'))
+
+    def test_copy_object_acl(self, s3_bucket):
+        hook = S3Hook()
+        with tempfile.NamedTemporaryFile() as temp_file:
+            temp_file.write(b"Content")
+            temp_file.seek(0)
+            hook.load_file_obj(temp_file, "my_key", s3_bucket)
+            hook.copy_object("my_key", "my_key", s3_bucket, s3_bucket)
+            response = boto3.client('s3').get_object_acl(Bucket=s3_bucket,
+                                                         Key="my_key",
+                                                         RequestPayer='requester')  # pylint: disable=no-member # noqa: E501 # pylint: disable=C0301
+            assert ((response['Grants'][0]['Permission'] == 'FULL_CONTROL') and
+                    (len(response['Grants']) == 1))
 
     @mock.patch.object(S3Hook, 'get_connection', return_value=Connection(schema='test_bucket'))
     def test_provide_bucket_name(self, mock_get_connection):
