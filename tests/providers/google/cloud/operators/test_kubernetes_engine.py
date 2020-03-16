@@ -20,7 +20,6 @@ import os
 import unittest
 
 import mock
-from google.auth.environment_vars import CREDENTIALS
 from mock import PropertyMock
 from parameterized import parameterized
 
@@ -151,79 +150,6 @@ class TestGKEPodOperator(unittest.TestCase):
             GKEStartPodOperator.template_fields))
 
     # pylint: disable=unused-argument
-    @mock.patch(
-        "airflow.hooks.base_hook.BaseHook.get_connections",
-        return_value=[Connection(
-            extra=json.dumps({})
-        )]
-    )
-    @mock.patch(
-        'airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute')
-    @mock.patch('tempfile.NamedTemporaryFile')
-    @mock.patch("subprocess.check_call")
-    @mock.patch.dict(os.environ, {CREDENTIALS: '/tmp/local-creds'})
-    def test_execute_conn_id_none(self, proc_mock, file_mock, exec_mock, get_conn):
-        type(file_mock.return_value.__enter__.return_value).name = PropertyMock(side_effect=[
-            FILE_NAME
-        ])
-
-        def assert_credentials(*args, **kwargs):
-            # since we passed in keyfile_path we should get a file
-            self.assertIn(CREDENTIALS, os.environ)
-            self.assertEqual(os.environ[CREDENTIALS], '/tmp/local-creds')
-
-        proc_mock.side_effect = assert_credentials
-
-        self.gke_op.execute(None)
-
-        # Assert Environment Variable is being set correctly
-        self.assertIn(KUBE_ENV_VAR, os.environ)
-        self.assertEqual(os.environ[KUBE_ENV_VAR], FILE_NAME)
-
-        # Assert the gcloud command being called correctly
-        proc_mock.assert_called_once_with(
-            GCLOUD_COMMAND.format(CLUSTER_NAME, PROJECT_LOCATION, TEST_GCP_PROJECT_ID).split())
-
-        self.assertEqual(self.gke_op.config_file, FILE_NAME)
-
-    # pylint: disable=unused-argument
-    @mock.patch(
-        "airflow.hooks.base_hook.BaseHook.get_connections",
-        return_value=[Connection(
-            extra=json.dumps({
-                'extra__google_cloud_platform__key_path': '/path/to/file'
-            })
-        )]
-    )
-    @mock.patch(
-        'airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute')
-    @mock.patch('tempfile.NamedTemporaryFile')
-    @mock.patch("subprocess.check_call")
-    @mock.patch.dict(os.environ, {})
-    def test_execute_conn_id_path(self, proc_mock, file_mock, exec_mock, get_con_mock):
-        type(file_mock.return_value.__enter__.return_value).name = PropertyMock(side_effect=[
-            FILE_NAME
-        ])
-
-        def assert_credentials(*args, **kwargs):
-            # since we passed in keyfile_path we should get a file
-            self.assertIn(CREDENTIALS, os.environ)
-            self.assertEqual(os.environ[CREDENTIALS], '/path/to/file')
-
-        proc_mock.side_effect = assert_credentials
-        self.gke_op.execute(None)
-
-        # Assert Environment Variable is being set correctly
-        self.assertIn(KUBE_ENV_VAR, os.environ)
-        self.assertEqual(os.environ[KUBE_ENV_VAR], FILE_NAME)
-
-        # Assert the gcloud command being called correctly
-        proc_mock.assert_called_once_with(
-            GCLOUD_COMMAND.format(CLUSTER_NAME, PROJECT_LOCATION, TEST_GCP_PROJECT_ID).split())
-
-        self.assertEqual(self.gke_op.config_file, FILE_NAME)
-
-    # pylint: disable=unused-argument
     @mock.patch.dict(os.environ, {})
     @mock.patch(
         "airflow.hooks.base_hook.BaseHook.get_connections",
@@ -235,28 +161,23 @@ class TestGKEPodOperator(unittest.TestCase):
     )
     @mock.patch(
         'airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute')
+    @mock.patch(
+        'airflow.providers.google.cloud.operators.kubernetes_engine.CloudBaseHook')
+    @mock.patch(
+        'airflow.providers.google.cloud.operators.kubernetes_engine.execute_in_subprocess')
     @mock.patch('tempfile.NamedTemporaryFile')
-    @mock.patch("subprocess.check_call")
-    def test_execute_conn_id_dict(self, proc_mock, file_mock, exec_mock, get_con_mock):
+    def test_execute(
+        self, file_mock, mock_execute_in_subprocess, mock_gcp_hook, exec_mock, get_con_mock
+    ):
         type(file_mock.return_value.__enter__.return_value).name = PropertyMock(side_effect=[
             FILE_NAME, '/path/to/new-file'
         ])
 
-        def assert_credentials(*args, **kwargs):
-            # since we passed in keyfile_dict we should get a new file
-            self.assertIn(CREDENTIALS, os.environ)
-            self.assertEqual(os.environ[CREDENTIALS], '/path/to/new-file')
-
-        proc_mock.side_effect = assert_credentials
-
         self.gke_op.execute(None)
 
-        # Assert Environment Variable is being set correctly
-        self.assertIn(KUBE_ENV_VAR, os.environ)
-        self.assertEqual(os.environ[KUBE_ENV_VAR], FILE_NAME)
+        mock_gcp_hook.return_value.provide_authorized_gcloud.assert_called_once()
 
-        # Assert the gcloud command being called correctly
-        proc_mock.assert_called_once_with(
+        mock_execute_in_subprocess.assert_called_once_with(
             GCLOUD_COMMAND.format(CLUSTER_NAME, PROJECT_LOCATION, TEST_GCP_PROJECT_ID).split())
 
         self.assertEqual(self.gke_op.config_file, FILE_NAME)
