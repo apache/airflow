@@ -286,11 +286,20 @@
       default: "16"
     - name: load_examples
       description: |
-        Whether to load the examples that ship with Airflow. It's good to
+        Whether to load the DAG examples that ship with Airflow. It's good to
         get started, but you probably want to set this to False in a production
         environment
       version_added: ~
       type: string
+      example: ~
+      default: "True"
+    - name: load_default_connections
+      description: |
+        Whether to load the default connections that ship with Airflow. It's good to
+        get started, but you probably want to set this to False in a production
+        environment
+      version_added: 1.10.10
+      type: boolean
       example: ~
       default: "True"
     - name: plugins_folder
