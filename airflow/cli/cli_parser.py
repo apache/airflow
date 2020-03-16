@@ -22,7 +22,8 @@ import argparse
 import json
 import os
 import textwrap
-from argparse import RawTextHelpFormatter
+from argparse import RawTextHelpFormatter, ArgumentError
+from gettext import gettext
 from typing import Callable, Dict, Iterable, List, NamedTuple, Set, Union
 
 from tabulate import tabulate_formats
@@ -53,6 +54,30 @@ def lazy_load_command(import_path: str) -> Callable:
     command.__name__ = name  # type: ignore
 
     return command
+
+
+class DefaultHelpParser(argparse.ArgumentParser):
+    """CustomParser to display help message"""
+    custom_msg = {'celery': 'celery command cab be used in CeleryExcutor'}
+
+    def _check_value(self, action, value):
+        """Override _check_value and check conditionally added command"""
+        if action.choices is not None and value not in action.choices:
+            if value in self.custom_msg:
+                msg = self.custom_msg[value]
+            else:
+                args = {
+                    'value': value,
+                    'choices': ', '.join(map(repr, action.choices))
+                }
+                msg = gettext('invalid choice: %(value)r (choose from %(choices)s)') % args
+
+            raise ArgumentError(action, msg)
+
+    def error(self, message):
+        """Override error and use print_help instead of print_usage"""
+        self.print_help()
+        self.exit(2, '\n{} command error: {}, see help above.\n'.format(self.prog, message))
 
 
 class Arg:
@@ -1143,11 +1168,6 @@ DAG_CLI_COMMANDS: Set[str] = {
 
 def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
     """Creates and returns command line argument parser"""
-    class DefaultHelpParser(argparse.ArgumentParser):
-        """Override argparse.ArgumentParser.error and use print_help instead of print_usage"""
-        def error(self, message):
-            self.print_help()
-            self.exit(2, '\n{} command error: {}, see help above.\n'.format(self.prog, message))
     parser = DefaultHelpParser(prog="airflow")
     subparsers = parser.add_subparsers(
         help='sub-command help', dest='subcommand')
