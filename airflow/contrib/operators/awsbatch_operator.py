@@ -26,10 +26,9 @@
 
 import warnings
 
-from typing_extensions import Protocol, runtime_checkable
-
 from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchProtocol
 from airflow.providers.amazon.aws.operators.batch import AwsBatchOperator
+from airflow.typing_compat import Protocol, runtime_checkable
 
 warnings.warn(
     "This module is deprecated. "

@@ -283,7 +283,7 @@ class SalesforceHook(BaseHook):
             # we remove these newlines so that the output is a valid CSV format
             self.log.info("Cleaning data and writing to CSV")
             possible_strings = df.columns[df.dtypes == "object"]
-            df[possible_strings] = df[possible_strings].apply(
+            df[possible_strings] = df[possible_strings].astype(str).apply(
                 lambda x: x.str.replace("\r\n", "").str.replace("\n", "")
             )
             # write the dataframe

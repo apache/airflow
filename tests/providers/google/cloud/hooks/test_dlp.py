@@ -29,7 +29,7 @@ import mock
 from google.cloud.dlp_v2.types import DlpJob
 from mock import PropertyMock
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 

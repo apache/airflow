@@ -23,8 +23,8 @@ import subprocess
 from googleapiclient import discovery
 from googleapiclient._auth import default_credentials, with_scopes
 
-from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_TRANSFER_KEY, GcpAuthenticator
+from tests.utils.logging_command_executor import LoggingCommandExecutor
 
 SERVICE_EMAIL_FORMAT = "project-%s@storage-transfer-service.iam.gserviceaccount.com"
 

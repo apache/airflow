@@ -18,8 +18,9 @@
 
 """Example DAG demonstrating the usage of the SubDagOperator."""
 
+# [START example_subdag_operator]
+from airflow import DAG
 from airflow.example_dags.subdags.subdag import subdag
-from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils.dates import days_ago
@@ -66,3 +67,4 @@ end = DummyOperator(
 )
 
 start >> section_1 >> some_other_task >> section_2 >> end
+# [END example_subdag_operator]

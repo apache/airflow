@@ -24,7 +24,8 @@ import warnings
 from typing import List, Optional
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models import BaseOperator, BaseOperatorLink
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.mlengine import MLEngineHook
 from airflow.utils.decorators import apply_defaults
 
@@ -852,6 +853,23 @@ class MLEngineDeleteVersionOperator(BaseOperator):
         )
 
 
+class AIPlatformConsoleLink(BaseOperatorLink):
+    """
+    Helper class for constructing AI Platform Console link.
+    """
+    name = "AI Platform Console"
+
+    def get_link(self, operator, dttm):
+        task_instance = TaskInstance(task=operator, execution_date=dttm)
+        gcp_metadata_dict = task_instance.xcom_pull(task_ids=operator.task_id, key="gcp_metadata")
+        if not gcp_metadata_dict:
+            return ''
+        job_id = gcp_metadata_dict['job_id']
+        project_id = gcp_metadata_dict['project_id']
+        console_link = f"https://console.cloud.google.com/ai-platform/jobs/{job_id}?project={project_id}"
+        return console_link
+
+
 class MLEngineStartTrainingJobOperator(BaseOperator):
     """
     Operator for launching a MLEngine training job.
@@ -914,6 +932,10 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         '_python_version',
         '_job_dir'
     ]
+
+    operator_extra_links = (
+        AIPlatformConsoleLink(),
+    )
 
     @apply_defaults
     def __init__(self,  # pylint: disable=too-many-arguments
@@ -1015,3 +1037,60 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         if finished_training_job['state'] != 'SUCCEEDED':
             self.log.error('MLEngine training job failed: %s', str(finished_training_job))
             raise RuntimeError(finished_training_job['errorMessage'])
+
+        gcp_metadata = {
+            "job_id": job_id,
+            "project_id": self._project_id,
+        }
+        context['task_instance'].xcom_push("gcp_metadata", gcp_metadata)
+
+
+class MLEngineTrainingJobFailureOperator(BaseOperator):
+
+    """
+    Operator for cleaning up failed MLEngine training job.
+
+    :param job_id: A unique templated id for the submitted Google MLEngine
+        training job. (templated)
+    :type job_id: str
+    :param project_id: The Google Cloud project name within which MLEngine training job should run.
+        If set to None or missing, the default project_id from the GCP connection is used. (templated)
+    :type project_id: str
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    """
+
+    template_fields = [
+        '_project_id',
+        '_job_id',
+    ]
+
+    @apply_defaults
+    def __init__(self,
+                 job_id: str,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 *args,
+                 **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._project_id = project_id
+        self._job_id = job_id
+        self._gcp_conn_id = gcp_conn_id
+        self._delegate_to = delegate_to
+
+        if not self._project_id:
+            raise AirflowException('Google Cloud project id is required.')
+
+    def execute(self, context):
+
+        hook = MLEngineHook(
+            gcp_conn_id=self._gcp_conn_id,
+            delegate_to=self._delegate_to
+        )
+
+        hook.cancel_job(project_id=self._project_id, job_id=_normalize_mlengine_job_id(self._job_id))

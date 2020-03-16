@@ -17,16 +17,12 @@
 # under the License.
 """Base class for all hooks"""
 import logging
-import os
 import random
-from typing import Iterable
+from typing import List
 
-from airflow.exceptions import AirflowException
+from airflow import secrets
 from airflow.models import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import provide_session
-
-CONN_ENV_PREFIX = 'AIRFLOW_CONN_'
 
 log = logging.getLogger(__name__)
 
@@ -41,41 +37,14 @@ class BaseHook(LoggingMixin):
     """
 
     @classmethod
-    @provide_session
-    def _get_connections_from_db(cls, conn_id, session=None):
-        db = (
-            session.query(Connection)
-            .filter(Connection.conn_id == conn_id)
-            .all()
-        )
-        session.expunge_all()
-        if not db:
-            raise AirflowException(
-                "The conn_id `{0}` isn't defined".format(conn_id))
-        return db
-
-    @classmethod
-    def _get_connection_from_env(cls, conn_id):
-        environment_uri = os.environ.get(CONN_ENV_PREFIX + conn_id.upper())
-        conn = None
-        if environment_uri:
-            conn = Connection(conn_id=conn_id, uri=environment_uri)
-        return conn
-
-    @classmethod
-    def get_connections(cls, conn_id: str) -> Iterable[Connection]:
+    def get_connections(cls, conn_id: str) -> List[Connection]:
         """
         Get all connections as an iterable.
 
         :param conn_id: connection id
         :return: array of connections
         """
-        conn = cls._get_connection_from_env(conn_id)
-        if conn:
-            conns = [conn]
-        else:
-            conns = cls._get_connections_from_db(conn_id)
-        return conns
+        return secrets.get_connections(conn_id)
 
     @classmethod
     def get_connection(cls, conn_id: str) -> Connection:

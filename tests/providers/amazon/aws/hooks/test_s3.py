@@ -16,16 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+
+import gzip as gz
 import tempfile
+from unittest.mock import Mock
 
 import boto3
 import mock
 import pytest
 from botocore.exceptions import NoCredentialsError
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook, provide_bucket_name
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook, provide_bucket_name, unify_bucket_name_and_key
 
 try:
     from moto import mock_s3
@@ -178,7 +181,7 @@ class TestAwsS3Hook:
         assert hook.read_key('my_key', s3_bucket) == 'Contént'
 
     # As of 1.3.2, Moto doesn't support select_object_content yet.
-    @mock.patch('airflow.providers.amazon.aws.hooks.aws_hook.AwsHook.get_client_type')
+    @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type')
     def test_select_key(self, mock_get_client_type, s3_bucket):
         mock_get_client_type.return_value.select_object_content.return_value = \
             {'Payload': [{'Records': {'Payload': b'Cont\xC3\xA9nt'}}]}
@@ -243,6 +246,15 @@ class TestAwsS3Hook:
             resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
             assert resource.get()['Body'].read() == b'Content'
 
+    def test_load_file_gzip(self, s3_bucket):
+        hook = S3Hook()
+        with tempfile.NamedTemporaryFile() as temp_file:
+            temp_file.write(b"Content")
+            temp_file.seek(0)
+            hook.load_file(temp_file, "my_key", s3_bucket, gzip=True)
+            resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
+            assert gz.decompress(resource.get()['Body'].read()) == b'Content'
+
     @mock.patch.object(S3Hook, 'get_connection', return_value=Connection(schema='test_bucket'))
     def test_provide_bucket_name(self, mock_get_connection):
 
@@ -252,24 +264,13 @@ class TestAwsS3Hook:
             def test_function(self, bucket_name=None):
                 return bucket_name
 
-            # pylint: disable=unused-argument
-            @provide_bucket_name
-            def test_function_with_key(self, key, bucket_name=None):
-                return bucket_name
-
-            # pylint: disable=unused-argument
-            @provide_bucket_name
-            def test_function_with_wildcard_key(self, wildcard_key, bucket_name=None):
-                return bucket_name
-
         fake_s3_hook = FakeS3Hook()
-        test_bucket_name = fake_s3_hook.test_function()
-        test_bucket_name_with_key = fake_s3_hook.test_function_with_key('test_key')
-        test_bucket_name_with_wildcard_key = fake_s3_hook.test_function_with_wildcard_key('test_*_key')
 
+        test_bucket_name = fake_s3_hook.test_function()
         assert test_bucket_name == mock_get_connection.return_value.schema
-        assert test_bucket_name_with_key is None
-        assert test_bucket_name_with_wildcard_key is None
+
+        test_bucket_name = fake_s3_hook.test_function(bucket_name='bucket')
+        assert test_bucket_name == 'bucket'
 
     def test_delete_objects_key_does_not_exist(self, s3_bucket):
         hook = S3Hook()
@@ -298,3 +299,48 @@ class TestAwsS3Hook:
         hook = S3Hook()
         hook.delete_objects(bucket=s3_bucket, keys=keys)
         assert [o.key for o in mocked_s3_res.Bucket(s3_bucket).objects.all()] == []
+
+    def test_unify_bucket_name_and_key(self):
+
+        class FakeS3Hook(S3Hook):
+
+            @unify_bucket_name_and_key
+            def test_function_with_wildcard_key(self, wildcard_key, bucket_name=None):
+                return bucket_name, wildcard_key
+
+            @unify_bucket_name_and_key
+            def test_function_with_key(self, key, bucket_name=None):
+                return bucket_name, key
+
+            @unify_bucket_name_and_key
+            def test_function_with_test_key(self, test_key, bucket_name=None):
+                return bucket_name, test_key
+
+        fake_s3_hook = FakeS3Hook()
+
+        test_bucket_name_with_wildcard_key = fake_s3_hook.test_function_with_wildcard_key('s3://foo/bar*.csv')
+        assert ('foo', 'bar*.csv') == test_bucket_name_with_wildcard_key
+
+        test_bucket_name_with_key = fake_s3_hook.test_function_with_key('s3://foo/bar.csv')
+        assert ('foo', 'bar.csv') == test_bucket_name_with_key
+
+        with pytest.raises(ValueError) as err:
+            fake_s3_hook.test_function_with_test_key('s3://foo/bar.csv')
+        assert isinstance(err.value, ValueError)
+
+    @mock.patch('airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile')
+    def test_download_file(self, mock_temp_file):
+        mock_temp_file.return_value.__enter__ = Mock(return_value=mock_temp_file)
+        s3_hook = S3Hook(aws_conn_id='s3_test')
+        s3_hook.check_for_key = Mock(return_value=True)
+        s3_obj = Mock()
+        s3_obj.download_fileobj = Mock(return_value=None)
+        s3_hook.get_key = Mock(return_value=s3_obj)
+        key = 'test_key'
+        bucket = 'test_bucket'
+
+        s3_hook.download_file(key=key, bucket_name=bucket)
+
+        s3_hook.check_for_key.assert_called_once_with(key, bucket)
+        s3_hook.get_key.assert_called_once_with(key, bucket)
+        s3_obj.download_fileobj.assert_called_once_with(mock_temp_file)

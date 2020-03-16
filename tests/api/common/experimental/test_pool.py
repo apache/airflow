@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import random
+import string
 import unittest
 
 from airflow import models
@@ -96,6 +98,16 @@ class TestPool(unittest.TestCase):
                                    name=name,
                                    slots=5,
                                    description='')
+
+    def test_create_pool_name_too_long(self):
+        long_name = ''.join(random.choices(string.ascii_lowercase, k=300))
+        column_length = models.Pool.pool.property.columns[0].type.length
+        self.assertRaisesRegex(AirflowBadRequest,
+                               "^Pool name can't be more than %d characters$" % column_length,
+                               pool_api.create_pool,
+                               name=long_name,
+                               slots=5,
+                               description='')
 
     def test_create_pool_bad_slots(self):
         self.assertRaisesRegex(AirflowBadRequest,

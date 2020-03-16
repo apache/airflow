@@ -20,7 +20,8 @@ import subprocess
 import textwrap
 from tempfile import NamedTemporaryFile
 
-from airflow import AirflowException, settings
+from airflow import settings
+from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
 
 

@@ -21,7 +21,8 @@ import os
 from typing import Any, Dict, Union
 from urllib.parse import urlparse
 
-from airflow import AirflowException, conf
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.utils.file import mkdirs
 
 # TODO: Logging format and level should be configured
@@ -155,6 +156,7 @@ if REMOTE_LOGGING:
 
     # Storage bucket URL for remote logging
     # S3 buckets should start with "s3://"
+    # Cloudwatch log groups should start with "cloudwatch://"
     # GCS buckets should start with "gs://"
     # WASB buckets should start with "wasb"
     # just to help Airflow select correct handler
@@ -172,6 +174,18 @@ if REMOTE_LOGGING:
         }
 
         DEFAULT_LOGGING_CONFIG['handlers'].update(S3_REMOTE_HANDLERS)
+    elif REMOTE_BASE_LOG_FOLDER.startswith('cloudwatch://'):
+        CLOUDWATCH_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
+            'task': {
+                'class': 'airflow.utils.log.cloudwatch_task_handler.CloudwatchTaskHandler',
+                'formatter': 'airflow',
+                'base_log_folder': str(os.path.expanduser(BASE_LOG_FOLDER)),
+                'log_group_arn': urlparse(REMOTE_BASE_LOG_FOLDER).netloc,
+                'filename_template': FILENAME_TEMPLATE,
+            },
+        }
+
+        DEFAULT_LOGGING_CONFIG['handlers'].update(CLOUDWATCH_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith('gs://'):
         GCS_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
             'task': {

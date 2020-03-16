@@ -17,27 +17,30 @@
 # under the License.
 import os
 
-from airflow import AirflowException
+import pytest
+
+from airflow.exceptions import AirflowException
 from tests.providers.google.cloud.operators.test_cloud_sql_system_helper import CloudSqlQueryTestHelper
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_CLOUDSQL_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context, skip_gcp_system
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'project-id')
 
 SQL_QUERY_TEST_HELPER = CloudSqlQueryTestHelper()
 
 
-@skip_gcp_system(GCP_CLOUDSQL_KEY, require_local_executor=True)
-class CloudSqlExampleDagsIntegrationTest(SystemTest):
+@pytest.mark.backend("mysql", "postgres")
+@pytest.mark.credential_file(GCP_CLOUDSQL_KEY)
+class CloudSqlExampleDagsIntegrationTest(GoogleSystemTest):
     @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def tearDown(self):
         # Delete instances just in case the test failed and did not cleanup after itself
-        SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="-failover-replica")
-        SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="-read-replica")
-        SQL_QUERY_TEST_HELPER.delete_instances()
-        SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="2")
-        SQL_QUERY_TEST_HELPER.delete_service_account_acls()
+        with self.authentication():
+            SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="-failover-replica")
+            SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="-read-replica")
+            SQL_QUERY_TEST_HELPER.delete_instances()
+            SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="2")
+            SQL_QUERY_TEST_HELPER.delete_service_account_acls()
         super().tearDown()
 
     @provide_gcp_context(GCP_CLOUDSQL_KEY)

@@ -80,6 +80,10 @@ All operators are in the following packages:
 
   airflow/providers/apache/hive/sensors/index
 
+  airflow/providers/apache/livy/operators/index
+
+  airflow/providers/apache/livy/sensors/index
+
   airflow/providers/apache/pig/operators/index
 
   airflow/providers/apache/spark/operators/index
@@ -89,6 +93,8 @@ All operators are in the following packages:
   airflow/providers/celery/sensors/index
 
   airflow/providers/cncf/kubernetes/operators/index
+
+  airflow/providers/cncf/kubernetes/sensors/index
 
   airflow/providers/databricks/operators/index
 
@@ -160,11 +166,17 @@ All operators are in the following packages:
 
   airflow/providers/redis/sensors/index
 
+  airflow/providers/salesforce/operators/index
+
+  airflow/providers/salesforce/sensors/index
+
   airflow/providers/segment/operators/index
 
   airflow/providers/sftp/operators/index
 
   airflow/providers/sftp/sensors/index
+
+  airflow/providers/singularity/operators/index
 
   airflow/providers/slack/operators/index
 
@@ -175,6 +187,8 @@ All operators are in the following packages:
   airflow/providers/ssh/operators/index
 
   airflow/providers/vertica/operators/index
+
+  airflow/providers/yandex/operators/index
 
 .. _pythonapi:hooks:
 
@@ -205,6 +219,8 @@ All hooks are in the following packages:
 
   airflow/providers/apache/hive/hooks/index
 
+  airflow/providers/apache/livy/hooks/index
+
   airflow/providers/apache/pig/hooks/index
 
   airflow/providers/apache/pinot/hooks/index
@@ -215,6 +231,8 @@ All hooks are in the following packages:
 
   airflow/providers/cloudant/hooks/index
 
+  airflow/providers/cncf/kubernetes/hooks/index
+
   airflow/providers/databricks/hooks/index
 
   airflow/providers/datadog/hooks/index
@@ -224,6 +242,8 @@ All hooks are in the following packages:
   airflow/providers/dingding/hooks/index
 
   airflow/providers/docker/hooks/index
+
+  airflow/providers/elasticsearch/hooks/index
 
   airflow/providers/ftp/hooks/index
 
@@ -257,7 +277,7 @@ All hooks are in the following packages:
 
   airflow/providers/odbc/hooks/index
 
-  airflow/providers/openfass/hooks/index
+  airflow/providers/openfaas/hooks/index
 
   airflow/providers/opsgenie/hooks/index
 
@@ -293,6 +313,8 @@ All hooks are in the following packages:
 
   airflow/providers/zendesk/hooks/index
 
+  airflow/providers/yandex/hooks/index
+
 Executors
 ---------
 Executors are the mechanism by which task instances get run. All executors are
@@ -320,3 +342,19 @@ persisted in the database.
   :maxdepth: 1
 
   airflow/models/index
+
+
+Secrets Backends
+----------------
+Airflow uses relies on secrets backends to retrieve :class:`~airflow.models.connection.Connection` objects.
+All secrets backends derive from :class:`~airflow.secrets.BaseSecretsBackend`.  See :ref:`using an alternative secrets
+backend <alternative_secrets_backend>` for more info.
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  airflow/secrets/index
+
+  airflow/providers/amazon/aws/secrets/index

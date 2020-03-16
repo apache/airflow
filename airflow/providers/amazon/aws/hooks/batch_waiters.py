@@ -36,7 +36,7 @@ import botocore.client
 import botocore.exceptions
 import botocore.waiter
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClient
 
 

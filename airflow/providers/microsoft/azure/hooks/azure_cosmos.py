@@ -25,7 +25,7 @@ the default database and collection to use (see connection `azure_cosmos_default
 """
 import uuid
 
-import azure.cosmos.cosmos_client as cosmos_client
+from azure.cosmos.cosmos_client import CosmosClient
 from azure.cosmos.errors import HTTPFailure
 
 from airflow.exceptions import AirflowBadRequest
@@ -46,28 +46,30 @@ class AzureCosmosDBHook(BaseHook):
 
     def __init__(self, azure_cosmos_conn_id='azure_cosmos_default'):
         self.conn_id = azure_cosmos_conn_id
-        self.connection = self.get_connection(self.conn_id)
-        self.extras = self.connection.extra_dejson
+        self._conn = None
 
-        self.endpoint_uri = self.connection.login
-        self.master_key = self.connection.password
-        self.default_database_name = self.extras.get('database_name')
-        self.default_collection_name = self.extras.get('collection_name')
-        self.cosmos_client = None
+        self.default_database_name = None
+        self.default_collection_name = None
 
     def get_conn(self):
         """
         Return a cosmos db client.
         """
-        if self.cosmos_client is not None:
-            return self.cosmos_client
+        if not self._conn:
+            conn = self.get_connection(self.conn_id)
+            extras = conn.extra_dejson
+            endpoint_uri = conn.login
+            master_key = conn.password
 
-        # Initialize the Python Azure Cosmos DB client
-        self.cosmos_client = cosmos_client.CosmosClient(self.endpoint_uri, {'masterKey': self.master_key})
+            self.default_database_name = extras.get('database_name')
+            self.default_collection_name = extras.get('collection_name')
 
-        return self.cosmos_client
+            # Initialize the Python Azure Cosmos DB client
+            self._conn = CosmosClient(endpoint_uri, {'masterKey': master_key})
+        return self._conn
 
     def __get_database_name(self, database_name=None):
+        self.get_conn()
         db_name = database_name
         if db_name is None:
             db_name = self.default_database_name
@@ -78,6 +80,7 @@ class AzureCosmosDBHook(BaseHook):
         return db_name
 
     def __get_collection_name(self, collection_name=None):
+        self.get_conn()
         coll_name = collection_name
         if coll_name is None:
             coll_name = self.default_collection_name

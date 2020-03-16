@@ -19,8 +19,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from airflow import DAG
 from airflow.exceptions import AirflowException
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.emr_modify_cluster import EmrModifyClusterOperator
 from airflow.utils import timezone
 

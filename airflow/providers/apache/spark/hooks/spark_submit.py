@@ -125,7 +125,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                  env_vars=None,
                  verbose=False,
                  spark_binary=None):
-        self._conf = conf
+        self._conf = conf or {}
         self._conn_id = conn_id
         self._files = files
         self._py_files = py_files
@@ -208,6 +208,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 self._conn_id, conn_data['master']
             )
 
+        if 'spark.kubernetes.namespace' in self._conf:
+            conn_data['namespace'] = self._conf['spark.kubernetes.namespace']
+
         return conn_data
 
     def get_conn(self):
@@ -247,9 +250,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         # The url of the spark master
         connection_cmd += ["--master", self._connection['master']]
 
-        if self._conf:
-            for key in self._conf:
-                connection_cmd += ["--conf", "{}={}".format(key, str(self._conf[key]))]
+        for key in self._conf:
+            connection_cmd += ["--conf", "{}={}".format(key, str(self._conf[key]))]
         if self._env_vars and (self._is_kubernetes or self._is_yarn):
             if self._is_yarn:
                 tmpl = "spark.yarn.appMasterEnv.{}={}"

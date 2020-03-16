@@ -23,7 +23,7 @@ from time import sleep
 
 import requests
 
-from airflow import conf
+from airflow.configuration import conf
 from airflow.utils.serve_logs import serve_logs
 
 LOG_DATA = "Airflow log data" * 20

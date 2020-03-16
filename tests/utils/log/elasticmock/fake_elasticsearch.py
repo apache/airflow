@@ -243,7 +243,7 @@ class FakeElasticsearch(Elasticsearch):
 
     @query_params('allow_no_indices', 'expand_wildcards', 'ignore_unavailable',
                   'preference', 'routing')
-    def suggest(self, body, index=None, params=None):
+    def suggest(self, body, index=None):
         if index is not None and index not in self.__documents_dict:
             raise NotFoundError(404, 'IndexMissingException[[{0}] missing]'.format(index))
 

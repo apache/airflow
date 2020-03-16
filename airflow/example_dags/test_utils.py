@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Used for unit tests"""
-from airflow.models import DAG
+from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.utils.dates import days_ago
 

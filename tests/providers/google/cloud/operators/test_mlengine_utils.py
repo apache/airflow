@@ -19,8 +19,8 @@ import datetime
 import unittest
 from unittest.mock import ANY, patch
 
-from airflow import DAG
 from airflow.exceptions import AirflowException
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.utils import mlengine_operator_utils
 from airflow.version import version
 
@@ -115,6 +115,7 @@ class TestCreateEvaluateOps(unittest.TestCase):
                 py_interpreter='python3',
                 py_requirements=[],
                 py_system_site_packages=False,
+                on_new_job_id_callback=ANY
             )
 
         with patch('airflow.providers.google.cloud.utils.mlengine_operator_utils.GCSHook') as mock_gcs_hook:

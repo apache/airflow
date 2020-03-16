@@ -27,6 +27,7 @@ DAG_FOLDER = os.path.join(os.path.dirname(__file__), "dags")
 os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = DAG_FOLDER
 os.environ["AIRFLOW__DEBUG__SQLALCHEMY_STATS"] = "True"
 os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
+os.environ["AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS"] = "True"
 
 # Here we setup simpler logger to avoid any code changes in
 # Airflow core code base

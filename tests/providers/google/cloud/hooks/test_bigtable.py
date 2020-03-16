@@ -24,7 +24,7 @@ from google.cloud.bigtable import Client
 from google.cloud.bigtable.instance import Instance
 from mock import PropertyMock
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST, mock_base_gcp_hook_default_project_id,

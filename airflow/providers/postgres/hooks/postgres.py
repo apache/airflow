@@ -153,11 +153,11 @@ class PostgresHook(DbApiHook):
         or Redshift. Port is required. If none is provided, default is used for
         each service
         """
-        from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+        from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
         redshift = conn.extra_dejson.get('redshift', False)
         aws_conn_id = conn.extra_dejson.get('aws_conn_id', 'aws_default')
-        aws_hook = AwsHook(aws_conn_id)
+        aws_hook = AwsBaseHook(aws_conn_id)
         login = conn.login
         if conn.port is None:
             port = 5439 if redshift else 5432

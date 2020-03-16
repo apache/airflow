@@ -45,6 +45,7 @@ from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
+from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
@@ -138,10 +139,6 @@ class BaseOperator(Operator, LoggingMixin):
         only tasks *immediately* downstream of the previous task instance are waited
         for; the statuses of any tasks further downstream are ignored.
     :type wait_for_downstream: bool
-    :param queue: which queue to target when running this job. Not
-        all executors implement queue management, the CeleryExecutor
-        does support targeting specific queues.
-    :type queue: str
     :param dag: a reference to the dag the task is attached to (if any)
     :type dag: airflow.models.DAG
     :param priority_weight: priority weight of this task against other task.
@@ -172,7 +169,9 @@ class BaseOperator(Operator, LoggingMixin):
         DAGS. Options can be set as string or using the constants defined in
         the static class ``airflow.utils.WeightRule``
     :type weight_rule: str
-    :param queue: specifies which task queue to use
+    :param queue: which queue to target when running this job. Not
+        all executors implement queue management, the CeleryExecutor
+        does support targeting specific queues.
     :type queue: str
     :param pool: the slot pool this task should run in, slot pools are a
         way to limit concurrency for certain tasks
@@ -472,38 +471,20 @@ class BaseOperator(Operator, LoggingMixin):
     def __rshift__(self, other):
         """
         Implements Self >> Other == self.set_downstream(other)
-
-        If "Other" is a DAG, the DAG is assigned to the Operator.
         """
-        from airflow.models.dag import DAG
-        if isinstance(other, DAG):
-            # if this dag is already assigned, do nothing
-            # otherwise, do normal dag assignment
-            if not (self.has_dag() and self.dag is other):
-                self.dag = other
-        else:
-            self.set_downstream(other)
+        self.set_downstream(other)
         return other
 
     def __lshift__(self, other):
         """
         Implements Self << Other == self.set_upstream(other)
-
-        If "Other" is a DAG, the DAG is assigned to the Operator.
         """
-        from airflow.models.dag import DAG
-        if isinstance(other, DAG):
-            # if this dag is already assigned, do nothing
-            # otherwise, do normal dag assignment
-            if not (self.has_dag() and self.dag is other):
-                self.dag = other
-        else:
-            self.set_upstream(other)
+        self.set_upstream(other)
         return other
 
     def __rrshift__(self, other):
         """
-        Called for [DAG] >> [Operator] because DAGs don't have
+        Called for Operator >> [Operator] because list don't have
         __rshift__ operators.
         """
         self.__lshift__(other)
@@ -511,7 +492,7 @@ class BaseOperator(Operator, LoggingMixin):
 
     def __rlshift__(self, other):
         """
-        Called for [DAG] << [Operator] because DAGs don't have
+        Called for Operator << [Operator] because list don't have
         __lshift__ operators.
         """
         self.__rshift__(other)
@@ -650,6 +631,7 @@ class BaseOperator(Operator, LoggingMixin):
             NotInRetryPeriodDep(),
             PrevDagrunDep(),
             TriggerRuleDep(),
+            NotPreviouslySkippedDep(),
         }
 
     @property
@@ -674,7 +656,7 @@ class BaseOperator(Operator, LoggingMixin):
 
         if not self._dag:
             return self.priority_weight
-        from airflow import DAG
+        from airflow.models.dag import DAG
         dag: DAG = self._dag
         return self.priority_weight + sum(
             map(lambda task_id: dag.task_dict[task_id].priority_weight,
@@ -1001,7 +983,7 @@ class BaseOperator(Operator, LoggingMixin):
         """
         if not self._dag:
             return set()
-        from airflow import DAG
+        from airflow.models.dag import DAG
         dag: DAG = self._dag
         return list(map(lambda task_id: dag.task_dict[task_id],
                         self.get_flat_relative_ids(upstream)))
@@ -1010,7 +992,7 @@ class BaseOperator(Operator, LoggingMixin):
             self,
             start_date: Optional[datetime] = None,
             end_date: Optional[datetime] = None,
-            ignore_first_depends_on_past: bool = False,
+            ignore_first_depends_on_past: bool = True,
             ignore_ti_state: bool = False,
             mark_success: bool = False) -> None:
         """

@@ -18,22 +18,27 @@
 import copy
 import datetime
 import unittest
-from unittest.mock import ANY, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import httplib2
 from googleapiclient.errors import HttpError
 
-from airflow import DAG
 from airflow.exceptions import AirflowException
+from airflow.models import TaskInstance
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.mlengine import (
-    MLEngineCreateModelOperator, MLEngineCreateVersionOperator, MLEngineDeleteModelOperator,
-    MLEngineDeleteVersionOperator, MLEngineGetModelOperator, MLEngineListVersionsOperator,
-    MLEngineManageModelOperator, MLEngineManageVersionOperator, MLEngineSetDefaultVersionOperator,
-    MLEngineStartBatchPredictionJobOperator, MLEngineStartTrainingJobOperator,
+    AIPlatformConsoleLink, MLEngineCreateModelOperator, MLEngineCreateVersionOperator,
+    MLEngineDeleteModelOperator, MLEngineDeleteVersionOperator, MLEngineGetModelOperator,
+    MLEngineListVersionsOperator, MLEngineManageModelOperator, MLEngineManageVersionOperator,
+    MLEngineSetDefaultVersionOperator, MLEngineStartBatchPredictionJobOperator,
+    MLEngineStartTrainingJobOperator, MLEngineTrainingJobFailureOperator,
 )
+from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.utils.dates import days_ago
 
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
 
+TEST_DAG_ID = "test-mlengine-operators"
 TEST_PROJECT_ID = "test-project-id"
 TEST_MODEL_NAME = "test-model-name"
 TEST_VERSION_NAME = "test-version"
@@ -303,7 +308,8 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
         'training_args': '--some_arg=\'aaa\'',
         'region': 'us-east1',
         'scale_tier': 'STANDARD_1',
-        'task_id': 'test-training'
+        'task_id': 'test-training',
+        'start_date': days_ago(1)
     }
     TRAINING_INPUT = {
         'jobId': 'test_training',
@@ -316,6 +322,9 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
         }
     }
 
+    def setUp(self):
+        self.dag = DAG(TEST_DAG_ID, default_args=self.TRAINING_DEFAULT_ARGS)
+
     @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_success_create_training_job(self, mock_hook):
         success_response = self.TRAINING_INPUT.copy()
@@ -325,7 +334,7 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
 
         training_op = MLEngineStartTrainingJobOperator(
             **self.TRAINING_DEFAULT_ARGS)
-        training_op.execute(None)
+        training_op.execute(MagicMock())
 
         mock_hook.assert_called_once_with(
             gcp_conn_id='google_cloud_default', delegate_to=None)
@@ -351,7 +360,7 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
             python_version='3.5',
             job_dir='gs://some-bucket/jobs/test_training',
             **self.TRAINING_DEFAULT_ARGS)
-        training_op.execute(None)
+        training_op.execute(MagicMock())
 
         mock_hook.assert_called_once_with(gcp_conn_id='google_cloud_default', delegate_to=None)
         # Make sure only 'create_job' is invoked on hook instance
@@ -402,6 +411,122 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
         hook_instance.create_job.assert_called_once_with(
             project_id='test-project', job=self.TRAINING_INPUT, use_existing_job_fn=ANY)
         self.assertEqual('A failure message', str(context.exception))
+
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    def test_console_extra_link(self, mock_hook):
+        training_op = MLEngineStartTrainingJobOperator(
+            **self.TRAINING_DEFAULT_ARGS)
+
+        ti = TaskInstance(
+            task=training_op,
+            execution_date=DEFAULT_DATE,
+        )
+
+        job_id = self.TRAINING_DEFAULT_ARGS['job_id']
+        project_id = self.TRAINING_DEFAULT_ARGS['project_id']
+        gcp_metadata = {
+            "job_id": job_id,
+            "project_id": project_id,
+        }
+        ti.xcom_push(key='gcp_metadata', value=gcp_metadata)
+
+        self.assertEqual(
+            f"https://console.cloud.google.com/ai-platform/jobs/{job_id}?project={project_id}",
+            training_op.get_extra_links(DEFAULT_DATE, AIPlatformConsoleLink.name),
+        )
+
+        self.assertEqual(
+            '',
+            training_op.get_extra_links(datetime.datetime(2019, 1, 1), AIPlatformConsoleLink.name),
+        )
+
+    def test_console_extra_link_serialized_field(self):
+        with self.dag:
+            training_op = MLEngineStartTrainingJobOperator(**self.TRAINING_DEFAULT_ARGS)
+        serialized_dag = SerializedDAG.to_dict(self.dag)
+        dag = SerializedDAG.from_dict(serialized_dag)
+        simple_task = dag.task_dict[self.TRAINING_DEFAULT_ARGS['task_id']]
+
+        # Check Serialized version of operator link
+        self.assertEqual(
+            serialized_dag["dag"]["tasks"][0]["_operator_extra_links"],
+            [{"airflow.providers.google.cloud.operators.mlengine.AIPlatformConsoleLink": {}}]
+        )
+
+        # Check DeSerialized version of operator link
+        self.assertIsInstance(list(simple_task.operator_extra_links)[0], AIPlatformConsoleLink)
+
+        job_id = self.TRAINING_DEFAULT_ARGS['job_id']
+        project_id = self.TRAINING_DEFAULT_ARGS['project_id']
+        gcp_metadata = {
+            "job_id": job_id,
+            "project_id": project_id,
+        }
+
+        ti = TaskInstance(
+            task=training_op,
+            execution_date=DEFAULT_DATE,
+        )
+        ti.xcom_push(key='gcp_metadata', value=gcp_metadata)
+
+        self.assertEqual(
+            f"https://console.cloud.google.com/ai-platform/jobs/{job_id}?project={project_id}",
+            simple_task.get_extra_links(DEFAULT_DATE, AIPlatformConsoleLink.name),
+        )
+
+        self.assertEqual(
+            '',
+            simple_task.get_extra_links(datetime.datetime(2019, 1, 1), AIPlatformConsoleLink.name),
+        )
+
+
+class TestMLEngineTrainingJobFailureOperator(unittest.TestCase):
+
+    TRAINING_DEFAULT_ARGS = {
+        'project_id': 'test-project',
+        'job_id': 'test_training',
+        'task_id': 'test-training'
+    }
+
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    def test_success_cancel_training_job(self, mock_hook):
+        success_response = {}
+        hook_instance = mock_hook.return_value
+        hook_instance.cancel_job.return_value = success_response
+
+        cancel_training_op = MLEngineTrainingJobFailureOperator(
+            **self.TRAINING_DEFAULT_ARGS)
+        cancel_training_op.execute(None)
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id='google_cloud_default', delegate_to=None)
+        # Make sure only 'cancel_job' is invoked on hook instance
+        self.assertEqual(len(hook_instance.mock_calls), 1)
+        hook_instance.cancel_job.assert_called_once_with(
+            project_id=self.TRAINING_DEFAULT_ARGS['project_id'], job_id=self.TRAINING_DEFAULT_ARGS['job_id'])
+
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    def test_http_error(self, mock_hook):
+        http_error_code = 403
+        hook_instance = mock_hook.return_value
+        hook_instance.cancel_job.side_effect = HttpError(
+            resp=httplib2.Response({
+                'status': http_error_code
+            }),
+            content=b'Forbidden')
+
+        with self.assertRaises(HttpError) as context:
+            cancel_training_op = MLEngineTrainingJobFailureOperator(
+                **self.TRAINING_DEFAULT_ARGS)
+            cancel_training_op.execute(None)
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id='google_cloud_default', delegate_to=None)
+        # Make sure only 'create_job' is invoked on hook instance
+        self.assertEqual(len(hook_instance.mock_calls), 1)
+        hook_instance.cancel_job.assert_called_once_with(
+            project_id=self.TRAINING_DEFAULT_ARGS['project_id'], job_id=self.TRAINING_DEFAULT_ARGS['job_id'])
+        self.assertEqual(http_error_code, context.exception.resp.status)
 
 
 class TestMLEngineModelOperator(unittest.TestCase):

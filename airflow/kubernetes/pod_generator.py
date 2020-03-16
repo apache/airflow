@@ -134,6 +134,8 @@ class PodGenerator:
     :type pod_template_file: Optional[str]
     :param extract_xcom: Whether to bring up a container for xcom
     :type extract_xcom: bool
+    :param priority_class_name: priority class name for the launched Pod
+    :type priority_class_name: str
     """
     def __init__(  # pylint: disable=too-many-arguments,too-many-locals
         self,
@@ -165,6 +167,7 @@ class PodGenerator:
         pod: Optional[k8s.V1Pod] = None,
         pod_template_file: Optional[str] = None,
         extract_xcom: bool = False,
+        priority_class_name: Optional[str] = None,
     ):
         self.validate_pod_generator_args(locals())
 
@@ -228,6 +231,7 @@ class PodGenerator:
         self.spec.volumes = volumes or []
         self.spec.node_selector = node_selectors
         self.spec.restart_policy = restart_policy
+        self.spec.priority_class_name = priority_class_name
 
         self.spec.image_pull_secrets = []
 
@@ -295,11 +299,13 @@ class PodGenerator:
         if resources is None:
             requests = {
                 'cpu': namespaced.get('request_cpu'),
-                'memory': namespaced.get('request_memory')
+                'memory': namespaced.get('request_memory'),
+                'ephemeral-storage': namespaced.get('ephemeral-storage')
             }
             limits = {
                 'cpu': namespaced.get('limit_cpu'),
-                'memory': namespaced.get('limit_memory')
+                'memory': namespaced.get('limit_memory'),
+                'ephemeral-storage': namespaced.get('ephemeral-storage')
             }
             all_resources = list(requests.values()) + list(limits.values())
             if all(r is None for r in all_resources):

@@ -153,7 +153,7 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
 | docker              | ``pip install 'apache-airflow[docker]'``            | Docker hooks and operators                                                        |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
-| elasticsearch       | ``pip install 'apache-airflow[elasticsearch]'``     | Elastic Log Handler                                                               |
+| elasticsearch       | ``pip install 'apache-airflow[elasticsearch]'``     | Elasticsearch hooks and Log Handler                                               |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
 | kubernetes          | ``pip install 'apache-airflow[kubernetes]'``        | Kubernetes Executor and operator                                                  |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+

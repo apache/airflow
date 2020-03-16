@@ -136,6 +136,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :type do_xcom_push: bool
     :param pod_template_file: path to pod template file
     :type pod_template_file: str
+    :param priority_class_name: priority class name for the launched Pod
+    :type priority_class_name: str
     """
     template_fields = ('cmds', 'arguments', 'env_vars', 'config_file', 'pod_template_file')
 
@@ -177,6 +179,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  log_events_on_failure: bool = False,
                  do_xcom_push: bool = False,
                  pod_template_file: Optional[str] = None,
+                 priority_class_name: Optional[str] = None,
                  *args,
                  **kwargs):
         if kwargs.get('xcom_push') is not None:
@@ -218,6 +221,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.full_pod_spec = full_pod_spec
         self.init_containers = init_containers or []
         self.log_events_on_failure = log_events_on_failure
+        self.priority_class_name = priority_class_name
         self.pod_template_file = pod_template_file
         self.name = self._set_name(name)
 
@@ -263,8 +267,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 schedulername=self.schedulername,
                 init_containers=self.init_containers,
                 restart_policy='Never',
+                priority_class_name=self.priority_class_name,
                 pod_template_file=self.pod_template_file,
-                pod=self.full_pod_spec
+                pod=self.full_pod_spec,
             ).gen_pod()
 
             pod = append_to_pod(

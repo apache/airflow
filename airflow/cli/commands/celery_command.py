@@ -47,13 +47,13 @@ def flower(args):
     ]
 
     if args.broker_api:
-        options.append(f"--broker_api={args.broker_api}")
+        options.append(f"--broker-api={args.broker_api}")
 
     if args.url_prefix:
         options.append(f"--url-prefix={args.url_prefix}")
 
     if args.basic_auth:
-        options.append(f"--basic_auth={args.basic_auth}")
+        options.append(f"--basic-auth={args.basic_auth}")
 
     if args.flower_conf:
         options.append(f"--conf={args.flower_conf}")

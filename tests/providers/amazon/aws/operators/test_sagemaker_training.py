@@ -122,6 +122,39 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
         self.assertRaises(AirflowException, self.sagemaker.execute, None)
 # pylint: enable=unused-argument
 
+    @mock.patch.object(SageMakerHook, "get_conn")
+    @mock.patch.object(SageMakerHook, "list_training_jobs")
+    @mock.patch.object(SageMakerHook, "create_training_job")
+    def test_execute_with_existing_job_increment(
+        self, mock_create_training_job, mock_list_training_jobs, mock_client
+    ):
+        self.sagemaker.action_if_job_exists = "increment"
+        mock_create_training_job.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
+        mock_list_training_jobs.return_value = [{"TrainingJobName": job_name}]
+        self.sagemaker.execute(None)
+
+        expected_config = create_training_params.copy()
+        # Expect to see TrainingJobName suffixed with "-2" because we return one existing job
+        expected_config["TrainingJobName"] = f"{job_name}-2"
+        mock_create_training_job.assert_called_once_with(
+            expected_config,
+            wait_for_completion=False,
+            print_log=True,
+            check_interval=5,
+            max_ingestion_time=None,
+        )
+
+    @mock.patch.object(SageMakerHook, "get_conn")
+    @mock.patch.object(SageMakerHook, "list_training_jobs")
+    @mock.patch.object(SageMakerHook, "create_training_job")
+    def test_execute_with_existing_job_fail(
+        self, mock_create_training_job, mock_list_training_jobs, mock_client
+    ):
+        self.sagemaker.action_if_job_exists = "fail"
+        mock_create_training_job.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
+        mock_list_training_jobs.return_value = [{"TrainingJobName": job_name}]
+        self.assertRaises(AirflowException, self.sagemaker.execute, None)
+
 
 if __name__ == '__main__':
     unittest.main()

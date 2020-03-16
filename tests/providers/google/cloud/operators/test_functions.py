@@ -23,7 +23,7 @@ import mock
 from googleapiclient.errors import HttpError
 from parameterized import parameterized
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.functions import (
     FUNCTION_NAME_PATTERN, CloudFunctionDeleteFunctionOperator, CloudFunctionDeployFunctionOperator,
     CloudFunctionInvokeFunctionOperator,

@@ -30,13 +30,14 @@ from unittest.mock import patch
 
 import pendulum
 from dateutil.relativedelta import relativedelta
+from parameterized import parameterized
 from pendulum import utcnow
 
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowDagCycleException, AirflowException, DuplicateTaskIdFound
 from airflow.jobs.scheduler_job import DagFileProcessor
-from airflow.models import DAG, DagModel, DagRun, TaskFail, TaskInstance as TI
+from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
@@ -46,8 +47,11 @@ from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime as datetime_tz
+from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
+from tests.test_utils.asserts import assert_queries_count
+from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 
 class TestDag(unittest.TestCase):
@@ -108,6 +112,48 @@ class TestDag(unittest.TestCase):
         params_combined = params1.copy()
         params_combined.update(params2)
         self.assertEqual(params_combined, dag.params)
+
+    def test_dag_invalid_default_view(self):
+        """
+        Test invalid `default_view` of DAG initialization
+        """
+        with self.assertRaisesRegex(AirflowException,
+                                    'Invalid values of dag.default_view: only support'):
+            models.DAG(
+                dag_id='test-invalid-default_view',
+                default_view='airflow'
+            )
+
+    def test_dag_default_view_default_value(self):
+        """
+        Test `default_view` default value of DAG initialization
+        """
+        dag = models.DAG(
+            dag_id='test-default_default_view'
+        )
+        self.assertEqual(conf.get('webserver', 'dag_default_view').lower(),
+                         dag.default_view)
+
+    def test_dag_invalid_orientation(self):
+        """
+        Test invalid `orientation` of DAG initialization
+        """
+        with self.assertRaisesRegex(AirflowException,
+                                    'Invalid values of dag.orientation: only support'):
+            models.DAG(
+                dag_id='test-invalid-orientation',
+                orientation='airflow'
+            )
+
+    def test_dag_orientation_default_value(self):
+        """
+        Test `orientation` default value of DAG initialization
+        """
+        dag = models.DAG(
+            dag_id='test-default_orientation'
+        )
+        self.assertEqual(conf.get('webserver', 'dag_orientation'),
+                         dag.orientation)
 
     def test_dag_as_context_manager(self):
         """
@@ -731,6 +777,76 @@ class TestDag(unittest.TestCase):
         self.assertEqual(prev_local.isoformat(), "2018-03-24T03:00:00+01:00")
         self.assertEqual(prev.isoformat(), "2018-03-24T02:00:00+00:00")
 
+    def test_bulk_sync_to_db(self):
+        clear_db_dags()
+        dags = [
+            DAG(f'dag-bulk-sync-{i}', start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(0, 4)
+        ]
+
+        with assert_queries_count(3):
+            DAG.bulk_sync_to_db(dags)
+        with create_session() as session:
+            self.assertEqual(
+                {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'},
+                {row[0] for row in session.query(DagModel.dag_id).all()}
+            )
+            self.assertEqual(
+                {
+                    ('dag-bulk-sync-0', 'test-dag'),
+                    ('dag-bulk-sync-1', 'test-dag'),
+                    ('dag-bulk-sync-2', 'test-dag'),
+                    ('dag-bulk-sync-3', 'test-dag'),
+                },
+                set(session.query(DagTag.dag_id, DagTag.name).all())
+            )
+        # Re-sync should do fewer queries
+        with assert_queries_count(2):
+            DAG.bulk_sync_to_db(dags)
+        with assert_queries_count(2):
+            DAG.bulk_sync_to_db(dags)
+        # Adding tags
+        for dag in dags:
+            dag.tags.append("test-dag2")
+        with assert_queries_count(3):
+            DAG.bulk_sync_to_db(dags)
+        with create_session() as session:
+            self.assertEqual(
+                {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'},
+                {row[0] for row in session.query(DagModel.dag_id).all()}
+            )
+            self.assertEqual(
+                {
+                    ('dag-bulk-sync-0', 'test-dag'),
+                    ('dag-bulk-sync-0', 'test-dag2'),
+                    ('dag-bulk-sync-1', 'test-dag'),
+                    ('dag-bulk-sync-1', 'test-dag2'),
+                    ('dag-bulk-sync-2', 'test-dag'),
+                    ('dag-bulk-sync-2', 'test-dag2'),
+                    ('dag-bulk-sync-3', 'test-dag'),
+                    ('dag-bulk-sync-3', 'test-dag2'),
+                },
+                set(session.query(DagTag.dag_id, DagTag.name).all())
+            )
+        # Removing tags
+        for dag in dags:
+            dag.tags.remove("test-dag")
+        with assert_queries_count(3):
+            DAG.bulk_sync_to_db(dags)
+        with create_session() as session:
+            self.assertEqual(
+                {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'},
+                {row[0] for row in session.query(DagModel.dag_id).all()}
+            )
+            self.assertEqual(
+                {
+                    ('dag-bulk-sync-0', 'test-dag2'),
+                    ('dag-bulk-sync-1', 'test-dag2'),
+                    ('dag-bulk-sync-2', 'test-dag2'),
+                    ('dag-bulk-sync-3', 'test-dag2'),
+                },
+                set(session.query(DagTag.dag_id, DagTag.name).all())
+            )
+
     @patch('airflow.models.dag.timezone.utcnow')
     def test_sync_to_db(self, mock_now):
         dag = DAG(
@@ -739,13 +855,14 @@ class TestDag(unittest.TestCase):
         )
         with dag:
             DummyOperator(task_id='task', owner='owner1')
+            subdag = DAG('dag.subtask', start_date=DEFAULT_DATE, )
+            # parent_dag and is_subdag was set by DagBag. We don't use DagBag, so this value is not set.
+            subdag.parent_dag = dag
+            subdag.is_subdag = True
             SubDagOperator(
                 task_id='subtask',
                 owner='owner2',
-                subdag=DAG(
-                    'dag.subtask',
-                    start_date=DEFAULT_DATE,
-                )
+                subdag=subdag
             )
         now = datetime.datetime.utcnow().replace(tzinfo=pendulum.timezone('UTC'))
         mock_now.return_value = now
@@ -756,8 +873,8 @@ class TestDag(unittest.TestCase):
         self.assertEqual(set(orm_dag.owners.split(', ')), {'owner1', 'owner2'})
         self.assertEqual(orm_dag.last_scheduler_run, now)
         self.assertTrue(orm_dag.is_active)
-        self.assertIsNone(orm_dag.default_view)
-        self.assertEqual(orm_dag.get_default_view(),
+        self.assertIsNotNone(orm_dag.default_view)
+        self.assertEqual(orm_dag.default_view,
                          conf.get('webserver', 'dag_default_view').lower())
         self.assertEqual(orm_dag.safe_dag_id, 'dag')
 
@@ -794,7 +911,7 @@ class TestDag(unittest.TestCase):
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag').one()
         self.assertIsNotNone(orm_dag.default_view)
-        self.assertEqual(orm_dag.get_default_view(), "graph")
+        self.assertEqual(orm_dag.default_view, "graph")
         session.close()
 
     @patch('airflow.models.dag.DagBag')
@@ -1103,7 +1220,8 @@ class TestDag(unittest.TestCase):
             start_date=DEFAULT_DATE))
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        dag.create_dagrun(run_id=DagRun.id_for_date(DEFAULT_DATE),
+        run_id = f"{DagRunType.SCHEDULED.value}__{DEFAULT_DATE.isoformat()}"
+        dag.create_dagrun(run_id=run_id,
                           execution_date=DEFAULT_DATE,
                           state=State.SUCCESS,
                           external_trigger=True)
@@ -1299,3 +1417,40 @@ class TestDag(unittest.TestCase):
         self.assertEqual(hash(dag_eq), hash(dag))
         self.assertNotEqual(hash(dag_diff_name), hash(dag))
         self.assertNotEqual(hash(dag_subclass), hash(dag))
+
+    def test_get_paused_dag_ids(self):
+        dag_id = "test_get_paused_dag_ids"
+        dag = DAG(dag_id, is_paused_upon_creation=True)
+        dag.sync_to_db()
+        self.assertIsNotNone(DagModel.get_dagmodel(dag_id))
+
+        paused_dag_ids = DagModel.get_paused_dag_ids([dag_id])
+        self.assertEqual(paused_dag_ids, {dag_id})
+
+        with create_session() as session:
+            session.query(DagModel).filter(
+                DagModel.dag_id == dag_id).delete(
+                synchronize_session=False)
+
+
+class TestQueries(unittest.TestCase):
+
+    def setUp(self) -> None:
+        clear_db_runs()
+
+    def tearDown(self) -> None:
+        clear_db_runs()
+
+    @parameterized.expand([
+        (3, ),
+        (12, ),
+    ])
+    def test_count_number_queries(self, tasks_count):
+        dag = DAG('test_dagrun_query_count', start_date=DEFAULT_DATE)
+        for i in range(tasks_count):
+            DummyOperator(task_id=f'dummy_task_{i}', owner='test', dag=dag)
+        with assert_queries_count(3):
+            dag.create_dagrun(
+                run_id="test_dagrun_query_count",
+                state=State.RUNNING
+            )

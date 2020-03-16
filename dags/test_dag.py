@@ -20,7 +20,7 @@ This dag only runs some simple tasks to test Airflow's task execution.
 """
 from datetime import datetime, timedelta
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.dates import days_ago
 

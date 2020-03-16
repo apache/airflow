@@ -26,14 +26,15 @@ import sys
 import traceback
 from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
-from typing import Callable, Dict, FrozenSet, Iterable, List, Optional, Type, Union
+from typing import Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Type, Union
 
 import jinja2
 import pendulum
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, func, or_
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy.orm import backref, joinedload, relationship
+from sqlalchemy.orm.session import Session
 
 from airflow import settings, utils
 from airflow.configuration import conf
@@ -44,6 +45,7 @@ from airflow.exceptions import (
 from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
+from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
@@ -60,6 +62,8 @@ from airflow.utils.state import State
 log = logging.getLogger(__name__)
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
+DEFAULT_VIEW_PRESETS = ['tree', 'graph', 'duration', 'gantt', 'landing_times']
+ORIENTATION_PRESETS = ['LR', 'TB', 'RL', 'BT']
 
 
 def get_last_dagrun(dag_id, session, include_externally_triggered=False):
@@ -89,7 +93,8 @@ class DAG(BaseDag, LoggingMixin):
     DAGs essentially act as namespaces for tasks. A task_id can only be
     added once to a DAG.
 
-    :param dag_id: The id of the DAG
+    :param dag_id: The id of the DAG; must consist exclusively of alphanumeric
+        characters, dashes, dots and underscores (all ASCII)
     :type dag_id: str
     :param description: The description for the DAG to e.g. be shown on the webserver
     :type description: str
@@ -151,9 +156,9 @@ class DAG(BaseDag, LoggingMixin):
         timeouts.
     :type sla_miss_callback: types.FunctionType
     :param default_view: Specify DAG default view (tree, graph, duration,
-                                                   gantt, landing_times)
+                                                   gantt, landing_times), default tree
     :type default_view: str
-    :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT)
+    :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT), default LR
     :type orientation: str
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
     :type catchup: bool
@@ -219,7 +224,7 @@ class DAG(BaseDag, LoggingMixin):
         max_active_runs: int = conf.getint('core', 'max_active_runs_per_dag'),
         dagrun_timeout: Optional[timedelta] = None,
         sla_miss_callback: Optional[Callable] = None,
-        default_view: Optional[str] = None,
+        default_view: str = conf.get('webserver', 'dag_default_view').lower(),
         orientation: str = conf.get('webserver', 'dag_orientation'),
         catchup: bool = conf.getboolean('scheduler', 'catchup_by_default'),
         on_success_callback: Optional[Callable] = None,
@@ -304,8 +309,16 @@ class DAG(BaseDag, LoggingMixin):
         self.max_active_runs = max_active_runs
         self.dagrun_timeout = dagrun_timeout
         self.sla_miss_callback = sla_miss_callback
-        self._default_view = default_view
-        self.orientation = orientation
+        if default_view in DEFAULT_VIEW_PRESETS:
+            self._default_view = default_view
+        else:
+            raise AirflowException(f'Invalid values of dag.default_view: only support '
+                                   f'{DEFAULT_VIEW_PRESETS}, but get {default_view}')
+        if orientation in ORIENTATION_PRESETS:
+            self.orientation = orientation
+        else:
+            raise AirflowException(f'Invalid values of dag.orientation: only support '
+                                   f'{ORIENTATION_PRESETS}, but get {orientation}')
         self.catchup = catchup
         self.is_subdag = False  # DagBag.bag_dag() will set this to True if appropriate
 
@@ -362,13 +375,6 @@ class DAG(BaseDag, LoggingMixin):
         DagContext.pop_context_managed_dag()
 
     # /Context Manager ----------------------------------------------
-
-    def get_default_view(self):
-        """This is only there for backward compatible jinja2 templates"""
-        if self._default_view is None:
-            return conf.get('webserver', 'dag_default_view').lower()
-        else:
-            return self._default_view
 
     def date_range(self, start_date, num=None, end_date=timezone.utcnow()):
         if num:
@@ -538,6 +544,10 @@ class DAG(BaseDag, LoggingMixin):
         return self._description
 
     @property
+    def default_view(self):
+        return self._default_view
+
+    @property
     def pickle_id(self):
         return self._pickle_id
 
@@ -559,7 +569,7 @@ class DAG(BaseDag, LoggingMixin):
         return list(self.task_dict.keys())
 
     @property
-    def filepath(self):
+    def filepath(self) -> str:
         """
         File location of where the dag object is instantiated
         """
@@ -568,12 +578,12 @@ class DAG(BaseDag, LoggingMixin):
         return fn
 
     @property
-    def folder(self):
+    def folder(self) -> str:
         """Folder location of where the DAG object is instantiated."""
         return os.path.dirname(self.full_filepath)
 
     @property
-    def owner(self):
+    def owner(self) -> str:
         """
         Return list of all owners found in DAG tasks.
 
@@ -583,14 +593,14 @@ class DAG(BaseDag, LoggingMixin):
         return ", ".join({t.owner for t in self.tasks})
 
     @property
-    def allow_future_exec_dates(self):
+    def allow_future_exec_dates(self) -> bool:
         return conf.getboolean(
             'scheduler',
             'allow_trigger_in_future',
             fallback=False) and self.schedule_interval is None
 
     @provide_session
-    def _get_concurrency_reached(self, session=None):
+    def _get_concurrency_reached(self, session=None) -> bool:
         TI = TaskInstance
         qry = session.query(func.count(TI.task_id)).filter(
             TI.dag_id == self.dag_id,
@@ -599,7 +609,7 @@ class DAG(BaseDag, LoggingMixin):
         return qry.scalar() >= self.concurrency
 
     @property
-    def concurrency_reached(self):
+    def concurrency_reached(self) -> bool:
         """
         Returns a boolean indicating whether the concurrency limit for this DAG
         has been reached
@@ -613,7 +623,7 @@ class DAG(BaseDag, LoggingMixin):
         return qry.value(DagModel.is_paused)
 
     @property
-    def is_paused(self):
+    def is_paused(self) -> bool:
         """
         Returns a boolean indicating whether this DAG is paused
         """
@@ -895,11 +905,11 @@ class DAG(BaseDag, LoggingMixin):
     @provide_session
     def set_dag_runs_state(
             self,
-            state=State.RUNNING,
-            session=None,
-            start_date=None,
-            end_date=None,
-    ):
+            state: str = State.RUNNING,
+            session: Session = None,
+            start_date: Optional[datetime] = None,
+            end_date: Optional[datetime] = None,
+    ) -> None:
         query = session.query(DagRun).filter_by(dag_id=self.dag_id)
         if start_date:
             query = query.filter(DagRun.execution_date >= start_date)
@@ -1067,12 +1077,15 @@ class DAG(BaseDag, LoggingMixin):
         if get_tis:
             return tis
 
+        tis = tis.all()
+
         if dry_run:
-            tis = tis.all()
             session.expunge_all()
             return tis
 
-        count = tis.count()
+        # Do not use count() here, it's actually much slower than just retrieving all the rows when
+        # tis has multiple UNION statements.
+        count = len(tis)
         do_it = True
         if count == 0:
             return 0
@@ -1085,7 +1098,7 @@ class DAG(BaseDag, LoggingMixin):
             do_it = utils.helpers.ask_yesno(question)
 
         if do_it:
-            clear_task_instances(tis.all(),
+            clear_task_instances(tis,
                                  session,
                                  dag=self,
                                  )
@@ -1322,7 +1335,7 @@ class DAG(BaseDag, LoggingMixin):
             executor=None,
             donot_pickle=conf.getboolean('core', 'donot_pickle'),
             ignore_task_deps=False,
-            ignore_first_depends_on_past=False,
+            ignore_first_depends_on_past=True,
             pool=None,
             delay_on_limit_secs=1.0,
             verbose=False,
@@ -1365,7 +1378,7 @@ class DAG(BaseDag, LoggingMixin):
         :type: bool
 
         """
-        from airflow.jobs import BackfillJob
+        from airflow.jobs.backfill_job import BackfillJob
         if not executor and local:
             from airflow.executors.local_executor import LocalExecutor
             executor = LocalExecutor()
@@ -1444,89 +1457,108 @@ class DAG(BaseDag, LoggingMixin):
         # state is None at the moment of creation
         run.verify_integrity(session=session)
 
-        run.refresh_from_db()
-
         return run
 
+    @classmethod
     @provide_session
-    def sync_to_db(self, owner=None, sync_time=None, session=None):
+    def bulk_sync_to_db(cls, dags: Collection["DAG"], sync_time=None, session=None):
+        """
+        Save attributes about list of DAG to the DB. Note that this method
+        can be called for both DAGs and SubDAGs. A SubDag is actually a
+        SubDagOperator.
+
+        :param dags: the DAG objects to save to the DB
+        :type dags: List[airflow.models.dag.DAG]
+        :param sync_time: The time that the DAG should be marked as sync'ed
+        :type sync_time: datetime
+        :return: None
+        """
+        if not dags:
+            return
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        if sync_time is None:
+            sync_time = timezone.utcnow()
+        log.info("Sync %s DAGs", len(dags))
+        dag_by_ids = {dag.dag_id: dag for dag in dags}
+        dag_ids = set(dag_by_ids.keys())
+        orm_dags = (
+            session
+            .query(DagModel)
+            .options(joinedload(DagModel.tags, innerjoin=False))
+            .filter(DagModel.dag_id.in_(dag_ids))
+            .with_for_update(of=DagModel)
+            .all()
+        )
+
+        existing_dag_ids = {orm_dag.dag_id for orm_dag in orm_dags}
+        missing_dag_ids = dag_ids.difference(existing_dag_ids)
+
+        for missing_dag_id in missing_dag_ids:
+            orm_dag = DagModel(dag_id=missing_dag_id)
+            dag = dag_by_ids[missing_dag_id]
+            if dag.is_paused_upon_creation is not None:
+                orm_dag.is_paused = dag.is_paused_upon_creation
+            orm_dag.tags = []
+            log.info("Creating ORM DAG for %s", dag.dag_id)
+            session.add(orm_dag)
+            orm_dags.append(orm_dag)
+
+        for orm_dag in sorted(orm_dags, key=lambda d: d.dag_id):
+            dag = dag_by_ids[orm_dag.dag_id]
+            if dag.is_subdag:
+                orm_dag.is_subdag = True
+                orm_dag.fileloc = dag.parent_dag.fileloc  # type: ignore
+                orm_dag.root_dag_id = dag.parent_dag.dag_id  # type: ignore
+                orm_dag.owners = dag.parent_dag.owner  # type: ignore
+            else:
+                orm_dag.is_subdag = False
+                orm_dag.fileloc = dag.fileloc
+                orm_dag.owners = dag.owner
+            orm_dag.is_active = True
+            orm_dag.last_scheduler_run = sync_time
+            orm_dag.default_view = dag.default_view
+            orm_dag.description = dag.description
+            orm_dag.schedule_interval = dag.schedule_interval
+            for orm_tag in list(orm_dag.tags):
+                if orm_tag.name not in orm_dag.tags:
+                    session.delete(orm_tag)
+                orm_dag.tags.remove(orm_tag)
+            if dag.tags:
+                orm_tag_names = [t.name for t in orm_dag.tags]
+                for dag_tag in list(dag.tags):
+                    if dag_tag not in orm_tag_names:
+                        dag_tag_orm = DagTag(name=dag_tag, dag_id=dag.dag_id)
+                        orm_dag.tags.append(dag_tag_orm)
+                        session.add(dag_tag_orm)
+
+        if conf.getboolean('core', 'store_dag_code', fallback=False):
+            DagCode.bulk_sync_to_db([dag.fileloc for dag in orm_dags])
+
+        session.commit()
+
+        for dag in dags:
+            cls.bulk_sync_to_db(dag.subdags, sync_time=sync_time, session=session)
+
+            if STORE_SERIALIZED_DAGS and not dag.is_subdag:
+                SerializedDagModel.write_dag(
+                    dag,
+                    min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
+                    session=session
+                )
+
+    @provide_session
+    def sync_to_db(self, sync_time=None, session=None):
         """
         Save attributes about this DAG to the DB. Note that this method
         can be called for both DAGs and SubDAGs. A SubDag is actually a
         SubDagOperator.
 
-        :param dag: the DAG object to save to the DB
-        :type dag: airflow.models.DAG
         :param sync_time: The time that the DAG should be marked as sync'ed
         :type sync_time: datetime
         :return: None
         """
-        from airflow.models.serialized_dag import SerializedDagModel
-
-        if owner is None:
-            owner = self.owner
-        if sync_time is None:
-            sync_time = timezone.utcnow()
-
-        orm_dag = session.query(
-            DagModel).filter(DagModel.dag_id == self.dag_id).first()
-        if not orm_dag:
-            orm_dag = DagModel(dag_id=self.dag_id)
-            if self.is_paused_upon_creation is not None:
-                orm_dag.is_paused = self.is_paused_upon_creation
-            self.log.info("Creating ORM DAG for %s", self.dag_id)
-            session.add(orm_dag)
-        if self.is_subdag:
-            orm_dag.is_subdag = True
-            orm_dag.fileloc = self.parent_dag.fileloc
-            orm_dag.root_dag_id = self.parent_dag.dag_id
-        else:
-            orm_dag.is_subdag = False
-            orm_dag.fileloc = self.fileloc
-        orm_dag.owners = owner
-        orm_dag.is_active = True
-        orm_dag.last_scheduler_run = sync_time
-        orm_dag.default_view = self._default_view
-        orm_dag.description = self.description
-        orm_dag.schedule_interval = self.schedule_interval
-        orm_dag.tags = self.get_dagtags(session=session)
-
-        session.commit()
-
-        for subdag in self.subdags:
-            subdag.sync_to_db(owner=owner, sync_time=sync_time, session=session)
-
-        # Write DAGs to serialized_dag table in DB.
-        # subdags are not written into serialized_dag, because they are not displayed
-        # in the DAG list on UI. They are included in the serialized parent DAG.
-        if STORE_SERIALIZED_DAGS and not self.is_subdag:
-            SerializedDagModel.write_dag(
-                self,
-                min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
-                session=session
-            )
-
-    @provide_session
-    def get_dagtags(self, session=None):
-        """
-        Creating a list of DagTags, if one is missing from the DB, will insert.
-
-        :return: The DagTag list.
-        :rtype: list
-        """
-        tags = []
-        if not self.tags:
-            return tags
-
-        for name in set(self.tags):
-            tag = session.query(
-                DagTag).filter(DagTag.name == name).filter(DagTag.dag_id == self.dag_id).first()
-            if not tag:
-                tag = DagTag(name=name, dag_id=self.dag_id)
-                session.add(tag)
-            tags.append(tag)
-        session.commit()
-        return tags
+        self.bulk_sync_to_db([self], sync_time, session)
 
     @staticmethod
     @provide_session
@@ -1736,16 +1768,30 @@ class DagModel(Base):
     def get_current(cls, dag_id, session=None):
         return session.query(cls).filter(cls.dag_id == dag_id).first()
 
-    def get_default_view(self):
-        if self.default_view is None:
-            return conf.get('webserver', 'dag_default_view').lower()
-        else:
-            return self.default_view
-
     @provide_session
     def get_last_dagrun(self, session=None, include_externally_triggered=False):
         return get_last_dagrun(self.dag_id, session=session,
                                include_externally_triggered=include_externally_triggered)
+
+    @staticmethod
+    @provide_session
+    def get_paused_dag_ids(dag_ids: List[str], session: Session = None) -> Set[str]:
+        """
+        Given a list of dag_ids, get a set of Paused Dag Ids
+
+        :param dag_ids: List of Dag ids
+        :param session: ORM Session
+        :return: Paused Dag_ids
+        """
+        paused_dag_ids = (
+            session.query(DagModel.dag_id)
+            .filter(DagModel.is_paused.is_(True))
+            .filter(DagModel.dag_id.in_(dag_ids))
+            .all()
+        )
+
+        paused_dag_ids = set(paused_dag_id for paused_dag_id, in paused_dag_ids)
+        return paused_dag_ids
 
     @property
     def safe_dag_id(self):

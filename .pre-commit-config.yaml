@@ -140,7 +140,7 @@ repos:
     hooks:
       - id: check-hooks-apply
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.4.0
+    rev: v2.5.0
     hooks:
       - id: check-merge-conflict
       - id: debug-statements
@@ -202,6 +202,27 @@ repos:
         files: ^BREEZE.rst$|^breeze$|^breeze-complete$
         pass_filenames: false
         require_serial: true
+      - id: update-local-yml-file
+        name: Update mounts in the local yml file
+        entry: "./scripts/ci/pre_commit_local_yml_mounts.sh"
+        language: system
+        files: ^scripts/ci/_utils.sh$|s^scripts/ci/docker_compose/local.yml"
+        pass_filenames: false
+        require_serial: true
+      - id: update-setup-cfg-file
+        name: Update setup.cfg file with all licenses
+        entry: "./scripts/ci/pre_commit_setup_cfg_file.sh"
+        language: system
+        files: ^setup.cfg$
+        pass_filenames: false
+        require_serial: true
+      - id: build-providers-dependencies
+        name: Build cross-dependencies for providers packages
+        entry: "./scripts/ci/pre_commit_build_providers_dependencies.sh"
+        language: system
+        files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$
+        pass_filenames: false
+        require_serial: true
       - id: pydevd
         language: pygrep
         name: Check for pydevd debug statements accidentally left
@@ -243,7 +264,7 @@ repos:
           ^airflow/contrib/.*\.py$
       - id: provide-create-sessions
         language: pygrep
-        name: Make sure provide_session and create_session are imported from airflow.utils.session
+        name: To avoid import cycles make sure provide_session and create_session are imported from airflow.utils.session  # yamllint disable-line rule:line-length
         entry: "from airflow\\.utils\\.db import.* (provide_session|create_session)"
         files: \.py$
         pass_filenames: true
@@ -275,7 +296,7 @@ repos:
       - id: airflow-config-yaml
         name: Checks for consistency between config.yml and default_config.cfg
         language: python
-        files: "^airflow/config_templates/config.yml$|^airflow/config_templates/default_airflow.cfg$"
+        files: "config.yml$|default_airflow.cfg$|default.cfg$"
         pass_filenames: false
         require_serial: false
         entry: scripts/ci/pre_commit_yaml_to_cfg.py
@@ -285,14 +306,14 @@ repos:
         language: system
         entry: "./scripts/ci/pre_commit_mypy.sh"
         files: \.py$
-        exclude: ^airflow/_vendor/.*$
-        pass_filenames: true
+        exclude: ^airflow/_vendor/.*$|^dev|^backport_packages
+        require_serial: true
       - id: pylint
         name: Run pylint for main sources
         language: system
         entry: "./scripts/ci/pre_commit_pylint_main.sh"
         files: \.py$
-        exclude: ^tests/.*\.py$|^airflow/_vendor/.*|^scripts/.*\.py$
+        exclude: ^tests/.*\.py$|^airflow/_vendor/.*|^scripts/.*\.py$|^dev|^backport_packages
         pass_filenames: true
         require_serial: true  # Pylint tests should be run in one chunk to detect all cycles
       - id: pylint-tests

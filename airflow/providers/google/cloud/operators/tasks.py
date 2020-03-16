@@ -23,9 +23,11 @@ Cloud Tasks queues/tasks.
 """
 from typing import Dict, Optional, Sequence, Tuple, Union
 
+from google.api_core.exceptions import AlreadyExists
 from google.api_core.retry import Retry
 from google.cloud.tasks_v2 import enums
 from google.cloud.tasks_v2.types import FieldMask, Queue, Task
+from google.protobuf.json_format import MessageToDict
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
@@ -98,15 +100,27 @@ class CloudTasksQueueCreateOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.create_queue(
-            location=self.location,
-            task_queue=self.task_queue,
-            project_id=self.project_id,
-            queue_name=self.queue_name,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
+        try:
+            queue = hook.create_queue(
+                location=self.location,
+                task_queue=self.task_queue,
+                project_id=self.project_id,
+                queue_name=self.queue_name,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except AlreadyExists:
+            queue = hook.get_queue(
+                location=self.location,
+                project_id=self.project_id,
+                queue_name=self.queue_name,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+
+        return MessageToDict(queue)
 
 
 class CloudTasksQueueUpdateOperator(BaseOperator):
@@ -181,7 +195,7 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.update_queue(
+        queue = hook.update_queue(
             task_queue=self.task_queue,
             project_id=self.project_id,
             location=self.location,
@@ -191,6 +205,7 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(queue)
 
 
 class CloudTasksQueueGetOperator(BaseOperator):
@@ -244,7 +259,7 @@ class CloudTasksQueueGetOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.get_queue(
+        queue = hook.get_queue(
             location=self.location,
             queue_name=self.queue_name,
             project_id=self.project_id,
@@ -252,6 +267,7 @@ class CloudTasksQueueGetOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(queue)
 
 
 class CloudTasksQueuesListOperator(BaseOperator):
@@ -311,7 +327,7 @@ class CloudTasksQueuesListOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.list_queues(
+        queues = hook.list_queues(
             location=self.location,
             project_id=self.project_id,
             results_filter=self.results_filter,
@@ -320,6 +336,7 @@ class CloudTasksQueuesListOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return [MessageToDict(q) for q in queues]
 
 
 class CloudTasksQueueDeleteOperator(BaseOperator):
@@ -433,7 +450,7 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.purge_queue(
+        queue = hook.purge_queue(
             location=self.location,
             queue_name=self.queue_name,
             project_id=self.project_id,
@@ -441,6 +458,7 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(queue)
 
 
 class CloudTasksQueuePauseOperator(BaseOperator):
@@ -494,7 +512,7 @@ class CloudTasksQueuePauseOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.pause_queue(
+        queues = hook.pause_queue(
             location=self.location,
             queue_name=self.queue_name,
             project_id=self.project_id,
@@ -502,6 +520,7 @@ class CloudTasksQueuePauseOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return [MessageToDict(q) for q in queues]
 
 
 class CloudTasksQueueResumeOperator(BaseOperator):
@@ -555,7 +574,7 @@ class CloudTasksQueueResumeOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.resume_queue(
+        queue = hook.resume_queue(
             location=self.location,
             queue_name=self.queue_name,
             project_id=self.project_id,
@@ -563,6 +582,7 @@ class CloudTasksQueueResumeOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(queue)
 
 
 class CloudTasksTaskCreateOperator(BaseOperator):
@@ -638,7 +658,7 @@ class CloudTasksTaskCreateOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.create_task(
+        task = hook.create_task(
             location=self.location,
             queue_name=self.queue_name,
             task=self.task,
@@ -649,6 +669,7 @@ class CloudTasksTaskCreateOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(task)
 
 
 class CloudTasksTaskGetOperator(BaseOperator):
@@ -717,7 +738,7 @@ class CloudTasksTaskGetOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.get_task(
+        task = hook.get_task(
             location=self.location,
             queue_name=self.queue_name,
             task_name=self.task_name,
@@ -727,6 +748,7 @@ class CloudTasksTaskGetOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(task)
 
 
 class CloudTasksTasksListOperator(BaseOperator):
@@ -790,7 +812,7 @@ class CloudTasksTasksListOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.list_tasks(
+        tasks = hook.list_tasks(
             location=self.location,
             queue_name=self.queue_name,
             project_id=self.project_id,
@@ -800,6 +822,7 @@ class CloudTasksTasksListOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return [MessageToDict(t) for t in tasks]
 
 
 class CloudTasksTaskDeleteOperator(BaseOperator):
@@ -939,7 +962,7 @@ class CloudTasksTaskRunOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.run_task(
+        task = hook.run_task(
             location=self.location,
             queue_name=self.queue_name,
             task_name=self.task_name,
@@ -949,3 +972,4 @@ class CloudTasksTaskRunOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return MessageToDict(task)

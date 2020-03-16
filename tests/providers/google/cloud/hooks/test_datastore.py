@@ -22,7 +22,7 @@ from unittest.mock import call, patch
 
 import mock
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.datastore import DatastoreHook
 
 GCP_PROJECT_ID = "test"

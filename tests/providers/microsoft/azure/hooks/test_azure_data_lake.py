@@ -46,8 +46,9 @@ class TestAzureDataLakeHook(unittest.TestCase):
         from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
         from azure.datalake.store import core
         hook = AzureDataLakeHook(azure_data_lake_conn_id='adl_test_key')
+        self.assertIsNone(hook._conn)
         self.assertEqual(hook.conn_id, 'adl_test_key')
-        self.assertIsInstance(hook.connection, core.AzureDLFileSystem)
+        self.assertIsInstance(hook.get_conn(), core.AzureDLFileSystem)
         assert mock_lib.auth.called
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.azure_data_lake.core.AzureDLFileSystem',
@@ -69,7 +70,7 @@ class TestAzureDataLakeHook(unittest.TestCase):
                          remote_path='/test_adl_hook.py',
                          nthreads=64, overwrite=True,
                          buffersize=4194304, blocksize=4194304)
-        mock_uploader.assert_called_once_with(hook.connection,
+        mock_uploader.assert_called_once_with(hook.get_conn(),
                                               lpath='tests/hooks/test_adl_hook.py',
                                               rpath='/test_adl_hook.py',
                                               nthreads=64, overwrite=True,
@@ -85,7 +86,7 @@ class TestAzureDataLakeHook(unittest.TestCase):
                            remote_path='/test_adl_hook.py',
                            nthreads=64, overwrite=True,
                            buffersize=4194304, blocksize=4194304)
-        mock_downloader.assert_called_once_with(hook.connection,
+        mock_downloader.assert_called_once_with(hook.get_conn(),
                                                 lpath='test_adl_hook.py',
                                                 rpath='/test_adl_hook.py',
                                                 nthreads=64, overwrite=True,

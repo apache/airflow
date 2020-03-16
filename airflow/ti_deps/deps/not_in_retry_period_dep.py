@@ -23,6 +23,9 @@ from airflow.utils.state import State
 
 
 class NotInRetryPeriodDep(BaseTIDep):
+    """
+    Determines whether a task is not in retry period.
+    """
     NAME = "Not In Retry Period"
     IGNOREABLE = True
     IS_TASK_DEP = True
@@ -31,8 +34,7 @@ class NotInRetryPeriodDep(BaseTIDep):
     def _get_dep_statuses(self, ti, session, dep_context):
         if dep_context.ignore_in_retry_period:
             yield self._passing_status(
-                reason="The context specified that being in a retry period was "
-                       "permitted.")
+                reason="The context specified that being in a retry period was permitted.")
             return
 
         if ti.state != State.UP_FOR_RETRY:

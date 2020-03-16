@@ -42,6 +42,7 @@ from airflow.configuration import default_config_yaml
 
 try:
     import sphinx_airflow_theme  # pylint: disable=unused-import
+
     airflow_theme_is_available = True
 except ImportError:
     airflow_theme_is_available = False
@@ -197,6 +198,7 @@ exclude_patterns: List[str] = [
     "_api/airflow/providers/microsoft/index.rst",
     "_api/airflow/providers/google/index.rst",
     "_api/airflow/providers/apache/index.rst",
+    "_api/airflow/providers/yandex/index.rst",
     "_api/airflow/providers/cncf/index.rst",
     # Utils for internal use
     '_api/airflow/providers/google/cloud/utils',
@@ -212,14 +214,14 @@ for path in glob(f"{ROOT_DIR}/airflow/*"):
     name = os.path.basename(path)
     if os.path.isfile(path):
         exclude_patterns.append(f"_api/airflow/{name.rpartition('.')[0]}")
-    browsable_packages = ["operators", "hooks", "sensors", "providers", "executors", "models"]
+    browsable_packages = ["operators", "hooks", "sensors", "providers", "executors", "models", "secrets"]
     if os.path.isdir(path) and name not in browsable_packages:
         exclude_patterns.append(f"_api/airflow/{name}")
 
 # Generate list of package index
 providers_packages_roots = {
     name.rpartition("/")[0]
-    for entity in ["hooks", "operators", "sensors"]
+    for entity in ["hooks", "operators", "secrets", "sensors"]
     for name in chain(glob(f"{ROOT_DIR}/airflow/providers/**/{entity}", recursive=True))
 }
 
@@ -278,10 +280,12 @@ intersphinx_mapping = {
     'google-cloud-bigtable': ('https://googleapis.dev/python/bigtable/latest', None),
     'google-cloud-container': ('https://googleapis.dev/python/container/latest', None),
     'google-cloud-core': ('https://googleapis.dev/python/google-cloud-core/latest', None),
+    'google-cloud-datacatalog': ('https://googleapis.dev/python/datacatalog/latest', None),
     'google-cloud-datastore': ('https://googleapis.dev/python/datastore/latest', None),
     'google-cloud-dlp': ('https://googleapis.dev/python/dlp/latest', None),
     'google-cloud-kms': ('https://googleapis.dev/python/cloudkms/latest', None),
     'google-cloud-language': ('https://googleapis.dev/python/language/latest', None),
+    'google-cloud-monitoring': ('https://googleapis.dev/python/monitoring/latest', None),
     'google-cloud-pubsub': ('https://googleapis.dev/python/pubsub/latest', None),
     'google-cloud-redis': ('https://googleapis.dev/python/redis/latest', None),
     'google-cloud-spanner': ('https://googleapis.dev/python/spanner/latest', None),

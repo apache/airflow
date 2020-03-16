@@ -19,13 +19,13 @@
 """
 This module contains Google Cloud Transfer operators.
 """
-
 from copy import deepcopy
 from datetime import date, time
 from typing import Dict, Optional
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ACCESS_KEY_ID, AWS_ACCESS_KEY, AWS_S3_DATA_SOURCE, BUCKET_NAME, DAY, DESCRIPTION, GCS_DATA_SINK,
     GCS_DATA_SOURCE, HOURS, HTTP_DATA_SOURCE, MINUTES, MONTH, OBJECT_CONDITIONS, PROJECT_ID, SCHEDULE,
@@ -33,11 +33,6 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     TRANSFER_OPTIONS, TRANSFER_SPEC, YEAR, CloudDataTransferServiceHook, GcpTransferJobsStatus,
 )
 from airflow.utils.decorators import apply_defaults
-
-try:
-    from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
-except ImportError:  # pragma: no cover
-    AwsHook = None  # type: ignore
 
 
 class TransferJobPreprocessor:
@@ -52,7 +47,7 @@ class TransferJobPreprocessor:
 
     def _inject_aws_credentials(self):
         if TRANSFER_SPEC in self.body and AWS_S3_DATA_SOURCE in self.body[TRANSFER_SPEC]:
-            aws_hook = AwsHook(self.aws_conn_id)
+            aws_hook = AwsBaseHook(self.aws_conn_id)
             aws_credentials = aws_hook.get_credentials()
             aws_access_key_id = aws_credentials.access_key
             aws_secret_access_key = aws_credentials.secret_key

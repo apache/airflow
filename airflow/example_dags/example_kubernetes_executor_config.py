@@ -20,8 +20,8 @@ This is an example dag for using a Kubernetes Executor Configuration.
 """
 import os
 
+from airflow import DAG
 from airflow.example_dags.libs.helper import print_stuff
-from airflow.models import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
 
@@ -94,4 +94,18 @@ with DAG(
         }
     )
 
+    other_ns_task = PythonOperator(
+        task_id="other_namespace_task",
+        python_callable=print_stuff,
+        executor_config={
+            "KubernetesExecutor": {
+                "namespace": "test-namespace",
+                "labels": {
+                    "release": "stable"
+                }
+            }
+        }
+    )
+
     start_task >> second_task >> third_task
+    start_task >> other_ns_task

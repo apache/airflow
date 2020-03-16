@@ -22,7 +22,7 @@ import mock
 from google.cloud.container_v1.types import Cluster
 from mock import PropertyMock
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
 
 TASK_ID = 'test-gke-cluster-operator'

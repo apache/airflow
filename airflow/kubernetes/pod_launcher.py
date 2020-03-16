@@ -65,7 +65,7 @@ class PodLauncher(LoggingMixin):
                                                       cluster_context=cluster_context)
         self._watch = watch.Watch()
         self.extract_xcom = extract_xcom
-        self._spark_exit_code = None
+        self._pod_exit_code = None
 
     def run_pod_async(self, pod: V1Pod, **kwargs):
         """Runs POD asynchronously"""
@@ -113,7 +113,7 @@ class PodLauncher(LoggingMixin):
         if resp.status.start_time is None:
             while self.pod_not_started(pod):
                 delta = dt.now() - curr_time
-                if delta.seconds >= startup_timeout:
+                if delta.total_seconds() >= startup_timeout:
                     raise AirflowException("Pod took too long to start")
                 time.sleep(1)
             self.log.debug('Pod not yet started')
@@ -144,7 +144,7 @@ class PodLauncher(LoggingMixin):
         line = str(line, 'utf-8', 'ignore')
         match_exit_code = re.search(r'\s*exit code: (\d+)', line)
         if match_exit_code:
-            self._spark_exit_code = int(match_exit_code.groups()[0])
+            self._pod_exit_code = int(match_exit_code.groups()[0])
 
     def _task_status(self, event):
         self.log.info(
@@ -259,7 +259,7 @@ class PodLauncher(LoggingMixin):
         status = status.lower()
         if status == PodStatus.PENDING:
             return State.QUEUED
-        elif status == PodStatus.FAILED or (self._spark_exit_code is not None and self._spark_exit_code > 0):
+        elif status == PodStatus.FAILED or (self._pod_exit_code is not None and self._pod_exit_code > 0):
             self.log.info('Event with job id %s Failed', job_id)
             return State.FAILED
         elif status == PodStatus.SUCCEEDED:

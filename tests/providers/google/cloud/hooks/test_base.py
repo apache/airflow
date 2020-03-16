@@ -32,9 +32,11 @@ from google.cloud.exceptions import Forbidden, MovedPermanently
 from googleapiclient.errors import HttpError
 from parameterized import parameterized
 
-from airflow import AirflowException, LoggingMixin, version
+from airflow import version
+from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.providers.google.cloud.hooks import base as hook
+from airflow.utils.log.logging_mixin import LoggingMixin
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 default_creds_available = True
@@ -79,11 +81,7 @@ class QuotaRetryTestCase(unittest.TestCase):  # ptlint: disable=invalid-name
     def test_retry_on_exception(self):
         message = "POST https://translation.googleapis.com/language/translate/v2: User Rate Limit Exceeded"
         errors = [
-            {
-                'message': 'User Rate Limit Exceeded',
-                'domain': 'usageLimits',
-                'reason': 'userRateLimitExceeded',
-            }
+            mock.MagicMock(details=mock.PropertyMock(return_value='userRateLimitExceeded'))
         ]
         custom_fn = NoForbiddenAfterCount(
             count=5,
@@ -97,7 +95,7 @@ class QuotaRetryTestCase(unittest.TestCase):  # ptlint: disable=invalid-name
         with self.assertRaisesRegex(Forbidden, "Daily Limit Exceeded"):
             message = "POST https://translation.googleapis.com/language/translate/v2: Daily Limit Exceeded"
             errors = [
-                {'message': 'Daily Limit Exceeded', 'domain': 'usageLimits', 'reason': 'dailyLimitExceeded'}
+                mock.MagicMock(details=mock.PropertyMock(return_value='dailyLimitExceeded'))
             ]
 
             _retryable_test_with_temporary_quota_retry(

@@ -20,6 +20,7 @@
 Example Airflow DAG for Google BigQuery service.
 """
 import os
+import time
 from urllib.parse import urlparse
 
 from airflow import models
@@ -28,7 +29,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator,
     BigQueryDeleteDatasetOperator, BigQueryDeleteTableOperator, BigQueryExecuteQueryOperator,
     BigQueryGetDataOperator, BigQueryGetDatasetOperator, BigQueryGetDatasetTablesOperator,
-    BigQueryPatchDatasetOperator, BigQueryUpdateDatasetOperator,
+    BigQueryPatchDatasetOperator, BigQueryUpdateDatasetOperator, BigQueryUpsertTableOperator,
 )
 from airflow.providers.google.cloud.operators.bigquery_to_bigquery import BigQueryToBigQueryOperator
 from airflow.providers.google.cloud.operators.bigquery_to_gcs import BigQueryToGCSOperator
@@ -139,7 +140,7 @@ with models.DAG(
     )
 
     get_data_result = BashOperator(
-        task_id="get_data_result", bash_command="echo \"{{ task_instance.xcom_pull('get-data') }}\""
+        task_id="get_data_result", bash_command="echo \"{{ task_instance.xcom_pull('get_data') }}\""
     )
 
     create_external_table = BigQueryCreateExternalTableOperator(
@@ -253,6 +254,15 @@ with models.DAG(
         delete_contents=True
     )
 
+    update_table = BigQueryUpsertTableOperator(
+        task_id="update_table", dataset_id=DATASET_NAME, table_resource={
+            "tableReference": {
+                "tableId": "test_table_id"
+            },
+            "expirationTime": (int(time.time()) + 300) * 1000
+        }
+    )
+
     create_dataset >> execute_query_save >> delete_dataset
     create_dataset >> get_empty_dataset_tables >> create_table >> get_dataset_tables >> delete_dataset
     create_dataset >> get_dataset >> delete_dataset
@@ -264,3 +274,4 @@ with models.DAG(
     execute_query_external_table >> bigquery_to_gcs >> delete_dataset
     create_table >> create_view >> delete_view >> delete_table >> delete_dataset
     create_dataset_with_location >> create_table_with_location >> delete_dataset_with_location
+    create_dataset >> create_table >> update_table >> delete_table >> delete_dataset

@@ -196,34 +196,48 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         self.poll_sleep = poll_sleep
         self.job_class = job_class
         self.check_if_running = check_if_running
+        self.job_id = None
+        self.hook = None
 
     def execute(self, context):
-        hook = DataflowHook(gcp_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to,
-                            poll_sleep=self.poll_sleep)
+        self.hook = DataflowHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            poll_sleep=self.poll_sleep
+        )
         dataflow_options = copy.copy(self.dataflow_default_options)
         dataflow_options.update(self.options)
         is_running = False
         if self.check_if_running != CheckJobRunning.IgnoreJob:
-            is_running = hook.is_job_dataflow_running(
+            is_running = self.hook.is_job_dataflow_running(
                 name=self.job_name,
                 variables=dataflow_options
             )
             while is_running and self.check_if_running == CheckJobRunning.WaitForRun:
-                is_running = hook.is_job_dataflow_running(name=self.job_name, variables=dataflow_options)
+                is_running = self.hook.is_job_dataflow_running(name=self.job_name, variables=dataflow_options)
 
         if not is_running:
             bucket_helper = GoogleCloudBucketHelper(
                 self.gcp_conn_id, self.delegate_to)
             self.jar = bucket_helper.google_cloud_to_local(self.jar)
-            hook.start_java_dataflow(
+
+            def set_current_job_id(job_id):
+                self.job_id = job_id
+
+            self.hook.start_java_dataflow(
                 job_name=self.job_name,
                 variables=dataflow_options,
                 jar=self.jar,
                 job_class=self.job_class,
                 append_job_name=True,
-                multiple_jobs=self.multiple_jobs
+                multiple_jobs=self.multiple_jobs,
+                on_new_job_id_callback=set_current_job_id
             )
+
+    def on_kill(self) -> None:
+        self.log.info("On kill.")
+        if self.job_id:
+            self.hook.cancel_job(job_id=self.job_id)
 
 
 class DataflowTemplatedJobStartOperator(BaseOperator):
@@ -309,6 +323,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             job_name: str = '{{task.task_id}}',
             dataflow_default_options: Optional[dict] = None,
             parameters: Optional[dict] = None,
+            project_id: Optional[str] = None,
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
             poll_sleep: int = 10,
@@ -319,25 +334,41 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         dataflow_default_options = dataflow_default_options or {}
         parameters = parameters or {}
 
-        self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
-        self.dataflow_default_options = dataflow_default_options
-        self.poll_sleep = poll_sleep
         self.template = template
         self.job_name = job_name
+        self.dataflow_default_options = dataflow_default_options
         self.parameters = parameters
+        self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+        self.poll_sleep = poll_sleep
+        self.job_id = None
+        self.hook: Optional[DataflowHook] = None
 
     def execute(self, context):
-        hook = DataflowHook(gcp_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to,
-                            poll_sleep=self.poll_sleep)
+        self.hook = DataflowHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            poll_sleep=self.poll_sleep
+        )
 
-        hook.start_template_dataflow(
+        def set_current_job_id(job_id):
+            self.job_id = job_id
+
+        job = self.hook.start_template_dataflow(
             job_name=self.job_name,
             variables=self.dataflow_default_options,
             parameters=self.parameters,
-            dataflow_template=self.template
+            dataflow_template=self.template,
+            on_new_job_id_callback=set_current_job_id
         )
+
+        return job
+
+    def on_kill(self) -> None:
+        self.log.info("On kill.")
+        if self.job_id:
+            self.hook.cancel_job(job_id=self.job_id)
 
 
 class DataflowCreatePythonJobOperator(BaseOperator):
@@ -427,15 +458,19 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.poll_sleep = poll_sleep
+        self.job_id = None
+        self.hook = None
 
     def execute(self, context):
         """Execute the python dataflow job."""
         bucket_helper = GoogleCloudBucketHelper(
             self.gcp_conn_id, self.delegate_to)
         self.py_file = bucket_helper.google_cloud_to_local(self.py_file)
-        hook = DataflowHook(gcp_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to,
-                            poll_sleep=self.poll_sleep)
+        self.hook = DataflowHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            poll_sleep=self.poll_sleep
+        )
         dataflow_options = self.dataflow_default_options.copy()
         dataflow_options.update(self.options)
         # Convert argument names from lowerCamelCase to snake case.
@@ -443,7 +478,11 @@ class DataflowCreatePythonJobOperator(BaseOperator):
             r'[A-Z]', lambda x: '_' + x.group(0).lower(), name)
         formatted_options = {camel_to_snake(key): dataflow_options[key]
                              for key in dataflow_options}
-        hook.start_python_dataflow(
+
+        def set_current_job_id(job_id):
+            self.job_id = job_id
+
+        self.hook.start_python_dataflow(
             job_name=self.job_name,
             variables=formatted_options,
             dataflow=self.py_file,
@@ -451,7 +490,13 @@ class DataflowCreatePythonJobOperator(BaseOperator):
             py_interpreter=self.py_interpreter,
             py_requirements=self.py_requirements,
             py_system_site_packages=self.py_system_site_packages,
+            on_new_job_id_callback=set_current_job_id
         )
+
+    def on_kill(self) -> None:
+        self.log.info("On kill.")
+        if self.job_id:
+            self.hook.cancel_job(job_id=self.job_id)
 
 
 class GoogleCloudBucketHelper:

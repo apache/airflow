@@ -285,10 +285,14 @@ class WorkerConfiguration(LoggingMixin):
 
         # Mount the airflow_local_settings.py file via a configmap the user has specified
         if self.kube_config.airflow_local_settings_configmap:
-            config_volume_name = 'airflow-local-settings'
+            if self.kube_config.airflow_local_settings_configmap != self.kube_config.airflow_configmap:
+                volume_mount_name = 'airflow-local-settings'
+            else:
+                volume_mount_name = 'airflow-config'
+
             config_path = '{}/config/airflow_local_settings.py'.format(self.worker_airflow_home)
-            volume_mounts[config_volume_name] = k8s.V1VolumeMount(
-                name='airflow-config',
+            volume_mounts['airflow-local-settings'] = k8s.V1VolumeMount(
+                name=volume_mount_name,
                 mount_path=config_path,
                 sub_path='airflow_local_settings.py',
                 read_only=True
@@ -355,13 +359,14 @@ class WorkerConfiguration(LoggingMixin):
 
         # Mount the airflow_local_settings.py file via a configmap the user has specified
         if self.kube_config.airflow_local_settings_configmap:
-            config_volume_name = 'airflow-config'
-            volumes[config_volume_name] = k8s.V1Volume(
-                name=config_volume_name,
-                config_map=k8s.V1ConfigMapVolumeSource(
-                    name=self.kube_config.airflow_local_settings_configmap
+            if self.kube_config.airflow_local_settings_configmap != self.kube_config.airflow_configmap:
+                config_volume_name = 'airflow-local-settings'
+                volumes[config_volume_name] = k8s.V1Volume(
+                    name=config_volume_name,
+                    config_map=k8s.V1ConfigMapVolumeSource(
+                        name=self.kube_config.airflow_local_settings_configmap
+                    )
                 )
-            )
 
         # Mount the airflow.cfg file via a configmap the user has specified
         if self.kube_config.airflow_configmap:

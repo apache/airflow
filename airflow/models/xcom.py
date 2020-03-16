@@ -26,7 +26,7 @@ from sqlalchemy import Column, LargeBinary, String, and_
 from sqlalchemy.orm import Query, Session, reconstructor
 
 from airflow.configuration import conf
-from airflow.models.base import ID_LEN, Base
+from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils import timezone
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -47,15 +47,15 @@ class XCom(Base, LoggingMixin):
     """
     __tablename__ = "xcom"
 
-    key = Column(String(512), primary_key=True)
+    key = Column(String(512, **COLLATION_ARGS), primary_key=True)
     value = Column(LargeBinary)
     timestamp = Column(
         UtcDateTime, default=timezone.utcnow, nullable=False)
     execution_date = Column(UtcDateTime, primary_key=True)
 
     # source information
-    task_id = Column(String(ID_LEN), primary_key=True)
-    dag_id = Column(String(ID_LEN), primary_key=True)
+    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
 
     """
     TODO: "pickling" has been deprecated and JSON is preferred.

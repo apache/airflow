@@ -19,10 +19,10 @@
 """
 This module contains AWS Lambda hook
 """
-from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AwsLambdaHook(AwsHook):
+class AwsLambdaHook(AwsBaseHook):
     """
     Interact with AWS Lambda
 

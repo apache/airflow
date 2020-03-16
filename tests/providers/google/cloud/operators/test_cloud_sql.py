@@ -24,7 +24,7 @@ import unittest
 import mock
 from parameterized import parameterized
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLCreateInstanceDatabaseOperator, CloudSQLCreateInstanceOperator,

@@ -20,13 +20,14 @@ import datetime
 import unittest
 
 from airflow import models, settings
-from airflow.jobs import BackfillJob
-from airflow.models import DAG, DagRun, TaskInstance as TI, clear_task_instances
+from airflow.models import DAG, TaskInstance as TI, clear_task_instances
+from airflow.models.dagrun import DagRun
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
+from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
 
 
@@ -42,7 +43,7 @@ class TestDagRun(unittest.TestCase):
         if execution_date is None:
             execution_date = now
         if is_backfill:
-            run_id = BackfillJob.ID_PREFIX + now.isoformat()
+            run_id = f"{DagRunType.BACKFILL_JOB.value}__{now.isoformat()}"
         else:
             run_id = 'manual__' + now.isoformat()
         dag_run = dag.create_dagrun(
@@ -83,13 +84,6 @@ class TestDagRun(unittest.TestCase):
             DagRun.execution_date == now
         ).first()
         self.assertEqual(dr0.state, State.RUNNING)
-
-    def test_id_for_date(self):
-        run_id = models.DagRun.id_for_date(
-            timezone.datetime(2015, 1, 2, 3, 4, 5, 6))
-        self.assertEqual(
-            'scheduled__2015-01-02T03:04:05', run_id,
-            'Generated run_id did not match expectations: {0}'.format(run_id))
 
     def test_dagrun_find(self):
         session = settings.Session()
@@ -522,7 +516,7 @@ class TestDagRun(unittest.TestCase):
         dag = DAG(dag_id='test_is_backfill', start_date=DEFAULT_DATE)
 
         dagrun = self.create_dag_run(dag, execution_date=DEFAULT_DATE)
-        dagrun.run_id = BackfillJob.ID_PREFIX + '_sfddsffds'
+        dagrun.run_id = f"{DagRunType.BACKFILL_JOB.value}__sfddsffds"
 
         dagrun2 = self.create_dag_run(
             dag, execution_date=DEFAULT_DATE + datetime.timedelta(days=1))
