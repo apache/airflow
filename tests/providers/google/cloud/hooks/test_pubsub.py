@@ -17,6 +17,7 @@
 # under the License.
 
 import unittest
+from typing import List
 
 import mock
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
@@ -60,13 +61,13 @@ class TestPubSubHook(unittest.TestCase):
                         new=mock_init):
             self.pubsub_hook = PubSubHook(gcp_conn_id='test')
 
-    def _generate_messages(self, count):
+    def _generate_messages(self, count) -> List[ReceivedMessage]:
         return [
             ParseDict(
                 {
-                    "ack_id": "%s" % i,
+                    "ack_id": str(i),
                     "message": {
-                        "data": 'Message {}'.format(i).encode('utf8'),
+                        "data": f'Message {i}'.encode('utf8'),
                         "attributes": {"type": "generated message"},
                     },
                 },
