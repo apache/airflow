@@ -20,7 +20,7 @@ import datetime
 import unittest
 
 from airflow import models, settings
-from airflow.models import DAG, TaskInstance as TI, clear_task_instances
+from airflow.models import DAG, DagBag, TaskInstance as TI, clear_task_instances
 from airflow.models.dagrun import DagRun
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import ShortCircuitOperator
@@ -29,9 +29,18 @@ from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
+from tests.test_utils.db import clear_db_pools, clear_db_runs
 
 
 class TestDagRun(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.dagbag = DagBag(include_examples=True)
+
+    def setUp(self):
+        clear_db_runs()
+        clear_db_pools()
 
     def create_dag_run(self, dag,
                        state=State.RUNNING,
@@ -552,3 +561,131 @@ class TestDagRun(unittest.TestCase):
         dagrun.verify_integrity()
         flaky_ti.refresh_from_db()
         self.assertEqual(State.NONE, flaky_ti.state)
+
+    def test_depends_on_past(self):
+        # dag_id = 'test_depends_on_past'
+        # dag = self.dagbag.get_dag(dag_id)
+        # task = dag.tasks[0]
+        # self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
+        # self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0))
+        # ti1 = TI(task, timezone.datetime(2016, 1, 1, 0, 0, 0))
+        # ti2 = TI(task, timezone.datetime(2016, 1, 2, 0, 0, 0))
+        #
+        # def run_2nd_dagrun():
+        #     dag.run(
+        #         start_date=timezone.datetime(2016, 1, 2, 0, 0, 0),
+        #         end_date=timezone.datetime(2016, 1, 2, 0, 0, 0),
+        #         executor=MockExecutor()
+        #     )
+        #
+        # # 2nd run of task fails by itself
+        # self.assertRaises(AirflowException, run_2nd_dagrun)
+        # ti2.refresh_from_db()
+        # self.assertEqual(ti2.state, State.SCHEDULED)
+        #
+        # # 2nd run af task fails if 1st run of task failed
+        # ti1.set_state(State.FAILED)
+        # self.assertRaises(AirflowException, run_2nd_dagrun)
+        # ti2.refresh_from_db()
+        # self.assertEqual(ti2.state, State.SCHEDULED)
+        #
+        # # but it works after 1st instance of task is marked as skipped
+        # ti1.set_state(State.SKIPPED)
+        # run_2nd_dagrun()
+        # ti2.refresh_from_db()
+        # self.assertEqual(ti2.state, State.SUCCESS)
+        #
+        # # and it also works if 1st instance is success
+        # ti2.set_state(State.NONE)
+        # ti1.set_state(State.SUCCESS)
+        # run_2nd_dagrun()
+        # ti2.refresh_from_db()
+        # self.assertEqual(ti2.state, State.SUCCESS)
+        dag_id = 'test_depends_on_past'
+
+        dag = self.dagbag.get_dag(dag_id)
+        task = dag.tasks[0]
+
+        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
+        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0))
+
+        uti1 = TI(task, timezone.datetime(2016, 1, 1, 0, 0, 0))
+        uti2 = TI(task, timezone.datetime(2016, 1, 2, 0, 0, 0))
+
+        for state in State.task_states:
+            uti1.set_state(state)
+            uti2.set_state(State.QUEUED)
+            uti2.run()
+            if state in (State.SUCCESS, State.SKIPPED):
+                self.assertEqual(uti2.state, State.SUCCESS)
+            else:
+                self.assertNotEqual(uti2.state, State.SUCCESS)
+
+    def test_wait_for_downstream(self):
+        # dag_id = 'test_wait_for_downstream'
+        # dag = models.DagBag().get_dag(dag_id)
+        #
+        # TODO: clarify with airflow maintainers -- is the snippet below still true and necessary?
+        # # ti.previous_ti requires a dagrun to exist
+        # self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
+        # self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0))
+        # upstream, downstream = dag.tasks
+        #
+        # def run_2nd_dagrun():
+        #     dag.run(
+        #         start_date=timezone.datetime(2016, 1, 2, 0, 0, 0),
+        #         end_date=timezone.datetime(2016, 1, 2, 0, 0, 0),
+        #         executor=MockExecutor()
+        #     )
+        #
+        # # doesn't run if downstream task for previous day has a null state
+        # uti_2 = TI(task=upstream, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0))
+        # uti_2.previous_ti.set_state(State.SUCCESS)
+        # self.assertEqual(uti_2.previous_ti.state, State.SUCCESS)
+        # TODO: clarify with airflow maintainers -- I don't think this triggers an AirflowException, does it?
+        # self.assertRaises(AirflowException, run_2nd_dagrun)
+        # uti_2.refresh_from_db()
+        # self.assertEqual(uti_2.state, State.SCHEDULED)
+        #
+        # # doesn't run if downstream task for previous day has a failed state
+        # dti_1 = TI(task=downstream, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
+        # dti_1.set_state(State.FAILED)
+        # self.assertRaises(AirflowException, run_2nd_dagrun)
+        # uti_2.refresh_from_db()
+        # self.assertEqual(uti_2.state, State.SCHEDULED)
+        #
+        # # runs if downstream task for previous day has a skipped state
+        # dti_1 = TI(task=downstream, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
+        # dti_1.set_state(State.SKIPPED)
+        # run_2nd_dagrun()
+        # uti_2.refresh_from_db()
+        # self.assertEqual(uti_2.state, State.SUCCESS)
+        #
+        # # runs if downstream task for previous day has a success state
+        # uti_2.set_state(State.NONE)
+        # dti_1.set_state(State.SUCCESS)
+        # run_2nd_dagrun()
+        # uti_2.refresh_from_db()
+        # self.assertEqual(uti_2.state, State.SUCCESS)
+        dag_id = 'test_wait_for_downstream'
+        dag = self.dagbag.get_dag(dag_id)
+        upstream, downstream = dag.tasks
+
+        # For ti.set_state() to work, the DagRun has to exist,
+        # Otherwise ti.previous_ti returns an unpersisted TI
+        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
+        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0))
+
+        dti1 = TI(task=downstream, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
+        uti2 = TI(task=upstream, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0))
+        uti2.previous_ti.set_state(State.SUCCESS)
+        self.assertEqual(uti2.previous_ti.state, State.SUCCESS)
+
+        for state in State.task_states:
+            dti1.set_state(state)
+            uti2.set_state(State.QUEUED)
+            uti2.run()
+            if state in (State.SUCCESS, State.SKIPPED):
+                self.assertEqual(uti2.state, State.SUCCESS)
+            else:
+                self.assertNotEqual(uti2.state, State.SUCCESS)
