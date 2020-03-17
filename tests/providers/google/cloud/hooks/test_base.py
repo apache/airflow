@@ -642,7 +642,7 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
         new_callable=mock.PropertyMock,
-        return_value=None
+        return_value="PROJECT_ID"
     )
     @mock.patch(MODULE_NAME + '.check_output')
     def test_provide_authorized_gcloud_key_path(self, mock_check_output, mock_project_id):
@@ -652,14 +652,15 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
         with self.instance.provide_authorized_gcloud():
             self.assertEqual(os.environ[CREDENTIALS], key_path)
 
-        mock_check_output.assert_called_once_with(
-            ['gcloud', 'auth', 'activate-service-account', '--key-file=/test/key-path']
+        mock_check_output.has_calls(
+            mock.call(['gcloud', 'config', 'set', 'core/project', 'PROJECT_ID']),
+            mock.call(['gcloud', 'auth', 'activate-service-account', '--key-file=/test/key-path'])
         )
 
     @mock.patch(
         'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
         new_callable=mock.PropertyMock,
-        return_value=None
+        return_value="PROJECT_ID"
     )
     @mock.patch(MODULE_NAME + '.check_output')
     @mock.patch('tempfile.NamedTemporaryFile')
@@ -675,14 +676,15 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
         with self.instance.provide_authorized_gcloud():
             self.assertEqual(os.environ[CREDENTIALS], file_name)
 
-        mock_check_output.assert_called_once_with(
-            ['gcloud', 'auth', 'activate-service-account', '--key-file=/test/mock-file']
-        )
+        mock_check_output.has_calls([
+            mock.call(['gcloud', 'config', 'set', 'core/project', 'PROJECT_ID']),
+            mock.call(['gcloud', 'auth', 'activate-service-account', '--key-file=/test/mock-file'])
+        ])
 
     @mock.patch(
         'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
         new_callable=mock.PropertyMock,
-        return_value=None
+        return_value="PROJECT_ID"
     )
     @mock.patch(MODULE_NAME + '._cloud_sdk')
     @mock.patch(MODULE_NAME + '.check_output')

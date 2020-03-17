@@ -432,10 +432,11 @@ class CloudBaseHook(BaseHook):
                 tempfile.TemporaryDirectory() as gcloud_config_tmp, \
                 patch_environ({'CLOUDSDK_CONFIG': gcloud_config_tmp}):
 
-            # Don't display stdout/stderr for security reason
-            check_output([
-                "gcloud", "config", "set", "core/project", project_id
-            ])
+            if project_id:
+                # Don't display stdout/stderr for security reason
+                check_output([
+                    "gcloud", "config", "set", "core/project", project_id
+                ])
             if CREDENTIALS in os.environ:
                 # This solves most cases when we are logged in using the service key in Airflow.
                 # Don't display stdout/stderr for security reason
