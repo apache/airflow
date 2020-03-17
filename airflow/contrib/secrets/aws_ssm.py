@@ -18,15 +18,16 @@
 """
 Objects relating to sourcing connections from AWS SSM Parameter Store
 """
-from typing import List
+from typing import List, Optional
 
 import boto3
 
 from airflow.models import Connection
 from airflow.secrets import CONN_ENV_PREFIX, BaseSecretsBackend
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class AwsSsmSecretsBackend(BaseSecretsBackend):
+class AwsSsmSecretsBackend(BaseSecretsBackend, LoggingMixin):
     """
     Retrieves Connection object from AWS SSM Parameter Store
 
@@ -69,6 +70,7 @@ class AwsSsmSecretsBackend(BaseSecretsBackend):
         return param_path
 
     def get_conn_uri(self, conn_id):
+        # type: (str) -> Optional[str]
         """
         Get param value
 
@@ -78,11 +80,19 @@ class AwsSsmSecretsBackend(BaseSecretsBackend):
         """
         session = boto3.Session(profile_name=self.profile_name)
         client = session.client("ssm")
-        response = client.get_parameter(
-            Name=self.build_ssm_path(conn_id=conn_id), WithDecryption=True
-        )
-        value = response["Parameter"]["Value"]
-        return value
+        ssm_path = self.build_ssm_path(conn_id=conn_id)
+        try:
+            response = client.get_parameter(
+                Name=ssm_path, WithDecryption=False
+            )
+            value = response["Parameter"]["Value"]
+            return value
+        except client.exceptions.ParameterNotFound:
+            self.log.info(
+                "An error occurred (ParameterNotFound) when calling the GetParameter operation: "
+                "Parameter %s not found.", ssm_path
+            )
+            return None
 
     def get_connections(self, conn_id):
         # type: (str) -> List[Connection]
@@ -93,5 +103,7 @@ class AwsSsmSecretsBackend(BaseSecretsBackend):
         :type conn_id: str
         """
         conn_uri = self.get_conn_uri(conn_id=conn_id)
+        if not conn_uri:
+            return []
         conn = Connection(conn_id=conn_id, uri=conn_uri)
         return [conn]
