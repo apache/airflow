@@ -20,7 +20,8 @@ import mock
 from requests.exceptions import BaseHTTPError
 
 from airflow.exceptions import AirflowException
-from airflow.kubernetes.pod_launcher import PodLauncher
+from airflow.kubernetes.pod_launcher import PodLauncher, PodStatus
+from airflow.utils.state import State
 
 
 class TestPodLauncher(unittest.TestCase):
@@ -118,6 +119,16 @@ class TestPodLauncher(unittest.TestCase):
         self.mock_kube_client.read_namespaced_pod.return_value = mock.sentinel.pod_info
         pod_info = self.pod_launcher.read_pod(mock.sentinel)
         self.assertEqual(mock.sentinel.pod_info, pod_info)
+
+    def test_read_pod_returns_exit_code(self):
+        mock.sentinel.metadata = mock.MagicMock()
+        self.mock_kube_client.read_namespaced_pod_log.side_effect = [
+            [b'\t container status: \n' ,
+             b'\t exit code: 1\n']
+        ]
+        self.pod_launcher._monitor_pod(mock.sentinel, get_logs=True)
+        status = self.pod_launcher.process_status(mock.sentinel, PodStatus.SUCCEEDED)
+        self.assertEqual(State.FAILED, status)
 
     def test_read_pod_retries_successfully(self):
         mock.sentinel.metadata = mock.MagicMock()
