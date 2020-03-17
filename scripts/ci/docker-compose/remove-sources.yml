@@ -24,5 +24,3 @@ services:
     # Everything you install in Docker
     volumes:
       - ./empty:/opt/airflow/airflow:cached
-      # necessary for system tests - we need to take example dags from there
-      - ../../../airflow/providers:/providers:cached

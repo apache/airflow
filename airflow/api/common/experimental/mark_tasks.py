@@ -22,23 +22,24 @@ from typing import Iterable
 
 from sqlalchemy import or_
 
-from airflow.jobs.backfill_job import BackfillJob
-from airflow.models import DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 
-def _create_dagruns(dag, execution_dates, state, run_id_template):
+def _create_dagruns(dag, execution_dates, state, run_type):
     """
     Infers from the dates which dag runs need to be created and does so.
 
     :param dag: the dag to create dag runs for
     :param execution_dates: list of execution dates to evaluate
     :param state: the state to set the dag run to
-    :param run_id_template:the template for run id to be with the execution date
+    :param run_type: The prefix will be used to construct dag run id: {run_id_prefix}__{execution_date}
     :return: newly created and existing dag runs for the execution dates supplied
     """
     # find out if we need to create any dag runs
@@ -47,7 +48,7 @@ def _create_dagruns(dag, execution_dates, state, run_id_template):
 
     for date in dates_to_create:
         dag_run = dag.create_dagrun(
-            run_id=run_id_template.format(date.isoformat()),
+            run_id=f"{run_type}__{date.isoformat()}",
             execution_date=date,
             start_date=timezone.utcnow(),
             external_trigger=False,
@@ -187,7 +188,7 @@ def get_subdag_runs(dag, session, state, task_ids, commit, confirmed_dates):
                 dag_runs = _create_dagruns(current_task.subdag,
                                            execution_dates=confirmed_dates,
                                            state=State.RUNNING,
-                                           run_id_template=BackfillJob.ID_FORMAT_PREFIX)
+                                           run_type=DagRunType.BACKFILL_JOB.value)
 
                 verify_dagruns(dag_runs, commit, state, session, current_task)
 

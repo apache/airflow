@@ -49,6 +49,8 @@ function run_pylint_main() {
     fi
 }
 
+prepare_build
+
 rebuild_ci_image_if_needed
 
 if [[ "${#@}" != "0" ]]; then
@@ -62,5 +64,3 @@ if [[ "${#@}" != "0" ]]; then
 else
     run_pylint_main
 fi
-
-script_end

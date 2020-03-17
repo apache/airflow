@@ -173,16 +173,16 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
             def integrate_plugins():
                 """Integrate plugins to the context"""
-                from airflow.plugins_manager import (
-                    flask_appbuilder_views, flask_appbuilder_menu_links
-                )
+                from airflow import plugins_manager
 
-                for v in flask_appbuilder_views:
+                plugins_manager.ensure_plugins_loaded()
+
+                for v in plugins_manager.flask_appbuilder_views:
                     log.debug("Adding view %s", v["name"])
                     appbuilder.add_view(v["view"],
                                         v["name"],
                                         category=v["category"])
-                for ml in sorted(flask_appbuilder_menu_links, key=lambda x: x["name"]):
+                for ml in sorted(plugins_manager.flask_appbuilder_menu_links, key=lambda x: x["name"]):
                     log.debug("Adding menu link %s", ml["name"])
                     appbuilder.add_link(ml["name"],
                                         href=ml["href"],

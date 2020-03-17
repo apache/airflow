@@ -20,10 +20,44 @@ import unittest
 from unittest import mock
 from unittest.mock import Mock
 
+import statsd
+
 import airflow
 from airflow.exceptions import InvalidStatsNameException
 from airflow.stats import AllowListValidator, SafeDogStatsdLogger, SafeStatsdLogger
 from tests.test_utils.config import conf_vars
+
+
+class CustomStatsd(statsd.StatsClient):
+    incr_calls = 0
+
+    def __init__(self, host=None, port=None, prefix=None):
+        pass
+
+    def incr(self, stat, count=1, rate=1):  # pylint: disable=unused-argument
+        CustomStatsd.incr_calls += 1
+
+    @classmethod
+    def _reset(cls):
+        cls.incr_calls = 0
+
+
+class InvalidCustomStatsd:
+    """
+    This custom Statsd class is invalid because it does not subclass
+    statsd.StatsClient.
+    """
+    incr_calls = 0
+
+    def __init__(self, host=None, port=None, prefix=None):
+        pass
+
+    def incr(self, stat, count=1, rate=1):  # pylint: disable=unused-argument
+        InvalidCustomStatsd.incr_calls += 1
+
+    @classmethod
+    def _reset(cls):
+        cls.incr_calls = 0
 
 
 class TestStats(unittest.TestCase):
@@ -31,6 +65,8 @@ class TestStats(unittest.TestCase):
     def setUp(self):
         self.statsd_client = Mock()
         self.stats = SafeStatsdLogger(self.statsd_client)
+        CustomStatsd._reset()
+        InvalidCustomStatsd._reset()
 
     def test_increment_counter_with_valid_name(self):
         self.stats.incr('test_stats_run')
@@ -65,6 +101,32 @@ class TestStats(unittest.TestCase):
         importlib.reload(airflow.stats)
         airflow.stats.Stats.incr("dummy_key")
         mock_dogstatsd.return_value.assert_not_called()
+
+    @conf_vars({
+        ("scheduler", "statsd_on"): "True",
+        ("scheduler", "statsd_custom_client_path"): "tests.test_stats.CustomStatsd",
+    })
+    def test_load_custom_statsd_client(self):
+        importlib.reload(airflow.stats)
+        assert isinstance(airflow.stats.Stats.statsd, CustomStatsd)
+
+    @conf_vars({
+        ("scheduler", "statsd_on"): "True",
+        ("scheduler", "statsd_custom_client_path"): "tests.test_stats.CustomStatsd",
+    })
+    def test_does_use_custom_statsd_client(self):
+        importlib.reload(airflow.stats)
+        airflow.stats.Stats.incr("dummy_key")
+        assert CustomStatsd.incr_calls == 1
+
+    @conf_vars({
+        ("scheduler", "statsd_on"): "True",
+        ("scheduler", "statsd_custom_client_path"): "tests.test_stats.InvalidCustomStatsd",
+    })
+    def test_load_invalid_custom_stats_client(self):
+        importlib.reload(airflow.stats)
+        airflow.stats.Stats.incr("dummy_key")
+        assert InvalidCustomStatsd.incr_calls == 0
 
     def tearDown(self) -> None:
         # To avoid side-effect

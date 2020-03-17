@@ -554,6 +554,12 @@ These integrations allow you to perform various operations within the Google Clo
      - Operators
      - Sensors
 
+   * - `Analytics360 <https://analytics.google.com/>`__
+     - :doc:`How to use <howto/operator/gcp/analytics>`
+     - :mod:`airflow.providers.google.marketing_platform.hooks.analytics`
+     - :mod:`airflow.providers.google.marketing_platform.operators.analytics`
+     -
+
    * - `AutoML <https://cloud.google.com/automl/>`__
      - :doc:`How to use <howto/operator/gcp/automl>`
      - :mod:`airflow.providers.google.cloud.hooks.automl`
@@ -600,6 +606,12 @@ These integrations allow you to perform various operations within the Google Clo
      - :doc:`How to use <howto/operator/gcp/datafusion>`
      - :mod:`airflow.providers.google.cloud.hooks.datafusion`
      - :mod:`airflow.providers.google.cloud.operators.datafusion`
+     -
+
+   * - `Datacatalog <https://cloud.google.com/data-catalog>`__
+     -
+     - :mod:`airflow.providers.google.cloud.hooks.datacatalog`
+     - :mod:`airflow.providers.google.cloud.operators.datacatalog`
      -
 
    * - `Dataflow <https://cloud.google.com/dataflow/>`__
@@ -1142,9 +1154,11 @@ These integrations allow you to perform various operations using various softwar
 
    * - `Kubernetes <https://kubernetes.io/>`__
      - :doc:`How to use <howto/operator/kubernetes>`
-     -
+     - :mod:`airflow.providers.cncf.kubernetes.hooks.kubernetes`
      - :mod:`airflow.providers.cncf.kubernetes.operators.kubernetes_pod`
-     -
+       :mod:`airflow.providers.cncf.kubernetes.operators.spark_kubernetes`
+     - :mod:`airflow.providers.cncf.kubernetes.sensors.spark_kubernetes`
+
 
    * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
      -
@@ -1175,7 +1189,7 @@ These integrations allow you to perform various operations using various softwar
 
    * - `OpenFaaS <https://www.openfaas.com/>`__
      -
-     - :mod:`airflow.providers.openfass.hooks.openfaas`
+     - :mod:`airflow.providers.openfaas.hooks.openfaas`
      -
      -
 

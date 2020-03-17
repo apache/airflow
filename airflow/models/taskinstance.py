@@ -31,6 +31,7 @@ from urllib.parse import quote
 import dill
 import lazy_object_proxy
 import pendulum
+from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import Column, Float, Index, Integer, PickleType, String, and_, func, or_
 from sqlalchemy.orm import reconstructor
 from sqlalchemy.orm.session import Session
@@ -41,13 +42,14 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException, AirflowRescheduleException, AirflowSkipException, AirflowTaskTimeout,
 )
-from airflow.models.base import ID_LEN, Base
+from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.models.log import Log
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.sentry import Sentry
+from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies import REQUEUEABLE_DEPS, RUNNING_DEPS
@@ -144,8 +146,8 @@ class TaskInstance(Base, LoggingMixin):
 
     __tablename__ = "task_instance"
 
-    task_id = Column(String(ID_LEN), primary_key=True)
-    dag_id = Column(String(ID_LEN), primary_key=True)
+    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     execution_date = Column(UtcDateTime, primary_key=True)
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
@@ -889,6 +891,7 @@ class TaskInstance(Base, LoggingMixin):
         :type pool: str
         """
         from airflow.sensors.base_sensor_operator import BaseSensorOperator
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 
         task = self.task
         self.test_mode = test_mode
@@ -927,6 +930,10 @@ class TaskInstance(Base, LoggingMixin):
                 start_time = time.time()
 
                 self.render_templates(context=context)
+                if STORE_SERIALIZED_DAGS:
+                    RTIF.write(RTIF(ti=self, render_templates=False), session=session)
+                    RTIF.delete_old_records(self.task_id, self.dag_id, session=session)
+
                 # Export context to make it available for operators to use.
                 airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
                 self.log.info("Exporting the following env vars:\n%s",
@@ -1356,6 +1363,30 @@ class TaskInstance(Base, LoggingMixin):
             'yesterday_ds': yesterday_ds,
             'yesterday_ds_nodash': yesterday_ds_nodash,
         }
+
+    def get_rendered_template_fields(self):
+        """
+        Fetch rendered template fields from DB if Serialization is enabled.
+        Else just render the templates
+        """
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields
+        if STORE_SERIALIZED_DAGS:
+            rtif = RenderedTaskInstanceFields.get_templated_fields(self)
+            if rtif:
+                for field_name, rendered_value in rtif.items():
+                    setattr(self.task, field_name, rendered_value)
+            else:
+                try:
+                    self.render_templates()
+                except (TemplateAssertionError, UndefinedError) as e:
+                    raise AirflowException(
+                        "Webserver does not have access to User-defined Macros or Filters "
+                        "when Dag Serialization is enabled. Hence for the task that have not yet "
+                        "started running, please use 'airflow tasks render' for debugging the "
+                        "rendering of template_fields."
+                    ) from e
+        else:
+            self.render_templates()
 
     def overwrite_params_with_dag_run_conf(self, params, dag_run):
         if dag_run and dag_run.conf:

@@ -55,6 +55,10 @@ $(document).ready(function () {
         'host': 'https://<env>.qubole.com/api'
       }
     },
+    kubernetes: {
+      hidden_fields: ['host', 'schema', 'login', 'password', 'port', 'extra'],
+      relabeling: {},
+    },
     ssh: {
       hidden_fields: ['schema'],
       relabeling: {

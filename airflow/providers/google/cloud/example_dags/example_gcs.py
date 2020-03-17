@@ -144,7 +144,7 @@ with models.DAG(
     list_buckets >> delete_bucket_1
     upload_file >> delete_bucket_1
     create_bucket1 >> upload_file >> delete_bucket_1
-    transform_file >> delete_bucket_1
+    upload_file >> transform_file >> delete_bucket_1
     gcs_bucket_create_acl_entry_task >> delete_bucket_1
     gcs_object_create_acl_entry_task >> delete_bucket_1
     download_file >> delete_bucket_1

@@ -18,7 +18,7 @@
 
 from sqlalchemy import Column, Index, Integer, String, Text
 
-from airflow.models.base import ID_LEN, Base
+from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -32,8 +32,8 @@ class Log(Base):
 
     id = Column(Integer, primary_key=True)
     dttm = Column(UtcDateTime)
-    dag_id = Column(String(ID_LEN))
-    task_id = Column(String(ID_LEN))
+    dag_id = Column(String(ID_LEN, **COLLATION_ARGS))
+    task_id = Column(String(ID_LEN, **COLLATION_ARGS))
     event = Column(String(30))
     execution_date = Column(UtcDateTime)
     owner = Column(String(500))

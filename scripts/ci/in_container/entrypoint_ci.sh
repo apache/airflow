@@ -46,6 +46,10 @@ echo
 echo "Airflow home: ${AIRFLOW_HOME}"
 echo "Airflow sources: ${AIRFLOW_SOURCES}"
 echo "Airflow core SQL connection: ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
+if [[ -n "${AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS:=}" ]]; then
+    echo "Airflow collation for IDs: ${AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS}"
+fi
+
 echo
 
 ARGS=( "$@" )
@@ -89,6 +93,9 @@ else
     install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}"
 fi
 
+
+export RUN_AIRFLOW_1_10=${RUN_AIRFLOW_1_10:="false"}
+
 export HADOOP_DISTRO="${HADOOP_DISTRO:="cdh"}"
 export HADOOP_HOME="${HADOOP_HOME:="/opt/hadoop-cdh"}"
 
@@ -127,7 +134,7 @@ if [[ ${INTEGRATION_KERBEROS:="false"} == "true" ]]; then
         echo
         echo "ERROR !!!!Kerberos initialisation requested, but failed"
         echo
-        echo "I will exit now, and you need to run 'breeze --integration kerberos restart-environment'"
+        echo "I will exit now, and you need to run 'breeze --integration kerberos restart'"
         echo "to re-enter breeze and restart kerberos."
         echo
         exit 1
@@ -150,6 +157,14 @@ if [[ "${RUNTIME}" == "" ]]; then
 
     # SSH Service
     sudo service ssh restart >/dev/null 2>&1
+
+    # Sometimes the server is not quick enough to load the keys!
+    while [[ $(ssh-keyscan -H localhost 2>/dev/null | wc -l) != "3" ]] ; do
+        echo "Not all keys yet loaded by the server"
+        sleep 0.05
+    done
+
+    ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
 fi
 
 
@@ -174,39 +189,8 @@ if [[ "${ENABLE_KIND_CLUSTER}" == "true" ]]; then
     fi
 fi
 
-export FILES_DIR="/files"
-export AIRFLOW_BREEZE_CONFIG_DIR="${FILES_DIR}/airflow-breeze-config"
-VARIABLES_ENV_FILE="variables.env"
-
-if [[ -d "${FILES_DIR}" ]]; then
-    export AIRFLOW__CORE__DAGS_FOLDER="/files/dags"
-    mkdir -pv "${AIRFLOW__CORE__DAGS_FOLDER}"
-    sudo chown "${HOST_USER_ID}":"${HOST_GROUP_ID}" "${AIRFLOW__CORE__DAGS_FOLDER}"
-    echo "Your dags for webserver and scheduler are read from ${AIRFLOW__CORE__DAGS_FOLDER} directory"
-    echo "which is mounted from your <AIRFLOW_SOURCES>/files/dags folder"
-    echo
-else
-    export AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_HOME}/dags"
-    echo "Your dags for webserver and scheduler are read from ${AIRFLOW__CORE__DAGS_FOLDER} directory"
-fi
-
-
-if [[ -d "${AIRFLOW_BREEZE_CONFIG_DIR}" && \
-    -f "${AIRFLOW_BREEZE_CONFIG_DIR}/${VARIABLES_ENV_FILE}" ]]; then
-    pushd "${AIRFLOW_BREEZE_CONFIG_DIR}" >/dev/null 2>&1 || exit 1
-    echo
-    echo "Sourcing environment variables from ${VARIABLES_ENV_FILE} in ${AIRFLOW_BREEZE_CONFIG_DIR}"
-    echo
-     # shellcheck disable=1090
-    source "${VARIABLES_ENV_FILE}"
-    popd >/dev/null 2>&1 || exit 1
-else
-    echo
-    echo "You can add ${AIRFLOW_BREEZE_CONFIG_DIR} directory and place ${VARIABLES_ENV_FILE}"
-    echo "In it to make breeze source the variables automatically for you"
-    echo
-fi
-
+# shellcheck source=scripts/ci/in_container/configure_environment.sh
+. "${MY_DIR}/configure_environment.sh"
 
 set +u
 # If we do not want to run tests, we simply drop into bash

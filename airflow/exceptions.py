@@ -82,6 +82,10 @@ class DagNotFound(AirflowNotFoundException):
     """Raise when a DAG is not available in the system"""
 
 
+class DagCodeNotFound(AirflowNotFoundException):
+    """Raise when a DAG code is not available in the system"""
+
+
 class DagRunNotFound(AirflowNotFoundException):
     """Raise when a DAG Run is not available in the system"""
 

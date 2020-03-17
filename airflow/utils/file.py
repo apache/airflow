@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import io
 import logging
 import os
 import re
@@ -59,17 +60,34 @@ def mkdirs(path, mode):
         os.umask(o_umask)
 
 
+ZIP_REGEX = re.compile(r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)))
+
+
 def correct_maybe_zipped(fileloc):
     """
     If the path contains a folder with a .zip suffix, then
     the folder is treated as a zip archive and path to zip is returned.
     """
 
-    _, archive, _ = re.search(r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)), fileloc).groups()
+    _, archive, _ = ZIP_REGEX.search(fileloc).groups()
     if archive and zipfile.is_zipfile(archive):
         return archive
     else:
         return fileloc
+
+
+def open_maybe_zipped(fileloc, mode='r'):
+    """
+    Opens the given file. If the path contains a folder with a .zip suffix, then
+    the folder is treated as a zip archive, opening the file inside the archive.
+
+    :return: a file object, as in `open`, or as in `ZipFile.open`.
+    """
+    _, archive, filename = ZIP_REGEX.search(fileloc).groups()
+    if archive and zipfile.is_zipfile(archive):
+        return zipfile.ZipFile(archive, mode=mode).open(filename)
+    else:
+        return io.open(fileloc, mode=mode)
 
 
 def list_py_file_paths(directory: str,

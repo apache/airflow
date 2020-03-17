@@ -61,6 +61,24 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Assigning task to a DAG using bitwise shift (bit-shift) operators are no longer supported
+
+Previously, you could assign a task to a DAG as follows:
+
+```python
+dag = DAG('my_dag')
+dummy = DummyOperator(task_id='dummy')
+
+dag >> dummy
+```
+
+This is no longer supported. Instead, we recommend using the DAG as context manager:
+
+```python
+with DAG('my_dag):
+    dummy = DummyOperator(task_id='dummy')
+```
+
 ### Deprecating ignore_first_depends_on_past on backfill command and default it to True
 
 When doing backfill with `depends_on_past` dags, users will need to pass `ignore_first_depends_on_past`.

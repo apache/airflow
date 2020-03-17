@@ -28,6 +28,7 @@ from google.protobuf.json_format import ParseDict
 from airflow import models
 from airflow.providers.google.cloud.operators.bigquery_dts import (
     BigQueryCreateDataTransferOperator, BigQueryDataTransferServiceStartTransferRunsOperator,
+    BigQueryDeleteDataTransferConfigOperator,
 )
 from airflow.providers.google.cloud.sensors.bigquery_dts import BigQueryDataTransferServiceTransferRunSensor
 from airflow.utils.dates import days_ago
@@ -110,7 +111,7 @@ with models.DAG(
     # [END howto_bigquery_dts_sensor]
 
     # [START howto_bigquery_delete_data_transfer]
-    gcp_bigquery_delete_transfer = BigQueryDataTransferServiceStartTransferRunsOperator(
+    gcp_bigquery_delete_transfer = BigQueryDeleteDataTransferConfigOperator(
         transfer_config_id=transfer_config_id, task_id="gcp_bigquery_delete_transfer"
     )
     # [END howto_bigquery_delete_data_transfer]

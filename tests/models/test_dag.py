@@ -47,6 +47,7 @@ from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime as datetime_tz
+from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.asserts import assert_queries_count
@@ -1219,7 +1220,8 @@ class TestDag(unittest.TestCase):
             start_date=DEFAULT_DATE))
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        dag.create_dagrun(run_id=DagRun.id_for_date(DEFAULT_DATE),
+        run_id = f"{DagRunType.SCHEDULED.value}__{DEFAULT_DATE.isoformat()}"
+        dag.create_dagrun(run_id=run_id,
                           execution_date=DEFAULT_DATE,
                           state=State.SUCCESS,
                           external_trigger=True)

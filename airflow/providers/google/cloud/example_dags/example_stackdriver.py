@@ -22,7 +22,7 @@ Example Airflow DAG for Google Cloud Stackdriver service.
 
 import json
 
-from airflow.models import DAG
+from airflow import models
 from airflow.providers.google.cloud.operators.stackdriver import (
     StackdriverDeleteAlertOperator, StackdriverDeleteNotificationChannelOperator,
     StackdriverDisableAlertPoliciesOperator, StackdriverDisableNotificationChannelsOperator,
@@ -108,9 +108,10 @@ TEST_NOTIFICATION_CHANNEL_2 = {
 
 default_args = {"start_date": days_ago(1)}
 
-with DAG(
+with models.DAG(
     'example_stackdriver',
     default_args=default_args,
+    schedule_interval=None,  # Override to match your needs
     tags=['example']
 ) as dag:
     # [START howto_operator_gcp_stackdriver_upsert_notification_channel]

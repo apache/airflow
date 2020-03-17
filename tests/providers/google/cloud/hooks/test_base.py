@@ -81,11 +81,7 @@ class QuotaRetryTestCase(unittest.TestCase):  # ptlint: disable=invalid-name
     def test_retry_on_exception(self):
         message = "POST https://translation.googleapis.com/language/translate/v2: User Rate Limit Exceeded"
         errors = [
-            {
-                'message': 'User Rate Limit Exceeded',
-                'domain': 'usageLimits',
-                'reason': 'userRateLimitExceeded',
-            }
+            mock.MagicMock(details=mock.PropertyMock(return_value='userRateLimitExceeded'))
         ]
         custom_fn = NoForbiddenAfterCount(
             count=5,
@@ -99,7 +95,7 @@ class QuotaRetryTestCase(unittest.TestCase):  # ptlint: disable=invalid-name
         with self.assertRaisesRegex(Forbidden, "Daily Limit Exceeded"):
             message = "POST https://translation.googleapis.com/language/translate/v2: Daily Limit Exceeded"
             errors = [
-                {'message': 'Daily Limit Exceeded', 'domain': 'usageLimits', 'reason': 'dailyLimitExceeded'}
+                mock.MagicMock(details=mock.PropertyMock(return_value='dailyLimitExceeded'))
             ]
 
             _retryable_test_with_temporary_quota_retry(

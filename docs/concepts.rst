@@ -353,19 +353,6 @@ is equivalent to:
     op2.set_downstream(op3)
     op3.set_upstream(op4)
 
-For convenience, the bitshift operators can also be used with DAGs. For example:
-
-.. code:: python
-
-    dag >> op1 >> op2
-
-is equivalent to:
-
-.. code:: python
-
-    op1.dag = dag
-    op1.set_downstream(op2)
-
 We can put this all together to build a simple pipeline:
 
 .. code:: python
@@ -565,36 +552,26 @@ To combine Pools with SubDAGs see the `SubDAGs`_ section.
 Connections
 ===========
 
-The connection information to external systems is stored in the Airflow
-metadata database and managed in the UI (``Menu -> Admin -> Connections``).
-A ``conn_id`` is defined there and hostname / login / password / schema
-information attached to it. Airflow pipelines can simply refer to the
-centrally managed ``conn_id`` without having to hard code any of this
-information anywhere.
+The information needed to connect to external systems is stored in the Airflow metastore database and can be
+managed in the UI (``Menu -> Admin -> Connections``).  A ``conn_id`` is defined there, and hostname / login /
+password / schema information attached to it.  Airflow pipelines retrieve centrally-managed connections
+information by specifying the relevant ``conn_id``.
 
-Many connections with the same ``conn_id`` can be defined and when that
-is the case, and when the **hooks** uses the ``get_connection`` method
-from ``BaseHook``, Airflow will choose one connection randomly, allowing
-for some basic load balancing and fault tolerance when used in conjunction
-with retries.
+You may add more than one connection with the same ``conn_id``.  When there is more than one connection
+with the same ``conn_id``, the :py:meth:`~airflow.hooks.base_hook.BaseHook.get_connection` method on
+:py:class:`~airflow.hooks.base_hook.BaseHook` will choose one connection randomly. This can be be used to
+provide basic load balancing and fault tolerance, when used in conjunction with retries.
 
-Airflow also has the ability to reference connections via environment
-variables from the operating system. Then connection parameters must
-be saved in URI format.
-
-If connections with the same ``conn_id`` are defined in both Airflow metadata
-database and environment variables, only the one in environment variables
-will be referenced by Airflow (for example, given ``conn_id``
-``postgres_master``, Airflow will search for ``AIRFLOW_CONN_POSTGRES_MASTER``
-in environment variables first and directly reference it if found,
-before it starts to search in metadata database).
+Airflow also provides a mechanism to store connections outside the database, e.g. in :ref:`environment variables <environment_variables_secrets_backend>`.
+Additonal sources may be enabled, e.g. :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>`, or you may
+:ref:`roll your own secrets backend <roll_your_own_secrets_backend>`.
 
 Many hooks have a default ``conn_id``, where operators using that hook do not
 need to supply an explicit connection ID. For example, the default
 ``conn_id`` for the :class:`~airflow.providers.postgres.hooks.postgres.PostgresHook` is
 ``postgres_default``.
 
-See :doc:`howto/connection/index` for how to create and manage connections.
+See :doc:`howto/connection/index` for details on creating and managing connections.
 
 Queues
 ======
@@ -807,54 +784,17 @@ Note that SubDAG operators should contain a factory method that returns a DAG
 object. This will prevent the SubDAG from being treated like a separate DAG in
 the main UI. For example:
 
-.. code:: python
-
-  #dags/subdag.py
-  from airflow.models import DAG
-  from airflow.operators.dummy_operator import DummyOperator
-
-
-  # Dag is returned by a factory method
-  def sub_dag(parent_dag_name, child_dag_name, start_date, schedule_interval):
-    dag = DAG(
-      '%s.%s' % (parent_dag_name, child_dag_name),
-      schedule_interval=schedule_interval,
-      start_date=start_date,
-    )
-
-    dummy_operator = DummyOperator(
-      task_id='dummy_task',
-      dag=dag,
-    )
-
-    return dag
+.. exampleinclude:: ../airflow/example_dags/subdags/subdag.py
+    :language: python
+    :start-after: [START subdag]
+    :end-before: [END subdag]
 
 This SubDAG can then be referenced in your main DAG file:
 
-.. code:: python
-
-  # main_dag.py
-  from datetime import datetime, timedelta
-  from airflow.models import DAG
-  from airflow.operators.subdag_operator import SubDagOperator
-  from dags.subdag import sub_dag
-
-
-  PARENT_DAG_NAME = 'parent_dag'
-  CHILD_DAG_NAME = 'child_dag'
-
-  main_dag = DAG(
-    dag_id=PARENT_DAG_NAME,
-    schedule_interval=timedelta(hours=1),
-    start_date=datetime(2016, 1, 1)
-  )
-
-  sub_dag = SubDagOperator(
-    subdag=sub_dag(PARENT_DAG_NAME, CHILD_DAG_NAME, main_dag.start_date,
-                   main_dag.schedule_interval),
-    task_id=CHILD_DAG_NAME,
-    dag=main_dag,
-  )
+.. exampleinclude:: ../airflow/example_dags/example_subdag_operator.py
+    :language: python
+    :start-after: [START example_subdag_operator]
+    :end-before: [END example_subdag_operator]
 
 You can zoom into a SubDagOperator from the graph view of the main DAG to show
 the tasks contained within the SubDAG:
@@ -1020,36 +960,10 @@ right now is not between its ``execution_time`` and the next scheduled
 
 For example, consider the following DAG:
 
-.. code:: python
-
-  #dags/latest_only_with_trigger.py
-  import datetime as dt
-
-  from airflow.models import DAG
-  from airflow.operators.dummy_operator import DummyOperator
-  from airflow.operators.latest_only_operator import LatestOnlyOperator
-  from airflow.utils.trigger_rule import TriggerRule
-
-
-  dag = DAG(
-      dag_id='latest_only_with_trigger',
-      schedule_interval=dt.timedelta(hours=1),
-      start_date=dt.datetime(2019, 2, 28),
-  )
-
-  latest_only = LatestOnlyOperator(task_id='latest_only', dag=dag)
-
-  task1 = DummyOperator(task_id='task1', dag=dag)
-  task1.set_upstream(latest_only)
-
-  task2 = DummyOperator(task_id='task2', dag=dag)
-
-  task3 = DummyOperator(task_id='task3', dag=dag)
-  task3.set_upstream([task1, task2])
-
-  task4 = DummyOperator(task_id='task4', dag=dag,
-                        trigger_rule=TriggerRule.ALL_DONE)
-  task4.set_upstream([task1, task2])
+.. exampleinclude:: ../airflow/example_dags/example_latest_only_with_trigger.py
+    :language: python
+    :start-after: [START example]
+    :end-before: [END example]
 
 In the case of this DAG, the task ``task1`` is directly downstream of
 ``latest_only`` and will be skipped for all runs except the latest.

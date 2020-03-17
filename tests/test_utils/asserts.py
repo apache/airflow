@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import logging
 import re
 from contextlib import contextmanager
 
@@ -22,6 +23,8 @@ from sqlalchemy import event
 
 # Long import to not create a copy of the reference, but to refer to one place.
 import airflow.settings
+
+log = logging.getLogger(__name__)
 
 
 def assert_equal_ignore_multiple_spaces(case, first, second, msg=None):
@@ -51,6 +54,7 @@ class CountQueries:
 
     def __exit__(self, type_, value, traceback):
         event.remove(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
+        log.debug("Queries count: %d", self.result.count)
 
     def after_cursor_execute(self, *args, **kwargs):
         self.result.count += 1

@@ -50,6 +50,7 @@ function run_pylint_tests() {
     fi
 }
 
+prepare_build
 
 rebuild_ci_image_if_needed
 

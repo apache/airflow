@@ -30,6 +30,7 @@ from alembic import op
 from sqlalchemy import Column, Float, Integer, PickleType, String
 from sqlalchemy.ext.declarative import declarative_base
 
+from airflow.models.base import COLLATION_ARGS
 from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -59,8 +60,8 @@ class TaskInstance(Base):
 
     __tablename__ = "task_instance"
 
-    task_id = Column(String(ID_LEN), primary_key=True)
-    dag_id = Column(String(ID_LEN), primary_key=True)
+    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     execution_date = Column(UtcDateTime, primary_key=True)
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)

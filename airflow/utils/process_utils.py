@@ -139,3 +139,48 @@ def execute_in_subprocess(cmd: List[str]):
     exit_code = proc.wait()
     if exit_code != 0:
         raise subprocess.CalledProcessError(exit_code, cmd)
+
+
+def kill_child_processes_by_pids(pids_to_kill: List[int], timeout: int = 5) -> None:
+    """
+    Kills child processes for the current process.
+ 
+    First, it sends the SIGTERM signal, and after the time specified by the `timeout` parameter, sends
+    the SIGKILL signal, if the process is still alive.
+
+    :param pids_to_kill: List of PID to be killed.
+    :type pids_to_kill: List[int]
+    :param timeout: The time to wait before sending the SIGKILL signal.
+    :type timeout: Optional[int]
+    """
+    this_process = psutil.Process(os.getpid())
+    # Only check child processes to ensure that we don't have a case
+    # where we kill the wrong process because a child process died
+    # but the PID got reused.
+    child_processes = [
+        x for x in this_process.children(recursive=True) if x.is_running() and x.pid in pids_to_kill
+    ]
+
+    # First try SIGTERM
+    for child in child_processes:
+        log.info("Terminating child PID: %s", child.pid)
+        child.terminate()
+
+    log.info("Waiting up to %s seconds for processes to exit...", timeout)
+    try:
+        psutil.wait_procs(
+            child_processes, timeout=timeout, callback=lambda x: log.info("Terminated PID %s", x.pid)
+        )
+    except psutil.TimeoutExpired:
+        log.debug("Ran out of time while waiting for processes to exit")
+
+    # Then SIGKILL
+    child_processes = [
+        x for x in this_process.children(recursive=True) if x.is_running() and x.pid in pids_to_kill
+    ]
+    if child_processes:
+        log.info("SIGKILL processes that did not terminate gracefully")
+        for child in child_processes:
+            log.info("Killing child PID: %s", child.pid)
+            child.kill()
+            child.wait()

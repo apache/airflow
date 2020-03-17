@@ -471,38 +471,20 @@ class BaseOperator(Operator, LoggingMixin):
     def __rshift__(self, other):
         """
         Implements Self >> Other == self.set_downstream(other)
-
-        If "Other" is a DAG, the DAG is assigned to the Operator.
         """
-        from airflow.models.dag import DAG
-        if isinstance(other, DAG):
-            # if this dag is already assigned, do nothing
-            # otherwise, do normal dag assignment
-            if not (self.has_dag() and self.dag is other):
-                self.dag = other
-        else:
-            self.set_downstream(other)
+        self.set_downstream(other)
         return other
 
     def __lshift__(self, other):
         """
         Implements Self << Other == self.set_upstream(other)
-
-        If "Other" is a DAG, the DAG is assigned to the Operator.
         """
-        from airflow.models.dag import DAG
-        if isinstance(other, DAG):
-            # if this dag is already assigned, do nothing
-            # otherwise, do normal dag assignment
-            if not (self.has_dag() and self.dag is other):
-                self.dag = other
-        else:
-            self.set_upstream(other)
+        self.set_upstream(other)
         return other
 
     def __rrshift__(self, other):
         """
-        Called for [DAG] >> [Operator] because DAGs don't have
+        Called for Operator >> [Operator] because list don't have
         __rshift__ operators.
         """
         self.__lshift__(other)
@@ -510,7 +492,7 @@ class BaseOperator(Operator, LoggingMixin):
 
     def __rlshift__(self, other):
         """
-        Called for [DAG] << [Operator] because DAGs don't have
+        Called for Operator << [Operator] because list don't have
         __lshift__ operators.
         """
         self.__rshift__(other)

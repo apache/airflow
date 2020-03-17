@@ -41,8 +41,7 @@ class PubSubCreateTopicOperator(BaseOperator):
 
         with DAG('successful DAG') as dag:
             (
-                dag
-                >> PubSubTopicCreateOperator(project='my-project',
+                PubSubTopicCreateOperator(project='my-project',
                                              topic='my_new_topic')
                 >> PubSubTopicCreateOperator(project='my-project',
                                              topic='my_new_topic')
@@ -52,8 +51,7 @@ class PubSubCreateTopicOperator(BaseOperator):
 
         with DAG('failing DAG') as dag:
             (
-                dag
-                >> PubSubTopicCreateOperator(project='my-project',
+                PubSubTopicCreateOperator(project='my-project',
                                              topic='my_new_topic')
                 >> PubSubTopicCreateOperator(project='my-project',
                                              topic='my_new_topic',
@@ -182,8 +180,7 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
 
         with DAG('successful DAG') as dag:
             (
-                dag
-                >> PubSubSubscriptionCreateOperator(
+                PubSubSubscriptionCreateOperator(
                     topic_project='my-project', topic='my-topic',
                     subscription='my-subscription')
                 >> PubSubSubscriptionCreateOperator(
@@ -196,8 +193,7 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
 
         with DAG('failing DAG') as dag:
             (
-                dag
-                >> PubSubSubscriptionCreateOperator(
+                PubSubSubscriptionCreateOperator(
                     topic_project='my-project', topic='my-topic',
                     subscription='my-subscription')
                 >> PubSubSubscriptionCreateOperator(
@@ -210,7 +206,7 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
 
         with DAG('DAG') as dag:
             (
-                dag >> PubSubSubscriptionCreateOperator(
+                PubSubSubscriptionCreateOperator(
                     topic_project='my-project', topic='my-topic')
             )
 
@@ -370,8 +366,7 @@ class PubSubDeleteTopicOperator(BaseOperator):
 
         with DAG('successful DAG') as dag:
             (
-                dag
-                >> PubSubTopicDeleteOperator(project='my-project',
+                PubSubTopicDeleteOperator(project='my-project',
                                              topic='non_existing_topic')
             )
 
@@ -379,8 +374,7 @@ class PubSubDeleteTopicOperator(BaseOperator):
 
         with DAG('failing DAG') as dag:
             (
-                dag
-                >> PubSubTopicCreateOperator(project='my-project',
+                PubSubTopicCreateOperator(project='my-project',
                                              topic='non_existing_topic',
                                              fail_if_not_exists=True)
             )
@@ -482,8 +476,7 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
 
         with DAG('successful DAG') as dag:
             (
-                dag
-                >> PubSubSubscriptionDeleteOperator(project='my-project',
+                PubSubSubscriptionDeleteOperator(project='my-project',
                                                     subscription='non-existing')
             )
 
@@ -493,8 +486,7 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
 
         with DAG('failing DAG') as dag:
             (
-                dag
-                >> PubSubSubscriptionDeleteOperator(
+                PubSubSubscriptionDeleteOperator(
                      project='my-project', subscription='non-existing',
                      fail_if_not_exists=True)
             )

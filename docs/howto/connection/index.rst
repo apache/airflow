@@ -59,6 +59,33 @@ to the connection you wish to edit in the connection list.
 Modify the connection properties and click the ``Save`` button to save your
 changes.
 
+.. _connection/cli:
+
+Creating a Connection from the CLI
+----------------------------------
+
+You may add a connection to the database from the CLI.
+
+Obtain the URI for your connection (see :ref:`Generating a Connection URI <generating_connection_uri>`).
+
+Then add connection like so:
+
+.. code-block:: bash
+
+    airflow connections add --conn_id 'my_prod_db' --conn_uri 'my-conn-type://login:password@host:port/schema?param1=val1&param2=val2'
+
+Alternatively you may specify each parameter individually:
+
+.. code-block:: bash
+
+    airflow connections add \
+        --conn_id 'my_prod_db' \
+        --login 'login' \
+        --password 'password' \
+        ...
+
+.. _environment_variables_secrets_backend:
+
 Storing a Connection in Environment Variables
 ---------------------------------------------
 
@@ -92,32 +119,83 @@ If using with a docker ``.env`` file, you may need to remove the single quotes.
 
     AIRFLOW_CONN_MY_PROD_DATABASE=my-conn-type://login:password@host:port/schema?param1=val1&param2=val2
 
+.. _alternative_secrets_backend:
 
-.. _connection/cli:
+Alternative secrets backend
+---------------------------
 
-Creating a Connection from the CLI
-----------------------------------
+In addition to retrieving connections from environment variables or the metastore database, you can enable
+an alternative secrets backend, such as :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>`, or you
+can :ref:`roll your own <roll_your_own_secrets_backend>`.
 
-You may add a connection to the database from the CLI.
+Search path
+^^^^^^^^^^^
+When looking up a connection, by default airflow will search environment variables first and metastore
+database second.
 
-Obtain the URI for your connection (see :ref:`Generating a Connection URI <generating_connection_uri>`).
+If you enable an alternative secrets backend, it will be searched first, followed by environment variables,
+then metastore.  This search ordering is not configurable.
 
-Then add connection like so:
+.. _secrets_backend_configuration:
 
-.. code-block:: bash
+Configuration
+^^^^^^^^^^^^^
 
-    airflow connections add --conn-id 'my_prod_db' --conn-uri 'my-conn-type://login:password@host:port/schema?param1=val1&param2=val2'
+The ``[secrets]`` section has the following options:
 
-Alternatively you may specify each parameter individually:
+.. code-block:: ini
 
-.. code-block:: bash
+    [secrets]
+    backend =
+    backend_kwargs =
 
-    airflow connections add \
-        --conn-id 'my_prod_db' \
-        --login 'login' \
-        --password 'password' \
-        ...
+Set ``backend`` to the fully qualified class name of the backend you want to enable.
 
+You can provide ``backend_kwargs`` with json and it will be passed as kwargs to the ``__init__`` method of
+your secrets backend.
+
+See :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>` for an example configuration.
+
+.. _ssm_parameter_store_secrets:
+
+AWS SSM Parameter Store Secrets Backend
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To enable SSM parameter store, specify :py:class:`~airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend`
+as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg``.
+
+Here is a sample configuration:
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend
+    backend_kwargs = {"prefix": "/airflow", "profile_name": "default"}
+
+If you have set your prefix as ``/airflow``, then for a connection id of ``smtp_default``, you would want to
+store your connection at ``/airflow/AIRFLOW_CONN_SMTP_DEFAULT``.
+
+Optionally you can supply a profile name to reference aws profile, e.g. defined in ``~/.aws/config``.
+
+The value of the SSM parameter must be the :ref:`airflow connection URI representation <generating_connection_uri>` of the connection object.
+
+.. _roll_your_own_secrets_backend:
+
+Roll your own secrets backend
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A secrets backend is a subclass of :py:class:`airflow.secrets.BaseSecretsBackend`, and just has to implement the
+:py:meth:`~airflow.secrets.BaseSecretsBackend.get_connections` method.
+
+Just create your class, and put the fully qualified class name in ``backend`` key in the ``[secrets]``
+section of ``airflow.cfg``.  You can you can also pass kwargs to ``__init__`` by supplying json to the
+``backend_kwargs`` config param.  See :ref:`Configuration <secrets_backend_configuration>` for more details,
+and :ref:`SSM Parameter Store <ssm_parameter_store_secrets>` for an example.
+
+.. note::
+
+    If you are rolling your own secrets backend, you don't strictly need to use airflow's URI format. But
+    doing so makes it easier to switch between environment variables, the metastore, and your secrets backend.
 
 Connection URI format
 ---------------------
@@ -158,7 +236,6 @@ You can verify a URI is parsed correctly like so:
     my-login
     >>> print(c.password)
     my-password
-
 
 .. _generating_connection_uri:
 

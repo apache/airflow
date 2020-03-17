@@ -19,12 +19,12 @@ import os
 
 import pytest
 
+from airflow.providers.google.cloud.example_dags.example_video_intelligence import GCP_BUCKET_NAME
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_AI_KEY, GCP_GCS_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
-GCP_BUCKET_NAME = os.environ.get("GCP_VIDEO_INTELLIGENCE_BUCKET_NAME", "test-bucket-name")
-GCP_VIDEO_SOURCE_URL = os.environ.get("GCP_VIDEO_INTELLIGENCE_VIDEO_SOURCE_URL", "http://nasa.gov")
+GCP_VIDEO_SOURCE_URL = "https://www.sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4"
 
 
 @pytest.mark.backend("mysql", "postgres")
@@ -49,5 +49,5 @@ class CloudVideoIntelligenceExampleDagsTest(GoogleSystemTest):
         super().tearDown()
 
     @provide_gcp_context(GCP_AI_KEY)
-    def test_run_example_dag_spanner(self):
+    def test_example_dag(self):
         self.run_dag('example_gcp_video_intelligence', CLOUD_DAG_FOLDER)

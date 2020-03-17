@@ -316,6 +316,63 @@ Limitations:
 They are optimized for repeatability of tests, maintainability and speed of building rather
 than production performance. The production images are not yet officially published.
 
+Backport providers packages
+---------------------------
+
+Since we are developing new operators in the master branch, we prepared backport packages ready to be
+installed for Airflow 1.10.* series. Those backport operators (the tested ones) are going to be released
+in PyPi and we are going to maintain the list at
+`Backported providers package page <https://cwiki.apache.org/confluence/display/AIRFLOW/Backported+providers+packages+for+Airflow+1.10.*+series>`_
+
+Some of the packages have cross-dependencies with other providers packages. This typically happens for
+transfer operators where operators use hooks from the other providers in case they are transferring
+data between the providers. The list of dependencies is maintained (automatically with pre-commits)
+in the ``airflow/providers/dependencies.json``. Pre-commits are also used to generate dependencies.
+The dependency list is automatically used during pypi packages generation.
+
+Cross-dependencies between provider packages are converted into extras - if you need functionality from
+the other provider package you can install it adding [extra] after the apache-airflow-providers-PROVIDER
+for example ``pip install apache-airflow-providers-google[amazon]`` in case you want to use GCP's
+transfer operators from Amazon ECS.
+
+If you add a new dependency between different providers packages, it will be detected automatically during
+pre-commit phase and pre-commit will fail - and add entry in dependencies.json so that the package extra
+dependencies are properly added when package is installed.
+
+You can regenerate the whole list of provider dependencies by running this command (you need to have
+``pre-commits`` installed).
+
+.. code-block:: bash
+
+  pre-commit run build-providers-dependencies
+
+
+Here is the list of packages and their extras:
+
+
+  .. START PACKAGE DEPENDENCIES HERE
+
+========================== ===========================
+Package                    Extras
+========================== ===========================
+amazon                     apache.hive,google,imap,mongo,postgres,ssh
+apache.druid               apache.hive
+apache.hive                amazon,microsoft.mssql,mysql,presto,samba,vertica
+apache.livy                http
+dingding                   http
+discord                    http
+google                     amazon,apache.cassandra,cncf.kubernetes,microsoft.azure,microsoft.mssql,mysql,postgres,sftp
+microsoft.azure            oracle
+microsoft.mssql            odbc
+mysql                      amazon,presto,vertica
+opsgenie                   http
+postgres                   amazon
+sftp                       ssh
+slack                      http
+========================== ===========================
+
+  .. END PACKAGE DEPENDENCIES HERE
+
 Static code checks
 ==================
 

@@ -54,6 +54,7 @@ class AwsBaseHook(BaseHook):
         self.verify = verify
         self.config = None
 
+    # pylint: disable=too-many-statements
     def _get_credentials(self, region_name):
         aws_access_key_id = None
         aws_secret_access_key = None
@@ -156,26 +157,33 @@ class AwsBaseHook(BaseHook):
                         **session_kwargs
                     )
                     sts_client = sts_session.client("sts", config=self.config)
-                    # Assume role
+
                     assume_role_kwargs = dict()
                     if "assume_role_kwargs" in extra_config:
                         assume_role_kwargs = extra_config["assume_role_kwargs"]
-                    if "external_id" in extra_config:  # Backwards compatibility
-                        assume_role_kwargs["ExternalId"] = extra_config.get(
-                            "external_id"
-                        )
 
-                    role_session_name = "Airflow_" + self.aws_conn_id
-                    self.log.info(
-                        "Doing assume_role to role_arn=%s role_session_name=%s",
+                    assume_role_method = None
+                    if "assume_role_method" in extra_config:
+                        assume_role_method = extra_config['assume_role_method']
+                    self.log.info("assume_role_method=%s", assume_role_method)
+                    method = None
+                    if not assume_role_method or assume_role_method == 'assume_role':
+                        method = self._assume_role
+                    elif assume_role_method == 'assume_role_with_saml':
+                        method = self._assume_role_with_saml
+                    else:
+                        raise NotImplementedError(
+                            f'assume_role_method={assume_role_method} in Connection {self.aws_conn_id} Extra.'
+                            'Currently "assume_role" or "assume_role_with_saml" are supported.'
+                            '(Exclude this setting will default to "assume_role").')
+
+                    sts_response = method(
+                        sts_client,
+                        extra_config,
                         role_arn,
-                        role_session_name,
+                        assume_role_kwargs
                     )
-                    sts_response = sts_client.assume_role(
-                        RoleArn=role_arn,
-                        RoleSessionName=role_session_name,
-                        **assume_role_kwargs
-                    )
+
                     # Use credentials retrieved from STS
                     credentials = sts_response["Credentials"]
                     aws_access_key_id = credentials["AccessKeyId"]
@@ -204,6 +212,106 @@ class AwsBaseHook(BaseHook):
                 **session_kwargs
             ),
             endpoint_url,
+        )
+
+    def _assume_role(
+            self,
+            sts_client: boto3.client,
+            extra_config: dict,
+            role_arn: str,
+            assume_role_kwargs: dict):
+        if "external_id" in extra_config:  # Backwards compatibility
+            assume_role_kwargs["ExternalId"] = extra_config.get(
+                "external_id"
+            )
+        role_session_name = "Airflow_" + self.aws_conn_id
+        self.log.info(
+            "Doing sts_client.assume_role to role_arn=%s (role_session_name=%s)",
+            role_arn,
+            role_session_name,
+        )
+        return sts_client.assume_role(
+            RoleArn=role_arn,
+            RoleSessionName=role_session_name,
+            **assume_role_kwargs
+        )
+
+    def _assume_role_with_saml(
+            self,
+            sts_client: boto3.client,
+            extra_config: dict,
+            role_arn: str,
+            assume_role_kwargs: dict):
+
+        saml_config = extra_config['assume_role_with_saml']
+        principal_arn = saml_config['principal_arn']
+
+        idp_url = saml_config["idp_url"]
+        self.log.info("idp_url= %s", idp_url)
+
+        idp_request_kwargs = saml_config["idp_request_kwargs"]
+
+        idp_auth_method = saml_config['idp_auth_method']
+        if idp_auth_method == 'http_spegno_auth':
+            # requests_gssapi will need paramiko > 2.6 since you'll need
+            # 'gssapi' not 'python-gssapi' from PyPi.
+            # https://github.com/paramiko/paramiko/pull/1311
+            import requests_gssapi
+            auth = requests_gssapi.HTTPSPNEGOAuth()
+            if 'mutual_authentication' in saml_config:
+                mutual_auth = saml_config['mutual_authentication']
+                if mutual_auth == 'REQUIRED':
+                    auth = requests_gssapi.HTTPSPNEGOAuth(requests_gssapi.REQUIRED)
+                elif mutual_auth == 'OPTIONAL':
+                    auth = requests_gssapi.HTTPSPNEGOAuth(requests_gssapi.OPTIONAL)
+                elif mutual_auth == 'DISABLED':
+                    auth = requests_gssapi.HTTPSPNEGOAuth(requests_gssapi.DISABLED)
+                else:
+                    raise NotImplementedError(
+                        f'mutual_authentication={mutual_auth} in Connection {self.aws_conn_id} Extra.'
+                        'Currently "REQUIRED", "OPTIONAL" and "DISABLED" are supported.'
+                        '(Exclude this setting will default to HTTPSPNEGOAuth() ).')
+
+            # Query the IDP
+            import requests
+            idp_reponse = requests.get(
+                idp_url, auth=auth, **idp_request_kwargs)
+            idp_reponse.raise_for_status()
+
+            # Assist with debugging. Note: contains sensitive info!
+            xpath = saml_config['saml_response_xpath']
+            log_idp_response = 'log_idp_response' in saml_config and saml_config[
+                'log_idp_response']
+            if log_idp_response:
+                self.log.warning(
+                    'The IDP response contains sensitive information,'
+                    ' but log_idp_response is ON (%s).', log_idp_response)
+                self.log.info('idp_reponse.content= %s', idp_reponse.content)
+                self.log.info('xpath= %s', xpath)
+
+            # Extract SAML Assertion from the returned HTML / XML
+            from lxml import etree
+            xml = etree.fromstring(idp_reponse.content)
+            saml_assertion = xml.xpath(xpath)
+            if isinstance(saml_assertion, list):
+                if len(saml_assertion) == 1:
+                    saml_assertion = saml_assertion[0]
+            if not saml_assertion:
+                raise ValueError('Invalid SAML Assertion')
+        else:
+            raise NotImplementedError(
+                f'idp_auth_method={idp_auth_method} in Connection {self.aws_conn_id} Extra.'
+                'Currently only "http_spegno_auth" is supported, and must be specified.')
+
+        self.log.info(
+            "Doing sts_client.assume_role_with_saml to role_arn=%s",
+            role_arn
+        )
+        return sts_client.assume_role_with_saml(
+            RoleArn=role_arn,
+            PrincipalArn=principal_arn,
+            SAMLAssertion=saml_assertion,
+            **assume_role_kwargs
         )
 
     def get_client_type(self, client_type, region_name=None, config=None):

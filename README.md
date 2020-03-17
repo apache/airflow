@@ -38,6 +38,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Requirements](#requirements)
 - [Getting started](#getting-started)
 - [Beyond the Horizon](#beyond-the-horizon)
 - [Principles](#principles)
@@ -50,6 +51,24 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Links](#links)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## Requirements
+
+Apache Airflow is tested with:
+
+### Master version (2.0.0dev)
+
+* Python versions: 3.6, 3.7
+* Postgres DB: 9.6 10
+* MySQL DB: 5.7
+* Sqlite - latest stable (it is used mainly for development purpose)
+
+### Stable version (1.10.9)
+
+* Python versions: 2.7, 3.5, 3.6, 3.7
+* Postgres DB: 9.6 10
+* MySQL DB: 5.6, 5.7
+* Sqlite - latest stable (it is used mainly for development purpose)
 
 ## Getting started
 
@@ -124,13 +143,16 @@ packages can only be used in python3.6+ environment.
 Therefore we decided to prepare and release backport packages that can be installed
 for older Airflow versions. Those backport packages are released more frequently. Users do not
 have to upgrade their Airflow version to use those packages. There are a number of changes
-between Airflow 2.0 and 1.10.* - documented in [UPDATING.md](UPDATING.md). With backported
+between Airflow 2.0 and 1.10.* - documented in [UPDATING.md](../UPDATING.md). With backported
 providers package users can migrate their DAGs to the new providers package incrementally
 and once they convert to the new operators/sensors/hooks they can seamlessly migrate their
 environments to Airflow 2.0.
 
 More information about the status and releases of the back-ported packages are available
 at [Backported providers package page](https://cwiki.apache.org/confluence/display/AIRFLOW/Backported+providers+packages+for+Airflow+1.10.*+series)
+
+Dependencies between packages are stored in ``airflow/providers/dependencies.json``. See
+[CONTRIBUTING.rst](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#backport-providers-packages)
 
 ## Contributing
 
@@ -389,6 +411,7 @@ Currently **officially** using Airflow:
 1. [Qubole](https://qubole.com) [[@msumit](https://github.com/msumit)]
 1. [Quizlet](https://quizlet.com) [[@quizlet](https://github.com/quizlet)]
 1. [Quora](https://www.quora.com/)
+1. [Rakuten](https://www.rakuten.com)
 1. [Raízen](https://www.raizen.com.br/) [[@rudlac](https://github.com/rudlac) & [@guifneves](https://github.com/guifneves)]
 1. [Rapido](https://rapido.bike/) [[@ChethanUK](https://github.com/ChethanUK)]
 1. [REA Group](https://www.rea-group.com/)
@@ -459,6 +482,7 @@ Currently **officially** using Airflow:
 1. [WePay](http://www.wepay.com) [[@criccomini](https://github.com/criccomini) & [@mtagle](https://github.com/mtagle)]
 1. [WeTransfer](https://github.com/WeTransfer) [[@coredipper](https://github.com/coredipper) & [@higee](https://github.com/higee) & [@azclub](https://github.com/azclub)]
 1. [Whistle Labs](http://www.whistle.com) [[@ananya77041](https://github.com/ananya77041)]
+1. [Wildlifestudios](https://wildlifestudios.com/)
 1. [WiseBanyan](https://wisebanyan.com/)
 1. [Wooga](https://www.wooga.com/)
 1. [Wrike](https://www.wrike.com) [[@eliseealex](https://github.com/eliseealex) & [teoretic6](https://github.com/Teoretic6)]

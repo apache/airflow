@@ -27,6 +27,7 @@ Airflow has a mechanism that allows you to expand its functionality and integrat
 * :doc:`Authentication backends </security>`
 * :doc:`Logging </howto/write-logs>`
 * :doc:`Tracking systems </howto/tracking-user-activity>`
+* :ref:`Secrets backends <alternative_secrets_backend>`
 
 It also has integration with :doc:`Sentry <errors>` service for error tracking. Other applications can also integrate using
 the :doc:`REST API <rest-api-ref>`.

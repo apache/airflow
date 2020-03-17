@@ -18,7 +18,7 @@
 """Taskfail tracks the failed run durations of each task instance"""
 from sqlalchemy import Column, Index, Integer, String
 
-from airflow.models.base import ID_LEN, Base
+from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
@@ -30,8 +30,8 @@ class TaskFail(Base):
     __tablename__ = "task_fail"
 
     id = Column(Integer, primary_key=True)
-    task_id = Column(String(ID_LEN), nullable=False)
-    dag_id = Column(String(ID_LEN), nullable=False)
+    task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     execution_date = Column(UtcDateTime, nullable=False)
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)

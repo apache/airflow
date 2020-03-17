@@ -206,7 +206,7 @@ docker = [
     'docker~=3.0',
 ]
 druid = [
-    'pydruid>=0.4.1',
+    'pydruid>=0.4.1,<=0.5.8',
 ]
 elasticsearch = [
     'elasticsearch>7',
@@ -230,6 +230,7 @@ gcp = [
     'google-cloud-bigquery-datatransfer>=0.4.0',
     'google-cloud-bigtable>=1.0.0',
     'google-cloud-container>=0.1.1',
+    'google-cloud-datacatalog>=0.5.0',
     'google-cloud-dataproc>=0.5.0',
     'google-cloud-dlp>=0.11.0',
     'google-cloud-kms>=1.2.1',
@@ -290,6 +291,7 @@ mssql = [
     'pymssql~=2.1.1',
 ]
 mysql = [
+    'mysql-connector-python>=8.0.11, <=8.0.18',
     'mysqlclient>=1.3.6,<1.4',
 ]
 odbc = [
@@ -352,7 +354,7 @@ snowflake = [
     'snowflake-sqlalchemy>=1.1.0',
 ]
 ssh = [
-    'paramiko>=2.1.1',
+    'paramiko>=2.6.0',
     'pysftp>=0.2.9',
     'sshtunnel>=0.1.4,<0.2',
 ]
@@ -429,11 +431,11 @@ else:
 
 devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
 devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
-devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + datadog + devel + doc + docker + druid +
+devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + datadog + devel + doc + docker +
              elasticsearch + exasol + gcp + grpc + jdbc + jenkins + kerberos + kubernetes + ldap + odbc +
-             oracle + pagerduty + papermill + password + pinot + redis + salesforce + samba + segment +
-             sendgrid + sentry + singularity + slack + snowflake + ssh + statsd + tableau + virtualenv +
-             webhdfs + yandexcloud + zendesk)
+             oracle + pagerduty + papermill + password + redis + salesforce + samba + segment +
+             sendgrid + sentry + singularity + slack + snowflake + ssh + statsd + tableau +
+             virtualenv + webhdfs + yandexcloud + zendesk)
 
 # Snakebite are not Python 3 compatible :'(
 if PY3:
@@ -455,7 +457,8 @@ def do_setup():
         version=version,
         packages=find_packages(exclude=['tests*']),
         package_data={
-            '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb"],
+            '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb",
+                 "airflow/providers/cncf/kubernetes/example_dags/*.yaml"],
             'airflow.serialization': ["*.json"],
         },
         include_package_data=True,

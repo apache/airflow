@@ -40,12 +40,7 @@ __all__ = ['__version__', 'login', 'DAG']
 
 settings.initialize()
 
-from airflow.plugins_manager import integrate_plugins
-
 login: Optional[Callable] = None
-
-integrate_plugins()
-
 
 PY37 = sys.version_info >= (3, 7)
 

@@ -23,4 +23,5 @@ set -x
 build_image_on_ci
 
 # We need newer version of six for Travis as they bundle 1.11.0 version
-sudo pip install pre-commit 'six~=1.14'
+# Bowler is installed for backport packages build
+pip install pre-commit bowler 'six~=1.14'

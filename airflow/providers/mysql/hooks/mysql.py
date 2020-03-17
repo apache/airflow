@@ -16,10 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import json
+"""
+This module allows to connect to a MySQL database.
+"""
 
-import MySQLdb
-import MySQLdb.cursors
+import json
 
 from airflow.hooks.dbapi_hook import DbApiHook
 
@@ -65,12 +66,7 @@ class MySqlHook(DbApiHook):
         """
         return conn.get_autocommit()
 
-    def get_conn(self):
-        """
-        Returns a mysql connection object
-        """
-        conn = self.connection or self.get_connection(self.mysql_conn_id)
-
+    def _get_conn_config_mysql_client(self, conn):
         conn_config = {
             "user": conn.login,
             "passwd": conn.password or '',
@@ -83,17 +79,14 @@ class MySqlHook(DbApiHook):
             conn_config['passwd'], conn.port = self.get_iam_token(conn)
             conn_config["read_default_group"] = 'enable-cleartext-plugin'
 
-        if not conn.port:
-            conn_config["port"] = 3306
-        else:
-            conn_config["port"] = int(conn.port)
+        conn_config["port"] = int(conn.port) if conn.port else 3306
 
         if conn.extra_dejson.get('charset', False):
             conn_config["charset"] = conn.extra_dejson["charset"]
-            if (conn_config["charset"]).lower() == 'utf8' or\
-                    (conn_config["charset"]).lower() == 'utf-8':
+            if conn_config["charset"].lower() in ('utf8', 'utf-8'):
                 conn_config["use_unicode"] = True
         if conn.extra_dejson.get('cursor', False):
+            import MySQLdb.cursors
             if (conn.extra_dejson["cursor"]).lower() == 'sscursor':
                 conn_config["cursorclass"] = MySQLdb.cursors.SSCursor
             elif (conn.extra_dejson["cursor"]).lower() == 'dictcursor':
@@ -113,8 +106,48 @@ class MySqlHook(DbApiHook):
             conn_config['unix_socket'] = conn.extra_dejson['unix_socket']
         if local_infile:
             conn_config["local_infile"] = 1
-        conn = MySQLdb.connect(**conn_config)
-        return conn
+        return conn_config
+
+    def _get_conn_config_mysql_connector_python(self, conn):
+        conn_config = {
+            'user': conn.login,
+            'password': conn.password or '',
+            'host': conn.host or 'localhost',
+            'database': self.schema or conn.schema or '',
+            'port': int(conn.port) if conn.port else 3306
+        }
+
+        if conn.extra_dejson.get('allow_local_infile', False):
+            conn_config["allow_local_infile"] = True
+
+        return conn_config
+
+    def get_conn(self):
+        """
+        Establishes a connection to a mysql database
+        by extracting the connection configuration from the Airflow connection.
+
+        .. note:: By default it connects to the database via the mysqlclient library.
+            But you can also choose the mysql-connector-python library which lets you connect through ssl
+            without any further ssl parameters required.
+
+        :return: a mysql connection object
+        """
+        conn = self.connection or self.get_connection(self.mysql_conn_id)  # pylint: disable=no-member
+
+        client_name = conn.extra_dejson.get('client', 'mysqlclient')
+
+        if client_name == 'mysqlclient':
+            import MySQLdb
+            conn_config = self._get_conn_config_mysql_client(conn)
+            return MySQLdb.connect(**conn_config)
+
+        if client_name == 'mysql-connector-python':
+            import mysql.connector
+            conn_config = self._get_conn_config_mysql_connector_python(conn)
+            return mysql.connector.connect(**conn_config)
+
+        raise ValueError('Unknown MySQL client name provided!')
 
     def get_uri(self):
         conn = self.get_connection(getattr(self, self.conn_name_attr))
@@ -149,7 +182,7 @@ class MySqlHook(DbApiHook):
         conn.commit()
 
     @staticmethod
-    def _serialize_cell(cell, conn):
+    def _serialize_cell(cell, conn):  # pylint: disable=signature-differs
         """
         MySQLdb converts an argument to a literal
         when passing those separately to execute. Hence, this method does nothing.

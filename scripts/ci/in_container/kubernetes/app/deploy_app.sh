@@ -44,8 +44,8 @@ trap in_container_script_end EXIT
 export TEMPLATE_DIRNAME="${MY_DIR}/templates"
 export BUILD_DIRNAME="${MY_DIR}/build"
 
-# shellcheck source=common/_autodetect_variables.sh
-. "${AIRFLOW_SOURCES}/common/_autodetect_variables.sh"
+# shellcheck source=common/_image_variables.sh
+. "${AIRFLOW_SOURCES}/common/_image_variables.sh"
 
 # Source branch will be set in DockerHub
 SOURCE_BRANCH=${SOURCE_BRANCH:=${DEFAULT_BRANCH}}

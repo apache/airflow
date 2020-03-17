@@ -46,9 +46,6 @@ class DagRun(Base, LoggingMixin):
     """
     __tablename__ = "dag_run"
 
-    ID_PREFIX = DagRunType.SCHEDULED.value
-    ID_FORMAT_PREFIX = ID_PREFIX + '{0}'
-
     id = Column(Integer, primary_key=True)
     dag_id = Column(String(ID_LEN))
     execution_date = Column(UtcDateTime, default=timezone.utcnow)
@@ -98,12 +95,7 @@ class DagRun(Base, LoggingMixin):
 
     @declared_attr
     def state(self):
-        return synonym('_state',
-                       descriptor=property(self.get_state, self.set_state))
-
-    @classmethod
-    def id_for_date(cls, date, prefix=ID_FORMAT_PREFIX):
-        return prefix.format(date.isoformat()[:19])
+        return synonym('_state', descriptor=property(self.get_state, self.set_state))
 
     @provide_session
     def refresh_from_db(self, session=None):
@@ -185,7 +177,7 @@ class DagRun(Base, LoggingMixin):
             qry = qry.filter(DR.external_trigger == external_trigger)
         if no_backfills:
             # in order to prevent a circular dependency
-            qry = qry.filter(DR.run_id.notlike(DagRunType.BACKFILL_JOB.value + '%'))
+            qry = qry.filter(DR.run_id.notlike(f"{DagRunType.BACKFILL_JOB.value}__%"))
 
         dr = qry.order_by(DR.execution_date).all()
 
@@ -495,7 +487,7 @@ class DagRun(Base, LoggingMixin):
     def is_backfill(self):
         return (
             self.run_id is not None and
-            self.run_id.startswith(DagRunType.BACKFILL_JOB.value)
+            self.run_id.startswith(f"{DagRunType.BACKFILL_JOB.value}")
         )
 
     @classmethod

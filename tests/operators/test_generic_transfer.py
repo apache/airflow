@@ -19,12 +19,14 @@
 import unittest
 
 import pytest
+from parameterized import parameterized
 
 from airflow.models.dag import DAG
 from airflow.operators.generic_transfer import GenericTransfer
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
+from tests.providers.mysql.hooks.test_mysql import MySqlContext
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -48,21 +50,23 @@ class TestMySql(unittest.TestCase):
             for table in drop_tables:
                 conn.execute("DROP TABLE IF EXISTS {}".format(table))
 
-    def test_mysql_to_mysql(self):
-        sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
-        op = GenericTransfer(
-            task_id='test_m2m',
-            preoperator=[
-                "DROP TABLE IF EXISTS test_mysql_to_mysql",
-                "CREATE TABLE IF NOT EXISTS "
-                "test_mysql_to_mysql LIKE INFORMATION_SCHEMA.TABLES"
-            ],
-            source_conn_id='airflow_db',
-            destination_conn_id='airflow_db',
-            destination_table="test_mysql_to_mysql",
-            sql=sql,
-            dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",), ])
+    def test_mysql_to_mysql(self, client):
+        with MySqlContext(client):
+            sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
+            op = GenericTransfer(
+                task_id='test_m2m',
+                preoperator=[
+                    "DROP TABLE IF EXISTS test_mysql_to_mysql",
+                    "CREATE TABLE IF NOT EXISTS "
+                    "test_mysql_to_mysql LIKE INFORMATION_SCHEMA.TABLES"
+                ],
+                source_conn_id='airflow_db',
+                destination_conn_id='airflow_db',
+                destination_table="test_mysql_to_mysql",
+                sql=sql,
+                dag=self.dag)
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
 
 @pytest.mark.backend("postgres")

@@ -32,7 +32,7 @@ to ensure the DAG run or failure does not produce unexpected results.
 Creating a task
 ---------------
 
-You should treat tasks in Airflow equivalent to transactions in a database. It implies that you should never produce
+You should treat tasks in Airflow equivalent to transactions in a database. This implies that you should never produce
 incomplete results from your tasks. An example is not to produce incomplete data in ``HDFS`` or ``S3`` at the end of a task.
 
 Airflow can retry a task if it fails. Thus, the tasks should produce the same outcome on every re-run.
@@ -85,9 +85,9 @@ as Variables create a connection to metadata DB of Airflow to fetch the value, w
 
 Airflow parses all the DAGs in the background at a specific period.
 The default period is set using ``processor_poll_interval`` config, which is by default 1 second. During parsing, Airflow creates a new connection to the metadata DB for each DAG.
-It can result in a lot of open connections.
+This can result in a lot of open connections.
 
-The best way of using variables is via a Jinja template which will delay reading the value until the task execution. The template syntax to do this is:
+The best way of using variables is via a Jinja template, which will delay reading the value until the task execution. The template syntax to do this is:
 
 .. code::
 
@@ -108,7 +108,7 @@ or if you need to deserialize a json object from the variable :
 Testing a DAG
 ^^^^^^^^^^^^^
 
-Airflow users should treat DAGs as production level code. The DAGs should have various tests to ensure that it produces expected results.
+Airflow users should treat DAGs as production level code, and DAGs should have various associated tests to ensure that they produce expected results.
 You can write a wide variety of tests for a DAG. Let's take a look at some of them.
 
 DAG Loader Test
@@ -128,7 +128,7 @@ You can look into :ref:`Testing a DAG <testing>` for details on how to test indi
 Unit tests
 -----------
 
-Unit tests ensure that there is no incorrect code in your DAG. You can write a unit test for your tasks as well as your DAG.
+Unit tests ensure that there is no incorrect code in your DAG. You can write unit tests for both your tasks and your DAG.
 
 **Unit test for loading a DAG:**
 
@@ -200,7 +200,7 @@ Self-Checks
 
 You can also implement checks in a DAG to make sure the tasks are producing the results as expected.
 As an example, if you have a task that pushes data to S3, you can implement a check in the next task. For example, the check could
-make sure that the partition is created in S3 and perform some simple checks to see if the data is correct or not.
+make sure that the partition is created in S3 and perform some simple checks to determine if the data is correct.
 
 
 Similarly, if you have a task that starts a microservice in Kubernetes or Mesos, you should check if the service has started or not using :class:`airflow.providers.http.sensors.http.HttpSensor`.
@@ -225,7 +225,7 @@ If possible, keep a staging environment to test the complete DAG run before depl
 Make sure your DAG is parameterized to change the variables, e.g., the output path of S3 operation or the database used to read the configuration.
 Do not hard code values inside the DAG and then change them manually according to the environment.
 
-You can use environment variables  to parameterize the DAG.
+You can use environment variables to parameterize the DAG.
 
 .. code::
 
@@ -246,9 +246,9 @@ Let's see what precautions you need to take.
 Database backend
 ----------------
 
-Airflow comes with an ``SQLite`` backend by default. It allows the user to run Airflow without any external database.
-However, such a setup is meant to be for testing purposes only. Running the default setup can lead to data loss in multiple scenarios.
-If you want to run Airflow in production, make sure you :doc:`configure the backend <howto/initialize-database>` to be an external database such as PostgreSQL or MySQL.
+Airflow comes with an ``SQLite`` backend by default. This allows the user to run Airflow without any external database.
+However, such a setup is meant to be used for testing purposes only; running the default setup in production can lead to data loss in multiple scenarios.
+If you want to run production-grade Airflow, make sure you :doc:`configure the backend <howto/initialize-database>` to be an external database such as PostgreSQL or MySQL.
 
 You can change the backend using the following config
 
@@ -269,7 +269,7 @@ Once that is done, you can run -
 
 .. note::
 
- Do not use ``airflow db init`` as it can create a lot of default connection, charts, etc. which are not required in production DB.
+ Do not use ``airflow db init`` as it can create a lot of default connections, charts, etc. which are not required in production DB.
 
 
 Multi-Node Cluster
@@ -277,12 +277,12 @@ Multi-Node Cluster
 
 Airflow uses :class:`airflow.executors.sequential_executor.SequentialExecutor` by default. However, by its nature, the user is limited to executing at most
 one task at a time. ``Sequential Executor`` also pauses the scheduler when it runs a task, hence not recommended in a production setup.
-You should use :class:`Local executor <airflow.executors.local_executor.LocalExecutor>` for a single machine.
-For multi-node setup, you should use :doc:`Kubernetes executor <../executor/kubernetes>` or :doc:`Celery executor <../executor/celery>`.
+You should use the :class:`Local executor <airflow.executors.local_executor.LocalExecutor>` for a single machine.
+For a multi-node setup, you should use the :doc:`Kubernetes executor <../executor/kubernetes>` or the :doc:`Celery executor <../executor/celery>`.
 
 
 Once you have configured the executor, it is necessary to make sure that every node in the cluster contains the same configuration and dags.
-Airflow only sends simple instructions such as "execute task X of dag Y" but does not send any dag files or configuration. You can use a simple cronjob or
+Airflow sends simple instructions such as "execute task X of dag Y", but does not send any dag files or configuration. You can use a simple cronjob or
 any other mechanism to sync DAGs and configs across your nodes, e.g., checkout DAGs from git repo every 5 minutes on all nodes.
 
 
@@ -301,16 +301,16 @@ This way, the logs are available even after the node goes down or gets replaced.
 Configuration
 --------------
 
-Airflow comes bundles with a default ``airflow.cfg`` configuration file.
+Airflow comes bundled with a default ``airflow.cfg`` configuration file.
 You should use environment variables for configurations that change across deployments
-e.g. metadata DB, password. You can do it using the format ``$AIRFLOW__{SECTION}__{KEY}``
+e.g. metadata DB, password, etc. You can accomplish this using the format ``$AIRFLOW__{SECTION}__{KEY}``
 
 .. code::
 
  AIRFLOW__CORE__SQL_ALCHEMY_CONN=my_conn_id
  AIRFLOW__WEBSERVER__BASE_URL=http://host:port
 
-Some configurations such as Airflow Backend connection URI can be derived from bash commands as well:
+Some configurations such as the Airflow Backend connection URI can be derived from bash commands as well:
 
 .. code::
 
@@ -324,7 +324,7 @@ Airflow users have for a long time been affected by a
 `core Airflow bug <https://issues.apache.org/jira/browse/AIRFLOW-401>`_
 that causes the scheduler to hang without a trace.
 
-Until fully resolved, you can mitigate a few ways:
+Until fully resolved, you can mitigate this issue via a few short-term workarounds:
 
 * Set a reasonable run_duration setting in your ``airflow.cfg``. `Example config <https://github.com/astronomer/airflow-chart/blob/63bc503c67e2cd599df0b6f831d470d09bad7ee7/templates/configmap.yaml#L44>`_.
 * Add an ``exec`` style health check to your helm charts on the scheduler deployment to fail if the scheduler has not heartbeat in a while. `Example health check definition <https://github.com/astronomer/helm.astronomer.io/pull/200/files>`_.

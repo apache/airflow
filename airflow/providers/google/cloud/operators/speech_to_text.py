@@ -22,6 +22,7 @@ from typing import Optional
 
 from google.api_core.retry import Retry
 from google.cloud.speech_v1.types import RecognitionConfig
+from google.protobuf.json_format import MessageToDict
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -90,6 +91,7 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudSpeechToTextHook(gcp_conn_id=self.gcp_conn_id)
-        return hook.recognize_speech(
+        respones = hook.recognize_speech(
             config=self.config, audio=self.audio, retry=self.retry, timeout=self.timeout
         )
+        return MessageToDict(respones)

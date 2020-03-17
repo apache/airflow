@@ -94,6 +94,8 @@ All operators are in the following packages:
 
   airflow/providers/cncf/kubernetes/operators/index
 
+  airflow/providers/cncf/kubernetes/sensors/index
+
   airflow/providers/databricks/operators/index
 
   airflow/providers/datadog/sensors/index
@@ -231,6 +233,8 @@ All hooks are in the following packages:
 
   airflow/providers/cloudant/hooks/index
 
+  airflow/providers/cncf/kubernetes/hooks/index
+
   airflow/providers/databricks/hooks/index
 
   airflow/providers/datadog/hooks/index
@@ -277,7 +281,7 @@ All hooks are in the following packages:
 
   airflow/providers/odbc/hooks/index
 
-  airflow/providers/openfass/hooks/index
+  airflow/providers/openfaas/hooks/index
 
   airflow/providers/opsgenie/hooks/index
 
@@ -342,3 +346,19 @@ persisted in the database.
   :maxdepth: 1
 
   airflow/models/index
+
+
+Secrets Backends
+----------------
+Airflow uses relies on secrets backends to retrieve :class:`~airflow.models.connection.Connection` objects.
+All secrets backends derive from :class:`~airflow.secrets.BaseSecretsBackend`.  See :ref:`using an alternative secrets
+backend <alternative_secrets_backend>` for more info.
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  airflow/secrets/index
+
+  airflow/providers/amazon/aws/secrets/index

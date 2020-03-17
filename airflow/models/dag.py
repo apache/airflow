@@ -45,6 +45,7 @@ from airflow.exceptions import (
 from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
+from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
@@ -1076,12 +1077,15 @@ class DAG(BaseDag, LoggingMixin):
         if get_tis:
             return tis
 
+        tis = tis.all()
+
         if dry_run:
-            tis = tis.all()
             session.expunge_all()
             return tis
 
-        count = tis.count()
+        # Do not use count() here, it's actually much slower than just retrieving all the rows when
+        # tis has multiple UNION statements.
+        count = len(tis)
         do_it = True
         if count == 0:
             return 0
@@ -1094,7 +1098,7 @@ class DAG(BaseDag, LoggingMixin):
             do_it = utils.helpers.ask_yesno(question)
 
         if do_it:
-            clear_task_instances(tis.all(),
+            clear_task_instances(tis,
                                  session,
                                  dag=self,
                                  )
@@ -1527,6 +1531,9 @@ class DAG(BaseDag, LoggingMixin):
                         dag_tag_orm = DagTag(name=dag_tag, dag_id=dag.dag_id)
                         orm_dag.tags.append(dag_tag_orm)
                         session.add(dag_tag_orm)
+
+        if conf.getboolean('core', 'store_dag_code', fallback=False):
+            DagCode.bulk_sync_to_db([dag.fileloc for dag in orm_dags])
 
         session.commit()
 

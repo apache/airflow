@@ -45,12 +45,10 @@ MISSING_TEST_FILES = {
     'tests/providers/jenkins/hooks/test_jenkins.py',
     'tests/providers/microsoft/azure/sensors/test_azure_cosmos.py',
     'tests/providers/microsoft/mssql/hooks/test_mssql.py',
-    'tests/providers/microsoft/mssql/operators/test_mssql.py',
     'tests/providers/oracle/operators/test_oracle.py',
     'tests/providers/qubole/hooks/test_qubole.py',
     'tests/providers/samba/hooks/test_samba.py',
-    'tests/providers/sqlite/operators/test_sqlite.py',
-    'tests/providers/vertica/hooks/test_vertica.py'
+    'tests/providers/sqlite/operators/test_sqlite.py'
 }
 
 

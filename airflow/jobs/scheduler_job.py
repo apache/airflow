@@ -28,7 +28,7 @@ from collections import defaultdict
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import timedelta
 from itertools import groupby
-from typing import List, Set
+from typing import List, Optional, Tuple
 
 from setproctitle import setproctitle
 from sqlalchemy import and_, func, not_, or_
@@ -49,7 +49,7 @@ from airflow.ti_deps.dependencies import SCHEDULED_DEPS
 from airflow.ti_deps.deps.pool_slots_available_dep import STATES_TO_COUNT_AS_RUNNING
 from airflow.utils import asciiart, helpers, timezone
 from airflow.utils.dag_processing import (
-    AbstractDagFileProcessorProcess, DagFileProcessorAgent, SimpleDag, SimpleDagBag,
+    AbstractDagFileProcessorProcess, DagFileProcessorAgent, FailureCallbackRequest, SimpleDag, SimpleDagBag,
 )
 from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
@@ -67,21 +67,27 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
     :type pickle_dags: bool
     :param dag_id_white_list: If specified, only look at these DAG ID's
     :type dag_id_white_list: List[str]
-    :param zombies: zombie task instances to kill
-    :type zombies: List[airflow.models.taskinstance.SimpleTaskInstance]
+    :param failure_callback_requests: failure callback to execute
+    :type failure_callback_requests: List[airflow.utils.dag_processing.FailureCallbackRequest]
     """
 
     # Counter that increments every time an instance of this class is created
     class_creation_counter = 0
 
-    def __init__(self, file_path, pickle_dags, dag_id_white_list, zombies):
+    def __init__(
+        self,
+        file_path: str,
+        pickle_dags: bool,
+        dag_id_white_list: Optional[List[str]],
+        failure_callback_requests: List[FailureCallbackRequest]
+    ):
         self._file_path = file_path
+        self._pickle_dags = pickle_dags
+        self._dag_id_white_list = dag_id_white_list
+        self._failure_callback_requests = failure_callback_requests
 
         # The process that was launched to process the given .
         self._process = None
-        self._dag_id_white_list = dag_id_white_list
-        self._pickle_dags = pickle_dags
-        self._zombies = zombies
         # The result of Scheduler.process_file(file_path).
         self._result = None
         # Whether the process is done running.
@@ -106,7 +112,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
                             pickle_dags,
                             dag_id_white_list,
                             thread_name,
-                            zombies):
+                            failure_callback_requests):
         """
         Process the given file.
 
@@ -122,8 +128,8 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
         :type dag_id_white_list: list[str]
         :param thread_name: the name to use for the process that is launched
         :type thread_name: str
-        :param zombies: zombie task instances to kill
-        :type zombies: list[airflow.models.taskinstance.SimpleTaskInstance]
+        :param failure_callback_requests: failure callback to execute
+        :type failure_callback_requests: list[airflow.utils.dag_processing.FailureCallbackRequest]
         :return: the process that was launched
         :rtype: multiprocessing.Process
         """
@@ -151,8 +157,8 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
                 dag_file_processor = DagFileProcessor(dag_ids=dag_id_white_list, log=log)
                 result = dag_file_processor.process_file(
                     file_path=file_path,
-                    zombies=zombies,
-                    pickle_dags=pickle_dags
+                    pickle_dags=pickle_dags,
+                    failure_callback_requests=failure_callback_requests,
                 )
                 result_channel.send(result)
                 end_time = time.time()
@@ -182,7 +188,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
                 self._pickle_dags,
                 self._dag_id_white_list,
                 "DagFileProcessor{}".format(self._instance_id),
-                self._zombies
+                self._failure_callback_requests
             ),
             name="DagFileProcessor{}-Process".format(self._instance_id)
         )
@@ -511,138 +517,140 @@ class DagFileProcessor(LoggingMixin):
         Returns DagRun if one is scheduled. Otherwise returns None.
         """
         # pylint: disable=too-many-nested-blocks
-        if dag.schedule_interval and conf.getboolean('scheduler', 'USE_JOB_SCHEDULE'):
-            if dag_runs is None:
-                active_runs = DagRun.find(
-                    dag_id=dag.dag_id,
-                    state=State.RUNNING,
-                    external_trigger=False,
-                    session=session
-                )
-            else:
-                active_runs = [
-                    dag_run
-                    for dag_run in dag_runs
-                    if not dag_run.external_trigger
-                ]
-            # return if already reached maximum active runs and no timeout setting
-            if len(active_runs) >= dag.max_active_runs and not dag.dagrun_timeout:
-                return None
-            timedout_runs = 0
-            for dr in active_runs:
-                if (
-                    dr.start_date and dag.dagrun_timeout and
-                    dr.start_date < timezone.utcnow() - dag.dagrun_timeout
-                ):
-                    dr.state = State.FAILED
-                    dr.end_date = timezone.utcnow()
-                    dag.handle_callback(dr, success=False, reason='dagrun_timeout',
-                                        session=session)
-                    timedout_runs += 1
-            session.commit()
-            if len(active_runs) - timedout_runs >= dag.max_active_runs:
-                return None
+        if not dag.schedule_interval:
+            return None
 
-            # this query should be replaced by find dagrun
-            qry = (
-                session.query(func.max(DagRun.execution_date))
-                    .filter_by(dag_id=dag.dag_id)
-                    .filter(or_(
-                        DagRun.external_trigger == False,  # noqa: E712 pylint: disable=singleton-comparison
-                        # add % as a wildcard for the like query
-                        DagRun.run_id.like(DagRunType.SCHEDULED.value + '%')
-                    )
+        if dag_runs is None:
+            active_runs = DagRun.find(
+                dag_id=dag.dag_id,
+                state=State.RUNNING,
+                external_trigger=False,
+                session=session
+            )
+        else:
+            active_runs = [
+                dag_run
+                for dag_run in dag_runs
+                if not dag_run.external_trigger
+            ]
+        # return if already reached maximum active runs and no timeout setting
+        if len(active_runs) >= dag.max_active_runs and not dag.dagrun_timeout:
+            return None
+        timedout_runs = 0
+        for dr in active_runs:
+            if (
+                dr.start_date and dag.dagrun_timeout and
+                dr.start_date < timezone.utcnow() - dag.dagrun_timeout
+            ):
+                dr.state = State.FAILED
+                dr.end_date = timezone.utcnow()
+                dag.handle_callback(dr, success=False, reason='dagrun_timeout',
+                                    session=session)
+                timedout_runs += 1
+        session.commit()
+        if len(active_runs) - timedout_runs >= dag.max_active_runs:
+            return None
+
+        # this query should be replaced by find dagrun
+        qry = (
+            session.query(func.max(DagRun.execution_date))
+                .filter_by(dag_id=dag.dag_id)
+                .filter(or_(
+                    DagRun.external_trigger == False,  # noqa: E712 pylint: disable=singleton-comparison
+                    # add % as a wildcard for the like query
+                    DagRun.run_id.like(f"{DagRunType.SCHEDULED.value}__%")
                 )
             )
-            last_scheduled_run = qry.scalar()
+        )
+        last_scheduled_run = qry.scalar()
 
-            # don't schedule @once again
-            if dag.schedule_interval == '@once' and last_scheduled_run:
-                return None
+        # don't schedule @once again
+        if dag.schedule_interval == '@once' and last_scheduled_run:
+            return None
 
-            # don't do scheduler catchup for dag's that don't have dag.catchup = True
-            if not (dag.catchup or dag.schedule_interval == '@once'):
-                # The logic is that we move start_date up until
-                # one period before, so that timezone.utcnow() is AFTER
-                # the period end, and the job can be created...
-                now = timezone.utcnow()
-                next_start = dag.following_schedule(now)
-                last_start = dag.previous_schedule(now)
-                if next_start <= now:
-                    new_start = last_start
-                else:
-                    new_start = dag.previous_schedule(last_start)
-
-                if dag.start_date:
-                    if new_start >= dag.start_date:
-                        dag.start_date = new_start
-                else:
-                    dag.start_date = new_start
-
-            next_run_date = None
-            if not last_scheduled_run:
-                # First run
-                task_start_dates = [t.start_date for t in dag.tasks]
-                if task_start_dates:
-                    next_run_date = dag.normalize_schedule(min(task_start_dates))
-                    self.log.debug(
-                        "Next run date based on tasks %s",
-                        next_run_date
-                    )
+        # don't do scheduler catchup for dag's that don't have dag.catchup = True
+        if not (dag.catchup or dag.schedule_interval == '@once'):
+            # The logic is that we move start_date up until
+            # one period before, so that timezone.utcnow() is AFTER
+            # the period end, and the job can be created...
+            now = timezone.utcnow()
+            next_start = dag.following_schedule(now)
+            last_start = dag.previous_schedule(now)
+            if next_start <= now:
+                new_start = last_start
             else:
-                next_run_date = dag.following_schedule(last_scheduled_run)
+                new_start = dag.previous_schedule(last_start)
 
-            # make sure backfills are also considered
-            last_run = dag.get_last_dagrun(session=session)
-            if last_run and next_run_date:
-                while next_run_date <= last_run.execution_date:
-                    next_run_date = dag.following_schedule(next_run_date)
-
-            # don't ever schedule prior to the dag's start_date
             if dag.start_date:
-                next_run_date = (dag.start_date if not next_run_date
-                                 else max(next_run_date, dag.start_date))
-                if next_run_date == dag.start_date:
-                    next_run_date = dag.normalize_schedule(dag.start_date)
+                if new_start >= dag.start_date:
+                    dag.start_date = new_start
+            else:
+                dag.start_date = new_start
 
+        next_run_date = None
+        if not last_scheduled_run:
+            # First run
+            task_start_dates = [t.start_date for t in dag.tasks]
+            if task_start_dates:
+                next_run_date = dag.normalize_schedule(min(task_start_dates))
                 self.log.debug(
-                    "Dag start date: %s. Next run date: %s",
-                    dag.start_date, next_run_date
+                    "Next run date based on tasks %s",
+                    next_run_date
                 )
+        else:
+            next_run_date = dag.following_schedule(last_scheduled_run)
 
-            # don't ever schedule in the future or if next_run_date is None
-            if not next_run_date or next_run_date > timezone.utcnow():
-                return None
+        # make sure backfills are also considered
+        last_run = dag.get_last_dagrun(session=session)
+        if last_run and next_run_date:
+            while next_run_date <= last_run.execution_date:
+                next_run_date = dag.following_schedule(next_run_date)
 
-            # this structure is necessary to avoid a TypeError from concatenating
-            # NoneType
-            if dag.schedule_interval == '@once':
-                period_end = next_run_date
-            elif next_run_date:
-                period_end = dag.following_schedule(next_run_date)
+        # don't ever schedule prior to the dag's start_date
+        if dag.start_date:
+            next_run_date = (dag.start_date if not next_run_date
+                             else max(next_run_date, dag.start_date))
+            if next_run_date == dag.start_date:
+                next_run_date = dag.normalize_schedule(dag.start_date)
 
-            # Don't schedule a dag beyond its end_date (as specified by the dag param)
-            if next_run_date and dag.end_date and next_run_date > dag.end_date:
-                return None
+            self.log.debug(
+                "Dag start date: %s. Next run date: %s",
+                dag.start_date, next_run_date
+            )
 
-            # Don't schedule a dag beyond its end_date (as specified by the task params)
-            # Get the min task end date, which may come from the dag.default_args
-            min_task_end_date = []
-            task_end_dates = [t.end_date for t in dag.tasks if t.end_date]
-            if task_end_dates:
-                min_task_end_date = min(task_end_dates)
-            if next_run_date and min_task_end_date and next_run_date > min_task_end_date:
-                return None
+        # don't ever schedule in the future or if next_run_date is None
+        if not next_run_date or next_run_date > timezone.utcnow():
+            return None
 
-            if next_run_date and period_end and period_end <= timezone.utcnow():
-                next_run = dag.create_dagrun(
-                    run_id=DagRunType.SCHEDULED.value + next_run_date.isoformat(),
-                    execution_date=next_run_date,
-                    start_date=timezone.utcnow(),
-                    state=State.RUNNING,
-                    external_trigger=False
-                )
-                return next_run
+        # this structure is necessary to avoid a TypeError from concatenating
+        # NoneType
+        if dag.schedule_interval == '@once':
+            period_end = next_run_date
+        elif next_run_date:
+            period_end = dag.following_schedule(next_run_date)
+
+        # Don't schedule a dag beyond its end_date (as specified by the dag param)
+        if next_run_date and dag.end_date and next_run_date > dag.end_date:
+            return None
+
+        # Don't schedule a dag beyond its end_date (as specified by the task params)
+        # Get the min task end date, which may come from the dag.default_args
+        min_task_end_date = []
+        task_end_dates = [t.end_date for t in dag.tasks if t.end_date]
+        if task_end_dates:
+            min_task_end_date = min(task_end_dates)
+        if next_run_date and min_task_end_date and next_run_date > min_task_end_date:
+            return None
+
+        if next_run_date and period_end and period_end <= timezone.utcnow():
+            next_run = dag.create_dagrun(
+                run_id=f"{DagRunType.SCHEDULED.value}__{next_run_date.isoformat()}",
+                execution_date=next_run_date,
+                start_date=timezone.utcnow(),
+                state=State.RUNNING,
+                external_trigger=False
+            )
+            return next_run
 
         return None
 
@@ -706,8 +714,9 @@ class DagFileProcessor(LoggingMixin):
         :return: A list of generated TaskInstance objects
         """
         check_slas = conf.getboolean('core', 'CHECK_SLAS', fallback=True)
-        # pylint: disable=too-many-nested-blocks
+        use_job_schedule = conf.getboolean('scheduler', 'USE_JOB_SCHEDULE')
 
+        # pylint: disable=too-many-nested-blocks
         tis_out: List[TaskInstanceKeyType] = []
         dag_ids = [dag.dag_id for dag in dags]
         dag_runs = DagRun.find(dag_id=dag_ids, state=State.RUNNING, session=session)
@@ -722,7 +731,7 @@ class DagFileProcessor(LoggingMixin):
 
             # Only creates DagRun for DAGs that are not subdag since
             # DagRun of subdags are created when SubDagOperator executes.
-            if not dag.is_subdag:
+            if not dag.is_subdag and use_job_schedule:
                 dag_run = self.create_dag_run(dag, dag_runs=dag_runs_for_dag)
                 if dag_run:
                     dag_runs_for_dag.append(dag_run)
@@ -741,55 +750,51 @@ class DagFileProcessor(LoggingMixin):
 
         return tis_out
 
-    def _find_dags_to_process(self, dags: List[DAG], paused_dag_ids: Set[str]) -> List[DAG]:
+    def _find_dags_to_process(self, dags: List[DAG]) -> List[DAG]:
         """
         Find the DAGs that are not paused to process.
 
         :param dags: specified DAGs
-        :param paused_dag_ids: paused DAG IDs
         :return: DAGs to process
         """
-        if len(self.dag_ids) > 0:
+        if self.dag_ids:
             dags = [dag for dag in dags
-                    if dag.dag_id in self.dag_ids and
-                    dag.dag_id not in paused_dag_ids]
-        else:
-            dags = [dag for dag in dags
-                    if dag.dag_id not in paused_dag_ids]
+                    if dag.dag_id in self.dag_ids]
         return dags
 
     @provide_session
-    def kill_zombies(self, dagbag, zombies, session=None):
+    def execute_on_failure_callbacks(self, dagbag, failure_callback_requests, session=None):
         """
-        Fail given zombie tasks, which are tasks that haven't
-        had a heartbeat for too long, in the current DagBag.
+        Execute on failure callbacks. These objects can come from SchedulerJob or from
+        DagFileProcessorManager.
 
-        :param zombies: zombie task instances to kill.
-        :type zombies: List[airflow.models.taskinstance.SimpleTaskInstance]
+        :param failure_callback_requests: failure callbacks to execute
+        :type failure_callback_requests: List[airflow.utils.dag_processing.FailureCallbackRequest]
         :param session: DB session.
         """
         TI = models.TaskInstance
 
-        for zombie in zombies:
-            if zombie.dag_id in dagbag.dags:
-                dag = dagbag.dags[zombie.dag_id]
-                if zombie.task_id in dag.task_ids:
-                    task = dag.get_task(zombie.task_id)
-                    ti = TI(task, zombie.execution_date)
+        for request in failure_callback_requests:
+            simple_ti = request.simple_task_instance
+            if simple_ti.dag_id in dagbag.dags:
+                dag = dagbag.dags[simple_ti.dag_id]
+                if simple_ti.task_id in dag.task_ids:
+                    task = dag.get_task(simple_ti.task_id)
+                    ti = TI(task, simple_ti.execution_date)
                     # Get properties needed for failure handling from SimpleTaskInstance.
-                    ti.start_date = zombie.start_date
-                    ti.end_date = zombie.end_date
-                    ti.try_number = zombie.try_number
-                    ti.state = zombie.state
+                    ti.start_date = simple_ti.start_date
+                    ti.end_date = simple_ti.end_date
+                    ti.try_number = simple_ti.try_number
+                    ti.state = simple_ti.state
                     ti.test_mode = self.UNIT_TEST_MODE
-                    ti.handle_failure("{} detected as zombie".format(ti),
-                                      ti.test_mode, ti.get_template_context())
-                    self.log.info('Marked zombie job %s as %s', ti, ti.state)
-                    Stats.incr('zombies_killed')
+                    ti.handle_failure(request.msg, ti.test_mode, ti.get_template_context())
+                    self.log.info('Executed failure callback for %s in state %s', ti, ti.state)
         session.commit()
 
     @provide_session
-    def process_file(self, file_path, zombies, pickle_dags=False, session=None):
+    def process_file(
+        self, file_path, failure_callback_requests, pickle_dags=False, session=None
+    ) -> Tuple[List[SimpleDag], int]:
         """
         Process a Python file containing Airflow DAGs.
 
@@ -808,24 +813,23 @@ class DagFileProcessor(LoggingMixin):
 
         :param file_path: the path to the Python file that should be executed
         :type file_path: str
-        :param zombies: zombie task instances to kill.
-        :type zombies: List[airflow.models.taskinstance.SimpleTaskInstance]
+        :param failure_callback_requests: failure callback to execute
+        :type failure_callback_requests: List[airflow.utils.dag_processing.FailureCallbackRequest]
         :param pickle_dags: whether serialize the DAGs found in the file and
             save them to the db
         :type pickle_dags: bool
-        :return: a list of SimpleDags made from the Dags found in the file
-        :rtype: List[airflow.utils.dag_processing.SimpleDagBag]
+        :return: a tuple with list of SimpleDags made from the Dags found in the file and
+            count of import errors.
+        :rtype: Tuple[List[SimpleDag], int]
         """
         self.log.info("Processing file %s for tasks to queue", file_path)
-        # As DAGs are parsed from this file, they will be converted into SimpleDags
-        simple_dags = []
 
         try:
             dagbag = models.DagBag(file_path, include_examples=False)
         except Exception:  # pylint: disable=broad-except
             self.log.exception("Failed at reloading the DAG file %s", file_path)
             Stats.incr('dag_file_refresh_error', 1, 1)
-            return [], []
+            return [], 0
 
         if len(dagbag.dags) > 0:
             self.log.info("DAG(s) %s retrieved from %s", dagbag.dags.keys(), file_path)
@@ -834,29 +838,55 @@ class DagFileProcessor(LoggingMixin):
             self.update_import_errors(session, dagbag)
             return [], len(dagbag.import_errors)
 
+        try:
+            self.execute_on_failure_callbacks(dagbag, failure_callback_requests)
+        except Exception:  # pylint: disable=broad-except
+            self.log.exception("Error executing failure callback!")
+
         # Save individual DAGs in the ORM and update DagModel.last_scheduled_time
         dagbag.sync_to_db()
 
         paused_dag_ids = DagModel.get_paused_dag_ids(dag_ids=dagbag.dag_ids)
 
-        # Pickle the DAGs (if necessary) and put them into a SimpleDag
-        for dag_id, dag in dagbag.dags.items():
-            # Only return DAGs that are not paused
-            if dag_id not in paused_dag_ids:
-                pickle_id = None
-                if pickle_dags:
-                    pickle_id = dag.pickle(session).id
-                simple_dags.append(SimpleDag(dag, pickle_id=pickle_id))
+        unpaused_dags = [dag for dag_id, dag in dagbag.dags.items() if dag_id not in paused_dag_ids]
 
-        dags = self._find_dags_to_process(dagbag.dags.values(), paused_dag_ids)
+        simple_dags = self._prepare_simple_dags(unpaused_dags, pickle_dags, session)
+
+        dags = self._find_dags_to_process(unpaused_dags)
 
         ti_keys_to_schedule = self._process_dags(dags, session)
 
+        self._schedule_task_instances(dagbag, ti_keys_to_schedule, session)
+
+        # Record import errors into the ORM
+        try:
+            self.update_import_errors(session, dagbag)
+        except Exception:  # pylint: disable=broad-except
+            self.log.exception("Error logging import errors!")
+
+        return simple_dags, len(dagbag.import_errors)
+
+    @provide_session
+    def _schedule_task_instances(
+        self,
+        dagbag: models.DagBag,
+        ti_keys_to_schedule: List[TaskInstanceKeyType],
+        session=None
+    ) -> None:
+        """
+        Checks whether the tasks specified by `ti_keys_to_schedule` parameter can be scheduled and
+        updates the information in the database,
+
+        :param dagbag: DagBag
+        :type dagbag: models.DagBag
+        :param ti_keys_to_schedule:  List of task instnace keys which can be scheduled.
+        :param ti_keys_to_schedule:
+        """
         # Refresh all task instances that will be scheduled
         TI = models.TaskInstance
         filter_for_tis = TI.filter_for_tis(ti_keys_to_schedule)
 
-        refreshed_tis = []
+        refreshed_tis: List[models.TaskInstance] = []
 
         if filter_for_tis is not None:
             refreshed_tis = session.query(TI).filter(filter_for_tis).with_for_update().all()
@@ -889,17 +919,25 @@ class DagFileProcessor(LoggingMixin):
         # commit batch
         session.commit()
 
-        # Record import errors into the ORM
-        try:
-            self.update_import_errors(session, dagbag)
-        except Exception:  # pylint: disable=broad-except
-            self.log.exception("Error logging import errors!")
-        try:
-            self.kill_zombies(dagbag, zombies)
-        except Exception:  # pylint: disable=broad-except
-            self.log.exception("Error killing zombies!")
+    @provide_session
+    def _prepare_simple_dags(self, dags: List[DAG], pickle_dags: bool, session=None) -> List[SimpleDag]:
+        """
+        Convert DAGS to  SimpleDags. If necessary, it also Pickle the DAGs
 
-        return simple_dags, len(dagbag.import_errors)
+        :param dags: List of DAGs
+        :param pickle_dags: whether serialize the DAGs found in the file and
+            save them to the db
+        :type pickle_dags: bool
+        :return: List of SimpleDag
+        :rtype: List[airflow.utils.dag_processing.SimpleDag]
+        """
+
+        simple_dags = []
+        # Pickle the DAGs (if necessary) and put them into a SimpleDag
+        for dag in dags:
+            pickle_id = dag.pickle(session).id if pickle_dags else None
+            simple_dags.append(SimpleDag(dag, pickle_id=pickle_id))
+        return simple_dags
 
 
 class SchedulerJob(BaseJob):
@@ -1123,7 +1161,7 @@ class SchedulerJob(BaseJob):
             .outerjoin(
                 DR, and_(DR.dag_id == TI.dag_id, DR.execution_date == TI.execution_date)
             )
-            .filter(or_(DR.run_id.is_(None), not_(DR.run_id.like(DagRunType.BACKFILL_JOB.value + '%'))))
+            .filter(or_(DR.run_id.is_(None), not_(DR.run_id.like(f"{DagRunType.BACKFILL_JOB.value}__%"))))
             .outerjoin(DM, DM.dag_id == TI.dag_id)
             .filter(or_(DM.dag_id.is_(None), not_(DM.is_paused)))
             .filter(TI.state == State.SCHEDULED)
@@ -1455,24 +1493,19 @@ class SchedulerJob(BaseJob):
 
                 # TODO: should we fail RUNNING as well, as we do in Backfills?
                 if ti.try_number == try_number and ti.state == State.QUEUED:
-                    msg = ("Executor reports task instance {} finished ({}) "
-                           "although the task says its {}. Was the task "
-                           "killed externally?".format(ti, state, ti.state))
                     Stats.incr('scheduler.tasks.killed_externally')
-                    self.log.error(msg)
-                    try:
-                        simple_dag = simple_dag_bag.get_dag(dag_id)
-                        dagbag = models.DagBag(simple_dag.full_filepath)
-                        dag = dagbag.get_dag(dag_id)
-                        ti.task = dag.get_task(task_id)
-                        ti.handle_failure(msg)
-                    except Exception:  # pylint: disable=broad-except
-                        self.log.error("Cannot load the dag bag to handle failure for %s"
-                                       ". Setting task to FAILED without callbacks or "
-                                       "retries. Do you have enough resources?", ti)
-                        ti.state = State.FAILED
-                        session.merge(ti)
-                        session.commit()
+                    self.log.error(
+                        "Executor reports task instance %s finished (%s) although the task says its %s. "
+                        "Was the task killed externally?",
+                        ti, state, ti.state
+                    )
+                    simple_dag = simple_dag_bag.get_dag(dag_id)
+                    self.processor_agent.send_callback_to_execute(
+                        full_filepath=simple_dag.full_filepath,
+                        task_instance=ti,
+                        msg="Executor reports task instance finished ({}) although the task says its {}. "
+                            "Was the task killed externally?".format(state, ti.state)
+                    )
 
     def _execute(self):
         self.log.info("Starting the scheduler")
@@ -1484,12 +1517,12 @@ class SchedulerJob(BaseJob):
 
         self.log.info("Processing each file at most %s times", self.num_runs)
 
-        def processor_factory(file_path, zombies):
+        def processor_factory(file_path, failure_callback_requests):
             return DagFileProcessorProcess(
                 file_path=file_path,
                 pickle_dags=pickle_dags,
                 dag_id_white_list=self.dag_ids,
-                zombies=zombies
+                failure_callback_requests=failure_callback_requests
             )
 
         # When using sqlite, we do not use async_mode

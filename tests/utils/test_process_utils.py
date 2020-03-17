@@ -20,9 +20,11 @@ import logging
 import multiprocessing
 import os
 import signal
+import subprocess
 import time
 import unittest
 from subprocess import CalledProcessError
+from time import sleep
 
 import psutil
 
@@ -104,3 +106,47 @@ class TestExecuteInSubProcess(unittest.TestCase):
     def test_should_raise_exception(self):
         with self.assertRaises(CalledProcessError):
             process_utils.execute_in_subprocess(["bash", "-c", "exit 1"])
+
+
+def my_sleep_subprocess():
+    sleep(100)
+
+
+def my_sleep_subprocess_with_signals():
+    signal.signal(signal.SIGINT, lambda signum, frame: None)
+    signal.signal(signal.SIGTERM, lambda signum, frame: None)
+    sleep(100)
+
+
+class TestKillChildProcessesByPids(unittest.TestCase):
+    def test_should_kill_process(self):
+        before_num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
+
+        process = multiprocessing.Process(target=my_sleep_subprocess, args=())
+        process.start()
+        sleep(0)
+
+        num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
+        self.assertEqual(before_num_process + 1, num_process)
+
+        process_utils.kill_child_processes_by_pids([process.pid])
+
+        num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
+        self.assertEqual(before_num_process, num_process)
+
+    def test_should_force_kill_process(self):
+        before_num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
+
+        process = multiprocessing.Process(target=my_sleep_subprocess_with_signals, args=())
+        process.start()
+        sleep(0)
+
+        num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
+        self.assertEqual(before_num_process + 1, num_process)
+
+        with self.assertLogs(process_utils.log) as cm:
+            process_utils.kill_child_processes_by_pids([process.pid], timeout=0)
+        self.assertTrue(any("Killing child PID" in line for line in cm.output))
+
+        num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
+        self.assertEqual(before_num_process, num_process)
