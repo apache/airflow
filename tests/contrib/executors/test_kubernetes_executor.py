@@ -893,6 +893,31 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         env = worker_config._get_environment()
         self.assertEqual(env[core_executor], 'LocalExecutor')
 
+    def test_kubernetes_environment_variables_for_init_container(self):
+        self.kube_config.dags_volume_claim = None
+        self.kube_config.dags_volume_host = None
+        self.kube_config.dags_in_image = None
+
+        # Tests the kubernetes environment variables get copied into the worker pods
+        input_environment = {
+            'ENVIRONMENT': 'prod',
+            'LOG_LEVEL': 'warning'
+        }
+        self.kube_config.kube_env_vars = input_environment
+        worker_config = WorkerConfiguration(self.kube_config)
+        env = worker_config._get_environment()
+        for key in input_environment:
+            self.assertIn(key, env)
+            self.assertIn(input_environment[key], env.values())
+
+        init_containers = worker_config._get_init_containers()
+
+        self.assertTrue(init_containers)  # check not empty
+        env = init_containers[0]['env']
+
+        self.assertTrue({'name': 'ENVIRONMENT', 'value': 'prod'} in env)
+        self.assertTrue({'name': 'LOG_LEVEL', 'value': 'warning'} in env)
+
     def test_get_secrets(self):
         # Test when secretRef is None and kube_secrets is not empty
         self.kube_config.kube_secrets = {

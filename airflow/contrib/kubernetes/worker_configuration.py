@@ -73,6 +73,13 @@ class WorkerConfiguration(LoggingMixin):
             'name': 'GIT_SYNC_REV',
             'value': self.kube_config.git_sync_rev
         }]
+
+        for env_var_name, env_var_val in six.iteritems(self.kube_config.kube_env_vars):
+            init_environment.append({
+                'name': env_var_name,
+                'value': env_var_val
+            })
+
         if self.kube_config.git_user:
             init_environment.append({
                 'name': 'GIT_SYNC_USERNAME',
