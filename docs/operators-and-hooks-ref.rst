@@ -986,7 +986,7 @@ These integrations allow you to perform various operations within various servic
      -
 
    * - `Google Ads <https://ads.google.com/home/>`__
-     - :doc:`How to use <howto/operator/gcp/google_ads>`
+     - :doc:`How to use <howto/operator/gcp/ads>`
      - :mod:`airflow.providers.google.ads.hooks.ads`
      - :mod:`airflow.providers.google.ads.operators.ads`
      -
