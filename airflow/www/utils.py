@@ -297,7 +297,7 @@ def localized_f(attr_name):
     def dt(attr):
         f = attr.get(attr_name)
         if f is None:
-            return Markup('<time datetime="{}">{}</time>').format(f, f)
+            return None
         else:
             f = f.strftime(date_format)
             return Markup('<time datetime="{}">{}</time>').format(f, f)
