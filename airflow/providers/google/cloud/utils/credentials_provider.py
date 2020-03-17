@@ -130,7 +130,7 @@ def provide_gcp_connection(
         scopes=scopes, key_file_path=key_file_path, project_id=project_id
     )
 
-    with patch_environ({"AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT": conn}):
+    with patch_environ({AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT: conn}):
         yield
 
 
