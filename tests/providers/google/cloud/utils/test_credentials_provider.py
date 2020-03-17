@@ -26,7 +26,7 @@ from google.auth.environment_vars import CREDENTIALS
 
 from airflow.providers.google.cloud.utils.credentials_provider import (
     AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT, build_gcp_conn, provide_gcp_conn_and_credentials,
-    provide_gcp_connection, provide_gcp_credentials, temporary_environment_variable,
+    provide_gcp_connection, provide_gcp_credentials,
 )
 
 ENV_VALUE = "test_env"
@@ -57,28 +57,6 @@ class TestHelper(unittest.TestCase):
         self.assertEqual(
             "google-cloud-platform://?extra__google_cloud_platform__projects=test", conn
         )
-
-
-class TestTemporaryEnvironmentVariable(unittest.TestCase):
-    @mock.patch.dict(os.environ, clear=True)
-    def test_temporary_environment_variable_delete(self):
-        with temporary_environment_variable(KEY, ENV_VALUE):
-            self.assertEqual(os.environ.get(KEY), ENV_VALUE)
-        self.assertNotIn(KEY, os.environ)
-
-    @mock.patch.dict(os.environ, {KEY: ENV_VALUE})
-    def test_temporary_environment_variable_restore(self):
-        with temporary_environment_variable(KEY, TEMP_VARIABLE):
-            self.assertEqual(os.environ.get(KEY), TEMP_VARIABLE)
-        self.assertEqual(os.environ.get(KEY), ENV_VALUE)
-
-    @mock.patch.dict(os.environ, clear=True)
-    def test_temporary_environment_variable_error(self):
-        with self.assertRaises(Exception):
-            with temporary_environment_variable(KEY, ENV_VALUE):
-                self.assertEqual(os.environ.get(KEY), ENV_VALUE)
-                raise Exception("test")
-            self.assertNotIn(KEY, os.environ)
 
 
 class TestProvideGcpCredentials(unittest.TestCase):

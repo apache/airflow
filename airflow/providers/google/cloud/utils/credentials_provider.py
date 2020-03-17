@@ -20,7 +20,6 @@ This module contains a mechanism for providing temporary
 Google Cloud Platform authentication.
 """
 import json
-import os
 import tempfile
 from contextlib import contextmanager
 from typing import Dict, Optional, Sequence
@@ -29,6 +28,7 @@ from urllib.parse import urlencode
 from google.auth.environment_vars import CREDENTIALS
 
 from airflow.exceptions import AirflowException
+from airflow.utils.process_utils import patch_environ
 
 AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT = "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT"
 
@@ -67,31 +67,6 @@ def build_gcp_conn(
 
 
 @contextmanager
-def temporary_environment_variable(variable_name: str, value: str):
-    """
-    Context manager that set up temporary value for a given environment
-    variable and the restore initial state.
-
-    :param variable_name: Name of the environment variable
-    :type variable_name: str
-    :param value: The temporary value
-    :type value: str
-    """
-    # Save initial value
-    init_value = os.environ.get(variable_name)
-    try:
-        # set temporary value
-        os.environ[variable_name] = value
-        yield
-    finally:
-        # Restore initial state (remove or restore)
-        if variable_name in os.environ:
-            del os.environ[variable_name]
-        if init_value:
-            os.environ[variable_name] = init_value
-
-
-@contextmanager
 def provide_gcp_credentials(
     key_file_path: Optional[str] = None, key_file_dict: Optional[Dict] = None
 ):
@@ -121,7 +96,7 @@ def provide_gcp_credentials(
             conf_file.flush()
             key_file_path = conf_file.name
         if key_file_path:
-            with temporary_environment_variable(CREDENTIALS, key_file_path):
+            with patch_environ({CREDENTIALS: key_file_path}):
                 yield
         else:
             # We will use the default service account credentials.
@@ -155,7 +130,7 @@ def provide_gcp_connection(
         scopes=scopes, key_file_path=key_file_path, project_id=project_id
     )
 
-    with temporary_environment_variable(AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT, conn):
+    with patch_environ({"AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT": conn}):
         yield
 
 
