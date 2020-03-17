@@ -39,8 +39,8 @@ google_ads_conn_id = "google_ads_conn_id"
 
 
 class TestGoogleAdsToGcsOperator:
-    @mock.patch("airflow.providers.google.ads.operators.google_ads.GoogleAdsHook")
-    @mock.patch("airflow.providers.google.ads.operators.google_ads.GCSHook")
+    @mock.patch("airflow.providers.google.ads.operators.ads.GoogleAdsHook")
+    @mock.patch("airflow.providers.google.ads.operators.ads.GCSHook")
     def test_execute(self, mock_gcs_hook, mock_ads_hook):
         op = GoogleAdsToGcsOperator(
             gcp_conn_id=gcp_conn_id,

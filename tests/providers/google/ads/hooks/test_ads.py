@@ -38,7 +38,7 @@ def mock_hook():
 
 
 class TestGoogleAdsHook:
-    @mock.patch("airflow.providers.google.ads.hooks.google_ads.GoogleAdsClient")
+    @mock.patch("airflow.providers.google.ads.hooks.ads.GoogleAdsClient")
     def test_get_service(self, mock_client, mock_hook):
         mock_hook._get_service()
         client = mock_client.load_from_dict
@@ -47,7 +47,7 @@ class TestGoogleAdsHook:
             "GoogleAdsService", version=API_VERSION
         )
 
-    @mock.patch("airflow.providers.google.ads.hooks.google_ads.GoogleAdsClient")
+    @mock.patch("airflow.providers.google.ads.hooks.ads.GoogleAdsClient")
     def test_search(self, mock_client, mock_hook):
         service = mock_client.load_from_dict.return_value.get_service.return_value
         rows = ["row1", "row2"]

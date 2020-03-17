@@ -35,15 +35,15 @@ Google Ads to GCS
 ^^^^^^^^^^^^^^^^^
 
 To query the Google Ads API and generate a CSV report of the results use
-:class:`~airflow.providers.google.ads.operators.google_ads.GoogleAdsToGcsOperator`.
+:class:`~airflow.providers.google.ads.operators.ads.GoogleAdsToGcsOperator`.
 
-.. exampleinclude:: ../../../../airflow/providers/google/ads/example_dags/example_google_ads.py
+.. exampleinclude:: ../../../../airflow/providers/google/ads/example_dags/example_ads.py
     :language: python
     :dedent: 4
     :start-after: [START howto_google_ads_to_gcs_operator]
     :end-before: [END howto_google_ads_to_gcs_operator]
 
 Use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.providers.google.ads.operators.google_ads.GoogleAdsToGcsOperator`
+:template-fields:`airflow.providers.google.ads.operators.ads.GoogleAdsToGcsOperator`
 parameters which allow you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows the result to be used by other operators.
