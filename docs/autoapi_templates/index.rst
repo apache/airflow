@@ -112,8 +112,6 @@ All operators are in the following packages:
 
   airflow/providers/google/ads/operators/index
 
-  airflow/providers/google/ads/sensors/index
-
   airflow/providers/google/cloud/operators/index
 
   airflow/providers/google/cloud/sensors/index
