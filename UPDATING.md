@@ -121,7 +121,7 @@ replaced with its corresponding new path.
 
 ### Success Callback will be called when a task in marked as success from UI
 
-When a task is marked as success by a used from Airflow UI - on_success_callback will be called
+When a task is marked as success by a user from Airflow UI - `on_success_callback` will be called
 
 ### Added `airflow dags test` CLI command
 
