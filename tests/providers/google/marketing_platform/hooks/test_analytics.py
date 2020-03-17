@@ -21,12 +21,15 @@ from unittest import mock
 from airflow.providers.google.marketing_platform.hooks.analytics import GoogleAnalyticsHook
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
+WEB_PROPERTY_AD_WORDS_LINK_ID = "AAIIRRFFLLOOWW"
+WEB_PROPERTY_ID = "web_property_id"
+ACCOUNT_ID = "the_knight_who_says_ni!"
+DATA_SOURCE = "Monthy Python"
 API_VERSION = "v3"
 GCP_CONN_ID = "google_cloud_default"
 
 
 class TestGoogleAnalyticsHook(unittest.TestCase):
-
     def setUp(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.base.CloudBaseHook.__init__",
@@ -82,39 +85,38 @@ class TestGoogleAnalyticsHook(unittest.TestCase):
     )
     def test_get_ad_words_links_call(self, get_conn_mock):
         num_retries = 5
-        account_id = "holy_hand_grenade"
-        web_property_id = "UA-123456-1"
-        web_property_ad_words_link_id = "AAIIRRFFLLOOWW"
+        self.hook.get_ad_words_link(
+            account_id=ACCOUNT_ID,
+            web_property_id=WEB_PROPERTY_ID,
+            web_property_ad_words_link_id=WEB_PROPERTY_AD_WORDS_LINK_ID,
+        )
 
-        self.hook.get_ad_words_link(account_id=account_id,
-                                    web_property_id=web_property_id,
-                                    web_property_ad_words_link_id=web_property_ad_words_link_id, )
+        get_conn_mock.return_value.management.return_value.webPropertyAdWordsLinks.\
+            return_value.get.return_value.execute.assert_called_once_with(
+                num_retries=num_retries
+            )
 
-        get_conn_mock.return_value\
-            .management.return_value\
-            .webPropertyAdWordsLinks.return_value\
-            .get.return_value\
-            .execute.assert_called_once_with(num_retries=num_retries)
-
-        get_conn_mock.return_value \
-            .management.return_value \
-            .webPropertyAdWordsLinks.return_value \
-            .get.assert_called_once_with(accountId=account_id,
-                                         webPropertyId=web_property_id,
-                                         webPropertyAdWordsLinkId=web_property_ad_words_link_id,)
+        get_conn_mock.return_value.management.return_value.webPropertyAdWordsLinks.\
+            return_value.get.assert_called_once_with(
+                accountId=ACCOUNT_ID,
+                webPropertyId=WEB_PROPERTY_ID,
+                webPropertyAdWordsLinkId=WEB_PROPERTY_AD_WORDS_LINK_ID,
+            )
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
         "analytics.GoogleAnalyticsHook.get_conn"
     )
     def test_list_ad_words_links(self, get_conn_mock):
-        account_id = "the_knight_who_says_ni!"
-        web_property_id = "web_property_id"
-        mock_ads_links = get_conn_mock.return_value.management.return_value.webPropertyAdWordsLinks
+        mock_ads_links = (
+            get_conn_mock.return_value.management.return_value.webPropertyAdWordsLinks
+        )
         mock_list = mock_ads_links.return_value.list
         mock_execute = mock_list.return_value.execute
         mock_execute.return_value = {"items": ["a", "b"], "totalResults": 2}
-        list_ads_links = self.hook.list_ad_words_links(account_id=account_id, web_property_id=web_property_id)
+        list_ads_links = self.hook.list_ad_words_links(
+            account_id=ACCOUNT_ID, web_property_id=WEB_PROPERTY_ID
+        )
         self.assertEqual(list_ads_links, ["a", "b"])
 
     @mock.patch(
@@ -122,14 +124,84 @@ class TestGoogleAnalyticsHook(unittest.TestCase):
         "analytics.GoogleAnalyticsHook.get_conn"
     )
     def test_list_ad_words_links_for_multiple_pages(self, get_conn_mock):
-        account_id = "the_knight_who_says_ni!"
-        web_property_id = "web_property_id"
-        mock_ads_links = get_conn_mock.return_value.management.return_value.webPropertyAdWordsLinks
+        mock_ads_links = (
+            get_conn_mock.return_value.management.return_value.webPropertyAdWordsLinks
+        )
         mock_list = mock_ads_links.return_value.list
         mock_execute = mock_list.return_value.execute
         mock_execute.side_effect = [
             {"items": ["a"], "totalResults": 2},
             {"items": ["b"], "totalResults": 2},
         ]
-        list_ads_links = self.hook.list_ad_words_links(account_id=account_id, web_property_id=web_property_id)
+        list_ads_links = self.hook.list_ad_words_links(
+            account_id=ACCOUNT_ID, web_property_id=WEB_PROPERTY_ID
+        )
         self.assertEqual(list_ads_links, ["a", "b"])
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "analytics.GoogleAnalyticsHook.get_conn"
+    )
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks." "analytics.MediaFileUpload"
+    )
+    def test_upload_data(self, media_mock, get_conn_mock):
+        temp_name = "temp/file"
+        self.hook.upload_data(
+            file_location=temp_name,
+            account_id=ACCOUNT_ID,
+            web_property_id=WEB_PROPERTY_ID,
+            custom_data_source_id=DATA_SOURCE,
+            resumable_upload=True,
+        )
+
+        media_mock.assert_called_once_with(
+            temp_name, mimetype="application/octet-stream", resumable=True
+        )
+        get_conn_mock.return_value.management.return_value.uploads.return_value.uploadData.\
+            assert_called_once_with(
+                accountId=ACCOUNT_ID,
+                webPropertyId=WEB_PROPERTY_ID,
+                customDataSourceId=DATA_SOURCE,
+                media_body=media_mock.return_value,
+            )
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "analytics.GoogleAnalyticsHook.get_conn"
+    )
+    def test_delete_upload_data(self, get_conn_mock):
+        body = {"key": "temp/file"}
+        self.hook.delete_upload_data(
+            account_id=ACCOUNT_ID,
+            web_property_id=WEB_PROPERTY_ID,
+            custom_data_source_id=DATA_SOURCE,
+            delete_request_body=body,
+        )
+
+        get_conn_mock.return_value.management.return_value.uploads.return_value.deleteUploadData.\
+            assert_called_once_with(
+                accountId=ACCOUNT_ID,
+                webPropertyId=WEB_PROPERTY_ID,
+                customDataSourceId=DATA_SOURCE,
+                body=body,
+            )
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "analytics.GoogleAnalyticsHook.get_conn"
+    )
+    def test_list_upload(self, get_conn_mock):
+        uploads = (
+            get_conn_mock.return_value.management.return_value.uploads.return_value
+        )
+        uploads.list.return_value.execute.return_value = {
+            "items": ["a", "b"],
+            "totalResults": 2,
+        }
+        result = self.hook.list_uploads(
+            account_id=ACCOUNT_ID,
+            web_property_id=WEB_PROPERTY_ID,
+            custom_data_source_id=DATA_SOURCE,
+        )
+        self.assertEqual(result, ["a", "b"])

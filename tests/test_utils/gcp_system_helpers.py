@@ -138,18 +138,19 @@ class GoogleSystemTest(SystemTest):
     @classmethod
     def upload_to_gcs(cls, source_uri: str, target_uri: str):
         cls.execute_with_ctx(
-            ["gsutil", "cp", f"{target_uri}", f"{source_uri}"], key=GCP_GCS_KEY
+            ["gsutil", "cp", source_uri, target_uri], key=GCP_GCS_KEY
         )
-
+        
     @classmethod
-    def upload_content_to_gcs(cls, lines: str, bucket_uri: str, filename: str):
+    def upload_content_to_gcs(cls, lines: str, bucket: str, filename: str):
+        bucket_name = f"gs://{bucket}" if not bucket.startswith("gs://") else bucket
         with TemporaryDirectory(prefix="airflow-gcp") as tmp_dir:
             tmp_path = os.path.join(tmp_dir, filename)
             with open(tmp_path, "w") as file:
                 file.writelines(lines)
                 file.flush()
             os.chmod(tmp_path, 555)
-            cls.upload_to_gcs(bucket_uri, tmp_path)
+            cls.upload_to_gcs(tmp_path, bucket_name)
 
     @classmethod
     def get_project_number(cls, project_id: str) -> str:

@@ -17,8 +17,17 @@
 
 import pytest
 
+from airflow.providers.google.marketing_platform.example_dags.example_analytics import BUCKET, BUCKET_FILENAME
 from tests.providers.google.cloud.utils.gcp_authenticator import GMP_KEY
 from tests.test_utils.gcp_system_helpers import MARKETING_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
+
+DATA = """pagePath,dimension1
+how_to_make_pizza,1
+how_to_make_doughnuts,2
+how_to_build_a_treehouse,3
+how_to_make_paper_airplanes,4
+"""
+
 
 # Required scopes
 SCOPES = [
@@ -26,9 +35,20 @@ SCOPES = [
     'https://www.googleapis.com/auth/analytics.edit',
     'https://www.googleapis.com/auth/cloud-platform',
 ]
+
+
+@pytest.fixture
+def helper():
+    GoogleSystemTest.create_gcs_bucket(BUCKET)
+    GoogleSystemTest.upload_content_to_gcs(DATA, BUCKET, BUCKET_FILENAME)
+    yield
+    GoogleSystemTest.delete_gcs_bucket(BUCKET)
+
+
 @pytest.mark.system("google.marketing_platform")
 @pytest.mark.credential_file(GMP_KEY)
 class TestSystemGoogleAds(GoogleSystemTest):
+    @pytest.mark.usefixtures("helper")
     @provide_gcp_context(GMP_KEY, scopes=SCOPES)
     def test_run_example_dag(self):
         self.run_dag('example_google_analytics', MARKETING_DAG_FOLDER)

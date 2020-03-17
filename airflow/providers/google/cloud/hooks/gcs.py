@@ -185,6 +185,10 @@ class GCSHook(CloudBaseHook):
         :param filename: If set, a local file path where the file should be written to.
         :type filename: str
         """
+
+        # TODO: future improvement check file size before downloading,
+        #  to check for local space availability
+
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(blob_name=object_name)
