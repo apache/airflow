@@ -24,9 +24,10 @@ import boto3
 
 from airflow.models import Connection
 from airflow.secrets import CONN_ENV_PREFIX, BaseSecretsBackend
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class AwsSsmSecretsBackend(BaseSecretsBackend):
+class AwsSsmSecretsBackend(BaseSecretsBackend, LoggingMixin):
     """
     Retrieves Connection object from AWS SSM Parameter Store
 
@@ -66,26 +67,38 @@ class AwsSsmSecretsBackend(BaseSecretsBackend):
         param_path = self.prefix + "/" + param_name
         return param_path
 
-    def get_conn_uri(self, conn_id: str):
+    def get_conn_uri(self, conn_id: str) -> Optional[str]:
         """
         Get param value
 
         :param conn_id: connection id
+        :type conn_id: str
         """
         session = boto3.Session(profile_name=self.profile_name)
         client = session.client("ssm")
-        response = client.get_parameter(
-            Name=self.build_ssm_path(conn_id=conn_id), WithDecryption=True
-        )
-        value = response["Parameter"]["Value"]
-        return value
+        ssm_path = self.build_ssm_path(conn_id=conn_id)
+        try:
+            response = client.get_parameter(
+                Name=ssm_path, WithDecryption=False
+            )
+            value = response["Parameter"]["Value"]
+            return value
+        except client.exceptions.ParameterNotFound:
+            self.log.info(
+                "An error occurred (ParameterNotFound) when calling the GetParameter operation: "
+                "Parameter %s not found.", ssm_path
+            )
+            return None
 
-    def get_connections(self, conn_id: str) -> List[Connection]:
+    def get_connections(self, conn_id: str) -> Optional[List[Connection]]:
         """
         Create connection object.
 
         :param conn_id: connection id
+        :type conn_id: str
         """
         conn_uri = self.get_conn_uri(conn_id=conn_id)
+        if not conn_uri:
+            return None
         conn = Connection(conn_id=conn_id, uri=conn_uri)
         return [conn]

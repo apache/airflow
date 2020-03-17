@@ -26,7 +26,7 @@ __all__ = ['CONN_ENV_PREFIX', 'BaseSecretsBackend', 'get_connections']
 import json
 from abc import ABC, abstractmethod
 from json import JSONDecodeError
-from typing import List
+from typing import List, Optional
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -50,7 +50,7 @@ class BaseSecretsBackend(ABC):
         pass
 
     @abstractmethod
-    def get_connections(self, conn_id) -> List[Connection]:
+    def get_connections(self, conn_id) -> Optional[List[Connection]]:
         """
         Return list of connection objects matching a given ``conn_id``.
 
