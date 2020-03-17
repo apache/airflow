@@ -38,10 +38,10 @@ export function escapeHtml(text) {
 
 window.escapeHtml = escapeHtml;
 
-// Handle i18n localization of date + time (D MMMM YYYY HH:mm)
+// Handle i18n localization of date + time (D MMMM YYYY HH:mm:ss)
 export function localizedDate(date) {
   const locale = window.navigator.userLanguage || window.navigator.language;
-  if (date) return moment(date).locale(locale).format('LLL');
+  if (date) return moment(date).locale(locale).format('LL LTS');
   return '';
 }
 

@@ -293,7 +293,7 @@ def datetime_f(attr_name):
     return dt
 
 
-def localized_f(attr_name):
+def localized_dt_f(attr_name):
     def dt(attr):
         f = attr.get(attr_name)
         if f is None:
