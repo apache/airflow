@@ -27,9 +27,10 @@ import os
 import tempfile
 from contextlib import contextmanager
 from subprocess import check_output
-from typing import Any, Callable, Dict, Optional, Sequence, TypeVar
+from typing import Any, Callable, Dict, Optional, Sequence, Tuple, TypeVar
 
 import google.auth
+import google.auth.credentials
 import google.oauth2.service_account
 import google_auth_httplib2
 import httplib2
@@ -141,7 +142,7 @@ class CloudBaseHook(BaseHook):
         self.delegate_to = delegate_to
         self.extras = self.get_connection(self.gcp_conn_id).extra_dejson  # type: Dict
 
-    def _get_credentials_and_project_id(self) -> google.auth.credentials.Credentials:
+    def _get_credentials_and_project_id(self) -> Tuple[google.auth.credentials.Credentials, Optional[str]]:
         """
         Returns the Credentials object for Google API and the associated project_id
         """
@@ -424,12 +425,17 @@ class CloudBaseHook(BaseHook):
         In our case, we want all commands to use only the credentials from ADCm so
         we need to configure the credentials in gcloud manually.
         """
+        credentials_path = _cloud_sdk.get_application_default_credentials_path()
+        project_id = self.project_id
+
         with self.provide_gcp_credential_file_as_context(), \
                 tempfile.TemporaryDirectory() as gcloud_config_tmp, \
                 patch_environ({'CLOUDSDK_CONFIG': gcloud_config_tmp}):
 
-            credentials_path = _cloud_sdk.get_application_default_credentials_path()
-
+            # Don't display stdout/stderr for security reason
+            check_output([
+                "gcloud", "config", "set", "core/project", project_id
+            ])
             if CREDENTIALS in os.environ:
                 # This solves most cases when we are logged in using the service key in Airflow.
                 # Don't display stdout/stderr for security reason

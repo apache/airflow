@@ -616,8 +616,15 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
         ):
             self.instance = hook.CloudBaseHook(gcp_conn_id="google-cloud-default")
 
+    @mock.patch(
+        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        new_callable=mock.PropertyMock,
+        return_value="PROJECT_ID"
+    )
     @mock.patch(MODULE_NAME + '.check_output')
-    def test_provide_authorized_gcloud_key_path_and_keyfile_dict(self, mock_check_output):
+    def test_provide_authorized_gcloud_key_path_and_keyfile_dict(
+        self, mock_check_output, mock_default
+    ):
         key_path = '/test/key-path'
         self.instance.extras = {
             'extra__google_cloud_platform__key_path': key_path,
@@ -632,8 +639,13 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
             with self.instance.provide_authorized_gcloud():
                 self.assertEqual(os.environ[CREDENTIALS], key_path)
 
+    @mock.patch(
+        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        new_callable=mock.PropertyMock,
+        return_value=None
+    )
     @mock.patch(MODULE_NAME + '.check_output')
-    def test_provide_authorized_gcloud_key_path(self, mock_check_output):
+    def test_provide_authorized_gcloud_key_path(self, mock_check_output, mock_project_id):
         key_path = '/test/key-path'
         self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
 
@@ -644,9 +656,14 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
             ['gcloud', 'auth', 'activate-service-account', '--key-file=/test/key-path']
         )
 
+    @mock.patch(
+        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        new_callable=mock.PropertyMock,
+        return_value=None
+    )
     @mock.patch(MODULE_NAME + '.check_output')
     @mock.patch('tempfile.NamedTemporaryFile')
-    def test_provide_authorized_gcloud_keyfile_dict(self, mock_file, mock_check_output):
+    def test_provide_authorized_gcloud_keyfile_dict(self, mock_file, mock_check_output, mock_project_id):
         string_file = StringIO()
         file_content = '{"foo": "bar"}'
         file_name = '/test/mock-file'
@@ -662,11 +679,16 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
             ['gcloud', 'auth', 'activate-service-account', '--key-file=/test/mock-file']
         )
 
+    @mock.patch(
+        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        new_callable=mock.PropertyMock,
+        return_value=None
+    )
     @mock.patch(MODULE_NAME + '._cloud_sdk')
     @mock.patch(MODULE_NAME + '.check_output')
     @mock.patch('tempfile.NamedTemporaryFile')
     def test_provide_authorized_gcloud_via_gcloud_application_default(
-        self, mock_file, mock_check_output, mock_cloud_sdk
+        self, mock_file, mock_check_output, mock_cloud_sdk, mock_project_id
     ):
         # This file always exists.
         mock_cloud_sdk.get_application_default_credentials_path.return_value = __file__
@@ -686,6 +708,7 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
             [
                 mock.call(['gcloud', 'config', 'set', 'auth/client_id', 'CLIENT_ID']),
                 mock.call(['gcloud', 'config', 'set', 'auth/client_secret', 'CLIENT_SECRET']),
+                mock.call(['gcloud', 'config', 'set', 'core/project', 'PROJECT_ID']),
                 mock.call(['gcloud', 'auth', 'activate-refresh-token', 'CLIENT_ID', 'REFRESH_TOKEN'])
             ],
             any_order=False
