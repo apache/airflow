@@ -28,21 +28,20 @@ from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
 from tests.test_utils.db import clear_db_connections
 
-TEST_CONN_IDS = [f"new{index}" for index in range(1, 7)]
-
 
 class TestCliListConnections(unittest.TestCase):
     EXPECTED_CONS = [
         ('airflow_db', 'mysql', ),
-        ('local_mysql', 'mysql', ),
-        ('presto_default', 'presto', ),
         ('google_cloud_default', 'google_cloud_platform', ),
-        ('mongo_default', 'mongo', ),
-        ('mysql_default', 'mysql', ),
-        ('postgres_default', 'postgres', ),
-        ('sqlite_default', 'sqlite', ),
         ('http_default', 'http', ),
+        ('local_mysql', 'mysql', ),
+        ('mongo_default', 'mongo', ),
         ('mssql_default', 'mssql', ),
+        ('mysql_default', 'mysql', ),
+        ('pinot_broker_default', 'pinot', ),
+        ('postgres_default', 'postgres', ),
+        ('presto_default', 'presto', ),
+        ('sqlite_default', 'sqlite', ),
         ('vertica_default', 'vertica', ),
     ]
 
