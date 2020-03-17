@@ -380,7 +380,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         Workflow:
         1. Fetch all the existing (permissions, view-menu) from Airflow DB.
-        2. Fetch all the existing dag models that are either active or paused. Exclude the subdags.
+        2. Fetch all the existing dag models that are either active or paused.
         3. Create both read and write permission view-menus relation for every dags from step 2
         4. Find out all the dag specific roles(excluded pubic, admin, viewer, op, user)
         5. Get all the permission-vm owned by the user role.
@@ -403,8 +403,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         # Get all the active / paused dags and insert them into a set
         all_dags_models = session.query(models.DagModel)\
-            .filter(or_(models.DagModel.is_active, models.DagModel.is_paused))\
-            .filter(~models.DagModel.is_subdag).all()
+            .filter(or_(models.DagModel.is_active, models.DagModel.is_paused)).all()
 
         # create can_dag_edit and can_dag_read permissions for every dag(vm)
         for dag in all_dags_models:
