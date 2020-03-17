@@ -2043,8 +2043,7 @@
       version_added: 1.10.4
       type: string
       example: ~
-      default: >-
-        {{"_request_timeout" : [60,60] }}
+      default: ""
     - name: run_as_user
       description: |
         Specifies the uid to run the first process of the worker pods containers as
