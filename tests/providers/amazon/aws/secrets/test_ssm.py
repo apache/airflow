@@ -45,7 +45,7 @@ class TestSsmSecrets(TestCase):
         test_client = AwsSsmSecretsBackend()
 
         self.assertIsNone(test_client.get_conn_uri(conn_id=conn_id))
-        self.assertIsNone(test_client.get_connections(conn_id=conn_id))
+        self.assertEqual([], test_client.get_connections(conn_id=conn_id))
 
         # Fallback to connection defined in Environment Variable
         self.assertEqual(

@@ -90,7 +90,7 @@ class AwsSsmSecretsBackend(BaseSecretsBackend, LoggingMixin):
             )
             return None
 
-    def get_connections(self, conn_id: str) -> Optional[List[Connection]]:
+    def get_connections(self, conn_id: str) -> List[Connection]:
         """
         Create connection object.
 
@@ -99,6 +99,6 @@ class AwsSsmSecretsBackend(BaseSecretsBackend, LoggingMixin):
         """
         conn_uri = self.get_conn_uri(conn_id=conn_id)
         if not conn_uri:
-            return None
+            return []
         conn = Connection(conn_id=conn_id, uri=conn_uri)
         return [conn]

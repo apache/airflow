@@ -26,7 +26,7 @@ __all__ = ['CONN_ENV_PREFIX', 'BaseSecretsBackend', 'get_connections']
 import json
 from abc import ABC, abstractmethod
 from json import JSONDecodeError
-from typing import List, Optional
+from typing import List
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -50,7 +50,7 @@ class BaseSecretsBackend(ABC):
         pass
 
     @abstractmethod
-    def get_connections(self, conn_id) -> Optional[List[Connection]]:
+    def get_connections(self, conn_id) -> List[Connection]:
         """
         Return list of connection objects matching a given ``conn_id``.
 
@@ -66,7 +66,7 @@ def get_connections(conn_id: str) -> List[Connection]:
     :param conn_id: connection id
     :return: array of connections
     """
-    for secrets_backend in secrets_backend_list:
+    for secrets_backend in ensure_secrets_loaded():
         conn_list = secrets_backend.get_connections(conn_id=conn_id)
         if conn_list:
             return list(conn_list)
@@ -98,6 +98,17 @@ def initialize_secrets_backends() -> List[BaseSecretsBackend]:
         backend_list.append(secrets_backend_cls())
 
     return backend_list
+
+
+def ensure_secrets_loaded() -> List[BaseSecretsBackend]:
+    """
+    Ensure that all secrets backends are loaded.
+    If the secrets_backend_list contains only 2 default backends, reload it.
+    """
+    # Check if the secrets_backend_list contains only 2 default backends
+    if len(secrets_backend_list) == 2:
+        return initialize_secrets_backends()
+    return secrets_backend_list
 
 
 secrets_backend_list = initialize_secrets_backends()
