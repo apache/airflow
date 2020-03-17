@@ -80,7 +80,7 @@ class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleAnalyticsRetrieveAdsLinksListOperator`
+        :ref:`howto/operator:GoogleAnalyticsListAccountsOperator`
 
     :param account_id: ID of the account which the given web property belongs to.
     :type account_id: str

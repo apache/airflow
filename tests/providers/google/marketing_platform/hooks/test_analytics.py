@@ -81,24 +81,29 @@ class TestGoogleAnalyticsHook(unittest.TestCase):
         "airflow.providers.google.marketing_platform.hooks."
         "analytics.GoogleAnalyticsHook.get_conn"
     )
-    def test_call_get_ad_words_links(self, get_conn_mock):
-        account_id = "42"
+    def test_list_ad_words_links(self, get_conn_mock):
+        account_id = "the_knight_who_says_ni!"
         web_property_id = "web_property_id"
-        response = ["the knights who say Ni!"]
-        list_ad_words = get_conn_mock.return_value\
-            .management.return_value\
-            .webPropertyAdWordsLinks.return_value\
-            .list
+        mock_ads_links = get_conn_mock.return_value.management.return_value.webPropertyAdWordsLinks
+        mock_list = mock_ads_links.return_value.list
+        mock_execute = mock_list.return_value.execute
+        mock_execute.return_value = {"items": ["a", "b"], "totalResults": 2}
+        list_ads_links = self.hook.list_ad_words_links(account_id=account_id, web_property_id=web_property_id)
+        self.assertEqual(list_ads_links, ["a", "b"])
 
-        get_conn_mock.return_value\
-            .management.return_value\
-            .webPropertyAdWordsLinks.return_value\
-            .list.return_value\
-            .execute.return_value = response
-
-        result = self.hook.list_ad_words_links(account_id=account_id, web_property_id=web_property_id)
-
-        list_ad_words.assert_called_once()
-        list_ad_words.assert_called_once_with(accountId=account_id, webPropertyId=web_property_id)
-
-        self.assertEqual(result, response)
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "analytics.GoogleAnalyticsHook.get_conn"
+    )
+    def test_list_ad_words_links_for_multiple_pages(self, get_conn_mock):
+        account_id = "the_knight_who_says_ni!"
+        web_property_id = "web_property_id"
+        mock_ads_links = get_conn_mock.return_value.management.return_value.webPropertyAdWordsLinks
+        mock_list = mock_ads_links.return_value.list
+        mock_execute = mock_list.return_value.execute
+        mock_execute.side_effect = [
+            {"items": ["a"], "totalResults": 2},
+            {"items": ["b"], "totalResults": 2},
+        ]
+        list_ads_links = self.hook.list_ad_words_links(account_id=account_id, web_property_id=web_property_id)
+        self.assertEqual(list_ads_links, ["a", "b"])

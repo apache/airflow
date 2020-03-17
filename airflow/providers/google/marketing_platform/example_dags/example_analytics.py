@@ -38,6 +38,8 @@ with models.DAG(
     list_account = GoogleAnalyticsListAccountsOperator(task_id="list_account")
     # [END howto_marketing_platform_list_accounts_operator]
 
+    # [START howto_marketing_platform_retrieve_ads_links_list_operator]
     list_ad_link = GoogleAnalyticsRetrieveAdsLinksListOperator(task_id="list_ad_link",
                                                                account_id=account_id,
                                                                web_property_id=web_property_id)
+    # [END howto_marketing_platform_retrieve_ads_links_list_operator]
