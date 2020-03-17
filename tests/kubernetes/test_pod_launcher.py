@@ -123,7 +123,7 @@ class TestPodLauncher(unittest.TestCase):
     def test_read_pod_returns_exit_code(self):
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.read_namespaced_pod_log.side_effect = [
-            [b'\t container status: \n' ,
+            [b'\t container status: \n',
              b'\t exit code: 1\n']
         ]
         self.pod_launcher._monitor_pod(mock.sentinel, get_logs=True)
