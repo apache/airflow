@@ -120,6 +120,12 @@ labelPRBasedOnFilePath:
     - tests/executors/*
     - tests/jobs/*
 
+  area:Secrets:
+    - airflow/secrets/*
+    - airflow/providers/**/secrets/*
+    - tests/secrets/*
+    - tests/providers/**/secrets/*
+
   area:Serialization:
     - airflow/serialization/*
     - tests/serialization/*
