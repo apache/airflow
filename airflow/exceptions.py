@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -81,6 +80,10 @@ class AirflowDagCycleException(AirflowException):
 
 class DagNotFound(AirflowNotFoundException):
     """Raise when a DAG is not available in the system"""
+
+
+class DagCodeNotFound(AirflowNotFoundException):
+    """Raise when a DAG code is not available in the system"""
 
 
 class DagRunNotFound(AirflowNotFoundException):

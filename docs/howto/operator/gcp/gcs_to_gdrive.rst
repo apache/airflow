@@ -35,16 +35,16 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
-.. _howto/operator:GcsToGDriveOperator:
+.. _howto/operator:GCSToGoogleDriveOperator:
 
 Operator
 ^^^^^^^^
 
 Transfer files between Google Storage and Google Drive is performed with the
-:class:`~airflow.contrib.operators.gcs_to_gdrive_operator.GcsToGDriveOperator` operator.
+:class:`~airflow.providers.google.suite.operators.gcs_to_gdrive.GCSToGoogleDriveOperator` operator.
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.contrib.operators.gcs_to_gdrive_operator.GcsToGDriveOperator`
+:template-fields:`airflow.providers.google.suite.operators.gcs_to_gdrive.GCSToGoogleDriveOperator`
 parameters which allows you to dynamically determine values.
 
 Copy single files
@@ -52,7 +52,7 @@ Copy single files
 
 The following Operator would copy a single file.
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcs_to_gdrive.py
+.. exampleinclude:: ../../../../airflow/providers/google/suite/example_dags/example_gcs_to_gdrive.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_to_gdrive_copy_single_file]
@@ -63,7 +63,7 @@ Copy multiple files
 
 The following Operator would copy all the multiples files (i.e. using wildcard).
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcs_to_gdrive.py
+.. exampleinclude:: ../../../../airflow/providers/google/suite/example_dags/example_gcs_to_gdrive.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_to_gdrive_copy_files]
@@ -75,7 +75,7 @@ Move files
 Using the ``move_object`` parameter allows you to move the files. After copying the file to Google Drive,
 the original file from the bucket is deleted.
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcs_to_gdrive.py
+.. exampleinclude:: ../../../../airflow/providers/google/suite/example_dags/example_gcs_to_gdrive.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_to_gdrive_move_files]

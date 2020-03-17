@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,12 +18,8 @@
 
 import functools
 import inspect
-import io
 import json
-import os
-import re
 import time
-import zipfile
 from typing import Any, Optional
 from urllib.parse import urlencode
 
@@ -203,24 +198,6 @@ def json_response(obj):
             obj, indent=4, cls=AirflowJsonEncoder),
         status=200,
         mimetype="application/json")
-
-
-ZIP_REGEX = re.compile(r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)))
-
-
-def open_maybe_zipped(f, mode='r'):
-    """
-    Opens the given file. If the path contains a folder with a .zip suffix, then
-    the folder is treated as a zip archive, opening the file inside the archive.
-
-    :return: a file object, as in `open`, or as in `ZipFile.open`.
-    """
-
-    _, archive, filename = ZIP_REGEX.search(f).groups()
-    if archive and zipfile.is_zipfile(archive):
-        return zipfile.ZipFile(archive, mode=mode).open(filename)
-    else:
-        return io.open(f, mode=mode)
 
 
 def make_cache_key(*args, **kwargs):
@@ -471,9 +448,12 @@ class CustomSQLAInterface(SQLAInterface):
 
     def is_utcdatetime(self, col_name):
         from airflow.utils.sqlalchemy import UtcDateTime
-        obj = self.list_columns[col_name].type
-        return isinstance(obj, UtcDateTime) or \
-            isinstance(obj, sqla.types.TypeDecorator) and \
-            isinstance(obj.impl, UtcDateTime)
+
+        if col_name in self.list_columns:
+            obj = self.list_columns[col_name].type
+            return isinstance(obj, UtcDateTime) or \
+                isinstance(obj, sqla.types.TypeDecorator) and \
+                isinstance(obj.impl, UtcDateTime)
+        return False
 
     filter_converter_class = UtcAwareFilterConverter

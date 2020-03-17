@@ -109,3 +109,4 @@ Content
     Macros <macros-ref>
     Python API <_api/index>
     REST API <rest-api-ref>
+    Configurations <configurations-ref>

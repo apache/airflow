@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -30,20 +29,19 @@ from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.utils.decorators import apply_defaults
 
 
-class PubSubTopicCreateOperator(BaseOperator):
+class PubSubCreateTopicOperator(BaseOperator):
     """Create a PubSub topic.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:PubSubTopicCreateOperator`
+        :ref:`howto/operator:PubSubCreateTopicOperator`
 
     By default, if the topic already exists, this operator will
     not cause the DAG to fail. ::
 
         with DAG('successful DAG') as dag:
             (
-                dag
-                >> PubSubTopicCreateOperator(project='my-project',
+                PubSubTopicCreateOperator(project='my-project',
                                              topic='my_new_topic')
                 >> PubSubTopicCreateOperator(project='my-project',
                                              topic='my_new_topic')
@@ -53,8 +51,7 @@ class PubSubTopicCreateOperator(BaseOperator):
 
         with DAG('failing DAG') as dag:
             (
-                dag
-                >> PubSubTopicCreateOperator(project='my-project',
+                PubSubTopicCreateOperator(project='my-project',
                                              topic='my_new_topic')
                 >> PubSubTopicCreateOperator(project='my-project',
                                              topic='my_new_topic',
@@ -167,12 +164,12 @@ class PubSubTopicCreateOperator(BaseOperator):
         self.log.info("Created topic %s", self.topic)
 
 
-class PubSubSubscriptionCreateOperator(BaseOperator):
+class PubSubCreateSubscriptionOperator(BaseOperator):
     """Create a PubSub subscription.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:PubSubSubscriptionCreateOperator`
+        :ref:`howto/operator:PubSubCreateSubscriptionOperator`
 
     By default, the subscription will be created in ``topic_project``. If
     ``subscription_project`` is specified and the GCP credentials allow, the
@@ -183,8 +180,7 @@ class PubSubSubscriptionCreateOperator(BaseOperator):
 
         with DAG('successful DAG') as dag:
             (
-                dag
-                >> PubSubSubscriptionCreateOperator(
+                PubSubSubscriptionCreateOperator(
                     topic_project='my-project', topic='my-topic',
                     subscription='my-subscription')
                 >> PubSubSubscriptionCreateOperator(
@@ -197,8 +193,7 @@ class PubSubSubscriptionCreateOperator(BaseOperator):
 
         with DAG('failing DAG') as dag:
             (
-                dag
-                >> PubSubSubscriptionCreateOperator(
+                PubSubSubscriptionCreateOperator(
                     topic_project='my-project', topic='my-topic',
                     subscription='my-subscription')
                 >> PubSubSubscriptionCreateOperator(
@@ -211,7 +206,7 @@ class PubSubSubscriptionCreateOperator(BaseOperator):
 
         with DAG('DAG') as dag:
             (
-                dag >> PubSubSubscriptionCreateOperator(
+                PubSubSubscriptionCreateOperator(
                     topic_project='my-project', topic='my-topic')
             )
 
@@ -359,20 +354,19 @@ class PubSubSubscriptionCreateOperator(BaseOperator):
         return result
 
 
-class PubSubTopicDeleteOperator(BaseOperator):
+class PubSubDeleteTopicOperator(BaseOperator):
     """Delete a PubSub topic.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:PubSubTopicDeleteOperator`
+        :ref:`howto/operator:PubSubDeleteTopicOperator`
 
     By default, if the topic does not exist, this operator will
     not cause the DAG to fail. ::
 
         with DAG('successful DAG') as dag:
             (
-                dag
-                >> PubSubTopicDeleteOperator(project='my-project',
+                PubSubTopicDeleteOperator(project='my-project',
                                              topic='non_existing_topic')
             )
 
@@ -380,8 +374,7 @@ class PubSubTopicDeleteOperator(BaseOperator):
 
         with DAG('failing DAG') as dag:
             (
-                dag
-                >> PubSubTopicCreateOperator(project='my-project',
+                PubSubTopicCreateOperator(project='my-project',
                                              topic='non_existing_topic',
                                              fail_if_not_exists=True)
             )
@@ -471,20 +464,19 @@ class PubSubTopicDeleteOperator(BaseOperator):
         self.log.info("Deleted topic %s", self.topic)
 
 
-class PubSubSubscriptionDeleteOperator(BaseOperator):
+class PubSubDeleteSubscriptionOperator(BaseOperator):
     """Delete a PubSub subscription.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:PubSubSubscriptionDeleteOperator`
+        :ref:`howto/operator:PubSubDeleteSubscriptionOperator`
 
     By default, if the subscription does not exist, this operator will
     not cause the DAG to fail. ::
 
         with DAG('successful DAG') as dag:
             (
-                dag
-                >> PubSubSubscriptionDeleteOperator(project='my-project',
+                PubSubSubscriptionDeleteOperator(project='my-project',
                                                     subscription='non-existing')
             )
 
@@ -494,8 +486,7 @@ class PubSubSubscriptionDeleteOperator(BaseOperator):
 
         with DAG('failing DAG') as dag:
             (
-                dag
-                >> PubSubSubscriptionDeleteOperator(
+                PubSubSubscriptionDeleteOperator(
                      project='my-project', subscription='non-existing',
                      fail_if_not_exists=True)
             )
@@ -585,12 +576,12 @@ class PubSubSubscriptionDeleteOperator(BaseOperator):
         self.log.info("Deleted subscription %s", self.subscription)
 
 
-class PubSubPublishOperator(BaseOperator):
+class PubSubPublishMessageOperator(BaseOperator):
     """Publish messages to a PubSub topic.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:PubSubPublishOperator`
+        :ref:`howto/operator:PubSubPublishMessageOperator`
 
     Each Task publishes all provided messages to the same topic
     in a single GCP project. If the topic does not exist, this

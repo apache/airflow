@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -26,7 +25,9 @@ import sys
 import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
-from typing import Any, Callable, ClassVar, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple, Type, Union
+from typing import (
+    Any, Callable, ClassVar, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple, Type, Union, cast,
+)
 
 import attr
 import jinja2
@@ -44,14 +45,15 @@ from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
+from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
-from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
+from airflow.utils.session import provide_session
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
@@ -133,12 +135,10 @@ class BaseOperator(Operator, LoggingMixin):
         of task X to finish successfully before it runs. This is useful if the
         different instances of a task X alter the same asset, and this asset
         is used by tasks downstream of task X. Note that depends_on_past
-        is forced to True wherever wait_for_downstream is used.
+        is forced to True wherever wait_for_downstream is used. Also note that
+        only tasks *immediately* downstream of the previous task instance are waited
+        for; the statuses of any tasks further downstream are ignored.
     :type wait_for_downstream: bool
-    :param queue: which queue to target when running this job. Not
-        all executors implement queue management, the CeleryExecutor
-        does support targeting specific queues.
-    :type queue: str
     :param dag: a reference to the dag the task is attached to (if any)
     :type dag: airflow.models.DAG
     :param priority_weight: priority weight of this task against other task.
@@ -169,11 +169,16 @@ class BaseOperator(Operator, LoggingMixin):
         DAGS. Options can be set as string or using the constants defined in
         the static class ``airflow.utils.WeightRule``
     :type weight_rule: str
-    :param queue: specifies which task queue to use
+    :param queue: which queue to target when running this job. Not
+        all executors implement queue management, the CeleryExecutor
+        does support targeting specific queues.
     :type queue: str
     :param pool: the slot pool this task should run in, slot pools are a
         way to limit concurrency for certain tasks
     :type pool: str
+    :param pool_slots: the number of pool slots this task should use (>= 1)
+        Values less than 1 are not allowed.
+    :type pool_slots: int
     :param sla: time by which the job is expected to succeed. Note that
         this represents the ``timedelta`` after the period is closed. For
         example if you set an SLA of 1 hour, the scheduler would send an email
@@ -195,6 +200,9 @@ class BaseOperator(Operator, LoggingMixin):
         objects to the task instance and is documented under the macros
         section of the API.
     :type on_failure_callback: callable
+    :param on_execute_callback: much like the ``on_failure_callback`` except
+        that it is executed right before the task is executed.
+    :type on_execute_callback: callable
     :param on_retry_callback: much like the ``on_failure_callback`` except
         that it is executed when retries occur.
     :type on_retry_callback: callable
@@ -274,11 +282,15 @@ class BaseOperator(Operator, LoggingMixin):
         'priority_weight',
         'sla',
         'execution_timeout',
+        'on_execute_callback',
         'on_failure_callback',
         'on_success_callback',
         'on_retry_callback',
         'do_xcom_push',
     }
+
+    # Defines if the operator supports lineage without manual definitions
+    supports_lineage = False
 
     # noinspection PyUnusedLocal
     # pylint: disable=too-many-arguments,too-many-locals, too-many-statements
@@ -288,8 +300,8 @@ class BaseOperator(Operator, LoggingMixin):
         task_id: str,
         owner: str = conf.get('operators', 'DEFAULT_OWNER'),
         email: Optional[Union[str, Iterable[str]]] = None,
-        email_on_retry: bool = True,
-        email_on_failure: bool = True,
+        email_on_retry: bool = conf.getboolean('email', 'default_email_on_retry', fallback=True),
+        email_on_failure: bool = conf.getboolean('email', 'default_email_on_failure', fallback=True),
         retries: Optional[int] = conf.getint('core', 'default_task_retries', fallback=0),
         retry_delay: timedelta = timedelta(seconds=300),
         retry_exponential_backoff: bool = False,
@@ -305,8 +317,10 @@ class BaseOperator(Operator, LoggingMixin):
         weight_rule: str = WeightRule.DOWNSTREAM,
         queue: str = conf.get('celery', 'default_queue'),
         pool: str = Pool.DEFAULT_POOL_NAME,
+        pool_slots: int = 1,
         sla: Optional[timedelta] = None,
         execution_timeout: Optional[timedelta] = None,
+        on_execute_callback: Optional[Callable] = None,
         on_failure_callback: Optional[Callable] = None,
         on_success_callback: Optional[Callable] = None,
         on_retry_callback: Optional[Callable] = None,
@@ -372,8 +386,13 @@ class BaseOperator(Operator, LoggingMixin):
         self.retries = retries
         self.queue = queue
         self.pool = pool
+        self.pool_slots = pool_slots
+        if self.pool_slots < 1:
+            raise AirflowException("pool slots for %s in dag %s cannot be less than 1"
+                                   % (self.task_id, dag.dag_id))
         self.sla = sla
         self.execution_timeout = execution_timeout
+        self.on_execute_callback = on_execute_callback
         self.on_failure_callback = on_failure_callback
         self.on_success_callback = on_success_callback
         self.on_retry_callback = on_retry_callback
@@ -436,9 +455,6 @@ class BaseOperator(Operator, LoggingMixin):
     def __ne__(self, other):
         return not self == other
 
-    def __lt__(self, other):
-        return self.task_id < other.task_id
-
     def __hash__(self):
         hash_components = [type(self)]
         for component in self._comps:
@@ -455,38 +471,20 @@ class BaseOperator(Operator, LoggingMixin):
     def __rshift__(self, other):
         """
         Implements Self >> Other == self.set_downstream(other)
-
-        If "Other" is a DAG, the DAG is assigned to the Operator.
         """
-        from airflow.models.dag import DAG
-        if isinstance(other, DAG):
-            # if this dag is already assigned, do nothing
-            # otherwise, do normal dag assignment
-            if not (self.has_dag() and self.dag is other):
-                self.dag = other
-        else:
-            self.set_downstream(other)
+        self.set_downstream(other)
         return other
 
     def __lshift__(self, other):
         """
         Implements Self << Other == self.set_upstream(other)
-
-        If "Other" is a DAG, the DAG is assigned to the Operator.
         """
-        from airflow.models.dag import DAG
-        if isinstance(other, DAG):
-            # if this dag is already assigned, do nothing
-            # otherwise, do normal dag assignment
-            if not (self.has_dag() and self.dag is other):
-                self.dag = other
-        else:
-            self.set_upstream(other)
+        self.set_upstream(other)
         return other
 
     def __rrshift__(self, other):
         """
-        Called for [DAG] >> [Operator] because DAGs don't have
+        Called for Operator >> [Operator] because list don't have
         __rshift__ operators.
         """
         self.__lshift__(other)
@@ -494,13 +492,84 @@ class BaseOperator(Operator, LoggingMixin):
 
     def __rlshift__(self, other):
         """
-        Called for [DAG] << [Operator] because DAGs don't have
+        Called for Operator << [Operator] because list don't have
         __lshift__ operators.
         """
         self.__rshift__(other)
         return self
 
+    # including lineage information
+    def __or__(self, other):
+        """
+        Called for [This Operator] | [Operator], The inlets of other
+        will be set to pickup the outlets from this operator. Other will
+        be set as a downstream task of this operator.
+        """
+        if isinstance(other, BaseOperator):
+            if not self._outlets and not self.supports_lineage:
+                raise ValueError("No outlets defined for this operator")
+            other.add_inlets([self.task_id])
+            self.set_downstream(other)
+        else:
+            raise TypeError(f"Right hand side ({other}) is not an Operator")
+
+        return self
+
     # /Composing Operators ---------------------------------------------
+
+    def __gt__(self, other):
+        """
+        Called for [Operator] > [Outlet], so that if other is an attr annotated object
+        it is set as an outlet of this Operator.
+        """
+        if not isinstance(other, Iterable):
+            other = [other]
+
+        for obj in other:
+            if not attr.has(obj):
+                raise TypeError(f"Left hand side ({obj}) is not an outlet")
+        self.add_outlets(other)
+
+        return self
+
+    def __lt__(self, other):
+        """
+        Called for [Inlet] > [Operator] or [Operator] < [Inlet], so that if other is
+        an attr annotated object it is set as an inlet to this operator
+        """
+        if not isinstance(other, Iterable):
+            other = [other]
+
+        for obj in other:
+            if not attr.has(obj):
+                raise TypeError(f"{obj} cannot be an inlet")
+        self.add_inlets(other)
+
+        return self
+
+    def add_inlets(self, inlets: Iterable[Any]):
+        """
+        Sets inlets to this operator
+        """
+        self._inlets.extend(inlets)
+
+    def add_outlets(self, outlets: Iterable[Any]):
+        """
+        Defines the outlets of this operator
+        """
+        self._outlets.extend(outlets)
+
+    def get_inlet_defs(self):
+        """
+        :return: list of inlets defined for this operator
+        """
+        return self._inlets
+
+    def get_outlet_defs(self):
+        """
+        :return: list of outlets defined for this operator
+        """
+        return self._outlets
 
     @property
     def dag(self) -> Any:
@@ -562,6 +631,7 @@ class BaseOperator(Operator, LoggingMixin):
             NotInRetryPeriodDep(),
             PrevDagrunDep(),
             TriggerRuleDep(),
+            NotPreviouslySkippedDep(),
         }
 
     @property
@@ -586,7 +656,7 @@ class BaseOperator(Operator, LoggingMixin):
 
         if not self._dag:
             return self.priority_weight
-        from airflow import DAG
+        from airflow.models.dag import DAG
         dag: DAG = self._dag
         return self.priority_weight + sum(
             map(lambda task_id: dag.task_dict[task_id].priority_weight,
@@ -664,6 +734,7 @@ class BaseOperator(Operator, LoggingMixin):
 
         for k, v in self.__dict__.items():
             if k not in shallow_copy:
+                # noinspection PyArgumentList
                 setattr(result, k, copy.deepcopy(v, memo))
             else:
                 setattr(result, k, copy.copy(v))
@@ -788,7 +859,7 @@ class BaseOperator(Operator, LoggingMixin):
         if self.template_ext:  # pylint: disable=too-many-nested-blocks
             for field in self.template_fields:
                 content = getattr(self, field, None)
-                if content is None:
+                if content is None:  # pylint: disable=no-else-continue
                     continue
                 elif isinstance(content, str) and \
                         any([content.endswith(ext) for ext in self.template_ext]):
@@ -912,7 +983,7 @@ class BaseOperator(Operator, LoggingMixin):
         """
         if not self._dag:
             return set()
-        from airflow import DAG
+        from airflow.models.dag import DAG
         dag: DAG = self._dag
         return list(map(lambda task_id: dag.task_dict[task_id],
                         self.get_flat_relative_ids(upstream)))
@@ -921,7 +992,7 @@ class BaseOperator(Operator, LoggingMixin):
             self,
             start_date: Optional[datetime] = None,
             end_date: Optional[datetime] = None,
-            ignore_first_depends_on_past: bool = False,
+            ignore_first_depends_on_past: bool = True,
             ignore_ti_state: bool = False,
             mark_success: bool = False) -> None:
         """
@@ -1109,6 +1180,96 @@ class BaseOperator(Operator, LoggingMixin):
                 } | {'_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields'})
 
         return cls.__serialized_fields
+
+
+def chain(*tasks: Union[BaseOperator, List[BaseOperator]]):
+    r"""
+    Given a number of tasks, builds a dependency chain.
+    Support mix airflow.models.BaseOperator and List[airflow.models.BaseOperator].
+    If you want to chain between two List[airflow.models.BaseOperator], have to
+    make sure they have same length.
+
+    .. code-block:: python
+
+         chain(t1, [t2, t3], [t4, t5], t6)
+
+    is equivalent to::
+
+         / -> t2 -> t4 \
+       t1               -> t6
+         \ -> t3 -> t5 /
+
+    .. code-block:: python
+
+        t1.set_downstream(t2)
+        t1.set_downstream(t3)
+        t2.set_downstream(t4)
+        t3.set_downstream(t5)
+        t4.set_downstream(t6)
+        t5.set_downstream(t6)
+
+    :param tasks: List of tasks or List[airflow.models.BaseOperator] to set dependencies
+    :type tasks: List[airflow.models.BaseOperator] or airflow.models.BaseOperator
+    """
+    for index, up_task in enumerate(tasks[:-1]):
+        down_task = tasks[index + 1]
+        if isinstance(up_task, BaseOperator):
+            up_task.set_downstream(down_task)
+            continue
+        if isinstance(down_task, BaseOperator):
+            down_task.set_upstream(up_task)
+            continue
+        if not isinstance(up_task, List) or not isinstance(down_task, List):
+            raise TypeError(
+                'Chain not supported between instances of {up_type} and {down_type}'.format(
+                    up_type=type(up_task), down_type=type(down_task)))
+        up_task_list = cast(List[BaseOperator], up_task)
+        down_task_list = cast(List[BaseOperator], down_task)
+        if len(up_task_list) != len(down_task_list):
+            raise AirflowException(
+                f'Chain not supported different length Iterable '
+                f'but get {len(up_task_list)} and {len(down_task_list)}')
+        for up_t, down_t in zip(up_task_list, down_task_list):
+            up_t.set_downstream(down_t)
+
+
+def cross_downstream(from_tasks: List[BaseOperator],
+                     to_tasks: Union[BaseOperator, List[BaseOperator]]):
+    r"""
+    Set downstream dependencies for all tasks in from_tasks to all tasks in to_tasks.
+
+    .. code-block:: python
+
+        cross_downstream(from_tasks=[t1, t2, t3], to_tasks=[t4, t5, t6])
+
+    is equivalent to::
+
+        t1 ---> t4
+           \ /
+        t2 -X -> t5
+           / \
+        t3 ---> t6
+
+
+    .. code-block:: python
+
+        t1.set_downstream(t4)
+        t1.set_downstream(t5)
+        t1.set_downstream(t6)
+        t2.set_downstream(t4)
+        t2.set_downstream(t5)
+        t2.set_downstream(t6)
+        t3.set_downstream(t4)
+        t3.set_downstream(t5)
+        t3.set_downstream(t6)
+
+    :param from_tasks: List of tasks to start from.
+    :type from_tasks: List[airflow.models.BaseOperator]
+    :param to_tasks: List of tasks to set as downstream dependencies.
+    :type to_tasks: List[airflow.models.BaseOperator]
+    """
+    for task in from_tasks:
+        task.set_downstream(to_tasks)
 
 
 @attr.s(auto_attribs=True)

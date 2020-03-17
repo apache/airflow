@@ -25,7 +25,7 @@ features to its core by simply dropping files in your
 ``$AIRFLOW_HOME/plugins`` folder.
 
 The python modules in the ``plugins`` folder get imported,
-and **hooks**, **operators**, **sensors**, **macros**, **executors** and web **views**
+and **hooks**, **operators**, **sensors**, **macros** and web **views**
 get integrated to Airflow's main collections and become available for use.
 
 What for?
@@ -84,8 +84,6 @@ looks like:
         sensors = []
         # A list of class(es) derived from BaseHook
         hooks = []
-        # A list of class(es) derived from BaseExecutor
-        executors = []
         # A list of references to inject into the macros namespace
         macros = []
         # A list of Blueprint object created from flask.Blueprint. For use with the flask_appbuilder based GUI
@@ -94,12 +92,6 @@ looks like:
         appbuilder_views = []
         # A list of dictionaries containing FlaskAppBuilder BaseView object and some metadata. See example below
         appbuilder_menu_items = []
-        # A function that validate the statsd stat name, apply changes to the stat name if necessary and
-        # return the transformed stat name.
-        #
-        # The function should have the following signature:
-        # def func_name(stat_name: str) -> str:
-        stat_name_handler = None
         # A callback to perform actions when airflow starts and the plugin is loaded.
         # NOTE: Ensure your plugin has *args, and **kwargs in the method definition
         #   to protect against extra parameters injected into the on_load(...)
@@ -165,9 +157,8 @@ definitions in Airflow.
     from airflow.hooks.base_hook import BaseHook
     from airflow.models import BaseOperator
     from airflow.models.baseoperator import BaseOperatorLink
-    from airflow.operators.gcs_to_s3 import GoogleCloudStorageToS3Operator
+    from airflow.providers.amazon.aws.operators.gcs_to_s3 import GCSToS3Operator
     from airflow.sensors.base_sensor_operator import BaseSensorOperator
-    from airflow.executors.base_executor import BaseExecutor
 
     # Will show up under airflow.hooks.test_plugin.PluginHook
     class PluginHook(BaseHook):
@@ -179,10 +170,6 @@ definitions in Airflow.
 
     # Will show up under airflow.sensors.test_plugin.PluginSensorOperator
     class PluginSensorOperator(BaseSensorOperator):
-        pass
-
-    # Will show up under airflow.executors.test_plugin.PluginExecutor
-    class PluginExecutor(BaseExecutor):
         pass
 
     # Will show up under airflow.macros.test_plugin.plugin_macro
@@ -216,10 +203,6 @@ definitions in Airflow.
                         "category_icon": "fa-th",
                         "href": "https://www.google.com"}
 
-    # Validate the statsd stat name
-    def stat_name_dummy_handler(stat_name):
-        return stat_name
-
     # A global operator extra link that redirect you to
     # task logs stored in S3
     class GoogleLink(BaseOperatorLink):
@@ -234,7 +217,7 @@ definitions in Airflow.
     # buttons.
     class S3LogLink(BaseOperatorLink):
         name = 'S3'
-        operators = [GoogleCloudStorageToS3Operator]
+        operators = [GCSToS3Operator]
 
         def get_link(self, operator, dttm):
             return 'https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{execution_date}'.format(
@@ -250,7 +233,6 @@ definitions in Airflow.
         operators = [PluginOperator]
         sensors = [PluginSensorOperator]
         hooks = [PluginHook]
-        executors = [PluginExecutor]
         macros = [plugin_macro]
         flask_blueprints = [bp]
         appbuilder_views = [v_appbuilder_package]

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -96,7 +95,7 @@ class TestGoogleDisplayVideo360GetReportOperator(TestCase):
     )
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators."
-        "display_video.GoogleCloudStorageHook"
+        "display_video.GCSHook"
     )
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators."

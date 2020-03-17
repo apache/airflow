@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,13 +20,13 @@
 import datetime
 import unittest
 
+from mock import Mock, patch
 from sqlalchemy.exc import OperationalError
 
-from airflow.jobs import BaseJob
+from airflow.jobs.base_job import BaseJob
 from airflow.utils import timezone
-from airflow.utils.db import create_session
+from airflow.utils.session import create_session
 from airflow.utils.state import State
-from tests.compat import Mock, patch
 
 
 class TestBaseJob(unittest.TestCase):
@@ -36,12 +35,12 @@ class TestBaseJob(unittest.TestCase):
             'polymorphic_identity': 'TestJob'
         }
 
-        def __init__(self, cb, **kwargs):
-            self.cb = cb
+        def __init__(self, func, **kwargs):
+            self.func = func
             super().__init__(**kwargs)
 
         def _execute(self):
-            return self.cb()
+            return self.func()
 
     def test_state_success(self):
         job = self.TestJob(lambda: True)
@@ -96,6 +95,11 @@ class TestBaseJob(unittest.TestCase):
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=21)
         self.assertFalse(job.is_alive())
 
+        # test because .seconds was used before instead of total_seconds
+        # internal repr of datetime is (days, seconds)
+        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(days=1)
+        self.assertFalse(job.is_alive())
+
         job.state = State.SUCCESS
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
         self.assertFalse(job.is_alive(), "Completed jobs even with recent heartbeat should not be alive")
@@ -114,4 +118,4 @@ class TestBaseJob(unittest.TestCase):
 
             job.heartbeat()
 
-            self.assertEqual(job.latest_heartbeat, when, "attriubte not updated when heartbeat fails")
+            self.assertEqual(job.latest_heartbeat, when, "attribute not updated when heartbeat fails")

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,12 +18,12 @@
 #
 import unittest
 
+import mock
 from google.cloud.dataproc_v1beta2.types import JobStatus  # pylint: disable=no-name-in-module
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
 from airflow.version import version
-from tests.compat import mock
 
 AIRFLOW_VERSION = "v" + version.replace(".", "-").replace("+", "-")
 
@@ -38,7 +37,7 @@ CLUSTER_NAME = "cluster-name"
 
 PARENT = "parent"
 NAME = "name"
-BASE_STRING = "airflow.gcp.hooks.base.{}"
+BASE_STRING = "airflow.providers.google.cloud.hooks.base.{}"
 DATAPROC_STRING = "airflow.providers.google.cloud.hooks.dataproc.{}"
 
 

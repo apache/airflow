@@ -20,9 +20,9 @@ from unittest import mock
 
 from sqlalchemy.engine.url import make_url
 
-from airflow import AirflowException
 from airflow.bin import cli
 from airflow.cli.commands import db_command
+from airflow.exceptions import AirflowException
 
 
 class TestCliDb(unittest.TestCase):
@@ -61,7 +61,7 @@ class TestCliDb(unittest.TestCase):
             ['mysql', '--defaults-extra-file=/tmp/name']
         )
         mock_tmp_file.return_value.__enter__.return_value.write.assert_called_once_with(
-            b'[client]\nhost     = mysql\nuser     = root\npassword = None\nport     = None'
+            b'[client]\nhost     = mysql\nuser     = root\npassword = \nport     = '
             b'\ndatabase = airflow'
         )
 

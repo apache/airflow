@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,7 +20,7 @@ from sqlalchemy import Column, Integer, String, Text, func
 
 from airflow.models.base import Base
 from airflow.ti_deps.deps.pool_slots_available_dep import STATES_TO_COUNT_AS_RUNNING
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 
@@ -29,7 +28,7 @@ class Pool(Base):
     __tablename__ = "slot_pool"
 
     id = Column(Integer, primary_key=True)
-    pool = Column(String(50), unique=True)
+    pool = Column(String(256), unique=True)
     # -1 for infinite
     slots = Column(Integer, default=0)
     description = Column(Text)
@@ -65,11 +64,11 @@ class Pool(Base):
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
         return (
             session
-            .query(func.count())
+            .query(func.sum(TaskInstance.pool_slots))
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state.in_(STATES_TO_COUNT_AS_RUNNING))
             .scalar()
-        )
+        ) or 0
 
     @provide_session
     def used_slots(self, session):
@@ -80,11 +79,11 @@ class Pool(Base):
 
         running = (
             session
-            .query(func.count())
+            .query(func.sum(TaskInstance.pool_slots))
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state == State.RUNNING)
             .scalar()
-        )
+        ) or 0
         return running
 
     @provide_session
@@ -96,11 +95,11 @@ class Pool(Base):
 
         return (
             session
-            .query(func.count())
+            .query(func.sum(TaskInstance.pool_slots))
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state == State.QUEUED)
             .scalar()
-        )
+        ) or 0
 
     @provide_session
     def open_slots(self, session):

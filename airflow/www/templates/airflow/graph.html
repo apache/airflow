@@ -19,7 +19,7 @@
 
 {% extends "airflow/dag.html" %}
 
-{% block title %}Airflow - DAGs{% endblock %}
+{% block page_title %}{{ dag.dag_id }} - Graph - Airflow{% endblock %}
 
 {% block head_css %}
 {{ super() }}
@@ -64,6 +64,7 @@
     <div class="legend_item state" style="border-color:grey;">queued</div>
     <div class="legend_item state" style="border-color:gold;">up_for_retry</div>
     <div class="legend_item state" style="border-color:turquoise;">up_for_reschedule</div>
+    <div class="legend_item state" style="border-color:orange;">upstream_failed</div>
     <div class="legend_item state" style="border-color:pink;">skipped</div>
     <div class="legend_item state" style="border-color:red;">failed</div>
     <div class="legend_item state" style="border-color:lime;">running</div>
@@ -124,6 +125,7 @@
         'running':false,
         'failed':false,
         'skipped': false,
+        'upstream_failed': false,
         'up_for_reschedule': false,
         'up_for_retry': false,
         'queued': false,
@@ -167,10 +169,27 @@
                                         "scale(" + d3.event.scale + ")");
           });
       svg.call(zoom);
-    }
 
-    // Centering the DAG on load (Not implemented yet)
-    // https://github.com/dagrejs/dagre-d3/issues/245
+      // Centering the DAG on load
+      // Get Dagre Graph dimensions
+      var graphWidth = g.graph().width;
+      var graphHeight = g.graph().height;
+      // Get SVG dimensions
+      var padding = 20;
+      var svgBb = svg.node().getBoundingClientRect();
+      var width = svgBb.width - padding*2;
+      var height = svgBb.height - padding;  // we are not centering the dag vertically
+
+      // Calculate applicable scale for zoom
+      zoomScale = Math.min(
+        Math.min(width / graphWidth, height / graphHeight),
+        1.5,  // cap zoom level to 1.5 so nodes are not too large
+      );
+
+      zoom.translate([(width/2) - ((graphWidth*zoomScale)/2) + padding, padding]);
+      zoom.scale(zoomScale);
+      zoom.event(innerSvg);
+    }
 
     setUpZoomSupport();
     inject_node_ids(tasks);
@@ -191,7 +210,7 @@
 
     function highlight_nodes(nodes, color) {
         nodes.forEach (function (nodeid) {
-            my_node = d3.select('#' + nodeid).node().parentNode;
+            my_node = d3.select('[id="' + nodeid + '"]').node().parentNode;
             d3.select(my_node).selectAll("rect").style("stroke", color) ;
         })
     }

@@ -15,24 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-#
-# Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
-set -euo pipefail
-
-MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
-
-# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
-. "${MY_DIR}/_in_container_utils.sh"
-
-in_container_basic_sanity_check
-
-in_container_script_start
+# shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
 TMP_FILE=$(mktemp)
 
 nosetests --collect-only --with-xunit --xunit-file="${TMP_FILE}"
 
 python "${AIRFLOW_SOURCES}/tests/test_utils/get_all_tests.py" "${TMP_FILE}" | sort >> "${HOME}/all_tests.txt"
-
-in_container_script_end

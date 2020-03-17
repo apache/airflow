@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,6 +17,7 @@
 # under the License.
 
 import json
+import logging
 import pickle
 from typing import Any, Iterable, Optional, Union
 
@@ -26,12 +26,14 @@ from sqlalchemy import Column, LargeBinary, String, and_
 from sqlalchemy.orm import Query, Session, reconstructor
 
 from airflow.configuration import conf
-from airflow.models.base import ID_LEN, Base
+from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils import timezone
-from airflow.utils.db import provide_session
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+log = logging.getLogger(__name__)
 
 # MAX XCOM Size is 48KB
 # https://github.com/apache/airflow/pull/1618#discussion_r68249677
@@ -45,15 +47,15 @@ class XCom(Base, LoggingMixin):
     """
     __tablename__ = "xcom"
 
-    key = Column(String(512), primary_key=True)
+    key = Column(String(512, **COLLATION_ARGS), primary_key=True)
     value = Column(LargeBinary)
     timestamp = Column(
         UtcDateTime, default=timezone.utcnow, nullable=False)
     execution_date = Column(UtcDateTime, primary_key=True)
 
     # source information
-    task_id = Column(String(ID_LEN), primary_key=True)
-    dag_id = Column(String(ID_LEN), primary_key=True)
+    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
 
     """
     TODO: "pickling" has been deprecated and JSON is preferred.
@@ -205,7 +207,6 @@ class XCom(Base, LoggingMixin):
         try:
             return json.dumps(value).encode('UTF-8')
         except ValueError:
-            log = LoggingMixin().log
             log.error("Could not serialize the XCOM value into JSON. "
                       "If you are using pickles instead of JSON "
                       "for XCOM, then you need to enable pickle "
@@ -223,7 +224,6 @@ class XCom(Base, LoggingMixin):
         try:
             return json.loads(result.value.decode('UTF-8'))
         except ValueError:
-            log = LoggingMixin().log
             log.error("Could not deserialize the XCOM value from JSON. "
                       "If you are using pickles instead of JSON "
                       "for XCOM, then you need to enable pickle "

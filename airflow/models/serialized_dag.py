@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,23 +18,24 @@
 
 """Serialzed DAG table in database."""
 
-import hashlib
+import logging
 from datetime import timedelta
 from typing import Any, Dict, List, Optional
 
 import sqlalchemy_jsonfield
-from sqlalchemy import Column, Index, Integer, String, and_
+from sqlalchemy import BigInteger, Column, Index, String, and_
 from sqlalchemy.sql import exists
 
-from airflow import DAG
 from airflow.models.base import ID_LEN, Base
+from airflow.models.dag import DAG
+from airflow.models.dagcode import DagCode
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import json
-from airflow.utils import db, timezone
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils import timezone
+from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 class SerializedDagModel(Base):
@@ -61,7 +61,7 @@ class SerializedDagModel(Base):
     dag_id = Column(String(ID_LEN), primary_key=True)
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
-    fileloc_hash = Column(Integer, nullable=False)
+    fileloc_hash = Column(BigInteger, nullable=False)
     data = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
     last_updated = Column(UtcDateTime, nullable=False)
 
@@ -72,25 +72,12 @@ class SerializedDagModel(Base):
     def __init__(self, dag: DAG):
         self.dag_id = dag.dag_id
         self.fileloc = dag.full_filepath
-        self.fileloc_hash = self.dag_fileloc_hash(self.fileloc)
+        self.fileloc_hash = DagCode.dag_fileloc_hash(self.fileloc)
         self.data = SerializedDAG.to_dict(dag)
         self.last_updated = timezone.utcnow()
 
-    @staticmethod
-    def dag_fileloc_hash(full_filepath: str) -> int:
-        """"Hashing file location for indexing.
-
-        :param full_filepath: full filepath of DAG file
-        :return: hashed full_filepath
-        """
-        # hashing is needed because the length of fileloc is 2000 as an Airflow convention,
-        # which is over the limit of indexing. If we can reduce the length of fileloc, then
-        # hashing is not needed.
-        return int.from_bytes(
-            hashlib.sha1(full_filepath.encode('utf-8')).digest()[-2:], byteorder='big', signed=False)
-
     @classmethod
-    @db.provide_session
+    @provide_session
     def write_dag(cls, dag: DAG, min_update_interval: Optional[int] = None, session=None):
         """Serializes a DAG and writes it into database.
 
@@ -112,7 +99,7 @@ class SerializedDagModel(Base):
         log.debug("DAG: %s written to the DB", dag.dag_id)
 
     @classmethod
-    @db.provide_session
+    @provide_session
     def read_all_dags(cls, session=None) -> Dict[str, 'SerializedDAG']:
         """Reads all DAGs in serialized_dag table.
 
@@ -146,7 +133,7 @@ class SerializedDagModel(Base):
         return dag
 
     @classmethod
-    @db.provide_session
+    @provide_session
     def remove_dag(cls, dag_id: str, session=None):
         """Deletes a DAG with given dag_id.
 
@@ -156,7 +143,7 @@ class SerializedDagModel(Base):
         session.execute(cls.__table__.delete().where(cls.dag_id == dag_id))
 
     @classmethod
-    @db.provide_session
+    @provide_session
     def remove_deleted_dags(cls, alive_dag_filelocs: List[str], session=None):
         """Deletes DAGs not included in alive_dag_filelocs.
 
@@ -164,7 +151,7 @@ class SerializedDagModel(Base):
         :param session: ORM Session
         """
         alive_fileloc_hashes = [
-            cls.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
+            DagCode.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
 
         log.debug("Deleting Serialized DAGs (for which DAG files are deleted) "
                   "from %s table ", cls.__tablename__)
@@ -175,7 +162,7 @@ class SerializedDagModel(Base):
                      cls.fileloc.notin_(alive_dag_filelocs))))
 
     @classmethod
-    @db.provide_session
+    @provide_session
     def has_dag(cls, dag_id: str, session=None) -> bool:
         """Checks a DAG exist in serialized_dag table.
 
@@ -185,7 +172,7 @@ class SerializedDagModel(Base):
         return session.query(exists().where(cls.dag_id == dag_id)).scalar()
 
     @classmethod
-    @db.provide_session
+    @provide_session
     def get(cls, dag_id: str, session=None) -> Optional['SerializedDagModel']:
         """
         Get the SerializedDAG for the given dag ID.

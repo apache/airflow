@@ -20,7 +20,8 @@ import subprocess
 import textwrap
 from tempfile import NamedTemporaryFile
 
-from airflow import AirflowException, settings
+from airflow import settings
+from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
 
 
@@ -51,7 +52,7 @@ def upgradedb(args):
 
 @cli_utils.action_logging
 def shell(args):
-    """Run a shell that allows to access database access"""
+    """Run a shell that allows to access metadata database"""
     url = settings.engine.url
     print("DB: " + repr(url))
 
@@ -61,8 +62,8 @@ def shell(args):
                 [client]
                 host     = {url.host}
                 user     = {url.username}
-                password = {url.password}
-                port     = {url.port}
+                password = {url.password or ""}
+                port     = {url.port or ""}
                 database = {url.database}
                 """).strip()
             f.write(content.encode())
@@ -81,3 +82,9 @@ def shell(args):
         subprocess.Popen(["psql"], env=env).wait()
     else:
         raise AirflowException(f"Unknown driver: {url.drivername}")
+
+
+@cli_utils.action_logging
+def check(_):
+    """Runs a check command that checks if db is available."""
+    db.check()

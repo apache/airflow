@@ -29,6 +29,7 @@ configuring an Airflow environment.
 .. toctree::
     :maxdepth: 2
 
+    add-dag-tags
     add-new-role
     set-config
     initialize-database
@@ -43,3 +44,4 @@ configuring an Airflow environment.
     check-health
     define_extra_link
     tracking-user-activity
+    email-config

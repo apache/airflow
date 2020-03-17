@@ -49,6 +49,24 @@ the metrics that start with the elements of the list:
     [scheduler]
     statsd_allow_list = scheduler,executor,dagrun
 
+If you want to redirect metrics to different name, you can configure ``stat_name_handler`` option
+in ``[scheduler]`` section.  It should point to a function that validate the statsd stat name, apply changes
+to the stat name if necessary and return the transformed stat name. The function may looks as follow:
+
+.. code-block:: python
+
+    def my_custom_stat_name_handler(stat_name: str) -> str:
+        return stat_name.lower()[:32]
+
+If you want to use a custom Statsd client outwith the default one provided by Airflow the following key must be added
+to the configuration file alongside the module path of your custom Statsd client. This module must be available on
+your PYTHONPATH.
+
+.. code-block:: ini
+
+    [scheduler]
+    statsd_custom_client_path = x.y.customclient
+
 Counters
 --------
 

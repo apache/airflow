@@ -15,19 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-#
-# Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
-set -euo pipefail
-
-MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
-
-# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
-. "${MY_DIR}/_in_container_utils.sh"
-
-in_container_basic_sanity_check
-
-in_container_script_start
+# shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
 # any argument received is overriding the default nose execution arguments:
 PYTEST_ARGS=( "$@" )
@@ -42,11 +31,18 @@ pytest "${PYTEST_ARGS[@]}"
 RES=$?
 
 set +x
-if [[ "${RES}" == "0" ]]; then
+if [[ "${RES}" == "0" && ${CI} == "true" ]]; then
     echo "All tests successful"
     bash <(curl -s https://codecov.io/bash)
 fi
 
-in_container_script_end
+if [[ ${CI} == "true" ]]; then
+    send_docker_logs_to_file_io
+    send_airflow_logs_to_file_io
+fi
+
+if [[ ${CI} == "true" && ${ENABLE_KIND_CLUSTER} == "true" ]]; then
+    send_kubernetes_logs_to_file_io
+fi
 
 exit "${RES}"

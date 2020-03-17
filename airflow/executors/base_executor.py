@@ -20,26 +20,28 @@ Base executor - this is the base class for all the implemented executors.
 from collections import OrderedDict
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
-from airflow import LoggingMixin, conf
+from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
 from airflow.stats import Stats
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
 PARALLELISM: int = conf.getint('core', 'PARALLELISM')
 
 NOT_STARTED_MESSAGE = "The executor should be started first!"
 
-# Command to execute - might be either string or list of strings
-# with the same semantics as subprocess.Popen
-CommandType = Union[str, List[str]]
+# Command to execute - list of strings
+# the first element is always "airflow".
+# It should be result of TaskInstance.generate_command method.q
+CommandType = List[str]
 
 
 # Task that is queued. It contains all the information that is
 # needed to run the task.
 #
 # Tuple of: command, priority, queue name, SimpleTaskInstance
-QueuedTaskInstanceType = Tuple[CommandType, int, Optional[str], SimpleTaskInstance]
+QueuedTaskInstanceType = Tuple[CommandType, int, Optional[str], Union[SimpleTaskInstance, TaskInstance]]
 
 
 class BaseExecutor(LoggingMixin):
@@ -85,7 +87,7 @@ class BaseExecutor(LoggingMixin):
             ignore_task_deps: bool = False,
             ignore_ti_state: bool = False,
             pool: Optional[str] = None,
-            cfg_path: Optional[str] = None):
+            cfg_path: Optional[str] = None) -> None:
         """Queues task instance."""
         pool = pool or task_instance.pool
 
@@ -150,16 +152,25 @@ class BaseExecutor(LoggingMixin):
         self.log.debug("Calling the %s sync method", self.__class__)
         self.sync()
 
+    def order_queued_tasks_by_priority(self) -> List[Tuple[TaskInstanceKeyType, QueuedTaskInstanceType]]:
+        """
+        Orders the queued tasks by priority.
+
+        :return: List of tuples from the queued_tasks according to the priority.
+        """
+        return sorted(
+            [(k, v) for k, v in self.queued_tasks.items()],  # pylint: disable=unnecessary-comprehension
+            key=lambda x: x[1][1],
+            reverse=True)
+
     def trigger_tasks(self, open_slots: int) -> None:
         """
         Triggers tasks
 
         :param open_slots: Number of open slots
         """
-        sorted_queue = sorted(
-            [(k, v) for k, v in self.queued_tasks.items()],
-            key=lambda x: x[1][1],
-            reverse=True)
+        sorted_queue = self.order_queued_tasks_by_priority()
+
         for _ in range(min((open_slots, len(self.queued_tasks)))):
             key, (command, _, _, simple_ti) = sorted_queue.pop(0)
             self.queued_tasks.pop(key)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -24,9 +23,9 @@ from unittest.mock import Mock, patch
 
 from freezegun import freeze_time
 
-from airflow import DAG, settings
 from airflow.exceptions import AirflowException, AirflowRescheduleException, AirflowSensorTimeout
 from airflow.models import DagRun, TaskInstance, TaskReschedule
+from airflow.models.dag import DAG, settings
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
@@ -450,8 +449,8 @@ class TestBaseSensor(unittest.TestCase):
         # poke returns False and AirflowRescheduleException is raised
         date1 = timezone.utcnow()
         with freeze_time(date1):
-            for dt in self.dag.date_range(DEFAULT_DATE, end_date=DEFAULT_DATE):
-                TaskInstance(sensor, dt).run(
+            for date in self.dag.date_range(DEFAULT_DATE, end_date=DEFAULT_DATE):
+                TaskInstance(sensor, date).run(
                     ignore_ti_state=True,
                     test_mode=True)
         tis = dr.get_task_instances()

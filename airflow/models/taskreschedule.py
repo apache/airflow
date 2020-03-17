@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,8 +18,8 @@
 """TaskReschedule tracks rescheduled task instances."""
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc
 
-from airflow.models.base import ID_LEN, Base
-from airflow.utils.db import provide_session
+from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
@@ -32,8 +31,8 @@ class TaskReschedule(Base):
     __tablename__ = "task_reschedule"
 
     id = Column(Integer, primary_key=True)
-    task_id = Column(String(ID_LEN), nullable=False)
-    dag_id = Column(String(ID_LEN), nullable=False)
+    task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     execution_date = Column(UtcDateTime, nullable=False)
     try_number = Column(Integer, nullable=False)
     start_date = Column(UtcDateTime, nullable=False)
@@ -64,11 +63,13 @@ class TaskReschedule(Base):
 
     @staticmethod
     @provide_session
-    def find_for_task_instance(task_instance, session):
+    def find_for_task_instance(task_instance, session=None):
         """
         Returns all task reschedules for the task instance and try number,
         in ascending order.
 
+        :param session: the database session object
+        :type session: sqlalchemy.orm.session.Session
         :param task_instance: the task instance to find task reschedules for
         :type task_instance: airflow.models.TaskInstance
         """
