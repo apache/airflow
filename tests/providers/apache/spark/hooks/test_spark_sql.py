@@ -21,6 +21,7 @@ import unittest
 from itertools import dropwhile
 from unittest.mock import call, patch
 
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
 from airflow.utils import db
@@ -144,6 +145,32 @@ class TestSparkSqlHook(unittest.TestCase):
             mock_popen.mock_calls[0],
             call(['spark-sql', '-e', 'SELECT 1', '--master', 'yarn', '--name', 'default-name', '--verbose',
                   '--queue', 'default', '--deploy-mode', 'cluster'], stderr=-2, stdout=-1)
+        )
+
+    @patch('airflow.providers.apache.spark.hooks.spark_sql.subprocess.Popen')
+    def test_spark_process_runcmd_and_fail(self, mock_popen):
+        # Given
+        sql = 'SELECT 1'
+        master = 'local'
+        params = '--deploy-mode cluster'
+        status = 1
+        mock_popen.return_value.wait.return_value = status
+
+        # When
+        with self.assertRaises(AirflowException) as e:
+            hook = SparkSqlHook(
+                conn_id='spark_default',
+                sql=sql,
+                master=master,
+            )
+            hook.run_query(params)
+
+        # Then
+        self.assertEqual(
+            str(e.exception),
+            "Cannot execute '{}' on {} (additional parameters: '{}'). Process exit code: {}.".format(
+                sql, master, params, status
+            )
         )
 
 
