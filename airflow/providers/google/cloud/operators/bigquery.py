@@ -23,7 +23,7 @@ This module contains Google BigQuery operators.
 
 import json
 import warnings
-from typing import Any, Dict, FrozenSet, Iterable, List, Optional, SupportsAbs, Union
+from typing import Any, Dict, Iterable, List, Optional, SupportsAbs, Union
 
 import attr
 from googleapiclient.errors import HttpError
@@ -456,9 +456,6 @@ class BigQueryExecuteQueryOperator(BaseOperator):
     template_ext = ('.sql', )
     ui_color = '#e4f0e8'
 
-    # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
-    __serialized_fields: Optional[FrozenSet[str]] = None
-
     @property
     def operator_extra_links(self):
         """
@@ -591,13 +588,6 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         if self.hook is not None:
             self.log.info('Cancelling running query')
             self.hook.cancel_query()
-
-    @classmethod
-    def get_serialized_fields(cls):
-        """Serialized BigQueryOperator contain exactly these fields."""
-        if not cls.__serialized_fields:
-            cls.__serialized_fields = frozenset(super().get_serialized_fields() | {"sql"})
-        return cls.__serialized_fields
 
 
 class BigQueryCreateEmptyTableOperator(BaseOperator):

@@ -17,7 +17,7 @@
 # under the License.
 """Qubole operator"""
 import re
-from typing import FrozenSet, Iterable, Optional
+from typing import Iterable
 
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -181,9 +181,6 @@ class QuboleOperator(BaseOperator):
         QDSLink(),
     )
 
-    # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
-    __serialized_fields: Optional[FrozenSet[str]] = None
-
     @apply_defaults
     def __init__(self, qubole_conn_id="qubole_default", *args, **kwargs):
         self.args = args
@@ -243,10 +240,3 @@ class QuboleOperator(BaseOperator):
             self.kwargs[name] = value
         else:
             object.__setattr__(self, name, value)
-
-    @classmethod
-    def get_serialized_fields(cls):
-        """Serialized QuboleOperator contain exactly these fields."""
-        if not cls.__serialized_fields:
-            cls.__serialized_fields = frozenset(super().get_serialized_fields() | {"qubole_conn_id"})
-        return cls.__serialized_fields
