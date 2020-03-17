@@ -16,8 +16,8 @@
 # under the License.
 """Launches PODs"""
 import json
-import time
 import re
+import time
 from datetime import datetime as dt
 from typing import Optional, Tuple
 
