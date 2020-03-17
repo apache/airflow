@@ -317,12 +317,12 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
             )
             self.assertEqual(operator.destination_bucket, operator.source_bucket)
 
-    # Tests the use of suffix and source object as list
+    # Tests the use of delimiter and source object as list
     @mock.patch('airflow.providers.google.cloud.operators.gcs_to_gcs.GCSHook')
     def test_executes_with_empty_source_objects(self, mock_hook):
         operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
-            source_object=SOURCE_OBJECTS_NO_FILE)
+            source_objects=SOURCE_OBJECTS_NO_FILE)
 
         operator.execute(None)
         mock_hook.return_value.list.assert_called_once_with(
@@ -334,7 +334,7 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
         mock_hook.return_value.list.return_value = SOURCE_OBJECTS_LIST
         operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
-            source_object=SOURCE_OBJECTS_TWO_EMPTY_STRING)
+            source_objects=SOURCE_OBJECTS_TWO_EMPTY_STRING)
 
         with self.assertRaisesRegex(AirflowException,
                                     "You can't have two empty strings inside source_object"):
@@ -344,7 +344,7 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
     def test_executes_with_single_item_in_source_objects(self, mock_hook):
         operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
-            source_object=SOURCE_OBJECTS_SINGLE_FILE)
+            source_objects=SOURCE_OBJECTS_SINGLE_FILE)
         operator.execute(None)
         mock_hook.return_value.list.assert_called_once_with(
             TEST_BUCKET, prefix=SOURCE_OBJECTS_SINGLE_FILE[0], delimiter=None
@@ -354,7 +354,7 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
     def test_executes_with_multiple_items_in_source_objects(self, mock_hook):
         operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
-            source_object=SOURCE_OBJECTS_MULTIPLE_FILES)
+            source_objects=SOURCE_OBJECTS_MULTIPLE_FILES)
         operator.execute(None)
         mock_hook.return_value.list.assert_has_calls(
             [
@@ -368,7 +368,7 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
     def test_executes_with_a_delimiter(self, mock_hook):
         operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
-            source_object=SOURCE_OBJECTS_NO_FILE, suffix=DELIMITER)
+            source_objects=SOURCE_OBJECTS_NO_FILE, delimiter=DELIMITER)
         operator.execute(None)
         mock_hook.return_value.list.assert_called_once_with(
             TEST_BUCKET, prefix='', delimiter=DELIMITER
@@ -380,10 +380,10 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
         mock_hook.return_value.list.return_value = ['test_object/file3.json']
         operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
-            source_object=SOURCE_OBJECTS_LIST,
+            source_objects=SOURCE_OBJECTS_LIST,
             destination_bucket=DESTINATION_BUCKET,
             destination_object=DESTINATION_OBJECT,
-            suffix=DELIMITER)
+            delimiter=DELIMITER)
 
         operator.execute(None)
         mock_calls = [
@@ -397,10 +397,10 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
         mock_hook.return_value.list.return_value = ['test_object/file1.txt', 'test_object/file2.txt']
         operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
-            source_object=SOURCE_OBJECTS_LIST,
+            source_objects=SOURCE_OBJECTS_LIST,
             destination_bucket=DESTINATION_BUCKET,
             destination_object=DESTINATION_OBJECT,
-            suffix='.txt')
+            delimiter='.txt')
 
         operator.execute(None)
         mock_calls = [
@@ -417,7 +417,7 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
         mock_hook.return_value.list.return_value = SOURCE_OBJECTS_LIST
         operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
-            source_object=SOURCE_OBJECTS_LIST)
+            source_objects=SOURCE_OBJECTS_LIST)
         operator.execute(None)
         mock_calls = [
             mock.call(TEST_BUCKET, 'test_object/file1.txt',
@@ -434,7 +434,7 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
         mock_hook.return_value.is_updated_after.side_effect = [True, True, True]
         operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
-            source_object=SOURCE_OBJECTS_NO_FILE,
+            source_objects=SOURCE_OBJECTS_NO_FILE,
             destination_bucket=DESTINATION_BUCKET,
             last_modified_time=MOD_TIME_1)
 
