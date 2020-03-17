@@ -89,7 +89,7 @@ serialized_simple_dag_ground_truth = {
                 "_operator_extra_links": [{"airflow.utils.tests.CustomOpLink": {}}],
                 "ui_color": "#fff",
                 "ui_fgcolor": "#000",
-                "template_fields": [],
+                "template_fields": ['bash_command'],
                 "_task_type": "CustomOperator",
                 "_task_module": "airflow.utils.tests",
             },

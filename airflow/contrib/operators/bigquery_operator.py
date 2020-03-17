@@ -21,7 +21,7 @@ This module contains Google BigQuery operators.
 """
 
 import json
-from typing import Iterable, FrozenSet, Optional
+from typing import Iterable
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook, _parse_gcs_url
@@ -168,9 +168,6 @@ class BigQueryOperator(BaseOperator):
     template_ext = ('.sql', )
     ui_color = '#e4f0e8'
 
-    # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
-    __serialized_fields = None  # type: Optional[FrozenSet[str]]
-
     @property
     def operator_extra_links(self):
         """
@@ -313,13 +310,6 @@ class BigQueryOperator(BaseOperator):
         if self.bq_cursor is not None:
             self.log.info('Cancelling running query')
             self.bq_cursor.cancel_query()
-
-    @classmethod
-    def get_serialized_fields(cls):
-        """Serialized BigQueryOperator contain exactly these fields."""
-        if not cls.__serialized_fields:
-            cls.__serialized_fields = frozenset(BaseOperator.get_serialized_fields() | {"sql"})
-        return cls.__serialized_fields
 
 
 class BigQueryCreateEmptyTableOperator(BaseOperator):
