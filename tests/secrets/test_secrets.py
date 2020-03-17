@@ -19,7 +19,8 @@
 import unittest
 from unittest import mock
 
-from airflow.secrets import get_connections
+from airflow.secrets import get_connections, initialize_secrets_backends
+from tests.test_utils.config import conf_vars
 
 
 class TestSecrets(unittest.TestCase):
@@ -38,6 +39,17 @@ class TestSecrets(unittest.TestCase):
         get_connections("fake_conn_id")
         mock_env_get.assert_called_once_with(conn_id="fake_conn_id")
         mock_meta_get.not_called()
+
+    @conf_vars({
+        ("secrets", "backend"): "airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend",
+        ("secrets", "backend_kwargs"): '{"prefix": "/airflow", "profile_name": null}',
+    })
+    def test_initialize_secrets_backends(self):
+        backends = initialize_secrets_backends()
+        backend_classes = [backend.__class__.__name__ for backend in backends]
+
+        self.assertEqual(3, len(backends))
+        self.assertIn('AwsSsmSecretsBackend', backend_classes)
 
 
 if __name__ == "__main__":
