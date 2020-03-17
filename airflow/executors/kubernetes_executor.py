@@ -336,7 +336,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 status=task.status.phase,
                 labels=task.metadata.labels,
                 resource_version=task.metadata.resource_version,
-                event
+                event=event,
             )
             last_resource_version = task.metadata.resource_version
 
