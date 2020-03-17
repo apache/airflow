@@ -81,7 +81,7 @@ serialized_simple_dag_ground_truth = {
                 "_operator_extra_links": [{"tests.test_utils.mock_operators.CustomOpLink": {}}],
                 "ui_color": "#fff",
                 "ui_fgcolor": "#000",
-                "template_fields": [],
+                "template_fields": ['bash_command'],
                 "_task_type": "CustomOperator",
                 "_task_module": "tests.test_utils.mock_operators",
             },
