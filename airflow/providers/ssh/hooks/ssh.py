@@ -121,6 +121,12 @@ class SSHHook(BaseHook):
                         and\
                         str(extra_options["allow_host_key_change"]).lower() == 'true':
                     self.allow_host_key_change = True
+                if "host_key" in extra_options and self.no_host_key_check is False:
+                    self.add_host_to_known_hosts(
+                        self.remote_host,
+                        'ssh-rsa',
+                        extra_options["host_key"]
+                    )
 
         if self.pkey and self.key_file:
             raise AirflowException(
@@ -275,3 +281,36 @@ class SSHHook(BaseHook):
                       category=DeprecationWarning)
 
         return self.get_tunnel(remote_port, remote_host, local_port)
+
+    @staticmethod
+    def _add_new_record_to_known_hosts(record, file):
+        file.write(''.join([record, '\n']))
+
+    @staticmethod
+    def add_host_to_known_hosts(host, key_type, host_key):
+        """This adds a specified remote_host public key to the known_hosts
+            in order to prevent man-in-the-middle attacks."""
+        # The .ssh hidden directory is required and not present on all airflow deployments
+        known_hosts_file_ref = SSHHook._create_known_hosts()
+        record = SSHHook._format_known_hosts_record(host, key_type, host_key)
+        with open(known_hosts_file_ref, 'r') as known_hosts:
+            file_content = known_hosts.read()
+
+        if len(file_content) == 0 or record not in file_content:
+            with open(known_hosts_file_ref, 'a') as known_hosts:
+                SSHHook._add_new_record_to_known_hosts(
+                    record,
+                    known_hosts
+                )
+
+    @staticmethod
+    def _format_known_hosts_record(host, key_type, public_key):
+        return ' '.join([host, key_type, public_key])
+
+    @staticmethod
+    def _create_known_hosts():
+        if not os.path.exists(os.path.expanduser('~/.ssh')):
+            os.mkdir(os.path.expanduser('~/.ssh'))
+        with open(os.path.expanduser('~/.ssh/known_hosts'), 'a') as f:
+            f.write(str())
+        return os.path.expanduser('~/.ssh/known_hosts')
