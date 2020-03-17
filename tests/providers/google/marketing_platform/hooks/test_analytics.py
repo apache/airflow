@@ -26,7 +26,6 @@ GCP_CONN_ID = "google_cloud_default"
 
 
 class TestGoogleAnalyticsHook(unittest.TestCase):
-    NUM_RETRIES = 5
 
     def setUp(self):
         with mock.patch(
@@ -76,6 +75,33 @@ class TestGoogleAnalyticsHook(unittest.TestCase):
         ]
         list_accounts = self.hook.list_accounts()
         self.assertEqual(list_accounts, ["a", "b"])
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "analytics.GoogleAnalyticsHook.get_conn"
+    )
+    def test_get_ad_words_links_call(self, get_conn_mock):
+        num_retries = 5
+        account_id = "holy_hand_grenade"
+        web_property_id = "UA-123456-1"
+        web_property_ad_words_link_id = "AAIIRRFFLLOOWW"
+
+        self.hook.get_ad_words_link(account_id=account_id,
+                                    web_property_id=web_property_id,
+                                    web_property_ad_words_link_id=web_property_ad_words_link_id, )
+
+        get_conn_mock.return_value\
+            .management.return_value\
+            .webPropertyAdWordsLinks.return_value\
+            .get.return_value\
+            .execute.assert_called_once_with(num_retries=num_retries)
+
+        get_conn_mock.return_value \
+            .management.return_value \
+            .webPropertyAdWordsLinks.return_value \
+            .get.assert_called_once_with(accountId=account_id,
+                                         webPropertyId=web_property_id,
+                                         webPropertyAdWordsLinkId=web_property_ad_words_link_id,)
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."

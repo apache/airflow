@@ -74,6 +74,37 @@ class GoogleAnalyticsHook(CloudBaseHook):
                 break
         return result
 
+    def get_ad_words_link(
+        self, account_id: str, web_property_id: str, web_property_ad_words_link_id: str
+    ) -> Dict[str, Any]:
+        """
+        Returns a web property-Google Ads link to which the user has access.
+
+        :param account_id: ID of the account which the given web property belongs to.
+        :type account_id: string
+        :param web_property_id: Web property-Google Ads link UA-string.
+        :type web_property_id: string
+        :param web_property_ad_words_link_id: to retrieve the Google Ads link for.
+        :type web_property_ad_words_link_id: string
+
+        :returns: web property-Google Ads
+        :rtype: Dict
+        """
+
+        self.log.info("Retrieving ad words links...")
+        ad_words_link = (
+            self.get_conn()  # pylint: disable=no-member
+            .management()
+            .webPropertyAdWordsLinks()
+            .get(
+                accountId=account_id,
+                webPropertyId=web_property_id,
+                webPropertyAdWordsLinkId=web_property_ad_words_link_id,
+            )
+            .execute(num_retries=self.num_retries)
+        )
+        return ad_words_link
+
     def list_ad_words_links(
         self, account_id: str, web_property_id: str
     ) -> List[Dict[str, Any]]:

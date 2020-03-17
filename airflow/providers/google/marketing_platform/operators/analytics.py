@@ -70,6 +70,65 @@ class GoogleAnalyticsListAccountsOperator(BaseOperator):
         return result
 
 
+class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
+    """
+    Returns a web property-Google Ads link to which the user has access.
+
+    .. seealso::
+        Check official API docs:
+        https://developers.google.com/analytics/devguides/config/mgmt/v3/mgmtReference/management/webPropertyAdWordsLinks/get
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleAnalyticsGetAdsLinkOperator`
+
+    :param account_id: ID of the account which the given web property belongs to.
+    :type account_id: str
+    :param web_property_ad_words_link_id: Web property-Google Ads link ID.
+    :type web_property_ad_words_link_id: str
+    :param web_property_id: Web property ID to retrieve the Google Ads link for.
+    :type web_property_id: str
+    """
+
+    template_fields = (
+        "api_version",
+        "gcp_connection_id",
+        "account_id",
+        "web_property_ad_words_link_id",
+        "web_property_id",
+    )
+
+    @apply_defaults
+    def __init__(
+        self,
+        account_id: str,
+        web_property_ad_words_link_id: str,
+        web_property_id: str,
+        api_version: str = "v3",
+        gcp_connection_id: str = "google_cloud_default",
+        *args,
+        **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+
+        self.account_id = account_id
+        self.web_property_ad_words_link_id = web_property_ad_words_link_id
+        self.web_property_id = web_property_id
+        self.api_version = api_version
+        self.gcp_connection_id = gcp_connection_id
+
+    def execute(self, context):
+        hook = GoogleAnalyticsHook(
+            api_version=self.api_version, gcp_connection_id=self.gcp_connection_id
+        )
+        result = hook.get_ad_words_link(
+            account_id=self.account_id,
+            web_property_id=self.web_property_id,
+            web_property_ad_words_link_id=self.web_property_ad_words_link_id,
+        )
+        return result
+
+
 class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
     """
     Lists webProperty-Google Ads links for a given web property
