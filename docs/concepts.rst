@@ -121,7 +121,7 @@ DAGs can be used as context managers to automatically assign new operators to th
 DAG Runs
 ========
 
-A DAG run is a physical instance of a DAG, containing task instances that run for a specific ``execution_date``.
+A DAG run is an instantiation of a DAG, containing task instances that run for a specific ``execution_date``.
 
 A DAG run is usually created by the Airflow scheduler, but can also be created by an external trigger.
 Multiple DAG runs may be running at once for a particular DAG, each of them having a different ``execution_date``.
