@@ -22,7 +22,7 @@ Secrets framework provides means of getting connection objects from various sour
     * Metatsore database
     * AWS SSM Parameter store
 """
-__all__ = ['CONN_ENV_PREFIX', 'BaseSecretsBackend', 'get_connections']
+__all__ = ['BaseSecretsBackend', 'get_connections']
 
 import json
 from abc import ABC, abstractmethod
@@ -34,7 +34,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils.module_loading import import_string
 
-CONN_ENV_PREFIX = "AIRFLOW_CONN_"
 CONFIG_SECTION = "secrets"
 DEFAULT_SECRETS_SEARCH_PATH = [
     "airflow.secrets.environment_variables.EnvironmentVariablesSecretsBackend",

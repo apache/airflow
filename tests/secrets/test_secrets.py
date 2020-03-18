@@ -42,7 +42,7 @@ class TestSecrets(unittest.TestCase):
 
     @conf_vars({
         ("secrets", "backend"): "airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend",
-        ("secrets", "backend_kwargs"): '{"prefix": "/airflow", "profile_name": null}',
+        ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
     })
     def test_initialize_secrets_backends(self):
         backends = initialize_secrets_backends()
@@ -53,7 +53,7 @@ class TestSecrets(unittest.TestCase):
 
     @conf_vars({
         ("secrets", "backend"): "airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend",
-        ("secrets", "backend_kwargs"): '{"prefix": "/airflow", "profile_name": null}',
+        ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
     })
     @mock.patch.dict('os.environ', {
         'AIRFLOW_CONN_TEST_MYSQL': 'mysql://airflow:airflow@host:5432/airflow',

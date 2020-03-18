@@ -23,7 +23,9 @@ import os
 from typing import List
 
 from airflow.models import Connection
-from airflow.secrets import CONN_ENV_PREFIX, BaseSecretsBackend
+from airflow.secrets import BaseSecretsBackend
+
+CONN_ENV_PREFIX = "AIRFLOW_CONN_"
 
 
 class EnvironmentVariablesSecretsBackend(BaseSecretsBackend):

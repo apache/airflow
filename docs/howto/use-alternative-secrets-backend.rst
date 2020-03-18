@@ -66,14 +66,15 @@ Here is a sample configuration:
 
     [secrets]
     backend = airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend
-    backend_kwargs = {"prefix": "/airflow", "profile_name": "default"}
+    backend_kwargs = {"connections_prefix": "/airflow/connections", "profile_name": "default"}
 
-If you have set your prefix as ``/airflow``, then for a connection id of ``smtp_default``, you would want to
-store your connection at ``/airflow/AIRFLOW_CONN_SMTP_DEFAULT``.
+If you have set ``connections_prefix`` as ``/airflow/connections``, then for a connection id of ``smtp_default``,
+you would want to store your connection at ``/airflow/connections/smtp_default``.
 
 Optionally you can supply a profile name to reference aws profile, e.g. defined in ``~/.aws/config``.
 
-The value of the SSM parameter must be the :ref:`airflow connection URI representation <generating_connection_uri>` of the connection object.
+The value of the SSM parameter must be the :ref:`connection URI representation <generating_connection_uri>`
+of the connection object.
 
 .. _hashicorp_vault_secrets:
 
