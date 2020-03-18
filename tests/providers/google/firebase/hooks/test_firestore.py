@@ -43,7 +43,7 @@ TEST_ERROR_OPERATION = {"done": True, "response": "response", "error": "error"}
 TEST_PROJECT_ID = "firestore--project-id"
 
 
-class TestCloudBuildHookWithPassedProjectId(unittest.TestCase):
+class TestCloudFirestoreHookWithPassedProjectId(unittest.TestCase):
     hook = None  # type: Optional[CloudFirestoreHook]
 
     def setUp(self):
@@ -135,7 +135,7 @@ class TestCloudBuildHookWithPassedProjectId(unittest.TestCase):
             self.hook.export_documents(body=EXPORT_DOCUMENT_BODY, project_id=TEST_PROJECT_ID)
 
 
-class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
+class TestCloudFirestoreHookWithDefaultProjectIdFromConnection(unittest.TestCase):
     hook = None  # type: Optional[CloudFirestoreHook]
 
     def setUp(self):
@@ -240,7 +240,7 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
             self.hook.export_documents(body=EXPORT_DOCUMENT_BODY)
 
 
-class TestCloudBuildHookWithoutProjectId(unittest.TestCase):
+class TestCloudFirestoreHookWithoutProjectId(unittest.TestCase):
     hook = None  # type: Optional[CloudFirestoreHook]
 
     def setUp(self):

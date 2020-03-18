@@ -60,9 +60,9 @@ class CloudFirestoreHook(CloudBaseHook):
 
     def get_conn(self):
         """
-        Retrieves the connection to Cloud Build.
+        Retrieves the connection to Cloud Firestore.
 
-        :return: Google Cloud Build services object.
+        :return: Google Cloud Firestore services object.
         """
         if not self._conn:
             http_authorized = self._authorize()
@@ -84,7 +84,7 @@ class CloudFirestoreHook(CloudBaseHook):
         self, body: Dict, database_id: str = "(default)", project_id: Optional[str] = None
     ) -> None:
         """
-        Starts a build with the specified configuration.
+        Starts a export with the specified configuration.
 
         :param database_id: The Database ID.
         :type database_id: str
@@ -92,7 +92,7 @@ class CloudFirestoreHook(CloudBaseHook):
             See:
             https://firebase.google.com/docs/firestore/reference/rest/v1beta1/projects.databases/exportDocuments
         :type body: dict
-        :param project_id: Optional, Google Cloud Project project_id where the function belongs.
+        :param project_id: Optional, Google Cloud Project project_id where the database belongs.
             If set to None or missing, the default project_id from the GCP connection is used.
         :type project_id: str
         """

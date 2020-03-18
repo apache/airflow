@@ -27,7 +27,7 @@ from tests.test_utils.gcp_system_helpers import FIREBASE_DAG_FOLDER, GoogleSyste
 @pytest.mark.system("google.firebase")
 @pytest.mark.system("google.cloud")
 @pytest.mark.credential_file(G_FIREBASE_KEY)
-class CampaignManagerSystemTest(GoogleSystemTest):
+class CloudFirestoreSystemTest(GoogleSystemTest):
     def setUp(self):
         super().setUp()
         self.clean_up()
