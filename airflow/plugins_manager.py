@@ -18,6 +18,8 @@
 """Manages all plugins."""
 # noinspection PyDeprecation
 import importlib
+import importlib.machinery
+import importlib.util
 import inspect
 import logging
 import os
