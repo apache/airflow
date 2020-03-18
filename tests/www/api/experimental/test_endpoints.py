@@ -139,7 +139,7 @@ class TestApiExperimental(TestBase):
             paused_url_template = '/api/experimental/dags/{}/paused'
             paused_url = paused_url_template.format('example_bash_operator')
 
-            response = self.client.get(
+            response = self.client.post(
                 pause_url_template.format('example_bash_operator', 'true')
             )
             self.assertIn('ok', response.data.decode('utf-8'))
@@ -150,7 +150,7 @@ class TestApiExperimental(TestBase):
             self.assertEqual(200, paused_response.status_code)
             self.assertEqual({"is_paused": True}, paused_response.json)
 
-            response = self.client.get(
+            response = self.client.post(
                 pause_url_template.format('example_bash_operator', 'false')
             )
             self.assertIn('ok', response.data.decode('utf-8'))

@@ -61,6 +61,11 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Pausing and unpausing dags via API now lives at POST /api/experimental/dags/{dag_id}/paused/{pause_state}
+
+Best practices dictate that GET requests should only be for getting information, and should not change state.
+We are updating our `paused` endpoint to reflect this best practice.
+
 ### Assigning task to a DAG using bitwise shift (bit-shift) operators are no longer supported
 
 Previously, you could assign a task to a DAG as follows:

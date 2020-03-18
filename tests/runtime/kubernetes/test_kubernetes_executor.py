@@ -142,7 +142,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         # Maybe check if we can retrieve the logs, but then we need to extend the API
 
     def start_dag(self, dag_id, host):
-        result = self.session.get(
+        result = self.session.post(
             'http://{host}/api/experimental/'
             'dags/{dag_id}/paused/false'.format(host=host, dag_id=dag_id)
         )

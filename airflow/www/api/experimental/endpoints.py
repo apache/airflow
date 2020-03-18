@@ -184,13 +184,11 @@ def task_info(dag_id, task_id):
     return jsonify(fields)
 
 
-# ToDo: Shouldn't this be a PUT method?
-@api_experimental.route('/dags/<string:dag_id>/paused/<string:paused>', methods=['GET'])
+@api_experimental.route('/dags/<string:dag_id>/paused/<string:pause_state>', methods=['POST'])
 @requires_authentication
-def dag_paused(dag_id, paused):
+def dag_paused(dag_id, pause_state):
     """(Un)pauses a dag"""
-
-    is_paused = True if paused == 'true' else False
+    is_paused = True if pause_state == 'true' else False
 
     models.DagModel.get_dagmodel(dag_id).set_is_paused(
         is_paused=is_paused,
