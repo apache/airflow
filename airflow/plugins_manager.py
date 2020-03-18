@@ -38,21 +38,21 @@ import_errors = {}
 plugins = None  # type: Optional[List[AirflowPlugin]]
 
 # Plugin components to integrate as modules
-operators_modules = []
-sensors_modules = []
-hooks_modules = []
-executors_modules = []
-macros_modules = []
+operators_modules = None
+sensors_modules = None
+hooks_modules = None
+macros_modules = None
+executors_modules = None
 
 # Plugin components to integrate directly
-admin_views: List[Any] = []
-flask_blueprints: List[Any] = []
-menu_links: List[Any] = []
-flask_appbuilder_views: List[Any] = []
-flask_appbuilder_menu_links: List[Any] = []
-global_operator_extra_links: List[Any] = []
-operator_extra_links: List[Any] = []
-registered_operator_link_classes: Dict[str, Type] = {}
+admin_views: Optional[List[Any]] = None
+flask_blueprints: Optional[List[Any]] = None
+menu_links: Optional[List[Any]] = None
+flask_appbuilder_views: Optional[List[Any]] = None
+flask_appbuilder_menu_links: Optional[List[Any]] = None
+global_operator_extra_links: Optional[List[Any]] = None
+operator_extra_links: Optional[List[Any]] = None
+registered_operator_link_classes: Optional[Dict[str, Type]] = None
 """Mapping of class names to class of OperatorLinks registered by plugins.
 
 Used by the DAG serialization code to only allow specific classes to be created
@@ -223,43 +223,89 @@ def ensure_plugins_loaded():
     load_plugins_from_plugin_directory()
     load_entrypoint_plugins()
 
-    initialize_plugins()
 
-
-def initialize_plugins():
+def initialize_dag_plugins():
     """Creates modules for loaded extension from plugins"""
     # pylint: disable=global-statement
     global plugins
     global operators_modules
     global sensors_modules
     global hooks_modules
-    global executors_modules
     global macros_modules
-
-    global admin_views
-    global flask_blueprints
-    global menu_links
-    global flask_appbuilder_views
-    global flask_appbuilder_menu_links
-    global global_operator_extra_links
-    global operator_extra_links
-    global registered_operator_link_classes
     # pylint: enable=global-statement
 
-    log.debug("Initialize plugin modules")
+    if operators_modules is not None and \
+            sensors_modules is not None and \
+            hooks_modules is not None and \
+            macros_modules is not None:
+        return
+
+    log.debug("Initialize DAG plugins")
+
+    operators_modules = []
+    sensors_modules = []
+    hooks_modules = []
+    macros_modules = []
 
     for plugin in plugins:
         plugin_name: str = plugin.name
+
         operators_modules.append(
             make_module('airflow.operators.' + plugin_name, plugin.operators + plugin.sensors))
         sensors_modules.append(
             make_module('airflow.sensors.' + plugin_name, plugin.sensors)
         )
         hooks_modules.append(make_module('airflow.hooks.' + plugin_name, plugin.hooks))
-        executors_modules.append(
-            make_module('airflow.executors.' + plugin_name, plugin.executors))
         macros_modules.append(make_module('airflow.macros.' + plugin_name, plugin.macros))
 
+
+def initialize_executor_plugins():
+    """Creates modules for loaded extension from executor plugins"""
+    global plugins
+    global executors_modules
+
+    if executors_modules is not None:
+        return
+
+    log.debug("Initialize Executor plugins")
+
+    executors_modules = []
+    for plugin in plugins:
+        plugin_name: str = plugin.name
+
+        executors_modules.append(make_module('airflow.executors.' + plugin_name, plugin.executors))
+
+
+def initialize_web_ui_plugins():
+    """Collect extension points for WEB UI"""
+    # pylint: disable=global-statement
+    global plugins
+
+    global admin_views
+    global flask_blueprints
+    global menu_links
+    global flask_appbuilder_views
+    global flask_appbuilder_menu_links
+    # pylint: enable=global-statement
+
+    ensure_plugins_loaded()
+
+    if admin_views is not None and \
+            flask_blueprints is not None and \
+            menu_links is not None and \
+            flask_appbuilder_views is not None and \
+            flask_appbuilder_menu_links is not None:
+        return
+
+    log.debug("Initialize Web UI plugin")
+
+    admin_views = []
+    flask_blueprints = []
+    menu_links = []
+    flask_appbuilder_views = []
+    flask_appbuilder_menu_links = []
+
+    for plugin in plugins:
         admin_views.extend(plugin.admin_views)
         menu_links.extend(plugin.menu_links)
         flask_appbuilder_views.extend(plugin.appbuilder_views)
@@ -268,6 +314,28 @@ def initialize_plugins():
             'name': plugin.name,
             'blueprint': bp
         } for bp in plugin.flask_blueprints])
+
+
+def initialize_extra_operators_links_plugins():
+    """Creates modules for loaded extension from extra operators links plugins"""
+    # pylint: disable=global-statement
+    global global_operator_extra_links
+    global operator_extra_links
+    global registered_operator_link_classes
+    # pylint: enable=global-statement
+
+    if global_operator_extra_links is not None and \
+            operator_extra_links is not None and \
+            registered_operator_link_classes is not None:
+        return
+
+    log.debug("Initialize extra operators links plugins")
+
+    global_operator_extra_links = []
+    operator_extra_links = []
+    registered_operator_link_classes = {}
+
+    for plugin in plugins:
         global_operator_extra_links.extend(plugin.global_operator_extra_links)
         operator_extra_links.extend(list(plugin.operator_extra_links))
 
@@ -280,19 +348,33 @@ def initialize_plugins():
 
 def integrate_executor_plugins() -> None:
     """Integrate executor plugins to the context."""
-    ensure_plugins_loaded()
+    # pylint: disable=global-statement
+    global plugins
+    global executors_modules
+    # pylint: enable=global-statement
 
+    ensure_plugins_loaded()
+    initialize_executor_plugins()
     log.debug("Integrate executor plugins")
 
     for executors_module in executors_modules:
         sys.modules[executors_module.__name__] = executors_module
+
         # noinspection PyProtectedMember
         globals()[executors_module._name] = executors_module  # pylint: disable=protected-access
 
 
 def integrate_dag_plugins() -> None:
     """Integrates operator, sensor, hook, macro plugins."""
+    # pylint: disable=global-statement
+    global operators_modules
+    global sensors_modules
+    global hooks_modules
+    global macros_modules
+    # pylint: enable=global-statement
+
     ensure_plugins_loaded()
+    initialize_dag_plugins()
 
     log.debug("Integrate DAG plugins.")
 
