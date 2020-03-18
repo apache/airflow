@@ -31,6 +31,15 @@ Saving in a bucket should be possible from the ``G_FIRESTORE_PROJECT_ID`` projec
 Reading from a bucket should be possible from the ``GCP_PROJECT_ID`` project.
 
 The bucket and dataset should be located in the same region.
+
+If you want to run this example, you must do the following:
+
+1. Create GCP project and enable the BigQuery API
+2. Create the Firebase project
+3. Create a bucket in the same location as the the Firebase project
+4. Grant Firebase admin account permissions to manage BigQuery. This is required to create a dataset.
+5. Create a bucket in Firebase project and
+6. Give read/write access for Firebase admin to bucket to step no. 5.
 """
 
 import os
