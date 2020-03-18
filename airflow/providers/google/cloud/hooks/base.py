@@ -141,11 +141,16 @@ class CloudBaseHook(BaseHook):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.extras = self.get_connection(self.gcp_conn_id).extra_dejson  # type: Dict
+        self._cached_credentials: Optional[google.auth.credentials.Credentials] = None
+        self._cached_project_id: Optional[str] = None
 
     def _get_credentials_and_project_id(self) -> Tuple[google.auth.credentials.Credentials, Optional[str]]:
         """
         Returns the Credentials object for Google API and the associated project_id
         """
+        if self._cached_credentials is not None:
+            return self._cached_credentials, self._cached_project_id
+
         key_path = self._get_field('key_path', None)  # type: Optional[str]
         keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[str]
         if key_path and keyfile_dict:
@@ -199,6 +204,9 @@ class CloudBaseHook(BaseHook):
         overridden_project_id = self._get_field('project')
         if overridden_project_id:
             project_id = overridden_project_id
+
+        self._cached_credentials = credentials
+        self._cached_project_id = project_id
 
         return credentials, project_id
 
