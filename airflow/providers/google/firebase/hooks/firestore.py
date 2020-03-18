@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Hook for Google Cloud Build service"""
+"""Hook for Google Cloud Firestore service"""
 
 import time
 from typing import Any, Dict, Optional
