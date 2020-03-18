@@ -62,3 +62,4 @@ Reference
 For further information, look at:
 
 * `Product Documentation <https://firebase.google.com/docs/firestore>`__
+* `Client Library Documentation <http://googleapis.github.io/google-api-python-client/docs/dyn/firestore_v1.html>`__
