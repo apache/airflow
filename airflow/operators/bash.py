@@ -100,8 +100,6 @@ class BashOperator(BaseOperator):
                                   for k, v in airflow_context_vars.items()]))
         env.update(airflow_context_vars)
 
-        self.lineage_data = self.bash_command
-
         with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
 
             def pre_exec():
@@ -113,7 +111,7 @@ class BashOperator(BaseOperator):
 
             self.log.info('Running command: %s', self.bash_command)
 
-            self.sub_process = Popen(
+            self.sub_process = Popen(  # pylint: disable=subprocess-popen-preexec-fn
                 ['bash', "-c", self.bash_command],
                 stdout=PIPE,
                 stderr=STDOUT,

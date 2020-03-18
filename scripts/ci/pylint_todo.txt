@@ -26,13 +26,6 @@
 ./airflow/models/taskinstance.py
 ./airflow/models/variable.py
 ./airflow/models/xcom.py
-./airflow/operators/bash.py
-./airflow/operators/check_operator.py
-./airflow/operators/dagrun_operator.py
-./airflow/operators/dummy_operator.py
-./airflow/operators/generic_transfer.py
-./airflow/operators/jdbc_operator.py
-./airflow/operators/python.py
 ./airflow/providers/apache/druid/hooks/druid.py
 ./airflow/providers/apache/druid/operators/druid.py
 ./airflow/providers/apache/druid/operators/druid_check.py
