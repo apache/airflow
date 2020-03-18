@@ -316,7 +316,6 @@ def integrate_executor_plugins() -> None:
         executors_modules.append(executors_module)
 
         sys.modules[executors_module.__name__] = executors_module
-
         # noinspection PyProtectedMember
         globals()[executors_module._name] = executors_module  # pylint: disable=protected-access
 
