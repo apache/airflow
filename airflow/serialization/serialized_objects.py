@@ -339,6 +339,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         from airflow import plugins_manager
         plugins_manager.ensure_plugins_loaded()
 
+        if plugins_manager.operator_extra_links is None:
+            raise AirflowException("Cnn't load plugins")
         op = SerializedBaseOperator(task_id=encoded_op['task_id'])
 
         # Extra Operator Links defined in Plugins
@@ -418,6 +420,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         from airflow import plugins_manager
         plugins_manager.ensure_plugins_loaded()
 
+        if plugins_manager.registered_operator_link_classes is None:
+            raise AirflowException("Can't load plugins")
         op_predefined_extra_links = {}
 
         for _operator_links_source in encoded_op_links:
