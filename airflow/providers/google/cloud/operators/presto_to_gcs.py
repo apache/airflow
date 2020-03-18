@@ -15,13 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Any, List, Tuple
+
+from prestodb.dbapi import Cursor as PrestoCursor
 
 from airflow.providers.google.cloud.operators.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.presto.hooks.presto import PrestoHook
 from airflow.utils.decorators import apply_defaults
 
 
-class _AirflowPrestoCursorAdapter:
+class _PrestoToGCSPrestoCursorAdapter:
     """
     An adapter that adds additional feature to the Presto cursor.
 
@@ -36,13 +39,13 @@ class _AirflowPrestoCursorAdapter:
     `PEP-249 <https://www.python.org/dev/peps/pep-0249/>`__.
     """
 
-    def __init__(self, cursor):
-        self.cursor = cursor
-        self.rows = []
-        self.initialized = False
+    def __init__(self, cursor: PrestoCursor):
+        self.cursor: PrestoCursor = cursor
+        self.rows: List[Any] = []
+        self.initialized: bool = False
 
     @property
-    def description(self):
+    def description(self) -> List[Tuple]:
         """
         This read-only attribute is a sequence of 7-item sequences.
 
@@ -65,13 +68,13 @@ class _AirflowPrestoCursorAdapter:
         return self.cursor.description
 
     @property
-    def rowcount(self):
+    def rowcount(self) -> int:
         """The read-only attribute specifies the number of rows"""
         return self.cursor.rowcount
 
-    def close(self):
+    def close(self) -> None:
         """Close the cursor now"""
-        return self.cursor.close()
+        self.cursor.close()
 
     def execute(self, *args, **kwwargs):
         """Prepare and execute a database operation (query or command)."""
@@ -88,7 +91,7 @@ class _AirflowPrestoCursorAdapter:
         self.rows = []
         return self.cursor.executemany(*args, **kwargs)
 
-    def peekone(self):
+    def peekone(self) -> Any:
         """
         Return the next row without consuming it.
         """
@@ -97,7 +100,7 @@ class _AirflowPrestoCursorAdapter:
         self.rows.insert(0, element)
         return element
 
-    def fetchone(self):
+    def fetchone(self) -> Any:
         """
         Fetch the next row of a query result set, returning a single sequence, or
         ``None`` when no more data is available.
@@ -106,7 +109,7 @@ class _AirflowPrestoCursorAdapter:
             return self.rows.pop(0)
         return self.cursor.fetchone()
 
-    def fetchmany(self, size=None):
+    def fetchmany(self, size=None) -> List[Any]:
         """
         Fetch the next set of rows of a query result, returning a sequence of sequences
         (e.g. a list of tuples). An empty sequence is returned when no more rows are available.
@@ -123,7 +126,7 @@ class _AirflowPrestoCursorAdapter:
 
         return result
 
-    def __next__(self):
+    def __next__(self) -> Any:
         """
         Return the next row from the currently executing SQL statement using the same semantics as
         ``.fetchone()``.  A ``StopIteration`` exception is raised when the result set is exhausted.
@@ -134,7 +137,7 @@ class _AirflowPrestoCursorAdapter:
             raise StopIteration()
         return result
 
-    def __iter__(self):
+    def __iter__(self) -> "_PrestoToGCSPrestoCursorAdapter":
         """
         Return self to make cursors compatible to the iteration protocol
         """
@@ -176,7 +179,12 @@ class PrestoToGCSOperator(BaseSQLToGCSOperator):
     }
 
     @apply_defaults
-    def __init__(self, presto_conn_id="presto_default", *args, **kwargs):
+    def __init__(
+        self,
+        presto_conn_id: str = "presto_default",
+        *args,
+        **kwargs
+    ):
         super().__init__(*args, **kwargs)
         self.presto_conn_id = presto_conn_id
 
@@ -189,7 +197,7 @@ class PrestoToGCSOperator(BaseSQLToGCSOperator):
         cursor = conn.cursor()
         self.log.info("Executing: %s", self.sql)
         cursor.execute(self.sql)
-        return _AirflowPrestoCursorAdapter(cursor)
+        return _PrestoToGCSPrestoCursorAdapter(cursor)
 
     def field_to_bigquery(self, field):
         """Convert presto field type to BigQuery field type."""
