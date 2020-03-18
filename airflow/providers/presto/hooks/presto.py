@@ -28,7 +28,7 @@ class PrestoException(Exception):
 
 class PrestoHook(DbApiHook):
     """
-    Interact with Presto through prestodb!
+    Interact with Presto through prestodb.
 
     >>> ph = PrestoHook()
     >>> sql = "SELECT count(1) AS num FROM airflow.static_babynames"

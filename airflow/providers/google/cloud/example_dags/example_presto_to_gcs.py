@@ -29,7 +29,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
 from airflow.providers.google.cloud.operators.presto_to_gcs import PrestoToGCSOperator
 from airflow.utils.dates import days_ago
 
-GCP_PROJECT_ID = os.environ["GCP_PROJECT_ID"]
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", 'example-project')
 GCS_BUCKET = os.environ.get("GCP_PRESTO_TO_GCS_BUCKET_NAME", "test-presto-to-gcs-bucket")
 DATASET_NAME = os.environ.get("GCP_PRESTO_TO_GCS_DATASET_NAME", "test_presto_to_gcs_dataset")
 
