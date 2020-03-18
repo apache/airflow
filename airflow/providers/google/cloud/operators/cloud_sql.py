@@ -213,7 +213,7 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSqlInstanceCreateOperator`
+        :ref:`howto/operator:CloudSQLCreateInstanceOperator`
 
     :param body: Body required by the Cloud SQL insert API, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/insert
@@ -297,7 +297,7 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSqlInstancePatchOperator`
+        :ref:`howto/operator:CloudSQLInstancePatchOperator`
 
     :param body: Body required by the Cloud SQL patch API, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/patch#request-body
@@ -356,7 +356,7 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSqlInstanceDeleteOperator`
+        :ref:`howto/operator:CloudSQLDeleteInstanceOperator`
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
@@ -404,7 +404,7 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSqlInstanceDatabaseCreateOperator`
+        :ref:`howto/operator:CloudSQLCreateInstanceDatabaseOperator`
 
     :param instance: Database instance ID. This does not include the project ID.
     :type instance: str
@@ -481,7 +481,7 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSqlInstanceDatabasePatchOperator`
+        :ref:`howto/operator:CloudSQLPatchInstanceDatabaseOperator`
 
     :param instance: Database instance ID. This does not include the project ID.
     :type instance: str
@@ -558,7 +558,7 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSqlInstanceDatabaseDeleteOperator`
+        :ref:`howto/operator:CloudSQLDeleteInstanceDatabaseOperator`
 
     :param instance: Database instance ID. This does not include the project ID.
     :type instance: str
@@ -622,7 +622,7 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSqlInstanceImportOperator`
+        :ref:`howto/operator:CloudSQLExportInstanceOperator`
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
@@ -702,7 +702,7 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSqlInstanceImportOperator`
+        :ref:`howto/operator:CloudSQLImportInstanceOperator`
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
@@ -767,7 +767,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSqlQueryOperator`
+        :ref:`howto/operator:CloudSQLExecuteQueryOperator`
 
     :param sql: SQL query or list of queries to run (should be DML or DDL query -
         this operator does not return any data from the database,

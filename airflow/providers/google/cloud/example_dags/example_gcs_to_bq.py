@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example DAG using GoogleCloudStorageToBigQueryOperator.
+Example DAG using GCSToBigQueryOperator.
 """
 from airflow import models
 from airflow.operators.bash import BashOperator

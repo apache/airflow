@@ -29,13 +29,13 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
-.. _howto/operator:GoogleCloudStorageToBigQueryOperator:
+.. _howto/operator:GCSToBigQueryOperator:
 
-GoogleCloudStorageToBigQueryOperator
-------------------------------------
+GCSToBigQueryOperator
+---------------------
 
 Use the
-:class:`~airflow.providers.google.cloud.operators.gcs_to_bigquery.GoogleCloudStorageToBigQueryOperator`
+:class:`~airflow.providers.google.cloud.operators.gcs_to_bigquery.GCSToBigQueryOperator`
 to execute a BigQuery load job.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_bq.py
@@ -43,15 +43,15 @@ to execute a BigQuery load job.
     :start-after: [START howto_operator_gcs_to_bq]
     :end-before: [END howto_operator_gcs_to_bq]
 
-.. _howto/operator:GoogleCloudStorageBucketCreateAclEntryOperator:
+.. _howto/operator:GCSBucketCreateAclEntryOperator:
 
-GoogleCloudStorageBucketCreateAclEntryOperator
-----------------------------------------------
+GCSBucketCreateAclEntryOperator
+-------------------------------
 
 Creates a new ACL entry on the specified bucket.
 
 For parameter definition, take a look at
-:class:`~airflow.contrib.operators.gcs.GoogleCloudStorageBucketCreateAclEntryOperator`
+:class:`~airflow.providers.google.cloud.operators.gcs.GCSBucketCreateAclEntryOperator`
 
 Using the operator
 """"""""""""""""""
@@ -77,15 +77,15 @@ More information
 See Google Cloud Storage Documentation to `create a new ACL entry for a bucket
 <https://cloud.google.com/storage/docs/json_api/v1/bucketAccessControls/insert>`_.
 
-.. _howto/operator:GoogleCloudStorageObjectCreateAclEntryOperator:
+.. _howto/operator:GCSObjectCreateAclEntryOperator:
 
-GoogleCloudStorageObjectCreateAclEntryOperator
-----------------------------------------------
+GCSObjectCreateAclEntryOperator
+-------------------------------
 
 Creates a new ACL entry on the specified object.
 
 For parameter definition, take a look at
-:class:`~airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageObjectCreateAclEntryOperator`
+:class:`~airflow.providers.google.cloud.operators.gcs_acl_operator.GCSObjectCreateAclEntryOperator`
 
 Using the operator
 """"""""""""""""""

@@ -41,7 +41,7 @@ class CloudVisionCreateProductSetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductSetCreateOperator`
+        :ref:`howto/operator:CloudVisionCreateProductSetOperator`
 
     :param product_set: (Required) The ProductSet to create. If a dict is provided, it must be of the same
         form as the protobuf message `ProductSet`.
@@ -123,7 +123,7 @@ class CloudVisionGetProductSetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductSetGetOperator`
+        :ref:`howto/operator:CloudVisionGetProductSetOperator`
 
     :param location: (Required) The region where the ProductSet is located. Valid regions (as of 2019-02-05)
         are: us-east1, us-west1, europe-west1, asia-east1
@@ -200,7 +200,7 @@ class CloudVisionUpdateProductSetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductSetUpdateOperator`
+        :ref:`howto/operator:CloudVisionUpdateProductSetOperator`
 
     :param product_set: (Required) The ProductSet resource which replaces the one on the
         server. If a dict is provided, it must be of the same form as the protobuf
@@ -282,7 +282,7 @@ class CloudVisionDeleteProductSetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductSetDeleteOperator`
+        :ref:`howto/operator:CloudVisionDeleteProductSetOperator`
 
     :param location: (Required) The region where the ProductSet is located. Valid regions (as of 2019-02-05)
         are: us-east1, us-west1, europe-west1, asia-east1
@@ -354,7 +354,7 @@ class CloudVisionCreateProductOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductCreateOperator`
+        :ref:`howto/operator:CloudVisionCreateProductOperator`
 
     :param location: (Required) The region where the Product should be created. Valid regions
         (as of 2019-02-05) are: us-east1, us-west1, europe-west1, asia-east1
@@ -439,7 +439,7 @@ class CloudVisionGetProductOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductGetOperator`
+        :ref:`howto/operator:CloudVisionGetProductOperator`
 
     :param location: (Required) The region where the Product is located. Valid regions (as of 2019-02-05) are:
         us-east1, us-west1, europe-west1, asia-east1
@@ -527,7 +527,7 @@ class CloudVisionUpdateProductOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductUpdateOperator`
+        :ref:`howto/operator:CloudVisionUpdateProductOperator`
 
     :param product: (Required) The Product resource which replaces the one on the server. product.name is
         immutable. If a dict is provided, it must be of the same form as the protobuf message `Product`.
@@ -614,7 +614,7 @@ class CloudVisionDeleteProductOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductDeleteOperator`
+        :ref:`howto/operator:CloudVisionDeleteProductOperator`
 
     :param location: (Required) The region where the Product is located. Valid regions (as of 2019-02-05) are:
         us-east1, us-west1, europe-west1, asia-east1
@@ -680,7 +680,7 @@ class CloudVisionImageAnnotateOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionAnnotateImageOperator`
+        :ref:`howto/operator:CloudVisionImageAnnotateOperator`
 
     :param request: (Required) Annotation request for image or a batch.
         If a dict is provided, it must be of the same form as the protobuf
@@ -738,7 +738,7 @@ class CloudVisionCreateReferenceImageOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionReferenceImageCreateOperator`
+        :ref:`howto/operator:CloudVisionCreateReferenceImageOperator`
 
     :param location: (Required) The region where the Product is located. Valid regions (as of 2019-02-05) are:
         us-east1, us-west1, europe-west1, asia-east1
@@ -1051,7 +1051,7 @@ class CloudVisionTextDetectOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionDetectDocumentTextOperator`
+        :ref:`howto/operator:CloudVisionTextDetectOperator`
 
     :param image: (Required) The image to analyze. See more:
         https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.Image

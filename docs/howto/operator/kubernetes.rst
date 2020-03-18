@@ -22,7 +22,7 @@
 KubernetesPodOperator
 =====================
 
-The :class:`airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`:
+The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`:
 
 * Launches a Docker image as a Kubernetes Pod to execute an individual Airflow
   task via a Kubernetes API request, using the

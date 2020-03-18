@@ -401,7 +401,7 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleCloudStorageBucketCreateAclEntryOperator`
+        :ref:`howto/operator:GCSBucketCreateAclEntryOperator`
 
     :param bucket: Name of a bucket.
     :type bucket: str
@@ -465,7 +465,7 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleCloudStorageObjectCreateAclEntryOperator`
+        :ref:`howto/operator:GCSObjectCreateAclEntryOperator`
 
     :param bucket: Name of a bucket.
     :type bucket: str

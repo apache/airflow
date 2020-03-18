@@ -57,10 +57,10 @@ Configuration of bucket permissions for import / export
 
 It is necessary to configure permissions for the bucket to import and export data. Too find the service
 account for your instance, run the :class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreCreateInstanceOperator` or
-:class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreGetInstancesOperator` and
+:class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreGetInstanceOperator` and
 make a use of the service account listed under ``persistenceIamIdentity``.
 
-You can use :class:`airflow.contrib.operators.gcs.GoogleCloudStorageBucketCreateAclEntryOperator`
+You can use :class:`~airflow.providers.google.cloud.operators.gcs.GCSBucketCreateAclEntryOperator`
 operator to set permissions.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_memorystore.py

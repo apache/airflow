@@ -52,7 +52,7 @@ CloudVideoIntelligenceDetectVideoLabelsOperator
 Performs video annotation, annotating video labels.
 
 For parameter definition, take a look at
-:class:`airflow.providers.google.cloud.operators.video_intelligence.CloudVideoIntelligenceDetectVideoLabelsOperator`
+:class:`~airflow.providers.google.cloud.operators.video_intelligence.CloudVideoIntelligenceDetectVideoLabelsOperator`
 
 Using the operator
 """"""""""""""""""
@@ -101,7 +101,7 @@ CloudVideoIntelligenceDetectVideoExplicitContentOperator
 Performs video annotation, annotating explicit content.
 
 For parameter definition, take a look at
-:class:`airflow.providers.google.cloud.operators.video_intelligence.CloudVideoIntelligenceDetectVideoExplicitContentOperator`
+:class:`~airflow.providers.google.cloud.operators.video_intelligence.CloudVideoIntelligenceDetectVideoExplicitContentOperator`
 
 Arguments
 """""""""
@@ -153,7 +153,7 @@ CloudVideoIntelligenceDetectVideoShotsOperator
 Performs video annotation, annotating explicit content.
 
 For parameter definition, take a look at
-:class:`airflow.providers.google.cloud.operators.video_intelligence.CloudVideoIntelligenceDetectVideoShotsOperator`
+:class:`~airflow.providers.google.cloud.operators.video_intelligence.CloudVideoIntelligenceDetectVideoShotsOperator`
 
 Arguments
 """""""""
