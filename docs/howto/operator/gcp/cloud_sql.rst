@@ -39,15 +39,6 @@ Creates a new database inside a Cloud SQL instance.
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSqlInstanceDatabaseCreateOperator`.
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_arguments]
-    :end-before: [END howto_operator_cloudsql_arguments]
 
 Using the operator
 """"""""""""""""""
@@ -93,15 +84,6 @@ Deletes a database from a Cloud SQL instance.
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSqlInstanceDatabaseDeleteOperator`.
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_arguments]
-    :end-before: [END howto_operator_cloudsql_arguments]
 
 Using the operator
 """"""""""""""""""
@@ -142,15 +124,6 @@ See: https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSqlInstanceDatabasePatchOperator`.
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_arguments]
-    :end-before: [END howto_operator_cloudsql_arguments]
 
 Using the operator
 """"""""""""""""""
@@ -198,15 +171,6 @@ It is also used for deleting read and failover replicas.
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSqlInstanceDeleteOperator`.
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_arguments]
-    :end-before: [END howto_operator_cloudsql_arguments]
 
 Using the operator
 """"""""""""""""""
@@ -261,18 +225,6 @@ For parameter definition take a look at
 
 Arguments
 """""""""
-
-Some arguments in the example DAG are taken from Airflow variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_arguments]
-    :end-before: [END howto_operator_cloudsql_arguments]
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_export_import_arguments]
-    :end-before: [END howto_operator_cloudsql_export_import_arguments]
 
 Example body defining the export operation:
 
@@ -359,18 +311,6 @@ For parameter definition take a look at
 Arguments
 """""""""
 
-Some arguments in the example DAG are taken from Airflow variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_arguments]
-    :end-before: [END howto_operator_cloudsql_arguments]
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_export_import_arguments]
-    :end-before: [END howto_operator_cloudsql_export_import_arguments]
-
 Example body defining the import operation:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
@@ -442,20 +382,6 @@ will succeed.
 Arguments
 """""""""
 
-Some arguments in the example DAG are taken from OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_arguments]
-    :end-before: [END howto_operator_cloudsql_arguments]
-
-Some other arguments are created based on the arguments above:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_create_arguments]
-    :end-before: [END howto_operator_cloudsql_create_arguments]
-
 Example body defining the instance with failover replica:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
@@ -516,13 +442,6 @@ unchanged.
 
 Arguments
 """""""""
-
-Some arguments in the example DAG are taken from OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_arguments]
-    :end-before: [END howto_operator_cloudsql_arguments]
 
 Example body defining the instance:
 
@@ -607,13 +526,6 @@ Note that in case of SSL connections you need to have a mechanism to make the
 certificate/key files available in predefined locations for all the workers on
 which the operator can run. This can be provided for example by mounting
 NFS-like volumes in the same path for all the workers.
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql_query.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_query_arguments]
-    :end-before: [END howto_operator_cloudsql_query_arguments]
 
 Example connection definitions for all connectivity cases. Note that all the components
 of the connection URI should be URL-encoded:

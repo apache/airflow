@@ -41,25 +41,19 @@ from airflow.providers.google.cloud.operators.gcs import (
 )
 from airflow.utils.dates import days_ago
 
-# [START howto_operator_cloudsql_arguments]
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 INSTANCE_NAME = os.environ.get('GCSQL_MYSQL_INSTANCE_NAME', 'test-mysql')
 INSTANCE_NAME2 = os.environ.get('GCSQL_MYSQL_INSTANCE_NAME2', 'test-mysql2')
 DB_NAME = os.environ.get('GCSQL_MYSQL_DATABASE_NAME', 'testdb')
-# [END howto_operator_cloudsql_arguments]
 
-# [START howto_operator_cloudsql_export_import_arguments]
 EXPORT_URI = os.environ.get('GCSQL_MYSQL_EXPORT_URI', 'gs://bucketName/fileName')
 IMPORT_URI = os.environ.get('GCSQL_MYSQL_IMPORT_URI', 'gs://bucketName/fileName')
-# [END howto_operator_cloudsql_export_import_arguments]
 
 # Bodies below represent Cloud SQL instance resources:
 # https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances
 
-# [START howto_operator_cloudsql_create_arguments]
 FAILOVER_REPLICA_NAME = INSTANCE_NAME + "-failover-replica"
 READ_REPLICA_NAME = INSTANCE_NAME + "-read-replica"
-# [END howto_operator_cloudsql_create_arguments]
 
 # [START howto_operator_cloudsql_create_body]
 body = {

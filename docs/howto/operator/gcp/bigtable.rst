@@ -30,16 +30,6 @@ Prerequisite Tasks
 .. include:: _partials/prerequisite_tasks.rst
 
 
-Environment variables
----------------------
-
-All examples below rely on the following variables, which can be passed via environment variables.
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigtable.py
-    :language: python
-    :start-after: [START howto_operator_gcp_bigtable_args]
-    :end-before: [END howto_operator_gcp_bigtable_args]
-
 .. _howto/operator:BigtableCreateInstanceOperator:
 
 BigtableCreateInstanceOperator

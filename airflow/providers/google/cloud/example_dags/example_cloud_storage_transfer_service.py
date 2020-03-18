@@ -60,7 +60,6 @@ from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service impor
 )
 from airflow.utils.dates import days_ago
 
-# [START howto_operator_gcp_transfer_common_variables]
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCP_DESCRIPTION = os.environ.get('GCP_DESCRIPTION', 'description')
 GCP_TRANSFER_TARGET_BUCKET = os.environ.get('GCP_TRANSFER_TARGET_BUCKET')
@@ -73,7 +72,6 @@ GCP_TRANSFER_FIRST_TARGET_BUCKET = os.environ.get(
 GCP_TRANSFER_SECOND_TARGET_BUCKET = os.environ.get(
     'GCP_TRANSFER_SECOND_TARGET_BUCKET', 'gcp-transfer-second-target'
 )
-# [END howto_operator_gcp_transfer_common_variables]
 
 # [START howto_operator_gcp_transfer_create_job_body_aws]
 aws_to_gcs_transfer_body = {

@@ -38,15 +38,8 @@ For parameter definition, take a look at
 Arguments
 """""""""
 
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_speech.py
-      :language: python
-      :start-after: [START howto_operator_text_to_speech_env_variables]
-      :end-before: [END howto_operator_text_to_speech_env_variables]
-
-input, voice and audio_config arguments need to be dicts or objects of corresponding classes from
-google.cloud.texttospeech_v1.types module
+The ``input``, ``voice`` and ``audio_config`` arguments need to be dicts or objects of corresponding classes from
+``google.cloud.texttospeech_v1.types`` module
 
 for more information, see: https://googleapis.github.io/google-cloud-python/latest/texttospeech/gapic/v1/api.html#google.cloud.texttospeech_v1.TextToSpeechClient.synthesize_speech
 
@@ -55,7 +48,7 @@ for more information, see: https://googleapis.github.io/google-cloud-python/late
       :start-after: [START howto_operator_text_to_speech_api_arguments]
       :end-before: [END howto_operator_text_to_speech_api_arguments]
 
-filename is a simple string argument:
+The ``filename`` argument is a simple string argument:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_speech.py
       :language: python

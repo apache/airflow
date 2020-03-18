@@ -54,15 +54,8 @@ Performs video annotation, annotating video labels.
 For parameter definition, take a look at
 :class:`airflow.providers.google.cloud.operators.video_intelligence.CloudVideoIntelligenceDetectVideoLabelsOperator`
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_video_intelligence.py
-      :language: python
-      :start-after: [START howto_operator_video_intelligence_os_args]
-      :end-before: [END howto_operator_video_intelligence_os_args]
+Using the operator
+""""""""""""""""""
 
 Input uri is an uri to a file in Google Cloud Storage
 
@@ -70,9 +63,6 @@ Input uri is an uri to a file in Google Cloud Storage
       :language: python
       :start-after: [START howto_operator_video_intelligence_other_args]
       :end-before: [END howto_operator_video_intelligence_other_args]
-
-Using the operator
-""""""""""""""""""
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_video_intelligence.py
       :language: python
@@ -115,13 +105,6 @@ For parameter definition, take a look at
 
 Arguments
 """""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_video_intelligence.py
-      :language: python
-      :start-after: [START howto_operator_video_intelligence_os_args]
-      :end-before: [END howto_operator_video_intelligence_os_args]
 
 Input uri is an uri to a file in Google Cloud Storage
 
@@ -174,13 +157,6 @@ For parameter definition, take a look at
 
 Arguments
 """""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_video_intelligence.py
-      :language: python
-      :start-after: [START howto_operator_video_intelligence_os_args]
-      :end-before: [END howto_operator_video_intelligence_os_args]
 
 Input uri is an uri to a file in Google Cloud Storage
 

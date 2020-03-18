@@ -65,26 +65,13 @@ from google.cloud.vision import enums  # isort:skip pylint: disable=wrong-import
 
 default_args = {'start_date': days_ago(1)}
 
-# [START howto_operator_vision_args_common]
 GCP_VISION_LOCATION = os.environ.get('GCP_VISION_LOCATION', 'europe-west1')
-# [END howto_operator_vision_args_common]
 
-# [START howto_operator_vision_product_set_explicit_id]
 GCP_VISION_PRODUCT_SET_ID = os.environ.get('GCP_VISION_PRODUCT_SET_ID', 'product_set_explicit_id')
-# [END howto_operator_vision_product_set_explicit_id]
-
-# [START howto_operator_vision_product_explicit_id]
 GCP_VISION_PRODUCT_ID = os.environ.get('GCP_VISION_PRODUCT_ID', 'product_explicit_id')
-# [END howto_operator_vision_product_explicit_id]
-
-# [START howto_operator_vision_reference_image_args]
 GCP_VISION_REFERENCE_IMAGE_ID = os.environ.get('GCP_VISION_REFERENCE_IMAGE_ID', 'reference_image_explicit_id')
 GCP_VISION_REFERENCE_IMAGE_URL = os.environ.get('GCP_VISION_REFERENCE_IMAGE_URL', 'gs://bucket/image1.jpg')
-# [END howto_operator_vision_reference_image_args]
-
-# [START howto_operator_vision_annotate_image_url]
 GCP_VISION_ANNOTATE_IMAGE_URL = os.environ.get('GCP_VISION_ANNOTATE_IMAGE_URL', 'gs://bucket/image2.jpg')
-# [END howto_operator_vision_annotate_image_url]
 
 # [START howto_operator_vision_product_set]
 product_set = ProductSet(display_name='My Product Set')

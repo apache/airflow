@@ -40,16 +40,6 @@ exist, no action is taken, and the operator succeeds.
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.spanner.SpannerDeleteDatabaseInstanceOperator`.
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from environment variables.
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
-    :language: python
-    :start-after: [START howto_operator_spanner_arguments]
-    :end-before: [END howto_operator_spanner_arguments]
-
 Using the operator
 """"""""""""""""""
 
@@ -89,16 +79,6 @@ with the same name.
 
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.spanner.SpannerDeployDatabaseInstanceOperator`.
-
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from environment variables.
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
-    :language: python
-    :start-after: [START howto_operator_spanner_arguments]
-    :end-before: [END howto_operator_spanner_arguments]
 
 Using the operator
 """"""""""""""""""
@@ -144,16 +124,6 @@ a valid identifier: ``[a-z][a-z0-9_]*``. More information can be found in
 For parameter definition take a look at
 :class:`~airflow.providers.google.cloud.operators.spanner.SpannerUpdateDatabaseInstanceOperator`.
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from environment variables.
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
-    :language: python
-    :start-after: [START howto_operator_spanner_arguments]
-    :end-before: [END howto_operator_spanner_arguments]
-
 Using the operator
 """"""""""""""""""
 
@@ -197,16 +167,6 @@ Executes an arbitrary DML query (INSERT, UPDATE, DELETE).
 For parameter definition take a look at
 :class:`~airflow.providers.google.cloud.operators.spanner.SpannerQueryDatabaseInstanceOperator`.
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from environment variables.
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
-    :language: python
-    :start-after: [START howto_operator_spanner_arguments]
-    :end-before: [END howto_operator_spanner_arguments]
-
 Using the operator
 """"""""""""""""""
 
@@ -245,15 +205,6 @@ and the operator succeeds.
 For parameter definition take a look at
 :class:`~airflow.providers.google.cloud.operators.spanner.SpannerDeleteInstanceOperator`.
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
-    :language: python
-    :start-after: [START howto_operator_spanner_arguments]
-    :end-before: [END howto_operator_spanner_arguments]
 
 Using the operator
 """"""""""""""""""

@@ -53,16 +53,6 @@ Creates a new ACL entry on the specified bucket.
 For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcs.GoogleCloudStorageBucketCreateAclEntryOperator`
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs.py
-    :language: python
-    :start-after: [START howto_operator_gcs_acl_args_common]
-    :end-before: [END howto_operator_gcs_acl_args_common]
-
 Using the operator
 """"""""""""""""""
 
@@ -96,16 +86,6 @@ Creates a new ACL entry on the specified object.
 
 For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageObjectCreateAclEntryOperator`
-
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs.py
-    :language: python
-    :start-after: [START howto_operator_gcs_acl_args_common]
-    :end-before: [END howto_operator_gcs_acl_args_common]
 
 Using the operator
 """"""""""""""""""

@@ -48,11 +48,11 @@ with models.DAG(
         overwrite_existing=True,
     )
 
-    bucket = "{{ task_instance.xcom_pull('export_task')['response']['outputUrl'].split('/')[2] }}"
-    file = "{{ '/'.join(task_instance.xcom_pull('export_task')['response']['outputUrl'].split('/')[3:]) }}"
-
     import_task = CloudDatastoreImportEntitiesOperator(
-        task_id="import_task", bucket=bucket, file=file, project_id=GCP_PROJECT_ID
+        task_id="import_task",
+        bucket="{{ task_instance.xcom_pull('export_task')['response']['outputUrl'].split('/')[2] }}",
+        file="{{ '/'.join(task_instance.xcom_pull('export_task')['response']['outputUrl'].split('/')[3:]) }}",
+        project_id=GCP_PROJECT_ID
     )
 
     export_task >> import_task

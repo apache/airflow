@@ -39,26 +39,6 @@ Creates a new :code:`ReferenceImage` resource.
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionAddProductToProductSetOperator`
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-      :language: python
-      :start-after: [START howto_operator_vision_args_common]
-      :end-before: [END howto_operator_vision_args_common]
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-      :language: python
-      :start-after: [START howto_operator_vision_product_explicit_id]
-      :end-before: [END howto_operator_vision_product_explicit_id]
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-      :language: python
-      :start-after: [START howto_operator_vision_product_set_explicit_id]
-      :end-before: [END howto_operator_vision_product_set_explicit_id]
-
 Using the operator
 """"""""""""""""""
 
@@ -125,22 +105,6 @@ Run image detection and annotation for an image.
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionAnnotateImageOperator`
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-      :language: python
-      :start-after: [START howto_operator_vision_args_common]
-      :end-before: [END howto_operator_vision_args_common]
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-      :language: python
-      :start-after: [START howto_operator_vision_annotate_image_url]
-      :end-before: [END howto_operator_vision_annotate_image_url]
-
-
 Using the operator
 """"""""""""""""""
 
@@ -203,21 +167,6 @@ Possible errors regarding the :code:`Product` object provided:
 
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionProductCreateOperator`
-
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-    :language: python
-    :start-after: [START howto_operator_vision_args_common]
-    :end-before: [END howto_operator_vision_args_common]
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-    :language: python
-    :start-after: [START howto_operator_vision_product_explicit_id]
-    :end-before: [END howto_operator_vision_product_explicit_id]
 
 Using the operator
 """"""""""""""""""
@@ -289,21 +238,6 @@ Possible errors:
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionProductDeleteOperator`
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-    :language: python
-    :start-after: [START howto_operator_vision_args_common]
-    :end-before: [END howto_operator_vision_args_common]
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-    :language: python
-    :start-after: [START howto_operator_vision_product_explicit_id]
-    :end-before: [END howto_operator_vision_product_explicit_id]
-
 Using the operator
 """"""""""""""""""
 
@@ -352,21 +286,6 @@ Possible errors:
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionProductGetOperator`
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-    :language: python
-    :start-after: [START howto_operator_vision_args_common]
-    :end-before: [END howto_operator_vision_args_common]
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-    :language: python
-    :start-after: [START howto_operator_vision_product_explicit_id]
-    :end-before: [END howto_operator_vision_product_explicit_id]
-
 Using the operator
 """"""""""""""""""
 
@@ -410,21 +329,6 @@ Creates a new :code:`ProductSet` resource.
 
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionProductSetCreateOperator`
-
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-    :language: python
-    :start-after: [START howto_operator_vision_args_common]
-    :end-before: [END howto_operator_vision_args_common]
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-    :language: python
-    :start-after: [START howto_operator_vision_product_set_explicit_id
-    :end-before: [END howto_operator_vision_product_set_explicit_id
 
 Using the operator
 """"""""""""""""""
@@ -490,21 +394,6 @@ Google Cloud Storage.
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionProductSetDeleteOperator`
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-    :language: python
-    :start-after: [START howto_operator_vision_args_common]
-    :end-before: [END howto_operator_vision_args_common]
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-    :language: python
-    :start-after: [START howto_operator_vision_product_set_explicit_id]
-    :end-before: [END howto_operator_vision_product_set_explicit_id]
-
 Using the operator
 """"""""""""""""""
 
@@ -549,20 +438,7 @@ Gets information associated with a :code:`ProductSet`.
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionProductSetGetOperator`
 
-Arguments
-"""""""""
 
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-    :language: python
-    :start-after: [START howto_operator_vision_args_common]
-    :end-before: [END howto_operator_vision_args_common]
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-    :language: python
-    :start-after: [START howto_operator_vision_product_set_explicit_id]
-    :end-before: [END howto_operator_vision_product_set_explicit_id]
 
 Using the operator
 """"""""""""""""""
@@ -619,21 +495,6 @@ having Airflow use the connection default ``project_id``.
 
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionProductSetUpdateOperator`
-
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-    :language: python
-    :start-after: [START howto_operator_vision_args_common]
-    :end-before: [END howto_operator_vision_args_common]
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-    :language: python
-    :start-after: [START howto_operator_vision_product_set_explicit_id]
-    :end-before: [END howto_operator_vision_product_set_explicit_id]
 
 Using the operator
 """"""""""""""""""
@@ -716,21 +577,6 @@ Possible errors:
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionProductUpdateOperator`
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-    :language: python
-    :start-after: [START howto_operator_vision_args_common]
-    :end-before: [END howto_operator_vision_args_common]
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-    :language: python
-    :start-after: [START howto_operator_vision_product_explicit_id]
-    :end-before: [END howto_operator_vision_product_explicit_id]
-
 Using the operator
 """"""""""""""""""
 
@@ -786,21 +632,6 @@ Creates a new :code:`ReferenceImage` resource.
 
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionReferenceImageCreateOperator`
-
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-      :language: python
-      :start-after: [START howto_operator_vision_args_common]
-      :end-before: [END howto_operator_vision_args_common]
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-      :language: python
-      :start-after: [START howto_operator_vision_reference_image_args]
-      :end-before: [END howto_operator_vision_reference_image_args]
 
 Using the operator
 """"""""""""""""""
@@ -863,26 +694,6 @@ Creates a new :code:`ReferenceImage` resource.
 
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionRemoveProductFromProductSetOperator`
-
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-      :language: python
-      :start-after: [START howto_operator_vision_args_common]
-      :end-before: [END howto_operator_vision_args_common]
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-      :language: python
-      :start-after: [START howto_operator_vision_product_explicit_id]
-      :end-before: [END howto_operator_vision_product_explicit_id]
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-      :language: python
-      :start-after: [START howto_operator_vision_product_set_explicit_id]
-      :end-before: [END howto_operator_vision_product_set_explicit_id]
 
 Using the operator
 """"""""""""""""""
@@ -950,16 +761,6 @@ Run text detection for an image.
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDetectTextOperator`
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-      :language: python
-      :start-after: [START howto_operator_vision_annotate_image_url]
-      :end-before: [END howto_operator_vision_annotate_image_url]
-
 
 Using the operator
 """"""""""""""""""
@@ -1011,16 +812,6 @@ Run document text detection for an image.
 
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDetectDocumentTextOperator`
-
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-      :language: python
-      :start-after: [START howto_operator_vision_annotate_image_url]
-      :end-before: [END howto_operator_vision_annotate_image_url]
 
 
 Using the operator
@@ -1074,15 +865,6 @@ Run image label detection for an image.
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDetectImageLabelsOperator`
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-      :language: python
-      :start-after: [START howto_operator_vision_annotate_image_url]
-      :end-before: [END howto_operator_vision_annotate_image_url]
 
 
 Using the operator
@@ -1135,16 +917,6 @@ Run image label detection for an image.
 
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDetectImageSafeSearchOperator`
-
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
-      :language: python
-      :start-after: [START howto_operator_vision_annotate_image_url]
-      :end-before: [END howto_operator_vision_annotate_image_url]
 
 
 Using the operator

@@ -58,15 +58,6 @@ The selected connection for AWS can be indicated by the parameter ``aws_conn_id`
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceCreateJobOperator`.
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_storage_transfer_service.py
-      :language: python
-      :start-after: [START howto_operator_gcp_transfer_common_variables]
-      :end-before: [END howto_operator_gcp_transfer_common_variables]
 
 Using the operator
 """"""""""""""""""
@@ -112,15 +103,6 @@ Deletes a transfer job.
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceDeleteJobOperator`.
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_storage_transfer_service.py
-      :language: python
-      :start-after: [START howto_operator_gcp_transfer_common_variables]
-      :end-before: [END howto_operator_gcp_transfer_common_variables]
 
 Using the operator
 """"""""""""""""""
@@ -156,15 +138,6 @@ Updates a transfer job.
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceUpdateJobOperator`.
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_storage_transfer_service.py
-      :language: python
-      :start-after: [START howto_operator_gcp_transfer_common_variables]
-      :end-before: [END howto_operator_gcp_transfer_common_variables]
 
 Using the operator
 """"""""""""""""""
@@ -205,16 +178,6 @@ Gets a transfer operation. The result is returned to XCOM.
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceCancelOperationOperator`.
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_storage_transfer_service.py
-      :language: python
-      :start-after: [START howto_operator_gcp_transfer_common_variables]
-      :end-before: [END howto_operator_gcp_transfer_common_variables]
-
 Using the operator
 """"""""""""""""""
 
@@ -250,15 +213,6 @@ Gets a transfer operation. The result is returned to XCOM.
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceGetOperationOperator`.
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_storage_transfer_service.py
-      :language: python
-      :start-after: [START howto_operator_gcp_transfer_common_variables]
-      :end-before: [END howto_operator_gcp_transfer_common_variables]
 
 Using the operator
 """"""""""""""""""
@@ -294,15 +248,6 @@ List a transfer operations. The result is returned to XCOM.
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceListOperationsOperator`.
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_storage_transfer_service.py
-      :language: python
-      :start-after: [START howto_operator_gcp_transfer_common_variables]
-      :end-before: [END howto_operator_gcp_transfer_common_variables]
 
 Using the operator
 """"""""""""""""""
@@ -338,16 +283,6 @@ Pauses a transfer operations.
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServicePauseOperationOperator`.
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_storage_transfer_service.py
-      :language: python
-      :start-after: [START howto_operator_gcp_transfer_common_variables]
-      :end-before: [END howto_operator_gcp_transfer_common_variables]
-
 Using the operator
 """"""""""""""""""
 
@@ -381,16 +316,6 @@ Resumes a transfer operations.
 
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceResumeOperationOperator`.
-
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_storage_transfer_service.py
-      :language: python
-      :start-after: [START howto_operator_gcp_transfer_common_variables]
-      :end-before: [END howto_operator_gcp_transfer_common_variables]
 
 Using the operator
 """"""""""""""""""
@@ -426,15 +351,6 @@ Waits for at least one operation belonging to the job to have the expected statu
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.sensors.cloud_storage_transfer_service.CloudDataTransferServiceJobStatusSensor`.
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_storage_transfer_service.py
-      :language: python
-      :start-after: [START howto_operator_gcp_transfer_common_variables]
-      :end-before: [END howto_operator_gcp_transfer_common_variables]
 
 Using the operator
 """"""""""""""""""

@@ -48,12 +48,7 @@ default_args = {
     'start_date': days_ago(1),
 }
 
-# [START howto_operator_gce_args_set_machine_type]
 GCE_SHORT_MACHINE_TYPE_NAME = os.environ.get('GCE_SHORT_MACHINE_TYPE_NAME', 'n1-standard-1')
-SET_MACHINE_TYPE_BODY = {
-    'machineType': 'zones/{}/machineTypes/{}'.format(GCE_ZONE, GCE_SHORT_MACHINE_TYPE_NAME)
-}
-# [END howto_operator_gce_args_set_machine_type]
 
 
 with models.DAG(
@@ -99,7 +94,9 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
         zone=GCE_ZONE,
         resource_id=GCE_INSTANCE,
-        body=SET_MACHINE_TYPE_BODY,
+        body={
+            'machineType': 'zones/{}/machineTypes/{}'.format(GCE_ZONE, GCE_SHORT_MACHINE_TYPE_NAME)
+        },
         task_id='gcp_compute_set_machine_type'
     )
     # [END howto_operator_gce_set_machine_type]
@@ -108,7 +105,9 @@ with models.DAG(
     gce_set_machine_type2 = ComputeEngineSetMachineTypeOperator(
         zone=GCE_ZONE,
         resource_id=GCE_INSTANCE,
-        body=SET_MACHINE_TYPE_BODY,
+        body={
+            'machineType': 'zones/{}/machineTypes/{}'.format(GCE_ZONE, GCE_SHORT_MACHINE_TYPE_NAME)
+        },
         task_id='gcp_compute_set_machine_type2'
     )
     # [END howto_operator_gce_set_machine_type_no_project_id]

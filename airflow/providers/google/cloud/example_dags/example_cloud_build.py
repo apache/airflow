@@ -37,14 +37,10 @@ from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.cloud_build import CloudBuildCreateOperator
 from airflow.utils import dates
 
-# [START howto_operator_gcp_common_variables]
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
-# [END howto_operator_gcp_common_variables]
 
-# [START howto_operator_gcp_create_build_variables]
 GCP_SOURCE_ARCHIVE_URL = os.environ.get("GCP_CLOUD_BUILD_ARCHIVE_URL", "gs://example-bucket/file")
 GCP_SOURCE_REPOSITORY_NAME = os.environ.get("GCP_CLOUD_BUILD_REPOSITORY_NAME", "")
-# [END howto_operator_gcp_create_build_variables]
 
 GCP_SOURCE_ARCHIVE_URL_PARTS = urlparse(GCP_SOURCE_ARCHIVE_URL)
 GCP_SOURCE_BUCKET_NAME = GCP_SOURCE_ARCHIVE_URL_PARTS.netloc

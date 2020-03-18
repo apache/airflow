@@ -39,17 +39,6 @@ Use the operator to delete a function from Google Cloud Functions.
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.functions.CloudFunctionDeleteFunctionOperator`.
 
-Arguments
-"""""""""
-
-The following examples of OS environment variables show how you can build function name
-to use in the operator:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_functions.py
-    :language: python
-    :start-after: [START howto_operator_gcf_common_variables]
-    :end-before: [END howto_operator_gcf_common_variables]
-
 Using the operator
 """"""""""""""""""
 
@@ -89,26 +78,6 @@ For parameter definition, take a look at
 Arguments
 """""""""
 
-In the example DAG the following environment variables are used to parameterize the
-operator's definition:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_functions.py
-    :language: python
-    :start-after: [START howto_operator_gcf_common_variables]
-    :end-before: [END howto_operator_gcf_common_variables]
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_functions.py
-    :language: python
-    :start-after: [START howto_operator_gcf_deploy_variables]
-    :end-before: [END howto_operator_gcf_deploy_variables]
-
-Some of those variables are used to create the request's body:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_functions.py
-    :language: python
-    :start-after: [START howto_operator_gcf_deploy_body]
-    :end-before: [END howto_operator_gcf_deploy_body]
-
 When a DAG is created, the default_args dictionary can be used to pass
 arguments common with other tasks:
 
@@ -135,6 +104,11 @@ Using the operator
 
 Depending on the combination of parameters, the Function's source code can be obtained
 from different sources:
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_functions.py
+    :language: python
+    :start-after: [START howto_operator_gcf_deploy_body]
+    :end-before: [END howto_operator_gcf_deploy_body]
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_functions.py
     :language: python
