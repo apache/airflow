@@ -22,7 +22,7 @@ try:
     from packaging.version import parse as semantic_version
 except ImportError:
     # Python 2
-    from distutils.version import LooseVersion as semantic_version
+    from distutils.version import LooseVersion as semantic_version  # type: ignore
 
 
 class SidecarNames:

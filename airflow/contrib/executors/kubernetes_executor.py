@@ -166,6 +166,7 @@ class KubeConfig:
         self.worker_service_account_name = conf.get(
             self.kubernetes_section, 'worker_service_account_name')
         self.image_pull_secrets = conf.get(self.kubernetes_section, 'image_pull_secrets')
+        self.prestop_wait_time = conf.getint(self.kubernetes_section, 'prestop_wait_time', fallback=0)
 
         # NOTE: user can build the dags into the docker image directly,
         # this will set to True if so
@@ -495,7 +496,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
             task_id=self._make_safe_label_value(task_id),
             try_number=try_number,
             execution_date=self._datetime_to_label_safe_datestring(execution_date),
-            airflow_command=command, kube_executor_config=kube_executor_config
+            airflow_command=command, kube_executor_config=kube_executor_config,
+            prestop_wait_time=self.kube_config.prestop_wait_time,
         )
         # the watcher will monitor pods, so we do not block.
         self.launcher.run_pod_async(pod, **self.kube_config.kube_client_request_args)

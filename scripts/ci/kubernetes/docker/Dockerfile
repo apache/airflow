@@ -39,6 +39,7 @@ RUN pip install --upgrade pip
 RUN pip install -U setuptools && \
     pip install kubernetes && \
     pip install cryptography && \
+    pip install "Werkzeug<1.0.0" && \
     pip install psycopg2-binary==2.7.4  # I had issues with older versions of psycopg2, just a warning
 
 # install airflow

@@ -189,7 +189,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         volumes_list = [value for value in volumes.values()]
         volume_mounts_list = [value for value in volume_mounts.values()]
         for volume_or_mount in volumes_list + volume_mounts_list:
-            if volume_or_mount['name'] != 'airflow-config':
+            if volume_or_mount['name'] not in ['airflow-config', 'airflow-local-settings']:
                 self.assertNotIn(
                     'subPath', volume_or_mount,
                     "subPath shouldn't be defined"
@@ -397,8 +397,8 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
         pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
                                      "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'",
-                                     kube_executor_config)
-
+                                     prestop_wait_time=0,
+                                     kube_executor_config=kube_executor_config)
         username_env = {
             'name': 'GIT_SYNC_USERNAME',
             'valueFrom': {
@@ -456,7 +456,8 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
         pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
                                      "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'",
-                                     kube_executor_config)
+                                     prestop_wait_time=0,
+                                     kube_executor_config=kube_executor_config)
 
         self.assertEqual(0, pod.security_context['runAsUser'])
 
@@ -476,8 +477,8 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
         pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
                                      "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'",
-                                     kube_executor_config)
-
+                                     prestop_wait_time=0,
+                                     kube_executor_config=kube_executor_config)
         init_containers = worker_config._get_init_containers()
         git_ssh_key_file = next((x['value'] for x in init_containers[0]['env']
                                 if x['name'] == 'GIT_SSH_KEY_FILE'), None)
@@ -529,7 +530,8 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
         pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
                                      "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'",
-                                     kube_executor_config)
+                                     prestop_wait_time=0,
+                                     kube_executor_config=kube_executor_config)
 
         self.assertTrue(pod.affinity['podAntiAffinity'] is not None)
         self.assertEqual('app',
@@ -553,7 +555,8 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
         pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
                                      "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'",
-                                     kube_executor_config)
+                                     prestop_wait_time=0,
+                                     kube_executor_config=kube_executor_config)
 
         self.assertTrue(pod.affinity['podAntiAffinity'] is not None)
         self.assertEqual('app',
@@ -705,7 +708,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.assertEqual({
             'my_label': 'label_id',
             'dag_id': 'override_dag_id',
-            'my_kube_executor_label': 'kubernetes'
+            'my_kube_executor_label': 'kubernetes',
         }, labels)
 
 

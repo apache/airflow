@@ -215,6 +215,21 @@ class KubernetesRequestFactory:
             req['spec']['dnsPolicy'] = pod.dnspolicy
 
     @staticmethod
+    def extract_prestop_wait_time(pod, req):
+        if pod.prestop_wait_time > 0:
+            req['spec']['containers'][0]['lifecycle'] = \
+                {'preStop':
+                    {'exec':
+                        {'command':
+                            ["/bin/sh",
+                             "-c",
+                             "sleep {}".format(pod.prestop_wait_time)
+                             ]
+                         }
+                     }
+                 }
+
+    @staticmethod
     def extract_image_pull_secrets(pod, req):
         if pod.image_pull_secrets:
             req['spec']['imagePullSecrets'] = [{
