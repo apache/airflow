@@ -236,14 +236,17 @@ def initialize_web_ui_plugins():
     global flask_appbuilder_menu_links
     # pylint: enable=global-statement
 
-    ensure_plugins_loaded()
-
     if admin_views is not None and \
             flask_blueprints is not None and \
             menu_links is not None and \
             flask_appbuilder_views is not None and \
             flask_appbuilder_menu_links is not None:
         return
+
+    ensure_plugins_loaded()
+
+    if plugins is None:
+        raise AirflowPluginException("Can't load plugins.")
 
     log.debug("Initialize Web UI plugin")
 
@@ -276,6 +279,11 @@ def initialize_extra_operators_links_plugins():
             operator_extra_links is not None and \
             registered_operator_link_classes is not None:
         return
+
+    ensure_plugins_loaded()
+
+    if plugins is None:
+        raise AirflowPluginException("Can't load plugins.")
 
     log.debug("Initialize extra operators links plugins")
 
