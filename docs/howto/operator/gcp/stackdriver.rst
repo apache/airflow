@@ -30,6 +30,8 @@ Prerequisite Tasks
 .. include:: _partials/prerequisite_tasks.rst
 
 
+.. _howto/operator:StackdriverListAlertPoliciesOperator:
+
 StackdriverListAlertPoliciesOperator
 ------------------------------------
 
@@ -48,7 +50,7 @@ If project is is missing it wil be retrieved from GCP connection used.
     :start-after: [START howto_operator_gcp_stackdriver_list_alert_policy]
     :end-before: [END howto_operator_gcp_stackdriver_list_alert_policy]
 
-.. _howto/operator:StackdriverListAlertPoliciesOperator:
+.. _howto/operator:StackdriverEnableAlertPoliciesOperator:
 
 StackdriverEnableAlertPoliciesOperator
 --------------------------------------
@@ -68,7 +70,7 @@ If project is is missing it wil be retrieved from GCP connection used.
     :start-after: [START howto_operator_gcp_stackdriver_enable_alert_policy]
     :end-before: [END howto_operator_gcp_stackdriver_enable_alert_policy]
 
-.. _howto/operator:StackdriverEnableAlertPoliciesOperator:
+.. _howto/operator:StackdriverDisableAlertPoliciesOperator:
 
 StackdriverDisableAlertPoliciesOperator
 ---------------------------------------
@@ -88,7 +90,7 @@ If project is is missing it wil be retrieved from GCP connection used.
     :start-after: [START howto_operator_gcp_stackdriver_disable_alert_policy]
     :end-before: [END howto_operator_gcp_stackdriver_disable_alert_policy]
 
-.. _howto/operator:StackdriverDisableAlertPoliciesOperator:
+.. _howto/operator:StackdriverUpsertAlertOperator:
 
 StackdriverUpsertAlertOperator
 ------------------------------
@@ -109,7 +111,7 @@ If project is is missing it wil be retrieved from GCP connection used.
     :start-after: [START howto_operator_gcp_stackdriver_upsert_alert_policy]
     :end-before: [END howto_operator_gcp_stackdriver_upsert_alert_policy]
 
-.. _howto/operator:StackdriverUpsertAlertOperator:
+.. _howto/operator:StackdriverDeleteAlertOperator:
 
 StackdriverDeleteAlertOperator
 ------------------------------
@@ -128,7 +130,7 @@ The name of the alert to be deleted should be given in the format projects/<PROJ
     :start-after: [START howto_operator_gcp_stackdriver_delete_alert_policy]
     :end-before: [END howto_operator_gcp_stackdriver_delete_alert_policy]
 
-.. _howto/operator:StackdriverDeleteAlertOperator:
+.. _howto/operator:StackdriverListNotificationChannelsOperator:
 
 StackdriverListNotificationChannelsOperator
 -------------------------------------------
@@ -148,7 +150,7 @@ If project is is missing it wil be retrieved from GCP connection used.
     :start-after: [START howto_operator_gcp_stackdriver_list_notification_channel]
     :end-before: [END howto_operator_gcp_stackdriver_list_notification_channel]
 
-.. _howto/operator:StackdriverListNotificationChannelsOperator:
+.. _howto/operator:StackdriverEnableNotificationChannelsOperator:
 
 StackdriverEnableNotificationChannelsOperator
 ---------------------------------------------
@@ -168,7 +170,7 @@ If project is is missing it wil be retrieved from GCP connection used.
     :start-after: [START howto_operator_gcp_stackdriver_enable_notification_channel]
     :end-before: [END howto_operator_gcp_stackdriver_enable_notification_channel]
 
-.. _howto/operator:StackdriverEnableNotificationChannelsOperator:
+.. _howto/operator:StackdriverDisableNotificationChannelsOperator:
 
 StackdriverDisableNotificationChannelsOperator
 ----------------------------------------------
@@ -188,7 +190,7 @@ If project is is missing it wil be retrieved from GCP connection used.
     :start-after: [START howto_operator_gcp_stackdriver_disable_notification_channel]
     :end-before: [END howto_operator_gcp_stackdriver_disable_notification_channel]
 
-.. _howto/operator:StackdriverDisableNotificationChannelsOperator:
+.. _howto/operator:StackdriverUpsertNotificationChannelOperator:
 
 StackdriverUpsertNotificationChannelOperator
 --------------------------------------------
@@ -209,7 +211,7 @@ If project is is missing it wil be retrieved from GCP connection used.
     :start-after: [START howto_operator_gcp_stackdriver_disable_notification_channel]
     :end-before: [END howto_operator_gcp_stackdriver_disable_notification_channel]
 
-.. _howto/operator:StackdriverUpsertNotificationChannelOperator:
+.. _howto/operator:StackdriverDeleteNotificationChannelOperator:
 
 StackdriverDeleteNotificationChannelOperator
 --------------------------------------------
@@ -227,5 +229,3 @@ If project is is missing it wil be retrieved from GCP connection used.
     :dedent: 4
     :start-after: [START howto_operator_gcp_stackdriver_delete_notification_channel]
     :end-before: [END howto_operator_gcp_stackdriver_delete_notification_channel]
-
-.. _howto/operator:StackdriverDeleteNotificationChannelOperator:
