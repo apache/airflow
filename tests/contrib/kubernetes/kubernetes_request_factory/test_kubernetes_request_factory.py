@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.contrib.kubernetes.kubernetes_request_factory.\
+from airflow.contrib.kubernetes.kubernetes_request_factory. \
     kubernetes_request_factory import KubernetesRequestFactory
 from airflow.contrib.kubernetes.pod import Pod, Resources
 from airflow.contrib.kubernetes.secret import Secret
@@ -28,7 +28,6 @@ import copy
 class TestKubernetesRequestFactory(unittest.TestCase):
 
     def setUp(self):
-
         self.expected = {
             'apiVersion': 'v1',
             'kind': 'Pod',
@@ -63,6 +62,27 @@ class TestKubernetesRequestFactory(unittest.TestCase):
 
         KubernetesRequestFactory.extract_image_pull_policy(pod, self.input_req)
         self.expected['spec']['containers'][0]['imagePullPolicy'] = pull_policy
+        self.assertEqual(self.input_req, self.expected)
+
+    def test_extract_prestop_no_wait(self):
+        pod = Pod('v3.14', {}, [], prestop_wait_time=0)
+        KubernetesRequestFactory.extract_prestop_wait_time(pod, self.input_req)
+        self.assertEqual(self.input_req, self.expected)
+
+    def test_extract_prestop_with_wait(self):
+        pod = Pod('v3.14', {}, [], prestop_wait_time=6)
+        KubernetesRequestFactory.extract_prestop_wait_time(pod, self.input_req)
+        self.expected['spec']['containers'][0]['lifecycle'] = \
+            {'preStop':
+                {'exec':
+                    {'command':
+                        ["/bin/sh",
+                         "-c",
+                         "sleep {}".format(pod.prestop_wait_time)
+                         ]
+                     }
+                 }
+             }
         self.assertEqual(self.input_req, self.expected)
 
     def test_add_secret_to_env(self):

@@ -366,7 +366,7 @@ class WorkerConfiguration(LoggingMixin):
         return dag_volume_mount_path
 
     def make_pod(self, namespace, worker_uuid, pod_id, dag_id, task_id, execution_date,
-                 try_number, airflow_command, kube_executor_config):
+                 try_number, airflow_command, prestop_wait_time, kube_executor_config):
         volumes_dict, volume_mounts_dict = self._get_volumes_and_mounts()
         worker_init_container_spec = self._get_init_containers()
         resources = Resources(
@@ -415,5 +415,6 @@ class WorkerConfiguration(LoggingMixin):
             affinity=affinity,
             tolerations=tolerations,
             security_context=self._get_security_context(),
-            configmaps=self._get_configmaps()
+            configmaps=self._get_configmaps(),
+            prestop_wait_time=prestop_wait_time,
         )
