@@ -35,13 +35,10 @@ import google.oauth2.service_account
 import google_auth_httplib2
 import httplib2
 import tenacity
-from google.api_core.exceptions import (
-    AlreadyExists, Forbidden, GoogleAPICallError, ResourceExhausted, RetryError, TooManyRequests,
-)
+from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
 from google.api_core.gapic_v1.client_info import ClientInfo
 from google.auth import _cloud_sdk
 from google.auth.environment_vars import CREDENTIALS
-from googleapiclient.errors import HttpError
 from googleapiclient.http import set_user_agent
 
 from airflow import version
@@ -305,38 +302,6 @@ class CloudBaseHook(BaseHook):
                 *args, **default_kwargs
             )(fun)
         return decorator
-
-    @staticmethod
-    def catch_http_exception(func: Callable[..., RT]) -> Callable[..., RT]:
-        """
-        Function decorator that intercepts HTTP Errors and raises AirflowException
-        with more informative message.
-        """
-
-        @functools.wraps(func)
-        def wrapper_decorator(self: CloudBaseHook, *args, **kwargs) -> RT:
-            try:
-                return func(self, *args, **kwargs)
-            except GoogleAPICallError as e:
-                if isinstance(e, AlreadyExists):
-                    raise e
-                else:
-                    self.log.error('The request failed:\n%s', str(e))
-                    raise AirflowException(e)
-            except RetryError as e:
-                self.log.error('The request failed due to a retryable error and retry attempts failed.')
-                raise AirflowException(e)
-            except ValueError as e:
-                self.log.error('The request failed, the parameters are invalid.')
-                raise AirflowException(e)
-            except HttpError as e:
-                if hasattr(e, "content"):
-                    self.log.error('The request failed:\n%s', e.content.decode(encoding="utf-8"))
-                else:
-                    self.log.error('The request failed:\n%s', str(e))
-                raise AirflowException(e)
-
-        return wrapper_decorator
 
     @staticmethod
     def fallback_to_default_project_id(func: Callable[..., RT]) -> Callable[..., RT]:
