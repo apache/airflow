@@ -42,6 +42,10 @@ class GCSToGCSOperator(BaseOperator):
     :type source_bucket: str
     :param source_object: The source name of the object to copy in the Google cloud
         storage bucket. (templated)
+        You can use only one wildcard for objects (filenames) within your
+        bucket. The wildcard can appear inside the object name or at the
+        end of the object name. Appending a wildcard to the bucket name is
+        unsupported.
     :type source_object: str
     :param source_objects: A list of source name of the objects to copy in the Google cloud
         storage bucket. (templated)
@@ -52,16 +56,22 @@ class GCSToGCSOperator(BaseOperator):
     :type destination_bucket: str
     :param destination_object: The destination name of the object in the
         destination Google Cloud Storage bucket. (templated)
-        If destination object is not specified, then it defaults to each of the source objects.
-        For example, if source_object = ['foo/sales','bah/inventory'], then destination will be
-        'foo/sales' and 'bah/inventory' if destination_object is not specified.
+        If a wildcard is supplied in the source_object argument, this is the
+        prefix that will be prepended to the final destination objects' paths.
+        Note that the source path's part before the wildcard will be removed;
+        if it needs to be retained it should be appended to destination_object.
+        For example, with prefix ``foo/*`` and destination_object ``blah/``, the
+        file ``foo/baz`` will be copied to ``blah/baz``; to retain the prefix write
+        the destination_object as e.g. ``blah/foo``, in which case the copied file
+        will be named ``blah/foo/baz``.
+        The same thing applies to source objects inside source_objects.
     :type destination_object: str
     :param move_object: When move object is True, the object is moved instead
         of copied to the new location. This is the equivalent of a mv command
         as opposed to a cp command.
     :type move_object: bool
     :param delimiter: This is used to restrict the result to only the 'files' in a given 'folder'.
-        If source_object = ['foo/bah/'] and delimiter = '.avro', then only the 'files' in the
+        If source_objects = ['foo/bah/'] and delimiter = '.avro', then only the 'files' in the
         folder 'foo/bah/' with '.avro' delimiter will be copied to the destination object.
     :type delimiter: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
