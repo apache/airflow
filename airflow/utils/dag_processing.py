@@ -187,6 +187,13 @@ class AbstractDagFileProcessorProcess(metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
+    @abstractmethod
+    def kill(self):
+        """
+        Kill the process launched to process the file, and ensure consistent state.
+        """
+        raise NotImplementedError()
+
     @property
     @abstractmethod
     def pid(self) -> int:
