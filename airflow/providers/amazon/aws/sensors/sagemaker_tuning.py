@@ -49,10 +49,8 @@ class SageMakerTuningSensor(SageMakerBaseSensor):
         return SageMakerHook.failed_states
 
     def get_sagemaker_response(self):
-        sagemaker = SageMakerHook(aws_conn_id=self.aws_conn_id)
-
         self.log.info('Poking Sagemaker Tuning Job %s', self.job_name)
-        return sagemaker.describe_tuning_job(self.job_name)
+        return self.get_hook().describe_tuning_job(self.job_name)
 
     def get_failed_reason_from_response(self, response):
         return response['FailureReason']

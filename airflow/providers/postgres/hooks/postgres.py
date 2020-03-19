@@ -159,7 +159,7 @@ class PostgresHook(DbApiHook):
 
         redshift = conn.extra_dejson.get('redshift', False)
         aws_conn_id = conn.extra_dejson.get('aws_conn_id', 'aws_default')
-        aws_hook = AwsBaseHook(aws_conn_id)
+        aws_hook = AwsBaseHook(aws_conn_id, client_type='rds')
         login = conn.login
         if conn.port is None:
             port = 5439 if redshift else 5432
@@ -178,6 +178,5 @@ class PostgresHook(DbApiHook):
             token = cluster_creds['DbPassword']
             login = cluster_creds['DbUser']
         else:
-            client = aws_hook.get_client_type('rds')
-            token = client.generate_db_auth_token(conn.host, port, conn.login)
+            token = aws_hook.conn.generate_db_auth_token(conn.host, port, conn.login)
         return login, token, port

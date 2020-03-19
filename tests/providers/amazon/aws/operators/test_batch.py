@@ -48,9 +48,9 @@ class TestAwsBatchOperator(unittest.TestCase):
     @mock.patch.dict("os.environ", AWS_DEFAULT_REGION=AWS_REGION)
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
-    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook")
-    def setUp(self, aws_hook_mock):
-        self.aws_hook_mock = aws_hook_mock
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
+    def setUp(self, get_client_type_mock):
+        self.get_client_type_mock = get_client_type_mock
         self.batch = AwsBatchOperator(
             task_id="task",
             job_name=JOB_NAME,
@@ -61,10 +61,10 @@ class TestAwsBatchOperator(unittest.TestCase):
             parameters=None,
             overrides={},
             array_properties=None,
-            aws_conn_id=None,
+            aws_conn_id='airflow_test',
             region_name="eu-west-1",
         )
-        self.client_mock = self.aws_hook_mock.return_value.get_client_type.return_value
+        self.client_mock = self.get_client_type_mock.return_value
         self.assertEqual(self.batch.client, self.client_mock)  # setup client property
 
         # don't pause in unit tests
@@ -89,12 +89,10 @@ class TestAwsBatchOperator(unittest.TestCase):
         self.assertEqual(self.batch.overrides, {})
         self.assertEqual(self.batch.array_properties, {})
         self.assertEqual(self.batch.region_name, "eu-west-1")
-        self.assertEqual(self.batch.aws_conn_id, None)
-        self.assertEqual(self.batch.hook, self.aws_hook_mock.return_value)
+        self.assertEqual(self.batch.aws_conn_id, "airflow_test")
         self.assertEqual(self.batch.client, self.client_mock)
 
-        self.aws_hook_mock.assert_called_once_with(aws_conn_id=None)
-        self.aws_hook_mock.return_value.get_client_type.assert_called_once_with(
+        self.get_client_type_mock.assert_called_once_with(
             "batch", region_name="eu-west-1"
         )
 

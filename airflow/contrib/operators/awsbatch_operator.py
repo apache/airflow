@@ -40,6 +40,7 @@ warnings.warn(
 )
 
 
+# pylint: disable=too-many-ancestors
 class AWSBatchOperator(AwsBatchOperator):
     """
     This class is deprecated. Please use `airflow.providers.amazon.aws.operators.batch.AwsBatchOperator`.
