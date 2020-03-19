@@ -3,8 +3,6 @@
 ./airflow/contrib/auth/backends/google_auth.py
 ./airflow/contrib/auth/backends/kerberos_auth.py
 ./airflow/contrib/auth/backends/ldap_auth.py
-./airflow/hooks/dbapi_hook.py
-./airflow/hooks/filesystem.py
 ./airflow/lineage/backend/atlas/typedefs.py
 ./airflow/lineage/datasets.py
 ./airflow/logging_config.py
