@@ -2350,15 +2350,16 @@ class BaseOperator(object):
         shallow_copy = cls.shallow_copy_attrs + cls._base_operator_shallow_copy_attrs
 
         for k, v in list(self.__dict__.items()):
-            if k not in shallow_copy:
-                try:
+            try:
+                if k not in shallow_copy:
                     setattr(result, k, copy.deepcopy(v, memo))
-                except Exception as e:
-                    logging.exception('Failed deepcopy on member variable '
-                                      'key: {k} ,value: {v}'.format(k=k, v=v))
-                    raise e
-            else:
-                setattr(result, k, copy.copy(v))
+                else:
+                    setattr(result, k, copy.copy(v))
+            except Exception as e:
+                logging.exception('Failed deepcopy on member variable '
+                                  'key: {k}, key type: {tk}, value: {v}, value type: {tv}'.format(
+                                    k=k, tk=type(k), v=v, tv=type(v)))
+                raise e
         return result
 
     def render_template_from_field(self, attr, content, context, jinja_env):
