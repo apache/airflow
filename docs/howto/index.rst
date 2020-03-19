@@ -45,3 +45,4 @@ configuring an Airflow environment.
     email-config
     tracking-user-activity
     cli-completion
+    use-alternative-secrets-backend

@@ -17,6 +17,7 @@
 # under the License.
 """
 Secrets framework provides means of getting connection objects from various sources, e.g. the following:
+
     * Environment variables
     * Metatsore database
     * AWS SSM Parameter store

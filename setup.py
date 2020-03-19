@@ -244,6 +244,9 @@ gcp = [
 grpc = [
     'grpcio>=1.15.0',
 ]
+hashicorp = [
+    'hvac~=0.10',
+]
 hdfs = [
     'snakebite>=2.7.8',
 ]
@@ -415,8 +418,8 @@ devel_azure = azure_cosmos + azure_data_lake + devel_minreq
 devel_all = (all_dbs + atlas + aws +
              azure_blob_storage + azure_container_instances + azure_cosmos + azure_data_lake +
              celery + cgroups + crypto + datadog + devel + doc + docker +
-             elasticsearch + gcp + grpc + jdbc + jenkins + kerberos + kubernetes + ldap + oracle +
-             papermill + password +
+             elasticsearch + gcp + grpc + hashicorp + jdbc + jenkins + kerberos + kubernetes + ldap +
+             oracle + papermill + password +
              redis + samba + segment + sendgrid + sentry + slack + snowflake + ssh +
              virtualenv + webhdfs + zendesk)
 
@@ -550,6 +553,7 @@ def do_setup():
             'grpc': grpc,
             'hdfs': hdfs,
             'hive': hive,
+            'hvac': hashicorp,
             'jdbc': jdbc,
             'jira': jira,
             'kerberos': kerberos,
