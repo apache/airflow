@@ -580,6 +580,9 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
         self._zombie_threshold_secs = (
             conf.getint('scheduler', 'scheduler_zombie_task_threshold'))
+
+        # Should store dag file source in a database?
+        self.store_dag_code = conf.getboolean('core', 'store_dag_code', fallback=False)
         # Map from file path to the processor
         self._processors: Dict[str, AbstractDagFileProcessorProcess] = {}
 
@@ -767,7 +770,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 SerializedDagModel.remove_deleted_dags(self._file_paths)
                 DagModel.deactivate_deleted_dags(self._file_paths)
 
-            if conf.getboolean('core', 'store_dag_code', fallback=False):
+            if self.store_dag_code:
                 from airflow.models.dagcode import DagCode
                 DagCode.remove_deleted_code(self._file_paths)
 
