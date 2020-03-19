@@ -2285,7 +2285,7 @@ class BigQueryBaseCursor(LoggingMixin):
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.cancel_query`",
             DeprecationWarning, stacklevel=3)
-        return self.hook.cancel_query()
+        return self.hook.cancel_query(*args, **kwargs)  # type: ignore  # noqa
 
     def run_with_configuration(self, *args, **kwargs) -> str:
         """
