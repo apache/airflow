@@ -2075,7 +2075,7 @@ class TestSchedulerJob(unittest.TestCase):
         ti.refresh_from_db()
         self.assertEqual(State.RUNNING, ti.state)
 
-    def test_execute_helper_reset_orphaned_tasks(self):
+    def test_reset_state_for_orphaned_tasks(self):
         session = settings.Session()
         dag = DAG(
             'test_execute_helper_reset_orphaned_tasks',
@@ -2106,14 +2106,9 @@ class TestSchedulerJob(unittest.TestCase):
 
         scheduler = SchedulerJob(num_runs=0)
         executor = MockExecutor(do_update=False)
-        scheduler.executor = executor
         scheduler.processor_agent = processor
 
-        scheduler.executor.start()
-        scheduler.processor_agent.start()
-        scheduler._run_scheduler_loop()
-        scheduler.processor_agent.terminate()
-        scheduler.executor.end()
+        scheduler.reset_state_for_orphaned_tasks()
 
         ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         self.assertEqual(ti.state, State.NONE)
@@ -2127,7 +2122,7 @@ class TestSchedulerJob(unittest.TestCase):
         [State.SCHEDULED, State.NONE],
         [State.UP_FOR_RESCHEDULE, State.NONE],
     ])
-    def test_execute_helper_should_change_state_for_tis_without_dagrun(self,
+    def test_scheduler_loop_should_change_state_for_tis_without_dagrun(self,
                                                                        initial_task_state,
                                                                        expected_task_state):
         session = settings.Session()
