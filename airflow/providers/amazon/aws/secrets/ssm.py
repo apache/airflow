@@ -41,11 +41,12 @@ class AwsSsmSecretsBackend(BaseSecretsBackend, LoggingMixin):
         backend_kwargs = {"connections_prefix": "/airflow/connections", "profile_name": null}
 
     For example, if ssm path is ``/airflow/connections/smtp_default``, this would be accessible
-    if you provide ``{"connections_prefix": "/airflow"}`` and request conn_id ``smtp_default``.
+    if you provide ``{"connections_prefix": "/airflow/connections"}`` and request conn_id ``smtp_default``.
     """
 
     def __init__(
-        self, connections_prefix: str = '/airflow/connections',
+        self,
+        connections_prefix: str = '/airflow/connections',
         profile_name: Optional[str] = None,
         **kwargs
     ):
