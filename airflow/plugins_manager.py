@@ -366,10 +366,10 @@ def integrate_dag_plugins() -> None:
             raise AirflowPluginException("Invalid plugin name")
         plugin_name: str = plugin.name
 
-        operators_module = make_module('airflow.operators.' + plugin_name, plugin.operators + plugin.sensors)
-        sensors_module = make_module('airflow.sensors.' + plugin_name, plugin.sensors)
-        hooks_module = make_module('airflow.hooks.' + plugin_name, plugin.hooks)
-        macros_module = make_module('airflow.macros.' + plugin_name, plugin.macros)
+        operators_module = make_module(f'airflow.operators.{plugin_name}', plugin.operators + plugin.sensors)
+        sensors_module = make_module(f'airflow.sensors.{plugin_name}', plugin.sensors)
+        hooks_module = make_module(f'airflow.hooks.{plugin_name}', plugin.hooks)
+        macros_module = make_module(f'airflow.macros.{plugin_name}', plugin.macros)
 
         operators_modules.append(operators_module)
         sensors_modules.append(sensors_module)
