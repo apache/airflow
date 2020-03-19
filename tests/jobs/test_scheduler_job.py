@@ -2109,7 +2109,7 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler.executor = executor
         scheduler.processor_agent = processor
 
-        scheduler._execute_helper()
+        scheduler._run_scheduler_loop()
 
         ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         self.assertEqual(ti.state, State.NONE)
@@ -2158,7 +2158,7 @@ class TestSchedulerJob(unittest.TestCase):
         processor.done = True
         scheduler.processor_agent = processor
 
-        scheduler._execute_helper()
+        scheduler._run_scheduler_loop()
 
         ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         self.assertEqual(ti.state, expected_task_state)

@@ -1538,14 +1538,43 @@ class SchedulerJob(BaseJob):
                                                      async_mode)
 
         try:
-            self._execute_helper()
+            self.executor.start()
+
+            self.log.info("Resetting orphaned tasks for active dag runs")
+            self.reset_state_for_orphaned_tasks()
+
+            self.register_exit_signals()
+
+            # Start after resetting orphaned tasks to avoid stressing out DB.
+            self.processor_agent.start()
+
+            execute_start_time = timezone.utcnow()
+
+            self._run_scheduler_loop()
+
+            # Stop any processors
+            self.processor_agent.terminate()
+
+            # Verify that all files were processed, and if so, deactivate DAGs that
+            # haven't been touched by the scheduler as they likely have been
+            # deleted.
+            if self.processor_agent.all_files_processed:
+                self.log.info(
+                    "Deactivating DAGs that haven't been touched since %s",
+                    execute_start_time.isoformat()
+                )
+                models.DAG.deactivate_stale_dags(execute_start_time)
+
+            self.executor.end()
+
+            settings.Session.remove()
         except Exception:  # pylint: disable=broad-except
             self.log.exception("Exception when executing execute_helper")
         finally:
             self.processor_agent.end()
             self.log.info("Exited execute loop")
 
-    def _execute_helper(self):
+    def _run_scheduler_loop(self):
         """
         The actual scheduler loop. The main steps in the loop are:
             #. Harvest DAG parsing results through DagFileProcessorAgent
@@ -1562,18 +1591,6 @@ class SchedulerJob(BaseJob):
 
         :rtype: None
         """
-        self.executor.start()
-
-        self.log.info("Resetting orphaned tasks for active dag runs")
-        self.reset_state_for_orphaned_tasks()
-
-        self.register_exit_signals()
-
-        # Start after resetting orphaned tasks to avoid stressing out DB.
-        self.processor_agent.start()
-
-        execute_start_time = timezone.utcnow()
-
         # Last time that self.heartbeat() was called.
         last_self_heartbeat_time = timezone.utcnow()
 
@@ -1619,23 +1636,6 @@ class SchedulerJob(BaseJob):
                 self.log.info("Exiting scheduler loop as all files have been processed %d times",
                               self.num_runs)
                 break
-
-        # Stop any processors
-        self.processor_agent.terminate()
-
-        # Verify that all files were processed, and if so, deactivate DAGs that
-        # haven't been touched by the scheduler as they likely have been
-        # deleted.
-        if self.processor_agent.all_files_processed:
-            self.log.info(
-                "Deactivating DAGs that haven't been touched since %s",
-                execute_start_time.isoformat()
-            )
-            models.DAG.deactivate_stale_dags(execute_start_time)
-
-        self.executor.end()
-
-        settings.Session.remove()
 
     def _validate_and_run_task_instances(self, simple_dag_bag: SimpleDagBag) -> bool:
         if len(simple_dag_bag.simple_dags) > 0:
