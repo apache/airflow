@@ -129,3 +129,18 @@ class TestVaultSecrets(TestCase):
 
         with self.assertRaisesRegex(VaultError, "Vault Authentication Error!"):
             VaultSecrets(**kwargs).get_connections(conn_id='test')
+
+    @mock.patch("airflow.providers.hashicorp.secrets.vault.hvac")
+    def test_empty_token_raises_error(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+
+        kwargs = {
+            "connections_path": "connections",
+            "mount_point": "airflow",
+            "auth_type": "token",
+            "url": "http://127.0.0.1:8200",
+        }
+
+        with self.assertRaisesRegex(VaultError, "token cannot be None for auth_type='token'"):
+            VaultSecrets(**kwargs).get_connections(conn_id='test')

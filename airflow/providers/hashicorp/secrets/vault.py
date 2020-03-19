@@ -112,6 +112,8 @@ class VaultSecrets(BaseSecretsBackend, LoggingMixin):
 
         _client = hvac.Client(url=self.url, **self.kwargs)
         if self.auth_type == "token":
+            if not self.token:
+                raise VaultError("token cannot be None for auth_type='token'")
             _client.token = self.token
         elif self.auth_type == "ldap":
             _client.auth.ldap.login(
@@ -149,10 +151,6 @@ class VaultSecrets(BaseSecretsBackend, LoggingMixin):
         :param conn_id: connection id
         :type conn_id: str
         """
-        self.log.debug("Path: %s", self.connections_path)
-        self.log.debug("Mount Point: %s", self.mount_point)
-        self.log.debug("Retrieving the secret for Connection ID: %s", conn_id)
-
         secret_path = self.build_path(conn_id=conn_id)
 
         try:
