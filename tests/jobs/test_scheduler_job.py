@@ -2105,7 +2105,6 @@ class TestSchedulerJob(unittest.TestCase):
         processor = mock.MagicMock()
 
         scheduler = SchedulerJob(num_runs=0)
-        executor = MockExecutor(do_update=False)
         scheduler.processor_agent = processor
 
         scheduler.reset_state_for_orphaned_tasks()
