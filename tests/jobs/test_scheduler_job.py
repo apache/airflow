@@ -2109,7 +2109,11 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler.executor = executor
         scheduler.processor_agent = processor
 
+        scheduler.executor.start()
+        scheduler.processor_agent.start()
         scheduler._run_scheduler_loop()
+        scheduler.processor_agent.terminate()
+        scheduler.executor.end()
 
         ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         self.assertEqual(ti.state, State.NONE)
