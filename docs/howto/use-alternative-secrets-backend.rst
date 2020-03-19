@@ -109,13 +109,34 @@ If you have set ``connections_path`` as ``connections`` and ``mount_point`` as `
 
 .. code-block:: bash
 
-    vault kv put airflow/connections smtp_default=postgresql://airflow:airflow@host:5432/airflow
+    vault kv put airflow/connections/smtp_default conn_uri=smtps://user:host@relay.example.com:465
+
+Note that the ``key`` is ``conn_uri``, ``value`` is ``postgresql://airflow:airflow@host:5432/airflow`` and
+``mount_point`` is ``airflow``.
 
 You can make a ``mount_point`` for ``airflow`` as follows:
 
 .. code-block:: bash
 
     vault secrets enable -path=airflow -version=2 kv
+
+Verify that you can get the secret from ``vault``:
+
+.. code-block:: console
+
+    ❯ vault kv get airflow/connections/smtp_default
+    ====== Metadata ======
+    Key              Value
+    ---              -----
+    created_time     2020-03-19T19:17:51.281721Z
+    deletion_time    n/a
+    destroyed        false
+    version          1
+
+    ====== Data ======
+    Key         Value
+    ---         -----
+    conn_uri    smtps://user:host@relay.example.com:465
 
 The value of the Vault key must be the :ref:`connection URI representation <generating_connection_uri>`
 of the connection object.

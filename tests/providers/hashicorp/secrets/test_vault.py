@@ -17,7 +17,7 @@
 
 from unittest import TestCase, mock
 
-from hvac.exceptions import VaultError
+from hvac.exceptions import InvalidPath, VaultError
 
 from airflow.providers.hashicorp.secrets.vault import VaultSecrets
 
@@ -34,7 +34,7 @@ class TestVaultSecrets(TestCase):
             'renewable': False,
             'lease_duration': 0,
             'data': {
-                'data': {'test_postgres': 'postgresql://airflow:airflow@host:5432/airflow'},
+                'data': {'conn_uri': 'postgresql://airflow:airflow@host:5432/airflow'},
                 'metadata': {'created_time': '2020-03-16T21:01:43.331126Z',
                              'deletion_time': '',
                              'destroyed': False,
@@ -65,7 +65,7 @@ class TestVaultSecrets(TestCase):
             'lease_id': '',
             'renewable': False,
             'lease_duration': 2764800,
-            'data': {'test_postgres': 'postgresql://airflow:airflow@host:5432/airflow'},
+            'data': {'conn_uri': 'postgresql://airflow:airflow@host:5432/airflow'},
             'wrap_info': None,
             'warnings': None,
             'auth': None}
@@ -82,7 +82,7 @@ class TestVaultSecrets(TestCase):
         test_client = VaultSecrets(**kwargs)
         returned_uri = test_client.get_conn_uri(conn_id="test_postgres")
         mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
-            mount_point='airflow', path='connections')
+            mount_point='airflow', path='connections/test_postgres')
         self.assertEqual('postgresql://airflow:airflow@host:5432/airflow', returned_uri)
 
     @mock.patch.dict('os.environ', {
@@ -97,21 +97,7 @@ class TestVaultSecrets(TestCase):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         # Response does not contain the requested key
-        mock_client.secrets.kv.v2.read_secret_version.return_value = {
-            'request_id': '94011e25-f8dc-ec29-221b-1f9c1d9ad2ae',
-            'lease_id': '',
-            'renewable': False,
-            'lease_duration': 0,
-            'data': {
-                'data': {'test_postgres': 'postgresql://airflow:airflow@host:5432/airflow'},
-                'metadata': {'created_time': '2020-03-16T21:01:43.331126Z',
-                             'deletion_time': '',
-                             'destroyed': False,
-                             'version': 1}},
-            'wrap_info': None,
-            'warnings': None,
-            'auth': None
-        }
+        mock_client.secrets.kv.v2.read_secret_version.side_effect = InvalidPath()
 
         kwargs = {
             "connections_path": "connections",
@@ -124,7 +110,7 @@ class TestVaultSecrets(TestCase):
         test_client = VaultSecrets(**kwargs)
         self.assertIsNone(test_client.get_conn_uri(conn_id="test_mysql"))
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point='airflow', path='connections')
+            mount_point='airflow', path='connections/test_mysql')
         self.assertEqual([], test_client.get_connections(conn_id="test_mysql"))
 
     @mock.patch("airflow.providers.hashicorp.secrets.vault.hvac")

@@ -22,7 +22,7 @@ from typing import List, Optional
 
 import hvac
 from cached_property import cached_property
-from hvac.exceptions import VaultError
+from hvac.exceptions import InvalidPath, VaultError
 
 from airflow import AirflowException
 from airflow.models import Connection
@@ -133,6 +133,15 @@ class VaultSecrets(BaseSecretsBackend, LoggingMixin):
         else:
             raise VaultError("Vault Authentication Error!")
 
+    def build_path(self, conn_id: str):
+        """
+        Given conn_id, build path for Vault Secret
+
+        :param conn_id: connection id
+        :type conn_id: str
+        """
+        return self.connections_path + "/" + conn_id
+
     def get_conn_uri(self, conn_id: str) -> Optional[str]:
         """
         Get secret value from Vault. Store the secret in the form of URI
@@ -144,19 +153,22 @@ class VaultSecrets(BaseSecretsBackend, LoggingMixin):
         self.log.debug("Mount Point: %s", self.mount_point)
         self.log.debug("Retrieving the secret for Connection ID: %s", conn_id)
 
-        if self.kv_engine_version == 1:
-            response = self.client.secrets.kv.v1.read_secret(
-                path=self.connections_path, mount_point=self.mount_point
-            )
-        else:
-            response = self.client.secrets.kv.v2.read_secret_version(
-                path=self.connections_path, mount_point=self.mount_point)
+        secret_path = self.build_path(conn_id=conn_id)
 
-        if not response:
+        try:
+            if self.kv_engine_version == 1:
+                response = self.client.secrets.kv.v1.read_secret(
+                    path=secret_path, mount_point=self.mount_point
+                )
+            else:
+                response = self.client.secrets.kv.v2.read_secret_version(
+                    path=secret_path, mount_point=self.mount_point)
+        except InvalidPath:
+            self.log.info("Connection ID %s not found in Path: %s", conn_id, secret_path)
             return None
 
         return_data = response["data"] if self.kv_engine_version == 1 else response["data"]["data"]
-        return return_data.get(conn_id)
+        return return_data.get("conn_uri")
 
     def get_connections(self, conn_id: str) -> List[Connection]:
         """
