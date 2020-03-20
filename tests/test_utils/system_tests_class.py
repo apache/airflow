@@ -55,6 +55,11 @@ class SystemTest(TestCase, LoggingMixin):
         executor = get_executor()
         return executor.execute_cmd(*args, **kwargs)
 
+    @staticmethod
+    def check_output(*args, **kwargs):
+        executor = get_executor()
+        return executor.check_output(*args, **kwargs)
+
     def setUp(self) -> None:
         """
         We want to avoid random errors while database got reset - those
