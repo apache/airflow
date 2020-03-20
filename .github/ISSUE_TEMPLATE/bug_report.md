@@ -50,7 +50,7 @@ As minimally and precisely as possible. Keep in mind we do not have access to yo
 
 <!--
 
-How often does this problem occur? Once? Ever time etc?
+How often does this problem occur? Once? Every time etc?
 
 Any relevant logs to include? Put them here in side a detail tag:
 <details><summary>x.log</summary> lots of stuff </details>
