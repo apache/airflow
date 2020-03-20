@@ -63,7 +63,7 @@ https://developers.google.com/style/inclusive-documentation
 
 ### Deprecating ignore_first_depends_on_past on backfill command and default it to True
 
-When doing backfill with `--depends-on-past` dags, users will need to pass `--ignore-first-depends-on-past`.
+When doing backfill with `depends_on_past` dags, users will need to pass `--ignore-first-depends-on-past`.
 We should default it as `true` to avoid confusion
 
 ### Custom executors is loaded using full import path
