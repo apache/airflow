@@ -24,6 +24,8 @@ AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
                                 'env_var_format': 'AIRFLOW_CTX_TASK_ID'},
     'AIRFLOW_CONTEXT_EXECUTION_DATE': {'default': 'airflow.ctx.execution_date',
                                        'env_var_format': 'AIRFLOW_CTX_EXECUTION_DATE'},
+    'AIRFLOW_CONTEXT_TRY_NUMBER': {'default': 'airflow.ctx.try_number',
+                                   'env_var_format': 'AIRFLOW_CTX_TRY_NUMBER'},
     'AIRFLOW_CONTEXT_DAG_RUN_ID': {'default': 'airflow.ctx.dag_run_id',
                                    'env_var_format': 'AIRFLOW_CTX_DAG_RUN_ID'},
     'AIRFLOW_CONTEXT_DAG_OWNER': {'default': 'airflow.ctx.dag_owner',
@@ -79,6 +81,9 @@ def context_to_airflow_vars(context, in_env_var_format=False):
         params[
             AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_EXECUTION_DATE'][
                 name_format]] = task_instance.execution_date.isoformat()
+    if task_instance and task_instance.try_number:
+        params[AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_TRY_NUMBER'][
+            name_format]] = str(task_instance.try_number)
     dag_run = context.get('dag_run')
     if dag_run and dag_run.run_id:
         params[AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_RUN_ID'][
