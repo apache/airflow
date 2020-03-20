@@ -341,7 +341,7 @@ class GCSHook(CloudBaseHook):
 
             self.log.info("Verify object date: %s is between %s and %s", blob_update_time, min_ts, max_ts)
 
-            if min_ts <= blob_update_time <= max_ts:
+            if min_ts < blob_update_time < max_ts:
                 return True
         return False
 
