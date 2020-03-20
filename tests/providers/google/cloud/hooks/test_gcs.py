@@ -152,6 +152,43 @@ class TestGCSHook(unittest.TestCase):
         # Then
         self.assertTrue(response)
 
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
+    def test_is_updated_before(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+
+        # Given
+        mock_service.return_value.bucket.return_value.get_blob \
+            .return_value.updated = datetime(2019, 8, 28, 14, 7, 20, 700000, dateutil.tz.tzutc())
+
+        # When
+        response = self.gcs_hook.is_updated_before(
+            bucket_name=test_bucket, object_name=test_object,
+            ts=datetime(2020, 1, 1, 1, 1, 1)
+        )
+
+        # Then
+        self.assertTrue(response)
+
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
+    def test_is_updated_between(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+
+        # Given
+        mock_service.return_value.bucket.return_value.get_blob \
+            .return_value.updated = datetime(2019, 8, 28, 14, 7, 20, 700000, dateutil.tz.tzutc())
+
+        # When
+        response = self.gcs_hook.is_updated_between(
+            bucket_name=test_bucket, object_name=test_object,
+            min_ts=datetime(2018, 1, 1, 1, 1, 1),
+            max_ts=datetime(2020, 1, 1, 1, 1, 1)
+        )
+
+        # Then
+        self.assertTrue(response)
+
     @mock.patch('google.cloud.storage.Bucket')
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_copy(self, mock_service, mock_bucket):

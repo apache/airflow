@@ -87,6 +87,10 @@ class GCSToGCSOperator(BaseOperator):
         only if they were modified after last_modified_time.
         If tzinfo has not been set, UTC will be assumed.
     :type last_modified_time: datetime.datetime
+    :param maximum_modified_time: When specified, the objects will be copied or moved,
+        only if they were modified before maximum_modified_time.
+        If tzinfo has not been set, UTC will be assumed.
+    :type maximum_modified_time: datetime.datetime
 
     :Example:
 
@@ -174,6 +178,7 @@ class GCSToGCSOperator(BaseOperator):
                  google_cloud_storage_conn_id=None,
                  delegate_to=None,
                  last_modified_time=None,
+                 maximum_modified_time=None,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
@@ -193,6 +198,7 @@ class GCSToGCSOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.last_modified_time = last_modified_time
+        self.maximum_modified_time = maximum_modified_time
 
     def execute(self, context):
 
@@ -277,12 +283,33 @@ class GCSToGCSOperator(BaseOperator):
                                      destination_object=destination_object)
 
     def _copy_single_object(self, hook, source_object, destination_object):
-        if self.last_modified_time is not None:
+        if self.last_modified_time and self.maximum_modified_time:
+            # check to see if object was modified between last_modified_time and
+            # maximum_modified_time
+            if hook.is_updated_between(self.source_bucket,
+                                       source_object,
+                                       self.last_modified_time,
+                                       self.maximum_modified_time
+                                       ):
+                self.log.debug("Object has been modified between %s and %s",
+                               self.last_modified_time, self.maximum_modified_time)
+            else:
+                return
+
+        elif self.last_modified_time is not None:
             # Check to see if object was modified after last_modified_time
             if hook.is_updated_after(self.source_bucket,
                                      source_object,
                                      self.last_modified_time):
                 self.log.debug("Object has been modified after %s ", self.last_modified_time)
+            else:
+                return
+        elif self.maximum_modified_time is not None:
+            # Check to see if object was modified before maximum_modified_time
+            if hook.is_updated_before(self.source_bucket,
+                                      source_object,
+                                      self.maximum_modified_time):
+                self.log.debug("Object has been modified before %s ", self.maximum_modified_time)
             else:
                 return
 
