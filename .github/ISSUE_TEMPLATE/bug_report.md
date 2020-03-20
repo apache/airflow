@@ -31,6 +31,16 @@ This questions are the first thing we need to know to understand the context.
 
 **Apache Airflow version**:
 
+
+**Kubernetes version (if you are using kubernetes)** (use `kubectl version`):
+
+**Environment**:
+
+- **Cloud provider or hardware configuration**:
+- **OS** (e.g. from /etc/os-release):
+- **Kernel** (e.g. `uname -a`):
+- **Install tools**:
+- **Others**:
 **What happened**:
 
 <!-- (please include exact error messages if you can) -->
@@ -44,6 +54,15 @@ This questions are the first thing we need to know to understand the context.
 
 As minimally and precisely as possible. Keep in mind we do not have access to your cluster or dags.
 
+
+If you are using kubernetes, please attempt to recreate the issue using minikube or kind.
+
+## Install minikube/kind
+
+- Minikube https://minikube.sigs.k8s.io/docs/start/
+- Kind https://kind.sigs.k8s.io/docs/user/quick-start/
+
+
 --->
 
 **Anything else we need to know**:
@@ -56,3 +75,4 @@ Any relevant logs to include? Put them here in side a detail tag:
 <details><summary>x.log</summary> lots of stuff </details>
 
 -->
+
