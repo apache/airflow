@@ -317,7 +317,7 @@ redis = [
     'redis~=3.2',
 ]
 salesforce = [
-    'simple-salesforce>=0.72',
+    'simple-salesforce>=0.72,<1.0.0',
 ]
 samba = [
     'pysmbclient>=0.1.3',
