@@ -267,6 +267,7 @@ RUN GCLOUD_VERSION="274.0.1" \
     && curl "${GCOUD_URL}" -o "${GCLOUD_TMP_FILE}"\
     && tar xzf "${GCLOUD_TMP_FILE}" --strip-components 1 -C "${GCLOUD_HOME}" \
     && rm -rf "${GCLOUD_TMP_FILE}" \
+    && ${GCLOUD_HOME}/bin/gcloud components install beta \
     && echo '. /opt/gcloud/completion.bash.inc' >> /etc/bash.bashrc
 
 ENV PATH="$PATH:${GCLOUD_HOME}/bin"
