@@ -47,5 +47,3 @@ As minimally and precisely as possible. Keep in mind we do not have access to yo
 --->
 
 **Anything else we need to know**:
-
-<!-- If this is actually about documentation, add `/kind documentation` below -->
