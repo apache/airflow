@@ -47,3 +47,12 @@ As minimally and precisely as possible. Keep in mind we do not have access to yo
 --->
 
 **Anything else we need to know**:
+
+<!--
+
+How often does this problem occurr? Once? Ever time etc?
+
+Any relevant logs to include? Put them here in side a detail tag:
+<details><summary>x.log</summary> lots of stuff </details>
+
+-->
