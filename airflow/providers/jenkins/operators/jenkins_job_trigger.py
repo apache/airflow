@@ -168,11 +168,13 @@ class JenkinsJobTriggerOperator(BaseOperator):
                     return build_number
             try_count += 1
             time.sleep(self.sleep_time)
-        raise AirflowException("The job hasn't been executed"
-                               " after polling the queue %d times",
-                               self.max_try_before_job_appears)
+        raise AirflowException("The job hasn't been executed after polling "
+                               f"the queue {self.max_try_before_job_appears} times")
 
     def get_hook(self):
+        """
+        Instantiate jenkins hook
+        """
         return JenkinsHook(self.jenkins_connection_id)
 
     def execute(self, context):
@@ -200,6 +202,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         time.sleep(self.sleep_time)
         keep_polling_job = True
         build_info = None
+        # pylint: disable=too-many-nested-blocks
         while keep_polling_job:
             try:
                 build_info = jenkins_server.get_build_info(name=self.job_name,
@@ -217,16 +220,17 @@ class JenkinsJobTriggerOperator(BaseOperator):
                                   self.job_name, build_number)
                     time.sleep(self.sleep_time)
             except jenkins.NotFoundException as err:
+                # pylint: disable=no-member
                 raise AirflowException(
-                    'Jenkins job status check failed. Final error was: %s'
-                    % err.resp.status)
+                    'Jenkins job status check failed. Final error was: '
+                    f'{err.resp.status}')
             except jenkins.JenkinsException as err:
                 raise AirflowException(
-                    'Jenkins call failed with error : %s, if you have parameters '
+                    f'Jenkins call failed with error : {err}, if you have parameters '
                     'double check them, jenkins sends back '
                     'this exception for unknown parameters'
                     'You can also check logs for more details on this exception '
-                    '(jenkins_url/log/rss)', str(err))
+                    '(jenkins_url/log/rss)')
         if build_info:
             # If we can we return the url of the job
             # for later use (like retrieving an artifact)

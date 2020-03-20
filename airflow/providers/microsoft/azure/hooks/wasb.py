@@ -191,7 +191,7 @@ class WasbHook(BaseHook):
             raise AirflowException('Blob(s) not found: {}'.format(blob_name))
 
         for blob_uri in blobs_to_delete:
-            self.log.info("Deleting blob: " + blob_uri)
+            self.log.info("Deleting blob: %s", blob_uri)
             self.connection.delete_blob(container_name,
                                         blob_uri,
                                         delete_snapshots='include',

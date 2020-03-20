@@ -54,6 +54,8 @@ class SparkSqlHook(BaseHook):
     :param yarn_queue: The YARN queue to submit to (Default: "default")
     :type yarn_queue: str
     """
+
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  sql,
                  conf=None,
@@ -167,6 +169,9 @@ class SparkSqlHook(BaseHook):
             )
 
     def kill(self):
+        """
+        Kill Spark job
+        """
         if self._sp and self._sp.poll() is None:
             self.log.info("Killing the Spark-Sql job")
             self._sp.kill()

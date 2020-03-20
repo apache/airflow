@@ -83,6 +83,7 @@ class ZendeskHook(BaseHook):
             keys += query['include'].split(',')
         results = {key: results[key] for key in keys}
 
+        # pylint: disable=too-many-nested-blocks
         if get_all_pages:
             while next_page is not None:
                 try:
@@ -100,15 +101,13 @@ class ZendeskHook(BaseHook):
                         # next just refers to the current set of results.
                         # Hence, need to deal with this special case
                         break
-                    else:
-                        next_page = more_res['next_page']
+                    next_page = more_res['next_page']
                 except RateLimitError as rle:
                     self.__handle_rate_limit_exception(rle)
-                except ZendeskError as ze:
-                    if b"Use a start_time older than 5 minutes" in ze.msg:
+                except ZendeskError as zde:
+                    if b"Use a start_time older than 5 minutes" in zde.msg:
                         # We have pretty up to date data
                         break
-                    else:
-                        raise ze
+                    raise zde
 
         return results

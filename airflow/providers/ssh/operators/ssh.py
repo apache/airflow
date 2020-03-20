@@ -83,7 +83,7 @@ class SSHOperator(BaseOperator):
                 if self.ssh_hook and isinstance(self.ssh_hook, SSHHook):
                     self.log.info("ssh_conn_id is ignored when ssh_hook is provided.")
                 else:
-                    self.log.info("ssh_hook is not provided or invalid. " +
+                    self.log.info("ssh_hook is not provided or invalid. "
                                   "Trying ssh_conn_id to create SSHHook.")
                     self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id,
                                             timeout=self.timeout)
@@ -92,8 +92,8 @@ class SSHOperator(BaseOperator):
                 raise AirflowException("Cannot operate without ssh_hook or ssh_conn_id.")
 
             if self.remote_host is not None:
-                self.log.info("remote_host is provided explicitly. " +
-                              "It will replace the remote_host which was defined " +
+                self.log.info("remote_host is provided explicitly. "
+                              "It will replace the remote_host which was defined "
                               "in ssh_hook or predefined in connection of ssh_conn_id.")
                 self.ssh_hook.remote_host = self.remote_host
 
@@ -130,15 +130,13 @@ class SSHOperator(BaseOperator):
                         channel.recv_ready() or \
                         channel.recv_stderr_ready():
                     readq, _, _ = select([channel], [], [], self.timeout)
-                    for c in readq:
-                        if c.recv_ready():
-                            line = stdout.channel.recv(len(c.in_buffer))
-                            line = line
+                    for recv in readq:
+                        if recv.recv_ready():
+                            line = stdout.channel.recv(len(recv.in_buffer))
                             agg_stdout += line
                             self.log.info(line.decode('utf-8').strip('\n'))
-                        if c.recv_stderr_ready():
-                            line = stderr.channel.recv_stderr(len(c.in_stderr_buffer))
-                            line = line
+                        if recv.recv_stderr_ready():
+                            line = stderr.channel.recv_stderr(len(recv.in_stderr_buffer))
                             agg_stderr += line
                             self.log.warning(line.decode('utf-8').strip('\n'))
                     if stdout.channel.exit_status_ready()\
@@ -172,5 +170,8 @@ class SSHOperator(BaseOperator):
         return True
 
     def tunnel(self):
+        """
+        Get ssh tunnel
+        """
         ssh_client = self.ssh_hook.get_conn()
         ssh_client.get_transport()

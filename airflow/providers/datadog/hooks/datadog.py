@@ -56,6 +56,9 @@ class DatadogHook(BaseHook, LoggingMixin):
         initialize(api_key=self.api_key, app_key=self.app_key)
 
     def validate_response(self, response):
+        """
+        Validate Datadog response
+        """
         if response['status'] != 'ok':
             self.log.error("Datadog returned: %s", response)
             raise AirflowException("Error status received from Datadog")
@@ -111,6 +114,7 @@ class DatadogHook(BaseHook, LoggingMixin):
         self.validate_response(response)
         return response
 
+    # pylint: disable=too-many-arguments
     def post_event(self, title, text, aggregation_key=None, alert_type=None, date_happened=None,
                    handle=None, priority=None, related_event_id=None, tags=None, device_name=None):
         """

@@ -31,6 +31,27 @@ from airflow.hooks.base_hook import BaseHook
 
 
 class SegmentHook(BaseHook):
+    """
+    Create new connection to Segment
+    and allows you to pull data out of Segment or write to it.
+
+    You can then use that file with other
+    Airflow operators to move the data around or interact with segment.
+
+    :param segment_conn_id: the name of the connection that has the parameters
+        we need to connect to Segment. The connection should be type `json` and include a
+        write_key security token in the `Extras` field.
+    :type segment_conn_id: str
+    :param segment_debug_mode: Determines whether Segment should run in debug mode.
+        Defaults to False
+    :type segment_debug_mode: bool
+
+    .. note::
+        You must include a JSON structure in the `Extras` field.
+        We need a user's security token to connect to Segment.
+        So we define it in the `Extras` field as:
+        `{"write_key":"YOUR_SECURITY_TOKEN"}`
+    """
     def __init__(
             self,
             segment_conn_id='segment_default',
@@ -38,27 +59,6 @@ class SegmentHook(BaseHook):
             *args,
             **kwargs
     ):
-        """
-        Create new connection to Segment
-        and allows you to pull data out of Segment or write to it.
-
-        You can then use that file with other
-        Airflow operators to move the data around or interact with segment.
-
-        :param segment_conn_id: the name of the connection that has the parameters
-                            we need to connect to Segment.
-                            The connection should be type `json` and include a
-                            write_key security token in the `Extras` field.
-        :type segment_conn_id: str
-        :param segment_debug_mode: Determines whether Segment should run in debug mode.
-        Defaults to False
-        :type segment_debug_mode: bool
-        .. note::
-            You must include a JSON structure in the `Extras` field.
-            We need a user's security token to connect to Segment.
-            So we define it in the `Extras` field as:
-                `{"write_key":"YOUR_SECURITY_TOKEN"}`
-        """
         super().__init__()
         self.segment_conn_id = segment_conn_id
         self.segment_debug_mode = segment_debug_mode
@@ -85,7 +85,6 @@ class SegmentHook(BaseHook):
         """
         Handles error callbacks when using Segment with segment_debug_mode set to True
         """
-        self.log.error('Encountered Segment error: {segment_error} with '
-                       'items: {with_items}'.format(segment_error=error,
-                                                    with_items=items))
+        self.log.error('Encountered Segment error: %s with '
+                       'items: %s', error, items)
         raise AirflowException('Segment error: {}'.format(error))

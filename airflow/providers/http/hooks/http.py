@@ -176,7 +176,7 @@ class HttpHook(BaseHook):
             return response
 
         except requests.exceptions.ConnectionError as ex:
-            self.log.warning(str(ex) + ' Tenacity will retry to execute the operation')
+            self.log.warning('%s Tenacity will retry to execute the operation', ex)
             raise ex
 
     def run_with_advanced_retry(self, _retry_args, *args, **kwargs):

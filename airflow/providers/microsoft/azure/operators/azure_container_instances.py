@@ -46,6 +46,7 @@ DEFAULT_MEMORY_IN_GB = 2.0
 DEFAULT_CPU = 1.0
 
 
+# pylint: disable=too-many-instance-attributes
 class AzureContainerInstancesOperator(BaseOperator):
     """
     Start a container on Azure Container Instances
@@ -119,6 +120,7 @@ class AzureContainerInstancesOperator(BaseOperator):
 
     template_fields = ('name', 'image', 'command', 'environment_variables')
 
+    # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(self,
                  ci_conn_id,
@@ -232,7 +234,7 @@ class AzureContainerInstancesOperator(BaseOperator):
 
             self.log.info("Container group started %s/%s", self.resource_group, self.name)
 
-            exit_code = self._monitor_logging(self._ci_hook, self.resource_group, self.name)
+            exit_code = self._monitor_logging(self.resource_group, self.name)
 
             self.log.info("Container had exit code: %s", exit_code)
             if exit_code != 0:
@@ -253,14 +255,15 @@ class AzureContainerInstancesOperator(BaseOperator):
             self.log.info("Deleting container group")
             try:
                 self._ci_hook.delete(self.resource_group, self.name)
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 self.log.exception("Could not delete container group")
 
-    def _monitor_logging(self, ci_hook, resource_group, name):
+    def _monitor_logging(self, resource_group, name):
         last_state = None
         last_message_logged = None
         last_line_logged = None
 
+        # pylint: disable=too-many-nested-blocks
         while True:
             try:
                 cg_state = self._ci_hook.get_state(resource_group, name)
@@ -310,7 +313,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                     return 1
                 else:
                     self.log.exception("Exception while getting container groups")
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 self.log.exception("Exception while getting container groups")
 
         sleep(1)
@@ -330,6 +333,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                 self.log.info(line.rstrip())
 
             return logs[-1]
+        return None
 
     @staticmethod
     def _check_name(name):

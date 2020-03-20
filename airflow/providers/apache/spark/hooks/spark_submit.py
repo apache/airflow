@@ -31,6 +31,7 @@ except ImportError:
     pass
 
 
+# pylint: disable=too-many-instance-attributes
 class SparkSubmitHook(BaseHook, LoggingMixin):
     """
     This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
@@ -99,6 +100,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                          Some distros may use spark2-submit.
     :type spark_binary: str
     """
+
+    # pylint: disable=too-many-arguments,too-many-locals,too-many-branches
     def __init__(self,
                  conf=None,
                  conn_id='spark_default',
@@ -167,6 +170,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._driver_id = None
         self._driver_status = None
         self._spark_exit_code = None
+        self._env = None
 
     def _resolve_should_track_driver_status(self):
         """
@@ -382,7 +386,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         """
         spark_submit_cmd = self._build_spark_submit_command(application)
 
-        if hasattr(self, '_env'):
+        if self._env:
             env = os.environ.copy()
             env.update(self._env)
             kwargs["env"] = env
@@ -406,7 +410,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 )
             )
 
-        self.log.debug("Should track driver: {}".format(self._should_track_driver_status))
+        self.log.debug("Should track driver: %s", self._should_track_driver_status)
 
         # We want the Airflow job to wait until the Spark driver is finished
         if self._should_track_driver_status:
@@ -473,8 +477,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 match_driver_id = re.search(r'(driver-[0-9\-]+)', line)
                 if match_driver_id:
                     self._driver_id = match_driver_id.groups()[0]
-                    self.log.info("identified spark driver id: {}"
-                                  .format(self._driver_id))
+                    self.log.info("identified spark driver id: %s", self._driver_id)
 
             self.log.info(line)
 
@@ -495,7 +498,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     .replace(',', '').replace('\"', '').strip()
                 driver_found = True
 
-            self.log.debug("spark driver status log: {}".format(line))
+            self.log.debug("spark driver status log: %s", line)
 
         if not driver_found:
             self._driver_status = "UNKNOWN"
@@ -543,8 +546,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # Sleep for n seconds as we do not want to spam the cluster
             time.sleep(self._status_poll_interval)
 
-            self.log.debug("polling status of spark driver with id {}"
-                           .format(self._driver_id))
+            self.log.debug("polling status of spark driver with id %s", self._driver_id)
 
             poll_drive_status_cmd = self._build_track_driver_status_command()
             status_process = subprocess.Popen(poll_drive_status_cmd,
@@ -592,29 +594,30 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         return connection_cmd
 
     def on_kill(self):
+        """
+        Kill Spark submit command
+        """
 
         self.log.debug("Kill Command is being called")
 
         if self._should_track_driver_status:
             if self._driver_id:
-                self.log.info('Killing driver {} on cluster'
-                              .format(self._driver_id))
+                self.log.info('Killing driver %s on cluster', self._driver_id)
 
                 kill_cmd = self._build_spark_driver_kill_command()
                 driver_kill = subprocess.Popen(kill_cmd,
                                                stdout=subprocess.PIPE,
                                                stderr=subprocess.PIPE)
 
-                self.log.info("Spark driver {} killed with return code: {}"
-                              .format(self._driver_id, driver_kill.wait()))
+                self.log.info("Spark driver %s killed with return code: %s",
+                              self._driver_id, driver_kill.wait())
 
         if self._submit_sp and self._submit_sp.poll() is None:
             self.log.info('Sending kill signal to %s', self._connection['spark_binary'])
             self._submit_sp.kill()
 
             if self._yarn_application_id:
-                self.log.info('Killing application {} on YARN'
-                              .format(self._yarn_application_id))
+                self.log.info('Killing application %s on YARN', self._yarn_application_id)
 
                 kill_cmd = "yarn application -kill {}" \
                     .format(self._yarn_application_id).split()

@@ -59,6 +59,9 @@ class DruidHook(BaseHook):
             raise ValueError("Druid timeout should be equal or greater than 1")
 
     def get_conn_url(self):
+        """
+        Get Druid connection url
+        """
         conn = self.get_connection(self.druid_ingest_conn_id)
         host = conn.host
         port = conn.port
@@ -82,6 +85,9 @@ class DruidHook(BaseHook):
             return None
 
     def submit_indexing_job(self, json_index_spec: str):
+        """
+        Submit Druid ingestion job
+        """
         url = self.get_conn_url()
 
         self.log.info("Druid ingestion spec: %s", json_index_spec)
@@ -107,7 +113,7 @@ class DruidHook(BaseHook):
                 # ensure that the job gets killed if the max ingestion time is exceeded
                 requests.post("{0}/{1}/shutdown".format(url, druid_task_id), auth=self.get_auth())
                 raise AirflowException('Druid ingestion took more than '
-                                       '%s seconds', self.max_ingestion_time)
+                                       f'{self.max_ingestion_time} seconds')
 
             time.sleep(self.timeout)
 
@@ -122,7 +128,7 @@ class DruidHook(BaseHook):
                 raise AirflowException('Druid indexing job failed, '
                                        'check console for more info')
             else:
-                raise AirflowException('Could not get status of the job, got %s', status)
+                raise AirflowException(f'Could not get status of the job, got {status}')
 
         self.log.info('Successful index')
 
@@ -138,14 +144,11 @@ class DruidDbApiHook(DbApiHook):
     default_conn_name = 'druid_broker_default'
     supports_autocommit = False
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def get_conn(self):
         """
         Establish a connection to druid broker.
         """
-        conn = self.get_connection(self.druid_broker_conn_id)
+        conn = self.get_connection(self.druid_broker_conn_id)  # pylint: disable=no-member
         druid_broker_conn = connect(
             host=conn.host,
             port=conn.port,

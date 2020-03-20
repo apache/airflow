@@ -88,6 +88,7 @@ class HiveCliHook(BaseHook):
         self.auth = conn.extra_dejson.get('auth', 'noSasl')
         self.conn = conn
         self.run_as = run_as
+        self.sub_process = None
 
         if mapred_queue_priority:
             mapred_queue_priority = mapred_queue_priority.upper()
@@ -241,24 +242,24 @@ class HiveCliHook(BaseHook):
 
                 if verbose:
                     self.log.info("%s", " ".join(hive_cmd))
-                sp = subprocess.Popen(
+                sub_process = subprocess.Popen(
                     hive_cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     cwd=tmp_dir,
                     close_fds=True)
-                self.sp = sp
+                self.sub_process = sub_process
                 stdout = ''
                 while True:
-                    line = sp.stdout.readline()
+                    line = sub_process.stdout.readline()
                     if not line:
                         break
                     stdout += line.decode('UTF-8')
                     if verbose:
                         self.log.info(line.decode('UTF-8').strip())
-                sp.wait()
+                sub_process.wait()
 
-                if sp.returncode:
+                if sub_process.returncode:
                     raise AirflowException(stdout)
 
                 return stdout
@@ -338,7 +339,7 @@ class HiveCliHook(BaseHook):
         """
 
         def _infer_field_types_from_df(df):
-            DTYPE_KIND_HIVE_TYPE = {
+            dtype_kind_hive_type = {
                 'b': 'BOOLEAN',    # boolean
                 'i': 'BIGINT',     # signed integer
                 'u': 'BIGINT',     # unsigned integer
@@ -351,10 +352,10 @@ class HiveCliHook(BaseHook):
                 'V': 'STRING'      # void
             }
 
-            d = OrderedDict()
+            order_type = OrderedDict()
             for col, dtype in df.dtypes.iteritems():
-                d[col] = DTYPE_KIND_HIVE_TYPE[dtype.kind]
-            return d
+                order_type[col] = dtype_kind_hive_type[dtype.kind]
+            return order_type
 
         if pandas_kwargs is None:
             pandas_kwargs = {}
@@ -466,12 +467,15 @@ class HiveCliHook(BaseHook):
         self.run_cli(hql)
 
     def kill(self):
+        """
+        Kill Hive cli command
+        """
         if hasattr(self, 'sp'):
-            if self.sp.poll() is None:
+            if self.sub_process.poll() is None:
                 print("Killing the Hive job")
-                self.sp.terminate()
+                self.sub_process.terminate()
                 time.sleep(60)
-                self.sp.kill()
+                self.sub_process.kill()
 
 
 class HiveMetastoreHook(BaseHook):
@@ -488,9 +492,9 @@ class HiveMetastoreHook(BaseHook):
     def __getstate__(self):
         # This is for pickling to work despite the thirft hive client not
         # being pickable
-        d = dict(self.__dict__)
-        del d['metastore']
-        return d
+        state = dict(self.__dict__)
+        del state['metastore']
+        return state
 
     def __setstate__(self, d):
         self.__dict__.update(d)
@@ -504,18 +508,18 @@ class HiveMetastoreHook(BaseHook):
         from thrift.transport import TSocket, TTransport
         from thrift.protocol import TBinaryProtocol
 
-        ms = self._find_valid_server()
+        conn = self._find_valid_server()
 
-        if ms is None:
+        if not conn:
             raise AirflowException("Failed to locate the valid server.")
 
-        auth_mechanism = ms.extra_dejson.get('authMechanism', 'NOSASL')
+        auth_mechanism = conn.extra_dejson.get('authMechanism', 'NOSASL')
 
         if conf.get('core', 'security') == 'kerberos':
-            auth_mechanism = ms.extra_dejson.get('authMechanism', 'GSSAPI')
-            kerberos_service_name = ms.extra_dejson.get('kerberos_service_name', 'hive')
+            auth_mechanism = conn.extra_dejson.get('authMechanism', 'GSSAPI')
+            kerberos_service_name = conn.extra_dejson.get('kerberos_service_name', 'hive')
 
-        conn_socket = TSocket.TSocket(ms.host, ms.port)
+        conn_socket = TSocket.TSocket(conn.host, conn.port)
 
         if conf.get('core', 'security') == 'kerberos' \
                 and auth_mechanism == 'GSSAPI':
@@ -526,7 +530,7 @@ class HiveMetastoreHook(BaseHook):
 
             def sasl_factory():
                 sasl_client = sasl.Client()
-                sasl_client.setAttr("host", ms.host)
+                sasl_client.setAttr("host", conn.host)
                 sasl_client.setAttr("service", kerberos_service_name)
                 sasl_client.init()
                 return sasl_client
@@ -551,6 +555,7 @@ class HiveMetastoreHook(BaseHook):
                 return conn
             else:
                 self.log.info("Could not connect to %s:%s", conn.host, conn.port)
+        return None
 
     def get_conn(self):
         return self.metastore
@@ -577,10 +582,7 @@ class HiveMetastoreHook(BaseHook):
             partitions = client.get_partitions_by_filter(
                 schema, table, partition, 1)
 
-        if partitions:
-            return True
-        else:
-            return False
+        return bool(partitions)
 
     def check_for_named_partition(self, schema, table, partition_name):
         """
@@ -634,8 +636,7 @@ class HiveMetastoreHook(BaseHook):
         with self.metastore as client:
             return client.get_databases(pattern)
 
-    def get_partitions(
-            self, schema, table_name, filter=None):
+    def get_partitions(self, schema, table_name, partition_filter=None):
         """
         Returns a list of all partitions in a table. Works only
         for tables with less than 32767 (java short max val).
@@ -654,10 +655,10 @@ class HiveMetastoreHook(BaseHook):
             if len(table.partitionKeys) == 0:
                 raise AirflowException("The table isn't partitioned")
             else:
-                if filter:
+                if partition_filter:
                     parts = client.get_partitions_by_filter(
                         db_name=schema, tbl_name=table_name,
-                        filter=filter, max_parts=HiveMetastoreHook.MAX_PART_COUNT)
+                        filter=partition_filter, max_parts=HiveMetastoreHook.MAX_PART_COUNT)
                 else:
                     parts = client.get_partitions(
                         db_name=schema, tbl_name=table_name,
@@ -770,7 +771,7 @@ class HiveMetastoreHook(BaseHook):
         try:
             self.get_table(table_name, db)
             return True
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             return False
 
 
@@ -849,7 +850,7 @@ class HiveServer2Hook(BaseHook):
                     lowered_statement.startswith('show') or
                     (lowered_statement.startswith('set') and
                      '=' not in lowered_statement)):
-                    description = [c for c in cur.description]
+                    description = cur.description
                     if previous_description and previous_description != description:
                         message = '''The statements are producing different descriptions:
                                      Current: {}

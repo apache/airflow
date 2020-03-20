@@ -71,7 +71,8 @@ class MsSqlHook(DbApiHook):
         """
         Returns a mssql connection object
         """
-        conn = self.get_connection(self.mssql_conn_id)
+        conn = self.get_connection(self.mssql_conn_id)  # pylint: disable=no-member
+        # pylint: disable=c-extension-no-member
         conn = pymssql.connect(
             server=conn.host,
             user=conn.login,

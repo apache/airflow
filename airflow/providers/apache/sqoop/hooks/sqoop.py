@@ -71,16 +71,17 @@ class SqoopHook(BaseHook):
         self.verbose = verbose
         self.num_mappers = num_mappers
         self.properties = properties or {}
-        self.log.info(
-            "Using connection to: {}:{}/{}".format(
-                self.conn.host, self.conn.port, self.conn.schema
-            )
-        )
+        self.log.info("Using connection to: %s:%s/%s",
+                      self.conn.host, self.conn.port, self.conn.schema)
+        self.sub_process = None
 
     def get_conn(self):
         return self.conn
 
     def cmd_mask_password(self, cmd_orig):
+        """
+        Mask command password for safety
+        """
         cmd = deepcopy(cmd_orig)
         try:
             password_index = cmd.index('--password')
@@ -89,7 +90,7 @@ class SqoopHook(BaseHook):
             self.log.debug("No password in sqoop cmd")
         return cmd
 
-    def Popen(self, cmd, **kwargs):
+    def popen(self, cmd, **kwargs):
         """
         Remote Popen
 
@@ -98,21 +99,21 @@ class SqoopHook(BaseHook):
         :return: handle to subprocess
         """
         masked_cmd = ' '.join(self.cmd_mask_password(cmd))
-        self.log.info("Executing command: {}".format(masked_cmd))
-        self.sp = subprocess.Popen(
+        self.log.info("Executing command: %s", masked_cmd)
+        self.sub_process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             **kwargs)
 
-        for line in iter(self.sp.stdout):
+        for line in iter(self.sub_process.stdout):
             self.log.info(line.strip())
 
-        self.sp.wait()
+        self.sub_process.wait()
 
-        self.log.info("Command exited with return code %s", self.sp.returncode)
+        self.log.info("Command exited with return code %s", self.sub_process.returncode)
 
-        if self.sp.returncode:
+        if self.sub_process.returncode:
             raise AirflowException("Sqoop command failed: {}".format(masked_cmd))
 
     def _prepare_command(self, export=False):
@@ -200,6 +201,7 @@ class SqoopHook(BaseHook):
 
         return cmd
 
+    # pylint: disable=too-many-arguments
     def import_table(self, table, target_dir=None, append=False, file_type="text",
                      columns=None, split_by=None, where=None, direct=False,
                      driver=None, extra_import_options=None):
@@ -231,7 +233,7 @@ class SqoopHook(BaseHook):
         if where:
             cmd += ["--where", where]
 
-        self.Popen(cmd)
+        self.popen(cmd)
 
     def import_query(self, query, target_dir, append=False, file_type="text",
                      split_by=None, direct=None, driver=None, extra_import_options=None):
@@ -254,8 +256,9 @@ class SqoopHook(BaseHook):
                                driver, extra_import_options)
         cmd += ["--query", query]
 
-        self.Popen(cmd)
+        self.popen(cmd)
 
+    # pylint: disable=too-many-arguments
     def _export_cmd(self, table, export_dir, input_null_string,
                     input_null_non_string, staging_table, clear_staging_table,
                     enclosed_by, escaped_by, input_fields_terminated_by,
@@ -312,6 +315,7 @@ class SqoopHook(BaseHook):
 
         return cmd
 
+    # pylint: disable=too-many-arguments
     def export_table(self, table, export_dir, input_null_string,
                      input_null_non_string, staging_table,
                      clear_staging_table, enclosed_by,
@@ -353,4 +357,4 @@ class SqoopHook(BaseHook):
                                input_optionally_enclosed_by, batch,
                                relaxed_isolation, extra_export_options)
 
-        self.Popen(cmd)
+        self.popen(cmd)

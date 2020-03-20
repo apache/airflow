@@ -116,7 +116,7 @@ class FTPHook(BaseHook):
             files = dict(mlsd(conn))
         return files
 
-    def list_directory(self, path, nlst=False):
+    def list_directory(self, path):
         """
         Returns a list of files on the remote system.
 
@@ -300,7 +300,9 @@ class FTPHook(BaseHook):
 
 
 class FTPSHook(FTPHook):
-
+    """
+    Interact with FTPS.
+    """
     def get_conn(self):
         """
         Returns a FTPS connection object.

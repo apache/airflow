@@ -35,7 +35,7 @@ class VerticaHook(DbApiHook):
         """
         Returns verticaql connection object
         """
-        conn = self.get_connection(self.vertica_conn_id)
+        conn = self.get_connection(self.vertica_conn_id)  # pylint: disable=no-member
         conn_config = {
             "user": conn.login,
             "password": conn.password or '',

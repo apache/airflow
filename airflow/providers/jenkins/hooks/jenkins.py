@@ -33,17 +33,20 @@ class JenkinsHook(BaseHook):
         super().__init__()
         connection = self.get_connection(conn_id)
         self.connection = connection
-        connectionPrefix = 'http'
+        connection_prefix = 'http'
         # connection.extra contains info about using https (true) or http (false)
         if connection.extra is None or connection.extra == '':
             connection.extra = 'false'
             # set a default value to connection.extra
             # to avoid rising ValueError in strtobool
         if strtobool(connection.extra):
-            connectionPrefix = 'https'
-        url = '%s://%s:%d' % (connectionPrefix, connection.host, connection.port)
+            connection_prefix = 'https'
+        url = f'{connection_prefix}://{connection.host}:{connection.port}'
         self.log.info('Trying to connect to %s', url)
         self.jenkins_server = jenkins.Jenkins(url, connection.login, connection.password)
 
     def get_jenkins_server(self):
+        """
+        Get jenkins server
+        """
         return self.jenkins_server

@@ -288,12 +288,21 @@ class AzureCosmosDBHook(BaseHook):
 
 
 def get_database_link(database_id):
+    """
+    Get Azure CosmosDB database link
+    """
     return "dbs/" + database_id
 
 
 def get_collection_link(database_id, collection_id):
+    """
+    Get Azure CosmosDB collection link
+    """
     return get_database_link(database_id) + "/colls/" + collection_id
 
 
 def get_document_link(database_id, collection_id, document_id):
+    """
+    Get Azure CosmosDB document link
+    """
     return get_collection_link(database_id, collection_id) + "/docs/" + document_id

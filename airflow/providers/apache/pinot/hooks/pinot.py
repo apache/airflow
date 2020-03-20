@@ -18,6 +18,7 @@
 
 import os
 import subprocess
+from typing import Optional
 
 from pinotdb import connect
 
@@ -51,6 +52,7 @@ class PinotAdminHook(BaseHook):
                                     "Exception" is in the output message.
     :type pinot_admin_system_exit: bool
     """
+
     def __init__(self,
                  conn_id="pinot_admin_default",
                  cmd_path="pinot-admin.sh",
@@ -67,28 +69,45 @@ class PinotAdminHook(BaseHook):
     def get_conn(self):
         return self.conn
 
-    def add_schema(self, schema_file, exec=True):
+    def add_schema(self, schema_file: str, with_exec: Optional[bool] = True):
+        """
+        Add Pinot schema by run AddSchema command
+
+        :param schema_file: Pinot schema file
+        :type schema_file: str
+        :param with_exec: bool
+        :type with_exec: Optional[bool]
+        """
         cmd = ["AddSchema"]
         cmd += ["-controllerHost", self.host]
         cmd += ["-controllerPort", self.port]
         cmd += ["-schemaFile", schema_file]
-        if exec:
+        if with_exec:
             cmd += ["-exec"]
         self.run_cli(cmd)
 
-    def add_table(self, file_path, exec=True):
+    def add_table(self, file_path: str, with_exec: Optional[bool] = True):
+        """
+        Add Pinot table with run AddTable command
+
+        :param file_path: Pinot table configure file
+        :type file_path: str
+        :param with_exec: bool
+        :type with_exec: Optional[bool]
+        """
         cmd = ["AddTable"]
         cmd += ["-controllerHost", self.host]
         cmd += ["-controllerPort", self.port]
         cmd += ["-filePath", file_path]
-        if exec:
+        if with_exec:
             cmd += ["-exec"]
         self.run_cli(cmd)
 
+    # pylint: disable=too-many-arguments
     def create_segment(self,
                        generator_config_file=None,
                        data_dir=None,
-                       format=None,
+                       segment_format=None,
                        out_dir=None,
                        overwrite=None,
                        table_name=None,
@@ -104,6 +123,9 @@ class PinotAdminHook(BaseHook):
                        num_threads=None,
                        post_creation_verification=None,
                        retry=None):
+        """
+        Create Pinot segment by run CreateSegment command
+        """
         cmd = ["CreateSegment"]
 
         if generator_config_file:
@@ -112,8 +134,8 @@ class PinotAdminHook(BaseHook):
         if data_dir:
             cmd += ["-dataDir", data_dir]
 
-        if format:
-            cmd += ["-format", format]
+        if segment_format:
+            cmd += ["-format", segment_format]
 
         if out_dir:
             cmd += ["-outDir", out_dir]
@@ -163,6 +185,13 @@ class PinotAdminHook(BaseHook):
         self.run_cli(cmd)
 
     def upload_segment(self, segment_dir, table_name=None):
+        """
+        Upload Segment with run UploadSegment command
+
+        :param segment_dir:
+        :param table_name:
+        :return:
+        """
         cmd = ["UploadSegment"]
         cmd += ["-controllerHost", self.host]
         cmd += ["-controllerPort", self.port]
@@ -171,7 +200,15 @@ class PinotAdminHook(BaseHook):
             cmd += ["-tableName", table_name]
         self.run_cli(cmd)
 
-    def run_cli(self, cmd, verbose=True):
+    def run_cli(self, cmd: list, verbose: Optional[bool] = True):
+        """
+        Run command with pinot-admin.sh
+
+        :param cmd: List of command going to be run by pinot-admin.sh script
+        :type cmd: list
+        :param verbose:
+        :type verbose: Optional[bool]
+        """
         command = [self.cmd_path]
         command.extend(cmd)
 
@@ -184,7 +221,7 @@ class PinotAdminHook(BaseHook):
         if verbose:
             self.log.info(" ".join(command))
 
-        sp = subprocess.Popen(
+        sub_process = subprocess.Popen(
             command,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -192,18 +229,17 @@ class PinotAdminHook(BaseHook):
             env=env)
 
         stdout = ""
-        for line in iter(sp.stdout):
-            line = line.decode()
-            stdout += line
+        for line in iter(sub_process.stdout.readline, b''):
+            stdout += line.decode("utf-8")
             if verbose:
-                self.log.info(line.strip())
+                self.log.info(line.decode("utf-8").strip())
 
-        sp.wait()
+        sub_process.wait()
 
         # As of Pinot v0.1.0, either of "Error: ..." or "Exception caught: ..."
         # is expected to be in the output messages. See:
         # https://github.com/apache/incubator-pinot/blob/release-0.1.0/pinot-tools/src/main/java/org/apache/pinot/tools/admin/PinotAdministrator.java#L98-L101
-        if ((self.pinot_admin_system_exit and sp.returncode) or
+        if ((self.pinot_admin_system_exit and sub_process.returncode) or
                 ("Error" in stdout or "Exception" in stdout)):
             raise AirflowException(stdout)
 
@@ -218,14 +254,11 @@ class PinotDbApiHook(DbApiHook):
     default_conn_name = 'pinot_broker_default'
     supports_autocommit = False
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def get_conn(self):
         """
         Establish a connection to pinot broker through pinot dbapi.
         """
-        conn = self.get_connection(self.pinot_broker_conn_id)
+        conn = self.get_connection(self.pinot_broker_conn_id)  # pylint: disable=no-member
         pinot_broker_conn = connect(
             host=conn.host,
             port=conn.port,
@@ -233,7 +266,7 @@ class PinotDbApiHook(DbApiHook):
             scheme=conn.extra_dejson.get('schema', 'http')
         )
         self.log.info('Get the connection to pinot '
-                      'broker on {host}'.format(host=conn.host))
+                      'broker on %s', conn.host)
         return pinot_broker_conn
 
     def get_uri(self):

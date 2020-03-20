@@ -53,47 +53,59 @@ class OpenFaasHook(BaseHook):
         return conn
 
     def deploy_function(self, overwrite_function_if_exist, body):
+        """
+        Deploy OpenFaaS function
+        """
         if overwrite_function_if_exist:
-            self.log.info("Function already exist " + self.function_name + " going to update")
+            self.log.info("Function already exist %s going to update", self.function_name)
             self.update_function(body)
         else:
             url = self.get_conn().host + self.DEPLOY_FUNCTION
-            self.log.info("Deploying function " + url)
+            self.log.info("Deploying function %s", url)
             response = requests.post(url, body)
             if response.status_code != OK_STATUS_CODE:
-                self.log.error("Response status " + str(response.status_code))
+                self.log.error("Response status %d", response.status_code)
                 self.log.error("Failed to deploy")
                 raise AirflowException('failed to deploy')
             else:
-                self.log.info("Function deployed " + self.function_name)
+                self.log.info("Function deployed %s", self.function_name)
 
     def invoke_async_function(self, body):
+        """
+        Invoking function
+        """
         url = self.get_conn().host + self.INVOKE_ASYNC_FUNCTION + self.function_name
-        self.log.info("Invoking  function " + url)
+        self.log.info("Invoking function %s", url)
         response = requests.post(url, body)
         if response.ok:
-            self.log.info("Invoked " + self.function_name)
+            self.log.info("Invoked %s", self.function_name)
         else:
-            self.log.error("Response status " + str(response.status_code))
+            self.log.error("Response status %d", response.status_code)
             raise AirflowException('failed to invoke function')
 
     def update_function(self, body):
+        """
+        Update OpenFaaS function
+        """
         url = self.get_conn().host + self.UPDATE_FUNCTION
-        self.log.info("Updating function " + url)
+        self.log.info("Updating function %s", url)
         response = requests.put(url, body)
         if response.status_code != OK_STATUS_CODE:
-            self.log.error("Response status " + str(response.status_code))
-            self.log.error("Failed to update response " + response.content.decode("utf-8"))
+            self.log.error("Response status %d", response.status_code)
+            self.log.error("Failed to update response %s", response.content.decode("utf-8"))
             raise AirflowException('failed to update ' + self.function_name)
         else:
             self.log.info("Function was updated")
 
     def does_function_exist(self):
+        """
+        Whether OpenFaaS function exists or not
+        """
         url = self.get_conn().host + self.GET_FUNCTION + self.function_name
 
         response = requests.get(url)
         if response.ok:
             return True
         else:
-            self.log.error("Failed to find function " + self.function_name)
+            self.log.error("Failed to find function %s", self.function_name)
             return False

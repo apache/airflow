@@ -82,6 +82,7 @@ class WinRMOperator(BaseOperator):
 
         winrm_client = self.winrm_hook.get_conn()
 
+        # pylint: disable=too-many-nested-blocks
         try:
             self.log.info("Running command: '%s'...", self.command)
             command_id = self.winrm_hook.winrm_protocol.run_command(
@@ -95,6 +96,7 @@ class WinRMOperator(BaseOperator):
             command_done = False
             while not command_done:
                 try:
+                    # pylint: disable=protected-access
                     stdout, stderr, return_code, command_done = \
                         self.winrm_hook.winrm_protocol._raw_get_command_output(
                             winrm_client,
