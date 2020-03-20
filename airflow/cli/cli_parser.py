@@ -214,6 +214,36 @@ ARG_RUN_BACKWARDS = Arg(
         "recent day first.  if there are tasks that depend_on_past "
         "this option will throw an exception"),
     action="store_true")
+# test_dag
+ARG_SHOW_DAGRUN = Arg(
+    ("--show-dagrun", ),
+    help=(
+        "After completing the backfill, shows the diagram for current DAG Run.\n"
+        "\n"
+        "The diagram is in DOT language\n"),
+    action='store_true')
+ARG_IMGCAT_DAGRUN = Arg(
+    ("--imgcat-dagrun", ),
+    help=(
+        "After completing the backfill, prints a diagram on the screen for the "
+        "current DAG Run using the imgcat tool.\n"
+        "\n"
+        "For more information, see: https://www.iterm2.com/documentation-images.html",
+    ),
+    action='store_true')
+ARG_SAVE_DAGRUN = Arg(
+    ("--save-dagrun", ),
+    help=(
+        "After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n"
+        "\n"
+        "The file format is determined by the file extension. For more information about supported "
+        "format, see: https://www.graphviz.org/doc/info/output.html\n"
+        "\n"
+        "If you want to create a PNG file then you should execute the following command:\n"
+        "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.png\n"
+        "\n"
+        "If you want to create a DOT file then you should execute the following command:\n"
+        "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.dot\n"))
 
 # list_tasks
 ARG_TREE = Arg(
@@ -747,7 +777,9 @@ DAGS_COMMANDS = (
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_test'),
         name='test',
         help="Execute one run of a DAG",
-        args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR),
+        args=(
+            ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_SHOW_DAGRUN, ARG_IMGCAT_DAGRUN, ARG_SAVE_DAGRUN
+        ),
     ),
 )
 TASKS_COMMANDS = (

@@ -27,7 +27,7 @@ from tabulate import tabulate
 
 from airflow import models
 from airflow.exceptions import (
-    AirflowException, DagConcurrencyLimitReached, NoAvailablePoolSlot, PoolNotFound,
+    AirflowException, BackfillUnfinished, DagConcurrencyLimitReached, NoAvailablePoolSlot, PoolNotFound,
     TaskConcurrencyLimitReached,
 )
 from airflow.executors.dask_executor import DaskExecutor
@@ -803,7 +803,7 @@ class BackfillJob(BaseJob):
                 )
                 err = self._collect_errors(ti_status=ti_status, session=session)
                 if err:
-                    raise AirflowException(err)
+                    raise BackfillUnfinished(err, ti_status)
 
                 if remaining_dates > 0:
                     self.log.info(

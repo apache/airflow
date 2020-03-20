@@ -21,14 +21,16 @@ import json
 import logging
 import signal
 import subprocess
+import sys
 from typing import List
 
+from graphviz.dot import Dot
 from tabulate import tabulate
 
 from airflow import settings
 from airflow.api.client import get_current_api_client
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, BackfillUnfinished
 from airflow.executors.debug_executor import DebugExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
@@ -36,7 +38,7 @@ from airflow.models.dag import DAG
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import get_dag, get_dag_by_file_location, process_subdir, sigint_handler
 from airflow.utils.dot_renderer import render_dag
-from airflow.utils.session import create_session
+from airflow.utils.session import create_session, provide_session
 
 
 def _tabulate_dag_runs(dag_runs: List[DagRun], tablefmt: str = "fancy_grid") -> str:
@@ -200,28 +202,46 @@ def dag_show(args):
     """Displays DAG or saves it's graphic representation to the file"""
     dag = get_dag(args.subdir, args.dag_id)
     dot = render_dag(dag)
-    if args.save:
-        filename, _, fileformat = args.save.rpartition('.')
-        dot.render(filename=filename, format=fileformat, cleanup=True)
-        print("File {} saved".format(args.save))
-    elif args.imgcat:
-        data = dot.pipe(format='png')
-        try:
-            proc = subprocess.Popen("imgcat", stdout=subprocess.PIPE, stdin=subprocess.PIPE)
-        except OSError as e:
-            if e.errno == errno.ENOENT:
-                raise AirflowException(
-                    "Failed to execute. Make sure the imgcat executables are on your systems \'PATH\'"
-                )
-            else:
-                raise
-        out, err = proc.communicate(data)
-        if out:
-            print(out.decode('utf-8'))
-        if err:
-            print(err.decode('utf-8'))
+    filename = args.save
+    imgcat = args.imgcat
+
+    if filename and imgcat:
+        print(
+            "Option --save and --imgcat are mutually exclusive. "
+            "Please remove one option to execute the command.",
+            file=sys.stderr
+        )
+        sys.exit(1)
+    elif filename:
+        save_dot_to_file(dot, filename)
+    elif imgcat:
+        display_dot_via_imgcat(dot)
     else:
         print(dot.source)
+
+
+def display_dot_via_imgcat(dot: Dot):
+    data = dot.pipe(format='png')
+    try:
+        proc = subprocess.Popen("imgcat", stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            raise AirflowException(
+                "Failed to execute. Make sure the imgcat executables are on your systems \'PATH\'"
+            )
+        else:
+            raise
+    out, err = proc.communicate(data)
+    if out:
+        print(out.decode('utf-8'))
+    if err:
+        print(err.decode('utf-8'))
+
+
+def save_dot_to_file(dot: Dot, filename: str):
+    _, _, fileformat = filename.rpartition('.')
+    dot.render(filename=filename, format=fileformat, cleanup=True)
+    print("File {} saved".format(filename))
 
 
 @cli_utils.action_logging
@@ -350,9 +370,31 @@ def dag_list_dag_runs(args, dag=None):
     print(table)
 
 
+@provide_session
 @cli_utils.action_logging
-def dag_test(args):
+def dag_test(args, session=None):
     """Execute one single DagRun for a given DAG and execution date, using the DebugExecutor."""
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     dag.clear(start_date=args.execution_date, end_date=args.execution_date, reset_dag_runs=True)
-    dag.run(executor=DebugExecutor(), start_date=args.execution_date, end_date=args.execution_date)
+    try:
+        dag.run(executor=DebugExecutor(), start_date=args.execution_date, end_date=args.execution_date)
+    except BackfillUnfinished as e:
+        print(str(e))
+
+    show_dagrun = args.show_dagrun
+    imgcat = args.imgcat_dagrun
+    filename = args.save_dagrun
+    if show_dagrun or imgcat or filename:
+        tis = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == args.dag_id,
+            TaskInstance.execution_date == args.execution_date,
+        ).all()
+
+        dot_graph = render_dag(dag, tis)
+        print()
+        if filename:
+            save_dot_to_file(dot_graph, filename)
+        if imgcat:
+            display_dot_via_imgcat(dot_graph)
+        if show_dagrun:
+            print(dot_graph.source)
