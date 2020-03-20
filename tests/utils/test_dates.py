@@ -96,10 +96,9 @@ class TestUtilsDatesDateRange(unittest.TestCase):
                 self.assertTrue(timezone.is_localized(result[i]))
 
     def test_delta_cron_presets(self):
-        num = 2
-        for delta in dates.cron_presets:
-            result = dates.date_range(datetime(2016, 1, 1), num=num, delta=delta)
-               self.assertEqual(len(result), num)
+        preset_range = date_range(datetime(2016, 1, 1), num=2, delta="@hourly")
+        timedelta_range = date_range(datetime(2016, 1, 1), num=2, delta=timedelta(hours=1))
+        cron_range = date_range(datetime(2016, 1, 1), num=2, delta="0 * * * *")
 
-            for i in range(num):
-                self.assertTrue(timezone.is_localized(result[i]))
+        self.assertEqual(preset_range, timedelta_range)
+        self.assertEqual(preset_range, cron_range)
