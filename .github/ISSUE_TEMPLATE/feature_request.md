@@ -20,11 +20,11 @@ Please delete these comment blocks before submitting the issue.
 
 -->
 
-** Description **
+**Description**
 
 <!-- A short description of your feature -->
 
-** Use case / motivation **
+**Use case / motivation**
 
 <!-- What do you want to happen?
 
@@ -33,6 +33,6 @@ step back and describe what you are trying to achieve.
 
 -->
 
-** Related Issues **
+**Related Issues**
 
 <!-- Is there currently another issue associated with this? -->
