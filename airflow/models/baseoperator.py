@@ -668,8 +668,11 @@ class BaseOperator(Operator, LoggingMixin):
         """Returns dictionary of all extra links for the operator"""
 
         op_extra_links_from_plugin: Dict[str, Any] = {}
-        from airflow.plugins_manager import operator_extra_links
-        for ope in operator_extra_links:
+        from airflow import plugins_manager
+        plugins_manager.initialize_extra_operators_links_plugins()
+        if plugins_manager.operator_extra_links is None:
+            raise AirflowException("Can't load operators")
+        for ope in plugins_manager.operator_extra_links:
             if ope.operators and self.__class__ in ope.operators:
                 op_extra_links_from_plugin.update({ope.name: ope})
 
@@ -684,8 +687,11 @@ class BaseOperator(Operator, LoggingMixin):
     @cached_property
     def global_operator_extra_link_dict(self) -> Dict[str, Any]:
         """Returns dictionary of all global extra links"""
-        from airflow.plugins_manager import global_operator_extra_links
-        return {link.name: link for link in global_operator_extra_links}
+        from airflow import plugins_manager
+        plugins_manager.initialize_extra_operators_links_plugins()
+        if plugins_manager.global_operator_extra_links is None:
+            raise AirflowException("Can't load operators")
+        return {link.name: link for link in plugins_manager.global_operator_extra_links}
 
     @prepare_lineage
     def pre_execute(self, context: Any):

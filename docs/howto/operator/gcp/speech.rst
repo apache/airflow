@@ -25,15 +25,15 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
-.. _howto/operator:GcpTextToSpeechSynthesizeOperator:
+.. _howto/operator:CloudTextToSpeechSynthesizeOperator:
 
-GcpTextToSpeechSynthesizeOperator
----------------------------------
+CloudTextToSpeechSynthesizeOperator
+-----------------------------------
 
 Synthesizes text to audio file and stores it to Google Cloud Storage
 
 For parameter definition, take a look at
-:class:`airflow.providers.google.cloud.operators.text_to_speech.GcpTextToSpeechSynthesizeOperator`
+:class:`~airflow.providers.google.cloud.operators.text_to_speech.CloudTextToSpeechSynthesizeOperator`
 
 Arguments
 """""""""
@@ -84,7 +84,7 @@ CloudSpeechToTextRecognizeSpeechOperator
 Recognizes speech in audio input and returns text.
 
 For parameter definition, take a look at
-:class:`airflow.providers.google.cloud.operators.speech_to_text.CloudSpeechToTextRecognizeSpeechOperator`
+:class:`~airflow.providers.google.cloud.operators.speech_to_text.CloudSpeechToTextRecognizeSpeechOperator`
 
 Arguments
 """""""""

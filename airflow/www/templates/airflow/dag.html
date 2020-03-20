@@ -33,7 +33,8 @@
         <span style='color:#AAA;'>SUBDAG: </span> <span> {{ dag.dag_id }}</span>
       {% else %}
         <input id="pause_resume" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
-        <span style='color:#AAA;'>DAG: </span> <span> {{ dag.dag_id }}</span> <small class="text-muted"> {{ dag.description }} </small>
+        <span style='color:#AAA;'>DAG: </span> <span> {{ dag.dag_id }}</span>
+        <small class="text-muted"> {{ dag.description[0:150] + '...' if dag.description and dag.description|length > 150 else dag.description|default('', true) }} </small>
       {% endif %}
       {% if root %}
         <span style='color:#AAA;'>ROOT: </span> <span> {{ root }}</span>

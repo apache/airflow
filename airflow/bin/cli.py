@@ -19,6 +19,7 @@
 """Command-line interface"""
 
 import argparse
+import json
 import os
 import textwrap
 from argparse import RawTextHelpFormatter
@@ -459,6 +460,10 @@ class CLIFactory:
             action="store_true",
             help="Open debugger on uncaught exception",
         ),
+        'env_vars': Arg(
+            ("--env-vars", ),
+            help="Set env var in both parsing time and runtime for each of entry supplied in a JSON dict",
+            type=json.loads),
         # connections
         'conn_id': Arg(
             ('conn_id',),
@@ -734,7 +739,7 @@ class CLIFactory:
                 "dependencies or recording its state in the database"),
             'args': (
                 'dag_id', 'task_id', 'execution_date', 'subdir', 'dry_run',
-                'task_params', 'post_mortem'),
+                'task_params', 'post_mortem', 'env_vars'),
         },
         {
             'func': lazy_load_command('airflow.cli.commands.task_command.task_states_for_dag_run'),

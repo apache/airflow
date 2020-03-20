@@ -44,21 +44,79 @@ class GoogleAnalyticsListAccountsOperator(BaseOperator):
     :type gcp_conn_id: str
     """
 
-    template_fields = ("api_version", "gcp_connection_id",)
+    template_fields = (
+        "api_version",
+        "gcp_connection_id",
+    )
 
     @apply_defaults
-    def __init__(self,
-                 api_version: str = "v3",
-                 gcp_connection_id: str = "google_cloud_default",
-                 *args,
-                 **kwargs):
+    def __init__(
+        self,
+        api_version: str = "v3",
+        gcp_connection_id: str = "google_cloud_default",
+        *args,
+        **kwargs
+    ):
         super().__init__(*args, **kwargs)
 
         self.api_version = api_version
         self.gcp_connection_id = gcp_connection_id
 
     def execute(self, context):
-        hook = GoogleAnalyticsHook(api_version=self.api_version,
-                                   gcp_connection_id=self.gcp_connection_id)
+        hook = GoogleAnalyticsHook(
+            api_version=self.api_version, gcp_connection_id=self.gcp_connection_id
+        )
         result = hook.list_accounts()
+        return result
+
+
+class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
+    """
+    Lists webProperty-Google Ads links for a given web property
+
+    .. seealso::
+        Check official API docs:
+        https://developers.google.com/analytics/devguides/config/mgmt/v3/mgmtReference/management/webPropertyAdWordsLinks/list#http-request
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleAnalyticsListAccountsOperator`
+
+    :param account_id: ID of the account which the given web property belongs to.
+    :type account_id: str
+    :param web_property_id: Web property UA-string to retrieve the Google Ads links for.
+    :type web_property_id: str
+    """
+
+    template_fields = (
+        "api_version",
+        "gcp_connection_id",
+        "account_id",
+        "web_property_id",
+    )
+
+    @apply_defaults
+    def __init__(
+        self,
+        account_id: str,
+        web_property_id: str,
+        api_version: str = "v3",
+        gcp_connection_id: str = "google_cloud_default",
+        *args,
+        **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+
+        self.account_id = account_id
+        self.web_property_id = web_property_id
+        self.api_version = api_version
+        self.gcp_connection_id = gcp_connection_id
+
+    def execute(self, context):
+        hook = GoogleAnalyticsHook(
+            api_version=self.api_version, gcp_connection_id=self.gcp_connection_id
+        )
+        result = hook.list_ad_words_links(
+            account_id=self.account_id, web_property_id=self.web_property_id,
+        )
         return result

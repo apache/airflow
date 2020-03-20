@@ -250,7 +250,6 @@ class GoogleCampaignManagerHook(CloudBaseHook):
             },
         }
 
-    @CloudBaseHook.catch_http_exception
     def conversions_batch_insert(
         self,
         profile_id: str,
@@ -301,7 +300,6 @@ class GoogleCampaignManagerHook(CloudBaseHook):
                 raise AirflowException(errored_conversions)
         return response
 
-    @CloudBaseHook.catch_http_exception
     def conversions_batch_update(
         self,
         profile_id: str,

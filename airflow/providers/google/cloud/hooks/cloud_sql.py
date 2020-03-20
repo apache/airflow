@@ -56,7 +56,7 @@ from airflow.utils.session import provide_session
 UNIX_PATH_MAX = 108
 
 # Time to sleep between active checks of the operation results
-TIME_TO_SLEEP_IN_SECONDS = 1
+TIME_TO_SLEEP_IN_SECONDS = 20
 
 
 class CloudSqlOperationStatus:
@@ -113,14 +113,13 @@ class CloudSQLHook(CloudBaseHook):
         :return: A Cloud SQL instance resource.
         :rtype: dict
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-        return self.get_conn().instances().get(  # pylint: disable=no-member
+        return self.get_conn().instances().get(  # noqa # pylint: disable=no-member
             project=project_id,
             instance=instance
         ).execute(num_retries=self.num_retries)
 
     @CloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.operation_in_progress_retry()
     def create_instance(self, body: Dict, project_id: Optional[str] = None) -> None:
         """
         Creates a new Cloud SQL instance.
@@ -133,17 +132,16 @@ class CloudSQLHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-        response = self.get_conn().instances().insert(  # pylint: disable=no-member
+        response = self.get_conn().instances().insert(  # noqa # pylint: disable=no-member
             project=project_id,
             body=body
         ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id,
+        self._wait_for_operation_to_complete(project_id=project_id,  # type:ignore
                                              operation_name=operation_name)
 
     @CloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.operation_in_progress_retry()
     def patch_instance(self, body: Dict, instance: str, project_id: Optional[str] = None) -> None:
         """
         Updates settings of a Cloud SQL instance.
@@ -161,18 +159,17 @@ class CloudSQLHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-        response = self.get_conn().instances().patch(  # pylint: disable=no-member
+        response = self.get_conn().instances().patch(  # noqa # pylint: disable=no-member
             project=project_id,
             instance=instance,
             body=body
         ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id,
+        self._wait_for_operation_to_complete(project_id=project_id,  # type:ignore
                                              operation_name=operation_name)
 
     @CloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.operation_in_progress_retry()
     def delete_instance(self, instance: str, project_id: Optional[str] = None) -> None:
         """
         Deletes a Cloud SQL instance.
@@ -184,14 +181,12 @@ class CloudSQLHook(CloudBaseHook):
         :type instance: str
         :return: None
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-        response = self.get_conn().instances().delete(  # pylint: disable=no-member
+        response = self.get_conn().instances().delete(  # noqa # pylint: disable=no-member
             project=project_id,
             instance=instance,
         ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id,
+        self._wait_for_operation_to_complete(project_id=project_id,  # type:ignore
                                              operation_name=operation_name)
 
     @CloudBaseHook.fallback_to_default_project_id
@@ -210,15 +205,14 @@ class CloudSQLHook(CloudBaseHook):
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases#resource.
         :rtype: dict
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-        return self.get_conn().databases().get(  # pylint: disable=no-member
+        return self.get_conn().databases().get(  # noqa # pylint: disable=no-member
             project=project_id,
             instance=instance,
             database=database
         ).execute(num_retries=self.num_retries)
 
     @CloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.operation_in_progress_retry()
     def create_database(self, instance: str, body: Dict, project_id: Optional[str] = None) -> None:
         """
         Creates a new database inside a Cloud SQL instance.
@@ -233,18 +227,17 @@ class CloudSQLHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-        response = self.get_conn().databases().insert(  # pylint: disable=no-member
+        response = self.get_conn().databases().insert(  # noqa # pylint: disable=no-member
             project=project_id,
             instance=instance,
             body=body
         ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id,
+        self._wait_for_operation_to_complete(project_id=project_id,  # type:ignore
                                              operation_name=operation_name)
 
     @CloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.operation_in_progress_retry()
     def patch_database(
         self,
         instance: str,
@@ -270,19 +263,18 @@ class CloudSQLHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-        response = self.get_conn().databases().patch(  # pylint: disable=no-member
+        response = self.get_conn().databases().patch(  # noqa # pylint: disable=no-member
             project=project_id,
             instance=instance,
             database=database,
             body=body
         ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id,
+        self._wait_for_operation_to_complete(project_id=project_id,  # type:ignore
                                              operation_name=operation_name)
 
     @CloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.operation_in_progress_retry()
     def delete_database(self, instance: str, database: str, project_id: Optional[str] = None) -> None:
         """
         Deletes a database from a Cloud SQL instance.
@@ -296,18 +288,17 @@ class CloudSQLHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-        response = self.get_conn().databases().delete(  # pylint: disable=no-member
+        response = self.get_conn().databases().delete(  # noqa # pylint: disable=no-member
             project=project_id,
             instance=instance,
             database=database
         ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id,
+        self._wait_for_operation_to_complete(project_id=project_id,  # type:ignore
                                              operation_name=operation_name)
 
     @CloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.operation_in_progress_retry()
     def export_instance(self, instance: str, body: Dict, project_id: Optional[str] = None) -> None:
         """
         Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump
@@ -324,21 +315,14 @@ class CloudSQLHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-        try:
-            response = self.get_conn().instances().export(  # pylint: disable=no-member
-                project=project_id,
-                instance=instance,
-                body=body
-            ).execute(num_retries=self.num_retries)
-            operation_name = response["name"]
-            self._wait_for_operation_to_complete(project_id=project_id,
-                                                 operation_name=operation_name)
-        except HttpError as ex:
-            raise AirflowException(
-                'Exporting instance {} failed: {}'.format(instance, ex.content)
-            )
+        response = self.get_conn().instances().export(  # noqa # pylint: disable=no-member
+            project=project_id,
+            instance=instance,
+            body=body
+        ).execute(num_retries=self.num_retries)
+        operation_name = response["name"]
+        self._wait_for_operation_to_complete(project_id=project_id,  # type:ignore
+                                             operation_name=operation_name)
 
     @CloudBaseHook.fallback_to_default_project_id
     def import_instance(self, instance: str, body: Dict, project_id: Optional[str] = None) -> None:
@@ -357,16 +341,14 @@ class CloudSQLHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
         try:
-            response = self.get_conn().instances().import_(  # pylint: disable=no-member
+            response = self.get_conn().instances().import_(  # noqa # pylint: disable=no-member
                 project=project_id,
                 instance=instance,
                 body=body
             ).execute(num_retries=self.num_retries)
             operation_name = response["name"]
-            self._wait_for_operation_to_complete(project_id=project_id,
+            self._wait_for_operation_to_complete(project_id=project_id,  # type: ignore
                                                  operation_name=operation_name)
         except HttpError as ex:
             raise AirflowException(
@@ -388,7 +370,7 @@ class CloudSQLHook(CloudBaseHook):
             raise ValueError("The project_id should be set")
         service = self.get_conn()
         while True:
-            operation_response = service.operations().get(  # pylint: disable=no-member
+            operation_response = service.operations().get(  # noqa # pylint: disable=no-member
                 project=project_id,
                 operation=operation_name,
             ).execute(num_retries=self.num_retries)

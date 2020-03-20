@@ -19,7 +19,6 @@
 """
 This module contains a Google Cloud API base hook.
 """
-
 import functools
 import json
 import logging
@@ -35,9 +34,7 @@ import google.oauth2.service_account
 import google_auth_httplib2
 import httplib2
 import tenacity
-from google.api_core.exceptions import (
-    AlreadyExists, Forbidden, GoogleAPICallError, ResourceExhausted, RetryError, TooManyRequests,
-)
+from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
 from google.api_core.gapic_v1.client_info import ClientInfo
 from google.auth import _cloud_sdk
 from google.auth.environment_vars import CREDENTIALS
@@ -95,11 +92,30 @@ def is_soft_quota_exception(exception: Exception):
     return False
 
 
+def is_operation_in_progress_exception(exception: Exception):
+    """
+    Some of the calls return 429 (too many requests!) or 409 errors (Conflict)
+    in case of operation in progress.
+
+    * Google Cloud SQL
+    """
+    if isinstance(exception, HttpError):
+        return exception.resp.status == 429 or exception.resp.status == 409
+    return False
+
+
 class retry_if_temporary_quota(tenacity.retry_if_exception):  # pylint: disable=invalid-name
     """Retries if there was an exception for exceeding the temporary quote limit."""
 
     def __init__(self):
         super().__init__(is_soft_quota_exception)
+
+
+class retry_if_operation_in_progress(tenacity.retry_if_exception):  # pylint: disable=invalid-name
+    """Retries if there was an exception for exceeding the temporary quote limit."""
+
+    def __init__(self):
+        super().__init__(is_operation_in_progress_exception)
 
 
 RT = TypeVar('RT')  # pylint: disable=invalid-name
@@ -141,11 +157,16 @@ class CloudBaseHook(BaseHook):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.extras = self.get_connection(self.gcp_conn_id).extra_dejson  # type: Dict
+        self._cached_credentials: Optional[google.auth.credentials.Credentials] = None
+        self._cached_project_id: Optional[str] = None
 
     def _get_credentials_and_project_id(self) -> Tuple[google.auth.credentials.Credentials, Optional[str]]:
         """
         Returns the Credentials object for Google API and the associated project_id
         """
+        if self._cached_credentials is not None:
+            return self._cached_credentials, self._cached_project_id
+
         key_path = self._get_field('key_path', None)  # type: Optional[str]
         keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[str]
         if key_path and keyfile_dict:
@@ -199,6 +220,9 @@ class CloudBaseHook(BaseHook):
         overridden_project_id = self._get_field('project')
         if overridden_project_id:
             project_id = overridden_project_id
+
+        self._cached_credentials = credentials
+        self._cached_project_id = project_id
 
         return credentials, project_id
 
@@ -290,7 +314,7 @@ class CloudBaseHook(BaseHook):
     @staticmethod
     def quota_retry(*args, **kwargs) -> Callable:
         """
-        A decorator who provides a mechanism to repeat requests in response to exceeding a temporary quote
+        A decorator that provides a mechanism to repeat requests in response to exceeding a temporary quote
         limit.
         """
         def decorator(fun: Callable):
@@ -307,36 +331,24 @@ class CloudBaseHook(BaseHook):
         return decorator
 
     @staticmethod
-    def catch_http_exception(func: Callable[..., RT]) -> Callable[..., RT]:
+    def operation_in_progress_retry(*args, **kwargs) -> Callable:
         """
-        Function decorator that intercepts HTTP Errors and raises AirflowException
-        with more informative message.
+        A decorator that provides a mechanism to repeat requests in response to
+        operation in progress (HTTP 409)
+        limit.
         """
-
-        @functools.wraps(func)
-        def wrapper_decorator(self: CloudBaseHook, *args, **kwargs) -> RT:
-            try:
-                return func(self, *args, **kwargs)
-            except GoogleAPICallError as e:
-                if isinstance(e, AlreadyExists):
-                    raise e
-                else:
-                    self.log.error('The request failed:\n%s', str(e))
-                    raise AirflowException(e)
-            except RetryError as e:
-                self.log.error('The request failed due to a retryable error and retry attempts failed.')
-                raise AirflowException(e)
-            except ValueError as e:
-                self.log.error('The request failed, the parameters are invalid.')
-                raise AirflowException(e)
-            except HttpError as e:
-                if hasattr(e, "content"):
-                    self.log.error('The request failed:\n%s', e.content.decode(encoding="utf-8"))
-                else:
-                    self.log.error('The request failed:\n%s', str(e))
-                raise AirflowException(e)
-
-        return wrapper_decorator
+        def decorator(fun: Callable):
+            default_kwargs = {
+                'wait': tenacity.wait_exponential(multiplier=1, max=300),
+                'retry': retry_if_operation_in_progress(),
+                'before': tenacity.before_log(log, logging.DEBUG),
+                'after': tenacity.after_log(log, logging.DEBUG),
+            }
+            default_kwargs.update(**kwargs)
+            return tenacity.retry(
+                *args, **default_kwargs
+            )(fun)
+        return decorator
 
     @staticmethod
     def fallback_to_default_project_id(func: Callable[..., RT]) -> Callable[..., RT]:

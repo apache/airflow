@@ -25,18 +25,13 @@ from io import StringIO
 import google.auth
 import mock
 import tenacity
-from google.api_core.exceptions import AlreadyExists, RetryError
 from google.auth.environment_vars import CREDENTIALS
 from google.auth.exceptions import GoogleAuthError
-from google.cloud.exceptions import Forbidden, MovedPermanently
-from googleapiclient.errors import HttpError
-from parameterized import parameterized
+from google.cloud.exceptions import Forbidden
 
 from airflow import version
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
 from airflow.providers.google.cloud.hooks import base as hook
-from airflow.utils.log.logging_mixin import LoggingMixin
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 default_creds_available = True
@@ -101,44 +96,6 @@ class QuotaRetryTestCase(unittest.TestCase):  # ptlint: disable=invalid-name
             _retryable_test_with_temporary_quota_retry(
                 NoForbiddenAfterCount(5, message=message, errors=errors)
             )
-
-
-class TestCatchHttpException(unittest.TestCase):
-    # pylint: disable=no-method-argument,unused-argument
-    @parameterized.expand(
-        [
-            ("no_exception", None, LoggingMixin, None, None),
-            ("raise_airflowexception", MovedPermanently("MESSAGE"), LoggingMixin, None, AirflowException),
-            (
-                "raise_airflowexception",
-                RetryError("MESSAGE", cause=Exception("MESSAGE")),
-                LoggingMixin, None, AirflowException
-            ),
-            ("raise_airflowexception", ValueError("MESSAGE"), LoggingMixin, None, AirflowException),
-            ("raise_alreadyexists", AlreadyExists("MESSAGE"), LoggingMixin, None, AlreadyExists),
-            (
-                "raise_http_error",
-                HttpError(mock.Mock(**{"reason.return_value": None}), b"CONTENT"),
-                BaseHook, {"source": None}, AirflowException
-            ),
-        ]
-    )
-    def test_catch_exception(self, name, exception, base_class, base_class_args, assert_raised):
-        self.called = False  # pylint: disable=attribute-defined-outside-init
-
-        class FixtureClass(base_class):
-            @hook.CloudBaseHook.catch_http_exception
-            def test_fixture(*args, **kwargs):  # pylint: disable=unused-argument,no-method-argument
-                self.called = True  # pylint: disable=attribute-defined-outside-init
-                if exception is not None:
-                    raise exception
-
-        if assert_raised is None:
-            FixtureClass(base_class_args).test_fixture()
-        else:
-            with self.assertRaises(assert_raised):
-                FixtureClass(base_class_args).test_fixture()
-        self.assertTrue(self.called)
 
 
 class FallbackToDefaultProjectIdFixtureClass:

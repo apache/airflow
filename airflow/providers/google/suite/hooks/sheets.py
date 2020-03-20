@@ -73,7 +73,6 @@ class GSheetsHook(CloudBaseHook):
 
         return self._conn
 
-    @CloudBaseHook.catch_http_exception
     def get_values(
         self,
         range_: str,
@@ -110,7 +109,6 @@ class GSheetsHook(CloudBaseHook):
 
         return response
 
-    @CloudBaseHook.catch_http_exception
     def batch_get_values(
         self,
         ranges: List,
@@ -147,7 +145,6 @@ class GSheetsHook(CloudBaseHook):
 
         return response
 
-    @CloudBaseHook.catch_http_exception
     def update_values(
         self,
         range_: str,
@@ -202,7 +199,6 @@ class GSheetsHook(CloudBaseHook):
 
         return response
 
-    @CloudBaseHook.catch_http_exception
     def batch_update_values(
         self,
         ranges: List,
@@ -267,7 +263,6 @@ class GSheetsHook(CloudBaseHook):
 
         return response
 
-    @CloudBaseHook.catch_http_exception
     def append_values(
         self,
         range_: str,
@@ -327,7 +322,6 @@ class GSheetsHook(CloudBaseHook):
 
         return response
 
-    @CloudBaseHook.catch_http_exception
     def clear(self, range_: str) -> Dict:
         """
         Clear values from Google Sheet from a single range
@@ -346,7 +340,6 @@ class GSheetsHook(CloudBaseHook):
 
         return response
 
-    @CloudBaseHook.catch_http_exception
     def batch_clear(self, ranges: List) -> Dict:
         """
         Clear values from Google Sheet from a list of ranges

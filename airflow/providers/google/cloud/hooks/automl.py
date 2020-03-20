@@ -78,7 +78,6 @@ class CloudAutoMLHook(CloudBaseHook):
             credentials=self._get_credentials(), client_info=self.client_info
         )
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def create_model(
         self,
@@ -122,7 +121,6 @@ class CloudAutoMLHook(CloudBaseHook):
             parent=parent, model=model, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def batch_predict(
         self,
@@ -185,7 +183,6 @@ class CloudAutoMLHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def predict(
         self,
@@ -240,7 +237,6 @@ class CloudAutoMLHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def create_dataset(
         self,
@@ -286,7 +282,6 @@ class CloudAutoMLHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def import_data(
         self,
@@ -337,7 +332,6 @@ class CloudAutoMLHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def list_column_specs(  # pylint: disable=too-many-arguments
         self,
@@ -406,7 +400,6 @@ class CloudAutoMLHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def get_model(
         self,
@@ -447,7 +440,6 @@ class CloudAutoMLHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def delete_model(
         self,
@@ -488,7 +480,6 @@ class CloudAutoMLHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def update_dataset(
         self,
@@ -534,7 +525,6 @@ class CloudAutoMLHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def deploy_model(
         self,
@@ -650,7 +640,6 @@ class CloudAutoMLHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def list_datasets(
         self,
@@ -691,7 +680,6 @@ class CloudAutoMLHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def delete_dataset(
         self,

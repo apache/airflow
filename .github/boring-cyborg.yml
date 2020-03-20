@@ -179,10 +179,6 @@ insertIssueLinkInPrDescription:
       titleIssueIdRegexp: \[(AIRFLOW-X{4})\]
       descriptionIssueLink: "`Document only change, no JIRA issue`"
 
-verifyTitles:
-  titleRegexp: ^\[AIRFLOW-[0-9]{4}\].*$|^\[AIRFLOW-XXXX\].*$
-  validateEitherPrOrSingleCommitTitle: true
-
 checkUpToDate:
   - airflow/migrations/*
   - airflow/migrations/**/*

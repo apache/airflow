@@ -18,7 +18,7 @@
 
 from contextlib import closing
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import create_engine
 
@@ -28,8 +28,19 @@ from airflow.typing_compat import Protocol
 
 
 class ConnectorProtocol(Protocol):
-    def connect(host, port, username, schema):
-        ...
+    """
+    A protocol where you can connect to a database.
+    """
+    def connect(self, host: str, port: int, username: str, schema: str) -> Any:
+        """
+        Connect to a database.
+
+        :param host: The database host to connect to.
+        :param port: The database port to connect to.
+        :param username: The database username used for the authentication.
+        :param schema: The database schema to connect to.
+        :return: the authorized connection object.
+        """
 
 
 class DbApiHook(BaseHook):
@@ -37,7 +48,7 @@ class DbApiHook(BaseHook):
     Abstract base class for sql hooks.
     """
     # Override to provide the connection name.
-    conn_name_attr = None  # type: Optional[str]
+    conn_name_attr = None  # type: str
     # Override to have a default connection id for a particular dbHook
     default_conn_name = 'default_conn_id'
     # Override if this db supports autocommit.
@@ -65,7 +76,12 @@ class DbApiHook(BaseHook):
             username=db.login,
             schema=db.schema)
 
-    def get_uri(self):
+    def get_uri(self) -> str:
+        """
+        Extract the URI from the connection.
+
+        :return: the extracted uri.
+        """
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         login = ''
         if conn.login:
@@ -80,6 +96,12 @@ class DbApiHook(BaseHook):
         return uri
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
+        """
+        Get an sqlalchemy_engine object.
+
+        :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
+        :return: the created engine.
+        """
         if engine_kwargs is None:
             engine_kwargs = {}
         return create_engine(self.get_uri(), **engine_kwargs)
@@ -158,13 +180,13 @@ class DbApiHook(BaseHook):
                 self.set_autocommit(conn, autocommit)
 
             with closing(conn.cursor()) as cur:
-                for s in sql:
+                for sql_statement in sql:
                     if parameters is not None:
-                        self.log.info("{} with parameters {}".format(s, parameters))
-                        cur.execute(s, parameters)
+                        self.log.info("%s with parameters %s", sql_statement, parameters)
+                        cur.execute(sql_statement, parameters)
                     else:
-                        self.log.info(s)
-                        cur.execute(s)
+                        self.log.info(sql_statement)
+                        cur.execute(sql_statement)
 
             # If autocommit was set to False for db that supports autocommit,
             # or if db does not supports autocommit, we do a manual commit.
@@ -259,7 +281,7 @@ class DbApiHook(BaseHook):
         self.log.info("Done loading. Loaded a total of %s rows", i)
 
     @staticmethod
-    def _serialize_cell(cell, conn=None):
+    def _serialize_cell(cell, conn=None):  # pylint: disable=unused-argument
         """
         Returns the SQL literal of the cell as a string.
 

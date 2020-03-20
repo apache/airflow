@@ -25,5 +25,9 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 @pytest.mark.credential_file(GCP_PUBSUB_KEY)
 class PubSubSystemTest(GoogleSystemTest):
     @provide_gcp_context(GCP_PUBSUB_KEY)
-    def test_run_example_dag(self):
-        self.run_dag(dag_id="example_gcp_pubsub", dag_folder=CLOUD_DAG_FOLDER)
+    def test_run_example_sensor_dag(self):
+        self.run_dag(dag_id="example_gcp_pubsub_sensor", dag_folder=CLOUD_DAG_FOLDER)
+
+    @provide_gcp_context(GCP_PUBSUB_KEY)
+    def test_run_example_operator_dag(self):
+        self.run_dag(dag_id="example_gcp_pubsub_operator", dag_folder=CLOUD_DAG_FOLDER)

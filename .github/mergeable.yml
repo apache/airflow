@@ -30,9 +30,6 @@ mergeable:
               message: Do not merge this PR yet.
         begins_with:
           match: '[AIRFLOW-'
-        must_include:
-          regex: ^(\[AIRFLOW-XXXX\]|\[AIRFLOW\-\d{1,4}\])
-          message: Must include Jira issue in title.
       - do: label
         must_exclude:
           regex: 'wip'
@@ -46,12 +43,6 @@ mergeable:
           message: There are incomplete TODO task(s) unchecked.
         no_empty:
           enabled: true
-        or:
-          - must_include:
-              regex: (\[AIRFLOW-XXXX\])
-          - must_include:
-              regex: (\https\:\/\/issues\.apache\.org\/jira\/browse\/AIRFLOW\-\d{1,4})
-              message: Link to the Jira Issue
       # If package.json is updated, so should yarn.lock
       - do: dependent
         changed:

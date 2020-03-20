@@ -162,7 +162,6 @@ class CloudVisionHook(CloudBaseHook):
         if "error" in response:
             raise AirflowException(response)
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def create_product_set(
         self,
@@ -201,7 +200,6 @@ class CloudVisionHook(CloudBaseHook):
 
         return product_set_id
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def get_product_set(
         self,
@@ -225,7 +223,6 @@ class CloudVisionHook(CloudBaseHook):
         self.log.debug('ProductSet retrieved:\n%s', response)
         return MessageToDict(response)
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def update_product_set(
         self,
@@ -256,7 +253,6 @@ class CloudVisionHook(CloudBaseHook):
         self.log.debug('ProductSet updated:\n%s', response)
         return MessageToDict(response)
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def delete_product_set(
         self,
@@ -279,7 +275,6 @@ class CloudVisionHook(CloudBaseHook):
         client.delete_product_set(name=name, retry=retry, timeout=timeout, metadata=metadata)
         self.log.info('ProductSet with the name [%s] deleted.', name)
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def create_product(
         self,
@@ -318,7 +313,6 @@ class CloudVisionHook(CloudBaseHook):
 
         return product_id
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def get_product(
         self,
@@ -343,7 +337,6 @@ class CloudVisionHook(CloudBaseHook):
         self.log.debug('Product retrieved:\n%s', response)
         return MessageToDict(response)
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def update_product(
         self,
@@ -372,7 +365,6 @@ class CloudVisionHook(CloudBaseHook):
         self.log.debug('Product updated:\n%s', response)
         return MessageToDict(response)
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def delete_product(
         self,
@@ -395,7 +387,6 @@ class CloudVisionHook(CloudBaseHook):
         client.delete_product(name=name, retry=retry, timeout=timeout, metadata=metadata)
         self.log.info('Product with the name [%s] deleted:', name)
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def create_reference_image(
         self,
@@ -439,7 +430,6 @@ class CloudVisionHook(CloudBaseHook):
 
         return reference_image_id
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def delete_reference_image(
         self,
@@ -470,7 +460,6 @@ class CloudVisionHook(CloudBaseHook):
         self.log.info('ReferenceImage with the name [%s] deleted.', name)
         return MessageToDict(response)
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def add_product_to_product_set(
         self,
@@ -501,7 +490,6 @@ class CloudVisionHook(CloudBaseHook):
 
         self.log.info('Product added to Product Set')
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def remove_product_from_product_set(
         self,
@@ -532,7 +520,6 @@ class CloudVisionHook(CloudBaseHook):
 
         self.log.info('Product removed from Product Set')
 
-    @CloudBaseHook.catch_http_exception
     def annotate_image(
         self,
         request: Union[dict, AnnotateImageRequest],
@@ -554,7 +541,6 @@ class CloudVisionHook(CloudBaseHook):
 
         return MessageToDict(response)
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.quota_retry()
     def batch_annotate_images(
         self,
@@ -578,7 +564,6 @@ class CloudVisionHook(CloudBaseHook):
 
         return MessageToDict(response)
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.quota_retry()
     def text_detection(
         self,
@@ -609,7 +594,6 @@ class CloudVisionHook(CloudBaseHook):
 
         return response
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.quota_retry()
     def document_text_detection(
         self,
@@ -640,7 +624,6 @@ class CloudVisionHook(CloudBaseHook):
 
         return response
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.quota_retry()
     def label_detection(
         self,
@@ -671,7 +654,6 @@ class CloudVisionHook(CloudBaseHook):
 
         return response
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.quota_retry()
     def safe_search_detection(
         self,

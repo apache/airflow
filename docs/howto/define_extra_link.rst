@@ -81,7 +81,7 @@ tasks using :class:`~airflow.providers.amazon.aws.operators.gcs_to_s3.GCSToS3Ope
       name = 'S3'
 
       # Add list of all the operators to which you want to add this OperatorLinks
-      # Example: operators = [GCSToS3Operator, GoogleCloudStorageToBigQueryOperator]
+      # Example: operators = [GCSToS3Operator, GCSToBigQueryOperator]
       operators = [GCSToS3Operator]
 
       def get_link(self, operator, dttm):

@@ -21,6 +21,7 @@
 import json
 import unittest
 
+import httplib2
 import mock
 from googleapiclient.errors import HttpError
 from mock import PropertyMock
@@ -45,8 +46,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
                 return_value=(mock.MagicMock(), 'example-project'))
     def test_instance_import_exception(self, mock_get_credentials):
         self.cloudsql_hook.get_conn = mock.Mock(
-            side_effect=HttpError(resp={'status': '400'},
-                                  content=b'Error content')
+            side_effect=HttpError(resp=httplib2.Response({'status': 400}), content=b'Error content')
         )
         with self.assertRaises(AirflowException) as cm:
             self.cloudsql_hook.import_instance(
@@ -54,20 +54,22 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
                 body={})
         err = cm.exception
         self.assertIn("Importing instance ", str(err))
+        self.assertEqual(1, mock_get_credentials.call_count)
 
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
                 return_value=(mock.MagicMock(), 'example-project'))
     def test_instance_export_exception(self, mock_get_credentials):
         self.cloudsql_hook.get_conn = mock.Mock(
-            side_effect=HttpError(resp={'status': '400'},
+            side_effect=HttpError(resp=httplib2.Response({'status': 400}),
                                   content=b'Error content')
         )
-        with self.assertRaises(AirflowException) as cm:
+        with self.assertRaises(HttpError) as cm:
             self.cloudsql_hook.export_instance(
                 instance='instance',
                 body={})
         err = cm.exception
-        self.assertIn("Exporting instance ", str(err))
+        self.assertEqual(400, err.resp.status)
+        self.assertEqual(1, mock_get_credentials.call_count)
 
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
                 return_value=(mock.MagicMock(), 'example-project'))
@@ -78,31 +80,15 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = import_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook.import_instance(
+        self.cloudsql_hook.import_instance(
             instance='instance',
             body={})
-        self.assertIsNone(res)
+
         import_method.assert_called_once_with(body={}, instance='instance', project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(project_id='example-project',
                                                                operation_name='operation_id')
-
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
-    def test_instance_import_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
-        import_method = get_conn.return_value.instances.return_value.import_
-        execute_method = import_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
-        wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook.import_instance(
-            project_id='new-project',
-            instance='instance',
-            body={})
-        self.assertIsNone(res)
-        import_method.assert_called_once_with(body={}, instance='instance', project='new-project')
-        execute_method.assert_called_once_with(num_retries=5)
-        wait_for_operation_to_complete.assert_called_once_with(project_id='new-project',
-                                                               operation_name='operation_id')
+        self.assertEqual(1, mock_get_credentials.call_count)
 
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
                 return_value=(mock.MagicMock(), 'example-project'))
@@ -113,30 +99,36 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = export_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook.export_instance(
+        self.cloudsql_hook.export_instance(
             instance='instance',
             body={})
-        self.assertIsNone(res)
+
         export_method.assert_called_once_with(body={}, instance='instance', project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(project_id='example-project',
                                                                operation_name='operation_id')
+        self.assertEqual(1, mock_get_credentials.call_count)
 
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
-    def test_instance_export_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_instance_export_with_in_progress_retry(
+        self, wait_for_operation_to_complete, get_conn
+    ):
         export_method = get_conn.return_value.instances.return_value.export
         execute_method = export_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
+        execute_method.side_effect = [
+            HttpError(resp=type('', (object,), {"status": 429, })(), content=b'Internal Server Error'),
+            {"name": "operation_id"}
+        ]
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook.export_instance(
-            project_id='new-project',
+        self.cloudsql_hook.export_instance(
+            project_id='example-project',
             instance='instance',
             body={})
-        self.assertIsNone(res)
-        export_method.assert_called_once_with(body={}, instance='instance', project='new-project')
-        execute_method.assert_called_once_with(num_retries=5)
-        wait_for_operation_to_complete.assert_called_once_with(project_id='new-project',
+
+        self.assertEqual(2, export_method.call_count)
+        self.assertEqual(2, execute_method.call_count)
+        wait_for_operation_to_complete.assert_called_once_with(project_id='example-project',
                                                                operation_name='operation_id')
 
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
@@ -155,22 +147,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         get_method.assert_called_once_with(instance='instance', project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
-
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
-    def test_get_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
-        get_method = get_conn.return_value.instances.return_value.get
-        execute_method = get_method.return_value.execute
-        execute_method.return_value = {"name": "instance"}
-        wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook.get_instance(
-            project_id='new-project',
-            instance='instance')
-        self.assertIsNotNone(res)
-        self.assertEqual('instance', res['name'])
-        get_method.assert_called_once_with(instance='instance', project='new-project')
-        execute_method.assert_called_once_with(num_retries=5)
-        wait_for_operation_to_complete.assert_not_called()
+        self.assertEqual(1, mock_get_credentials.call_count)
 
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
                 return_value=(mock.MagicMock(), 'example-project'))
@@ -181,30 +158,61 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = insert_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook.create_instance(
+        self.cloudsql_hook.create_instance(
             body={})
-        self.assertIsNone(res)
+
         insert_method.assert_called_once_with(body={}, project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
             operation_name='operation_id', project_id='example-project'
         )
+        self.assertEqual(1, mock_get_credentials.call_count)
 
+    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+                return_value=(mock.MagicMock(), 'example-project'))
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
-    def test_create_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_create_instance_with_in_progress_retry(self, wait_for_operation_to_complete, get_conn,
+                                                    mock_get_credentials):
         insert_method = get_conn.return_value.instances.return_value.insert
         execute_method = insert_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
+        execute_method.side_effect = [
+            HttpError(resp=type('', (object,), {"status": 429, })(), content=b'Internal Server Error'),
+            {"name": "operation_id"}
+        ]
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook.create_instance(
-            project_id='new-project',
+        self.cloudsql_hook.create_instance(
             body={})
-        self.assertIsNone(res)
-        insert_method.assert_called_once_with(body={}, project='new-project')
-        execute_method.assert_called_once_with(num_retries=5)
+
+        self.assertEqual(1, mock_get_credentials.call_count)
+        self.assertEqual(2, insert_method.call_count)
+        self.assertEqual(2, execute_method.call_count)
         wait_for_operation_to_complete.assert_called_once_with(
-            operation_name='operation_id', project_id='new-project'
+            operation_name='operation_id', project_id='example-project'
+        )
+
+    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+                return_value=(mock.MagicMock(), 'example-project'))
+    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
+    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
+    def test_patch_instance_with_in_progress_retry(self, wait_for_operation_to_complete, get_conn,
+                                                   mock_get_credentials):
+        patch_method = get_conn.return_value.instances.return_value.patch
+        execute_method = patch_method.return_value.execute
+        execute_method.side_effect = [
+            HttpError(resp=type('', (object,), {"status": 429, })(), content=b'Internal Server Error'),
+            {"name": "operation_id"}
+        ]
+        wait_for_operation_to_complete.return_value = None
+        self.cloudsql_hook.patch_instance(
+            instance='instance',
+            body={})
+
+        self.assertEqual(1, mock_get_credentials.call_count)
+        self.assertEqual(2, patch_method.call_count)
+        self.assertEqual(2, execute_method.call_count)
+        wait_for_operation_to_complete.assert_called_once_with(
+            operation_name='operation_id', project_id='example-project'
         )
 
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
@@ -216,33 +224,16 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = patch_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook.patch_instance(
+        self.cloudsql_hook.patch_instance(
             instance='instance',
             body={})
-        self.assertIsNone(res)
+
         patch_method.assert_called_once_with(body={}, instance='instance', project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
             operation_name='operation_id', project_id='example-project'
         )
-
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
-    def test_patch_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
-        patch_method = get_conn.return_value.instances.return_value.patch
-        execute_method = patch_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
-        wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook.patch_instance(
-            project_id='new-project',
-            instance='instance',
-            body={})
-        self.assertIsNone(res)
-        patch_method.assert_called_once_with(body={}, instance='instance', project='new-project')
-        execute_method.assert_called_once_with(num_retries=5)
-        wait_for_operation_to_complete.assert_called_once_with(
-            operation_name='operation_id', project_id='new-project'
-        )
+        self.assertEqual(1, mock_get_credentials.call_count)
 
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
                 return_value=(mock.MagicMock(), 'example-project'))
@@ -253,30 +244,37 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = delete_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook.delete_instance(
+        self.cloudsql_hook.delete_instance(
             instance='instance')
-        self.assertIsNone(res)
+
         delete_method.assert_called_once_with(instance='instance', project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
             operation_name='operation_id', project_id='example-project'
         )
+        self.assertEqual(1, mock_get_credentials.call_count)
 
+    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+                return_value=(mock.MagicMock(), 'example-project'))
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
-    def test_delete_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_delete_instance_with_in_progress_retry(self, wait_for_operation_to_complete, get_conn,
+                                                    mock_get_credentials):
         delete_method = get_conn.return_value.instances.return_value.delete
         execute_method = delete_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
+        execute_method.side_effect = [
+            HttpError(resp=type('', (object,), {"status": 429, })(), content=b'Internal Server Error'),
+            {"name": "operation_id"}
+        ]
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook.delete_instance(
-            project_id='new-project',
+        self.cloudsql_hook.delete_instance(
             instance='instance')
-        self.assertIsNone(res)
-        delete_method.assert_called_once_with(instance='instance', project='new-project')
-        execute_method.assert_called_once_with(num_retries=5)
+
+        self.assertEqual(1, mock_get_credentials.call_count)
+        self.assertEqual(2, delete_method.call_count)
+        self.assertEqual(2, execute_method.call_count)
         wait_for_operation_to_complete.assert_called_once_with(
-            operation_name='operation_id', project_id='new-project'
+            operation_name='operation_id', project_id='example-project'
         )
 
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
@@ -298,25 +296,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
                                            project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
-
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
-    def test_get_database_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
-        get_method = get_conn.return_value.databases.return_value.get
-        execute_method = get_method.return_value.execute
-        execute_method.return_value = {"name": "database"}
-        wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook.get_database(
-            project_id='new-project',
-            database='database',
-            instance='instance')
-        self.assertIsNotNone(res)
-        self.assertEqual('database', res['name'])
-        get_method.assert_called_once_with(instance='instance',
-                                           database='database',
-                                           project='new-project')
-        execute_method.assert_called_once_with(num_retries=5)
-        wait_for_operation_to_complete.assert_not_called()
+        self.assertEqual(1, mock_get_credentials.call_count)
 
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
                 return_value=(mock.MagicMock(), 'example-project'))
@@ -327,32 +307,39 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = insert_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook.create_database(
+        self.cloudsql_hook.create_database(
             instance='instance',
             body={})
-        self.assertIsNone(res)
+
         insert_method.assert_called_once_with(body={}, instance='instance', project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
             operation_name='operation_id', project_id='example-project'
         )
+        self.assertEqual(1, mock_get_credentials.call_count)
 
+    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+                return_value=(mock.MagicMock(), 'example-project'))
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
-    def test_create_database_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_create_database_with_in_progress_retry(self, wait_for_operation_to_complete, get_conn,
+                                                    mock_get_credentials):
         insert_method = get_conn.return_value.databases.return_value.insert
         execute_method = insert_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
+        execute_method.side_effect = [
+            HttpError(resp=type('', (object,), {"status": 429, })(), content=b'Internal Server Error'),
+            {"name": "operation_id"}
+        ]
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook.create_database(
-            project_id='new-project',
+        self.cloudsql_hook.create_database(
             instance='instance',
             body={})
-        self.assertIsNone(res)
-        insert_method.assert_called_once_with(body={}, instance='instance', project='new-project')
-        execute_method.assert_called_once_with(num_retries=5)
+
+        self.assertEqual(1, mock_get_credentials.call_count)
+        self.assertEqual(2, insert_method.call_count)
+        self.assertEqual(2, execute_method.call_count)
         wait_for_operation_to_complete.assert_called_once_with(
-            operation_name='operation_id', project_id='new-project'
+            operation_name='operation_id', project_id='example-project'
         )
 
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
@@ -364,11 +351,11 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = patch_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook.patch_database(
+        self.cloudsql_hook.patch_database(
             instance='instance',
             database='database',
             body={})
-        self.assertIsNone(res)
+
         patch_method.assert_called_once_with(body={},
                                              database='database',
                                              instance='instance',
@@ -377,27 +364,31 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(
             operation_name='operation_id', project_id='example-project'
         )
+        self.assertEqual(1, mock_get_credentials.call_count)
 
+    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+                return_value=(mock.MagicMock(), 'example-project'))
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
-    def test_patch_database_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_patch_database_with_in_progress_retry(self, wait_for_operation_to_complete, get_conn,
+                                                   mock_get_credentials):
         patch_method = get_conn.return_value.databases.return_value.patch
         execute_method = patch_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
+        execute_method.side_effect = [
+            HttpError(resp=type('', (object,), {"status": 429, })(), content=b'Internal Server Error'),
+            {"name": "operation_id"}
+        ]
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook.patch_database(
-            project_id='new-project',
+        self.cloudsql_hook.patch_database(
             instance='instance',
             database='database',
             body={})
-        self.assertIsNone(res)
-        patch_method.assert_called_once_with(body={},
-                                             database='database',
-                                             instance='instance',
-                                             project='new-project')
-        execute_method.assert_called_once_with(num_retries=5)
+
+        self.assertEqual(1, mock_get_credentials.call_count)
+        self.assertEqual(2, patch_method.call_count)
+        self.assertEqual(2, execute_method.call_count)
         wait_for_operation_to_complete.assert_called_once_with(
-            operation_name='operation_id', project_id='new-project'
+            operation_name='operation_id', project_id='example-project'
         )
 
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
@@ -409,10 +400,10 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = delete_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook.delete_database(
+        self.cloudsql_hook.delete_database(
             instance='instance',
             database='database')
-        self.assertIsNone(res)
+
         delete_method.assert_called_once_with(database='database',
                                               instance='instance',
                                               project='example-project')
@@ -420,25 +411,30 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(
             operation_name='operation_id', project_id='example-project'
         )
+        self.assertEqual(1, mock_get_credentials.call_count)
 
+    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._get_credentials_and_project_id',
+                return_value=(mock.MagicMock(), 'example-project'))
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
-    def test_delete_database_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_delete_database_with_in_progress_retry(self, wait_for_operation_to_complete, get_conn,
+                                                    mock_get_credentials):
         delete_method = get_conn.return_value.databases.return_value.delete
         execute_method = delete_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
+        execute_method.side_effect = [
+            HttpError(resp=type('', (object,), {"status": 429, })(), content=b'Internal Server Error'),
+            {"name": "operation_id"}
+        ]
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook.delete_database(
-            project_id='new-project',
+        self.cloudsql_hook.delete_database(
             instance='instance',
             database='database')
-        self.assertIsNone(res)
-        delete_method.assert_called_once_with(database='database',
-                                              instance='instance',
-                                              project='new-project')
-        execute_method.assert_called_once_with(num_retries=5)
+
+        self.assertEqual(1, mock_get_credentials.call_count)
+        self.assertEqual(2, delete_method.call_count)
+        self.assertEqual(2, execute_method.call_count)
         wait_for_operation_to_complete.assert_called_once_with(
-            operation_name='operation_id', project_id='new-project'
+            operation_name='operation_id', project_id='example-project'
         )
 
 
@@ -462,11 +458,10 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         execute_method = import_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook_no_default_project_id.import_instance(
+        self.cloudsql_hook_no_default_project_id.import_instance(
             project_id='example-project',
             instance='instance',
             body={})
-        self.assertIsNone(res)
         import_method.assert_called_once_with(body={}, instance='instance', project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(project_id='example-project',
@@ -510,11 +505,10 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         execute_method = export_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook_no_default_project_id.export_instance(
+        self.cloudsql_hook_no_default_project_id.export_instance(
             project_id='example-project',
             instance='instance',
             body={})
-        self.assertIsNone(res)
         export_method.assert_called_once_with(body={}, instance='instance', project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(project_id='example-project',
@@ -604,10 +598,9 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         execute_method = insert_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook_no_default_project_id.create_instance(
+        self.cloudsql_hook_no_default_project_id.create_instance(
             project_id='example-project',
             body={})
-        self.assertIsNone(res)
         insert_method.assert_called_once_with(body={}, project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
@@ -651,11 +644,10 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         execute_method = patch_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook_no_default_project_id.patch_instance(
+        self.cloudsql_hook_no_default_project_id.patch_instance(
             project_id='example-project',
             instance='instance',
             body={})
-        self.assertIsNone(res)
         patch_method.assert_called_once_with(body={}, instance='instance', project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
@@ -700,10 +692,9 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         execute_method = delete_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook_no_default_project_id.delete_instance(
+        self.cloudsql_hook_no_default_project_id.delete_instance(
             project_id='example-project',
             instance='instance')
-        self.assertIsNone(res)
         delete_method.assert_called_once_with(instance='instance', project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
@@ -797,11 +788,10 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         execute_method = insert_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook_no_default_project_id.create_database(
+        self.cloudsql_hook_no_default_project_id.create_database(
             project_id='example-project',
             instance='instance',
             body={})
-        self.assertIsNone(res)
         insert_method.assert_called_once_with(body={}, instance='instance', project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
@@ -846,12 +836,11 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         execute_method = patch_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook_no_default_project_id.patch_database(
+        self.cloudsql_hook_no_default_project_id.patch_database(
             project_id='example-project',
             instance='instance',
             database='database',
             body={})
-        self.assertIsNone(res)
         patch_method.assert_called_once_with(body={},
                                              database='database',
                                              instance='instance',
@@ -900,11 +889,10 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         execute_method = delete_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook_no_default_project_id.delete_database(
+        self.cloudsql_hook_no_default_project_id.delete_database(
             project_id='example-project',
             instance='instance',
             database='database')
-        self.assertIsNone(res)
         delete_method.assert_called_once_with(database='database',
                                               instance='instance',
                                               project='example-project')
@@ -938,7 +926,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         wait_for_operation_to_complete.assert_not_called()
 
 
-class TestCloudsqlDatabaseHook(unittest.TestCase):
+class TestCloudSqlDatabaseHook(unittest.TestCase):
 
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection')
     def test_cloudsql_database_hook_validate_ssl_certs_no_ssl(self, get_connection):
@@ -1141,7 +1129,7 @@ class TestCloudsqlDatabaseHook(unittest.TestCase):
         self.assertIsNotNone(db_hook)
 
 
-class TestCloudSqlDatabaseHook(unittest.TestCase):
+class TestCloudSqlDatabaseQueryHook(unittest.TestCase):
 
     @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSQLDatabaseHook.get_connection')
     def setUp(self, m):
@@ -1210,11 +1198,7 @@ class TestCloudSqlDatabaseHook(unittest.TestCase):
         self.assertEqual('postgres', connection.conn_type)
         self.assertEqual('testdb', connection.schema)
 
-    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
-    def test_hook_with_correct_parameters_postgres(self, get_connection):
-        uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&" \
-              "project_id=example-project&location=europe-west1&instance=testdb&" \
-              "use_proxy=False&use_ssl=False"
+    def _verify_postgres_connection(self, get_connection, uri):
         get_connection.side_effect = [Connection(uri=uri)]
         hook = CloudSQLDatabaseHook()
         connection = hook.create_connection()
@@ -1222,6 +1206,14 @@ class TestCloudSqlDatabaseHook(unittest.TestCase):
         self.assertEqual('127.0.0.1', connection.host)
         self.assertEqual(3200, connection.port)
         self.assertEqual('testdb', connection.schema)
+        return connection
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
+    def test_hook_with_correct_parameters_postgres(self, get_connection):
+        uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&" \
+              "project_id=example-project&location=europe-west1&instance=testdb&" \
+              "use_proxy=False&use_ssl=False"
+        self._verify_postgres_connection(get_connection, uri)
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
     def test_hook_with_correct_parameters_postgres_ssl(self, get_connection):
@@ -1229,13 +1221,7 @@ class TestCloudSqlDatabaseHook(unittest.TestCase):
               "project_id=example-project&location=europe-west1&instance=testdb&" \
               "use_proxy=False&use_ssl=True&sslcert=/bin/bash&" \
               "sslkey=/bin/bash&sslrootcert=/bin/bash"
-        get_connection.side_effect = [Connection(uri=uri)]
-        hook = CloudSQLDatabaseHook()
-        connection = hook.create_connection()
-        self.assertEqual('postgres', connection.conn_type)
-        self.assertEqual('127.0.0.1', connection.host)
-        self.assertEqual(3200, connection.port)
-        self.assertEqual('testdb', connection.schema)
+        connection = self._verify_postgres_connection(get_connection, uri)
         self.assertEqual('/bin/bash', connection.extra_dejson['sslkey'])
         self.assertEqual('/bin/bash', connection.extra_dejson['sslcert'])
         self.assertEqual('/bin/bash', connection.extra_dejson['sslrootcert'])
@@ -1259,6 +1245,9 @@ class TestCloudSqlDatabaseHook(unittest.TestCase):
         uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=mysql&" \
               "location=europe-west1&instance=testdb&" \
               "use_proxy=False&use_ssl=False"
+        self.verify_mysql_connection(get_connection, uri)
+
+    def verify_mysql_connection(self, get_connection, uri):
         get_connection.side_effect = [Connection(uri=uri)]
         hook = CloudSQLDatabaseHook()
         connection = hook.create_connection()
@@ -1266,6 +1255,7 @@ class TestCloudSqlDatabaseHook(unittest.TestCase):
         self.assertEqual('127.0.0.1', connection.host)
         self.assertEqual(3200, connection.port)
         self.assertEqual('testdb', connection.schema)
+        return connection
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
     def test_hook_with_correct_parameters_postgres_proxy_tcp(self, get_connection):
@@ -1285,13 +1275,7 @@ class TestCloudSqlDatabaseHook(unittest.TestCase):
         uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=mysql&" \
               "project_id=example-project&location=europe-west1&instance=testdb&" \
               "use_proxy=False&use_ssl=False"
-        get_connection.side_effect = [Connection(uri=uri)]
-        hook = CloudSQLDatabaseHook()
-        connection = hook.create_connection()
-        self.assertEqual('mysql', connection.conn_type)
-        self.assertEqual('127.0.0.1', connection.host)
-        self.assertEqual(3200, connection.port)
-        self.assertEqual('testdb', connection.schema)
+        self.verify_mysql_connection(get_connection, uri)
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
     def test_hook_with_correct_parameters_mysql_ssl(self, get_connection):
@@ -1299,13 +1283,7 @@ class TestCloudSqlDatabaseHook(unittest.TestCase):
               "project_id=example-project&location=europe-west1&instance=testdb&" \
               "use_proxy=False&use_ssl=True&sslcert=/bin/bash&" \
               "sslkey=/bin/bash&sslrootcert=/bin/bash"
-        get_connection.side_effect = [Connection(uri=uri)]
-        hook = CloudSQLDatabaseHook()
-        connection = hook.create_connection()
-        self.assertEqual('mysql', connection.conn_type)
-        self.assertEqual('127.0.0.1', connection.host)
-        self.assertEqual(3200, connection.port)
-        self.assertEqual('testdb', connection.schema)
+        connection = self.verify_mysql_connection(get_connection, uri)
         self.assertEqual('/bin/bash', json.loads(connection.extra_dejson['ssl'])['cert'])
         self.assertEqual('/bin/bash', json.loads(connection.extra_dejson['ssl'])['key'])
         self.assertEqual('/bin/bash', json.loads(connection.extra_dejson['ssl'])['ca'])

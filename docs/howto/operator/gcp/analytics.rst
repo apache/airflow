@@ -48,3 +48,19 @@ To list accounts from Analytics you can use the
 
 You can use :ref:`Jinja templating <jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsListAccountsOperator`
+
+List Google Ads Links
+^^^^^^^^^^^^^^^^^^^^^
+
+Operator returns a list of entity Google Ads links.
+To list Google Ads links you can use the
+:class:`~airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsRetrieveAdsLinksListOperator`.
+
+.. exampleinclude:: ../../../../airflow/providers/google/marketing_platform/example_dags/example_analytics.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_marketing_platform_retrieve_ads_links_list_operator]
+    :end-before: [END howto_marketing_platform_retrieve_ads_links_list_operator]
+
+You can use :ref:`Jinja templating <jinja-templating>` with
+:template-fields:`airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsRetrieveAdsLinksListOperator`

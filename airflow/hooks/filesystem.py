@@ -41,5 +41,10 @@ class FSHook(BaseHook):
     def get_conn(self):
         pass
 
-    def get_path(self):
+    def get_path(self) -> str:
+        """
+        Get the path to the filesystem location.
+
+        :return: the path.
+        """
         return self.basepath

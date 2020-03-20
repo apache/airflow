@@ -20,7 +20,6 @@ from unittest import TestCase, mock
 from moto import mock_ssm
 
 from airflow.providers.amazon.aws.secrets.ssm import AwsSsmSecretsBackend
-from airflow.secrets import get_connections
 
 
 class TestSsmSecrets(TestCase):
@@ -31,23 +30,35 @@ class TestSsmSecrets(TestCase):
         conn = conn_list[0]
         assert conn.host == 'host'
 
-    @mock.patch.dict('os.environ', {
-        'AIRFLOW_CONN_TEST_MYSQL': 'mysql://airflow:airflow@host:5432/airflow',
-    })
+    @mock_ssm
+    def test_get_conn_uri(self):
+        param = {
+            'Name': '/airflow/connections/test_postgres',
+            'Type': 'String',
+            'Value': 'postgresql://airflow:airflow@host:5432/airflow'
+        }
+
+        ssm_backend = AwsSsmSecretsBackend()
+        ssm_backend.client.put_parameter(**param)
+
+        returned_uri = ssm_backend.get_conn_uri(conn_id="test_postgres")
+        self.assertEqual('postgresql://airflow:airflow@host:5432/airflow', returned_uri)
+
     @mock_ssm
     def test_get_conn_uri_non_existent_key(self):
         """
         Test that if the key with connection ID is not present in SSM,
-        AwsSsmSecretsBackend.get_connections should return None and fallback to the
-        environment variable if it is set
+        AwsSsmSecretsBackend.get_connections should return None
         """
         conn_id = "test_mysql"
-        test_client = AwsSsmSecretsBackend()
+        param = {
+            'Name': '/airflow/connections/test_postgres',
+            'Type': 'String',
+            'Value': 'postgresql://airflow:airflow@host:5432/airflow'
+        }
 
-        self.assertIsNone(test_client.get_conn_uri(conn_id=conn_id))
-        self.assertEqual([], test_client.get_connections(conn_id=conn_id))
+        ssm_backend = AwsSsmSecretsBackend()
+        ssm_backend.client.put_parameter(**param)
 
-        # Fallback to connection defined in Environment Variable
-        self.assertEqual(
-            "mysql://airflow:airflow@host:5432/airflow",
-            get_connections(conn_id="test_mysql")[0].get_uri())
+        self.assertIsNone(ssm_backend.get_conn_uri(conn_id=conn_id))
+        self.assertEqual([], ssm_backend.get_connections(conn_id=conn_id))

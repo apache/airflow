@@ -93,7 +93,6 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
             )
         return self._conn
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def create_transfer_config(
         self,
@@ -139,7 +138,6 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
             metadata=metadata,
         )
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def delete_transfer_config(
         self,
@@ -178,7 +176,6 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
             name=name, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def start_manual_transfer_runs(
         self,
@@ -236,7 +233,6 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
             metadata=metadata,
         )
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.fallback_to_default_project_id
     def get_transfer_run(
         self,

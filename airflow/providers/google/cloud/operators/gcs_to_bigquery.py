@@ -40,7 +40,7 @@ class GCSToBigQueryOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleCloudStorageToBigQueryOperator`
+        :ref:`howto/operator:GCSToBigQueryOperator`
 
     :param bucket: The bucket to load from. (templated)
     :type bucket: str

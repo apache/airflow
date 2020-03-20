@@ -110,6 +110,8 @@ All operators are in the following packages:
 
   airflow/providers/ftp/sensors/index
 
+  airflow/providers/google/ads/operators/index
+
   airflow/providers/google/cloud/operators/index
 
   airflow/providers/google/cloud/sensors/index
@@ -249,6 +251,8 @@ All hooks are in the following packages:
 
   airflow/providers/ftp/hooks/index
 
+  airflow/providers/google/ads/hooks/index
+
   airflow/providers/google/cloud/hooks/index
 
   airflow/providers/google/firebase/hooks/index
@@ -351,8 +355,7 @@ persisted in the database.
 Secrets Backends
 ----------------
 Airflow uses relies on secrets backends to retrieve :class:`~airflow.models.connection.Connection` objects.
-All secrets backends derive from :class:`~airflow.secrets.BaseSecretsBackend`.  See :ref:`using an alternative secrets
-backend <alternative_secrets_backend>` for more info.
+All secrets backends derive from :class:`~airflow.secrets.BaseSecretsBackend`.
 
 .. toctree::
   :includehidden:
@@ -362,3 +365,4 @@ backend <alternative_secrets_backend>` for more info.
   airflow/secrets/index
 
   airflow/providers/amazon/aws/secrets/index
+  airflow/providers/hashicorp/secrets/index
