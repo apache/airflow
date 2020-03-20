@@ -42,8 +42,7 @@ to follow it and apply to the programme and follow up with the community.
 Report Bugs
 -----------
 
-Report bugs through `Apache
-JIRA <https://issues.apache.org/jira/browse/AIRFLOW>`__.
+Report bugs through `GitHub <https://github.com/apache/airflow/issues>`__.
 
 Please report relevant information and preferably code that exhibits the
 problem.
@@ -51,16 +50,16 @@ problem.
 Fix Bugs
 --------
 
-Look through the JIRA issues for bugs. Anything is open to whoever wants to
+Look through the GitHub issues for bugs. Anything is open to whoever wants to
 implement it.
 
 Implement Features
 ------------------
 
-Look through the `Apache
-JIRA <https://issues.apache.org/jira/browse/AIRFLOW>`__ for features.
+Look through the `GitHub issues labeled "kind:feature"
+<https://github.com/apache/airflow/labels/kind%3Afeature>`__ for features.
 
-Any unassigned "Improvement" issue is open to whoever wants to implement it.
+Any unassigned feature request issue is open to whoever wants to implement it.
 
 We've created the operators, hooks, macros and executors we needed, but we've
 made sure that this part of Airflow is extensible. New operators, hooks, macros
@@ -76,8 +75,7 @@ articles.
 Submit Feedback
 ---------------
 
-The best way to send feedback is to open an issue on `Apache
-JIRA <https://issues.apache.org/jira/browse/AIRFLOW>`__.
+The best way to send feedback is to `open an issue on GitHub <https://github.com/apache/airflow/issues/new/choose>`__.
 
 If you are proposing a new feature:
 
@@ -90,7 +88,7 @@ Documentation
 =============
 
 The latest API documentation is usually available
-`here <https://airflow.apache.org/>`__.
+`here <https://airflow.apache.org/docs/>`__.
 
 To generate a local version:
 
@@ -151,18 +149,6 @@ these guidelines:
     commits, and resolve all conflicts.
 
 -   When merging PRs, wherever possible try to use **Squash and Merge** instead of **Rebase and Merge**.
-
--   Make sure every pull request introducing code changes has an associated
-    `JIRA <https://issues.apache.org/jira/browse/AIRFLOW/?selectedTab=com.atlassian.jira.jira-projects-plugin:summary-panel>`__
-    ticket. The JIRA link should also be added to the PR description. In case of documentation only changes
-    the JIRA ticket is not necessary.
-
--   Preface your commit's subject & PR title with **[AIRFLOW-NNNN] COMMIT_MSG** where *NNNN*
-    is the JIRA number. For example: [AIRFLOW-5574] Fix Google Analytics script loading. In case of
-    documentation only changes you should put "[AIRFLOW-XXXX]" instead.
-    We compose Airflow release notes from all commit titles in a release. By placing the JIRA number in the
-    commit title and hence in the release notes, we let Airflow users look into
-    JIRA and GitHub PRs for more details about a particular change.
 
 -   Add an `Apache License <http://www.apache.org/legal/src-headers.html>`__ header
     to all new files.
@@ -563,10 +549,10 @@ Contribution Workflow Example
 ==============================
 
 Typically, you start your first contribution by reviewing open tickets
-at `Apache JIRA <https://issues.apache.org/jira/browse/AIRFLOW>`__.
+at `GitHub issues <https://github.com/apache/airflow/issues>`__.
 
 For example, you want to have the following sample ticket assigned to you:
-`AIRFLOW-5934: Add extra CC: to the emails sent by Aiflow <https://issues.apache.org/jira/browse/AIRFLOW-5934>`_.
+`#7782: Add extra CC: to the emails sent by Aiflow <https://github.com/apache/airflow/issues/7782>`_.
 
 In general, your contribution includes the following stages:
 
@@ -648,16 +634,16 @@ For effective collaboration, make sure to join the following Airflow groups:
   - Airflow users mailing list: `<users-subscribe@airflow.apache.org>`_
     (reasonably small traffic on this list)
 
-- `Issues on Apache’s JIRA <https://issues.apache.org/jira/browse/AIRFLOW>`__
+- `Issues on GitHub <https://github.com/apache/airflow/issues>`__
 
 - `Slack (chat) <https://apache-airflow-slack.herokuapp.com/>`__
 
 Step 4: Prepare PR
 ------------------
 
-1. Update the local sources to address the JIRA ticket.
+1. Update the local sources to address the issue.
 
-   For example, to address this example JIRA ticket, do the following:
+   For example, to address this example issue, do the following:
 
    * Read about `email configuration in Airflow <https://airflow.readthedocs.io/en/latest/howto/email-config.html>`__.
 
