@@ -600,12 +600,12 @@ Preparing backport packages for System Tests for Airflow 1.10.* series
 ----------------------------------------------------------------------
 
 In order to run system tests with old Airflow version you need to prepare backport packages. This
-can be done by running ``./scripts/ci/ci_prepare_bacport_packages.sh <PACKAGES TO BUILD>``. For
+can be done by running ``./scripts/ci/ci_prepare_backport_packages.sh <PACKAGES TO BUILD>``. For
 example the below command will build google postgres and mysql packages:
 
 .. code-block:: bash
 
-  ./scripts/ci/ci_prepare_bacport_packages.sh google postgres mysql
+  ./scripts/ci/ci_prepare_backport_packages.sh google postgres mysql
 
 Those packages will be prepared in ./dist folder. This folder is mapped to /dist folder
 when you enter Breeze, so it is easy to automate installing of those packages for testing.
@@ -667,7 +667,7 @@ Here is the typical session that you need to do to run system tests:
 
 .. code-block:: bash
 
-  ./scripts/ci/ci_prepare_bacport_packages.sh google postgres mysql
+  ./scripts/ci/ci_prepare_backport_packages.sh google postgres mysql
 
 2. Enter breeze with installing Airflow 1.10.*, forwarding credentials and installing
    backported packages (you need appropriate line in ``./files/airflow-breeze-config/variables.env``)
@@ -738,7 +738,7 @@ Typical session then looks as follows:
 
 .. code-block:: bash
 
-  ./scripts/ci/ci_prepare_bacport_packages.sh google postgres mysql
+  ./scripts/ci/ci_prepare_backport_packages.sh google postgres mysql
 
 2. Enter breeze with installing Airflow 1.10.*, forwarding credentials and installing
    backported packages (you need appropriate line in ``./files/airflow-breeze-config/variables.env``)
