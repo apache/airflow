@@ -44,11 +44,7 @@ This questions are the first thing we need to know to understand the context.
 
 As minimally and precisely as possible. Keep in mind we do not have access to your cluster or dags.
 
---->
-
-**If this is a UI bug, please provide a screenshot of the bug or a link to a youtube video of the bug in action**
-
-<!---
+If this is a UI bug, please provide a screenshot of the bug or a link to a youtube video of the bug in action
 
 You can include images using the .md sytle of
 ![alt text](http://url/to/img.png)
