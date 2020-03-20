@@ -52,6 +52,7 @@ SOURCE_FILES_LIST = [
 DELIMITER = '.json'
 
 MOD_TIME_1 = datetime(2016, 1, 1)
+MOD_TIME_2 = datetime(2019, 1, 1)
 
 
 class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
@@ -252,6 +253,35 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
             destination_bucket=DESTINATION_BUCKET,
             destination_object=SOURCE_OBJECT_NO_WILDCARD,
             last_modified_time=MOD_TIME_1)
+
+        operator.execute(None)
+        mock_hook.return_value.rewrite.assert_called_once_with(
+            TEST_BUCKET, 'test_object.txt', DESTINATION_BUCKET, 'test_object.txt')
+
+    @mock.patch('airflow.providers.google.cloud.operators.gcs_to_gcs.GCSHook')
+    def test_no_prefix_with_maximum_modified_time_with_true_cond(self, mock_hook):
+        mock_hook.return_value.is_updated_before.return_value = True
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID, source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_NO_WILDCARD,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=SOURCE_OBJECT_NO_WILDCARD,
+            maximum_modified_time=MOD_TIME_1)
+
+        operator.execute(None)
+        mock_hook.return_value.rewrite.assert_called_once_with(
+            TEST_BUCKET, 'test_object.txt', DESTINATION_BUCKET, 'test_object.txt')
+
+    @mock.patch('airflow.providers.google.cloud.operators.gcs_to_gcs.GCSHook')
+    def test_exe_last_modified_time_and_maximum_modified_time_with_true_cond(self, mock_hook):
+        mock_hook.return_value.is_updated_between.return_value = True
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID, source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_NO_WILDCARD,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=SOURCE_OBJECT_NO_WILDCARD,
+            last_modified_time=MOD_TIME_1,
+            maximum_modified_time=MOD_TIME_2)
 
         operator.execute(None)
         mock_hook.return_value.rewrite.assert_called_once_with(
