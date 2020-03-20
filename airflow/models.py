@@ -3434,8 +3434,14 @@ class DAG(BaseDag, LoggingMixin):
         based on a regex that should match one or many tasks, and includes
         upstream and downstream neighbours based on the flag passed.
         """
-
-        dag = copy.deepcopy(self)
+        try:
+            dag = copy.deepcopy(self)
+        except:
+            logging.info("Deepcopy DAG {} failed. Loading from dag file directly".format(self.dag_id))
+            dagbag = DagBag(dag_folder=self.full_filepath)
+            if self.dag_id not in dagbag.dags:
+                raise AirflowException("Dag id {} not found".format(self.dag_id))
+            dag = dagbag.get_dag(self.dag_id)
 
         regex_match = [
             t for t in dag.tasks if re.findall(task_regex, t.task_id)]
