@@ -215,7 +215,7 @@ class DAG(BaseDag, LoggingMixin):
     def __init__(
         self,
         dag_id,  # type: str
-        description='',  # type: str
+        description=None,  # type: Optional[str]
         schedule_interval=timedelta(days=1),  # type: Optional[ScheduleInterval]
         start_date=None,  # type: Optional[datetime]
         end_date=None,  # type: Optional[datetime]

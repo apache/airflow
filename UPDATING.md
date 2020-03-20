@@ -25,6 +25,7 @@ assists users migrating to a new version.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Airflow 1.10.11](#airflow-11011)
 - [Airflow 1.10.10](#airflow-11010)
 - [Airflow 1.10.9](#airflow-1109)
 - [Airflow 1.10.8](#airflow-1108)
@@ -58,6 +59,12 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+
+## Airflow 1.10.11
+
+### Use NULL as default value for dag.description
+
+Now use NULL as default value for dag.description in dag table
 
 ## Airflow 1.10.10
 
