@@ -41,8 +41,6 @@ except ImportError:
     pass
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
-pytestmark = pytest.mark.xfail(condition=True, reason="The Dask executor is expected to fail: "
-                               "TODO: WE SHOULD REMOVE IT ALTOGETHER OR FIX ????")
 
 
 class TestBaseDask(unittest.TestCase):
@@ -127,8 +125,8 @@ class TestDaskExecutorTLS(TestBaseDask):
 
     def test_tls(self):
         with dask_testing_cluster(
-                worker_kwargs={'security': tls_security()},
-                scheduler_kwargs={'security': tls_security()}) as (cluster, _):
+                worker_kwargs={'security': tls_security(), "protocol": "tls"},
+                scheduler_kwargs={'security': tls_security(), "protocol": "tls"}) as (cluster, _):
 
             # These use test certs that ship with dask/distributed and should not be
             #  used in production
