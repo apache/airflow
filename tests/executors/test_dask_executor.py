@@ -20,8 +20,6 @@ import unittest
 from datetime import timedelta
 from unittest import mock
 
-import pytest
-
 from airflow.configuration import conf
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.models import DagBag
