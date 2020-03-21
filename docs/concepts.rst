@@ -874,6 +874,7 @@ while creating tasks:
 * ``one_failed``: fires as soon as at least one parent has failed, it does not wait for all parents to be done
 * ``one_success``: fires as soon as at least one parent succeeds, it does not wait for all parents to be done
 * ``none_failed``: all parents have not failed (``failed`` or ``upstream_failed``) i.e. all parents have succeeded or been skipped
+* ``none_failed_or_skipped``: all parents have not failed (``failed`` or ``upstream_failed``) and at least one parent has succeeded.
 * ``none_skipped``: no parent is in a ``skipped`` state, i.e. all parents are in a ``success``, ``failed``, or ``upstream_failed`` state
 * ``dummy``: dependencies are just for show, trigger at will
 
@@ -884,7 +885,7 @@ previous schedule for the task hasn't succeeded.
 One must be aware of the interaction between trigger rules and skipped tasks
 in schedule level. Skipped tasks will cascade through trigger rules
 ``all_success`` and ``all_failed`` but not ``all_done``, ``one_failed``, ``one_success``,
-``none_failed``, ``none_skipped`` and ``dummy``.
+``none_failed``, ``none_failed_or_skipped``, ``none_skipped`` and ``dummy``.
 
 For example, consider the following DAG:
 
@@ -927,19 +928,19 @@ skipped tasks will cascade through ``all_success``.
 
 .. image:: img/branch_without_trigger.png
 
-By setting ``trigger_rule`` to ``none_failed`` in ``join`` task,
+By setting ``trigger_rule`` to ``none_failed_or_skipped`` in ``join`` task,
 
 .. code:: python
 
   #dags/branch_with_trigger.py
   ...
-  join = DummyOperator(task_id='join', dag=dag, trigger_rule='none_failed')
+  join = DummyOperator(task_id='join', dag=dag, trigger_rule='none_failed_or_skipped')
   ...
 
 The ``join`` task will be triggered as soon as
 ``branch_false`` has been skipped (a valid completion state) and
 ``follow_branch_a`` has succeeded. Because skipped tasks **will not**
-cascade through ``none_failed``.
+cascade through ``none_failed_or_skipped``.
 
 .. image:: img/branch_with_trigger.png
 
