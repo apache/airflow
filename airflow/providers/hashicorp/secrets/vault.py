@@ -31,7 +31,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class VaultSecrets(BaseSecretsBackend, LoggingMixin):
-    """
+    """ # noqa pylint: disable=line-too-long
     Retrieves Connection object from Hashicorp Vault
 
     Configurable via ``airflow.cfg`` as follows:
@@ -40,10 +40,10 @@ class VaultSecrets(BaseSecretsBackend, LoggingMixin):
 
         [secrets]
         backend = airflow.providers.hashicorp.secrets.vault.VaultSecrets
-        backend_kwargs = {"path":"connections","url":"http://127.0.0.1:8200","mount_point":"airflow"}
+        backend_kwargs = {"connections_path":"connections","url":"http://127.0.0.1:8200","mount_point":"airflow"}
 
     For example, if your keys are under ``connections`` path in ``airflow`` mount_point, this
-    would be accessible if you provide ``{"path": "connections"}`` and request
+    would be accessible if you provide ``{"connections_path": "connections"}`` and request
     conn_id ``smtp_default``.
 
     :param connections_path: Specifies the path of the secret to read to get Connections.
@@ -125,7 +125,8 @@ class VaultSecrets(BaseSecretsBackend, LoggingMixin):
         elif self.auth_type == "github":
             _client.auth.github.login(token=self.token)
         elif self.auth_type == "gcp":
-            credentials = self._get_gcp_credentials()
+            from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id  # noqa pylint: disable=line-too-long
+            credentials, _ = get_credentials_and_project_id(self.gcp_key_path, self.gcp_scopes)
             _client.auth.gcp.configure(credentials=credentials)
         else:
             raise AirflowException(f"Authentication type '{self.auth_type}' not supported")
@@ -180,33 +181,3 @@ class VaultSecrets(BaseSecretsBackend, LoggingMixin):
             return []
         conn = Connection(conn_id=conn_id, uri=conn_uri)
         return [conn]
-
-    def _get_gcp_credentials(self):
-        import google.auth
-        import google.oauth2.service_account
-
-        default_scopes = ('https://www.googleapis.com/auth/cloud-platform',)
-        scopes = [s.strip() for s in self.gcp_scopes.split(',')] \
-            if self.gcp_scopes else default_scopes
-
-        if self.gcp_key_path:
-            # Get credentials from a JSON file.
-            if self.gcp_key_path.endswith('.json'):
-                self.log.debug('Getting connection using JSON key file %s', self.gcp_key_path)
-                credentials = (
-                    google.oauth2.service_account.Credentials.from_service_account_file(
-                        self.gcp_key_path, scopes=scopes)
-                )
-            elif self.gcp_key_path.endswith('.p12'):
-                raise AirflowException(
-                    'Legacy P12 key file are not supported, use a JSON key file.'
-                )
-            else:
-                raise AirflowException('Unrecognised extension for key file.')
-        else:
-            self.log.debug(
-                'Getting connection using `google.auth.default()` since no key file is defined.'
-            )
-            credentials, _ = google.auth.default(scopes=scopes)
-
-        return credentials
