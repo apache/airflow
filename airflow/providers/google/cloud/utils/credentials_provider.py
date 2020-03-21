@@ -22,7 +22,7 @@ Google Cloud Platform authentication.
 import json
 import tempfile
 from contextlib import contextmanager
-from typing import Dict, Optional, Sequence
+from typing import Dict, Optional, Sequence, Tuple
 from urllib.parse import urlencode
 
 import google.auth
@@ -166,7 +166,7 @@ def provide_gcp_conn_and_credentials(
 def get_credentials_and_project_id(
     gcp_key_path: Optional[str] = None,
     gcp_scopes: Optional[str] = None
-) -> google.auth.credentials.Credentials:
+) -> Tuple[google.auth.credentials.Credentials, str]:
     """
     Returns the Credentials object for Google API and the associated project_id
 
