@@ -1176,11 +1176,7 @@ class CLIFactory:
 
     @classmethod
     def _add_action_command(cls, sub, sub_proc):
-        dag_parser = False
-
         for arg in cls.sort_args(sub['args']):
-            if 'dag_id' in arg.flags and dag_parser:
-                continue
             kwargs = {
                 k: v for k, v in vars(arg).items() if k != 'flags' and v
             }
