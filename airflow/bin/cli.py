@@ -1168,7 +1168,7 @@ class CLIFactory:
         sub_proc.formatter_class = RawTextHelpFormatter
 
         if 'subcommands' in sub:
-            cls._add_subcommaand(sub, sub_proc)
+            cls._add_subcommand(sub, sub_proc)
         elif 'func' in sub:
             cls._add_action_command(sub, sub_proc)
         else:
@@ -1188,7 +1188,7 @@ class CLIFactory:
         sub_proc.set_defaults(func=sub['func'])
 
     @classmethod
-    def _add_subcommaand(cls, sub, sub_proc):
+    def _add_subcommand(cls, sub, sub_proc):
         subcommands = sub.get('subcommands', [])
         sub_subparsers = sub_proc.add_subparsers(dest="subcommand")
         sub_subparsers.required = True
