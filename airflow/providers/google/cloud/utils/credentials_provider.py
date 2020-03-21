@@ -20,6 +20,7 @@ This module contains a mechanism for providing temporary
 Google Cloud Platform authentication.
 """
 import json
+import logging
 import tempfile
 from contextlib import contextmanager
 from typing import Dict, Optional, Sequence, Tuple
@@ -32,8 +33,10 @@ from google.auth.environment_vars import CREDENTIALS
 from airflow.exceptions import AirflowException
 from airflow.utils.process_utils import patch_environ
 
+log = logging.getLogger(__name__)
+
 AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT = "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT"
-DEFAULT_SCOPES = ('https://www.googleapis.com/auth/cloud-platform',)
+_DEFAULT_SCOPES = ('https://www.googleapis.com/auth/cloud-platform',)  # type: Sequence[str]
 
 
 def build_gcp_conn(
@@ -164,40 +167,83 @@ def provide_gcp_conn_and_credentials(
 
 
 def get_credentials_and_project_id(
-    gcp_key_path: Optional[str] = None,
-    gcp_scopes: Optional[str] = None
+    key_path: Optional[str] = None,
+    keyfile_dict: Optional[Dict[str, str]] = None,
+    scopes: Optional[Sequence[str]] = None,
+    delegate_to: Optional[str] = None
 ) -> Tuple[google.auth.credentials.Credentials, str]:
     """
     Returns the Credentials object for Google API and the associated project_id
 
-    It will get the credentials from .json file if `gcp_key_path` is provided. Otherwise,
-    return default credentials for the current environment
+    Only either `key_path` or `keyfile_dict` should be provided, or an exception will
+    occur. If neither of them are provided, return default credentials for the current environment
 
-    :param gcp_key_path: Path to GCP Credential JSON file
-    :type gcp_key_path: str
-    :param gcp_scopes: Comma-separated string containing GCP scopes
-    :type gcp_scopes: str
+    :param key_path: Path to GCP Credential JSON file
+    :type key_path: str
+    :param key_dict: A dict representing GCP Credential as in the Credential JSON file
+    :type key_dict: Dict[str, str]
+    :param scopes:  OAuth scopes for the connection
+    :type scopes: Sequence[str]
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
     :return: Google Auth Credentials
     :type: google.auth.credentials.Credentials
     """
-    scopes = [s.strip() for s in gcp_scopes.split(',')] \
-        if gcp_scopes else DEFAULT_SCOPES
-
-    if gcp_key_path:
+    if key_path and keyfile_dict:
+        raise AirflowException(
+            "The `keyfile_dict` and `key_path` fields are mutually exclusive. "
+            "Please provide only one value."
+        )
+    if not key_path and not keyfile_dict:
+        log.info(
+            'Getting connection using `google.auth.default()` since no key file is defined for hook.'
+        )
+        credentials, project_id = google.auth.default(scopes=scopes)
+    elif key_path:
         # Get credentials from a JSON file.
-        if gcp_key_path.endswith('.json'):
+        if key_path.endswith('.json'):
+            log.debug('Getting connection using JSON key file %s', key_path)
             credentials = (
                 google.oauth2.service_account.Credentials.from_service_account_file(
-                    filename=gcp_key_path, scopes=scopes)
+                    key_path, scopes=scopes)
             )
             project_id = credentials.project_id
-        elif gcp_key_path.endswith('.p12'):
+        elif key_path.endswith('.p12'):
             raise AirflowException(
                 'Legacy P12 key file are not supported, use a JSON key file.'
             )
         else:
             raise AirflowException('Unrecognised extension for key file.')
     else:
-        credentials, project_id = google.auth.default(scopes=scopes)
+        if not keyfile_dict:
+            raise ValueError("The keyfile_dict should be set")
+        # Depending on how the JSON was formatted, it may contain
+        # escaped newlines. Convert those to actual newlines.
+        keyfile_dict['private_key'] = keyfile_dict['private_key'].replace(
+            '\\n', '\n')
+
+        credentials = (
+            google.oauth2.service_account.Credentials.from_service_account_info(
+                keyfile_dict, scopes=scopes)
+        )
+        project_id = credentials.project_id
+
+    if delegate_to:
+        credentials = credentials.with_subject(delegate_to)
 
     return credentials, project_id
+
+
+def _parse_scopes(scopes: str) -> Sequence[str]:
+    """
+    Parse a comma-separated string containing GCP scopes
+
+    :param scopes: A comma-separated string containing GCP scopes
+    :type scopes: str
+    :return: Returns the scope defined in the connection configuration, or the default scope
+    :rtype: Sequence[str]
+    """
+    return [s.strip() for s in scopes.split(',')] \
+        if scopes else _DEFAULT_SCOPES
