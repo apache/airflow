@@ -117,7 +117,7 @@ jobs:
         ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
         RUN_INTEGRATION_TESTS=all
       stage: test
-    - name: "Tests [MySQL5.7][3.7][providers][kerberos]"
+    - name: "Tests [MySQL5.7][Py3.7][providers][kerberos]"
       env: >-
         BACKEND=mysql
         PYTHON_VERSION=3.7
@@ -133,10 +133,22 @@ jobs:
         ENABLED_INTEGRATIONS="kerberos"
       script: "./scripts/ci/ci_run_airflow_testing.sh --ignore=tests/providers"
       stage: test
-    - name: "Prepare packages and generate requirements"
-      before_install: pip install bowler
+    - name: "Generate requirements"
+      env: >-
+        PYTHON_VERSION=3.6
+        INSTALL_AIRFLOW_VERSION="1.10.9"
       stage: test
-      script: ./scripts/ci/ci_prepare_packages.sh && ./scripts/ci/ci_generate_requirements.sh
+      script: ./scripts/ci/ci_generate_requirements.sh
+    - name: "Prepare & test backport packages 1.10.9"
+      env: >-
+        INSTALL_AIRFLOW_VERSION="1.10.9"
+      stage: test
+      script: ./scripts/ci/ci_prepare_and_test_backport_packages.sh
+    - name: "Prepare & test backport packages 1.10.6"
+      env: >-
+        INSTALL_AIRFLOW_VERSION="1.10.6"
+      stage: test
+      script: ./scripts/ci/ci_prepare_and_test_backport_packages.sh
 before_install:
   - ./scripts/ci/ci_before_install.sh
 script: ./scripts/ci/ci_run_airflow_testing.sh

@@ -24,7 +24,7 @@ LIST_OF_DIRS_FILE=$(mktemp)
 
 cd "${MY_DIR}/../../airflow/providers" || exit 1
 
-find . -type d | sed 's/.\///' | sed 's/\//\./' | grep -E 'hooks|operators|sensors|secrets' \
+find . -type d | sed 's/.\///; s/\//\./g' | grep -E 'hooks|operators|sensors|secrets' \
     > "${LIST_OF_DIRS_FILE}"
 
 cd "${MY_DIR}/../../backport_packages" || exit 1
@@ -78,41 +78,36 @@ else
     BUILD_AIRFLOW_PACKAGE="false"
 fi
 
-echo "-----------------------------------------------------------------------------------"
+echo "==================================================================================="
 echo " Copying sources and doing refactor for backporting"
-echo "-----------------------------------------------------------------------------------"
-echo
+echo "==================================================================================="
 python3 setup_backport_packages.py prepare
 
 for BACKPORT_PACKAGE in ${BACKPORT_PACKAGES}
 do
-    echo
-    echo "-----------------------------------------------------------------------------------"
+    echo "==================================================================================="
     echo " Preparing backporting package ${BACKPORT_PACKAGE}"
     echo "-----------------------------------------------------------------------------------"
-    echo
-    python3 setup_backport_packages.py "${BACKPORT_PACKAGE}" clean --all
-    python3 setup_backport_packages.py "${BACKPORT_PACKAGE}" sdist bdist_wheel >/dev/null
+    python3 setup_backport_packages.py "${BACKPORT_PACKAGE}" clean --all >/dev/null 2>&1
+    python3 setup_backport_packages.py "${BACKPORT_PACKAGE}" sdist bdist_wheel >/dev/null 2>&1
+    echo " Prepared backporting package ${BACKPORT_PACKAGE}"
 done
 
 cd "${MY_DIR}/../../" || exit 1
 
 if [[ ${BUILD_AIRFLOW_PACKAGE} == "true" ]]; then
-    echo
-    echo "-----------------------------------------------------------------------------------"
+    echo "==================================================================================="
     echo " Preparing apache-airflow package"
-    echo "-----------------------------------------------------------------------------------"
-    echo
+    echo "==================================================================================="
     python3 setup.py clean --all
     python3 setup.py sdist bdist_wheel >/dev/null
-    echo
-    echo "-----------------------------------------------------------------------------------"
+    echo "==================================================================================="
     echo " Preparing apache-airflow-pinned package"
-    echo "-----------------------------------------------------------------------------------"
-    echo
+    echo "==================================================================================="
     python3 setup.py clean --all
     python3 setup.py pinned sdist bdist_wheel >/dev/null
 fi
+echo "==================================================================================="
 
 AIRFLOW_PACKAGES_TGZ_FILE="/tmp/airflow-packages-$(date +"%Y%m%d-%H%M%S").tar.gz"
 

@@ -984,7 +984,9 @@ function build_image_on_ci() {
         else
             touch "${BUILD_CACHE_DIR}"/.skip_tests
         fi
-    elif [[ ${TRAVIS_JOB_NAME} == *"documentation"* ]]; then
+    elif [[ ${TRAVIS_JOB_NAME} == *"documentation"* || \
+            ${TRAVIS_JOB_NAME} == *"Generate requirements"* || \
+            ${TRAVIS_JOB_NAME} == *"Prepare & test backport packages"* ]]; then
         rebuild_ci_image_if_needed
     else
         echo
