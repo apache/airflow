@@ -21,12 +21,15 @@ import re
 from collections import Counter
 from unittest import TestCase
 
+from airflow.bin import cli
 from airflow.bin.cli import CLIFactory
 
 # Can not be `--snake_case` or contain uppercase letter
 ILLEGAL_LONG_OPTION_PATTERN = re.compile("^--[a-z]+_[a-z]+|^--.*[A-Z].*")
 # Only can be `-[a-z]` or `-[A-Z]`
 LEGAL_SHORT_OPTION_PATTERN = re.compile("^-[a-zA-z]$")
+
+cli_args = {k: v for k, v in cli.__dict__.items() if k.startswith("ARG_")}
 
 
 class TestCli(TestCase):
@@ -36,7 +39,8 @@ class TestCli(TestCase):
         Test if the name of CLIFactory.args long option valid
         """
         optional_long = [
-            arg for _, arg in CLIFactory.args.items()
+            arg
+            for arg in cli_args.values()
             if len(arg.flags) == 1 and arg.flags[0].startswith("-")
         ]
         for arg in optional_long:
@@ -48,7 +52,8 @@ class TestCli(TestCase):
         Test if the name of CLIFactory.args mix option (-s, --long) valid
         """
         optional_mix = [
-            arg for _, arg in CLIFactory.args.items()
+            arg
+            for arg in cli_args.values()
             if len(arg.flags) == 2 and arg.flags[0].startswith("-")
         ]
         for arg in optional_mix:
@@ -98,12 +103,12 @@ class TestCli(TestCase):
             """
             Get CLIFactory args flags
             """
-            return CLIFactory.args[arg].flags
+            return arg.flags
 
         subcommand = {
-            var: CLIFactory.__dict__.get(var)
-            for var in CLIFactory.__dict__
-            if var.isupper() and "COMMANDS" in var
+            key: val
+            for key, val in CLIFactory.__dict__.items()
+            if key.isupper() and "COMMANDS" in key
         }
         for group, command in subcommand.items():
             for com in command:
