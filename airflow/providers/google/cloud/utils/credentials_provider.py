@@ -25,12 +25,15 @@ from contextlib import contextmanager
 from typing import Dict, Optional, Sequence
 from urllib.parse import urlencode
 
+import google.auth
+import google.oauth2.service_account
 from google.auth.environment_vars import CREDENTIALS
 
 from airflow.exceptions import AirflowException
 from airflow.utils.process_utils import patch_environ
 
 AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT = "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT"
+DEFAULT_SCOPES = ('https://www.googleapis.com/auth/cloud-platform',)
 
 
 def build_gcp_conn(
@@ -158,3 +161,43 @@ def provide_gcp_conn_and_credentials(
         key_file_path, scopes, project_id
     ):
         yield
+
+
+def get_credentials_and_project_id(
+    gcp_key_path: Optional[str] = None,
+    gcp_scopes: Optional[str] = None
+) -> google.auth.credentials.Credentials:
+    """
+    Returns the Credentials object for Google API and the associated project_id
+
+    It will get the credentials from .json file if `gcp_key_path` is provided. Otherwise,
+    return default credentials for the current environment
+
+    :param gcp_key_path: Path to GCP Credential JSON file
+    :type gcp_key_path: str
+    :param gcp_scopes: Comma-separated string containing GCP scopes
+    :type gcp_scopes: str
+    :return: Google Auth Credentials
+    :type: google.auth.credentials.Credentials
+    """
+    scopes = [s.strip() for s in gcp_scopes.split(',')] \
+        if gcp_scopes else DEFAULT_SCOPES
+
+    if gcp_key_path:
+        # Get credentials from a JSON file.
+        if gcp_key_path.endswith('.json'):
+            credentials = (
+                google.oauth2.service_account.Credentials.from_service_account_file(
+                    filename=gcp_key_path, scopes=scopes)
+            )
+            project_id = credentials.project_id
+        elif gcp_key_path.endswith('.p12'):
+            raise AirflowException(
+                'Legacy P12 key file are not supported, use a JSON key file.'
+            )
+        else:
+            raise AirflowException('Unrecognised extension for key file.')
+    else:
+        credentials, project_id = google.auth.default(scopes=scopes)
+
+    return credentials, project_id

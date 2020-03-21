@@ -261,6 +261,7 @@ gcp = [
     'google-cloud-monitoring>=0.34.0',
     'google-cloud-pubsub>=1.0.0',
     'google-cloud-redis>=0.3.0',
+    'google-cloud-secret-manager>=0.2.0',
     'google-cloud-spanner>=1.10.0',
     'google-cloud-speech>=0.36.3',
     'google-cloud-storage>=1.16',

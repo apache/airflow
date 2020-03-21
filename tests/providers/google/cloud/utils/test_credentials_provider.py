@@ -23,10 +23,12 @@ from uuid import uuid4
 
 import mock
 from google.auth.environment_vars import CREDENTIALS
+from parameterized import parameterized
 
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.utils.credentials_provider import (
-    AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT, build_gcp_conn, provide_gcp_conn_and_credentials,
-    provide_gcp_connection, provide_gcp_credentials,
+    AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT, DEFAULT_SCOPES, build_gcp_conn, get_credentials_and_project_id,
+    provide_gcp_conn_and_credentials, provide_gcp_connection, provide_gcp_credentials,
 )
 
 ENV_VALUE = "test_env"
@@ -123,3 +125,47 @@ class TestProvideGcpConnAndCredentials(unittest.TestCase):
             self.assertEqual(os.environ[CREDENTIALS], path)
         self.assertEqual(os.environ[AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT], ENV_VALUE)
         self.assertEqual(os.environ[CREDENTIALS], ENV_VALUE)
+
+
+class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.test_scopes = DEFAULT_SCOPES
+        cls.test_json_file = "path/to/file.json"
+        cls.test_project_id = "project_id"
+
+    @mock.patch("google.oauth2.service_account.Credentials.from_service_account_file")
+    def test_get_credentials_json_file_with_non_default_scopes(self, mock_read_credential):
+        test_gcp_scopes = "scope1,scope2"
+        test_gcp_scopes_list = ["scope1", "scope2"]
+        credential_mock = mock.Mock()
+        credential_mock.project_id = self.test_project_id
+        mock_read_credential.return_value = credential_mock
+
+        credentials, project_id = get_credentials_and_project_id(
+            gcp_key_path=self.test_json_file,
+            gcp_scopes=test_gcp_scopes
+        )
+        mock_read_credential.assert_called_once_with(
+            filename=self.test_json_file, scopes=test_gcp_scopes_list
+        )
+        self.assertEqual(credentials, credential_mock)
+        self.assertEqual(project_id, credential_mock.project_id)
+
+    @mock.patch("google.auth.default")
+    def test_get_default_credential(self, mock_default):
+        credential_mock = mock.Mock()
+        mock_default.return_value = credential_mock, self.test_project_id
+
+        credentials, project_id = get_credentials_and_project_id()
+        mock_default.assert_called_once_with(scopes=self.test_scopes)
+        self.assertEqual(credentials, credential_mock)
+        self.assertEqual(project_id, self.test_project_id)
+
+    @parameterized.expand([
+        "path/to/file.p12",
+        "incorrect_file.ext"
+    ])
+    def test_get_credentials_legacy_or_incorrect_file(self, file):
+        with self.assertRaises(AirflowException):
+            get_credentials_and_project_id(gcp_key_path=file)
