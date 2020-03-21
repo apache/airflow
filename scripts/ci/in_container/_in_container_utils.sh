@@ -310,14 +310,12 @@ function send_kubernetes_logs_to_file_io() {
 }
 
 function install_released_airflow_version() {
-    pip uninstall apache-airflow -y || true
+    pip uninstall -y apache-airflow || true
     find /root/airflow/ -type f -print0 | xargs rm -f --
     if [[ ${1} == "1.10.2" || ${1} == "1.10.1" ]]; then
         export SLUGIFY_USES_TEXT_UNIDECODE=yes
     fi
+    rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
     INSTALLS=("apache-airflow==${1}" "werkzeug<1.0.0")
-    if [[ ${1} == "1.10.2" || ${1} == "1.10.1" ]]; then
-        echo
-    fi
     pip install --upgrade "${INSTALLS[@]}"
 }
