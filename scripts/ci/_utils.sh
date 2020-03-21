@@ -38,6 +38,9 @@ function verbose_docker {
 }
 
 function initialize_breeze_environment {
+    # default python version
+    PYTHON_VERSION=${PYTHON_VERSION:="3.6"}
+
     AIRFLOW_SOURCES=${AIRFLOW_SOURCES:=$(cd "${MY_DIR}/../../" && pwd)}
     export AIRFLOW_SOURCES
 

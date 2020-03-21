@@ -20,15 +20,48 @@ export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-pushd "${MY_DIR}/../../backport_packages" || exit 1
+LIST_OF_DIRS_FILE=$(mktemp)
+
+cd "${MY_DIR}/../../airflow/providers" || exit 1
+
+find . -type d | sed 's/.\///' | sed 's/\//\./' | grep -E 'hooks|operators|sensors|secrets' \
+    > "${LIST_OF_DIRS_FILE}"
+
+cd "${MY_DIR}/../../backport_packages" || exit 1
 
 rm -rf dist/*
 rm -rf -- *.egg-info
 
 if [[ -z "$*" ]]; then
     BACKPORT_PACKAGES=$(python3 setup_backport_packages.py list-backport-packages)
-    BUILD_COMMON_PROVIDERS_PACKAGE="true"
     BUILD_AIRFLOW_PACKAGE="true"
+
+    PACKAGE_ERROR="false"
+    # Check if all providers are included
+    for PACKAGE in ${BACKPORT_PACKAGES}
+    do
+        if ! grep -E "^${PACKAGE}" <"${LIST_OF_DIRS_FILE}" >/dev/null; then
+            echo "The package ${PACKAGE} is not available in providers dir"
+            PACKAGE_ERROR="true"
+        fi
+        sed -i "/^${PACKAGE}.*/d" "${LIST_OF_DIRS_FILE}"
+    done
+
+    if [[ ${PACKAGE_ERROR} == "true" ]]; then
+        echo
+        echo "ERROR! Some packages from backport_packages/setup_backport_packages.py are missing in providers dir"
+        exit 1
+    fi
+
+    NUM_LINES=$(wc -l "${LIST_OF_DIRS_FILE}" | awk '{ print $1 }')
+    if [[ ${NUM_LINES} != "0" ]]; then
+        echo "ERROR! Some folders from providers package are not defined"
+        echo "       Please add them to backport_packages/setup_backport_packages.py:"
+        echo
+        cat "${LIST_OF_DIRS_FILE}"
+        echo
+        exit 1
+    fi
 else
     if [[ "$1" == "--help" ]]; then
         echo
@@ -42,7 +75,6 @@ else
         exit
     fi
     BACKPORT_PACKAGES="$*"
-    BUILD_COMMON_PROVIDERS_PACKAGE="false"
     BUILD_AIRFLOW_PACKAGE="false"
 fi
 
@@ -62,18 +94,6 @@ do
     python3 setup_backport_packages.py "${BACKPORT_PACKAGE}" clean --all
     python3 setup_backport_packages.py "${BACKPORT_PACKAGE}" sdist bdist_wheel >/dev/null
 done
-
-if [[ ${BUILD_COMMON_PROVIDERS_PACKAGE} == "true" ]]; then
-    echo
-    echo "-----------------------------------------------------------------------------------"
-    echo " Preparing backporting package providers (everything)"
-    echo "-----------------------------------------------------------------------------------"
-    echo
-    python3 setup_backport_packages.py providers clean --all
-    python3 setup_backport_packages.py providers sdist bdist_wheel >/dev/null
-fi
-
-popd || exit 1
 
 cd "${MY_DIR}/../../" || exit 1
 
@@ -95,6 +115,7 @@ if [[ ${BUILD_AIRFLOW_PACKAGE} == "true" ]]; then
 fi
 
 AIRFLOW_PACKAGES_TGZ_FILE="/tmp/airflow-packages-$(date +"%Y%m%d-%H%M%S").tar.gz"
+
 tar -cvzf "${AIRFLOW_PACKAGES_TGZ_FILE}" dist/*.whl dist/*.tar.gz
 echo
 echo "Airflow packages are in dist folder and tar-gzipped in ${AIRFLOW_PACKAGES_TGZ_FILE}"
