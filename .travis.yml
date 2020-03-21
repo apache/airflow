@@ -26,6 +26,7 @@ env:
     - MOUNT_HOST_AIRFLOW_VOLUME="true"
     - FORCE_ANSWER_TO_QUESTIONS="yes"
     - SKIP_CHECK_REMOTE_IMAGE="true"
+    - DB_RESET="true"
     - VERBOSE="true"
     - CI="true"
 python: "3.6"
