@@ -60,9 +60,9 @@ class EC2InstanceStateSensor(BaseSensorOperator):
 
     def poke(self, context):
         ec2_hook = self.get_hook()
-        instance = ec2_hook.get_instance(instance_id=self.instance_id)
-        self.log.info("instance state: %s", instance.state)
-        return instance.state["Name"] == self.target_state
+        instance_state = ec2_hook.get_instance_state(instance_id=self.instance_id)
+        self.log.info("instance state: %s", instance_state)
+        return instance_state  == self.target_state
 
     def get_hook(self):
         """
