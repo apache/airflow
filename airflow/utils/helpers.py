@@ -26,6 +26,7 @@ from typing import Any, Callable, Dict, Iterable, Optional
 from jinja2 import Template
 
 from airflow.exceptions import AirflowException
+from airflow.utils.module_loading import import_string
 
 KEY_REGEX = re.compile(r'^[\w.-]+$')
 
@@ -199,8 +200,7 @@ def chain(*args, **kwargs):
         "This module is deprecated. Please use `airflow.models.baseoperator.chain`.",
         DeprecationWarning, stacklevel=2
     )
-    from airflow.models.baseoperator import chain as new_chain
-    return new_chain(*args, **kwargs)
+    return import_string('airflow.models.baseoperator.chain')(*args, **kwargs)
 
 
 def cross_downstream(*args, **kwargs):
@@ -209,5 +209,4 @@ def cross_downstream(*args, **kwargs):
         "This module is deprecated. Please use `airflow.models.baseoperator.cross_downstream`.",
         DeprecationWarning, stacklevel=2
     )
-    from airflow.models.baseoperator import cross_downstream as new_cross_downstream
-    return new_cross_downstream(*args, **kwargs)
+    return import_string('airflow.models.baseoperator.cross_downstream')(*args, **kwargs)
