@@ -40,10 +40,14 @@ class VaultSecrets(BaseSecretsBackend, LoggingMixin):
 
         [secrets]
         backend = airflow.providers.hashicorp.secrets.vault.VaultSecrets
-        backend_kwargs = {"connections_path":"conns","url":"http://127.0.0.1:8200","mount_point":"airflow"}
+        backend_kwargs = {
+            "connections_path":"connections",
+            "url":"http://127.0.0.1:8200",
+            "mount_point":"airflow"
+        }
 
-    For example, if your keys are under ``conns`` path in ``airflow`` mount_point, this
-    would be accessible if you provide ``{"connections_path": "conns"}`` and request
+    For example, if your keys are under ``connections`` path in ``airflow`` mount_point, this
+    would be accessible if you provide ``{"connections_path": "connections"}`` and request
     conn_id ``smtp_default``.
 
     :param connections_path: Specifies the path of the secret to read to get Connections.
