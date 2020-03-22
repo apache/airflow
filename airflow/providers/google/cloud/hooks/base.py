@@ -45,7 +45,7 @@ from airflow import version
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.providers.google.cloud.utils.credentials_provider import (
-    _parse_scopes, get_credentials_and_project_id,
+    _get_scopes, get_credentials_and_project_id,
 )
 from airflow.utils.process_utils import patch_environ
 
@@ -275,7 +275,7 @@ class CloudBaseHook(BaseHook):
         """
         scope_value = self._get_field('scope', None)  # type: Optional[str]
 
-        return _parse_scopes(scope_value)
+        return _get_scopes(scope_value)
 
     @staticmethod
     def quota_retry(*args, **kwargs) -> Callable:

@@ -28,8 +28,9 @@ from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.utils.credentials_provider import (
-    _DEFAULT_SCOPES, AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT, build_gcp_conn, get_credentials_and_project_id,
-    provide_gcp_conn_and_credentials, provide_gcp_connection, provide_gcp_credentials,
+    _DEFAULT_SCOPES, AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT, _get_scopes, build_gcp_conn,
+    get_credentials_and_project_id, provide_gcp_conn_and_credentials, provide_gcp_connection,
+    provide_gcp_credentials,
 )
 
 ENV_VALUE = "test_env"
@@ -200,3 +201,16 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
             'The `keyfile_dict` and `key_path` fields are mutually exclusive.'
         )):
             get_credentials_and_project_id(key_path='KEY.json', keyfile_dict={'private_key': 'PRIVATE_KEY'})
+
+
+class TestGetScopes(unittest.TestCase):
+
+    def test_get_scopes_with_default(self):
+        self.assertEqual(_get_scopes(), _DEFAULT_SCOPES)
+
+    @parameterized.expand([
+        ('single_scope', 'scope1', ['scope1']),
+        ('multiple_scopes', 'scope1,scope2', ['scope1', 'scope2']),
+    ])
+    def test_get_scopes_with_input(self, _, scopes_str, scopes):
+        self.assertEqual(_get_scopes(scopes_str), scopes)

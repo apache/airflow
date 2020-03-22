@@ -236,12 +236,13 @@ def get_credentials_and_project_id(
     return credentials, project_id
 
 
-def _parse_scopes(scopes: Optional[str]) -> Sequence[str]:
+def _get_scopes(scopes: Optional[str] = None) -> Sequence[str]:
     """
-    Parse a comma-separated string containing GCP scopes
+    Parse a comma-separated string containing GCP scopes if `scopes` is provided.
+    Otherwise, default scope will be returned.
 
     :param scopes: A comma-separated string containing GCP scopes
-    :type scopes: str
+    :type scopes: Optional[str]
     :return: Returns the scope defined in the connection configuration, or the default scope
     :rtype: Sequence[str]
     """
