@@ -41,10 +41,10 @@ class VaultSecrets(BaseSecretsBackend, LoggingMixin):
         [secrets]
         backend = airflow.providers.hashicorp.secrets.vault.VaultSecrets
         backend_kwargs = {
-            "connections_path":"connections",
-            "url":"http://127.0.0.1:8200",
-            "mount_point":"airflow"
-        }
+            "connections_path": "connections",
+            "url": "http://127.0.0.1:8200",
+            "mount_point": "airflow"
+            }
 
     For example, if your keys are under ``connections`` path in ``airflow`` mount_point, this
     would be accessible if you provide ``{"connections_path": "connections"}`` and request
