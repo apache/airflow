@@ -125,8 +125,12 @@ class VaultSecrets(BaseSecretsBackend, LoggingMixin):
         elif self.auth_type == "github":
             _client.auth.github.login(token=self.token)
         elif self.auth_type == "gcp":
-            from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id  # noqa pylint: disable=line-too-long
-            credentials, _ = get_credentials_and_project_id(self.gcp_key_path, self.gcp_scopes)
+            from airflow.providers.google.cloud.utils.credentials_provider import (
+                get_credentials_and_project_id,
+                _get_scopes
+            )
+            scopes = _get_scopes(self.gcp_scopes)
+            credentials, _ = get_credentials_and_project_id(key_path=self.gcp_key_path, scopes=scopes)
             _client.auth.gcp.configure(credentials=credentials)
         else:
             raise AirflowException(f"Authentication type '{self.auth_type}' not supported")
