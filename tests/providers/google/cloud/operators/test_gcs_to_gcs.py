@@ -314,6 +314,22 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
         mock_hook.return_value.rewrite.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.operators.gcs_to_gcs.GCSHook')
+    def test_executes_with_is_older_than_with_true_cond(self, mock_hook):
+        mock_hook.return_value.is_older_than.return_value = True
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID, source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_NO_WILDCARD,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=SOURCE_OBJECT_NO_WILDCARD,
+            last_modified_time=MOD_TIME_1,
+            maximum_modified_time=MOD_TIME_2,
+            is_older_than=3600)
+
+        operator.execute(None)
+        mock_hook.return_value.rewrite.assert_called_once_with(
+            TEST_BUCKET, 'test_object.txt', DESTINATION_BUCKET, 'test_object.txt')
+
+    @mock.patch('airflow.providers.google.cloud.operators.gcs_to_gcs.GCSHook')
     def test_execute_more_than_1_wildcard(self, mock_hook):
         mock_hook.return_value.list.return_value = SOURCE_FILES_LIST
         operator = GCSToGCSOperator(

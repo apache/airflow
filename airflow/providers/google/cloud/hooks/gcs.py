@@ -272,6 +272,24 @@ class GCSHook(CloudBaseHook):
         blob = bucket.blob(blob_name=object_name)
         return blob.exists()
 
+    def get_blob_update_time(self, bucket_name, object_name):
+        """
+        Get the update time of a file in Google Cloud Storage
+
+        :param bucket_name: The Google Cloud Storage bucket where the object is.
+        :type bucket_name: str
+        :param object_name: The name of the blob to get updated time from the Google cloud
+            storage bucket.
+        :type object_name: str
+        """
+        client = self.get_conn()
+        bucket = client.bucket(bucket_name)
+        blob = bucket.get_blob(blob_name=object_name)
+        if blob is None:
+            raise ValueError("Object ({}) not found in Bucket ({})".format(
+                object_name, bucket_name))
+        return blob.updated
+
     def is_updated_after(self, bucket_name, object_name, ts):
         """
         Checks if an blob_name is updated in Google Cloud Storage.
@@ -284,27 +302,14 @@ class GCSHook(CloudBaseHook):
         :param ts: The timestamp to check against.
         :type ts: datetime.datetime
         """
-        client = self.get_conn()
-        bucket = client.bucket(bucket_name)
-        blob = bucket.get_blob(blob_name=object_name)
-
-        if blob is None:
-            raise ValueError("Object ({}) not found in Bucket ({})".format(
-                object_name, bucket_name))
-
-        blob_update_time = blob.updated
-
+        blob_update_time = self.get_blob_update_time(bucket_name, object_name)
         if blob_update_time is not None:
             import dateutil.tz
-
             if not ts.tzinfo:
                 ts = ts.replace(tzinfo=dateutil.tz.tzutc())
-
             self.log.info("Verify object date: %s > %s", blob_update_time, ts)
-
             if blob_update_time > ts:
                 return True
-
         return False
 
     def is_updated_between(self, bucket_name, object_name, min_ts, max_ts):
@@ -321,27 +326,15 @@ class GCSHook(CloudBaseHook):
         :param max_ts: The maximum timestamp to check against.
         :type max_ts: datetime.datetime
         """
-        client = self.get_conn()
-        bucket = client.bucket(bucket_name)
-        blob = bucket.get_blob(blob_name=object_name)
-
-        if blob is None:
-            raise ValueError("Object ({}) not found in Bucket ({})".format(
-                object_name, bucket_name))
-
-        blob_update_time = blob.updated
-
+        blob_update_time = self.get_blob_update_time(bucket_name, object_name)
         if blob_update_time is not None:
             import dateutil.tz
-
             if not min_ts.tzinfo:
                 min_ts = min_ts.replace(tzinfo=dateutil.tz.tzutc())
             if not max_ts.tzinfo:
                 max_ts = max_ts.replace(tzinfo=dateutil.tz.tzutc())
-
             self.log.info("Verify object date: %s is between %s and %s", blob_update_time, min_ts, max_ts)
-
-            if min_ts < blob_update_time < max_ts:
+            if min_ts <= blob_update_time < max_ts:
                 return True
         return False
 
@@ -357,27 +350,37 @@ class GCSHook(CloudBaseHook):
         :param ts: The timestamp to check against.
         :type ts: datetime.datetime
         """
-        client = self.get_conn()
-        bucket = client.bucket(bucket_name)
-        blob = bucket.get_blob(blob_name=object_name)
-
-        if blob is None:
-            raise ValueError("Object ({}) not found in Bucket ({})".format(
-                object_name, bucket_name))
-
-        blob_update_time = blob.updated
-
+        blob_update_time = self.get_blob_update_time(bucket_name, object_name)
         if blob_update_time is not None:
             import dateutil.tz
-
             if not ts.tzinfo:
                 ts = ts.replace(tzinfo=dateutil.tz.tzutc())
-
             self.log.info("Verify object date: %s < %s", blob_update_time, ts)
-
             if blob_update_time < ts:
                 return True
+        return False
 
+    def is_older_than(self, bucket_name, object_name, seconds):
+        """
+        Check if object is older than given time
+
+        :param bucket_name: The Google Cloud Storage bucket where the object is.
+        :type bucket_name: str
+        :param object_name: The name of the object to check in the Google cloud
+            storage bucket.
+        :type object_name: str
+        :param seconds: The time in seconds to check against
+        :type seconds: int
+        """
+        blob_update_time = self.get_blob_update_time(bucket_name, object_name)
+        if blob_update_time is not None:
+            from airflow.utils import timezone
+            from datetime import timedelta
+            current_time = timezone.utcnow()
+            given_time = current_time - timedelta(seconds=seconds)
+            self.log.info("Verify object date: %s is older than %s", blob_update_time, given_time)
+            if blob_update_time < given_time:
+                return True
         return False
 
     def delete(self, bucket_name, object_name):
