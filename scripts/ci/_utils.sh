@@ -37,7 +37,8 @@ function verbose_docker {
     docker "${@}"
 }
 
-function initialize_breeze_environment {
+# Common environment that is initialized by both Breeze and CI scripts
+function initialize_common_environment {
     # default python version
     PYTHON_VERSION=${PYTHON_VERSION:="3.6"}
 
