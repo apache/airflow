@@ -158,6 +158,9 @@ class TaskInstance(Base, LoggingMixin):
     queued_dttm = Column(UtcDateTime)
     pid = Column(Integer)
     executor_config = Column(PickleType(pickler=dill))
+
+    final_state = Column(String(20))  # 最终状态牵涉2次检验
+
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they wont display in the UI correctly
 

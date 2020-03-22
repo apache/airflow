@@ -315,6 +315,13 @@ def initdb(rbac=False):
             conn_id='opsgenie_default', conn_type='http',
             host='', password=''))
 
+    merge_conn(
+        Connection(
+            conn_id='rabbitmq_default', conn_type='rabbitmq',
+            login='root',
+            schema='amqp',
+            host='localhost', port=5672))
+
     # Known event types
     KET = models.KnownEventType
     if not session.query(KET).filter(KET.know_event_type == 'Holiday').first():
