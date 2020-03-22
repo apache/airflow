@@ -29,7 +29,7 @@ from mock import Mock, patch
 from parameterized import parameterized
 
 from airflow import settings
-from airflow.bin import cli
+from airflow.cli import cli_parser
 from airflow.exceptions import (
     AirflowException, AirflowTaskTimeout, DagConcurrencyLimitReached, NoAvailablePoolSlot,
     TaskConcurrencyLimitReached,
@@ -85,7 +85,7 @@ class TestBackfillJob(unittest.TestCase):
         clear_db_runs()
         clear_db_pools()
 
-        self.parser = cli.get_parser()
+        self.parser = cli_parser.get_parser()
 
     def test_unfinished_dag_runs_set_to_failed(self):
         dag = self._get_dummy_dag('dummy_dag')

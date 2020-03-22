@@ -21,14 +21,14 @@ import re
 from collections import Counter
 from unittest import TestCase
 
-from airflow.bin import cli
+from airflow.cli import cli_parser
 
 # Can not be `--snake_case` or contain uppercase letter
 ILLEGAL_LONG_OPTION_PATTERN = re.compile("^--[a-z]+_[a-z]+|^--.*[A-Z].*")
 # Only can be `-[a-z]` or `-[A-Z]`
 LEGAL_SHORT_OPTION_PATTERN = re.compile("^-[a-zA-z]$")
 
-cli_args = {k: v for k, v in cli.__dict__.items() if k.startswith("ARG_")}
+cli_args = {k: v for k, v in cli_parser.__dict__.items() if k.startswith("ARG_")}
 
 
 class TestCli(TestCase):
@@ -66,8 +66,8 @@ class TestCli(TestCase):
         Test if each of cli.*_COMMANDS without conflict subcommand
         """
         subcommand = {
-            var: cli.__dict__.get(var)
-            for var in cli.__dict__
+            var: cli_parser.__dict__.get(var)
+            for var in cli_parser.__dict__
             if var.isupper() and var.startswith("COMMANDS")
         }
         for group_name, sub in subcommand.items():
@@ -80,8 +80,8 @@ class TestCli(TestCase):
         Test if each of cli.*_COMMANDS.arg name without conflict
         """
         subcommand = {
-            var: cli.__dict__.get(var)
-            for var in cli.__dict__
+            var: cli_parser.__dict__.get(var)
+            for var in cli_parser.__dict__
             if var.isupper() and var.startswith("COMMANDS")
         }
         for group, command in subcommand.items():
@@ -97,7 +97,7 @@ class TestCli(TestCase):
         """
         subcommand = {
             key: val
-            for key, val in cli.__dict__.items()
+            for key, val in cli_parser.__dict__.items()
             if key.isupper() and key.startswith("COMMANDS")
         }
         for group, command in subcommand.items():

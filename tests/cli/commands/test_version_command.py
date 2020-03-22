@@ -20,14 +20,14 @@ import unittest
 from contextlib import redirect_stdout
 
 import airflow.cli.commands.version_command
-from airflow.bin import cli
+from airflow.cli import cli_parser
 from airflow.version import version
 
 
 class TestCliVersion(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.parser = cli.get_parser()
+        cls.parser = cli_parser.get_parser()
 
     def test_cli_version(self):
         with redirect_stdout(io.StringIO()) as stdout:

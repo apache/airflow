@@ -654,7 +654,11 @@ def do_setup(pinned=False):
         },
         include_package_data=True,
         zip_safe=False,
-        scripts=['airflow/bin/airflow'],
+        entry_points={
+            "console_scripts": [
+                "airflow = airflow.__main__:main",
+            ],
+        },
         install_requires=get_install_requires(pinned=pinned),
         setup_requires=[
             'bowler',

@@ -25,7 +25,7 @@ import pytest
 import sqlalchemy
 
 import airflow
-from airflow.bin import cli
+from airflow.cli import cli_parser
 from airflow.cli.commands import celery_command
 from airflow.configuration import conf
 from tests.test_utils.config import conf_vars
@@ -71,11 +71,11 @@ class TestWorkerServeLogs(unittest.TestCase):
     @classmethod
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def setUpClass(cls):
-        importlib.reload(cli)
-        cls.parser = cli.get_parser()
+        importlib.reload(cli_parser)
+        cls.parser = cli_parser.get_parser()
 
     def tearDown(self):
-        importlib.reload(cli)
+        importlib.reload(cli_parser)
 
     @mock.patch('airflow.cli.commands.celery_command.worker_bin')
     def test_serve_logs_on_worker_start(self, mock_worker):
@@ -102,11 +102,11 @@ class TestCeleryStopCommand(unittest.TestCase):
     @classmethod
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def setUpClass(cls):
-        importlib.reload(cli)
-        cls.parser = cli.get_parser()
+        importlib.reload(cli_parser)
+        cls.parser = cli_parser.get_parser()
 
     def tearDown(self):
-        importlib.reload(cli)
+        importlib.reload(cli_parser)
 
     @mock.patch("airflow.cli.commands.celery_command.setup_locations")
     @mock.patch("airflow.cli.commands.celery_command.psutil.Process")
@@ -158,11 +158,11 @@ class TestWorkerStart(unittest.TestCase):
     @classmethod
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def setUpClass(cls):
-        importlib.reload(cli)
-        cls.parser = cli.get_parser()
+        importlib.reload(cli_parser)
+        cls.parser = cli_parser.get_parser()
 
     def tearDown(self):
-        importlib.reload(cli)
+        importlib.reload(cli_parser)
 
     @mock.patch("airflow.cli.commands.celery_command.setup_locations")
     @mock.patch('airflow.cli.commands.celery_command.Process')

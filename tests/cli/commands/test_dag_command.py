@@ -26,7 +26,7 @@ from datetime import datetime, time, timedelta
 import mock
 import pytz
 
-import airflow.bin.cli as cli
+import airflow.cli.cli_parser as cli
 from airflow import settings
 from airflow.cli.commands import dag_command
 from airflow.exceptions import AirflowException

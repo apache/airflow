@@ -20,7 +20,7 @@ from unittest import mock
 
 from sqlalchemy.engine.url import make_url
 
-from airflow.bin import cli
+from airflow.cli import cli_parser
 from airflow.cli.commands import db_command
 from airflow.exceptions import AirflowException
 
@@ -28,7 +28,7 @@ from airflow.exceptions import AirflowException
 class TestCliDb(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.parser = cli.get_parser()
+        cls.parser = cli_parser.get_parser()
 
     @mock.patch("airflow.cli.commands.db_command.db.initdb")
     def test_cli_initdb(self, mock_initdb):

@@ -20,7 +20,7 @@ import os
 import unittest
 
 from airflow import models
-from airflow.bin import cli
+from airflow.cli import cli_parser
 from airflow.cli.commands import variable_command
 from airflow.models import Variable
 
@@ -29,7 +29,7 @@ class TestCliVariables(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = models.DagBag(include_examples=True)
-        cls.parser = cli.get_parser()
+        cls.parser = cli_parser.get_parser()
 
     def test_variables(self):
         # Checks if all subcommands are properly received

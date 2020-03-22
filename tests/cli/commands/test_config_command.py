@@ -19,7 +19,7 @@ import io
 import unittest
 from unittest import mock
 
-from airflow.bin import cli
+from airflow.cli import cli_parser
 from airflow.cli.commands import config_command
 from tests.test_utils.config import conf_vars
 
@@ -27,7 +27,7 @@ from tests.test_utils.config import conf_vars
 class TestCliConfig(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.parser = cli.get_parser()
+        cls.parser = cli_parser.get_parser()
 
     @mock.patch("airflow.cli.commands.config_command.io.StringIO")
     @mock.patch("airflow.cli.commands.config_command.conf")

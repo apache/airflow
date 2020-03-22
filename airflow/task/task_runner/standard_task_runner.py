@@ -53,7 +53,7 @@ class StandardTaskRunner(BaseTaskRunner):
             self.log.info("Started process %d to run task", pid)
             return psutil.Process(pid)
         else:
-            from airflow.bin.cli import get_parser
+            from airflow.cli.cli_parser import get_parser
             import signal
             import airflow.settings as settings
 

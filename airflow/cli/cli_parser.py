@@ -27,15 +27,13 @@ from typing import Callable, Dict, Iterable, List, NamedTuple, Set, Union
 
 from tabulate import tabulate_formats
 
-from airflow import api, settings
+from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.helpers import partition
 from airflow.utils.module_loading import import_string
 from airflow.utils.timezone import parse as parsedate
-
-api.load_auth()
 
 DAGS_FOLDER = settings.DAGS_FOLDER
 
@@ -1150,7 +1148,7 @@ def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
         def error(self, message):
             self.print_help()
             self.exit(2, '\n{} command error: {}, see help above.\n'.format(self.prog, message))
-    parser = DefaultHelpParser()
+    parser = DefaultHelpParser(prog="airflow")
     subparsers = parser.add_subparsers(
         help='sub-command help', dest='subcommand')
     subparsers.required = True

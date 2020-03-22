@@ -25,7 +25,7 @@ from unittest import mock
 from parameterized import parameterized
 from tabulate import tabulate
 
-from airflow.bin import cli
+from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, TaskInstance
@@ -50,7 +50,7 @@ class TestCliTasks(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = DagBag(include_examples=True)
-        cls.parser = cli.get_parser()
+        cls.parser = cli_parser.get_parser()
 
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags:
@@ -251,7 +251,7 @@ class TestCliTaskBackfill(unittest.TestCase):
         clear_db_runs()
         clear_db_pools()
 
-        self.parser = cli.get_parser()
+        self.parser = cli_parser.get_parser()
 
     def test_run_ignores_all_dependencies(self):
         """

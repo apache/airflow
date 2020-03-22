@@ -19,7 +19,7 @@
 import unittest
 from unittest import mock
 
-from airflow.bin import cli
+from airflow.cli import cli_parser
 from airflow.cli.commands import sync_perm_command
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
@@ -30,7 +30,7 @@ class TestCliSyncPerm(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = DagBag(include_examples=True)
-        cls.parser = cli.get_parser()
+        cls.parser = cli_parser.get_parser()
 
     def setUp(self):
         from airflow.www import app as application

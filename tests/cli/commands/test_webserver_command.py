@@ -25,7 +25,7 @@ from unittest import mock
 import psutil
 
 from airflow import settings
-from airflow.bin import cli
+from airflow.cli import cli_parser
 from airflow.cli.commands import webserver_command
 from airflow.cli.commands.webserver_command import get_num_ready_workers_running
 from airflow.models import DagBag
@@ -38,7 +38,7 @@ class TestCLIGetNumReadyWorkersRunning(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = DagBag(include_examples=True)
-        cls.parser = cli.get_parser()
+        cls.parser = cli_parser.get_parser()
 
     def setUp(self):
         self.gunicorn_master_proc = mock.Mock(pid=None)
@@ -89,7 +89,7 @@ class TestCLIGetNumReadyWorkersRunning(unittest.TestCase):
 class TestCliWebServer(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.parser = cli.get_parser()
+        cls.parser = cli_parser.get_parser()
 
     def setUp(self) -> None:
         self._check_processes()
