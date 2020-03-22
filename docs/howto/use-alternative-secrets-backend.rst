@@ -147,7 +147,7 @@ of the connection object.
 GCP Secrets Manager Backend
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To enable GCP Secrets Manager to retrieve connection, specify :py:class:`~airflow.providers.google.cloud.secrets.secrets_manager.GcpSecretsManagerSecretsBackend`
+To enable GCP Secrets Manager to retrieve connection, specify :py:class:`~airflow.providers.google.cloud.secrets.secrets_manager.CloudSecretsManagerSecretsBackend`
 as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg``.
 
 Available parameters to ``backend_kwargs``:
@@ -161,7 +161,7 @@ Here is a sample configuration:
 .. code-block:: ini
 
     [secrets]
-    backend = airflow.providers.google.cloud.secrets.secrets_manager.GcpSecretsManagerSecretsBackend
+    backend = airflow.providers.google.cloud.secrets.secrets_manager.CloudSecretsManagerSecretsBackend
     backend_kwargs = {"connections_prefix": "airflow/connections"}
 
 When ``gcp_key_path`` is not provided, it will use the Application Default Credentials in the current environment. You can set up the credentials with:
