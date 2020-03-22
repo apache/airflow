@@ -17,6 +17,7 @@
 # under the License.
 
 import re
+import warnings
 from datetime import datetime
 from functools import reduce
 from itertools import filterfalse, tee
@@ -190,3 +191,23 @@ def partition(pred: Callable, iterable: Iterable):
     """
     iter_1, iter_2 = tee(iterable)
     return filterfalse(pred, iter_1), filter(pred, iter_2)
+
+
+def chain(*args, **kwargs):
+    """This module is deprecated. Please use `airflow.models.baseoperator.chain`."""
+    warnings.warn(
+        "This module is deprecated. Please use `airflow.models.baseoperator.chain`.",
+        DeprecationWarning, stacklevel=2
+    )
+    from airflow.models.baseoperator import chain as new_chain
+    return new_chain(*args, **kwargs)
+
+
+def cross_downstream(*args, **kwargs):
+    """This module is deprecated. Please use `airflow.models.baseoperator.cross_downstream`."""
+    warnings.warn(
+        "This module is deprecated. Please use `airflow.models.baseoperator.cross_downstream`.",
+        DeprecationWarning, stacklevel=2
+    )
+    from airflow.models.baseoperator import cross_downstream as new_cross_downstream
+    return new_cross_downstream(*args, **kwargs)
