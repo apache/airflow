@@ -236,7 +236,7 @@ def get_credentials_and_project_id(
     return credentials, project_id
 
 
-def _parse_scopes(scopes: str) -> Sequence[str]:
+def _parse_scopes(scopes: Optional[str]) -> Sequence[str]:
     """
     Parse a comma-separated string containing GCP scopes
 
