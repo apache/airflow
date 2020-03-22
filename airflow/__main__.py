@@ -29,6 +29,7 @@ from airflow.configuration import conf
 
 
 def main():
+    """Main executable function"""
     if conf.get("core", "security") == 'kerberos':
         os.environ['KRB5CCNAME'] = conf.get('kerberos', 'ccache')
         os.environ['KRB5_KTNAME'] = conf.get('kerberos', 'keytab')
