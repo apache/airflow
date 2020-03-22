@@ -27,7 +27,7 @@ from tests.test_utils.config import conf_vars
 class TestCliConfig(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.parser = cli.CLIFactory.get_parser()
+        cls.parser = cli.get_parser()
 
     @mock.patch("airflow.cli.commands.config_command.io.StringIO")
     @mock.patch("airflow.cli.commands.config_command.conf")

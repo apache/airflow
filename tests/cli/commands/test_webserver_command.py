@@ -38,7 +38,7 @@ class TestCLIGetNumReadyWorkersRunning(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = DagBag(include_examples=True)
-        cls.parser = cli.CLIFactory.get_parser()
+        cls.parser = cli.get_parser()
 
     def setUp(self):
         self.gunicorn_master_proc = mock.Mock(pid=None)
@@ -89,7 +89,7 @@ class TestCLIGetNumReadyWorkersRunning(unittest.TestCase):
 class TestCliWebServer(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.parser = cli.CLIFactory.get_parser()
+        cls.parser = cli.get_parser()
 
     def setUp(self) -> None:
         self._check_processes()

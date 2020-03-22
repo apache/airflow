@@ -28,7 +28,7 @@ from airflow.exceptions import AirflowException
 class TestCliDb(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.parser = cli.CLIFactory.get_parser()
+        cls.parser = cli.get_parser()
 
     @mock.patch("airflow.cli.commands.db_command.db.initdb")
     def test_cli_initdb(self, mock_initdb):

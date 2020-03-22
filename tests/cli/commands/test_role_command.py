@@ -33,7 +33,7 @@ class TestCliRoles(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = models.DagBag(include_examples=True)
-        cls.parser = cli.CLIFactory.get_parser()
+        cls.parser = cli.get_parser()
 
     def setUp(self):
         from airflow.www import app as application

@@ -22,7 +22,6 @@ from collections import Counter
 from unittest import TestCase
 
 from airflow.bin import cli
-from airflow.bin.cli import CLIFactory
 
 # Can not be `--snake_case` or contain uppercase letter
 ILLEGAL_LONG_OPTION_PATTERN = re.compile("^--[a-z]+_[a-z]+|^--.*[A-Z].*")
@@ -36,7 +35,7 @@ class TestCli(TestCase):
 
     def test_arg_option_long_only(self):
         """
-        Test if the name of CLIFactory.args long option valid
+        Test if the name of cli.args long option valid
         """
         optional_long = [
             arg
@@ -49,7 +48,7 @@ class TestCli(TestCase):
 
     def test_arg_option_mix_short_long(self):
         """
-        Test if the name of CLIFactory.args mix option (-s, --long) valid
+        Test if the name of cli.args mix option (-s, --long) valid
         """
         optional_mix = [
             arg
@@ -64,11 +63,11 @@ class TestCli(TestCase):
 
     def test_subcommand_conflict(self):
         """
-        Test if each of CLIFactory.*_COMMANDS without conflict subcommand
+        Test if each of cli.*_COMMANDS without conflict subcommand
         """
         subcommand = {
-            var: CLIFactory.__dict__.get(var)
-            for var in CLIFactory.__dict__
+            var: cli.__dict__.get(var)
+            for var in cli.__dict__
             if var.isupper() and "COMMANDS" in var
         }
         for group_name, sub in subcommand.items():
@@ -78,11 +77,11 @@ class TestCli(TestCase):
 
     def test_subcommand_arg_name_conflict(self):
         """
-        Test if each of CLIFactory.*_COMMANDS.arg name without conflict
+        Test if each of cli.*_COMMANDS.arg name without conflict
         """
         subcommand = {
-            var: CLIFactory.__dict__.get(var)
-            for var in CLIFactory.__dict__
+            var: cli.__dict__.get(var)
+            for var in cli.__dict__
             if var.isupper() and "COMMANDS" in var
         }
         for group, command in subcommand.items():
@@ -94,47 +93,40 @@ class TestCli(TestCase):
 
     def test_subcommand_arg_flag_conflict(self):
         """
-        Test if each of CLIFactory.*_COMMANDS.arg flags without conflict
+        Test if each of cli.*_COMMANDS.arg flags without conflict
         """
-
-        def cli_args_flags(arg):
-            """
-            Get CLIFactory args flags
-            """
-            return arg.flags
-
         subcommand = {
             key: val
-            for key, val in CLIFactory.__dict__.items()
+            for key, val in cli.__dict__.items()
             if key.isupper() and "COMMANDS" in key
         }
         for group, command in subcommand.items():
             for com in command:
                 position = [
-                    cli_args_flags(a)[0]
+                    a.flags[0]
                     for a in com.args
-                    if (len(cli_args_flags(a)) == 1
-                        and not cli_args_flags(a)[0].startswith("-"))
+                    if (len(a.flags) == 1
+                        and not a.flags[0].startswith("-"))
                 ]
                 conflict_position = [arg for arg, count in Counter(position).items() if count > 1]
                 self.assertListEqual([], conflict_position,
                                      f"Command group {group} function {com.name} have conflict "
                                      f"position flags {conflict_position}")
 
-                long_option = [cli_args_flags(a)[0]
+                long_option = [a.flags[0]
                                for a in com.args
-                               if (len(cli_args_flags(a)) == 1
-                                   and cli_args_flags(a)[0].startswith("-"))] + \
-                              [cli_args_flags(a)[1]
-                               for a in com.args if len(cli_args_flags(a)) == 2]
+                               if (len(a.flags) == 1
+                                   and a.flags[0].startswith("-"))] + \
+                              [a.flags[1]
+                               for a in com.args if len(a.flags) == 2]
                 conflict_long_option = [arg for arg, count in Counter(long_option).items() if count > 1]
                 self.assertListEqual([], conflict_long_option,
                                      f"Command group {group} function {com.name} have conflict "
                                      f"long option flags {conflict_long_option}")
 
                 short_option = [
-                    cli_args_flags(a)[0]
-                    for a in com.args if len(cli_args_flags(a)) == 2
+                    a.flags[0]
+                    for a in com.args if len(a.flags) == 2
                 ]
                 conflict_short_option = [arg for arg, count in Counter(short_option).items() if count > 1]
                 self.assertEqual([], conflict_short_option,

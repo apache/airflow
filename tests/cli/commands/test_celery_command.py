@@ -72,7 +72,7 @@ class TestWorkerServeLogs(unittest.TestCase):
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def setUpClass(cls):
         importlib.reload(cli)
-        cls.parser = cli.CLIFactory.get_parser()
+        cls.parser = cli.get_parser()
 
     def tearDown(self):
         importlib.reload(cli)
@@ -103,7 +103,7 @@ class TestCeleryStopCommand(unittest.TestCase):
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def setUpClass(cls):
         importlib.reload(cli)
-        cls.parser = cli.CLIFactory.get_parser()
+        cls.parser = cli.get_parser()
 
     def tearDown(self):
         importlib.reload(cli)
@@ -159,7 +159,7 @@ class TestWorkerStart(unittest.TestCase):
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def setUpClass(cls):
         importlib.reload(cli)
-        cls.parser = cli.CLIFactory.get_parser()
+        cls.parser = cli.get_parser()
 
     def tearDown(self):
         importlib.reload(cli)

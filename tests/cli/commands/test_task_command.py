@@ -50,7 +50,7 @@ class TestCliTasks(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = DagBag(include_examples=True)
-        cls.parser = cli.CLIFactory.get_parser()
+        cls.parser = cli.get_parser()
 
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags:
@@ -251,7 +251,7 @@ class TestCliTaskBackfill(unittest.TestCase):
         clear_db_runs()
         clear_db_pools()
 
-        self.parser = cli.CLIFactory.get_parser()
+        self.parser = cli.get_parser()
 
     def test_run_ignores_all_dependencies(self):
         """

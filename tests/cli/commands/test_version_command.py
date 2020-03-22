@@ -27,7 +27,7 @@ from airflow.version import version
 class TestCliVersion(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.parser = cli.CLIFactory.get_parser()
+        cls.parser = cli.get_parser()
 
     def test_cli_version(self):
         with redirect_stdout(io.StringIO()) as stdout:

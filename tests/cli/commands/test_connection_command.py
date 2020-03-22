@@ -47,7 +47,7 @@ class TestCliListConnections(unittest.TestCase):
     ]
 
     def setUp(self):
-        self.parser = cli.CLIFactory.get_parser()
+        self.parser = cli.get_parser()
         clear_db_connections()
 
     def tearDown(self):
@@ -80,7 +80,7 @@ TEST_URL = "postgresql://airflow:airflow@host:5432/airflow"
 class TestCliAddConnections(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.parser = cli.CLIFactory.get_parser()
+        cls.parser = cli.get_parser()
         clear_db_connections()
 
     @classmethod
@@ -255,7 +255,7 @@ class TestCliAddConnections(unittest.TestCase):
 class TestCliDeleteConnections(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.parser = cli.CLIFactory.get_parser()
+        cls.parser = cli.get_parser()
         clear_db_connections()
 
     @classmethod

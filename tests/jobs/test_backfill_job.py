@@ -85,7 +85,7 @@ class TestBackfillJob(unittest.TestCase):
         clear_db_runs()
         clear_db_pools()
 
-        self.parser = cli.CLIFactory.get_parser()
+        self.parser = cli.get_parser()
 
     def test_unfinished_dag_runs_set_to_failed(self):
         dag = self._get_dummy_dag('dummy_dag')
