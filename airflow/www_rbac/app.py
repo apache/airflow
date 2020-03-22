@@ -103,7 +103,8 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             app,
             db.session if not session else session,
             security_manager_class=security_manager_class,
-            base_template='appbuilder/baselayout.html')
+            base_template='appbuilder/baselayout.html',
+            update_perms=conf.getboolean('webserver', 'UPDATE_FAB_PERMS'))
 
         def init_views(appbuilder):
             from airflow.www_rbac import views
