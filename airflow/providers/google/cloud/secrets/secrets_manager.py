@@ -43,7 +43,7 @@ class GcpSecretsManagerSecretsBackend(BaseSecretsBackend, LoggingMixin):
     .. code-block:: ini
 
         [secrets]
-        backend = airflow.providers.google.secrets.secrets_manager.GcpSecretsManagerSecretsBackend
+        backend = airflow.providers.google.cloud.secrets.secrets_manager.GcpSecretsManagerSecretsBackend
         backend_kwargs = {"connections_prefix": "airflow/connections"}
 
     For example, if secret id is ``airflow/connections/smtp_default``, this would be accessible

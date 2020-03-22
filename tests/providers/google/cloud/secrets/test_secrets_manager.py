@@ -22,7 +22,7 @@ from google.cloud.secretmanager_v1.types import AccessSecretVersionResponse
 from parameterized import parameterized
 
 from airflow.models import Connection
-from airflow.providers.google.secrets.secrets_manager import GcpSecretsManagerSecretsBackend
+from airflow.providers.google.cloud.secrets.secrets_manager import GcpSecretsManagerSecretsBackend
 
 CREDENTIALS = 'test-creds'
 KEY_FILE = 'test-file.json'
@@ -37,8 +37,8 @@ class TestGcpSecretsManagerBackend(TestCase):
         "connections",
         "airflow"
     ])
-    @mock.patch("airflow.providers.google.secrets.secrets_manager.get_credentials_and_project_id")
-    @mock.patch("airflow.providers.google.secrets.secrets_manager.SecretManagerServiceClient")
+    @mock.patch("airflow.providers.google.cloud.secrets.secrets_manager.get_credentials_and_project_id")
+    @mock.patch("airflow.providers.google.cloud.secrets.secrets_manager.SecretManagerServiceClient")
     def test_get_conn_uri(self, connections_prefix, mock_client_callable, mock_get_creds):
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
         mock_client = mock.MagicMock()
@@ -55,9 +55,9 @@ class TestGcpSecretsManagerBackend(TestCase):
             PROJECT_ID, connections_prefix + "/" + CONN_ID, "latest"
         )
 
-    @mock.patch("airflow.providers.google.secrets.secrets_manager.get_credentials_and_project_id")
+    @mock.patch("airflow.providers.google.cloud.secrets.secrets_manager.get_credentials_and_project_id")
     @mock.patch(
-        "airflow.providers.google.secrets.secrets_manager.GcpSecretsManagerSecretsBackend.get_conn_uri"
+        "airflow.providers.google.cloud.secrets.secrets_manager.GcpSecretsManagerSecretsBackend.get_conn_uri"
     )
     def test_get_connections(self, mock_get_uri, mock_get_creds):
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
@@ -66,8 +66,8 @@ class TestGcpSecretsManagerBackend(TestCase):
         self.assertIsInstance(conns, list)
         self.assertIsInstance(conns[0], Connection)
 
-    @mock.patch("airflow.providers.google.secrets.secrets_manager.get_credentials_and_project_id")
-    @mock.patch("airflow.providers.google.secrets.secrets_manager.SecretManagerServiceClient")
+    @mock.patch("airflow.providers.google.cloud.secrets.secrets_manager.get_credentials_and_project_id")
+    @mock.patch("airflow.providers.google.cloud.secrets.secrets_manager.SecretManagerServiceClient")
     def test_get_conn_uri_non_existent_key(self, mock_client_callable, mock_get_creds):
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
         mock_client = mock.MagicMock()
