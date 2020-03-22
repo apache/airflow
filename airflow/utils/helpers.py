@@ -19,7 +19,8 @@
 import re
 from datetime import datetime
 from functools import reduce
-from typing import Any, Dict, Optional
+from itertools import filterfalse, tee
+from typing import Any, Callable, Dict, Iterable, Optional
 
 from jinja2 import Template
 
@@ -181,3 +182,11 @@ def merge_dicts(dict1, dict2):
         else:
             merged[k] = v
     return merged
+
+
+def partition(pred: Callable, iterable: Iterable):
+    """
+    Use a predicate to partition entries into false entries and true entries
+    """
+    iter_1, iter_2 = tee(iterable)
+    return filterfalse(pred, iter_1), filter(pred, iter_2)
