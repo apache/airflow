@@ -104,7 +104,7 @@ class TestOrderSetup(unittest.TestCase):
         install_requires and setup_requires in setup.py
         """
         pattern_install_and_setup_requires = re.compile(
-            '(install_requires|setup_requires)=\\[(.*?)\\]', re.DOTALL)
+            '(INSTALL_REQUIREMENTS|setup_requires) ?= ?\\[(.*?)\\]', re.DOTALL)
         install_and_setup_requires = pattern_install_and_setup_requires.findall(self.setup_context)
 
         for dependent_requires in install_and_setup_requires:
@@ -121,7 +121,7 @@ class TestOrderSetup(unittest.TestCase):
         Test for an order of dependencies in function do_setup section
         extras_require in setup.py
         """
-        pattern_extras_requires = re.compile('extras_require=\\{(.*?)\\}', re.DOTALL)
+        pattern_extras_requires = re.compile('EXTRAS_REQUIREMENTS = \\{(.*?)\\}', re.DOTALL)
         extras_requires = pattern_extras_requires.findall(self.setup_context)[0]
 
         pattern_dependent = re.compile('\'(.*?)\'')

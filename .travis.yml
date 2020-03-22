@@ -43,6 +43,7 @@ jobs:
       env: >-
         PYTHON_VERSION=3.5
         AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
+        SKIP=generate-requirements
     - name: "Build documentation"
       stage: test
       script: ./scripts/ci/ci_docs.sh
@@ -177,6 +178,12 @@ jobs:
         MYSQL_VERSION=5.7
         PYTHON_VERSION=3.7
       stage: test
+    - name: "Generate requirements"
+      env: >-
+        PYTHON_VERSION=3.5
+      before_install: pip install bowler
+      stage: test
+      script: ./scripts/ci/ci_generate_requirements.sh
 before_install:
   - ./scripts/ci/ci_before_install.sh
 script: ./scripts/ci/ci_run_airflow_testing.sh

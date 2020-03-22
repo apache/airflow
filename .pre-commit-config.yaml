@@ -140,7 +140,7 @@ repos:
     hooks:
       - id: check-hooks-apply
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.4.0
+    rev: v2.5.0
     hooks:
       - id: check-merge-conflict
       - id: debug-statements
@@ -222,6 +222,13 @@ repos:
         files: ^scripts/ci/_utils.sh$|s^scripts/ci/docker_compose/local.yml"
         pass_filenames: false
         require_serial: true
+      - id: update-extras
+        name: Update extras in documentation
+        entry: "./scripts/ci/pre_commit_update_extras.sh"
+        language: system
+        files: ^setup.py$|^INSTALL$|^CONTRIBUTING.rst$
+        pass_filenames: false
+        require_serial: true
       - id: python2-fastcheck
         language: pygrep
         name: Find common Python 3 vs. 2.7 compatibility problems
@@ -266,6 +273,13 @@ repos:
         language: system
         always_run: true
         pass_filenames: false
+      - id: generate-requirements
+        name: Generate requirements
+        entry: "./scripts/ci/pre_commit_generate_requirements.sh"
+        language: system
+        files: ^setup.py$
+        pass_filenames: false
+        require_serial: true
       - id: check-apache-license
         name: Check if licenses are OK for Apache
         entry: "./scripts/ci/pre_commit_check_license.sh"

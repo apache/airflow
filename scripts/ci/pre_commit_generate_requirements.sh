@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,16 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
+export REMEMBER_LAST_ANSWER="true"
 
-FILES_FOR_REBUILD_CHECK=(
- "setup.py"
- "setup.cfg"
- "requirements.txt"
- "Dockerfile"
- ".dockerignore"
- "airflow/version.py"
- "airflow/www_rbac/package.json"
- "airflow/www_rbac/yarn.lock"
- "airflow/www_rbac/webpack.config.js"
-)
-export FILES_FOR_REBUILD_CHECK
+# shellcheck source=scripts/ci/ci_generate_requirements.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/ci_generate_requirements.sh"

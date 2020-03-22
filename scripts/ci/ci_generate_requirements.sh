@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,16 +15,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+export PYTHON_VERSION=${PYTHON_VERSION:-3.5}
 
-FILES_FOR_REBUILD_CHECK=(
- "setup.py"
- "setup.cfg"
- "requirements.txt"
- "Dockerfile"
- ".dockerignore"
- "airflow/version.py"
- "airflow/www_rbac/package.json"
- "airflow/www_rbac/yarn.lock"
- "airflow/www_rbac/webpack.config.js"
-)
-export FILES_FOR_REBUILD_CHECK
+# shellcheck source=scripts/ci/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
+
+function run_generate_requirements() {
+        docker run "${EXTRA_DOCKER_FLAGS[@]}" \
+            --entrypoint "/usr/local/bin/dumb-init"  \
+            --env PYTHONDONTWRITEBYTECODE \
+            --env VERBOSE \
+            --env VERBOSE_COMMANDS \
+            --env HOST_USER_ID="$(id -ur)" \
+            --env HOST_GROUP_ID="$(id -gr)" \
+            --env UPGRADE_WHILE_GENERATING_REQUIREMENTS \
+            --rm \
+            "${AIRFLOW_CI_IMAGE}" \
+            "--" "/opt/airflow/scripts/ci/in_container/run_generate_requirements.sh" \
+            | tee -a "${OUTPUT_LOG}"
+}
+
+prepare_build
+
+rebuild_ci_image_if_needed
+
+run_generate_requirements

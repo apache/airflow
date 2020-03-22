@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,15 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-FILES_FOR_REBUILD_CHECK=(
- "setup.py"
- "setup.cfg"
- "requirements.txt"
- "Dockerfile"
- ".dockerignore"
- "airflow/version.py"
- "airflow/www_rbac/package.json"
- "airflow/www_rbac/yarn.lock"
- "airflow/www_rbac/webpack.config.js"
-)
-export FILES_FOR_REBUILD_CHECK
+set -euo pipefail
+
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+cd "${MY_DIR}/../../" || exit;
+
+# shellcheck source=scripts/ci/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
+
+PYTHONPATH="$(pwd)"
+export PYTHONPATH
+
+python3 tests/insert_extras.py
