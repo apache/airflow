@@ -35,7 +35,7 @@ class TestCliPools(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = DagBag(include_examples=True)
-        cls.parser = cli_parser.CLIFactory.get_parser()
+        cls.parser = cli_parser.get_parser()
 
     def setUp(self):
         super().setUp()
