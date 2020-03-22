@@ -366,7 +366,6 @@ COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
 
 COPY airflow/version.py ${AIRFLOW_SOURCES}/airflow/version.py
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
-COPY airflow/bin/airflow ${AIRFLOW_SOURCES}/airflow/bin/airflow
 
 COPY requirements.txt ${AIRFLOW_SOURCES}/requirements.txt
 
