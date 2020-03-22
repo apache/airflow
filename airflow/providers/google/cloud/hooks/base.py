@@ -168,9 +168,9 @@ class CloudBaseHook(BaseHook):
         if self._cached_credentials is not None:
             return self._cached_credentials, self._cached_project_id
 
-        key_path = self._get_field('key_path', None)  # type: Optional[str]
+        key_path: Optional[str] = self._get_field('key_path', None)
         try:
-            keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[str]
+            keyfile_dict: Optional[str] = self._get_field('keyfile_dict', None)
             keyfile_dict_json: Optional[Dict[str, str]] = None
             if keyfile_dict:
                 keyfile_dict_json = json.loads(keyfile_dict)

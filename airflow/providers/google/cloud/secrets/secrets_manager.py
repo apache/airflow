@@ -34,7 +34,7 @@ from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class GcpSecretsManagerSecretsBackend(BaseSecretsBackend, LoggingMixin):
+class CloudSecretsManagerSecretsBackend(BaseSecretsBackend, LoggingMixin):
     """
     Retrieves Connection object from GCP Secrets Manager
 
@@ -43,7 +43,7 @@ class GcpSecretsManagerSecretsBackend(BaseSecretsBackend, LoggingMixin):
     .. code-block:: ini
 
         [secrets]
-        backend = airflow.providers.google.cloud.secrets.secrets_manager.GcpSecretsManagerSecretsBackend
+        backend = airflow.providers.google.cloud.secrets.secrets_manager.CloudSecretsManagerSecretsBackend
         backend_kwargs = {"connections_prefix": "airflow/connections"}
 
     For example, if secret id is ``airflow/connections/smtp_default``, this would be accessible
@@ -94,7 +94,7 @@ class GcpSecretsManagerSecretsBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: connection id
         :type conn_id: str
         """
-        secret_id = self.connections_prefix + "/" + conn_id
+        secret_id = f"{self.connections_prefix}/{conn_id}"
         return secret_id
 
     def get_conn_uri(self, conn_id: str) -> Optional[str]:
@@ -113,8 +113,8 @@ class GcpSecretsManagerSecretsBackend(BaseSecretsBackend, LoggingMixin):
             value = response.payload.data.decode('UTF-8')
             return value
         except NotFound:
-            self.log.info(
-                "GCP API Call Error (NotFoun): Secret ID %s not found.", secret_id
+            self.log.error(
+                "GCP API Call Error (NotFound): Secret ID %s not found.", secret_id
             )
             return None
 

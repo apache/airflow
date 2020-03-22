@@ -36,7 +36,7 @@ from airflow.utils.process_utils import patch_environ
 log = logging.getLogger(__name__)
 
 AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT = "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT"
-_DEFAULT_SCOPES = ('https://www.googleapis.com/auth/cloud-platform',)  # type: Sequence[str]
+_DEFAULT_SCOPES: Sequence[str] = ('https://www.googleapis.com/auth/cloud-platform',)
 
 
 def build_gcp_conn(
