@@ -68,7 +68,7 @@ class TestCli(TestCase):
         subcommand = {
             var: cli.__dict__.get(var)
             for var in cli.__dict__
-            if var.isupper() and "COMMANDS" in var
+            if var.isupper() and var.startswith("COMMANDS")
         }
         for group_name, sub in subcommand.items():
             name = [command.name.lower() for command in sub]
@@ -82,7 +82,7 @@ class TestCli(TestCase):
         subcommand = {
             var: cli.__dict__.get(var)
             for var in cli.__dict__
-            if var.isupper() and "COMMANDS" in var
+            if var.isupper() and var.startswith("COMMANDS")
         }
         for group, command in subcommand.items():
             for com in command:
@@ -98,7 +98,7 @@ class TestCli(TestCase):
         subcommand = {
             key: val
             for key, val in cli.__dict__.items()
-            if key.isupper() and "COMMANDS" in key
+            if key.isupper() and key.startswith("COMMANDS")
         }
         for group, command in subcommand.items():
             for com in command:

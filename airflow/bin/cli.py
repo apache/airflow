@@ -1137,7 +1137,7 @@ if conf.get("core", "EXECUTOR") == ExecutorLoader.CELERY_EXECUTOR or BUILD_DOCS:
             )
         )
     ))
-COMMANDS_DICT: Dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
+ALL_COMMANDS_DICT: Dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
 DAG_CLI_COMMANDS: Set[str] = {
     'list_tasks', 'backfill', 'test', 'run', 'pause', 'unpause', 'list_dag_runs'
 }
@@ -1155,10 +1155,10 @@ def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
         help='sub-command help', dest='subcommand')
     subparsers.required = True
 
-    subparser_list = DAG_CLI_COMMANDS if dag_parser else COMMANDS_DICT.keys()
+    subparser_list = DAG_CLI_COMMANDS if dag_parser else ALL_COMMANDS_DICT.keys()
     sub_name: str
     for sub_name in sorted(subparser_list):
-        sub: CLICommand = COMMANDS_DICT[sub_name]
+        sub: CLICommand = ALL_COMMANDS_DICT[sub_name]
         _add_command(subparsers, sub)
     return parser
 
