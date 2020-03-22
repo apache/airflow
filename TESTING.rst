@@ -813,10 +813,14 @@ your local sources to the ``/opt/airflow`` location of the sources within the co
     :align: center
     :alt: Source code mapping
 
+Remote Debugging on Travis CI
+=============================
+
 You can also connect IDE to Travis CI. To do this, you must pass a public IP address in the ``pydevd.set_trace``
 method. If you do not have a public IP address then you can start the virtual machine at the cloud service
 provider for the time of debugging. You also need to install the appropriate debugger in Travis CI. You
-need also to modify the ``scripts/ci/in_container/entrypoint.sh`` file to add an pip install command after the license header,
+need to modify the ``scripts/ci/in_container/entrypoint.sh`` file to add an pip install command
+after the license header.
 
 Setup VM on GCP with SSH forwarding
 -----------------------------------
