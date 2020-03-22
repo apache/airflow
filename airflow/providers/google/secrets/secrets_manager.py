@@ -27,7 +27,9 @@ from google.cloud.secretmanager_v1 import SecretManagerServiceClient
 
 from airflow import version
 from airflow.models import Connection
-from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
+from airflow.providers.google.cloud.utils.credentials_provider import (
+    _get_scopes, get_credentials_and_project_id,
+)
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -63,10 +65,10 @@ class GcpSecretsManagerSecretsBackend(BaseSecretsBackend, LoggingMixin):
         **kwargs
     ):
         self.connections_prefix = connections_prefix.rstrip("/")
-        self.credentials, self.project_id = get_credentials_and_project_id(
-            gcp_key_path=gcp_key_path,
-            gcp_scopes=gcp_scopes
-        )
+        self.gcp_key_path = gcp_key_path
+        self.gcp_scopes = gcp_scopes
+        self.credentials: Optional[str] = None
+        self.project_id: Optional[str] = None
         super().__init__(**kwargs)
 
     @cached_property
@@ -74,6 +76,11 @@ class GcpSecretsManagerSecretsBackend(BaseSecretsBackend, LoggingMixin):
         """
         Create an authenticated KMS client
         """
+        scopes = _get_scopes(self.gcp_scopes)
+        self.credentials, self.project_id = get_credentials_and_project_id(
+            key_path=self.gcp_key_path,
+            scopes=scopes
+        )
         _client = SecretManagerServiceClient(
             credentials=self.credentials,
             client_info=ClientInfo(client_library_version='airflow_v' + version.version)
