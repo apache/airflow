@@ -32,9 +32,9 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.debug_executor import DebugExecutor
 from airflow.jobs.base_job import BaseJob
-from airflow.models import DagBag, DagModel, DagRun, TaskInstance
-from airflow.models.dag import DAG
-from airflow.utils import cli as cli_utils
+from airflow.models import DagModel, DagRun, TaskInstance
+from airflow.models.dagbag import DagBag
+from airflow.utils import cli as cli_utils, dag_cleaner
 from airflow.utils.cli import get_dag, get_dag_by_file_location, process_subdir, sigint_handler
 from airflow.utils.dot_renderer import render_dag
 from airflow.utils.session import create_session
@@ -101,7 +101,7 @@ def dag_backfill(args, dag=None):
             ti.dry_run()
     else:
         if args.reset_dagruns:
-            DAG.clear_dags(
+            dag_cleaner.clear_dags(
                 [dag],
                 start_date=args.start_date,
                 end_date=args.end_date,
@@ -341,5 +341,5 @@ def dag_list_dag_runs(args, dag=None):
 def dag_test(args):
     """Execute one single DagRun for a given DAG and execution date, using the DebugExecutor."""
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
-    dag.clear(start_date=args.execution_date, end_date=args.execution_date, reset_dag_runs=True)
+    dag_cleaner.clear(dag, start_date=args.execution_date, end_date=args.execution_date, reset_dag_runs=True)
     dag.run(executor=DebugExecutor(), start_date=args.execution_date, end_date=args.execution_date)

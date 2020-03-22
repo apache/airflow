@@ -61,12 +61,13 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
-from airflow.utils import timezone
+from airflow.utils import dag_cleaner, timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.helpers import alchemy_to_dict, render_log_filename
 from airflow.utils.session import create_session, provide_session
@@ -83,9 +84,9 @@ PAGE_SIZE = conf.getint('webserver', 'page_size')
 FILTER_TAGS_COOKIE = 'tags_filter'
 
 if os.environ.get('SKIP_DAGS_PARSING') != 'True':
-    dagbag = models.DagBag(settings.DAGS_FOLDER, store_serialized_dags=STORE_SERIALIZED_DAGS)
+    dagbag = DagBag(settings.DAGS_FOLDER, store_serialized_dags=STORE_SERIALIZED_DAGS)
 else:
-    dagbag = models.DagBag(os.devnull, include_examples=False)
+    dagbag = DagBag(os.devnull, include_examples=False)
 
 
 def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
@@ -1062,7 +1063,8 @@ class Airflow(AirflowBaseView):
             return redirect(origin)
 
         try:
-            tis = dag.clear(
+            tis = dag_cleaner.clear(
+                dag,
                 start_date=start_date,
                 end_date=end_date,
                 include_subdags=recursive,
@@ -1861,8 +1863,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         is_paused = True if request.args.get('is_paused') == 'false' else False
         models.DagModel.get_dagmodel(dag_id).set_is_paused(
-            is_paused=is_paused,
-            store_serialized_dags=STORE_SERIALIZED_DAGS)
+            is_paused=is_paused)
         return "OK"
 
     @expose('/refresh', methods=['POST'])

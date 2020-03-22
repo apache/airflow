@@ -30,7 +30,7 @@ from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DAG
 from airflow.models.dagcode import DagCode
 from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.settings import json
+from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, STORE_SERIALIZED_DAGS, json
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -193,3 +193,19 @@ class SerializedDagModel(Base):
             DagModel.root_dag_id).filter(DagModel.dag_id == dag_id).scalar()
 
         return session.query(cls).filter(cls.dag_id == root_dag_id).one_or_none()
+
+    @provide_session
+    def bulk_sync_to_db(self, dags: List[DAG], session=None):
+        """Stores list of dags in DB as SerializedDagModel"""
+        if not STORE_SERIALIZED_DAGS:
+            return
+
+        for dag in dags:
+            if dag.is_subdag:
+                continue
+
+            SerializedDagModel.write_dag(
+                dag,
+                min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
+                session=session
+            )

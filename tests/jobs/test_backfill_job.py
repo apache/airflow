@@ -36,10 +36,11 @@ from airflow.exceptions import (
 )
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.jobs.scheduler_job import DagFileProcessor
-from airflow.models import DAG, DagBag, Pool, TaskInstance as TI
+from airflow.models import DAG, Pool, TaskInstance as TI
+from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.utils import timezone
+from airflow.utils import dag_cleaner, timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
@@ -67,7 +68,7 @@ class TestBackfillJob(unittest.TestCase):
                 task_concurrency=task_concurrency,
                 dag=dag)
 
-        dag.clear()
+        dag_cleaner.clear(dag)
         return dag
 
     def _times_called_with(self, method, class_):
@@ -208,7 +209,7 @@ class TestBackfillJob(unittest.TestCase):
                         DEFAULT_DATE + datetime.timedelta(days=1))
         self.assertTrue(drs[1].state == State.SUCCESS)
 
-        dag.clear()
+        dag_cleaner.clear(dag)
         session.close()
 
     @pytest.mark.backend("postgres", "mysql")
@@ -550,7 +551,7 @@ class TestBackfillJob(unittest.TestCase):
                 dag=dag,
             )
 
-        dag.clear()
+        dag_cleaner.clear(dag)
 
         executor = MockExecutor()
 
@@ -589,7 +590,7 @@ class TestBackfillJob(unittest.TestCase):
                 task_id='test_backfill_rerun_failed_task-1',
                 dag=dag)
 
-        dag.clear()
+        dag_cleaner.clear(dag)
 
         executor = MockExecutor()
 
@@ -668,7 +669,7 @@ class TestBackfillJob(unittest.TestCase):
                 task_id='test_backfill_rerun_failed_task-1',
                 dag=dag)
 
-        dag.clear()
+        dag_cleaner.clear(dag)
 
         executor = MockExecutor()
 
@@ -761,7 +762,7 @@ class TestBackfillJob(unittest.TestCase):
         session.close()
 
         dag = self.dagbag.get_dag('test_backfill_pooled_task_dag')
-        dag.clear()
+        dag_cleaner.clear(dag)
 
         executor = MockExecutor(do_update=True)
         job = BackfillJob(
@@ -821,7 +822,7 @@ class TestBackfillJob(unittest.TestCase):
             end_date=end_date,
         )
         dag = self.dagbag.get_dag(dag_id)
-        dag.clear()
+        dag_cleaner.clear(dag)
 
         executor = MockExecutor()
         job = BackfillJob(dag=dag,

@@ -29,13 +29,16 @@ from typing import List, NamedTuple
 from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
 from tabulate import tabulate
 
-from airflow import settings
+from airflow import DAG, settings
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDagBag
 from airflow.exceptions import AirflowDagCycleException
+from airflow.models import DagModel
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.plugins_manager import integrate_dag_plugins
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
-from airflow.utils import timezone
+from airflow.utils import cycle_tester, timezone
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timeout import timeout
@@ -79,9 +82,6 @@ class DagBag(BaseDagBag, LoggingMixin):
     """
 
     # static class variables to detetct dag cycle
-    CYCLE_NEW = 0
-    CYCLE_IN_PROGRESS = 1
-    CYCLE_DONE = 2
     DAGBAG_IMPORT_TIMEOUT = conf.getint('core', 'DAGBAG_IMPORT_TIMEOUT')
     SCHEDULER_ZOMBIE_TASK_THRESHOLD = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
@@ -124,13 +124,9 @@ class DagBag(BaseDagBag, LoggingMixin):
         :param dag_id: DAG Id
         :type dag_id: str
         """
-        # Avoid circular import
-        from airflow.models.dag import DagModel
-
         # Only read DAGs from DB if this dagbag is store_serialized_dags.
         if self.store_serialized_dags:
             # Import here so that serialized dag is only imported when serialization is enabled
-            from airflow.models.serialized_dag import SerializedDagModel
             if dag_id not in self.dags:
                 # Load from DB if not (yet) in the bag
                 row = SerializedDagModel.get(dag_id)
@@ -155,7 +151,6 @@ class DagBag(BaseDagBag, LoggingMixin):
         # Needs to load from file for a store_serialized_dags dagbag.
         enforce_from_file = False
         if self.store_serialized_dags and dag is not None:
-            from airflow.serialization.serialized_objects import SerializedDAG
             enforce_from_file = isinstance(dag, SerializedDAG)
 
         # If the dag corresponding to root_dag_id is absent or expired
@@ -317,7 +312,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         Throws AirflowDagCycleException if a cycle is detected in this dag or its subdags
         """
 
-        dag.test_cycle()  # throws if a task cycle is found
+        cycle_tester.test_cycle(dag)  # throws if a task cycle is found
 
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()
@@ -412,7 +407,6 @@ class DagBag(BaseDagBag, LoggingMixin):
 
     def collect_dags_from_db(self):
         """Collects DAGs from database."""
-        from airflow.models.serialized_dag import SerializedDagModel
         start_dttm = timezone.utcnow()
         self.log.info("Filling up the DagBag from database")
 
@@ -455,5 +449,5 @@ class DagBag(BaseDagBag, LoggingMixin):
         """
         Save attributes about list of DAG to the DB.
         """
-        from airflow.models.dag import DAG
         DAG.bulk_sync_to_db(self.dags.values())
+        SerializedDagModel.bulk_sync_to_db(self.dags.values())

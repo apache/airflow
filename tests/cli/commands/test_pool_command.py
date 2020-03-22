@@ -22,10 +22,11 @@ import os
 import unittest
 from contextlib import redirect_stdout
 
-from airflow import models, settings
+from airflow import settings
 from airflow.cli import cli_parser
 from airflow.cli.commands import pool_command
 from airflow.models import Pool
+from airflow.models.dagbag import DagBag
 from airflow.settings import Session
 from airflow.utils.db import add_default_pool_if_not_exists
 
@@ -33,8 +34,8 @@ from airflow.utils.db import add_default_pool_if_not_exists
 class TestCliPools(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.dagbag = models.DagBag(include_examples=True)
-        cls.parser = cli_parser.get_parser()
+        cls.dagbag = DagBag(include_examples=True)
+        cls.parser = cli_parser.CLIFactory.get_parser()
 
     def setUp(self):
         super().setUp()

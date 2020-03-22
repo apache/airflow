@@ -28,9 +28,10 @@ from tabulate import tabulate
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
 from airflow.exceptions import AirflowException
-from airflow.models import DagBag, TaskInstance
+from airflow.models import TaskInstance
+from airflow.models.dagbag import DagBag
 from airflow.settings import Session
-from airflow.utils import timezone
+from airflow.utils import dag_cleaner, timezone
 from airflow.utils.cli import get_dag
 from airflow.utils.state import State
 from tests.test_utils.db import clear_db_pools, clear_db_runs
@@ -260,7 +261,7 @@ class TestCliTaskBackfill(unittest.TestCase):
         dag_id = 'test_run_ignores_all_dependencies'
 
         dag = self.dagbag.get_dag('test_run_ignores_all_dependencies')
-        dag.clear()
+        dag_cleaner.clear(dag)
 
         task0_id = 'test_run_dependent_task'
         args0 = ['tasks',

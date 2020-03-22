@@ -35,7 +35,7 @@ from pendulum import utcnow
 
 from airflow import models, settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowDagCycleException, AirflowException, DuplicateTaskIdFound
+from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.jobs.scheduler_job import DagFileProcessor
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
@@ -555,137 +555,6 @@ class TestDag(unittest.TestCase):
             task.resolve_template_files()
 
         self.assertEqual(task.test_field, ['{{ ds }}', 'some_string'])
-
-    def test_cycle_empty(self):
-        # test empty
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
-
-        self.assertFalse(dag.test_cycle())
-
-    def test_cycle_single_task(self):
-        # test single task
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
-
-        with dag:
-            DummyOperator(task_id='A')
-
-        self.assertFalse(dag.test_cycle())
-
-    def test_cycle_no_cycle(self):
-        # test no cycle
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
-
-        # A -> B -> C
-        #      B -> D
-        # E -> F
-        with dag:
-            op1 = DummyOperator(task_id='A')
-            op2 = DummyOperator(task_id='B')
-            op3 = DummyOperator(task_id='C')
-            op4 = DummyOperator(task_id='D')
-            op5 = DummyOperator(task_id='E')
-            op6 = DummyOperator(task_id='F')
-            op1.set_downstream(op2)
-            op2.set_downstream(op3)
-            op2.set_downstream(op4)
-            op5.set_downstream(op6)
-
-        self.assertFalse(dag.test_cycle())
-
-    def test_cycle_loop(self):
-        # test self loop
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
-
-        # A -> A
-        with dag:
-            op1 = DummyOperator(task_id='A')
-            op1.set_downstream(op1)
-
-        with self.assertRaises(AirflowDagCycleException):
-            dag.test_cycle()
-
-    def test_cycle_downstream_loop(self):
-        # test downstream self loop
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
-
-        # A -> B -> C -> D -> E -> E
-        with dag:
-            op1 = DummyOperator(task_id='A')
-            op2 = DummyOperator(task_id='B')
-            op3 = DummyOperator(task_id='C')
-            op4 = DummyOperator(task_id='D')
-            op5 = DummyOperator(task_id='E')
-            op1.set_downstream(op2)
-            op2.set_downstream(op3)
-            op3.set_downstream(op4)
-            op4.set_downstream(op5)
-            op5.set_downstream(op5)
-
-        with self.assertRaises(AirflowDagCycleException):
-            dag.test_cycle()
-
-    def test_cycle_large_loop(self):
-        # large loop
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
-
-        # A -> B -> C -> D -> E -> A
-        with dag:
-            op1 = DummyOperator(task_id='A')
-            op2 = DummyOperator(task_id='B')
-            op3 = DummyOperator(task_id='C')
-            op4 = DummyOperator(task_id='D')
-            op5 = DummyOperator(task_id='E')
-            op1.set_downstream(op2)
-            op2.set_downstream(op3)
-            op3.set_downstream(op4)
-            op4.set_downstream(op5)
-            op5.set_downstream(op1)
-
-        with self.assertRaises(AirflowDagCycleException):
-            dag.test_cycle()
-
-    def test_cycle_arbitrary_loop(self):
-        # test arbitrary loop
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
-
-        # E-> A -> B -> F -> A
-        #       -> C -> F
-        with dag:
-            op1 = DummyOperator(task_id='A')
-            op2 = DummyOperator(task_id='B')
-            op3 = DummyOperator(task_id='C')
-            op4 = DummyOperator(task_id='E')
-            op5 = DummyOperator(task_id='F')
-            op1.set_downstream(op2)
-            op1.set_downstream(op3)
-            op4.set_downstream(op1)
-            op3.set_downstream(op5)
-            op2.set_downstream(op5)
-            op5.set_downstream(op1)
-
-        with self.assertRaises(AirflowDagCycleException):
-            dag.test_cycle()
 
     def test_following_previous_schedule(self):
         """

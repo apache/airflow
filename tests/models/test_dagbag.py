@@ -27,7 +27,8 @@ from unittest.mock import patch
 
 import airflow.example_dags
 from airflow import models
-from airflow.models import DagBag, DagModel
+from airflow.models import DagModel
+from airflow.models.dagbag import DagBag
 from airflow.utils.session import create_session
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.config import conf_vars
@@ -46,7 +47,7 @@ class TestDagBag(unittest.TestCase):
         """
         Test that we're able to parse some example DAGs and retrieve them
         """
-        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=True)
+        dagbag = DagBag(dag_folder=self.empty_dir, include_examples=True)
 
         some_expected_dag_ids = ["example_bash_operator",
                                  "example_branch_operator"]
@@ -63,7 +64,7 @@ class TestDagBag(unittest.TestCase):
         """
         test that retrieving a non existing dag id returns None without crashing
         """
-        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+        dagbag = DagBag(dag_folder=self.empty_dir, include_examples=False)
 
         non_existing_dag_id = "non_existing_dag_id"
         self.assertIsNone(dagbag.get_dag(non_existing_dag_id))
@@ -72,7 +73,7 @@ class TestDagBag(unittest.TestCase):
         """
         test that the example are not loaded
         """
-        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+        dagbag = DagBag(dag_folder=self.empty_dir, include_examples=False)
 
         self.assertEqual(dagbag.size(), 0)
 
@@ -86,7 +87,7 @@ class TestDagBag(unittest.TestCase):
             f.flush()
 
             with conf_vars({('core', 'dags_folder'): self.empty_dir}):
-                dagbag = models.DagBag(include_examples=False, safe_mode=True)
+                dagbag = DagBag(include_examples=False, safe_mode=True)
 
             self.assertEqual(len(dagbag.dagbag_stats), 1)
             self.assertEqual(
@@ -99,7 +100,7 @@ class TestDagBag(unittest.TestCase):
         """
         with NamedTemporaryFile(dir=self.empty_dir, suffix=".py"):
             with conf_vars({('core', 'dags_folder'): self.empty_dir}):
-                dagbag = models.DagBag(include_examples=False, safe_mode=True)
+                dagbag = DagBag(include_examples=False, safe_mode=True)
             self.assertEqual(len(dagbag.dagbag_stats), 0)
 
     def test_safe_mode_disabled(self):
@@ -107,7 +108,7 @@ class TestDagBag(unittest.TestCase):
         """
         with NamedTemporaryFile(dir=self.empty_dir, suffix=".py") as f:
             with conf_vars({('core', 'dags_folder'): self.empty_dir}):
-                dagbag = models.DagBag(include_examples=False, safe_mode=False)
+                dagbag = DagBag(include_examples=False, safe_mode=False)
             self.assertEqual(len(dagbag.dagbag_stats), 1)
             self.assertEqual(
                 dagbag.dagbag_stats[0].file,
@@ -121,7 +122,7 @@ class TestDagBag(unittest.TestCase):
         f.write('\u3042'.encode())  # write multi-byte char (hiragana)
         f.flush()
 
-        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+        dagbag = DagBag(dag_folder=self.empty_dir, include_examples=False)
         self.assertEqual([], dagbag.process_file(f.name))
 
     def test_zip_skip_log(self):
@@ -130,10 +131,10 @@ class TestDagBag(unittest.TestCase):
         it doesn't have "airflow" and "DAG"
         """
         from unittest.mock import Mock
-        with patch('airflow.models.DagBag.log') as log_mock:
+        with patch('airflow.models.dagbag.DagBag.log') as log_mock:
             log_mock.info = Mock()
             test_zip_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip")
-            dagbag = models.DagBag(dag_folder=test_zip_path, include_examples=False)
+            dagbag = DagBag(dag_folder=test_zip_path, include_examples=False)
 
             self.assertTrue(dagbag.has_logged)
             log_mock.info.assert_any_call("File %s assumed to contain no DAGs. Skipping.",
@@ -143,7 +144,7 @@ class TestDagBag(unittest.TestCase):
         """
         test the loading of a DAG within a zip file that includes dependencies
         """
-        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+        dagbag = DagBag(dag_folder=self.empty_dir, include_examples=False)
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
         self.assertTrue(dagbag.get_dag("test_zip_dag"))
 
@@ -153,7 +154,7 @@ class TestDagBag(unittest.TestCase):
         as schedule interval can be identified
         """
         invalid_dag_files = ["test_invalid_cron.py", "test_zip_invalid_cron.zip"]
-        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+        dagbag = DagBag(dag_folder=self.empty_dir, include_examples=False)
 
         self.assertEqual(len(dagbag.import_errors), 0)
         for file in invalid_dag_files:
@@ -172,7 +173,7 @@ class TestDagBag(unittest.TestCase):
         mock_dagmodel.return_value.last_expired = None
         mock_dagmodel.return_value.fileloc = 'foo'
 
-        class _TestDagBag(models.DagBag):
+        class _TestDagBag(DagBag):
             process_file_calls = 0
 
             def process_file(self, filepath, only_if_updated=True, safe_mode=True):
@@ -193,7 +194,7 @@ class TestDagBag(unittest.TestCase):
         Test that fileloc is correctly set when we load example DAGs,
         specifically SubDAGs and packaged DAGs.
         """
-        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=True)
+        dagbag = DagBag(dag_folder=self.empty_dir, include_examples=True)
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
 
         expected = {
@@ -284,7 +285,7 @@ class TestDagBag(unittest.TestCase):
         f.write(source.encode('utf8'))
         f.flush()
 
-        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+        dagbag = DagBag(dag_folder=self.empty_dir, include_examples=False)
         found_dags = dagbag.process_file(f.name)
         return dagbag, found_dags, f.name
 
@@ -595,7 +596,7 @@ class TestDagBag(unittest.TestCase):
         """
         test that process_file can handle Nones
         """
-        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+        dagbag = DagBag(dag_folder=self.empty_dir, include_examples=False)
 
         self.assertEqual([], dagbag.process_file(None))
 

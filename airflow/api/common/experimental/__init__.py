@@ -21,7 +21,8 @@ from typing import Optional
 
 from airflow.configuration import conf
 from airflow.exceptions import DagNotFound, DagRunNotFound, TaskNotFound
-from airflow.models import DagBag, DagModel, DagRun
+from airflow.models import DagModel, DagRun
+from airflow.models.dagbag import DagBag
 
 
 def check_and_get_dag(dag_id: str, task_id: Optional[str] = None) -> DagModel:

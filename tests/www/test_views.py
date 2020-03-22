@@ -46,6 +46,7 @@ from airflow.executors.celery_executor import CeleryExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, Connection, DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.dagbag import DagBag
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.bash import BashOperator
@@ -331,7 +332,7 @@ class TestAirflowBaseViews(TestBase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.dagbag = models.DagBag(include_examples=True)
+        cls.dagbag = DagBag(include_examples=True)
         DAG.bulk_sync_to_db(cls.dagbag.dags.values())
 
     def setUp(self):
@@ -610,7 +611,7 @@ class TestAirflowBaseViews(TestBase):
             }
         ):
             from airflow.models.dagcode import DagCode
-            dag = models.DagBag(include_examples=True).get_dag("example_bash_operator")
+            dag = DagBag(include_examples=True).get_dag("example_bash_operator")
             DagCode(dag.fileloc).sync_to_db()
             url = 'code?dag_id=example_bash_operator'
             resp = self.client.get(url)
@@ -624,7 +625,7 @@ class TestAirflowBaseViews(TestBase):
             }
         ):
             from airflow.models.dagcode import DagCode
-            dagbag = models.DagBag(include_examples=True)
+            dagbag = DagBag(include_examples=True)
             for dag in dagbag.dags.values():
                 DagCode(dag.fileloc).sync_to_db()
             url = 'code?dag_id=example_bash_operator'
@@ -1346,11 +1347,11 @@ class TestDagACLView(TestBase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        dagbag = models.DagBag(include_examples=True)
+        dagbag = DagBag(include_examples=True)
         DAG.bulk_sync_to_db(dagbag.dags.values())
 
     def prepare_dagruns(self):
-        dagbag = models.DagBag(include_examples=True)
+        dagbag = DagBag(include_examples=True)
         self.bash_dag = dagbag.dags['example_bash_operator']
         self.sub_dag = dagbag.dags['example_subdag_operator']
 
@@ -2108,7 +2109,7 @@ class TestTriggerDag(TestBase):
     def setUp(self):
         super().setUp()
         self.session = Session()
-        models.DagBag().get_dag("example_bash_operator").sync_to_db(session=self.session)
+        DagBag().get_dag("example_bash_operator").sync_to_db(session=self.session)
 
     def test_trigger_dag_button_normal_exist(self):
         resp = self.client.get('/', follow_redirects=True)
@@ -2391,7 +2392,7 @@ class TestDagRunModelView(TestBase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        models.DagBag().get_dag("example_bash_operator").sync_to_db(session=cls.session)
+        DagBag().get_dag("example_bash_operator").sync_to_db(session=cls.session)
         cls.clear_table(models.DagRun)
 
     def tearDown(self):
@@ -2454,7 +2455,7 @@ class TestDecorators(TestBase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        dagbag = models.DagBag(include_examples=True)
+        dagbag = DagBag(include_examples=True)
         DAG.bulk_sync_to_db(dagbag.dags.values())
 
     def setUp(self):
@@ -2465,7 +2466,7 @@ class TestDecorators(TestBase):
         self.prepare_dagruns()
 
     def prepare_dagruns(self):
-        dagbag = models.DagBag(include_examples=True)
+        dagbag = DagBag(include_examples=True)
         self.bash_dag = dagbag.dags['example_bash_operator']
         self.sub_dag = dagbag.dags['example_subdag_operator']
         self.xcom_dag = dagbag.dags['example_xcom']

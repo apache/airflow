@@ -30,9 +30,9 @@ from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.ext.declarative import declarative_base
 
 from airflow import settings
-from airflow.models import DagBag
 # revision identifiers, used by Alembic.
 from airflow.models.base import COLLATION_ARGS
+from airflow.models.dagbag import DagBag
 
 revision = 'cc1e65623dc7'
 down_revision = '127d2bf2dfa7'

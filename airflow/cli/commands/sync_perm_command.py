@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Sync permission command"""
-from airflow.models import DagBag
+from airflow.models.dagbag import DagBag
 from airflow.utils import cli as cli_utils
 from airflow.www.app import cached_appbuilder
 

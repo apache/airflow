@@ -25,7 +25,8 @@ from freezegun import freeze_time
 from airflow.api.client.local_client import Client
 from airflow.example_dags import example_bash_operator
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagBag, DagModel, Pool
+from airflow.models import DAG, DagModel, Pool
+from airflow.models.dagbag import DagBag
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State

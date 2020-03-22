@@ -20,7 +20,7 @@ import unittest
 from mock import patch
 
 from airflow import AirflowException, example_dags as example_dags_module
-from airflow.models import DagBag
+from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 # To move it to a shared module.
 from airflow.utils.file import open_maybe_zipped

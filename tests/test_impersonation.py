@@ -28,6 +28,7 @@ from copy import deepcopy
 
 from airflow import models
 from airflow.jobs.backfill_job import BackfillJob
+from airflow.models.dagbag import DagBag
 from airflow.utils.db import add_default_pool_if_not_exists
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
@@ -113,7 +114,7 @@ class TestImpersonation(unittest.TestCase):
         check_original_docker_image()
         grant_permissions()
         add_default_pool_if_not_exists()
-        self.dagbag = models.DagBag(
+        self.dagbag = DagBag(
             dag_folder=TEST_DAG_FOLDER,
             include_examples=False,
         )
@@ -190,7 +191,7 @@ class TestImpersonationWithCustomPythonPath(unittest.TestCase):
         check_original_docker_image()
         grant_permissions()
         add_default_pool_if_not_exists()
-        self.dagbag = models.DagBag(
+        self.dagbag = DagBag(
             dag_folder=TEST_DAG_CORRUPTED_FOLDER,
             include_examples=False,
         )

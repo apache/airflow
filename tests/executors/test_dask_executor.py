@@ -22,7 +22,7 @@ from unittest import mock
 
 from airflow.configuration import conf
 from airflow.jobs.backfill_job import BackfillJob
-from airflow.models import DagBag
+from airflow.models.dagbag import DagBag
 from airflow.utils import timezone
 
 try:

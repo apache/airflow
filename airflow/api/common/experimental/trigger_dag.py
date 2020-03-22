@@ -21,7 +21,8 @@ from datetime import datetime
 from typing import List, Optional, Union
 
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
-from airflow.models import DagBag, DagModel, DagRun
+from airflow.models import DagModel, DagRun
+from airflow.models.dagbag import DagBag
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType

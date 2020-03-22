@@ -30,7 +30,8 @@ from airflow import settings
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.exceptions import AirflowException
-from airflow.models import DagBag, DagModel, DagRun
+from airflow.models import DagModel, DagRun
+from airflow.models.dagbag import DagBag
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.state import State

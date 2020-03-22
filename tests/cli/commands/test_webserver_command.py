@@ -28,7 +28,7 @@ from airflow import settings
 from airflow.cli import cli_parser
 from airflow.cli.commands import webserver_command
 from airflow.cli.commands.webserver_command import get_num_ready_workers_running
-from airflow.models import DagBag
+from airflow.models.dagbag import DagBag
 from airflow.utils.cli import setup_locations
 from tests.test_utils.config import conf_vars
 

@@ -30,9 +30,10 @@ from airflow import settings
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.hooks.base_hook import BaseHook
 from airflow.jobs.local_task_job import LocalTaskJob
-from airflow.models import DagBag, DagRun, TaskFail, TaskInstance
+from airflow.models import DagRun, TaskFail, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
+from airflow.models.dagbag import DagBag
 from airflow.operators.bash import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.operators.dummy_operator import DummyOperator

@@ -30,6 +30,7 @@ from airflow.providers.google.cloud.operators.gcs import (
 )
 from airflow.providers.google.cloud.operators.gcs_to_gcs import GCSToGCSOperator
 from airflow.providers.google.cloud.operators.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.utils import dag_cleaner
 from airflow.utils.dates import days_ago
 
 default_args = {"start_date": days_ago(1)}
@@ -152,5 +153,5 @@ with models.DAG(
 
 
 if __name__ == '__main__':
-    dag.clear(reset_dag_runs=True)
+    dag_cleaner.clear(dag, reset_dag_runs=True)
     dag.run()

@@ -38,7 +38,8 @@ from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.jobs.scheduler_job import DagFileProcessor, SchedulerJob
-from airflow.models import DAG, DagBag, DagModel, Pool, SlaMiss, TaskInstance, errors
+from airflow.models import DAG, DagModel, Pool, SlaMiss, TaskInstance, errors
+from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.operators.bash import BashOperator
@@ -202,8 +203,8 @@ class TestDagFileProcessor(unittest.TestCase):
                 session.merge(ti)
 
             # scheduler._process_dags(simple_dag_bag)
-            @mock.patch('airflow.models.DagBag', return_value=dagbag)
-            @mock.patch('airflow.models.DagBag.collect_dags')
+            @mock.patch('airflow.models.dagbag.DagBag', return_value=dagbag)
+            @mock.patch('airflow.models.dagbag.DagBag.collect_dags')
             @mock.patch('airflow.jobs.scheduler_job.SchedulerJob._change_state_for_tis_without_dagrun')
             def do_schedule(mock_dagbag, mock_collect_dags, mock_change_state):
                 # Use a empty file since the above mock will return the
@@ -2508,8 +2509,8 @@ class TestSchedulerJob(unittest.TestCase):
 
         dagbag.bag_dag(dag=dag, root_dag=dag, parent_dag=dag)
 
-        @mock.patch('airflow.models.DagBag', return_value=dagbag)
-        @mock.patch('airflow.models.DagBag.collect_dags')
+        @mock.patch('airflow.models.dagbag.DagBag', return_value=dagbag)
+        @mock.patch('airflow.models.dagbag.DagBag.collect_dags')
         def do_schedule(mock_dagbag, mock_collect_dags):
             # Use a empty file since the above mock will return the
             # expected DAGs. Also specify only a single file so that it doesn't
@@ -2564,8 +2565,8 @@ class TestSchedulerJob(unittest.TestCase):
 
         dagbag.bag_dag(dag=dag, root_dag=dag, parent_dag=dag)
 
-        @mock.patch('airflow.models.DagBag', return_value=dagbag)
-        @mock.patch('airflow.models.DagBag.collect_dags')
+        @mock.patch('airflow.models.dagbag.DagBag', return_value=dagbag)
+        @mock.patch('airflow.models.dagbag.DagBag.collect_dags')
         def do_schedule(mock_dagbag, mock_collect_dags):
             # Use a empty file since the above mock will return the
             # expected DAGs. Also specify only a single file so that it doesn't

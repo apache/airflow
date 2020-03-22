@@ -26,6 +26,7 @@ from parameterized import parameterized
 from airflow import models
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, TaskFail, TaskInstance, XCom
+from airflow.models.dagbag import DagBag
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator, BigQueryConsoleIndexableLink, BigQueryConsoleLink,
     BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator,
@@ -300,7 +301,7 @@ class TestBigQueryUpdateDatasetOperator(unittest.TestCase):
 
 class TestBigQueryOperator(unittest.TestCase):
     def setUp(self):
-        self.dagbag = models.DagBag(
+        self.dagbag = DagBag(
             dag_folder='/dev/null', include_examples=True)
         self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG(TEST_DAG_ID, default_args=self.args)

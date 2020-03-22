@@ -36,7 +36,8 @@ from typing import Optional
 
 from airflow import settings
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagBag, DagModel, DagPickle, Log
+from airflow.models import DAG, DagModel, DagPickle, Log
+from airflow.models.dagbag import DagBag
 from airflow.utils import cli_action_loggers
 from airflow.utils.session import provide_session
 

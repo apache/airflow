@@ -24,9 +24,10 @@ from unittest import mock
 
 import psutil
 
-from airflow import models, settings
+from airflow import settings
 from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models import TaskInstance as TI
+from airflow.models.dagbag import DagBag
 from airflow.task.task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -132,7 +133,7 @@ class TestStandardTaskRunner(unittest.TestCase):
         except OSError:
             pass
 
-        dagbag = models.DagBag(
+        dagbag = DagBag(
             dag_folder=TEST_DAG_FOLDER,
             include_examples=False,
         )

@@ -24,7 +24,8 @@ import pickle
 import re
 import sys
 import traceback
-from collections import OrderedDict, defaultdict
+import warnings
+from collections import OrderedDict
 from datetime import datetime, timedelta
 from typing import Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Type, Union
 
@@ -36,20 +37,16 @@ from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import backref, joinedload, relationship
 from sqlalchemy.orm.session import Session
 
-from airflow import settings, utils
+from airflow import settings
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag
-from airflow.exceptions import (
-    AirflowDagCycleException, AirflowException, DagNotFound, DuplicateTaskIdFound, TaskNotFound,
-)
+from airflow.exceptions import AirflowException, DuplicateTaskIdFound, TaskNotFound
 from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance, clear_task_instances
-from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, STORE_SERIALIZED_DAGS
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.file import correct_maybe_zipped
@@ -924,254 +921,29 @@ class DAG(BaseDag, LoggingMixin):
 
     @provide_session
     def clear(
-            self, start_date=None, end_date=None,
-            only_failed=False,
-            only_running=False,
-            confirm_prompt=False,
-            include_subdags=True,
-            include_parentdag=True,
-            reset_dag_runs=True,
-            dry_run=False,
-            session=None,
-            get_tis=False,
-            recursion_depth=0,
-            max_recursion_depth=None,
-            dag_bag=None,
+        self, *args, **kwargs
     ):
-        """
-        Clears a set of task instances associated with the current dag for
-        a specified date range.
-
-        :param start_date: The minimum execution_date to clear
-        :type start_date: datetime.datetime or None
-        :param end_date: The maximum exeuction_date to clear
-        :type end_date: datetime.datetime or None
-        :param only_failed: Only clear failed tasks
-        :type only_failed: bool
-        :param only_running: Only clear running tasks.
-        :type only_running: bool
-        :param confirm_prompt: Ask for confirmation
-        :type confirm_prompt: bool
-        :param include_subdags: Clear tasks in subdags and clear external tasks
-            indicated by ExternalTaskMarker
-        :type include_subdags: bool
-        :param include_parentdag: Clear tasks in the parent dag of the subdag.
-        :type include_parentdag: bool
-        :param reset_dag_runs: Set state of dag to RUNNING
-        :type reset_dag_runs: bool
-        :param dry_run: Find the tasks to clear but don't clear them.
-        :type dry_run: bool
-        :param session: The sqlalchemy session to use
-        :type session: sqlalchemy.orm.session.Session
-        :param get_tis: Return the sqlachemy query for finding the TaskInstance without clearing the tasks
-        :type get_tis: bool
-        :param recursion_depth: The recursion depth of nested calls to DAG.clear().
-        :type recursion_depth: int
-        :param max_recursion_depth: The maximum recusion depth allowed. This is determined by the
-            first encountered ExternalTaskMarker. Default is None indicating no ExternalTaskMarker
-            has been encountered.
-        :type max_recursion_depth: int
-        :param dag_bag: The DagBag used to find the dags
-        :type dag_bag: airflow.models.dagbag.DagBag
-        """
-        TI = TaskInstance
-        tis = session.query(TI)
-        if include_subdags:
-            # Crafting the right filter for dag_id and task_ids combo
-            conditions = []
-            for dag in self.subdags + [self]:
-                conditions.append(
-                    TI.dag_id.like(dag.dag_id) &
-                    TI.task_id.in_(dag.task_ids)
-                )
-            tis = tis.filter(or_(*conditions))
-        else:
-            tis = session.query(TI).filter(TI.dag_id == self.dag_id)
-            tis = tis.filter(TI.task_id.in_(self.task_ids))
-
-        if include_parentdag and self.is_subdag:
-
-            p_dag = self.parent_dag.sub_dag(
-                task_regex=r"^{}$".format(self.dag_id.split('.')[1]),
-                include_upstream=False,
-                include_downstream=True)
-
-            tis = tis.union(p_dag.clear(
-                start_date=start_date, end_date=end_date,
-                only_failed=only_failed,
-                only_running=only_running,
-                confirm_prompt=confirm_prompt,
-                include_subdags=include_subdags,
-                include_parentdag=False,
-                reset_dag_runs=reset_dag_runs,
-                get_tis=True,
-                session=session,
-                recursion_depth=recursion_depth,
-                max_recursion_depth=max_recursion_depth,
-                dag_bag=dag_bag
-            ))
-
-        if start_date:
-            tis = tis.filter(TI.execution_date >= start_date)
-        if end_date:
-            tis = tis.filter(TI.execution_date <= end_date)
-        if only_failed:
-            tis = tis.filter(or_(
-                TI.state == State.FAILED,
-                TI.state == State.UPSTREAM_FAILED))
-        if only_running:
-            tis = tis.filter(TI.state == State.RUNNING)
-
-        if include_subdags:
-            from airflow.sensors.external_task_sensor import ExternalTaskMarker
-
-            # Recursively find external tasks indicated by ExternalTaskMarker
-            instances = tis.all()
-            for ti in instances:
-                if ti.operator == ExternalTaskMarker.__name__:
-                    ti.task = self.get_task(ti.task_id)
-
-                    if recursion_depth == 0:
-                        # Maximum recursion depth allowed is the recursion_depth of the first
-                        # ExternalTaskMarker in the tasks to be cleared.
-                        max_recursion_depth = ti.task.recursion_depth
-
-                    if recursion_depth + 1 > max_recursion_depth:
-                        # Prevent cycles or accidents.
-                        raise AirflowException("Maximum recursion depth {} reached for {} {}. "
-                                               "Attempted to clear too many tasks "
-                                               "or there may be a cyclic dependency."
-                                               .format(max_recursion_depth,
-                                                       ExternalTaskMarker.__name__, ti.task_id))
-                    ti.render_templates()
-                    external_tis = session.query(TI).filter(TI.dag_id == ti.task.external_dag_id,
-                                                            TI.task_id == ti.task.external_task_id,
-                                                            TI.execution_date ==
-                                                            pendulum.parse(ti.task.execution_date))
-
-                    for tii in external_tis:
-                        if not dag_bag:
-                            dag_bag = DagBag()
-                        external_dag = dag_bag.get_dag(tii.dag_id)
-                        if not external_dag:
-                            raise AirflowException("Could not find dag {}".format(tii.dag_id))
-                        downstream = external_dag.sub_dag(
-                            task_regex=r"^{}$".format(tii.task_id),
-                            include_upstream=False,
-                            include_downstream=True
-                        )
-                        tis = tis.union(downstream.clear(start_date=tii.execution_date,
-                                                         end_date=tii.execution_date,
-                                                         only_failed=only_failed,
-                                                         only_running=only_running,
-                                                         confirm_prompt=confirm_prompt,
-                                                         include_subdags=include_subdags,
-                                                         include_parentdag=False,
-                                                         reset_dag_runs=reset_dag_runs,
-                                                         get_tis=True,
-                                                         session=session,
-                                                         recursion_depth=recursion_depth + 1,
-                                                         max_recursion_depth=max_recursion_depth,
-                                                         dag_bag=dag_bag))
-
-        if get_tis:
-            return tis
-
-        tis = tis.all()
-
-        if dry_run:
-            session.expunge_all()
-            return tis
-
-        # Do not use count() here, it's actually much slower than just retrieving all the rows when
-        # tis has multiple UNION statements.
-        count = len(tis)
-        do_it = True
-        if count == 0:
-            return 0
-        if confirm_prompt:
-            ti_list = "\n".join([str(t) for t in tis])
-            question = (
-                "You are about to delete these {count} tasks:\n"
-                "{ti_list}\n\n"
-                "Are you sure? (yes/no): ").format(count=count, ti_list=ti_list)
-            do_it = utils.helpers.ask_yesno(question)
-
-        if do_it:
-            clear_task_instances(tis,
-                                 session,
-                                 dag=self,
-                                 )
-            if reset_dag_runs:
-                self.set_dag_runs_state(session=session,
-                                        start_date=start_date,
-                                        end_date=end_date,
-                                        )
-        else:
-            count = 0
-            print("Bail. Nothing was cleared.")
-
-        session.commit()
-        return count
+        """"This method is deprecated. Please use `airflow.utils.dag_cleaner.clear`."""
+        warnings.warn(
+            "This method is deprecated. Please use `airflow.utils.dag_cleaner.clear`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        from airflow.utils import dag_cleaner
+        return dag_cleaner.clear(self, *args, **kwargs)
 
     @classmethod
     def clear_dags(
-            cls, dags,
-            start_date=None,
-            end_date=None,
-            only_failed=False,
-            only_running=False,
-            confirm_prompt=False,
-            include_subdags=True,
-            include_parentdag=False,
-            reset_dag_runs=True,
-            dry_run=False,
+        cls, *args, **kwargs
     ):
-        all_tis = []
-        for dag in dags:
-            tis = dag.clear(
-                start_date=start_date,
-                end_date=end_date,
-                only_failed=only_failed,
-                only_running=only_running,
-                confirm_prompt=False,
-                include_subdags=include_subdags,
-                include_parentdag=include_parentdag,
-                reset_dag_runs=reset_dag_runs,
-                dry_run=True)
-            all_tis.extend(tis)
-
-        if dry_run:
-            return all_tis
-
-        count = len(all_tis)
-        do_it = True
-        if count == 0:
-            print("Nothing to clear.")
-            return 0
-        if confirm_prompt:
-            ti_list = "\n".join([str(t) for t in all_tis])
-            question = (
-                "You are about to delete these {} tasks:\n"
-                "{}\n\n"
-                "Are you sure? (yes/no): ").format(count, ti_list)
-            do_it = utils.helpers.ask_yesno(question)
-
-        if do_it:
-            for dag in dags:
-                dag.clear(start_date=start_date,
-                          end_date=end_date,
-                          only_failed=only_failed,
-                          only_running=only_running,
-                          confirm_prompt=False,
-                          include_subdags=include_subdags,
-                          reset_dag_runs=reset_dag_runs,
-                          dry_run=False,
-                          )
-        else:
-            count = 0
-            print("Bail. Nothing was cleared.")
-        return count
+        """This method is deprecated. Please use `airflow.utils.dag_cleaner.clear_dags`."""""
+        warnings.warn(
+            "This method is deprecated. Please use `airflow.utils.dag_cleaner.clear_dags`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        from airflow.utils import dag_cleaner
+        return dag_cleaner.clear_dags(*args, **kwargs)
 
     def __deepcopy__(self, memo):
         # Swiwtcharoo to go around deepcopying objects coming through the
@@ -1475,7 +1247,6 @@ class DAG(BaseDag, LoggingMixin):
         """
         if not dags:
             return
-        from airflow.models.serialized_dag import SerializedDagModel
 
         if sync_time is None:
             sync_time = timezone.utcnow()
@@ -1539,13 +1310,6 @@ class DAG(BaseDag, LoggingMixin):
 
         for dag in dags:
             cls.bulk_sync_to_db(dag.subdags, sync_time=sync_time, session=session)
-
-            if STORE_SERIALIZED_DAGS and not dag.is_subdag:
-                SerializedDagModel.write_dag(
-                    dag,
-                    min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
-                    session=session
-                )
 
     @provide_session
     def sync_to_db(self, sync_time=None, session=None):
@@ -1639,44 +1403,6 @@ class DAG(BaseDag, LoggingMixin):
             else:
                 qry = qry.filter(TaskInstance.state.in_(states))
         return qry.scalar()
-
-    def test_cycle(self):
-        """
-        Check to see if there are any cycles in the DAG. Returns False if no cycle found,
-        otherwise raises exception.
-        """
-        from airflow.models.dagbag import DagBag  # Avoid circular imports
-
-        # default of int is 0 which corresponds to CYCLE_NEW
-        visit_map = defaultdict(int)
-        for task_id in self.task_dict.keys():
-            # print('starting %s' % task_id)
-            if visit_map[task_id] == DagBag.CYCLE_NEW:
-                self._test_cycle_helper(visit_map, task_id)
-        return False
-
-    def _test_cycle_helper(self, visit_map, task_id):
-        """
-        Checks if a cycle exists from the input task using DFS traversal
-        """
-        from airflow.models.dagbag import DagBag  # Avoid circular imports
-
-        # print('Inspecting %s' % task_id)
-        if visit_map[task_id] == DagBag.CYCLE_DONE:
-            return False
-
-        visit_map[task_id] = DagBag.CYCLE_IN_PROGRESS
-
-        task = self.task_dict[task_id]
-        for descendant_id in task.get_direct_relative_ids():
-            if visit_map[descendant_id] == DagBag.CYCLE_IN_PROGRESS:
-                msg = "Cycle detected in DAG. Faulty task: {0} to {1}".format(
-                    task_id, descendant_id)
-                raise AirflowDagCycleException(msg)
-            else:
-                self._test_cycle_helper(visit_map, descendant_id)
-
-        visit_map[task_id] = DagBag.CYCLE_DONE
 
     @classmethod
     def get_serialized_fields(cls):
@@ -1797,20 +1523,6 @@ class DagModel(Base):
     def safe_dag_id(self):
         return self.dag_id.replace('.', '__dot__')
 
-    def get_dag(self, store_serialized_dags=False):
-        """Creates a dagbag to load and return a DAG.
-
-        Calling it from UI should set store_serialized_dags = STORE_SERIALIZED_DAGS.
-        There may be a delay for scheduler to write serialized DAG into database,
-        loads from file in this case.
-        FIXME: remove it when webserver does not access to DAG folder in future.
-        """
-        dag = DagBag(
-            dag_folder=self.fileloc, store_serialized_dags=store_serialized_dags).get_dag(self.dag_id)
-        if store_serialized_dags and dag is None:
-            dag = self.get_dag()
-        return dag
-
     @provide_session
     def create_dagrun(self,
                       run_id,
@@ -1850,31 +1562,27 @@ class DagModel(Base):
     def set_is_paused(self,
                       is_paused: bool,
                       including_subdags: bool = True,
-                      store_serialized_dags: bool = False,
                       session=None) -> None:
         """
         Pause/Un-pause a DAG.
 
         :param is_paused: Is the DAG paused
         :param including_subdags: whether to include the DAG's subdags
-        :param store_serialized_dags: whether to serialize DAGs & store it in DB
         :param session: session
         """
-        dag_ids = [self.dag_id]  # type: List[str]
+        filter_query = [
+            DagModel.dag_id.in_(self.dag_id),
+        ]
         if including_subdags:
-            dag = self.get_dag(store_serialized_dags)
-            if dag is None:
-                raise DagNotFound("Dag id {} not found".format(self.dag_id))
-            subdags = dag.subdags
-            dag_ids.extend([subdag.dag_id for subdag in subdags])
-        dag_models = session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).all()
-        try:
-            for dag_model in dag_models:
-                dag_model.is_paused = is_paused
-            session.commit()
-        except Exception:
-            session.rollback()
-            raise
+            filter_query.append(
+                DagModel.root_dag_id.in_(self.dag_id)
+            )
+        session.query(DagModel).filter(or_(
+            *filter_query
+        )).update(
+            {DagModel.is_paused: is_paused}
+        )
+        session.commit()
 
     @classmethod
     @provide_session

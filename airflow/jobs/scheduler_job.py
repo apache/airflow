@@ -41,6 +41,7 @@ from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagModel, SlaMiss, errors
+from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
 from airflow.stats import Stats
@@ -492,7 +493,7 @@ class DagFileProcessor(LoggingMixin):
         :param session: session for ORM operations
         :type session: sqlalchemy.orm.session.Session
         :param dagbag: DagBag containing DAGs with import errors
-        :type dagbag: airflow.models.DagBag
+        :type dagbag: airflow.models.dagbag.DagBag
         """
         # Clear the errors of the processed files
         for dagbag_file in dagbag.file_last_changed:
@@ -825,7 +826,7 @@ class DagFileProcessor(LoggingMixin):
         self.log.info("Processing file %s for tasks to queue", file_path)
 
         try:
-            dagbag = models.DagBag(file_path, include_examples=False)
+            dagbag = DagBag(file_path, include_examples=False)
         except Exception:  # pylint: disable=broad-except
             self.log.exception("Failed at reloading the DAG file %s", file_path)
             Stats.incr('dag_file_refresh_error', 1, 1)
@@ -869,7 +870,7 @@ class DagFileProcessor(LoggingMixin):
     @provide_session
     def _schedule_task_instances(
         self,
-        dagbag: models.DagBag,
+        dagbag: DagBag,
         ti_keys_to_schedule: List[TaskInstanceKeyType],
         session=None
     ) -> None:
@@ -878,7 +879,7 @@ class DagFileProcessor(LoggingMixin):
         updates the information in the database,
 
         :param dagbag: DagBag
-        :type dagbag: models.DagBag
+        :type dagbag: airflow.models.dagbag.DagBag
         :param ti_keys_to_schedule:  List of task instnace keys which can be scheduled.
         :param ti_keys_to_schedule:
         """

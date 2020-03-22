@@ -22,9 +22,9 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 
-from airflow import models
 from airflow.cli import cli_parser
 from airflow.cli.commands import user_command
+from airflow.models.dagbag import DagBag
 from airflow.settings import Session
 
 TEST_USER1_EMAIL = 'test-user1@example.com'
@@ -43,7 +43,7 @@ def _does_user_belong_to_role(appbuilder, email, rolename):
 class TestCliUsers(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.dagbag = models.DagBag(include_examples=True)
+        cls.dagbag = DagBag(include_examples=True)
         cls.parser = cli_parser.get_parser()
 
     def setUp(self):

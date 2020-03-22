@@ -28,7 +28,8 @@ from airflow.api.common.experimental.mark_tasks import (
     set_state,
 )
 from airflow.models import DagRun
-from airflow.utils import timezone
+from airflow.models.dagbag import DagBag
+from airflow.utils import dag_cleaner, timezone
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
@@ -42,7 +43,7 @@ class TestMarkTasks(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        dagbag = models.DagBag(include_examples=True)
+        dagbag = DagBag(include_examples=True)
         cls.dag1 = dagbag.dags['example_bash_operator']
         cls.dag1.sync_to_db()
         cls.dag2 = dagbag.dags['example_subdag_operator']
@@ -281,7 +282,7 @@ class TestMarkDAGRun(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        dagbag = models.DagBag(include_examples=True)
+        dagbag = DagBag(include_examples=True)
         cls.dag1 = dagbag.dags['example_bash_operator']
         cls.dag1.sync_to_db()
         cls.dag2 = dagbag.dags['example_subdag_operator']
@@ -587,8 +588,8 @@ class TestMarkDAGRun(unittest.TestCase):
         set_dag_run_state_to_failed(self.dag1, date)
 
     def tearDown(self):
-        self.dag1.clear()
-        self.dag2.clear()
+        dag_cleaner.clear(self.dag1)
+        dag_cleaner.clear(self.dag2)
 
         with create_session() as session:
             session.query(models.DagRun).delete()

@@ -32,10 +32,9 @@ from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models import DagPickle, TaskInstance
-from airflow.models.dag import DAG
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies import SCHEDULER_QUEUED_DEPS
-from airflow.utils import cli as cli_utils
+from airflow.utils import cli as cli_utils, dag_cleaner
 from airflow.utils.cli import get_dag, get_dag_by_file_location, get_dag_by_pickle, get_dags
 from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.net import get_hostname
@@ -388,7 +387,7 @@ def task_clear(args):
                     include_downstream=args.downstream,
                     include_upstream=args.upstream)
 
-    DAG.clear_dags(
+    dag_cleaner.clear_dags(
         dags,
         start_date=args.start_date,
         end_date=args.end_date,

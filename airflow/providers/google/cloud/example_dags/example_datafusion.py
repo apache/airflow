@@ -28,7 +28,7 @@ from airflow.providers.google.cloud.operators.datafusion import (
     CloudDataFusionRestartInstanceOperator, CloudDataFusionStartPipelineOperator,
     CloudDataFusionStopPipelineOperator, CloudDataFusionUpdateInstanceOperator,
 )
-from airflow.utils import dates
+from airflow.utils import dag_cleaner, dates
 
 # [START howto_data_fusion_env_variables]
 LOCATION = "europe-north1"
@@ -220,5 +220,5 @@ with models.DAG(
     delete_pipeline >> delete_instance
 
 if __name__ == "__main__":
-    dag.clear(reset_dag_runs=True)
+    dag_cleaner.clear(dag, reset_dag_runs=True)
     dag.run()
