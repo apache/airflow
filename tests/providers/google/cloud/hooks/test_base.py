@@ -579,7 +579,7 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
 
     @mock.patch("airflow.providers.google.cloud.hooks.base.httplib2.Http")
     @mock.patch("airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials")
-    def test_authorize_assert_user_agent_is_sent(self, mock_get_creds_and_proj_id, mock_http):
+    def test_authorize_assert_user_agent_is_sent(self, mock_get_credentials, mock_http):
         """
         Verify that if 'num_retires' in extras is not set, the default value
         should not be None
