@@ -26,8 +26,8 @@ from datetime import datetime, time, timedelta
 import mock
 import pytz
 
-from airflow.cli import cli_parser
 from airflow import settings
+from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
