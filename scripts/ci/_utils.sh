@@ -37,7 +37,11 @@ function verbose_docker {
     docker "${@}"
 }
 
-function initialize_breeze_environment {
+# Common environment that is initialized by both Breeze and CI scripts
+function initialize_common_environment {
+    # default python version
+    PYTHON_VERSION=${PYTHON_VERSION:="3.5"}
+
     AIRFLOW_SOURCES=${AIRFLOW_SOURCES:=$(cd "${MY_DIR}/../../" && pwd)}
     export AIRFLOW_SOURCES
 
@@ -65,11 +69,10 @@ function initialize_breeze_environment {
     export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}
     export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:="25433"}
     export MYSQL_HOST_PORT=${MYSQL_HOST_PORT:="23306"}
-    export MYSQL_VERSION=${MYSQL_VERSION:="5.6"}
 
     # Default MySQL/Postgres versions
     export POSTGRES_VERSION=${POSTGRES_VERSION:="9.6"}
-    export MYSQL_VERSION=${MYSQL_VERSION:="5.7"}
+    export MYSQL_VERSION=${MYSQL_VERSION:="5.6"}
 
     # Do not push images from here by default (push them directly from the build script on Dockerhub)
     export PUSH_IMAGES=${PUSH_IMAGES:="false"}
@@ -444,7 +447,7 @@ function assert_not_in_container() {
         echo >&2 "You are inside the Airflow docker container!"
         echo >&2 "You should only run this script from the host."
         echo >&2 "Learn more about how we develop and test airflow in:"
-        echo >&2 "https://github.com/apache/airflow/blob/master/CONTRIBUTING.md"
+        echo >&2 "https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst"
         echo >&2
         exit 1
     fi
@@ -941,7 +944,7 @@ function build_image_on_ci() {
     if [[ ${TRAVIS_JOB_NAME:=""} == "Tests"*"Kubernetes"* ]]; then
         match_files_regexp 'airflow/kubernetes/.*\.py' 'tests/runtime/kubernetes/.*\.py' \
             'airflow/www/.*\.py' 'airflow/www/.*\.js' 'airflow/www/.*\.html' \
-            'scripts/ci/.*'
+            'scripts/ci/.*' 'airflow/example_dags/.*'
         if [[ ${FILE_MATCHES} == "true" ]]; then
             rebuild_ci_image_if_needed
         else
@@ -949,7 +952,7 @@ function build_image_on_ci() {
         fi
     elif [[ ${TRAVIS_JOB_NAME:=""} == "Tests"* ]]; then
         match_files_regexp '.*\.py' 'airflow/www/.*\.py' 'airflow/www/.*\.js' \
-            'airflow/www/.*\.html' 'scripts/ci/.*'
+            'airflow/www/.*\.html' 'scripts/ci/.*' 'airflow/example_dags/.*'
         if [[ ${FILE_MATCHES} == "true" ]]; then
             rebuild_ci_image_if_needed
         else

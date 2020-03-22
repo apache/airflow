@@ -21,7 +21,7 @@
 @test "convert volume list to docker params" {
   load bats_utils
 
-  initialize_breeze_environment
+  initialize_common_environment
 
   run convert_local_mounts_to_docker_params
   diff <(echo "${output}") - << EOF

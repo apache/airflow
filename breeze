@@ -1567,7 +1567,7 @@ function run_breeze_command {
 
 setup_default_breeze_variables
 
-initialize_breeze_environment
+initialize_common_environment
 
 set_mysql_encoding
 
