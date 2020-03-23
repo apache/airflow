@@ -31,4 +31,4 @@ ${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VE
 docker-compose \
     -f "${MY_DIR}/docker-compose/base.yml" \
     -f "${MY_DIR}/docker-compose/local.yml" \
-    run airflow-testing /opt/airflow/scripts/ci/in_container/run_fix_ownership.sh
+    run airflow /opt/airflow/scripts/ci/in_container/run_fix_ownership.sh

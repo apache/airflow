@@ -27,7 +27,7 @@ if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
     exit
 fi
 
-prepare_build
+prepare_ci_build
 
 rebuild_ci_image_if_needed
 

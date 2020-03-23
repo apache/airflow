@@ -17,8 +17,8 @@
 ---
 version: "2.2"
 services:
-  airflow-testing:
-    image: ${AIRFLOW_CI_IMAGE}
+  airflow:
+    image: ${AIRFLOW_IMAGE}
     init: true
     entrypoint: ["/bin/bash", "-c"]
     environment:

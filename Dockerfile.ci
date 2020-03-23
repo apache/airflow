@@ -363,7 +363,7 @@ COPY airflow/www_rbac/static ${AIRFLOW_SOURCES}/airflow/www_rbac/static/
 # Package JS/css for production
 RUN yarn --cwd airflow/www_rbac run prod
 
-COPY scripts/docker/entrypoint.sh /entrypoint.sh
+COPY entrypoint.sh /entrypoint.sh
 
 # Copy selected subdirectories only
 COPY .github/ ${AIRFLOW_SOURCES}/.github/

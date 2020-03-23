@@ -17,7 +17,7 @@
 ---
 version: "2.2"
 services:
-  airflow-testing:
+  airflow:
     # Forwards local credentials to docker image
     # Useful for gcloud/aws/kubernetes etc. authorisation to be passed
     # To inside docker. Use with care - your credentials will be available to

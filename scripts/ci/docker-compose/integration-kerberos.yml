@@ -23,7 +23,7 @@ services:
     domainname: example.com
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
-  airflow-testing:
+  airflow:
     depends_on:
       - kerberos
     environment:

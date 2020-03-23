@@ -34,7 +34,7 @@ function run_docs() {
             | tee -a "${OUTPUT_LOG}"
 }
 
-prepare_build
+prepare_ci_build
 
 rebuild_ci_image_if_needed
 

@@ -40,7 +40,7 @@ function run_mypy() {
         | tee -a "${OUTPUT_LOG}"
 }
 
-prepare_build
+prepare_ci_build
 
 rebuild_ci_image_if_needed
 

@@ -32,8 +32,7 @@ if [[ "${TRAVIS_EVENT_TYPE:=}" == "cron" ]]; then
     export UPGRADE_TO_LATEST_REQUIREMENTS="true"
 fi
 
-
-build_image_on_ci
+build_ci_image_on_ci
 
 # We need newer version of six for Travis as they bundle 1.11.0 version
 sudo pip install pre-commit 'six~=1.14'
