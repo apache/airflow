@@ -1205,7 +1205,7 @@ class Airflow(AirflowBaseView):
 
             response = self.render_template(
                 'airflow/confirm.html',
-                message=("Here's the list of task instances you are about to mark as failed"),
+                message="Here's the list of task instances you are about to mark as failed",
                 details=details)
 
             return response
@@ -1234,7 +1234,7 @@ class Airflow(AirflowBaseView):
 
             response = self.render_template(
                 'airflow/confirm.html',
-                message=("Here's the list of task instances you are about to mark as success"),
+                message="Here's the list of task instances you are about to mark as success",
                 details=details)
 
             return response
