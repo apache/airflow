@@ -35,11 +35,8 @@ class HttpHook(BaseHook):
     :type method: str
     """
 
-    def __init__(
-        self,
-        method='POST',
-        http_conn_id='http_default'
-    ):
+    def __init__(self, method='POST', http_conn_id='http_default'):
+        super().__init__()
         self.http_conn_id = http_conn_id
         self.method = method.upper()
         self.base_url = None

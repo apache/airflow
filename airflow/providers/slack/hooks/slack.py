@@ -35,6 +35,7 @@ class SlackHook(BaseHook):
     :param slack_conn_id: connection that has Slack API token in the password field
     """
     def __init__(self, token: Optional[str] = None, slack_conn_id: Optional[str] = None) -> None:
+        super().__init__()
         self.token = self.__get_token(token, slack_conn_id)
 
     def __get_token(self, token, slack_conn_id):
