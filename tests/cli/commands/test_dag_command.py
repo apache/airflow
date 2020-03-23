@@ -61,13 +61,13 @@ class TestCliDags(unittest.TestCase):
         cls.dagbag = DagBag(include_examples=True)
         cls.parser = cli_parser.get_parser()
 
-    @mock.patch("airflow.cli.commands.dag_command.DAG.run")
-    def test_backfill(self, mock_run):
+    @mock.patch("airflow.cli.commands.dag_command.get_dag")
+    def test_backfill(self, mock_get_dag):
         dag_command.dag_backfill(self.parser.parse_args([
             'dags', 'backfill', 'example_bash_operator',
             '--start-date', DEFAULT_DATE.isoformat()]))
 
-        mock_run.assert_called_once_with(
+        mock_get_dag.return_value.run.assert_called_once_with(
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE,
             conf=None,
@@ -82,8 +82,10 @@ class TestCliDags(unittest.TestCase):
             run_backwards=False,
             verbose=False,
         )
-        mock_run.reset_mock()
+
         dag = self.dagbag.get_dag('example_bash_operator')
+        mock_run = mock.MagicMock()
+        dag.run = mock_run
 
         with contextlib.redirect_stdout(io.StringIO()) as stdout:
             dag_command.dag_backfill(self.parser.parse_args([
@@ -159,8 +161,7 @@ class TestCliDags(unittest.TestCase):
         self.assertIn("OUT", out)
         self.assertIn("ERR", out)
 
-    @mock.patch("airflow.cli.commands.dag_command.DAG.run")
-    def test_cli_backfill_depends_on_past(self, mock_run):
+    def test_cli_backfill_depends_on_past(self):
         """
         Test that CLI respects -I argument
 
@@ -179,6 +180,8 @@ class TestCliDags(unittest.TestCase):
             '--ignore-first-depends-on-past',
         ]
         dag = self.dagbag.get_dag(dag_id)
+        mock_run = mock.MagicMock()
+        dag.run = mock_run
 
         dag_command.dag_backfill(self.parser.parse_args(args), dag=dag)
 
@@ -198,8 +201,7 @@ class TestCliDags(unittest.TestCase):
             verbose=False,
         )
 
-    @mock.patch("airflow.cli.commands.dag_command.DAG.run")
-    def test_cli_backfill_depends_on_past_backwards(self, mock_run):
+    def test_cli_backfill_depends_on_past_backwards(self):
         """
         Test that CLI respects -B argument and raises on interaction with depends_on_past
         """
@@ -219,6 +221,8 @@ class TestCliDags(unittest.TestCase):
             '--run-backwards',
         ]
         dag = self.dagbag.get_dag(dag_id)
+        mock_run = mock.MagicMock()
+        dag.run = mock_run
 
         dag_command.dag_backfill(self.parser.parse_args(args), dag=dag)
         mock_run.assert_called_once_with(

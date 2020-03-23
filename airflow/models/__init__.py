@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow models"""
+from airflow.jobs.backfill_job import BackfillJob
 from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection

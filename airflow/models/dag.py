@@ -1571,16 +1571,16 @@ class DagModel(Base):
         :param session: session
         """
         filter_query = [
-            DagModel.dag_id.in_(self.dag_id),
+            DagModel.dag_id == self.dag_id,
         ]
         if including_subdags:
             filter_query.append(
-                DagModel.root_dag_id.in_(self.dag_id)
+                DagModel.root_dag_id == self.dag_id
             )
         session.query(DagModel).filter(or_(
             *filter_query
         )).update(
-            {DagModel.is_paused: is_paused}
+            {DagModel.is_paused: is_paused}, synchronize_session='fetch'
         )
         session.commit()
 
