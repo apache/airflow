@@ -187,6 +187,12 @@ Roll your own secrets backend
 A secrets backend is a subclass of :py:class:`airflow.secrets.BaseSecretsBackend`, and just has to implement the
 :py:meth:`~airflow.secrets.BaseSecretsBackend.get_connections` method.
 
+There are two options:
+
+* Option 1: a base implmentation of the :py:meth:`~airflow.secrets.BaseSecretsBackend.get_connections` is provided, you just need to implement the
+  :py:meth:`~airflow.secrets.BaseSecretsBackend.get_conn_uri` method to make it functional.
+* Option 2: simply override the :py:meth:`~airflow.secrets.BaseSecretsBackend.get_connections` method.
+
 Just create your class, and put the fully qualified class name in ``backend`` key in the ``[secrets]``
 section of ``airflow.cfg``.  You can you can also pass kwargs to ``__init__`` by supplying json to the
 ``backend_kwargs`` config param.  See :ref:`Configuration <secrets_backend_configuration>` for more details,

@@ -34,7 +34,7 @@ CONN_URI = 'postgresql://airflow:airflow@host:5432/airflow'
 MODULE_NAME = "airflow.contrib.secrets.gcp_secrets_manager"
 
 
-class TestGcpSecretsManagerBackend(TestCase):
+class TestCloudSecretsManagerBackend(TestCase):
     @parameterized.expand([
         "airflow/connections",
         "connections",
