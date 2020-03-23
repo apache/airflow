@@ -2065,6 +2065,7 @@ class BigQueryBaseCursor(LoggingMixin):
                  location: Optional[str] = None,
                  num_retries: int = 5) -> None:
 
+        super().__init__()
         self.service = service
         self.project_id = project_id
         self.use_legacy_sql = use_legacy_sql
