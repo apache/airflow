@@ -38,6 +38,7 @@ class DockerHook(BaseHook, LoggingMixin):
                  version=None,
                  tls=None
                  ):
+        super().__init__()
         if not base_url:
             raise AirflowException('No Docker base URL provided')
         if not version:
