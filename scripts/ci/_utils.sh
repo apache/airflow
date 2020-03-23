@@ -184,7 +184,7 @@ LOCAL_MOUNTS="
 .kube /root/
 .rat-excludes /opt/airflow/
 CHANGELOG.txt /opt/airflow/
-Dockerfile /opt/airflow/
+Dockerfile.ci /opt/airflow/
 LICENSE /opt/airflow/
 MANIFEST.in /opt/airflow/
 NOTICE /opt/airflow/
@@ -332,12 +332,12 @@ function update_all_md5_files() {
 # the Docker image will only be marked for rebuilding only in case any of the important files change:
 # * setup.py
 # * setup.cfg
-# * Dockerfile
+# * Dockerfile.ci
 # * airflow/version.py
 #
 # This is needed because we want to skip rebuilding of the image when only airflow sources change but
 # Trigger rebuild in case we need to change dependencies (setup.py, setup.cfg, change version of Airflow
-# or the Dockerfile itself changes.
+# or the Dockerfile.ci itself changes.
 #
 # Another reason to skip rebuilding Docker is thar currently it takes a bit longer time than simple Docker
 # We need to fix group permissions of files in Docker because different linux build services have
@@ -678,7 +678,7 @@ function get_remote_image_info() {
 # if there are at least NN chaanged layers in your docker file, you should pull the image.
 #
 # Note that this only matters if you have any of the important files changed since the last build
-# of your image such as Dockerfile, setup.py etc.
+# of your image such as Dockerfile.ci, setup.py etc.
 #
 MAGIC_CUT_OFF_NUMBER_OF_LAYERS=34
 
@@ -1190,7 +1190,7 @@ Docker building ${AIRFLOW_CI_IMAGE}.
             "${DOCKER_CACHE_CI_DIRECTIVE[@]}" \
             -t "${AIRFLOW_CI_IMAGE}" \
             --target "${TARGET_IMAGE}" \
-            . | tee -a "${OUTPUT_LOG}"
+            . -f Dockerfile.ci | tee -a "${OUTPUT_LOG}"
         set -u
     fi
     if [[ -n "${DEFAULT_IMAGE:=}" ]]; then

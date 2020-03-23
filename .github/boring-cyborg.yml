@@ -58,7 +58,7 @@ labelPRBasedOnFilePath:
     - .github/**/*
     - .github/*
     - breeze
-    - Dockerfile
+    - Dockerfile.ci
     - BREEZE.rst
     - breeze-complete
     - confirm

@@ -50,7 +50,7 @@ docker build \
     --cache-from "${AIRFLOW_CI_IMAGE}" \
     --tag="${AIRFLOW_CI_IMAGE}" \
     --target="main" \
-    -f Dockerfile . >> "${OUTPUT_LOG}"
+    -f Dockerfile.ci . >> "${OUTPUT_LOG}"
 echo
 echo "Adding kubernetes-specific scripts to basic CI image."
 echo "Building ${AIRFLOW_KUBERNETES_IMAGE} from ${AIRFLOW_CI_IMAGE}"

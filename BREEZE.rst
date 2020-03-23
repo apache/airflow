@@ -118,7 +118,7 @@ For all development tasks, unit tests, integration tests and static code checks,
 This Docker image contains a lot test-related packages (size of ~1GB).
 Its tag follows the pattern of ``<BRANCH>-python<PYTHON_VERSION>-ci``
 (for example, ``apache/airflow:master-python3.6-ci``). The image is built using the
-`<Dockerfile>`_ Dockerfile.
+`<Dockerfile.ci>`_ Dockerfile.
 
 Before you run tests, enter the environment or run local static checks, the necessary local images should be
 pulled and built from Docker Hub. This happens automatically for the test environment but you need to
@@ -128,7 +128,7 @@ The static checks will fail and inform what to do if the image is not yet built.
 
 Building the image first time pulls a pre-built version of images from the Docker Hub, which may take some
 time. But for subsequent source code changes, no wait time is expected.
-However, changes to sensitive files like ``setup.py`` or ``Dockerfile`` will trigger a rebuild
+However, changes to sensitive files like ``setup.py`` or ``Dockerfile.ci`` will trigger a rebuild
 that may take more time though it is highly optimized to only rebuild what is needed.
 
 In most cases, rebuilding an image requires network connectivity (for example, to download new
@@ -427,9 +427,9 @@ from local sources in Airflow. If you wish to add local DAGs that can be run by 
 Adding/Modifying Dependencies
 -----------------------------
 
-If you need to change apt dependencies in the ``Dockerfile``, add Python packages in ``setup.py`` or
+If you need to change apt dependencies in the ``Dockerfile.ci``, add Python packages in ``setup.py`` or
 add javascript dependencies in ``package.json``, you can either add dependencies temporarily for a single
-Breeze session or permanently in ``setup.py``, ``Dockerfile``, or ``package.json`` files.
+Breeze session or permanently in ``setup.py``, ``Dockerfile.ci``, or ``package.json`` files.
 
 Installing Dependencies for a Single Breeze Session
 ...................................................
@@ -443,23 +443,23 @@ Therefore, if you want to retain a new dependency, follow the second option desc
 Adding Dependencies Permanently
 ...............................
 
-You can add dependencies to the ``Dockerfile``, ``setup.py`` or ``package.json`` and rebuild the image. This
-should happen automatically if you modify any of these files.
+You can add dependencies to the ``Dockerfile.ci``, ``setup.py`` or ``package.json`` and rebuild the image.
+This should happen automatically if you modify any of these files.
 After you exit the container and re-run ``breeze``, Breeze detects changes in dependencies,
 asks you to confirm rebuilding the image and proceeds with rebuilding if you confirm (or skip it
 if you do not confirm). After rebuilding is done, Breeze drops you to shell. You may also use the
 ``build-only`` command to only rebuild images and not to go into shell.
 
-Changing apt Dependencies in the Dockerfile
-............................................
+Changing apt Dependencies in the Dockerfile.ci
+..............................................
 
-During development, changing dependencies in ``apt-get`` closer to the top of the ``Dockerfile``
+During development, changing dependencies in ``apt-get`` closer to the top of the ``Dockerfile.ci``
 invalidates cache for most of the image. It takes long time for Breeze to rebuild the image.
 So, it is a recommended practice to add new dependencies initially closer to the end
-of the ``Dockerfile``. This way dependencies will be added incrementally.
+of the ``Dockerfile.ci``. This way dependencies will be added incrementally.
 
 Before merge, these dependencies should be moved to the appropriate ``apt-get install`` command,
-which is already in the ``Dockerfile``.
+which is already in the ``Dockerfile.ci``.
 
 Port Forwarding
 ---------------
