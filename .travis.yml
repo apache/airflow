@@ -200,6 +200,34 @@ jobs:
         SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS="true"
       stage: test
       script: ./scripts/ci/ci_generate_requirements.sh
+    - name: "Build production image Py2.7"
+      env: >-
+        PYTHON_MAJOR_MINOR_VERSION="2.7"
+      stage: test
+      script: ./scripts/ci/ci_build_production_image.sh
+      before_install:
+        - echo
+    - name: "Build production image Py3.5"
+      env: >-
+        PYTHON_MAJOR_MINOR_VERSION="3.5"
+      stage: test
+      script: ./scripts/ci/ci_build_production_image.sh
+      before_install:
+        - echo
+    - name: "Build production image Py3.6"
+      env: >-
+        PYTHON_MAJOR_MINOR_VERSION="3.6"
+      stage: test
+      script: ./scripts/ci/ci_build_production_image.sh
+      before_install:
+        - echo
+    - name: "Build production image Py3.7"
+      env: >-
+        PYTHON_MAJOR_MINOR_VERSION="3.7"
+      stage: test
+      script: ./scripts/ci/ci_build_production_image.sh
+      before_install:
+        - echo
 before_install:
   - ./scripts/ci/ci_before_install.sh
 script: ./scripts/ci/ci_run_airflow_testing.sh

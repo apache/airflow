@@ -153,7 +153,7 @@ You can also specify individual tests or a group of tests:
 Airflow Integration Tests
 =========================
 
-Some of the tests in Airflow are integration tests. These tests require not only ``airflow-testing`` Docker
+Some of the tests in Airflow are integration tests. These tests require not only ``airflow`` Docker
 image but also extra images with integrations (such as ``redis``, ``mongodb``, etc.).
 
 

@@ -23,6 +23,6 @@ export REMEMBER_LAST_ANSWER="${2}"
 
 forget_last_answer
 
-prepare_build
+prepare_ci_build
 
 rebuild_ci_image_if_needed_and_confirmed
