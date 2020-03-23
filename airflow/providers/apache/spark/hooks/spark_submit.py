@@ -125,6 +125,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                  env_vars=None,
                  verbose=False,
                  spark_binary=None):
+        super().__init__()
         self._conf = conf or {}
         self._conn_id = conn_id
         self._files = files

@@ -81,6 +81,7 @@ class HiveCliHook(BaseHook):
             mapred_queue=None,
             mapred_queue_priority=None,
             mapred_job_name=None):
+        super().__init__()
         conn = self.get_connection(hive_cli_conn_id)
         self.hive_cli_params = conn.extra_dejson.get('hive_cli_params', '')
         self.use_beeline = conn.extra_dejson.get('use_beeline', False)
@@ -480,6 +481,7 @@ class HiveMetastoreHook(BaseHook):
     MAX_PART_COUNT = 32767
 
     def __init__(self, metastore_conn_id='metastore_default'):
+        super().__init__()
         self.conn_id = metastore_conn_id
         self.metastore = self.get_metastore_client()
 
@@ -784,6 +786,7 @@ class HiveServer2Hook(BaseHook):
     ``extra`` of your connection in the UI
     """
     def __init__(self, hiveserver2_conn_id='hiveserver2_default'):
+        super().__init__()
         self.hiveserver2_conn_id = hiveserver2_conn_id
 
     def get_conn(self, schema=None):

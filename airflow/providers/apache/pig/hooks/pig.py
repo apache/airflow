@@ -36,6 +36,7 @@ class PigCliHook(BaseHook):
     def __init__(
             self,
             pig_cli_conn_id="pig_cli_default"):
+        super().__init__()
         conn = self.get_connection(pig_cli_conn_id)
         self.pig_properties = conn.extra_dejson.get('pig_properties', '')
         self.conn = conn

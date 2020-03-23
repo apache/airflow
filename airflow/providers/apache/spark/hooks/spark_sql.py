@@ -69,6 +69,7 @@ class SparkSqlHook(BaseHook):
                  verbose=True,
                  yarn_queue='default'
                  ):
+        super().__init__()
         self._sql = sql
         self._conf = conf
         self._conn = self.get_connection(conn_id)

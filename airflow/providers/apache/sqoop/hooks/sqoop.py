@@ -57,6 +57,7 @@ class SqoopHook(BaseHook):
                  num_mappers=None, hcatalog_database=None,
                  hcatalog_table=None, properties=None):
         # No mutable types in the default parameters
+        super().__init__()
         self.conn = self.get_connection(conn_id)
         connection_parameters = self.conn.extra_dejson
         self.job_tracker = connection_parameters.get('job_tracker', None)
