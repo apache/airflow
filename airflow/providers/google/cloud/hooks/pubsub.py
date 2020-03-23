@@ -112,13 +112,14 @@ class PubSubHook(CloudBaseHook):
         self.log.info("Publish %d messages to topic (path) %s", len(messages), topic_path)
         try:
             for message in messages:
-                publisher.publish(
+                future = publisher.publish(
                     topic=topic_path,
                     data=message.get("data", b''),
                     **message.get('attributes', {})
                 )
+                future.result()
         except GoogleAPICallError as e:
-            raise PubSubException('Error publishing to topic {}'.format(topic_path), e)
+            raise PubSubException(f'Error publishing to topic {topic_path}', e)
 
         self.log.info("Published %d messages to topic (path) %s", len(messages), topic_path)
 

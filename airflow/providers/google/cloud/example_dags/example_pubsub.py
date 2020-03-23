@@ -52,7 +52,7 @@ with models.DAG(
 ) as example_sensor_dag:
     # [START howto_operator_gcp_pubsub_create_topic]
     create_topic = PubSubCreateTopicOperator(
-        task_id="create_topic", topic=TOPIC_FOR_SENSOR_DAG, project_id=GCP_PROJECT_ID
+        task_id="create_topic", topic=TOPIC_FOR_SENSOR_DAG, project_id=GCP_PROJECT_ID, fail_if_exists=False
     )
     # [END howto_operator_gcp_pubsub_create_topic]
 
@@ -84,7 +84,7 @@ with models.DAG(
         task_id="publish_task",
         project_id=GCP_PROJECT_ID,
         topic=TOPIC_FOR_SENSOR_DAG,
-        messages=[MESSAGE, MESSAGE, MESSAGE],
+        messages=[MESSAGE] * 10,
     )
     # [END howto_operator_gcp_pubsub_publish]
 
@@ -102,8 +102,8 @@ with models.DAG(
     )
     # [END howto_operator_gcp_pubsub_delete_topic]
 
-    create_topic >> subscribe_task >> publish_task
-    subscribe_task >> pull_messages >> pull_messages_result >> unsubscribe_task >> delete_topic
+    create_topic >> subscribe_task >> [publish_task, pull_messages]
+    pull_messages >> pull_messages_result >> unsubscribe_task >> delete_topic
 
 
 with models.DAG(
