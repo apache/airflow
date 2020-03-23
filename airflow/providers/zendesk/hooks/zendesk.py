@@ -28,6 +28,7 @@ class ZendeskHook(BaseHook):
     A hook to talk to Zendesk
     """
     def __init__(self, zendesk_conn_id):
+        super().__init__()
         self.__zendesk_conn_id = zendesk_conn_id
         self.__url = None
 

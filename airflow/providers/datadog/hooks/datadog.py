@@ -38,6 +38,7 @@ class DatadogHook(BaseHook, LoggingMixin):
     :param datadog_conn_id: str
     """
     def __init__(self, datadog_conn_id='datadog_default'):
+        super().__init__()
         conn = self.get_connection(datadog_conn_id)
         self.api_key = conn.extra_dejson.get('api_key', None)
         self.app_key = conn.extra_dejson.get('app_key', None)

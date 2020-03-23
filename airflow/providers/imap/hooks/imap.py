@@ -42,6 +42,7 @@ class ImapHook(BaseHook):
     """
 
     def __init__(self, imap_conn_id='imap_default'):
+        super().__init__()
         self.imap_conn_id = imap_conn_id
         self.mail_client = None
 

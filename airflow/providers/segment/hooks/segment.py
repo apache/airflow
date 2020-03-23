@@ -59,6 +59,7 @@ class SegmentHook(BaseHook):
             So we define it in the `Extras` field as:
                 `{"write_key":"YOUR_SECURITY_TOKEN"}`
         """
+        super().__init__()
         self.segment_conn_id = segment_conn_id
         self.segment_debug_mode = segment_debug_mode
         self._args = args

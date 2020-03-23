@@ -29,6 +29,7 @@ class SambaHook(BaseHook):
     """
 
     def __init__(self, samba_conn_id):
+        super().__init__()
         self.conn = self.get_connection(samba_conn_id)
 
     def get_conn(self):
