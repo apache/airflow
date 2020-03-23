@@ -45,6 +45,7 @@ class AzureCosmosDBHook(BaseHook):
     """
 
     def __init__(self, azure_cosmos_conn_id='azure_cosmos_default'):
+        super().__init__()
         self.conn_id = azure_cosmos_conn_id
         self._conn = None
 

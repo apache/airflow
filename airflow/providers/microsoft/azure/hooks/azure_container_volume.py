@@ -31,6 +31,7 @@ class AzureContainerVolumeHook(BaseHook):
     """
 
     def __init__(self, wasb_conn_id='wasb_default'):
+        super().__init__()
         self.conn_id = wasb_conn_id
 
     def get_storagekey(self):
