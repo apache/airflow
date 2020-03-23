@@ -189,7 +189,7 @@ A secrets backend is a subclass of :py:class:`airflow.secrets.BaseSecretsBackend
 
 There are two options:
 
-* Option 1: a base implmentation of the ``.get_connections`` is provided, you just need to implement the
+* Option 1: a base implmentation of the :py:meth:`~airflow.secrets.BaseSecretsBackend.get_connections` is provided, you just need to implement the
   :py:meth:`~airflow.secrets.BaseSecretsBackend.get_conn_uri` method to make it functional.
 * Option 2: simply override the :py:meth:`~airflow.secrets.BaseSecretsBackend.get_connections` method.
 
