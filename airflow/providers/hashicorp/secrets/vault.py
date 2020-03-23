@@ -18,14 +18,13 @@
 """
 Objects relating to sourcing connections from Hashicorp Vault
 """
-from typing import List, Optional
+from typing import Optional
 
 import hvac
 from cached_property import cached_property
 from hvac.exceptions import InvalidPath, VaultError
 
 from airflow import AirflowException
-from airflow.models import Connection
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -144,15 +143,6 @@ class VaultSecrets(BaseSecretsBackend, LoggingMixin):
         else:
             raise VaultError("Vault Authentication Error!")
 
-    def build_path(self, conn_id: str):
-        """
-        Given conn_id, build path for Vault Secret
-
-        :param conn_id: connection id
-        :type conn_id: str
-        """
-        return self.connections_path + "/" + conn_id
-
     def get_conn_uri(self, conn_id: str) -> Optional[str]:
         """
         Get secret value from Vault. Store the secret in the form of URI
@@ -160,7 +150,7 @@ class VaultSecrets(BaseSecretsBackend, LoggingMixin):
         :param conn_id: connection id
         :type conn_id: str
         """
-        secret_path = self.build_path(conn_id=conn_id)
+        secret_path = self.build_path(connections_prefix=self.connections_path, conn_id=conn_id)
 
         try:
             if self.kv_engine_version == 1:
@@ -176,16 +166,3 @@ class VaultSecrets(BaseSecretsBackend, LoggingMixin):
 
         return_data = response["data"] if self.kv_engine_version == 1 else response["data"]["data"]
         return return_data.get("conn_uri")
-
-    def get_connections(self, conn_id: str) -> List[Connection]:
-        """
-        Get connections with a specific ID
-
-        :param conn_id: connection id
-        :type conn_id: str
-        """
-        conn_uri = self.get_conn_uri(conn_id=conn_id)
-        if not conn_uri:
-            return []
-        conn = Connection(conn_id=conn_id, uri=conn_uri)
-        return [conn]
