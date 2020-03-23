@@ -20,9 +20,8 @@ Objects relating to sourcing connections from environment variables
 """
 
 import os
-from typing import List
+from typing import Optional
 
-from airflow.models import Connection
 from airflow.secrets import BaseSecretsBackend
 
 CONN_ENV_PREFIX = "AIRFLOW_CONN_"
@@ -34,10 +33,6 @@ class EnvironmentVariablesSecretsBackend(BaseSecretsBackend):
     """
 
     # pylint: disable=missing-docstring
-    def get_connections(self, conn_id) -> List[Connection]:
+    def get_conn_uri(self, conn_id: str) -> Optional[str]:
         environment_uri = os.environ.get(CONN_ENV_PREFIX + conn_id.upper())
-        if environment_uri:
-            conn = Connection(conn_id=conn_id, uri=environment_uri)
-            return [conn]
-        else:
-            return []
+        return environment_uri
