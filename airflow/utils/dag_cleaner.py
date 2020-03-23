@@ -15,9 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from operator import or_
-
 from pendulum import pendulum
+from sqlalchemy import or_
 
 from airflow import AirflowException
 from airflow.models import TaskInstance, clear_task_instances
@@ -104,7 +103,8 @@ def clear(  # pylint: disable=too-many-arguments
             include_upstream=False,
             include_downstream=True)
 
-        tis = tis.union(p_dag.clear(
+        tis = tis.union(clear(
+            p_dag,
             start_date=start_date, end_date=end_date,
             only_failed=only_failed,
             only_running=only_running,
