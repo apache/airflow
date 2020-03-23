@@ -38,6 +38,9 @@
     "presto",
     "sftp"
   ],
+  "hashicorp": [
+    "google"
+  ],
   "microsoft.azure": [
     "oracle"
   ],
