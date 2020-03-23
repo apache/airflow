@@ -25,13 +25,13 @@ Secrets framework provides means of getting connection objects from various sour
 __all__ = ['BaseSecretsBackend', 'get_connections']
 
 import json
-from abc import ABC, abstractmethod
 from json import JSONDecodeError
 from typing import List
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.utils.module_loading import import_string
 
 CONFIG_SECTION = "secrets"
@@ -39,24 +39,6 @@ DEFAULT_SECRETS_SEARCH_PATH = [
     "airflow.secrets.environment_variables.EnvironmentVariablesSecretsBackend",
     "airflow.secrets.metastore.MetastoreSecretsBackend",
 ]
-
-
-class BaseSecretsBackend(ABC):
-    """
-    Abstract base class to retrieve secrets given a conn_id and construct a Connection object
-    """
-
-    def __init__(self, **kwargs):
-        pass
-
-    @abstractmethod
-    def get_connections(self, conn_id) -> List[Connection]:
-        """
-        Return list of connection objects matching a given ``conn_id``.
-
-        :param conn_id: connection id to search for
-        :return:
-        """
 
 
 def get_connections(conn_id: str) -> List[Connection]:
