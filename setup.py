@@ -230,6 +230,7 @@ gcp = [
     'google-cloud-container>=0.1.1',
     'google-cloud-dlp>=0.11.0',
     'google-cloud-language>=1.1.1',
+    'google-cloud-secret-manager>=0.2.0',
     'google-cloud-spanner>=1.10.0',
     'google-cloud-speech>=0.36.3',
     'google-cloud-storage>=1.16',

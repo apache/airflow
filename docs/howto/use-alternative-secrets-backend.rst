@@ -142,6 +142,43 @@ Verify that you can get the secret from ``vault``:
 The value of the Vault key must be the :ref:`connection URI representation <generating_connection_uri>`
 of the connection object.
 
+.. _secrets_manager_backend:
+
+GCP Secrets Manager Backend
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To enable GCP Secrets Manager to retrieve connection, specify :py:class:`~airflow.contrib.secrets.gcp_secrets_manager.CloudSecretsManagerSecretsBackend`
+as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg``.
+
+Available parameters to ``backend_kwargs``:
+
+* ``connections_prefix``: Specifies the prefix of the secret to read to get Connections.
+* ``gcp_key_path``: Path to GCP Credential JSON file
+* ``gcp_scopes``: Comma-separated string containing GCP scopes
+
+Here is a sample configuration:
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.contrib.secrets.gcp_secrets_manager.CloudSecretsManagerSecretsBackend
+    backend_kwargs = {"connections_prefix": "airflow/connections"}
+
+When ``gcp_key_path`` is not provided, it will use the Application Default Credentials in the current environment. You can set up the credentials with:
+
+.. code-block:: ini
+
+    # 1. GOOGLE_APPLICATION_CREDENTIALS environment variable
+    export GOOGLE_APPLICATION_CREDENTIALS=path/to/key-file.json
+
+    # 2. Set with SDK
+    gcloud auth application-default login
+    # If the Cloud SDK has an active project, the project ID is returned. The active project can be set using:
+    gcloud config set project
+
+The value of the Secrets Manager secret id must be the :ref:`connection URI representation <generating_connection_uri>`
+of the connection object.
+
 .. _roll_your_own_secrets_backend:
 
 Roll your own secrets backend
