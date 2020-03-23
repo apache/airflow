@@ -223,6 +223,8 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
                     "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
                 }
         :type encryption_configuration: dict
+        :param num_retries: Maximum number of retries in case of connection problems.
+        :type num_retries: int
         :return: None
         """
         service = self.get_service()
