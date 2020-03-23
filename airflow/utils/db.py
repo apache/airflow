@@ -318,8 +318,9 @@ def initdb(rbac=False):
     merge_conn(
         Connection(
             conn_id='rabbitmq_default', conn_type='rabbitmq',
-            login='root',
+            login='guest',
             schema='amqp',
+            extra='{"user_id": "guest", "vhost": "/", heartbeat: 0 }',
             host='localhost', port=5672))
 
     # Known event types

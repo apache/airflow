@@ -111,10 +111,10 @@ class Connection(Base, LoggingMixin):
     ]
 
     def __init__(
-            self, conn_id=None, conn_type=None,
-            host=None, login=None, password=None,
-            schema=None, port=None, extra=None,
-            uri=None):
+        self, conn_id=None, conn_type=None,
+        host=None, login=None, password=None,
+        schema=None, port=None, extra=None,
+        uri=None):
         self.conn_id = conn_id
         if uri:
             self.parse_from_uri(uri)
@@ -305,6 +305,9 @@ class Connection(Base, LoggingMixin):
         elif self.conn_type == 'grpc':
             from airflow.contrib.hooks.grpc_hook import GrpcHook
             return GrpcHook(grpc_conn_id=self.conn_id)
+        elif self.conn_type == 'rabbitmq':
+            from airflow.hooks.rabbitmq_hook import RabbitmqHook
+            return RabbitmqHook(rabbitmq_conn_id=self.conn_id)
         raise AirflowException("Unknown hook type {}".format(self.conn_type))
 
     def __repr__(self):

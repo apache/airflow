@@ -20,6 +20,7 @@
 
 from airflow.api.client import api_client
 from airflow.api.common.experimental import pool
+from airflow.api.common.experimental import mark_tasks
 from airflow.api.common.experimental import trigger_dag
 from airflow.api.common.experimental import delete_dag
 
@@ -34,6 +35,11 @@ class Client(api_client.Client):
                                           execution_date=execution_date)
         return "Created {}".format(dag_run)
 
+    def double_confirm_task(self, task_id, dag_id, final_state=None):
+        tis = mark_tasks.set_dag_run_final_state(
+            dag_id=dag_id, task_id=task_id, final_state=final_state)
+        return "Set Final State {} record(s)".format(tis)
+
     def delete_dag(self, dag_id):
         count = delete_dag.delete_dag(dag_id)
         return "Removed {} record(s)".format(count)
@@ -46,7 +52,8 @@ class Client(api_client.Client):
         return [(p.pool, p.slots, p.description) for p in pool.get_pools()]
 
     def create_pool(self, name, slots, description):
-        the_pool = pool.create_pool(name=name, slots=slots, description=description)
+        the_pool = pool.create_pool(
+            name=name, slots=slots, description=description)
         return the_pool.pool, the_pool.slots, the_pool.description
 
     def delete_pool(self, name):

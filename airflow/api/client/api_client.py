@@ -37,6 +37,9 @@ class Client(object):
         """
         raise NotImplementedError()
 
+    def double_confirm_task(self, task_id, dag_id, final_state=None):
+        raise NotImplementedError()
+
     def delete_dag(self, dag_id):
         """Delete all DB records related to the specified dag.
 

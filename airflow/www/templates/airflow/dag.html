@@ -34,8 +34,10 @@
       {% if dag.parent_dag %}
         <span style='color:#AAA;'>SUBDAG: </span> <span> {{ dag.dag_id }}</span>
       {% else %}
-        <input id="pause_resume" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
-        <span style='color:#AAA;'>DAG: </span> <span> {{ dag.dag_id }}</span> <small class="text-muted"> {{ dag.description }} </small>
+        <input id="pause_resume" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }}
+               data-toggle="toggle" data-size="mini" method="post">
+        <span style='color:#AAA;'>DAG: </span><span> {{ dag.dag_id }}</span>
+        <small class="text-muted"> {{ dag.description }} </small>
       {% endif %}
       {% if root %}
         <span style='color:#AAA;'>ROOT: </span> <span> {{ root }}</span>
@@ -51,25 +53,26 @@
   <div>
     <ul class="nav nav-pills">
       {% if dag.parent_dag %}
-          <li class="never_active"><a href="{{ url_for('airflow.' + dag.get_default_view(), dag_id=dag.parent_dag.dag_id) }}">
-              <span class="glyphicon glyphicon-arrow-left" aria-hidden="true"></span>
-              Back to {{ dag.parent_dag.dag_id }}</a>
-          </li>
+        <li class="never_active"><a
+          href="{{ url_for('airflow.' + dag.get_default_view(), dag_id=dag.parent_dag.dag_id) }}">
+          <span class="glyphicon glyphicon-arrow-left" aria-hidden="true"></span>
+          Back to {{ dag.parent_dag.dag_id }}</a>
+        </li>
       {% endif %}
       <li><a href="{{ url_for("airflow.graph", dag_id=dag.dag_id, root=root, execution_date=execution_date) }}">
-          <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
+        <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
         Graph View</a></li>
       <li><a href="{{ url_for("airflow.tree", dag_id=dag.dag_id, num_runs=num_runs, root=root) }}">
-          <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true"></span>
+        <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true"></span>
         Tree View
       </a></li>
       <li><a href="{{ url_for("airflow.duration", dag_id=dag.dag_id, days=30, root=root) }}">
-          <span class="glyphicon glyphicon-stats" aria-hidden="true"></span>
-          Task Duration
+        <span class="glyphicon glyphicon-stats" aria-hidden="true"></span>
+        Task Duration
       </a></li>
       <li><a href="{{ url_for("airflow.tries", dag_id=dag.dag_id, days=30, root=root) }}">
-          <span class="glyphicon glyphicon-duplicate" aria-hidden="true"></span>
-          Task Tries
+        <span class="glyphicon glyphicon-duplicate" aria-hidden="true"></span>
+        Task Tries
       </a></li>
       <li>
         <a href="{{ url_for("airflow.landing_times", dag_id=dag.dag_id, days=30, root=root) }}">
@@ -85,7 +88,7 @@
         </a>
       </li>
       <li>
-      <a href="{{ url_for("airflow.dag_details", dag_id=dag.dag_id) }}">
+        <a href="{{ url_for("airflow.dag_details", dag_id=dag.dag_id) }}">
           <span class="glyphicon glyphicon-list" aria-hidden="true"></span>
           Details
         </a>
@@ -98,22 +101,30 @@
       </li>
       <li>
         <a href="{{ url_for("airflow.trigger", dag_id=dag.dag_id, origin=url_for("airflow.tree", dag_id=dag.dag_id)) }}"
-          onclick="return confirmTriggerDag(this, '{{ dag.safe_dag_id }}')">
+           onclick="return confirmTriggerDag(this, '{{ dag.safe_dag_id }}')">
           <span class="glyphicon glyphicon-play-circle" aria-hidden="true"></span>
           Trigger DAG
         </a>
       </li>
       <li>
-        <a href="{{ url_for("airflow.refresh", dag_id=dag.dag_id) }}" title="Refresh" onclick="postAsForm(this.href); return false">
+        <a href="{{ url_for("airflow.refresh", dag_id=dag.dag_id) }}" title="Refresh"
+           onclick="postAsForm(this.href); return false">
           <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
           Refresh
         </a>
       </li>
       <li>
         <a href="{{ url_for("airflow.delete", dag_id=dag.dag_id, root=root) }}"
-        onclick="return confirmDeleteDag(this, '{{ dag.safe_dag_id }}')">
-        <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></span>
-        Delete
+           onclick="return confirmDeleteDag(this, '{{ dag.safe_dag_id }}')">
+          <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></span>
+          Delete
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for("airflow.delete", dag_id=dag.dag_id, root=root) }}"
+           onclick="return confirmDeleteDag(this, '{{ dag.safe_dag_id }}')">
+          <span class="glyphicon glyphicon-ok" style="color:red" aria-hidden="true"></span>
+          二次确认
         </a>
       </li>
     </ul>
@@ -121,8 +132,8 @@
   <hr>
   <!-- Modal -->
   <div class="modal fade" id="myModal"
-        tabindex="-1" role="dialog"
-      aria-labelledby="myModalLabel" aria-hidden="true">
+       tabindex="-1" role="dialog"
+       aria-labelledby="myModalLabel" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
@@ -131,16 +142,16 @@
             <button id="btn_filter" type="button" class="btn btn-default" title="Filter on this task and upstream ">
               <span class="glyphicon glyphicon-filter" style="margin-left: 0px;" aria-hidden="true"></span>
             </button>
-              on
+            on
             <span id='execution_date'></span>
           </h4>
         </div>
         <div class="modal-body">
           <div id="div_btn_subdag">
-              <button id="btn_subdag" type="button" class="btn btn-primary">
-                Zoom into Sub DAG
-              </button>
-              <hr/>
+            <button id="btn_subdag" type="button" class="btn btn-primary">
+              Zoom into Sub DAG
+            </button>
+            <hr/>
           </div>
           <button id="btn_task" type="button" class="btn btn-primary">
             Task Instance Details
@@ -175,8 +186,8 @@
             <input name="execution_date" type="hidden">
             <input name="origin" type="hidden" value="{{ request.base_url }}">
             <button id="btn_run" type="button" class="btn btn-primary"
-              title="Runs a single task instance"
-              data-action="{{ url_for('airflow.run') }}">
+                    title="Runs a single task instance"
+                    data-action="{{ url_for('airflow.run') }}">
               Run
             </button>
             <span class="btn-group" data-toggle="buttons">
@@ -186,40 +197,40 @@
                 <input type="checkbox" value="true" name="ignore_all_deps" autocomplete="off">
                 Ignore All Deps</label>
               <label class="btn"
-                title="Ignore previous success/failure">
+                     title="Ignore previous success/failure">
                 <input type="checkbox" value="true" name="ignore_ti_state" autocomplete="off">
                 Ignore Task State
               </label>
               <label class="btn"
-                title="Disregard the task-specific dependencies, e.g. status of upstream task instances and depends_on_past">
+                     title="Disregard the task-specific dependencies, e.g. status of upstream task instances and depends_on_past">
                 <input type="checkbox" value="true" name="ignore_task_deps" autocomplete="off">
                 Ignore Task Deps
               </label>
             </span>
             <hr/>
             <button id="btn_clear" type="button" class="btn btn-primary"
-                title="Clearing deletes the previous state of the task instance, allowing it to get re-triggered by the scheduler or a backfill command"
-                data-action="{{ url_for('airflow.clear') }}"
-                >Clear
+                    title="Clearing deletes the previous state of the task instance, allowing it to get re-triggered by the scheduler or a backfill command"
+                    data-action="{{ url_for('airflow.clear') }}"
+            >Clear
             </button>
             <span class="btn-group" data-toggle="buttons">
               <label class="btn"
-                title="Also include past task instances when clearing this one">
+                     title="Also include past task instances when clearing this one">
                 <input type="checkbox" value="true" name="past" autocomplete="off">
                 Past
               </label>
               <label class="btn"
-                title="Also include future task instances when clearing this one">
+                     title="Also include future task instances when clearing this one">
                 <input type="checkbox" value="true" name="future" autocomplete="off">
                 Future
               </label>
               <label class="btn"
-                title="Also include upstream dependencies">
+                     title="Also include upstream dependencies">
                 <input type="checkbox" value="true" name="upstream" autocomplete="off">
                 Upstream
               </label>
               <label class="btn active"
-                title="Also include downstream dependencies">
+                     title="Also include downstream dependencies">
                 <input type="checkbox" value="true" name="downstream" checked autocomplete="off">
                 Downstream
               </label>
@@ -228,14 +239,14 @@
                  Recursive
               </label>
               <label class="btn"
-                title="Only consider failed task instances when clearing this one">
+                     title="Only consider failed task instances when clearing this one">
                 <input type="checkbox" value="true" name="only_failed" autocomplete="off">
                 Failed
               </label>
             </span>
             <hr/>
             <button id="btn_failed" type="button" class="btn btn-primary"
-                data-action="{{ url_for('airflow.failed') }}">
+                    data-action="{{ url_for('airflow.failed') }}">
               Mark Failed
             </button>
             <span class="btn-group" data-toggle="buttons">
@@ -258,7 +269,7 @@
             </span>
             <hr/>
             <button id="btn_success" type="button" class="btn btn-primary"
-                data-action="{{ url_for('airflow.success') }}">
+                    data-action="{{ url_for('airflow.success') }}">
               Mark Success
             </button>
             <span class="btn-group" data-toggle="buttons">
@@ -291,8 +302,8 @@
   </div>
   <!-- Modal for dag -->
   <div class="modal fade" id="dagModal"
-        tabindex="-1" role="dialog"
-      aria-labelledby="dagModalLabel" aria-hidden="true">
+       tabindex="-1" role="dialog"
+       aria-labelledby="dagModalLabel" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
@@ -309,13 +320,16 @@
             <input name="dag_id" type="hidden">
             <input name="execution_date" type="hidden">
             <input name="origin" type="hidden" value="{{ request.base_url }}">
-            <button id="btn_dagrun_clear" type="button" class="btn btn-primary" data-action="{{ url_for('airflow.dagrun_clear') }}">
+            <button id="btn_dagrun_clear" type="button" class="btn btn-primary"
+                    data-action="{{ url_for('airflow.dagrun_clear') }}">
               Clear
             </button>
-            <button id="btn_dagrun_failed" type="button" class="btn btn-primary" data-action="{{ url_for('airflow.dagrun_failed') }}">
+            <button id="btn_dagrun_failed" type="button" class="btn btn-primary"
+                    data-action="{{ url_for('airflow.dagrun_failed') }}">
               Mark Failed
             </button>
-            <button id="btn_dagrun_success" type="button" class="btn btn-primary" data-action="{{ url_for('airflow.dagrun_success') }}">
+            <button id="btn_dagrun_success" type="button" class="btn btn-primary"
+                    data-action="{{ url_for('airflow.dagrun_success') }}">
               Mark Success
             </button>
           </form>
@@ -334,16 +348,15 @@
   {{ super() }}
   <script src="{{ url_for('static', filename='bootstrap-toggle.min.js') }}"></script>
   <script>
-function updateQueryStringParameter(uri, key, value) {
-  var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
-  var separator = uri.indexOf('?') !== -1 ? "&" : "?";
-  if (uri.match(re)) {
-    return uri.replace(re, '$1' + key + "=" + value + '$2');
-  }
-  else {
-    return uri + separator + key + "=" + value;
-  }
-}
+    function updateQueryStringParameter(uri, key, value) {
+      var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
+      var separator = uri.indexOf('?') !== -1 ? "&" : "?";
+      if (uri.match(re)) {
+        return uri.replace(re, '$1' + key + "=" + value + '$2');
+      } else {
+        return uri + separator + key + "=" + value;
+      }
+    }
 
     // Pills highlighting
     $(document).ready(function () {
@@ -364,7 +377,7 @@ function updateQueryStringParameter(uri, key, value) {
     function call_modal(t, d, try_numbers, sd) {
       task_id = t;
       loc = String(window.location);
-      $("#btn_filter").on("click", function(){
+      $("#btn_filter").on("click", function () {
         window.location = updateQueryStringParameter(loc, "root", task_id);
       });
       subdag_id = sd;
@@ -372,27 +385,27 @@ function updateQueryStringParameter(uri, key, value) {
       $('#task_id').html(t);
       $('#execution_date').html(d);
       $('#myModal').modal({});
-      $("#myModal").css("margin-top","0px")
+      $("#myModal").css("margin-top", "0px")
       if (subdag_id === undefined)
-          $("#div_btn_subdag").hide();
+        $("#div_btn_subdag").hide();
       else {
-          $("#div_btn_subdag").show();
-          subdag_id = "{{ dag.dag_id }}."+t;
+        $("#div_btn_subdag").show();
+        subdag_id = "{{ dag.dag_id }}." + t;
       }
 
       $("#dag_dl_logs").hide();
       $("#dag_es_logs").hide();
       if (try_numbers > 0) {
-          $("#dag_dl_logs").show();
-          if (show_es_logs) {
-              $("#dag_es_logs").show();
-          }
+        $("#dag_dl_logs").show();
+        if (show_es_logs) {
+          $("#dag_es_logs").show();
+        }
       }
 
       $("#try_index > li").remove();
       $("#es_try_index > li").remove();
       var startIndex = (try_numbers > 2 ? 0 : 1);
-      for (var index = startIndex; index <  try_numbers; index++) {
+      for (var index = startIndex; index < try_numbers; index++) {
         var url = "{{ url_for('airflow.get_logs_with_metadata') }}" +
           "?dag_id=" + encodeURIComponent(dag_id) +
           "&task_id=" + encodeURIComponent(task_id) +
@@ -430,20 +443,20 @@ function updateQueryStringParameter(uri, key, value) {
       execution_date = dag && dag.execution_date;
       $('#dag_id').html(dag_id);
       $('#dagModal').modal({});
-      $("#dagModal").css("margin-top","0px");
+      $("#dagModal").css("margin-top", "0px");
     }
 
 
-    function confirmTriggerDag(link, dag_id){
-      if (confirm("Are you sure you want to run '"+dag_id+"' now?")) {
+    function confirmTriggerDag(link, dag_id) {
+      if (confirm("Are you sure you want to run '" + dag_id + "' now?")) {
         postAsForm(link.href, {});
       }
       // Never follow the link
       return false;
     }
 
-    function confirmDeleteDag(link, dag_id){
-      if (confirm("Are you sure you want to delete '"+dag_id+"' now?\n\
+    function confirmDeleteDag(link, dag_id) {
+      if (confirm("Are you sure you want to delete '" + dag_id + "' now?\n\
         This option will delete ALL metadata, DAG runs, etc.\n\
         EXCEPT Log.\n\
         This cannot be undone.")) {
@@ -452,7 +465,7 @@ function updateQueryStringParameter(uri, key, value) {
       return false;
     }
 
-    $("#btn_rendered").click(function(){
+    $("#btn_rendered").click(function () {
       url = "{{ url_for('airflow.rendered') }}" +
         "?task_id=" + encodeURIComponent(task_id) +
         "&dag_id=" + encodeURIComponent(dag_id) +
@@ -460,14 +473,14 @@ function updateQueryStringParameter(uri, key, value) {
       window.location = url;
     });
 
-    $("#btn_subdag").click(function(){
+    $("#btn_subdag").click(function () {
       url = "{{ url_for( 'airflow.' + dag.get_default_view() ) }}" +
         "?dag_id=" + encodeURIComponent(subdag_id) +
         "&execution_date=" + encodeURIComponent(execution_date);
       window.location = url;
     });
 
-    $("#btn_log").click(function(){
+    $("#btn_log").click(function () {
       url = "{{ url_for('airflow.log') }}" +
         "?task_id=" + encodeURIComponent(task_id) +
         "&dag_id=" + encodeURIComponent(dag_id) +
@@ -476,7 +489,7 @@ function updateQueryStringParameter(uri, key, value) {
       window.location = url;
     });
 
-    $("#btn_task").click(function(){
+    $("#btn_task").click(function () {
       url = "{{ url_for('airflow.task') }}" +
         "?task_id=" + encodeURIComponent(task_id) +
         "&dag_id=" + encodeURIComponent(dag_id) +
@@ -484,7 +497,7 @@ function updateQueryStringParameter(uri, key, value) {
       window.location = url;
     });
 
-    $("#btn_ti").click(function(){
+    $("#btn_ti").click(function () {
       url = "{{ url_for('taskinstance.index_view') }}" +
         "?flt1_dag_id_equals=" + encodeURIComponent(dag_id) +
         "&flt2_task_id_equals=" + encodeURIComponent(task_id) +
@@ -504,8 +517,8 @@ function updateQueryStringParameter(uri, key, value) {
       form.submit();
     })
 
-    $("#pause_resume").change(function() {
-      var dag_id =  $(this).attr('dag_id');
+    $("#pause_resume").change(function () {
+      var dag_id = $(this).attr('dag_id');
       if ($(this).prop('checked')) {
         is_paused = 'true'
       } else {
@@ -515,7 +528,7 @@ function updateQueryStringParameter(uri, key, value) {
       $.post(url);
     });
 
-    $('#btn_edit_dagrun').click(function(){
+    $('#btn_edit_dagrun').click(function () {
       window.location = "{{ url_for('dagrun.edit_view') }}?id=" + encodeURIComponent(id);
     });
 

@@ -21,6 +21,7 @@ from flask import (
 )
 
 import airflow.api
+from airflow.api.common.experimental.mark_tasks import set_dag_run_final_state
 from airflow.api.common.experimental import delete_dag as delete
 from airflow.api.common.experimental import pool as pool_api
 from airflow.api.common.experimental import trigger_dag as trigger
@@ -155,6 +156,23 @@ def get_dag_code(dag_id):
         response = jsonify(error="{}".format(err))
         response.status_code = err.status_code
         return response
+
+
+@api_experimental.route('/dags/<string:dag_id>/tasks/<string:task_id>/confirm', methods=['POST'])
+@requires_authentication
+def double_confirm_task(dag_id, task_id):
+    try:
+        params = request.get_json(force=True)  # success failed
+        final_state = params.get('final_state', None)
+        get_task(dag_id, task_id)
+    except AirflowException as err:
+        _log.info(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+
+    set_dag_run_final_state(task_id=task_id, dag_id=dag_id, final_state=final_state)
+    return jsonify({'response': 'ok'})
 
 
 @api_experimental.route('/dags/<string:dag_id>/tasks/<string:task_id>', methods=['GET'])

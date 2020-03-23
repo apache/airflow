@@ -58,6 +58,15 @@ class Client(api_client.Client):
                              })
         return data['message']
 
+    def double_confirm_task(self, task_id, dag_id, final_state=None):
+        endpoint = '/api/experimental/dags/<string:dag_id>/tasks/<string:task_id>/confirm'.format(dag_id, task_id)
+        url = urljoin(self._api_base_url, endpoint)
+        data = self._request(url, method='POST',
+                             json={
+                                 "final_state": final_state
+                             })
+        return data['message']
+
     def delete_dag(self, dag_id):
         endpoint = '/api/experimental/dags/{}/delete_dag'.format(dag_id)
         url = urljoin(self._api_base_url, endpoint)

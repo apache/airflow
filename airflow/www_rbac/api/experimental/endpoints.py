@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import airflow.api
-
+from airflow.api.common.experimental.mark_tasks import set_dag_run_final_state
 from airflow.api.common.experimental import pool as pool_api
 from airflow.api.common.experimental import trigger_dag as trigger
 from airflow.api.common.experimental.get_dag_runs import get_dag_runs
@@ -71,7 +71,7 @@ def trigger_dag(dag_id):
             error_message = (
                 'Given execution date, {}, could not be identified '
                 'as a date. Example date format: 2015-11-16T14:34:15+00:00'
-                .format(execution_date))
+                    .format(execution_date))
             _log.info(error_message)
             response = jsonify({'error': error_message})
             response.status_code = 400
@@ -157,6 +157,23 @@ def task_info(dag_id, task_id):
     return jsonify(fields)
 
 
+@api_experimental.route('/dags/<string:dag_id>/tasks/<string:task_id>/confirm', methods=['POST'])
+@requires_authentication
+def double_confirm_task(dag_id, task_id):
+    try:
+        params = request.get_json(force=True)  # success failed
+        final_state = params.get('final_state', None)
+        get_task(dag_id, task_id)
+    except AirflowException as err:
+        _log.info(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+
+    set_dag_run_final_state(task_id=task_id, dag_id=dag_id, final_state=final_state)
+    return jsonify({'response': 'ok'})
+
+
 # ToDo: Shouldn't this be a PUT method?
 @api_experimental.route('/dags/<string:dag_id>/paused/<string:paused>', methods=['GET'])
 @requires_authentication
@@ -167,7 +184,7 @@ def dag_paused(dag_id, paused):
     with create_session() as session:
         orm_dag = (
             session.query(DagModel)
-                   .filter(DagModel.dag_id == dag_id).first()
+                .filter(DagModel.dag_id == dag_id).first()
         )
         if paused == 'true':
             orm_dag.is_paused = True
@@ -198,7 +215,7 @@ def task_instance_info(dag_id, execution_date, task_id):
         error_message = (
             'Given execution date, {}, could not be identified '
             'as a date. Example date format: 2015-11-16T14:34:15+00:00'
-            .format(execution_date))
+                .format(execution_date))
         _log.info(error_message)
         response = jsonify({'error': error_message})
         response.status_code = 400

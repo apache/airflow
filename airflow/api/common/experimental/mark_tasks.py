@@ -60,15 +60,16 @@ def _create_dagruns(dag, execution_dates, state, run_id_template):
 
 @provide_session
 def set_state(
-        tasks,  # type: Iterable[BaseOperator]
-        execution_date,  # type: datetime.datetime
-        upstream=False,
-        downstream=False,
-        future=False,
-        past=False,
-        state=State.SUCCESS,
-        commit=False,
-        session=None):  # pylint: disable=too-many-arguments,too-many-locals
+    tasks,  # type: Iterable[BaseOperator]
+    execution_date,  # type: datetime.datetime
+    upstream=False,
+    downstream=False,
+    future=False,
+    past=False,
+    state=State.SUCCESS,
+    final_state=None,  # SUCCESS FAILED
+    commit=False,
+    session=None):  # pylint: disable=too-many-arguments,too-many-locals
 
     """
     Set the state of a task instance and if needed its relatives. Can set state
@@ -86,6 +87,7 @@ def set_state(
     :param past: Retroactively mark all tasks starting from start_date of the DAG
     :param state: State to which the tasks need to be set
     :param commit: Commit tasks to be altered to the database
+    :param final_state: Commit tasks to be altered to the database
     :param session: database session
     :return: list of tasks that have been created and updated
     """
@@ -121,6 +123,8 @@ def set_state(
             tis_altered += qry_sub_dag.with_for_update().all()
         for task_instance in tis_altered:
             task_instance.state = state
+            if final_state:
+                task_instance.final_state = final_state
     else:
         tis_altered = qry_dag.all()
         if sub_dag_run_ids:
@@ -133,34 +137,34 @@ def set_state(
 # Flake and pylint disagree about correct indents here
 def all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates):  # noqa: E123
     """Get *all* tasks of the sub dags"""
-    qry_sub_dag = session.query(TaskInstance).\
+    qry_sub_dag = session.query(TaskInstance). \
         filter(
-            TaskInstance.dag_id.in_(sub_dag_run_ids),
-            TaskInstance.execution_date.in_(confirmed_dates)  # noqa: E123
-        ).\
+        TaskInstance.dag_id.in_(sub_dag_run_ids),
+        TaskInstance.execution_date.in_(confirmed_dates)  # noqa: E123
+    ). \
         filter(
-            or_(
-                TaskInstance.state.is_(None),
-                TaskInstance.state != state
-            )
-        )  # noqa: E123
+        or_(
+            TaskInstance.state.is_(None),
+            TaskInstance.state != state
+        )
+    )  # noqa: E123
     return qry_sub_dag
 
 
 def get_all_dag_task_query(dag, session, state, task_ids, confirmed_dates):  # noqa: E123
     """Get all tasks of the main dag that will be affected by a state change"""
-    qry_dag = session.query(TaskInstance).\
+    qry_dag = session.query(TaskInstance). \
         filter(
-            TaskInstance.dag_id == dag.dag_id,
-            TaskInstance.execution_date.in_(confirmed_dates),
-            TaskInstance.task_id.in_(task_ids)  # noqa: E123
-        ).\
+        TaskInstance.dag_id == dag.dag_id,
+        TaskInstance.execution_date.in_(confirmed_dates),
+        TaskInstance.task_id.in_(task_ids)  # noqa: E123
+    ). \
         filter(
-            or_(
-                TaskInstance.state.is_(None),
-                TaskInstance.state != state
-            )
+        or_(
+            TaskInstance.state.is_(None),
+            TaskInstance.state != state
         )
+    )
     return qry_dag
 
 
@@ -354,6 +358,21 @@ def set_dag_run_state_to_failed(dag, execution_date, commit=False, session=None)
 
     return set_state(tasks=tasks, execution_date=execution_date,
                      state=State.FAILED, commit=commit, session=session)
+
+
+@provide_session
+def set_dag_run_final_state(dag_id, task_id, final_state=None, session=None) -> [TaskInstance]:
+    if not dag_id or not task_id or not final_state:
+        return
+    tis = session.query(TaskInstance).filter(
+        TaskInstance.dag_id == dag_id,
+        task_id == task_id)
+
+    tis_altered = tis.with_for_update().all()
+    for task_instance in tis_altered:
+        task_instance.final_state = final_state
+
+    return tis_altered
 
 
 @provide_session
