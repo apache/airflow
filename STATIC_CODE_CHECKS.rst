@@ -268,7 +268,7 @@ this, run the following scripts (the same is done in Travis CI):
 * `<scripts/ci/ci_check_license.sh>`_ - checks the licenses.
 * `<scripts/ci/ci_docs.sh>`_ - checks that documentation can be built without warnings.
 * `<scripts/ci/ci_flake8.sh>`_ - runs Flake8 source code style enforcement tool.
-* `<scripts/ci/ci_lint_dockerfile.sh>`_ - runs lint checker for the Dockerfile.
+* `<scripts/ci/ci_lint_dockerfile.sh>`_ - runs lint checker for the dockerfiles.
 * `<scripts/ci/ci_mypy.sh>`_ - runs a check for mypy type annotation consistency.
 
 The scripts may ask you to rebuild the images, if needed.

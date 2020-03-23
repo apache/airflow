@@ -46,7 +46,7 @@ ${AIRFLOW_SOURCES}/.rat-excludes:/opt/airflow/.rat-excludes:cached
 -v
 ${AIRFLOW_SOURCES}/CHANGELOG.txt:/opt/airflow/CHANGELOG.txt:cached
 -v
-${AIRFLOW_SOURCES}/Dockerfile:/opt/airflow/Dockerfile:cached
+${AIRFLOW_SOURCES}/Dockerfile.ci:/opt/airflow/Dockerfile.ci:cached
 -v
 ${AIRFLOW_SOURCES}/LICENSE:/opt/airflow/LICENSE:cached
 -v

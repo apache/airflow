@@ -400,7 +400,7 @@ all_dbs = (cassandra + cloudant + druid + hdfs + hive + mongo + mssql + mysql +
 ############################################################################################################
 # IMPORTANT NOTE!!!!!!!!!!!!!!!
 # IF you are removing dependencies from this list, please make sure that you also increase
-# DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
+# DEPENDENCIES_EPOCH_NUMBER in the Dockerfile.ci
 ############################################################################################################
 devel = [
     'beautifulsoup4~=4.7.1',
@@ -431,7 +431,7 @@ devel = [
 ############################################################################################################
 # IMPORTANT NOTE!!!!!!!!!!!!!!!
 # IF you are removing dependencies from the above list, please make sure that you also increase
-# DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
+# DEPENDENCIES_EPOCH_NUMBER in the Dockerfile.ci
 ############################################################################################################
 
 if PY3:
@@ -533,6 +533,11 @@ EXTRAS_REQUIREMENTS = {
     'winrm': winrm
 }
 
+#####################################################################################################
+# IMPORTANT NOTE!!!!!!!!!!!!!!!
+# IF you are removing dependencies from this list, please make sure that you also increase
+# DEPENDENCIES_EPOCH_NUMBER in the Dockerfile.ci
+#####################################################################################################
 INSTALL_REQUIREMENTS = [
     'alembic>=1.0, <2.0',
     'argcomplete~=1.10',

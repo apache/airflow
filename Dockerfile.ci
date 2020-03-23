@@ -380,7 +380,7 @@ COPY .coveragerc .rat-excludes .flake8 LICENSE MANIFEST.in NOTICE CHANGELOG.txt 
      ${AIRFLOW_SOURCES}/
 
 # Needed for building images via docker-in-docker inside the docker
-COPY Dockerfile ${AIRFLOW_SOURCES}/Dockerfile
+COPY Dockerfile.ci ${AIRFLOW_SOURCES}/Dockerfile.ci
 
 # Install autocomplete for airflow
 RUN register-python-argcomplete airflow >> ~/.bashrc

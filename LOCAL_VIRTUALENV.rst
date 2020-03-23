@@ -55,7 +55,7 @@ Homebrew for macOS to install required software packages:
 * MySQL
 * libxml
 
-Refer to the `Dockerfile <Dockerfile>`__ for a comprehensive list
+Refer to the `Dockerfile.ci <Dockerfile.ci>`__ for a comprehensive list
 of required packages.
 
 Extra Packages
