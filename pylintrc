@@ -151,7 +151,6 @@ disable=print-statement,
         deprecated-operator-function,
         deprecated-urllib-function,
         xreadlines-attribute,
-        deprecated-sys-function,
         exception-escape,
         comprehension-escape,
         bad-continuation,  # Throws incorrect errors, see https://github.com/ambv/black/issues/48
