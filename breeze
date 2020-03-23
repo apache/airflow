@@ -52,7 +52,7 @@ function setup_default_breeze_variables() {
     mkdir -pv "${FILES_DIR}"
 
     # Note - we do not use __script_init.sh here because it can only be used from within
-    # the CI directory and we need to overrride PYTHON_VERSION based on what we store
+    # the CI directory and we need to overrride PYTHON_MAJOR_MINOR_VERSION based on what we store
     # in the .build directory
 
     # Beginning of the initialisation here
@@ -60,7 +60,7 @@ function setup_default_breeze_variables() {
     # shellcheck source=scripts/ci/_utils.sh
     . "${SCRIPTS_CI_DIR}/_utils.sh"
 
-    export PYTHON_VERSION="${PYTHON_VERSION:=$(read_from_file PYTHON_VERSION)}"
+    export PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION:=$(read_from_file PYTHON_MAJOR_MINOR_VERSION)}"
 
     if [[ ${FORCE_SCREEN_WIDTH:="false"} != "true" ]]; then
         # Sets width of the screen from terminal
@@ -147,14 +147,14 @@ function setup_default_breeze_variables() {
     _BREEZE_DEFAULT_POSTGRES_VERSION="9.6"
     _BREEZE_DEFAULT_MYSQL_VERSION="5.7"
 
-    STATIC_CHECK_PYTHON_VERSION=3.6
+    STATIC_CHECK_PYTHON_MAJOR_MINOR_VERSION=3.6
 }
 # End of initialisation here
 
 function initialize_virtualenv() {
    # Check if we are in virtualenv
    set +e
-   echo -e "import sys\nif not hasattr(sys,'base_prefix'):\n  sys.exit(1)" | "python${PYTHON_VERSION}"
+   echo -e "import sys\nif not hasattr(sys,'base_prefix'):\n  sys.exit(1)" | "python${PYTHON_MAJOR_MINOR_VERSION}"
    RES=$?
    set -e
    if [[ ${RES} != "0" ]]; then
@@ -177,7 +177,7 @@ function initialize_virtualenv() {
         echo
         pushd "${MY_DIR}"
         set +e
-        pip install -e ".[devel]" --constraint requirements.txt
+        pip install -e ".[devel]" --constraint "requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
         RES=$?
         set -e
         popd
@@ -333,7 +333,7 @@ function print_badge {
                                Docker image:           ${AIRFLOW_CI_IMAGE}
                                Airflow source version: ${AIRFLOW_VERSION}
                                Airflow installed:      ${INSTALL_AIRFLOW_VERSION}
-                               Python version:         ${PYTHON_VERSION}
+                               Python version:         ${PYTHON_MAJOR_MINOR_VERSION}
                                DockerHub user:         ${DOCKERHUB_USER}
                                DockerHub repo:         ${DOCKERHUB_REPO}
                                Backend:                ${BACKEND} ${BACKEND_VERSION}
@@ -357,7 +357,7 @@ EOF
    Docker image:            ${AIRFLOW_CI_IMAGE}
    Airflow source version:  ${AIRFLOW_VERSION}
    Airflow installed:       ${INSTALL_AIRFLOW_VERSION}
-   Python version:          ${PYTHON_VERSION}
+   Python version:          ${PYTHON_MAJOR_MINOR_VERSION}
    DockerHub user:          ${DOCKERHUB_USER}
    DockerHub repo:          ${DOCKERHUB_REPO}
    Backend:                 ${BACKEND} ${BACKEND_VERSION}
@@ -388,7 +388,7 @@ cd "\$(pwd)" || exit
 export DOCKERHUB_USER=${DOCKERHUB_USER}
 export DOCKERHUB_REPO=${DOCKERHUB_REPO}
 export COMPOSE_FILE="${COMPOSE_FILE}"
-export PYTHON_VERSION="${PYTHON_VERSION}"
+export PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}"
 export BACKEND="${BACKEND}"
 export RUNTIME="${RUNTIME}"
 export ENABLE_KIND_CLUSTER="${ENABLE_KIND_CLUSTER}"
@@ -449,9 +449,9 @@ function prepare_command_files() {
     CI_ENTRYPOINT_FILE="/opt/airflow/scripts/ci/in_container/entrypoint_ci.sh"
 
     # Base python image for the build
-    export PYTHON_BASE_IMAGE=python:${PYTHON_VERSION}-slim-buster
-    export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-python${PYTHON_VERSION}-ci"
-    export BUILT_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_VERSION}"
+    export PYTHON_BASE_IMAGE=python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster
+    export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
+    export BUILT_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
 
     DC_RUN_COMMAND="run --service-ports --rm airflow-testing \"${CI_ENTRYPOINT_FILE} "
 
@@ -520,8 +520,8 @@ function parse_arguments() {
           RUN_HELP="true"
           shift ;;
         -p|--python)
-          export PYTHON_VERSION="${2}";
-          echo "Python version: ${PYTHON_VERSION}"
+          export PYTHON_MAJOR_MINOR_VERSION="${2}";
+          echo "Python version: ${PYTHON_MAJOR_MINOR_VERSION}"
           echo
           shift 2 ;;
         -b|--backend)
@@ -725,6 +725,10 @@ function parse_arguments() {
           LAST_SUBCOMMAND="${1}"
           COMMAND_TO_RUN="run_in_bash"
           shift ;;
+        generate-requirements)
+          LAST_SUBCOMMAND="${1}"
+          COMMAND_TO_RUN="perform_generate_requirements"
+          shift ;;
         initialize-local-virtualenv)
           LAST_SUBCOMMAND="${1}"
           echo "Initializing local virtualenv"
@@ -748,7 +752,7 @@ function parse_arguments() {
             echo "${CMDNAME} static-check mypy"
             exit 1
           fi
-          export PYTHON_VERSION=${STATIC_CHECK_PYTHON_VERSION}
+          export PYTHON_MAJOR_MINOR_VERSION=${STATIC_CHECK_PYTHON_MAJOR_MINOR_VERSION}
           export STATIC_CHECK="${2}"
           export STATIC_CHECK_ALL_FILES="false"
           EXTRA_STATIC_CHECK_OPTIONS+=("--show-diff-on-failure")
@@ -764,7 +768,7 @@ function parse_arguments() {
             exit 1
           fi
           COMMAND_TO_RUN="perform_static_checks"
-          export PYTHON_VERSION=${STATIC_CHECK_PYTHON_VERSION}
+          export PYTHON_MAJOR_MINOR_VERSION=${STATIC_CHECK_PYTHON_MAJOR_MINOR_VERSION}
           export STATIC_CHECK="${2}"
           export STATIC_CHECK_ALL_FILES="true"
           EXTRA_STATIC_CHECK_OPTIONS+=("--all-files" "--show-diff-on-failure")
@@ -852,7 +856,7 @@ prepare_allowed_versions() {
     INDENT=15
     LIST_PREFIX=$(printf "%-${INDENT}s" " ")
     WIDTH=$((SCREEN_WIDTH - INDENT))
-    ALLOWED_PYTHON_VERSIONS=$(echo "${_BREEZE_ALLOWED_PYTHON_VERSIONS=""}" | tr '\n' ' ' | \
+    ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS=$(echo "${_BREEZE_ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS=""}" | tr '\n' ' ' | \
       fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
     ALLOWED_BACKENDS=$(echo "${_BREEZE_ALLOWED_BACKENDS=""}" | tr '\n' ' ' | \
       fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
@@ -882,6 +886,7 @@ prepare_usage() {
     export USAGE_DOCKER_COMPOSE="Executes specified docker-compose command"
     export USAGE_EXECUTE_COMMAND="Executes specified command in the container"
     export USAGE_FLAGS="Shows all breeze's flags"
+    export USAGE_GENERATE_REQUIREMENTS="Generates pinned requirements for pip dependencies"
     export USAGE_INITIALIZE_LOCAL_VIRTUALENV="Initializes local virtualenv"
     export USAGE_SETUP_AUTOCOMPLETE="Sets up autocomplete for breeze"
     export USAGE_STOP="Stops the docker-compose evironment"
@@ -953,9 +958,16 @@ prepare_usage() {
     export DETAILED_USAGE_FLAGS="
       Explains in detail all the flags that can be used with breeze.
 "
+    export DETAILED_USAGE_GENERATE_REQUIREMENTS="
+      Generates pinned requirements from setup.py. Those requirements are generated in requirements
+      directory - separately for different python version. Those requirements are used to run
+      CI builds as well as run repeatable production image builds. You can use those requirements
+      to predictably install released airflow versions. You should run it always after you update
+      setup.py.
+"
     export DETAILED_USAGE_INITIALIZE_LOCAL_VIRTUALENV="
       Initializes locally created virtualenv installing all dependencies of Airflow
-      taking into account the frozen requirements from requirements.txt.
+      taking into account the frozen requirements from requirements folder.
       This local virtualenv can be used to aid autocompletion and IDE support as
       well as run unit tests directly from the IDE. You need to have virtualenv
       activated before running this command.
@@ -1099,11 +1111,11 @@ $(print_star_line)
  Choose Airflow variant
 $(print_star_line)
 
--p, --python <PYTHON_VERSION>
+-p, --python <PYTHON_MAJOR_MINOR_VERSION>
         Python version used for the image. This is always major/minor version.
         One of:
 
-${ALLOWED_PYTHON_VERSIONS}
+${ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS}
 
 -b, --backend <BACKEND>
         Backend to use for tests - it determines which database is used.
@@ -1329,7 +1341,7 @@ function read_saved_environment_variables {
 }
 
 function check_and_save_all_params() {
-    check_and_save_allowed_param "PYTHON_VERSION"  "Python version" "--python"
+    check_and_save_allowed_param "PYTHON_MAJOR_MINOR_VERSION"  "Python version" "--python"
     check_and_save_allowed_param "BACKEND"  "backend" "--backend"
     check_and_save_allowed_param "KUBERNETES_MODE"  "Kubernetes mode" "--kubernetes-mode"
     check_and_save_allowed_param "KUBERNETES_VERSION"  "Kubernetes version" "--kubernetes-version"
@@ -1493,7 +1505,7 @@ function run_build_command {
         enter_breeze|build_docs|run_tests|run_docker_compose|run_in_bash)
             rebuild_ci_image_if_needed
             ;;
-        perform_static_checks|build_ci_images_only)
+        perform_static_checks|build_ci_images_only|perform_generate_requirements)
             rebuild_ci_image_if_needed
             ;;
         cleanup_images|run_exec)
@@ -1551,6 +1563,9 @@ function run_breeze_command {
             ;;
         cleanup_images)
             remove_images
+            ;;
+        perform_generate_requirements)
+            run_generate_requirements
             ;;
         perform_initialize_local_virtualenv)
             initialize_virtualenv

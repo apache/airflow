@@ -116,7 +116,7 @@ Docker Images Used by Breeze
 For all development tasks, unit tests, integration tests and static code checks, we use the
 **CI image** maintained on the Docker Hub in the ``apache/airflow`` repository.
 This Docker image contains a lot test-related packages (size of ~1GB).
-Its tag follows the pattern of ``<BRANCH>-python<PYTHON_VERSION>-ci``
+Its tag follows the pattern of ``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>-ci``
 (for example, ``apache/airflow:master-python3.6-ci``). The image is built using the
 `<Dockerfile.ci>`_ Dockerfile.
 
@@ -638,6 +638,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
     build-only                               Only builds docker images without entering container
     cleanup-images                           Cleans up the container images created
     exec                                     Execs into running breeze container in new terminal
+    generate-requirements                    Generates pinned requirements for pip dependencies
     initialize-local-virtualenv              Initializes local virtualenv
     setup-autocomplete                       Sets up autocomplete for breeze
     stop                                     Stops the docker-compose evironment
@@ -709,10 +710,18 @@ This is the current syntax for  `./breeze <./breeze>`_:
         way to run multiple processes in the same container at the same time for example scheduler,
         webserver, workers, database console and interactive terminal.
   ****************************************************************************************************
+  breeze [FLAGS] generate-requirements -- <EXTRA_ARGS>
+
+        Generates pinned requirements from setup.py. Those requirements are generated in requirements
+        directory - separately for different python version. Those requirements are used to run
+        CI builds as well as run repeatable production image builds. You can use those requirements
+        to predictably install released airflow versions. You should run it always after you update
+        setup.py.
+  ****************************************************************************************************
   breeze [FLAGS] initialize-local-virtualenv -- <EXTRA_ARGS>
 
         Initializes locally created virtualenv installing all dependencies of Airflow
-        taking into account the frozen requirements from requirements.txt.
+        taking into account the frozen requirements from requirements folder.
         This local virtualenv can be used to aid autocompletion and IDE support as
         well as run unit tests directly from the IDE. You need to have virtualenv
         activated before running this command.
@@ -835,7 +844,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
    Choose Airflow variant
   ****************************************************************************************************
 
-  -p, --python <PYTHON_VERSION>
+  -p, --python <PYTHON_MAJOR_MINOR_VERSION>
           Python version used for the image. This is always major/minor version.
           One of:
 

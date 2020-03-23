@@ -59,6 +59,7 @@ services:
       - DB_RESET
       - ENABLED_SYSTEMS
       - RUN_SYSTEM_TESTS
+      - PYTHON_MAJOR_MINOR_VERSION
     volumes:
       # Pass docker to inside of the container so that Kind and Moto tests can use it.
       - /var/run/docker.sock:/var/run/docker.sock

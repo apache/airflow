@@ -18,23 +18,52 @@
 # shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
+# adding trap to exiting trap
+HANDLERS="$( trap -p EXIT | cut -f2 -d \' )"
+# shellcheck disable=SC2064
+trap "${HANDLERS}${HANDLERS:+;}in_container_fix_ownership" EXIT
+
+# Upgrading requirements will happen only in CRON job to see that we have some
+# new requirements released
 if [[ ${UPGRADE_WHILE_GENERATING_REQUIREMENTS} == "true" ]]; then
     echo
-    echo "Upgrading requirements"
+    echo "Upgrading requirements to latest ones"
     echo
     pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade
 fi
 
+OLD_REQUIREMENTS_FILE="/tmp/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
+GENERATED_REQUIREMENTS_FILE="${AIRFLOW_SOURCES}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
+
 echo
-echo "Freezing requirements"
+echo "Copying requirements ${GENERATED_REQUIREMENTS_FILE} -> ${OLD_REQUIREMENTS_FILE}"
+echo
+cp "${GENERATED_REQUIREMENTS_FILE}" "${OLD_REQUIREMENTS_FILE}"
+
+echo
+echo "Freezing requirements to ${GENERATED_REQUIREMENTS_FILE}"
 echo
 
 pip freeze | \
     grep -v "apache_airflow" | \
-    grep -v "/opt/airflow" >"${AIRFLOW_SOURCES}/requirements.txt"
+    grep -v "/opt/airflow" >"${GENERATED_REQUIREMENTS_FILE}"
 
 echo
-echo "Requirements generated in requirements.txt"
+echo "Requirements generated in ${GENERATED_REQUIREMENTS_FILE}"
 echo
 
-in_container_fix_ownership
+set +e
+# Fail in case diff shows difference
+diff --color=always "${OLD_REQUIREMENTS_FILE}" "${GENERATED_REQUIREMENTS_FILE}"
+RES=$?
+
+if [[ ${RES} != "0" ]]; then
+    echo
+    echo " ERROR! Requirements need to be updated!"
+    echo
+    echo "     Please generate requirements with:"
+    echo
+    echo "           breeze generate-requirements --python ${PYTHON_MAJOR_MINOR_VERSION}"
+    echo
+    exit "${RES}"
+fi

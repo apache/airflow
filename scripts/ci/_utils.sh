@@ -40,7 +40,7 @@ function verbose_docker {
 # Common environment that is initialized by both Breeze and CI scripts
 function initialize_common_environment {
     # default python version
-    PYTHON_VERSION=${PYTHON_VERSION:="3.6"}
+    PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:="3.6"}
 
     AIRFLOW_SOURCES=${AIRFLOW_SOURCES:=$(cd "${MY_DIR}/../../" && pwd)}
     export AIRFLOW_SOURCES
@@ -137,8 +137,9 @@ function initialize_common_environment {
     # We use pulled docker image cache by default to speed up the builds
     export DOCKER_CACHE=${DOCKER_CACHE:="pulled"}
 
-    # We use requirements.txt by default rather than trying to upgrade to latest versions
-    export UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD=${UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD:="false"}
+    # By default we are not upgrading to latest requirements
+    # This will only be done in cron jobs and when run with breeze
+    export UPGRADE_TO_LATEST_REQUIREMENTS=${UPGRADE_TO_LATEST_REQUIREMENTS:="false"}
 
     STAT_BIN=stat
     if [[ "${OSTYPE}" == "darwin"* ]]; then
@@ -149,7 +150,7 @@ function initialize_common_environment {
     export AIRFLOW_VERSION
 
     # default version for dockerhub images
-    export PYTHON_VERSION_FOR_DEFAULT_DOCKERHUB_IMAGE=3.6
+    export DEFAULT_PYTHON_MAJOR_MINOR_VERSION=3.6
 
 
     if [[ ${CI:="false"} == "true" ]]; then
@@ -199,7 +200,7 @@ hooks /opt/airflow/
 logs /root/airflow/
 pylintrc /opt/airflow/
 pytest.ini /opt/airflow/
-requirements.txt /opt/airflow/
+requirements /opt/airflow/
 scripts /opt/airflow/
 scripts/ci/in_container/entrypoint_ci.sh /
 setup.cfg /opt/airflow/
@@ -268,7 +269,7 @@ function remove_cache_directory() {
 function check_file_md5sum {
     local FILE="${1}"
     local MD5SUM
-    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/${PYTHON_VERSION}/${THE_IMAGE_TYPE}"
+    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/${PYTHON_MAJOR_MINOR_VERSION}/${THE_IMAGE_TYPE}"
     mkdir -pv "${MD5SUM_CACHE_DIR}"
     MD5SUM=$(md5sum "${FILE}")
     local MD5SUM_FILE
@@ -298,7 +299,7 @@ function check_file_md5sum {
 function move_file_md5sum {
     local FILE="${1}"
     local MD5SUM_FILE
-    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/${PYTHON_VERSION}/${THE_IMAGE_TYPE}"
+    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/${PYTHON_MAJOR_MINOR_VERSION}/${THE_IMAGE_TYPE}"
     mkdir -pv "${MD5SUM_CACHE_DIR}"
     MD5SUM_FILE="${MD5SUM_CACHE_DIR}"/$(basename "${FILE}").md5sum
     local MD5SUM_FILE_NEW
@@ -515,13 +516,13 @@ function confirm_image_rebuild() {
         esac
     elif [[ -t 0 ]]; then
         # Check if this script is run interactively with stdin open and terminal attached
-        "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE} (might take some time)"
+        "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}"
         RES=$?
     elif [[ ${DETECTED_TERMINAL:=$(tty)} != "not a tty" ]]; then
         # Make sure to use output of tty rather than stdin/stdout when available - this way confirm
         # will works also in case of pre-commits (git does not pass stdin/stdout to pre-commit hooks)
         # shellcheck disable=SC2094
-        "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE} (might take some time)" \
+        "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}" \
             <"${DETECTED_TERMINAL}" >"${DETECTED_TERMINAL}"
         RES=$?
         export DETECTED_TERMINAL
@@ -530,7 +531,7 @@ function confirm_image_rebuild() {
         # Make sure to use /dev/tty first rather than stdin/stdout when available - this way confirm
         # will works also in case of pre-commits (git does not pass stdin/stdout to pre-commit hooks)
         # shellcheck disable=SC2094
-        "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE} (might take some time)" \
+        "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}" \
             <"${DETECTED_TERMINAL}" >"${DETECTED_TERMINAL}"
         RES=$?
     else
@@ -543,7 +544,7 @@ function confirm_image_rebuild() {
     set -e
     if [[ ${RES} == "1" ]]; then
         print_info
-        print_info "Skipping rebuilding the image ${THE_IMAGE_TYPE}"
+        print_info "Skipping rebuilding the image ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}"
         print_info
         SKIP_REBUILD="true"
         # Force "no" also to subsequent questions so that if you answer it once, you are not asked
@@ -555,7 +556,7 @@ function confirm_image_rebuild() {
         echo >&2 "ERROR: The ${THE_IMAGE_TYPE} needs to be rebuilt - it is outdated. "
         echo >&2 "   Make sure you build the images bu running"
         echo >&2
-        echo >&2 "      ./breeze --python ${PYTHON_VERSION}" build-only
+        echo >&2 "      ./breeze --python ${PYTHON_MAJOR_MINOR_VERSION}" build-only
         echo >&2
         echo >&2 "   If you run it via pre-commit as individual hook, you can run 'pre-commit run build'."
         echo >&2
@@ -580,7 +581,7 @@ function set_current_image_variables {
         export AIRFLOW_REMOTE_MANIFEST_IMAGE=""
     fi
 
-    if [[ "${PYTHON_VERSION_FOR_DEFAULT_DOCKERHUB_IMAGE}" == "${PYTHON_VERSION}" ]]; then
+    if [[ "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}" == "${PYTHON_MAJOR_MINOR_VERSION}" ]]; then
         export DEFAULT_IMAGE="${AIRFLOW_IMAGE_DEFAULT}"
     else
         export DEFAULT_IMAGE=""
@@ -696,6 +697,7 @@ function compare_layers() {
     if (( NUM_DIFF >= MAGIC_CUT_OFF_NUMBER_OF_LAYERS )); then
         echo
         echo
+        echo "WARNING! Your image and the dockerhub image differ signifcantly"
         echo "WARNING! Your image and the dockerhub image differ signifcantly"
         echo
         echo "Forcing pulling the images. It will be faster than rebuilding usually."
@@ -1107,7 +1109,7 @@ Docker pulling ${IMAGE}.
 
 function print_build_info() {
     print_info
-    print_info "Airflow ${AIRFLOW_VERSION} Python: ${PYTHON_VERSION}. Image description: ${IMAGE_DESCRIPTION}"
+    print_info "Airflow ${AIRFLOW_VERSION} Python: ${PYTHON_MAJOR_MINOR_VERSION}. Image description: ${IMAGE_DESCRIPTION}"
     print_info
 }
 
@@ -1182,11 +1184,12 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         set +u
         verbose_docker build \
             --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
+            --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
             --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
             --build-arg AIRFLOW_BRANCH="${BRANCH_NAME}" \
             --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
             --build-arg AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" \
-            --build-arg UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD="${UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD}" \
+            --build-arg UPGRADE_TO_LATEST_REQUIREMENTS="${UPGRADE_TO_LATEST_REQUIREMENTS}" \
             "${DOCKER_CACHE_CI_DIRECTIVE[@]}" \
             -t "${AIRFLOW_CI_IMAGE}" \
             --target "${TARGET_IMAGE}" \
@@ -1211,7 +1214,7 @@ function remove_all_images() {
     verbose_docker rmi "${AIRFLOW_CI_IMAGE}" || true
     echo
     echo "###################################################################"
-    echo "NOTE!! Removed Airflow images for Python version ${PYTHON_VERSION}."
+    echo "NOTE!! Removed Airflow images for Python version ${PYTHON_MAJOR_MINOR_VERSION}."
     echo "       But the disk space in docker will be reclaimed only after"
     echo "       running 'docker system prune' command."
     echo "###################################################################"
@@ -1260,13 +1263,13 @@ function fix_group_permissions() {
 }
 
 function set_common_image_variables {
-    export AIRFLOW_CI_BASE_TAG="${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci"
+    export AIRFLOW_CI_BASE_TAG="${DEFAULT_BRANCH}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
     export AIRFLOW_CI_LOCAL_MANIFEST_IMAGE="local/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
     export AIRFLOW_CI_REMOTE_MANIFEST_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}"
     export AIRFLOW_CI_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DEFAULT_BRANCH}-ci"
-    export PYTHON_BASE_IMAGE="python:${PYTHON_VERSION}-slim-buster"
-    export BUILT_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_VERSION}"
+    export PYTHON_BASE_IMAGE="python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster"
+    export BUILT_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
 
 }
 
@@ -1296,4 +1299,20 @@ function push_image() {
     if [[ -n ${DEFAULT_IMAGE:=""} ]]; then
         verbose_docker push "${DEFAULT_IMAGE}"
     fi
+}
+
+function run_generate_requirements() {
+        docker run "${EXTRA_DOCKER_FLAGS[@]}" \
+            --entrypoint "/usr/local/bin/dumb-init"  \
+            --env PYTHONDONTWRITEBYTECODE \
+            --env VERBOSE \
+            --env VERBOSE_COMMANDS \
+            --env HOST_USER_ID="$(id -ur)" \
+            --env HOST_GROUP_ID="$(id -gr)" \
+            --env UPGRADE_WHILE_GENERATING_REQUIREMENTS \
+            --env PYTHON_MAJOR_MINOR_VERSION \
+            --rm \
+            "${AIRFLOW_CI_IMAGE}" \
+            "--" "/opt/airflow/scripts/ci/in_container/run_generate_requirements.sh" \
+            | tee -a "${OUTPUT_LOG}"
 }

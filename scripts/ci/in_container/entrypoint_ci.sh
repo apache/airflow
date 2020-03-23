@@ -26,7 +26,7 @@ TRAVIS=${TRAVIS:=}
 
 AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../.." || exit 1; pwd)
 
-PYTHON_VERSION=${PYTHON_VERSION:=3.6}
+PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.6}
 BACKEND=${BACKEND:=sqlite}
 KUBERNETES_MODE=${KUBERNETES_MODE:=""}
 KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
@@ -183,7 +183,7 @@ if [[ ${RUNTIME:=""} == "kubernetes" ]]; then
 fi
 
 if [[ "${ENABLE_KIND_CLUSTER}" == "true" ]]; then
-    export CLUSTER_NAME="airflow-python-${PYTHON_VERSION}-${KUBERNETES_VERSION}"
+    export CLUSTER_NAME="airflow-python-${PYTHON_MAJOR_MINOR_VERSION}-${KUBERNETES_VERSION}"
     "${MY_DIR}/kubernetes/setup_kind_cluster.sh"
     if [[ ${KIND_CLUSTER_OPERATION} == "stop" ]]; then
         exit 1

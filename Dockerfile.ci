@@ -26,6 +26,12 @@ ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE}
 ARG AIRFLOW_VERSION="2.0.0.dev0"
 ENV AIRFLOW_VERSION=$AIRFLOW_VERSION
 
+ARG PYTHON_MAJOR_MINOR_VERSION="3.6"
+ENV PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}
+
+ARG UPGRADE_TO_LATEST_REQUIREMENTS="false"
+ENV UPGRADE_TO_LATEST_REQUIREMENTS=${UPGRADE_TO_LATEST_REQUIREMENTS}
+
 # Print versions
 RUN echo "Base image: ${PYTHON_BASE_IMAGE}"
 RUN echo "Airflow version: ${AIRFLOW_VERSION}"
@@ -128,12 +134,14 @@ RUN mkdir -pv /usr/share/man/man1 \
       krb5-user \
       ldap-utils \
       less \
+      # The latest buster images do not have libpython 2.7 installed and it is needed
+      # To run virtualenv tests with python 2
+      libpython2.7-stdlib \
       lsb-release \
       net-tools \
       openssh-client \
       openssh-server \
       postgresql-client \
-      python-selinux \
       sqlite3 \
       tmux \
       unzip \
@@ -257,7 +265,7 @@ RUN echo "Pip version: ${PIP_VERSION}"
 RUN pip install --upgrade pip==${PIP_VERSION}
 
 # Install Google SDK
-ENV GCLOUD_HOME="/opt/gcloud"
+ENV GCLOUD_HOME="/opt/gcloud" CLOUDSDK_PYTHON=python${PYTHON_MAJOR_MINOR_VERSION}
 
 RUN GCLOUD_VERSION="274.0.1" \
     && GCOUD_URL="https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-${GCLOUD_VERSION}-linux-x86_64.tar.gz" \
@@ -326,7 +334,7 @@ ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}
 
 RUN echo "Installing with extras: ${AIRFLOW_EXTRAS}."
 
-ARG AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="false"
+ARG AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="true"
 ENV AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD=${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}
 
 # By changing the CI build epoch we can force reinstalling Arflow from the current master
@@ -341,7 +349,7 @@ ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
 RUN \
     if [[ "${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" == "true" ]]; then \
         pip install \
-        "https://github.com/apache/airflow/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
+        "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
         && pip uninstall --yes apache-airflow; \
     fi
 
@@ -367,19 +375,20 @@ COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
 COPY airflow/version.py ${AIRFLOW_SOURCES}/airflow/version.py
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 
-COPY requirements.txt ${AIRFLOW_SOURCES}/requirements.txt
+COPY requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt \
+        ${AIRFLOW_SOURCES}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt
 
-ENV UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD=${UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD}
 # The goal of this line is to install the dependencies from the most current setup.py from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
 # In non-CI optimized build this will install all dependencies before installing sources.
-# Usually we will install versions constrained to the current requirements.txt
+# Usually we will install versions constrained to the current requirements file
 # But in cron job we will install latest versions matching setup.py to see if there is no breaking change
 RUN \
-    if [[ "${UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD}" == "true" ]]; then \
+    if [[ "${UPGRADE_TO_LATEST_REQUIREMENTS}" == "true" ]]; then \
         pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade; \
     else \
-        pip install -e ".[${AIRFLOW_EXTRAS}]" --constraint ${AIRFLOW_SOURCES}/requirements.txt ; \
+        pip install -e ".[${AIRFLOW_EXTRAS}]" \
+            --constraint  ${AIRFLOW_SOURCES}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt ; \
     fi
 
 # Copy all the www/ files we need to compile assets. Done as two separate COPY

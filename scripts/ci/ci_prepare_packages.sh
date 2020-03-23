@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
+export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
@@ -101,11 +101,6 @@ if [[ ${BUILD_AIRFLOW_PACKAGE} == "true" ]]; then
     echo "==================================================================================="
     python3 setup.py clean --all
     python3 setup.py sdist bdist_wheel >/dev/null
-    echo "==================================================================================="
-    echo " Preparing apache-airflow-pinned package"
-    echo "==================================================================================="
-    python3 setup.py clean --all
-    python3 setup.py pinned sdist bdist_wheel >/dev/null
 fi
 echo "==================================================================================="
 
