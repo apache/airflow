@@ -1,6 +1,4 @@
 ---
-Issue link: WILL BE INSERTED BY [boring-cyborg](https://github.com/kaxil/boring-cyborg)
-
 Make sure to mark the boxes below before creating PR: [x]
 
 - [ ] Description above provides context of the change
