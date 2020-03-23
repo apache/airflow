@@ -21,6 +21,7 @@ from typing import Any
 
 import six
 from flask import Flask
+from flask_babel import Babel
 from flask_admin import Admin, base
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
@@ -62,6 +63,14 @@ def create_app(config=None, testing=False):
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SECURE'] = conf.getboolean('webserver', 'COOKIE_SECURE')
     app.config['SESSION_COOKIE_SAMESITE'] = conf.get('webserver', 'COOKIE_SAMESITE')
+
+    # for i18n
+    app.config['BABEL_DEFAULT_LOCALE'] = "zh"
+    app.config['BABEL_DEFAULT_FOLDER'] = "i18n"
+    app.config['LANGUAGES'] = {
+        "en": {"flag": "gb", "name": "English"},
+        "zh": {"flag": "cn", "name": "Chinese"}
+    }
 
     if config:
         app.config.from_mapping(config)
@@ -108,7 +117,7 @@ def create_app(config=None, testing=False):
             models.SlaMiss,
             Session, name="SLA Misses", category="Browse"))
         av(vs.TaskInstanceModelView(models.TaskInstance,
-            Session, name="Task Instances", category="Browse"))
+                                    Session, name="Task Instances", category="Browse"))
         av(vs.LogModelView(
             models.Log, Session, name="Logs", category="Browse"))
         av(vs.JobModelView(
@@ -175,6 +184,8 @@ def create_app(config=None, testing=False):
             six.moves.reload_module(e)
 
         app.register_blueprint(e.api_experimental, url_prefix='/api/experimental')
+
+        babel = Babel(app)
 
         @app.context_processor
         def jinja_globals():

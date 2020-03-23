@@ -42,6 +42,7 @@ csrf = CSRFProtect()
 
 log = logging.getLogger(__name__)
 
+
 def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     global app, appbuilder
     app = Flask(__name__)
@@ -69,6 +70,19 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     app.config['SESSION_COOKIE_SECURE'] = conf.getboolean('webserver', 'COOKIE_SECURE')
     app.config['SESSION_COOKIE_SAMESITE'] = conf.get('webserver', 'COOKIE_SAMESITE')
 
+    # for i18n
+    app.config['BABEL_DEFAULT_LOCALE'] = "zh"
+    app.config['BABEL_DEFAULT_FOLDER'] = "translations"
+    app.config['LANGUAGES'] = {
+        "en": {"flag": "gb", "name": "English"},
+        "pt": {"flag": "pt", "name": "Portuguese"},
+        "pt_BR": {"flag": "br", "name": "Pt Brazil"},
+        "es": {"flag": "es", "name": "Spanish"},
+        "de": {"flag": "de", "name": "German"},
+        "zh": {"flag": "cn", "name": "Chinese"},
+        "ru": {"flag": "ru", "name": "Russian"},
+    }
+
     if config:
         app.config.from_mapping(config)
 
@@ -92,7 +106,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     with app.app_context():
         from airflow.www_rbac.security import AirflowSecurityManager
         security_manager_class = app.config.get('SECURITY_MANAGER_CLASS') or \
-            AirflowSecurityManager
+                                 AirflowSecurityManager
 
         if not issubclass(security_manager_class, AirflowSecurityManager):
             raise Exception(
@@ -205,7 +219,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         # a link to the default_auth
         if app.config['TESTING']:
             if six.PY2:
-                reload(e) # noqa
+                reload(e)  # noqa
             else:
                 import importlib
                 importlib.reload(e)

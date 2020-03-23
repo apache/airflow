@@ -117,7 +117,7 @@
         <a href="{{ url_for("airflow.delete", dag_id=dag.dag_id, root=root) }}"
            onclick="return confirmDeleteDag(this, '{{ dag.safe_dag_id }}')">
           <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></span>
-          Delete
+          {{ _('Delete') }}
         </a>
       </li>
       <li>
