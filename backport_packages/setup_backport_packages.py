@@ -144,6 +144,7 @@ def change_import_paths_to_deprecated():
     from bowler import LN, TOKEN, Capture, Filename, Query
     from fissix.pytree import Leaf
 
+
     def remove_tags_modifier(node: LN, capture: Capture, filename: Filename) -> None:
         for node in capture['function_arguments'][0].post_order():
             if isinstance(node, Leaf) and node.value == "tags" and node.type == TOKEN.NAME:
@@ -154,6 +155,11 @@ def change_import_paths_to_deprecated():
     def pure_airflow_models_filter(node: LN, capture: Capture, filename: Filename) -> bool:
         """Check if select is exactly [airflow, . , models]"""
         return len([ch for ch in node.children[1].leaves()]) == 3
+
+    def remove_super_init_call(node: LN, capture: Capture, filename: Filename) -> None:
+        for ch in node.post_order():
+            if hasattr(ch, "value") and ch.value == "super":
+                ch.parent.remove()
 
     changes = [
         ("airflow.operators.bash", "airflow.operators.bash_operator"),
@@ -202,6 +208,9 @@ def change_import_paths_to_deprecated():
     files = r"bigquery\.py|mlengine\.py"  # noqa
     qry.select_module("airflow.models").is_filename(include=files).filter(pure_airflow_models_filter).rename(
         "airflow.models.baseoperator")
+
+    # Fix super().__init__() call in hooks
+    qry.select_subclass("BaseHook").modify(remove_super_init_call)
 
     qry.execute(write=True, silent=False, interactive=False)
 
