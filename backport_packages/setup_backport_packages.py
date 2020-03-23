@@ -144,7 +144,6 @@ def change_import_paths_to_deprecated():
     from bowler import LN, TOKEN, Capture, Filename, Query
     from fissix.pytree import Leaf
 
-
     def remove_tags_modifier(node: LN, capture: Capture, filename: Filename) -> None:
         for node in capture['function_arguments'][0].post_order():
             if isinstance(node, Leaf) and node.value == "tags" and node.type == TOKEN.NAME:
@@ -158,8 +157,9 @@ def change_import_paths_to_deprecated():
 
     def remove_super_init_call(node: LN, capture: Capture, filename: Filename) -> None:
         for ch in node.post_order():
-            if hasattr(ch, "value") and ch.value == "super":
-                ch.parent.remove()
+            if isinstance(ch, Leaf) and ch.value == "super":
+                if any(c.value for c in ch.parent.post_order() if isinstance(c, Leaf)):
+                    ch.parent.remove()
 
     changes = [
         ("airflow.operators.bash", "airflow.operators.bash_operator"),
