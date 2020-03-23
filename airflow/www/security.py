@@ -224,7 +224,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             raise AirflowException("Role named '{}' does not exist".format(
                 role_name))
 
-    def get_user_roles(self, user=None):
+    @staticmethod
+    def get_user_roles(user=None):
         """
         Get all the roles associated with the user.
 
