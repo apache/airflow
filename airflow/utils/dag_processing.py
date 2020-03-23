@@ -39,7 +39,7 @@ from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
 from airflow.jobs.local_task_job import LocalTaskJob as LJ
-from airflow.models import errors, DagModel
+from airflow.models import errors
 from airflow.models.dag import DagModel
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
