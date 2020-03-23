@@ -27,7 +27,7 @@ from sqlalchemy import BigInteger, Column, Index, String, and_
 from sqlalchemy.sql import exists
 
 from airflow.models.base import ID_LEN, Base
-from airflow.models.dag import DAG
+from airflow.models.dag import DAG, DagModel
 from airflow.models.dagcode import DagCode
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, STORE_SERIALIZED_DAGS, json
@@ -182,7 +182,6 @@ class SerializedDagModel(Base):
         :param dag_id: the DAG to fetch
         :param session: ORM Session
         """
-        from airflow.models.dag import DagModel
         row = session.query(cls).filter(cls.dag_id == dag_id).one_or_none()
         if row:
             return row
@@ -194,8 +193,9 @@ class SerializedDagModel(Base):
 
         return session.query(cls).filter(cls.dag_id == root_dag_id).one_or_none()
 
+    @staticmethod
     @provide_session
-    def bulk_sync_to_db(self, dags: List[DAG], session=None):
+    def bulk_sync_to_db(dags: List[DAG], session=None):
         """Stores list of dags in DB as SerializedDagModel"""
         if not STORE_SERIALIZED_DAGS:
             return

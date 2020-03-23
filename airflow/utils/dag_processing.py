@@ -39,7 +39,10 @@ from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
 from airflow.jobs.local_task_job import LocalTaskJob as LJ
-from airflow.models import errors
+from airflow.models import errors, DagModel
+from airflow.models.dag import DagModel
+from airflow.models.dagcode import DagCode
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.stats import Stats
@@ -772,13 +775,10 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 self.log.exception("Error removing old import errors")
 
             if STORE_SERIALIZED_DAGS:
-                from airflow.models.serialized_dag import SerializedDagModel
-                from airflow.models.dag import DagModel
                 SerializedDagModel.remove_deleted_dags(self._file_paths)
                 DagModel.deactivate_deleted_dags(self._file_paths)
 
             if self.store_dag_code:
-                from airflow.models.dagcode import DagCode
                 DagCode.remove_deleted_code(self._file_paths)
 
     def _print_stat(self):
