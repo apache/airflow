@@ -1027,8 +1027,16 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         # Helper method to check if the existing job's training input is the
         # same as the request we get here.
         def check_existing_job(existing_job):
-            return existing_job.get('trainingInput', None) == \
-                training_request['trainingInput']
+            existing_training_input = existing_job.get('trainingInput', None)
+            requested_training_input = training_request['trainingInput']
+            if 'scaleTier' not in existing_training_input:
+                existing_training_input['scaleTier'] = None
+
+            existing_training_input['args'] = existing_training_input.get('args', None)
+            requested_training_input["args"] = requested_training_input['args'] \
+                if requested_training_input["args"] else None
+
+            return existing_training_input == requested_training_input
 
         finished_training_job = hook.create_job(
             project_id=self._project_id, job=training_request, use_existing_job_fn=check_existing_job
