@@ -67,6 +67,7 @@ class FTPHook(BaseHook):
     """
 
     def __init__(self, ftp_conn_id='ftp_default'):
+        super().__init__()
         self.ftp_conn_id = ftp_conn_id
         self.conn = None
 
