@@ -79,6 +79,8 @@ Documentation of GitHub master (latest development branch): [ReadTheDocs Documen
 
 For further information, please visit the [Airflow Wiki](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home).
 
+Official container (Docker) images for Apache Airflow are described in [IMAGES.rst](IMAGES.rst).
+
 ## Beyond the Horizon
 
 Airflow **is not** a data streaming solution. Tasks do not move data from

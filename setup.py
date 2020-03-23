@@ -530,6 +530,7 @@ EXTRAS_REQUIREMENTS = {
     'statsd': statsd,
     'tableau': tableau,
     'vertica': vertica,
+    'virtualenv': virtualenv,
     'webhdfs': webhdfs,
     'winrm': winrm,
     'yandexcloud': yandexcloud,

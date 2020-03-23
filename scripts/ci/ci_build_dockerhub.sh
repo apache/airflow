@@ -67,10 +67,10 @@ echo
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-prepare_build
+prepare_ci_build
 rm -rf "${BUILD_CACHE_DIR}"
 
 if [[ ${DOCKER_TAG} == *-ci ]]; then
     rebuild_ci_image_if_needed
-    push_image
+    push_ci_image
 fi

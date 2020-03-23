@@ -49,7 +49,7 @@ datadog, devel, devel_ci, devel_hadoop, doc, docker, druid, elasticsearch, gcp, 
 github_enterprise, google_auth, grpc, hashicorp, hdfs, hive, jdbc, jira, kerberos, kubernetes, ldap,
 mongo, mssql, mysql, odbc, oracle, pagerduty, papermill, password, pinot, postgres, presto, qds,
 rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry, singularity, slack, snowflake, ssh,
-statsd, tableau, vertica, webhdfs, winrm, yandexcloud
+statsd, tableau, vertica, virtualenv, webhdfs, winrm, yandexcloud
 
 # END EXTRAS HERE
 

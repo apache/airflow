@@ -27,7 +27,7 @@ if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
     exit
 fi
 
-prepare_build
+prepare_ci_build
 
 rebuild_ci_image_if_needed
 
@@ -59,7 +59,7 @@ if [[ ${FORWARD_CREDENTIALS} == "true" ]]; then
     DOCKER_COMPOSE_LOCAL+=("-f" "${MY_DIR}/docker-compose/forward-credentials.yml")
 fi
 
-if [[ ${INSTALL_AIRFLOW_VERSION} != "" ]]; then
+if [[ ${INSTALL_AIRFLOW_VERSION} != "" || ${INSTALL_AIRFLOW_REFERENCE} != "" ]]; then
     DOCKER_COMPOSE_LOCAL+=("-f" "${MY_DIR}/docker-compose/remove-sources.yml")
 fi
 
@@ -91,7 +91,7 @@ if [[ ${RUNTIME:=} == "kubernetes" ]]; then
       -f "${MY_DIR}/docker-compose/runtime-kubernetes.yml" \
       "${INTEGRATIONS[@]}" \
       "${DOCKER_COMPOSE_LOCAL[@]}" \
-         run airflow-testing \
+         run airflow \
            '/opt/airflow/scripts/ci/in_container/entrypoint_ci.sh "${@}"' \
            /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh "${@}"
          # Note the command is there twice (!) because it is passed via bash -c
@@ -105,7 +105,7 @@ else
       -f "${MY_DIR}/docker-compose/backend-${BACKEND}.yml" \
       "${INTEGRATIONS[@]}" \
       "${DOCKER_COMPOSE_LOCAL[@]}" \
-         run airflow-testing \
+         run airflow \
            '/opt/airflow/scripts/ci/in_container/entrypoint_ci.sh "${@}"' \
            /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh "${@}"
          # Note the command is there twice (!) because it is passed via bash -c

@@ -399,7 +399,7 @@ COPY airflow/www/static ${AIRFLOW_SOURCES}/airflow/www/static/
 # Package JS/css for production
 RUN yarn --cwd airflow/www run prod
 
-COPY scripts/docker/entrypoint.sh /entrypoint.sh
+COPY entrypoint.sh /entrypoint.sh
 
 # Copy selected subdirectories only
 COPY .github/ ${AIRFLOW_SOURCES}/.github/

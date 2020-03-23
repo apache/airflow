@@ -150,6 +150,20 @@ jobs:
         INSTALL_AIRFLOW_VERSION="1.10.9"
       stage: test
       script: ./scripts/ci/ci_prepare_and_test_backport_packages.sh
+    - name: "Build production image Py3.6"
+      env: >-
+        PYTHON_MAJOR_MINOR_VERSION="3.6"
+      stage: test
+      script: ./scripts/ci/ci_build_production_image.sh
+      before_install:
+        - echo
+    - name: "Build production image Py3.7"
+      env: >-
+        PYTHON_MAJOR_MINOR_VERSION="3.7"
+      stage: test
+      script: ./scripts/ci/ci_build_production_image.sh
+      before_install:
+        - echo
 install: skip
 before_install:
   - ./scripts/ci/ci_before_install.sh

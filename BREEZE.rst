@@ -61,9 +61,8 @@ Docker Community Edition
   See also `Docker for Mac - Space <https://docs.docker.com/docker-for-mac/space>`_ for details
   on increasing disk space available for Docker on Mac.
 - **Docker problems**: Sometimes it is not obvious that space is an issue when you run into
-  a problem with Docker. If you see a weird behaviour, try
-  `cleaning up the images <#cleaning-up-the-images>`_. Also see
-  `pruning <https://docs.docker.com/config/pruning/>`_ instructions from Docker.
+  a problem with Docker. If you see a weird behaviour, try ``breeze cleanup-image`` command.
+  Also see `pruning <https://docs.docker.com/config/pruning/>`_ instructions from Docker.
 
 Here is an example configuration with more than 200GB disk space for Docker:
 
@@ -114,11 +113,20 @@ Docker Images Used by Breeze
 ----------------------------
 
 For all development tasks, unit tests, integration tests, and static code checks, we use the
-**CI image** maintained on the Docker Hub in the ``apache/airflow`` repository.
+**CI image** maintained on the DockerHub in the ``apache/airflow`` repository.
 This Docker image contains a lot of test-related packages (size of ~1GB).
 Its tag follows the pattern of ``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>-ci``
-(for example, ``apache/airflow:master-python3.6-ci``). The image is built using the
-`<Dockerfile.ci>`_ Dockerfile.
+(for example, ``apache/airflow:master-python3.6-ci`` or ``apache/airflow:v1-10-test-python3.6-ci``).
+The image is built using the `<Dockerfile.ci>`_ Dockerfile.
+
+For testing production image, the **Production image** is used and maintained on the DockerHub in the
+```apache/airflow`` repository. This Docker image contains only size-optimised Airflow with selected
+extras and dependencies. Its tag follows the pattern of ``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>``
+(for example, ``apache/airflow:master-python3.6`` or ``apache/airflow:v1-10-test-python3.6``).
+
+More information about the images can be found in `<IMAGES.rst>`_.
+
+By default CI images are used unless ``--production-image`` flag is used.
 
 Before you run tests, enter the environment or run local static checks, the necessary local images should be
 pulled and built from Docker Hub. This happens automatically for the test environment but you need to
@@ -177,7 +185,24 @@ On macOS, 2GB of RAM are available for your Docker containers by default, but mo
 Airflow Directory Structure inside Docker
 -----------------------------------------
 
-When you are in the container, the following directories are used:
+When you are in the CI container, the following directories are used:
+
+.. code-block:: text
+
+  /opt/airflow - Contains sources of Airflow mounted from the host (AIRFLOW_SOURCES).
+  /root/airflow - Contains all the "dynamic" Airflow files (AIRFLOW_HOME), such as:
+      airflow.db - sqlite database in case sqlite is used;
+      dags - folder with non-test dags (test dags are in /opt/airflow/tests/dags);
+      logs - logs from Airflow executions;
+      unittest.cfg - unit test configuration generated when entering the environment;
+      webserver_config.py - webserver configuration generated when running Airflow in the container.
+
+Note that when running in your local environment, the ``/root/airflow/logs`` folder is actually mounted
+from your ``logs`` directory in the Airflow sources, so all logs created in the container are automatically
+visible in the host as well. Every time you enter the container, the ``logs`` directory is
+cleaned so that logs do not accumulate.
+
+When you are in the production container, the following directories are used:
 
 .. code-block:: text
 
@@ -203,22 +228,44 @@ environment.
 
 Breeze script allows performing the following tasks:
 
-    * Enter interactive environment when no command are specified (default behaviour)
-    * Start integrations if specified as extra flags
-    * Start Kind Kubernetes cluster for Kubernetes tests if specified
-    * Stop the interactive environment with "breeze stop" command
-    * Run static checks - either for currently staged change or for all files with
-      "breeze static-check" or "breeze static-check-all-files" command
-    * Build documentation with "breeze build-docs" command
-    * Setup local virtualenv with "breeze setup-virtualenv" command
-    * Setup autocomplete for itself with "breeze setup-autocomplete" command
-    * Build docker image with "breeze build-only" command
-    * Run test target specified with "breeze test-target" command
-    * Execute arbitrary command in the test environment with "breeze execute-command" command
-    * Execute arbitrary docker-compose command with "breeze docker-compose" command
+Manage environments - CI (default) or Production - if ``--production-image`` flag is specified:
 
-Entering Breeze environment
----------------------------
+    * Build docker images with ``breeze build-image`` command
+    * Enter interactive shell when no command are specified (default behaviour)
+    * Join running interactive shell with ``breeze exec`` command
+    * Start Kind Kubernetes cluster for Kubernetes tests if ``--start-kind-cluster`` flag is specified
+    * Stop running interactive environment with ``breeze stop`` command
+    * Restart running interactive environment with ``breeze restart`` command
+    * Optionally reset database if specified as extra ``--db-reset`` flag
+    * Optionally start integrations (separate images) if specified as extra ``--integration`` flags (only CI)
+
+Interact with CI environment:
+
+    * Run test target specified with ``breeze test-target`` command
+    * Execute arbitrary command in the test environment with ``breeze execute-command`` command
+    * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
+
+Run static checks:
+
+    * Run static checks - either for currently staged change or for all files with
+      ``breeze static-check`` or ``breeze static-check-all-files`` command
+
+Build documentation:
+
+    * Build documentation with ``breeze build-docs`` command
+
+Set up local development environment:
+
+    * Setup local virtualenv with ``breeze setup-virtualenv`` command
+    * Setup autocomplete for itself with ``breeze setup-autocomplete`` command
+
+
+Note that the below environment interaction is by default with the CI image. If you want to use production
+image for those commands you need to add ``--production-image`` flag.
+
+
+Entering Breeze CI environment
+------------------------------
 
 You enter the Breeze test environment by running the ``./breeze`` script. You can run it with
 the ``help`` command to see the list of available options. See `Breeze Command-Line Interface Reference`_
@@ -263,8 +310,8 @@ to enter the running container. It's as easy as launching ``breeze exec`` while 
 Breeze environment. You will be dropped into bash and environment variables will be read in the same
 way as when you enter the environment. You can do it multiple times and open as many terminals as you need.
 
-Stopping Breeze
----------------
+Stopping Interactive environment
+--------------------------------
 
 After starting up, the environment runs in the background and takes precious memory.
 You can always stop it via:
@@ -273,8 +320,8 @@ You can always stop it via:
 
    ./breeze stop
 
-Restarting Breeze
------------------
+Restarting Breeze environment
+-----------------------------
 
 You can also  restart the environment and enter it via:
 
@@ -310,7 +357,7 @@ When Breeze starts, it can start additional integrations. Those are additional d
 that are started in the same docker-compose command. Those are required by some of the tests
 as described in `TESTING.rst <TESTING.rst#airflow-integration-tests>`_.
 
-By default Breeze starts only airflow-testing container without any integration enabled. If you selected
+By default Breeze starts only airflow container without any integration enabled. If you selected
 ``postgres`` or ``mysql`` backend, the container for the selected backend is also started (but only the one
 that is selected). You can start the additional integrations by passing ``--integration`` flag
 with appropriate integration name when starting Breeze. You can specify several ``--integration`` flags
@@ -322,7 +369,7 @@ Once integration is started, it will continue to run until the environment is st
 
 Note that running integrations uses significant resources - CPU and memory.
 
-Stopping the Environment
+Cleaning the Environment
 ------------------------
 
 You may need to clean up your Docker environment occasionally. The images are quite big
@@ -331,7 +378,7 @@ them, you may end up with some unused image data.
 
 To clean up the Docker environment:
 
-1. `Stop Breeze <#stopping-breeze>`_ with ``./breeze stop``.
+1. Stop Breeze with ``./breeze stop``.
 
 2. Run the ``docker system prune`` command.
 
@@ -344,39 +391,6 @@ command. You may need to restart the Docker Engine before running this command.
 
 In case of disk space errors on macOS, increase the disk space available for Docker. See
 `Prerequisites <#prerequisites>`_ for details.
-
-Building the Images
--------------------
-
-You can manually trigger building the local images using the script:
-
-.. code-block::
-
-  ./breeze build-only
-
-The scripts that build the images are optimized to minimize the time needed to rebuild the image when
-the source code of Airflow evolves. This means that if you already have the image locally downloaded and
-built, the scripts will determine whether the rebuild is needed in the first place. Then the scripts will
-make sure that minimal number of steps are executed to rebuild parts of the image (for example,
-PIP dependencies) and will give you an image consistent with the one used during Continuous Integration.
-
-Pulling the Latest Images
--------------------------
-
-Sometimes the image on the Docker Hub needs to be rebuilt from scratch. This is required, for example,
-when there is a security update of the Python version that all the images are based on.
-In this case it is usually faster to pull the latest images rather than rebuild them
-from scratch.
-
-You can do it via the ``--force-pull-images`` flag to force pulling the latest images from the Docker Hub.
-
-To manually force pulling the images for static checks, use the script:
-
-.. code-block::
-
-  ./breeze build-only --force-pull-images
-
-In the future Breeze will warn you when you are recommended to pull images.
 
 Running Arbitrary Commands in the Breeze Environment
 -------------------------------------------------------
@@ -409,7 +423,7 @@ after ``--`` as extra arguments.
 Mounting Local Sources to Breeze
 --------------------------------
 
-Important sources of Airflow are mounted inside the ``airflow-testing`` container that you enter.
+Important sources of Airflow are mounted inside the ``airflow`` container that you enter.
 This means that you can continue editing your changes on the host in your favourite IDE and have them
 visible in the Docker immediately and ready to test without rebuilding images. You can disable mounting
 by specifying ``--skip-mounting-local-sources`` flag when running Breeze. In this case you will have sources
@@ -448,7 +462,7 @@ This should happen automatically if you modify any of these files.
 After you exit the container and re-run ``breeze``, Breeze detects changes in dependencies,
 asks you to confirm rebuilding the image and proceeds with rebuilding if you confirm (or skip it
 if you do not confirm). After rebuilding is done, Breeze drops you to shell. You may also use the
-``build-only`` command to only rebuild images and not to go into shell.
+``build-image`` command to only rebuild CI image and not to go into shell.
 
 Changing apt Dependencies in the Dockerfile.ci
 ..............................................
@@ -466,7 +480,7 @@ Port Forwarding
 
 When you run Airflow Breeze, the following ports are automatically forwarded:
 
-* 28080 -> forwarded to Airflow webserver -> airflow-testing:8080
+* 28080 -> forwarded to Airflow webserver -> airflow:8080
 * 25433 -> forwarded to Postgres database -> postgres:5432
 * 23306 -> forwarded to MySQL database  -> mysql:3306
 
@@ -635,8 +649,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
     shell                                    [Default] Enters interactive shell in the container
     build-docs                               Builds documentation in the container
-    build-only                               Only builds docker images without entering container
-    cleanup-images                           Cleans up the container images created
+    build-image                              Builds CI or Production docker image
+    cleanup-image                            Cleans up the container image created
     exec                                     Execs into running breeze container in new terminal
     generate-requirements                    Generates pinned requirements for pip dependencies
     initialize-local-virtualenv              Initializes local virtualenv
@@ -691,13 +705,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
         is generated ('docs/build') are also mounted to the container - this way results of
         the documentation build is available in the host.
   ****************************************************************************************************
-  breeze [FLAGS] build-only -- <EXTRA_ARGS>
+  breeze [FLAGS] build-image -- <EXTRA_ARGS>
 
-        Do not enter docker container - just build the docker images needed. You can (similarly as
-        with other commands) pass additional options to this command, such as '--force-build-image',
-        '--force-pull-image' in order to force latest images to be built/pulled.
+        Builds docker image (CI or production) without entering the container. You can pass
+        additional options to this command, such as '--force-build-image',
+        '--force-pull-image' '--python' '--use-local-cache'' in order to modify build behaviour.
+        You can also pass '--production-image' flag to build production image rather than CI image.
   ****************************************************************************************************
-  breeze [FLAGS] cleanup-images -- <EXTRA_ARGS>
+  breeze [FLAGS] cleanup-image -- <EXTRA_ARGS>
 
         Removes the breeze-related images created in your local docker image cache. This will
         not reclaim space in docker cache. You need to 'docker system prune' (optionally
@@ -873,6 +888,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
                  cassandra kerberos mongo openldap presto rabbitmq redis all
 
+  -I, --production-image
+          Use production image for entering the environment and builds (not for tests).
+
   ****************************************************************************************************
    Manage Kind kubernetes cluster (optional)
   ****************************************************************************************************
@@ -929,10 +947,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
   ****************************************************************************************************
 
   -a, --install-airflow-version <INSTALL_AIRFLOW_VERSION>
-          If specified, removes the source-installed airflow and installs a
-          released version of Airflow instead. One of:
+          If specified, installs airflow directly from PIP released version. One of:
 
-                 current 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2
+                 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2 master v1-10-test
+
+  -t, --install-airflow-reference <INSTALL_AIRFLOW_REFERENCE>
+          Only for production image - if specified, installs airflow directly from reference in GitHub
+
 
   ****************************************************************************************************
    Database versions
@@ -989,10 +1010,20 @@ This is the current syntax for  `./breeze <./breeze>`_:
           automatically for the first time or when changes are detected in
           package-related files, but you can force it using this flag.
 
-  -p, --force-pull-images
+  -P, --force-pull-images
           Forces pulling of images from DockerHub before building to populate cache. The
           images are pulled by default only for the first time you run the
           environment, later the locally build images are used as cache.
+
+  -E, --extras
+          Extras to pass to build images The default are different for CI and production images:
+
+          CI image:
+                 devel_ci
+
+          Production image:
+                 async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,
+                 ssh,statsd,virtualenv
 
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
@@ -1045,8 +1076,8 @@ can check whether your problem is fixed.
 
 1. If you are on macOS, check if you have enough disk space for Docker.
 2. Restart Breeze with ``./breeze restart``.
-3. Delete the ``.build`` directory and run ``./breeze build-only --force-pull-images``.
-4. `Clean up Docker images <#cleaning-up-the-images>`_.
+3. Delete the ``.build`` directory and run ``./breeze build-image --force-pull-images``.
+4. Clean up Docker images via ``breeze cleanup-image`` command.
 5. Restart your Docker Engine and try again.
 6. Restart your machine and try again.
 7. Re-install Docker CE and try again.
