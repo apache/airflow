@@ -180,8 +180,8 @@ def get_credentials_and_project_id(
 
     :param key_path: Path to GCP Credential JSON file
     :type key_path: str
-    :param key_dict: A dict representing GCP Credential as in the Credential JSON file
-    :type key_dict: Dict[str, str]
+    :param keyfile_dict: A dict representing GCP Credential as in the Credential JSON file
+    :type keyfile_dict: Dict[str, str]
     :param scopes:  OAuth scopes for the connection
     :type scopes: Sequence[str]
     :param delegate_to: The account to impersonate, if any.
