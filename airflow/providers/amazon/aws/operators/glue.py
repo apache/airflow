@@ -112,5 +112,3 @@ class AWSGlueJobOperator(BaseOperator):
                               job_name=self.job_name,
                               job_status=glue_job_run['JobRunState'])
                       )
-
-        self.log.info('Done.')
