@@ -182,7 +182,7 @@ atlas = [
     'atlasclient>=0.1.2',
 ]
 aws = [
-    'boto3~=1.10',
+    'boto3>=1.12.0,<2.0.0',
     'watchtower~=0.7.3',
 ]
 azure = [
