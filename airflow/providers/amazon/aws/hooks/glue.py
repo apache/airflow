@@ -28,7 +28,7 @@ class AwsGlueJobHook(AwsHook):
     Interact with AWS Glue - create job, trigger, crawler
 
     :param job_name: unique job name per AWS account
-    :type str
+    :type job_name: str
     :param desc: job description
     :type str
     :param concurrent_run_limit: The maximum number of concurrent runs allowed for a job
