@@ -26,7 +26,7 @@ from airflow.secrets import BaseSecretsBackend
 from airflow.utils.session import provide_session
 
 
-class MetastoreSecretsBackend(BaseSecretsBackend):
+class MetastoreBackend(BaseSecretsBackend):
     """
     Retrieves Connection object from airflow metastore database.
     """

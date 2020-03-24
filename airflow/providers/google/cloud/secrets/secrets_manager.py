@@ -33,7 +33,7 @@ from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class CloudSecretsManagerSecretsBackend(BaseSecretsBackend, LoggingMixin):
+class CloudSecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     """
     Retrieves Connection object from GCP Secrets Manager
 
@@ -42,7 +42,7 @@ class CloudSecretsManagerSecretsBackend(BaseSecretsBackend, LoggingMixin):
     .. code-block:: ini
 
         [secrets]
-        backend = airflow.providers.google.cloud.secrets.secrets_manager.CloudSecretsManagerSecretsBackend
+        backend = airflow.providers.google.cloud.secrets.secrets_manager.CloudSecretsManagerBackend
         backend_kwargs = {"connections_prefix": "airflow/connections"}
 
     For example, if secret id is ``airflow/connections/smtp_default``, this would be accessible

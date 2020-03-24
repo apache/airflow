@@ -36,8 +36,8 @@ from airflow.utils.module_loading import import_string
 
 CONFIG_SECTION = "secrets"
 DEFAULT_SECRETS_SEARCH_PATH = [
-    "airflow.secrets.environment_variables.EnvironmentVariablesSecretsBackend",
-    "airflow.secrets.metastore.MetastoreSecretsBackend",
+    "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
+    "airflow.secrets.metastore.MetastoreBackend",
 ]
 
 

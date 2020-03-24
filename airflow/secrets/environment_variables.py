@@ -27,7 +27,7 @@ from airflow.secrets import BaseSecretsBackend
 CONN_ENV_PREFIX = "AIRFLOW_CONN_"
 
 
-class EnvironmentVariablesSecretsBackend(BaseSecretsBackend):
+class EnvironmentVariablesBackend(BaseSecretsBackend):
     """
     Retrieves Connection object from environment variable.
     """

@@ -22,7 +22,7 @@ from google.cloud.secretmanager_v1.types import AccessSecretVersionResponse
 from parameterized import parameterized
 
 from airflow.models import Connection
-from airflow.providers.google.cloud.secrets.secrets_manager import CloudSecretsManagerSecretsBackend
+from airflow.providers.google.cloud.secrets.secrets_manager import CloudSecretsManagerBackend
 
 CREDENTIALS = 'test-creds'
 KEY_FILE = 'test-file.json'
@@ -50,7 +50,7 @@ class TestCloudSecretsManagerBackend(TestCase):
         test_response.payload.data = CONN_URI.encode("UTF-8")
         mock_client.access_secret_version.return_value = test_response
 
-        secrets_manager_backend = CloudSecretsManagerSecretsBackend(connections_prefix=connections_prefix)
+        secrets_manager_backend = CloudSecretsManagerBackend(connections_prefix=connections_prefix)
         returned_uri = secrets_manager_backend.get_conn_uri(conn_id=CONN_ID)
         self.assertEqual(CONN_URI, returned_uri)
         mock_client.secret_version_path.assert_called_once_with(
@@ -58,11 +58,11 @@ class TestCloudSecretsManagerBackend(TestCase):
         )
 
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
-    @mock.patch(MODULE_NAME + ".CloudSecretsManagerSecretsBackend.get_conn_uri")
+    @mock.patch(MODULE_NAME + ".CloudSecretsManagerBackend.get_conn_uri")
     def test_get_connections(self, mock_get_uri, mock_get_creds):
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
         mock_get_uri.return_value = CONN_URI
-        conns = CloudSecretsManagerSecretsBackend().get_connections(conn_id=CONN_ID)
+        conns = CloudSecretsManagerBackend().get_connections(conn_id=CONN_ID)
         self.assertIsInstance(conns, list)
         self.assertIsInstance(conns[0], Connection)
 
@@ -77,7 +77,7 @@ class TestCloudSecretsManagerBackend(TestCase):
 
         connections_prefix = "airflow/connections"
 
-        secrets_manager_backend = CloudSecretsManagerSecretsBackend(connections_prefix=connections_prefix)
+        secrets_manager_backend = CloudSecretsManagerBackend(connections_prefix=connections_prefix)
         with self.assertLogs(secrets_manager_backend.log, level="ERROR") as log_output:
             self.assertIsNone(secrets_manager_backend.get_conn_uri(conn_id=CONN_ID))
             self.assertEqual([], secrets_manager_backend.get_connections(conn_id=CONN_ID))

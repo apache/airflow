@@ -29,7 +29,7 @@ from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class VaultSecrets(BaseSecretsBackend, LoggingMixin):
+class VaultBackend(BaseSecretsBackend, LoggingMixin):
     """
     Retrieves Connection object from Hashicorp Vault
 
@@ -38,7 +38,7 @@ class VaultSecrets(BaseSecretsBackend, LoggingMixin):
     .. code-block:: ini
 
         [secrets]
-        backend = airflow.providers.hashicorp.secrets.vault.VaultSecrets
+        backend = airflow.providers.hashicorp.secrets.vault.VaultBackend
         backend_kwargs = {
             "connections_path": "connections",
             "url": "http://127.0.0.1:8200",
