@@ -158,6 +158,16 @@ class DataProcJobBuilder:
         if pyfiles is not None:
             self.job["job"][self.job_type]["python_file_uris"] = pyfiles
 
+    def add_r_file_uris(self, rfiles: List[str]) -> None:
+        """
+        Set python file uris for Dataproc job.
+
+        :param rfiles: List of python files URIs
+        :type rfiles: List[str]
+        """
+        if rfiles is not None:
+            self.job["job"][self.job_type]["r_file_uris"] = rfiles
+
     def set_main(self, main_jar: Optional[str], main_class: Optional[str]) -> None:
         """
         Set Dataproc main class.
@@ -183,6 +193,15 @@ class DataProcJobBuilder:
         :type main: str
         """
         self.job["job"][self.job_type]["main_python_file_uri"] = main
+
+    def set_r_main(self, main: str) -> None:
+        """
+        Set Dataproc main R file uri.
+
+        :param main: URI for the R main file.
+        :type main: str
+        """
+        self.job["job"][self.job_type]["main_r_file_uri"] = main
 
     def set_job_name(self, name: str) -> None:
         """

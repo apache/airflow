@@ -1359,6 +1359,128 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         super().execute(context)
 
 
+class DataprocSubmitSparkRJobOperator(DataprocJobBaseOperator):
+    """
+    Start a SparkR Job on a Cloud DataProc cluster.
+
+    :param main: [Required] The Hadoop Compatible Filesystem (HCFS) URI of the main
+            R file to use as the driver. Must be a .R file.
+    :type main: str
+    :param arguments: Arguments for the job. (templated)
+    :type arguments: list
+    :param archives: List of archived files that will be unpacked in the work
+        directory. Should be stored in Cloud Storage.
+    :type archives: list
+    :param files: List of files to be copied to the working directory
+    :type files: list
+    :param rfiles: List of R files to pass to the SparkR framework.
+        Supported file types: .r and .zip
+    :type rfiles: list
+    """
+
+    template_fields = ['arguments', 'job_name', 'cluster_name',
+                       'region', 'dataproc_jars', 'dataproc_properties']
+    ui_color = '#0273d4'
+    job_type = 'sparkr_job'
+
+    @staticmethod
+    def _generate_temp_filename(filename):
+        date = time.strftime('%Y%m%d%H%M%S')
+        return "{}_{}_{}".format(date, str(uuid.uuid4())[:8], ntpath.basename(filename))
+
+    def _upload_file_temp(self, bucket, local_file):
+        """
+        Upload a local file to a Google Cloud Storage bucket.
+        """
+        temp_filename = self._generate_temp_filename(local_file)
+        if not bucket:
+            raise AirflowException(
+                "If you want Airflow to upload the local file to a temporary bucket, set "
+                "the 'temp_bucket' key in the connection string")
+
+        self.log.info("Uploading %s to %s", local_file, temp_filename)
+
+        GCSHook(
+            google_cloud_storage_conn_id=self.gcp_conn_id
+        ).upload(
+            bucket_name=bucket,
+            object_name=temp_filename,
+            mime_type='application/x-python',
+            filename=local_file
+        )
+        return "gs://{}/{}".format(bucket, temp_filename)
+
+    @apply_defaults
+    def __init__(
+        self,
+        main: str,
+        arguments: Optional[List] = None,
+        archives: Optional[List] = None,
+        rfiles: Optional[Optional[Optional[List]]] = None,
+        files: Optional[List] = None,
+        *args,
+        **kwargs
+    ) -> None:
+        # TODO: Remove one day
+        warnings.warn(
+            "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
+            " `generate_job` method of `{cls}` to generate dictionary representing your job"
+            " and use it with the new operator.".format(cls=type(self).__name__),
+            DeprecationWarning,
+            stacklevel=1
+        )
+
+        super().__init__(*args, **kwargs)
+        self.main = main
+        self.arguments = arguments
+        self.archives = archives
+        self.files = files
+        self.rfiles = rfiles
+
+    def generate_job(self):
+        """
+        Helper method for easier migration to `DataprocSubmitJobOperator`.
+        :return: Dict representing Dataproc job
+        """
+        self.create_job_template()
+        #  Check if the file is local, if that is the case, upload it to a bucket
+        if os.path.isfile(self.main):
+            cluster_info = self.hook.get_cluster(
+                project_id=self.hook.project_id,
+                region=self.region,
+                cluster_name=self.cluster_name
+            )
+            bucket = cluster_info['config']['config_bucket']
+            self.main = "gs://{}/{}".format(bucket, self.main)
+        self.job_template.set_r_main(self.main)
+        self.job_template.add_args(self.arguments)
+        self.job_template.add_archive_uris(self.archives)
+        self.job_template.add_file_uris(self.files)
+        self.job_template.add_r_file_uris(self.rfiles)
+
+        return self._generate_job_template()
+
+    def execute(self, context):
+        self.create_job_template()
+        #  Check if the file is local, if that is the case, upload it to a bucket
+        if os.path.isfile(self.main):
+            cluster_info = self.hook.get_cluster(
+                project_id=self.hook.project_id,
+                region=self.region,
+                cluster_name=self.cluster_name
+            )
+            bucket = cluster_info['config']['config_bucket']
+            self.main = self._upload_file_temp(bucket, self.main)
+
+        self.job_template.set_r_main(self.main)
+        self.job_template.add_args(self.arguments)
+        self.job_template.add_archive_uris(self.archives)
+        self.job_template.add_file_uris(self.files)
+        self.job_template.add_r_file_uris(self.rfiles)
+
+        super().execute(context)
+
+
 class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
     """
     Instantiate a WorkflowTemplate on Google Cloud Dataproc. The operator will wait
