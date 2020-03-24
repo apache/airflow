@@ -39,3 +39,7 @@
 ./airflow/www/views.py
 ./airflow/www/widgets.py
 ./scripts/perf/scheduler_ops_metrics.py
+./scripts/perf/scheduler_dag_execution_timing.py
+./scripts/perf/dags/sql_perf_dag.py
+./scripts/perf/dags/elastic_dag.py
+./scripts/perf/sql_queries.py
