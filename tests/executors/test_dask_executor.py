@@ -110,7 +110,7 @@ class TestDaskExecutor(TestBaseDask):
                 ignore_first_depends_on_past=True,
                 executor=DaskExecutor(
                     cluster_address=self.cluster.scheduler_address))
-            executor.start()
+            job.executor.start()
             job.run()
 
     def tearDown(self):
