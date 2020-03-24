@@ -36,8 +36,6 @@ class GSheetsHook(CloudBaseHook):
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param spreadsheet_id: The Google Sheet ID to interact with
-    :type spreadsheet_id: str
     :param api_version: API Version
     :type api_version: str
     :param delegate_to: The account to impersonate, if any.
@@ -48,13 +46,11 @@ class GSheetsHook(CloudBaseHook):
 
     def __init__(
         self,
-        spreadsheet_id: str,
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v4',
         delegate_to: Optional[str] = None
     ) -> None:
         super().__init__(gcp_conn_id, delegate_to)
-        self.spreadsheet_id = spreadsheet_id
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.delegate_to = delegate_to
@@ -75,15 +71,18 @@ class GSheetsHook(CloudBaseHook):
 
     def get_values(
         self,
+        spreadsheet_id: str,
         range_: str,
         major_dimension: str = 'DIMENSION_UNSPECIFIED',
         value_render_option: str = 'FORMATTED_VALUE',
         date_time_render_option: str = 'SERIAL_NUMBER'
-    ) -> Dict:
+    ) -> List:
         """
         Gets values from Google Sheet from a single range
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/get
 
+        :param spreadsheet_id: The Google Sheet ID to interact with
+        :type spreadsheet_id: str
         :param range_: The A1 notation of the values to retrieve.
         :type range_: str
         :param major_dimension: Indicates which dimension an operation should apply to.
@@ -95,22 +94,23 @@ class GSheetsHook(CloudBaseHook):
         :param date_time_render_option: Determines how dates should be rendered in the output.
             SERIAL_NUMBER or FORMATTED_STRING
         :type date_time_render_option: str
-        :return: Google Sheets API response.
-        :rtype: Dict
+        :return: An array of sheet values from the specified sheet.
+        :rtype: List
         """
         service = self.get_conn()
         response = service.spreadsheets().values().get(  # pylint: disable=no-member
-            spreadsheetId=self.spreadsheet_id,
+            spreadsheetId=spreadsheet_id,
             range=range_,
             majorDimension=major_dimension,
             valueRenderOption=value_render_option,
             dateTimeRenderOption=date_time_render_option
         ).execute(num_retries=self.num_retries)
 
-        return response
+        return response['values']
 
     def batch_get_values(
         self,
+        spreadsheet_id: str,
         ranges: List,
         major_dimension: str = 'DIMENSION_UNSPECIFIED',
         value_render_option: str = 'FORMATTED_VALUE',
@@ -120,6 +120,8 @@ class GSheetsHook(CloudBaseHook):
         Gets values from Google Sheet from a list of ranges
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/batchGet
 
+        :param spreadsheet_id: The Google Sheet ID to interact with
+        :type spreadsheet_id: str
         :param ranges: The A1 notation of the values to retrieve.
         :type ranges: List
         :param major_dimension: Indicates which dimension an operation should apply to.
@@ -136,7 +138,7 @@ class GSheetsHook(CloudBaseHook):
         """
         service = self.get_conn()
         response = service.spreadsheets().values().batchGet(  # pylint: disable=no-member
-            spreadsheetId=self.spreadsheet_id,
+            spreadsheetId=spreadsheet_id,
             ranges=ranges,
             majorDimension=major_dimension,
             valueRenderOption=value_render_option,
@@ -147,6 +149,7 @@ class GSheetsHook(CloudBaseHook):
 
     def update_values(
         self,
+        spreadsheet_id: str,
         range_: str,
         values: List,
         major_dimension: str = 'ROWS',
@@ -159,6 +162,8 @@ class GSheetsHook(CloudBaseHook):
         Updates values from Google Sheet from a single range
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/update
 
+        :param spreadsheet_id: The Google Sheet ID to interact with
+        :type spreadsheet_id: str
         :param range_: The A1 notation of the values to retrieve.
         :type range_: str
         :param values: Data within a range of the spreadsheet.
@@ -188,7 +193,7 @@ class GSheetsHook(CloudBaseHook):
             "values": values
         }
         response = service.spreadsheets().values().update(  # pylint: disable=no-member
-            spreadsheetId=self.spreadsheet_id,
+            spreadsheetId=spreadsheet_id,
             range=range_,
             valueInputOption=value_input_option,
             includeValuesInResponse=include_values_in_response,
@@ -201,6 +206,7 @@ class GSheetsHook(CloudBaseHook):
 
     def batch_update_values(
         self,
+        spreadsheet_id: str,
         ranges: List,
         values: List,
         major_dimension: str = 'ROWS',
@@ -213,6 +219,8 @@ class GSheetsHook(CloudBaseHook):
         Updates values from Google Sheet for multiple ranges
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/batchUpdate
 
+        :param spreadsheet_id: The Google Sheet ID to interact with
+        :type spreadsheet_id: str
         :param ranges: The A1 notation of the values to retrieve.
         :type ranges: List
         :param values: Data within a range of the spreadsheet.
@@ -257,7 +265,7 @@ class GSheetsHook(CloudBaseHook):
             "responseDateTimeRenderOption": date_time_render_option
         }
         response = service.spreadsheets().values().batchUpdate(  # pylint: disable=no-member
-            spreadsheetId=self.spreadsheet_id,
+            spreadsheetId=spreadsheet_id,
             body=body
         ).execute(num_retries=self.num_retries)
 
@@ -265,6 +273,7 @@ class GSheetsHook(CloudBaseHook):
 
     def append_values(
         self,
+        spreadsheet_id: str,
         range_: str,
         values: List,
         major_dimension: str = 'ROWS',
@@ -278,6 +287,8 @@ class GSheetsHook(CloudBaseHook):
         Append values from Google Sheet from a single range
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/append
 
+        :param spreadsheet_id: The Google Sheet ID to interact with
+        :type spreadsheet_id: str
         :param range_: The A1 notation of the values to retrieve.
         :type range_: str
         :param values: Data within a range of the spreadsheet.
@@ -310,7 +321,7 @@ class GSheetsHook(CloudBaseHook):
             "values": values
         }
         response = service.spreadsheets().values().append(  # pylint: disable=no-member
-            spreadsheetId=self.spreadsheet_id,
+            spreadsheetId=spreadsheet_id,
             range=range_,
             valueInputOption=value_input_option,
             insertDataOption=insert_data_option,
@@ -322,11 +333,13 @@ class GSheetsHook(CloudBaseHook):
 
         return response
 
-    def clear(self, range_: str) -> Dict:
+    def clear(self, spreadsheet_id: str, range_: str) -> Dict:
         """
         Clear values from Google Sheet from a single range
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/clear
 
+        :param spreadsheet_id: The Google Sheet ID to interact with
+        :type spreadsheet_id: str
         :param range_: The A1 notation of the values to retrieve.
         :type range_: str
         :return: Google Sheets API response.
@@ -334,17 +347,19 @@ class GSheetsHook(CloudBaseHook):
         """
         service = self.get_conn()
         response = service.spreadsheets().values().clear(  # pylint: disable=no-member
-            spreadsheetId=self.spreadsheet_id,
+            spreadsheetId=spreadsheet_id,
             range=range_
         ).execute(num_retries=self.num_retries)
 
         return response
 
-    def batch_clear(self, ranges: List) -> Dict:
+    def batch_clear(self, spreadsheet_id: str, ranges: List) -> Dict:
         """
         Clear values from Google Sheet from a list of ranges
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/batchClear
 
+        :param spreadsheet_id: The Google Sheet ID to interact with
+        :type spreadsheet_id: str
         :param ranges: The A1 notation of the values to retrieve.
         :type ranges: List
         :return: Google Sheets API response.
@@ -355,7 +370,7 @@ class GSheetsHook(CloudBaseHook):
             "ranges": ranges
         }
         response = service.spreadsheets().values().batchClear(  # pylint: disable=no-member
-            spreadsheetId=self.spreadsheet_id,
+            spreadsheetId=spreadsheet_id,
             body=body
         ).execute(num_retries=self.num_retries)
 
