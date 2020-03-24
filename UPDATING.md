@@ -61,6 +61,10 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Changes to SalesforceHook
+
+Replace parameter ``sandbox`` with ``domain``. According to change in simple-salesforce package
+
 ### Rename parameter name in PinotAdminHook.create_segment
 
 Rename parameter name from ``format`` to ``segment_format`` in PinotAdminHook function create_segment fro pylint compatible
