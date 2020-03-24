@@ -41,7 +41,8 @@ class TestSecrets(unittest.TestCase):
         mock_meta_get.not_called()
 
     @conf_vars({
-        ("secrets", "backend"): "airflow.providers.amazon.aws.secrets.ssm.AwsSsmBackend",
+        ("secrets", "backend"):
+            "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
         ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
     })
     def test_initialize_secrets_backends(self):
@@ -49,26 +50,28 @@ class TestSecrets(unittest.TestCase):
         backend_classes = [backend.__class__.__name__ for backend in backends]
 
         self.assertEqual(3, len(backends))
-        self.assertIn('AwsSsmBackend', backend_classes)
+        self.assertIn('SystemsManagerParameterStoreBackend', backend_classes)
 
     @conf_vars({
-        ("secrets", "backend"): "airflow.providers.amazon.aws.secrets.ssm.AwsSsmBackend",
+        ("secrets", "backend"):
+            "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
         ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
     })
     @mock.patch.dict('os.environ', {
         'AIRFLOW_CONN_TEST_MYSQL': 'mysql://airflow:airflow@host:5432/airflow',
     })
-    @mock.patch("airflow.providers.amazon.aws.secrets.ssm.AwsSsmBackend.get_conn_uri")
+    @mock.patch("airflow.providers.amazon.aws.secrets.systems_manager."
+                "SystemsManagerParameterStoreBackend.get_conn_uri")
     def test_backend_fallback_to_env_var(self, mock_get_uri):
         mock_get_uri.return_value = None
 
         backends = ensure_secrets_loaded()
         backend_classes = [backend.__class__.__name__ for backend in backends]
-        self.assertIn('AwsSsmBackend', backend_classes)
+        self.assertIn('SystemsManagerParameterStoreBackend', backend_classes)
 
         uri = get_connections(conn_id="test_mysql")
 
-        # Assert that AwsSsmBackend.get_conn_uri was called
+        # Assert that SystemsManagerParameterStoreBackend.get_conn_uri was called
         mock_get_uri.assert_called_once_with(conn_id='test_mysql')
 
         self.assertEqual('mysql://airflow:airflow@host:5432/airflow', uri[0].get_uri())

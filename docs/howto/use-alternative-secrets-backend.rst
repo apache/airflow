@@ -57,7 +57,7 @@ See :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>` for an example 
 AWS SSM Parameter Store Secrets Backend
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To enable SSM parameter store, specify :py:class:`~airflow.providers.amazon.aws.secrets.ssm.AwsSsmBackend`
+To enable SSM parameter store, specify :py:class:`~airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend`
 as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg``.
 
 Here is a sample configuration:
@@ -65,7 +65,7 @@ Here is a sample configuration:
 .. code-block:: ini
 
     [secrets]
-    backend = airflow.providers.amazon.aws.secrets.ssm.AwsSsmBackend
+    backend = airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend
     backend_kwargs = {"connections_prefix": "/airflow/connections", "profile_name": "default"}
 
 If you have set ``connections_prefix`` as ``/airflow/connections``, then for a connection id of ``smtp_default``,

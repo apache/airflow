@@ -27,7 +27,7 @@ from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class AwsSsmBackend(BaseSecretsBackend, LoggingMixin):
+class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
     """
     Retrieves Connection object from AWS SSM Parameter Store
 
@@ -36,7 +36,7 @@ class AwsSsmBackend(BaseSecretsBackend, LoggingMixin):
     .. code-block:: ini
 
         [secrets]
-        backend = airflow.providers.amazon.aws.secrets.ssm.AwsSsmBackend
+        backend = airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend
         backend_kwargs = {"connections_prefix": "/airflow/connections", "profile_name": null}
 
     For example, if ssm path is ``/airflow/connections/smtp_default``, this would be accessible
