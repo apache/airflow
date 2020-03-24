@@ -88,7 +88,11 @@ with models.DAG(
 
     # [START howto_operator_get_instance]
     get_instance = CloudMemorystoreGetInstanceOperator(
-        task_id="get-instance", location="europe-north1", instance=INSTANCE_NAME, project_id=GCP_PROJECT_ID
+        task_id="get-instance",
+        location="europe-north1",
+        instance=INSTANCE_NAME,
+        project_id=GCP_PROJECT_ID,
+        do_xcom_push=True,
     )
     # [END howto_operator_get_instance]
 
@@ -212,6 +216,7 @@ with models.DAG(
     create_instance_2 >> import_instance
     create_instance >> list_instances >> list_instances_result
     list_instances >> delete_instance
+    export_instance >> update_instance
     update_instance >> delete_instance
     get_instance >> set_acl_permission >> export_instance
     export_instance >> import_instance
