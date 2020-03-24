@@ -129,13 +129,6 @@
           {{ _('Delete') }}
         </a>
       </li>
-      <li>
-        <a href="{{ url_for("Airflow.delete", dag_id=dag.dag_id, root=root) }}"
-           onclick="return confirmDeleteDag(this, '{{ dag.safe_dag_id }}')">
-          <span class="glyphicon glyphicon-ok" style="color:red" aria-hidden="true"></span>
-          二次确认
-        </a>
-      </li>
     </ul>
   </div>
   <hr>
@@ -301,7 +294,13 @@
             </span>
           </form>
           <hr/>
+          <button onclick="return call_modal_double_check()" class="btn btn-primary">
+            <span class="glyphicon glyphicon-ok" style="color:red" aria-hidden="true"></span>
+            二次确认
+          </button>
+          <span id="double_check_result" style="margin-left: 10px"></span>
           <span class="btn-group" id="extra_links">
+
             </span>
         </div>
 
@@ -325,7 +324,7 @@
           </h4>
         </div>
         <div class="modal-body">
-          <form method="POST">
+          <form method="POST" style="display: inline-block">
             <button id="btn_edit_dagrun" type="button" class="btn btn-primary">
               Edit
             </button>
@@ -346,6 +345,33 @@
               Mark Success
             </button>
           </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+<!-- Modal for double check -->
+  <div class="modal fade" id="doubleCheckModal"
+       tabindex="-1" role="dialog"
+       aria-labelledby="doubleCheckModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="doubleCheckModalLabel">
+            <span id='dag_id'>二次确认</span>
+          </h4>
+        </div>
+        <div class="modal-body">
+          <button id="btn_double_check_failed" type="button" class="btn btn-primary">
+            fail
+          </button>
+          <button id="btn_double_check_success" type="button" class="btn btn-primary">
+            success
+          </button>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-default" data-dismiss="modal">
@@ -498,6 +524,11 @@
       $("#dagModal").css("margin-top", "0px");
     }
 
+    function call_modal_double_check(dag_id) {
+      $('#doubleCheckModal').modal({});
+      $("#doubleCheckModal").css("margin-top", "0px");
+    }
+
     function confirmTriggerDag(link, dag_id) {
       if (confirm("Are you sure you want to run '" + dag_id + "' now?")) {
         postAsForm(link.href, {});
@@ -512,6 +543,13 @@
         EXCEPT Log.\n\
         This cannot be undone.")) {
         postAsForm(link.href, {});
+      }
+      return false;
+    }
+
+    function confirmDoubleCheck(link, dag_id) {
+      if (confirm("double check '" + dag_id)) {
+        // postAsForm(link.href, {});
       }
       return false;
     }
@@ -557,16 +595,48 @@
 
     $('form button[data-action]').click(function (e) {
       var form = $(this).closest('form').get(0);
-      form.dag_id.value = dag_id;
-      form.execution_date.value = execution_date;
-      form.origin.value = window.location;
+      if(form.dag_id){
+         form.dag_id.value = dag_id;
+      }
+      if(form.execution_date){
+         form.execution_date.value = execution_date;
+      }
+      if(form.origin){
+         form.origin.value = window.location;
+      }
       if (form.task_id) {
         form.task_id.value = task_id;
       }
       form.action = $(this).data("action");
       form.submit();
-    })
+    });
 
+    function submitDoubleCheck(finalState){
+      $.ajax({
+        type: "POST",
+        url: "{{ url_for('api_experimental.double_confirm_task', dag_id=dag.dag_id, task_id='__TASK_ID__' ) }}".replace('__TASK_ID__',task_id),
+        data: JSON.stringify({
+          csrf_token:"{{ csrf_token() }}",
+          final_state: finalState,
+          execution_date: execution_date
+        }),
+        success: function(){},
+        dataType: "json",
+        contentType : "application/json"
+      }).then(function(resp){
+        $('#doubleCheckModal').modal('hide');
+        if(resp && resp.response==='ok'){
+          $('#double_check_result').html('二次确认为'+ finalState);
+        }
+      });
+    }
+
+    $('#btn_double_check_failed').click(function (e) {
+      submitDoubleCheck('failed');
+    });
+    $('#btn_double_check_success').click(function (e) {
+      submitDoubleCheck('success');
+    });
 
     $("#pause_resume").change(function () {
       var dag_id = $(this).attr('dag_id');
