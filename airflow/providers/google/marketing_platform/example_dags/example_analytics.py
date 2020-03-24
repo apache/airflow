@@ -31,7 +31,7 @@ ACCOUNT_ID = os.environ.get("GA_ACCOUNT_ID", "123456789")
 
 BUCKET = os.environ.get("GMP_ANALYTICS_BUCKET", "test-airflow-analytics-bucket")
 BUCKET_FILENAME = "data.csv"
-WEB_PROPERTY = os.environ.get("GA_WEB_PROPERTY", "UA-12345678-1")
+WEB_PROPERTY_ID = os.environ.get("GA_WEB_PROPERTY", "UA-12345678-1")
 WEB_PROPERTY_AD_WORDS_LINK_ID = os.environ.get(
     "GA_WEB_PROPERTY_AD_WORDS_LINK_ID", "rQafFTPOQdmkx4U-fxUfhj"
 )
@@ -51,7 +51,7 @@ with models.DAG(
     # [START howto_marketing_platform_get_ads_link_operator]
     get_ad_words_link = GoogleAnalyticsGetAdsLinkOperator(
         web_property_ad_words_link_id=WEB_PROPERTY_AD_WORDS_LINK_ID,
-        web_property_id=WEB_PROPERTY,
+        web_property_id=WEB_PROPERTY_ID,
         account_id=ACCOUNT_ID,
         task_id="get_ad_words_link",
     )
@@ -59,7 +59,7 @@ with models.DAG(
 
     # [START howto_marketing_platform_retrieve_ads_links_list_operator]
     list_ad_words_link = GoogleAnalyticsRetrieveAdsLinksListOperator(
-        task_id="list_ad_link", account_id=ACCOUNT_ID, web_property_id=WEB_PROPERTY
+        task_id="list_ad_link", account_id=ACCOUNT_ID, web_property_id=WEB_PROPERTY_ID
     )
     # [END howto_marketing_platform_retrieve_ads_links_list_operator]
 
@@ -68,14 +68,14 @@ with models.DAG(
         storage_bucket=BUCKET,
         storage_name_object=BUCKET_FILENAME,
         account_id=ACCOUNT_ID,
-        web_property_id=WEB_PROPERTY,
+        web_property_id=WEB_PROPERTY_ID,
         custom_data_source_id=DATA_ID,
     )
 
     delete = GoogleAnalyticsDeletePreviousDataUploadsOperator(
         task_id="delete",
         account_id=ACCOUNT_ID,
-        web_property_id=WEB_PROPERTY,
+        web_property_id=WEB_PROPERTY_ID,
         custom_data_source_id=DATA_ID,
     )
 

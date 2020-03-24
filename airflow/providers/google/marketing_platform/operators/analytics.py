@@ -195,14 +195,14 @@ class GoogleAnalyticsDataImportUploadOperator(BaseOperator):
           storage bucket. (templated) If the destination points to an existing
           folder, the file will be taken from the specified folder.
     :type storage_name_object: str
-    :param account_id: The GA account Id (long) to which the data upload belongs
+    :param account_id: The GA account Id (long) to which the data upload belongs.
     :type account_id: str
-    :param web_property_id: The web property UA-string associated with the upload
+    :param web_property_id: The web property UA-string associated with the upload.
     :type web_property_id: str
     :param custom_data_source_id: The id to which the data import belongs
     :type custom_data_source_id: str
     :param resumable_upload: flag to upload the file in a resumable fashion, using a
-        series of at least two requests
+        series of at least two requests.
     :type resumable_upload: bool
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
@@ -276,11 +276,11 @@ class GoogleAnalyticsDeletePreviousDataUploadsOperator(BaseOperator):
     """
     Deletes previous GA uploads to leave the latest file to control the size of the Data Set Quota.
 
-    :param account_id: The GA account Id (long) to which the data upload belongs
+    :param account_id: The GA account Id (long) to which the data upload belongs.
     :type account_id: str
-    :param web_property_id: The web property UA-string associated with the upload
+    :param web_property_id: The web property UA-string associated with the upload.
     :type web_property_id: str
-    :param custom_data_source_id: The id to which the data import belongs
+    :param custom_data_source_id: The id to which the data import belongs.
     :type custom_data_source_id: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
@@ -349,7 +349,7 @@ class GoogleAnalyticsModifyFileHeadersDataImportOperator(BaseOperator):
     :param custom_dimension_header_mapping: Dictionary to handle when uploading
           custom dimensions which have generic IDs ie. 'dimensionX' which are
           set by GA. Dictionary maps the current CSV header to GA ID which will
-          be the new header for the CSV to upload to GA eg clientId : dimension1
+          be the new header for the CSV to upload to GA eg clientId : dimension1.
     :type custom_dimension_header_mapping: dict
     :param delegate_to: The account to impersonate, if any.
     :type delegate_to: str

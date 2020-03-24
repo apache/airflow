@@ -156,7 +156,7 @@ class GoogleAnalyticsHook(CloudBaseHook):
         :param custom_data_source_id: Custom Data Source Id to which this data import belongs.
         :type custom_data_source_id: str
         :param resumable_upload: flag to upload the file in a resumable fashion, using a
-            series of at least two requests
+            series of at least two requests.
         :type resumable_upload: bool
         """
 
@@ -196,7 +196,7 @@ class GoogleAnalyticsHook(CloudBaseHook):
         :type web_property_id: str
         :param custom_data_source_id: Custom Data Source Id to which this data import belongs.
         :type custom_data_source_id: str
-        :param delete_request_body: Dict of customDataImportUids to delete
+        :param delete_request_body: Dict of customDataImportUids to delete.
         :type delete_request_body: dict
         """
 

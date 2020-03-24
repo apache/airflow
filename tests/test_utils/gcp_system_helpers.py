@@ -140,7 +140,7 @@ class GoogleSystemTest(SystemTest):
         cls.execute_with_ctx(
             ["gsutil", "cp", source_uri, target_uri], key=GCP_GCS_KEY
         )
-        
+
     @classmethod
     def upload_content_to_gcs(cls, lines: str, bucket: str, filename: str):
         bucket_name = f"gs://{bucket}" if not bucket.startswith("gs://") else bucket
