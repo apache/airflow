@@ -18,56 +18,56 @@
 # under the License.
 
 from airflow.exceptions import AirflowException
-from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 import os.path
 import time
 
 
-class AwsGlueJobHook(AwsHook):
+class AwsGlueJobHook(AwsBaseHook):
     """
     Interact with AWS Glue - create job, trigger, crawler
 
     :param job_name: unique job name per AWS account
     :type job_name: str
     :param desc: job description
-    :type str
+    :type desc: str
     :param concurrent_run_limit: The maximum number of concurrent runs allowed for a job
-    :type int
+    :type concurrent_run_limit: int
     :param script_location: path to etl script either on s3 or local
-    :type str
+    :type script_location: str
     :param conns: A list of connections used by the job
-    :type list
+    :type conns: list
     :param retry_limit: Maximum number of times to retry this job if it fails
-    :type int
+    :type retry_limit: int
     :param num_of_dpus: Number of AWS Glue DPUs to allocate to this Job
-    :type int
+    :type num_of_dpus: int
     :param region_name: aws region name (example: us-east-1)
     :type region_name: str
-    :param s3_bucket: S3 bucket where logs and local etl script will be uploaded
-    :type str
     :param iam_role_name: AWS IAM Role for Glue Job
-    :type str
+    :type iam_role_name: str
+    :param s3_bucket: S3 bucket where logs and local etl script will be uploaded
+    :type s3_bucket: str
     """
 
     def __init__(self,
                  job_name=None,
                  desc=None,
-                 concurrent_run_limit=None,
+                 concurrent_run_limit=1,
                  script_location=None,
                  conns=None,
-                 retry_limit=None,
-                 num_of_dpus=None,
+                 retry_limit=0,
+                 num_of_dpus=10,
                  aws_conn_id='aws_default',
                  region_name=None,
                  iam_role_name=None,
                  s3_bucket=None, *args, **kwargs):
         self.job_name = job_name
         self.desc = desc
-        self.concurrent_run_limit = concurrent_run_limit or 1
+        self.concurrent_run_limit = concurrent_run_limit
         self.script_location = script_location
         self.conns = conns or ["s3"]
-        self.retry_limit = retry_limit or 0
-        self.num_of_dpus = num_of_dpus or 10
+        self.retry_limit = retry_limit
+        self.num_of_dpus = num_of_dpus
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
         self.s3_bucket = s3_bucket
@@ -93,14 +93,11 @@ class AwsGlueJobHook(AwsHook):
 
         try:
             glue_execution_role = iam_client.get_role(RoleName=self.role_name)
-            self.log.info("Iam Role Name: {}".format(self.role_name))
+            self.log.info("Iam Role Name: %s", self.role_name)
             return glue_execution_role
         except Exception as general_error:
-            raise AirflowException(
-                'Failed to create aws glue job, error: {error}'.format(
-                    error=str(general_error)
-                )
-            )
+            self.log.error(f'Failed to create aws glue job, error: {str(general_error)}')
+            raise
 
     def initialize_job(self, script_arguments=None):
         """
@@ -125,16 +122,15 @@ class AwsGlueJobHook(AwsHook):
             )
             return self.job_completion(job_name, job_run['JobRunId'])
         except Exception as general_error:
-            raise AirflowException(
-                'Failed to run aws glue job, error: {error}'.format(
-                    error=str(general_error)
-                )
-            )
+            self.log.error(f'Failed to run aws glue job, error: {str(general_error)}')
+            raise
 
     def job_completion(self, job_name=None, run_id=None):
         """
-        :param job_name:
-        :param run_id:
+        :param job_name: unique job name per AWS account
+        :type job_name: str
+        :param run_id: The job-run ID of the predecessor job run
+        :type run_id: str
         :return:
         """
         while True:
@@ -158,6 +154,10 @@ class AwsGlueJobHook(AwsHook):
                 time.sleep(6)
 
     def get_or_create_glue_job(self):
+        """
+        Creates(or just returns) and returns the Job name
+        :return:Name of the Job
+        """
         glue_client = self.get_conn()
         try:
             get_job_response = glue_client.get_job(JobName=self.job_name)

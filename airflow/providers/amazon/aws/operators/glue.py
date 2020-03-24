@@ -18,7 +18,7 @@
 # under the License.
 from __future__ import unicode_literals
 
-from airflow.contrib.hooks.aws_glue_job_hook import AwsGlueJobHook
+from airflow.providers.amazon.aws.hooks.glue import AwsGlueJobHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -104,11 +104,7 @@ class AWSGlueJobOperator(BaseOperator):
                                   s3_bucket=self.s3_bucket,
                                   iam_role_name=self.iam_role_name)
 
-        self.log.info("Initializing AWS Glue Job: {}".format(self.job_name))
+        self.log.info("Initializing AWS Glue Job: %s",self.job_name)
         glue_job_run = glue_job.initialize_job(self.script_args)
         task_instance.xcom_push(key='run_id', value=glue_job_run['JobRunId'])
-        self.log.info('AWS Glue Job: {job_name} status: {job_status}. Run Id: {run_id}'
-                      .format(run_id=glue_job_run['JobRunId'],
-                              job_name=self.job_name,
-                              job_status=glue_job_run['JobRunState'])
-                      )
+        self.log.info("AWS Glue Job: %s status: %s. Run Id: %s",glue_job_run['JobRunId'],self.job_name,glue_job_run['JobRunState'])
