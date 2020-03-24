@@ -320,7 +320,7 @@ class TestCloudMemorystoreCreateInstanceAndImportOperatorOperator(TestCase):
                 ),
                 mock.call().import_instance(
                     input_config=TEST_INPUT_CONFIG,
-                    instance=TEST_INSTANCE,
+                    instance=TEST_INSTANCE_ID,
                     location=TEST_LOCATION,
                     metadata=TEST_METADATA,
                     project_id=TEST_PROJECT_ID,
