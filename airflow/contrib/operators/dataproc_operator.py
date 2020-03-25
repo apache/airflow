@@ -24,7 +24,7 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocInstantiateInlineWorkflowTemplateOperator, DataprocInstantiateWorkflowTemplateOperator,
     DataprocJobBaseOperator, DataprocScaleClusterOperator, DataprocSubmitHadoopJobOperator,
     DataprocSubmitHiveJobOperator, DataprocSubmitPigJobOperator, DataprocSubmitPySparkJobOperator,
-    DataprocSubmitSparkJobOperator, DataprocSubmitSparkRJobOperator, DataprocSubmitSparkSqlJobOperator,
+    DataprocSubmitSparkJobOperator, DataprocSubmitSparkSqlJobOperator,
 )
 
 warnings.warn(
@@ -152,22 +152,6 @@ class DataProcPySparkOperator(DataprocSubmitPySparkJobOperator):
             """This class is deprecated.
             Please use
             `airflow.providers.google.cloud.operators.dataproc.DataprocSubmitPySparkJobOperator`.""",
-            DeprecationWarning, stacklevel=2
-        )
-        super().__init__(*args, **kwargs)
-
-
-class DataProcSparkROperator(DataprocSubmitSparkRJobOperator):
-    """
-        This class is deprecated.
-        Please use `airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkRJobOperator`.
-        """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            """This class is deprecated.
-            Please use
-            `airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkRJobOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)
