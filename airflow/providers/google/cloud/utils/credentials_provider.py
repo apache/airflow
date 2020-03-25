@@ -162,13 +162,15 @@ def provide_gcp_conn_and_credentials(
     """
     with ExitStack() as stack:
         if key_file_path:
-            stack.enter_context(provide_gcp_credentials(key_file_path))  # type; ignore
+            stack.enter_context(  # type; ignore  # pylint: disable=no-member
+                provide_gcp_credentials(key_file_path)
+            )
         if project_id:
-            stack.enter_context(  # type; ignore
+            stack.enter_context(  # type; ignore  # pylint: disable=no-member
                 patch_environ({PROJECT: project_id, LEGACY_PROJECT: project_id})
             )
 
-        stack.enter_context(  # type; ignore
+        stack.enter_context(  # type; ignore  # pylint: disable=no-member
             provide_gcp_connection(key_file_path, scopes, project_id)
         )
         yield
