@@ -24,7 +24,7 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocInstantiateInlineWorkflowTemplateOperator, DataprocInstantiateWorkflowTemplateOperator,
     DataprocJobBaseOperator, DataprocScaleClusterOperator, DataprocSubmitHadoopJobOperator,
     DataprocSubmitHiveJobOperator, DataprocSubmitPigJobOperator, DataprocSubmitPySparkJobOperator,
-    DataprocSubmitSparkJobOperator, DataprocSubmitSparkSqlJobOperator, DataprocSubmitSparkRJobOperator
+    DataprocSubmitSparkJobOperator, DataprocSubmitSparkRJobOperator, DataprocSubmitSparkSqlJobOperator,
 )
 
 warnings.warn(
