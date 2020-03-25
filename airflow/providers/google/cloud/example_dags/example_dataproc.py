@@ -37,8 +37,9 @@ BUCKET = os.environ.get("GCP_DATAPROC_BUCKET", "dataproc-system-tests")
 OUTPUT_FOLDER = "wordcount"
 OUTPUT_PATH = "gs://{}/{}/".format(BUCKET, OUTPUT_FOLDER)
 PYSPARK_MAIN = os.environ.get("PYSPARK_MAIN", "hello_world.py")
+SPARKR_MAIN = os.environ.get("PYSPARK_MAIN", "hello_world.py")
 PYSPARK_URI = "gs://{}/{}".format(BUCKET, PYSPARK_MAIN)
-
+SPARKR_URI = "gs://{}/{}".format(BUCKET, SPARKR_MAIN)
 
 # Cluster definition
 CLUSTER = {
@@ -104,6 +105,12 @@ PYSPARK_JOB = {
     "pyspark_job": {"main_python_file_uri": PYSPARK_URI},
 }
 
+SPARKR_JOB = {
+    "reference": {"project_id": PROJECT_ID},
+    "placement": {"cluster_name": CLUSTER_NAME},
+    "sparkr_job": {"main_r_file_uri": SPARKR_URI},
+}
+
 HIVE_JOB = {
     "reference": {"project_id": PROJECT_ID},
     "placement": {"cluster_name": CLUSTER_NAME},
@@ -155,6 +162,10 @@ with models.DAG(
 
     pyspark_task = DataprocSubmitJobOperator(
         task_id="pyspark_task", job=PYSPARK_JOB, location=REGION, project_id=PROJECT_ID
+    )
+
+    sparkr_task = DataprocSubmitJobOperator(
+        task_id="sparkr_task", job=SPARKR_JOB, location=REGION, project_id=PROJECT_ID
     )
 
     hive_task = DataprocSubmitJobOperator(

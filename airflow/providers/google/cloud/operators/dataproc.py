@@ -1405,7 +1405,7 @@ class DataprocSubmitSparkRJobOperator(DataprocJobBaseOperator):
         ).upload(
             bucket_name=bucket,
             object_name=temp_filename,
-            mime_type='application/x-python',
+            mime_type='application/x-r',
             filename=local_file
         )
         return "gs://{}/{}".format(bucket, temp_filename)
