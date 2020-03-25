@@ -21,12 +21,15 @@ from google.api_core.exceptions import NotFound
 from google.cloud.secretmanager_v1.types import AccessSecretVersionResponse
 from parameterized import parameterized
 
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.google.cloud.secrets.secrets_manager import CloudSecretsManagerBackend
 
 CREDENTIALS = 'test-creds'
 KEY_FILE = 'test-file.json'
 PROJECT_ID = 'test-project-id'
+CONNECTIONS_PREFIX = "test-connections"
+SEP = '-'
 CONN_ID = 'test-postgres'
 CONN_URI = 'postgresql://airflow:airflow@host:5432/airflow'
 
@@ -34,8 +37,36 @@ MODULE_NAME = "airflow.providers.google.cloud.secrets.secrets_manager"
 
 
 class TestCloudSecretsManagerBackend(TestCase):
+    def test_default_valid_and_sep(self):
+        backend = CloudSecretsManagerBackend()
+        self.assertTrue(backend._is_valid_prefix_and_sep())
+
     @parameterized.expand([
-        "airflow/connections",
+        ("colon:", "not:valid", ":"),
+        ("slash/", "not/valid", "/"),
+        ("space_with_char", "a b", ""),
+        ("space_only", "", " ")
+    ])
+    def test_raise_exception_with_invalid_prefix_sep(self, _, prefix, sep):
+        with self.assertRaises(AirflowException):
+            CloudSecretsManagerBackend(connections_prefix=prefix, sep=sep)
+
+    @parameterized.expand([
+        ("dash-", "valid1", "-", True),
+        ("underscore_", "isValid", "_", True),
+        ("empty_string", "", "", True),
+        ("space_prefix", " ", "", False),
+        ("space_sep", "", " ", False),
+        ("colon:", "not:valid", ":", False)
+    ])
+    def test_is_valid_prefix_and_sep(self, _, prefix, sep, is_valid):
+        backend = CloudSecretsManagerBackend()
+        backend.connections_prefix = prefix
+        backend.sep = sep
+        self.assertEqual(backend._is_valid_prefix_and_sep(), is_valid)
+
+    @parameterized.expand([
+        "airflow-connections",
         "connections",
         "airflow"
     ])
@@ -51,10 +82,11 @@ class TestCloudSecretsManagerBackend(TestCase):
         mock_client.access_secret_version.return_value = test_response
 
         secrets_manager_backend = CloudSecretsManagerBackend(connections_prefix=connections_prefix)
+        secret_id = secrets_manager_backend.build_path(connections_prefix, CONN_ID, SEP)
         returned_uri = secrets_manager_backend.get_conn_uri(conn_id=CONN_ID)
         self.assertEqual(CONN_URI, returned_uri)
         mock_client.secret_version_path.assert_called_once_with(
-            PROJECT_ID, f"{connections_prefix}/{CONN_ID}", "latest"
+            PROJECT_ID, secret_id, "latest"
         )
 
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
@@ -75,13 +107,12 @@ class TestCloudSecretsManagerBackend(TestCase):
         # The requested secret id or secret version does not exist
         mock_client.access_secret_version.side_effect = NotFound('test-msg')
 
-        connections_prefix = "airflow/connections"
-
-        secrets_manager_backend = CloudSecretsManagerBackend(connections_prefix=connections_prefix)
+        secrets_manager_backend = CloudSecretsManagerBackend(connections_prefix=CONNECTIONS_PREFIX)
+        secret_id = secrets_manager_backend.build_path(CONNECTIONS_PREFIX, CONN_ID, SEP)
         with self.assertLogs(secrets_manager_backend.log, level="ERROR") as log_output:
             self.assertIsNone(secrets_manager_backend.get_conn_uri(conn_id=CONN_ID))
             self.assertEqual([], secrets_manager_backend.get_connections(conn_id=CONN_ID))
             self.assertRegex(
                 log_output.output[0],
-                f"GCP API Call Error \\(NotFound\\): Secret ID {connections_prefix}/{CONN_ID} not found"
+                f"GCP API Call Error \\(NotFound\\): Secret ID {secret_id} not found"
             )

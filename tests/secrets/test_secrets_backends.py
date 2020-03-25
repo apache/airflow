@@ -19,7 +19,10 @@
 import os
 import unittest
 
+from parameterized import parameterized
+
 from airflow.models import Connection
+from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.secrets.environment_variables import EnvironmentVariablesBackend
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.session import create_session
@@ -37,6 +40,15 @@ class SampleConn:
 
 
 class TestBaseSecretsBackend(unittest.TestCase):
+
+    @parameterized.expand([
+        ('default', {"connections_prefix": "PREFIX", "conn_id": "ID"}, "PREFIX/ID"),
+        ('with_sep', {"connections_prefix": "PREFIX", "conn_id": "ID", "sep": "-"}, "PREFIX-ID")
+    ])
+    def test_build_path(self, _, kwargs, output):
+        build_path = BaseSecretsBackend.build_path
+        self.assertEqual(build_path(**kwargs), output)
+
     def test_env_secrets_backend(self):
         sample_conn_1 = SampleConn("sample_1", "A")
         env_secrets_backend = EnvironmentVariablesBackend()

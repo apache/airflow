@@ -155,6 +155,9 @@ Available parameters to ``backend_kwargs``:
 * ``connections_prefix``: Specifies the prefix of the secret to read to get Connections.
 * ``gcp_key_path``: Path to GCP Credential JSON file
 * ``gcp_scopes``: Comma-separated string containing GCP scopes
+* ``sep``: separator used to concatenate connections_prefix and conn_id. Default: "-"
+
+Note: The full GCP Secrets Manager secret id should follow the pattern "[a-zA-Z0-9-_]".
 
 Here is a sample configuration:
 
@@ -162,7 +165,7 @@ Here is a sample configuration:
 
     [secrets]
     backend = airflow.providers.google.cloud.secrets.secrets_manager.CloudSecretsManagerBackend
-    backend_kwargs = {"connections_prefix": "airflow/connections"}
+    backend_kwargs = {"connections_prefix": "airflow-connections", "sep": "-"}
 
 When ``gcp_key_path`` is not provided, it will use the Application Default Credentials in the current environment. You can set up the credentials with:
 
