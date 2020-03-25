@@ -450,7 +450,7 @@ devel_all = (all_dbs + atlas + aws +
              redis + samba + segment + sendgrid + sentry + slack + snowflake + ssh +
              virtualenv + webhdfs + zendesk)
 
-# Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
+# Snakebite is not Python 3 compatible :'(
 if PY3:
     devel_all = [package for package in devel_all if package not in
                  ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']]
