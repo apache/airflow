@@ -520,12 +520,12 @@ class CloudSqlProxyRunner(LoggingMixin):
         connection = session.query(Connection). \
             filter(Connection.conn_id == self.gcp_conn_id).first()
         session.expunge_all()
-        if GCP_CREDENTIALS_KEY_PATH in connection.extra_dejson:
+        if connection.extra_dejson.get(GCP_CREDENTIALS_KEY_PATH):
             credential_params = [
                 '-credential_file',
                 connection.extra_dejson[GCP_CREDENTIALS_KEY_PATH]
             ]
-        elif GCP_CREDENTIALS_KEYFILE_DICT in connection.extra_dejson:
+        elif connection.extra_dejson.get(GCP_CREDENTIALS_KEYFILE_DICT):
             credential_file_content = json.loads(
                 connection.extra_dejson[GCP_CREDENTIALS_KEYFILE_DICT])
             self.log.info("Saving credentials to %s", self.credentials_path)
