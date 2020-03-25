@@ -30,6 +30,7 @@ from airflow.exceptions import (
     AirflowException, DagConcurrencyLimitReached, NoAvailablePoolSlot, PoolNotFound,
     TaskConcurrencyLimitReached,
 )
+from airflow.executors.dask_executor import DaskExecutor
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
@@ -772,7 +773,8 @@ class BackfillJob(BaseJob):
 
         # picklin'
         pickle_id = None
-        if not self.donot_pickle and self.executor.__class__ not in (LocalExecutor, SequentialExecutor):
+        if not self.donot_pickle and \
+                self.executor.__class__ not in (LocalExecutor, SequentialExecutor, DaskExecutor):
             pickle = DagPickle(self.dag)
             session.add(pickle)
             session.commit()
