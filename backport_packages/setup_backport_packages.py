@@ -144,7 +144,6 @@ def change_import_paths_to_deprecated():
     from bowler import LN, TOKEN, Capture, Filename, Query
     from fissix.pytree import Leaf
     from fissix.fixer_util import KeywordArg, Name, Comma
-    from bowler import BowlerTool
 
     def remove_tags_modifier(node: LN, capture: Capture, filename: Filename) -> None:
         for node in capture['function_arguments'][0].post_order():
