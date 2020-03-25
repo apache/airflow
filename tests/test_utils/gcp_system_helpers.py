@@ -23,7 +23,7 @@ from typing import List, Optional, Sequence
 from unittest import mock
 
 import pytest
-from google.auth.environment_vars import CREDENTIALS
+from google.auth.environment_vars import CREDENTIALS, CLOUD_SDK_CONFIG_DIR
 
 from airflow.providers.google.cloud.utils.credentials_provider import provide_gcp_conn_and_credentials
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
@@ -84,8 +84,8 @@ def provide_gcp_context(
     """
     key_file_path = resolve_full_gcp_key_path(key_file_path)  # type: ignore
     with provide_gcp_conn_and_credentials(key_file_path, scopes, project_id), \
-        tempfile.TemporaryDirectory() as gcloud_config_tmp, \
-        mock.patch.dict('os.environ', {'CLOUDSDK_CONFIG': gcloud_config_tmp}):
+            tempfile.TemporaryDirectory() as gcloud_config_tmp, \
+            mock.patch.dict('os.environ', {CLOUD_SDK_CONFIG_DIR: gcloud_config_tmp}):
         executor = get_executor()
 
         if project_id:
