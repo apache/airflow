@@ -136,7 +136,10 @@ class DagBag(BaseDagBag, LoggingMixin):
             if (
                 dag_id not in self.dags or
                 dag_id not in self.reload_time_by_dag or
-                (utc_now - self.reload_time_by_dag.get(dag_id)).total_seconds() > MIN_SERIALIZED_DAG_UPDATE_INTERVAL
+                (
+                    (utc_now - self.reload_time_by_dag.get(dag_id)).total_seconds() >
+                    MIN_SERIALIZED_DAG_UPDATE_INTERVAL
+                )
             ):
                 # Load from DB if not (yet) in the bag
                 self._add_dag_from_db(dag_id=dag_id)
