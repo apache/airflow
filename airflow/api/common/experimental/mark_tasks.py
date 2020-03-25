@@ -361,12 +361,13 @@ def set_dag_run_state_to_failed(dag, execution_date, commit=False, session=None)
 
 
 @provide_session
-def set_dag_run_final_state(dag_id, task_id, final_state=None, session=None) -> [TaskInstance]:
+def set_dag_run_final_state(dag_id, task_id, execution_date, final_state=None, session=None) -> [TaskInstance]:
     if not dag_id or not task_id or not final_state:
         return
     tis = session.query(TaskInstance).filter(
         TaskInstance.dag_id == dag_id,
-        task_id == task_id)
+        TaskInstance.execution_date == execution_date,
+        TaskInstance.task_id == task_id)
 
     tis_altered = tis.with_for_update().all()
     for task_instance in tis_altered:

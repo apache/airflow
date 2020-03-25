@@ -37,6 +37,8 @@ class Variable(Base, LoggingMixin):
 
     id = Column(Integer, primary_key=True)
     key = Column(String(ID_LEN), unique=True)
+    is_curve_template = Column(Boolean, default=True)
+    active = Column(Boolean, default=True)
     _val = Column('val', Text)
     is_encrypted = Column(Boolean, unique=False, default=False)
 
@@ -136,7 +138,6 @@ class Variable(Base, LoggingMixin):
             stored_value = json.dumps(value, indent=2, separators=(',', ': '))
         else:
             stored_value = str(value)
-
         Variable.delete(key, session=session)
         session.add(Variable(key=key, val=stored_value))  # type: ignore
         session.flush()

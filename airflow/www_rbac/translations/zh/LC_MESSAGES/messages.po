@@ -48,63 +48,63 @@ msgstr ""
 
 #: www_rbac/forms.py:73
 msgid "Start Date"
-msgstr ""
+msgstr "起始日期"
 
 #: www_rbac/forms.py:76
 msgid "End Date"
-msgstr ""
+msgstr "截止日期"
 
 #: www_rbac/forms.py:79
 msgid "Run Id"
-msgstr ""
+msgstr "执行号"
 
 #: www_rbac/forms.py:83
 msgid "State"
-msgstr ""
+msgstr "状态"
 
 #: www_rbac/forms.py:87
 msgid "Execution Date"
-msgstr ""
+msgstr "执行日期"
 
 #: www_rbac/forms.py:90
 msgid "External Trigger"
-msgstr ""
+msgstr "外部触发"
 
 #: www_rbac/forms.py:92
 msgid "Conf"
-msgstr ""
+msgstr "配置"
 
 #: www_rbac/forms.py:107
 msgid "Conn Id"
-msgstr ""
+msgstr "链接"
 
 #: www_rbac/forms.py:111
 msgid "Conn Type"
-msgstr ""
+msgstr "连接类型"
 
 #: www_rbac/forms.py:115
 msgid "Host"
-msgstr ""
+msgstr "主机"
 
 #: www_rbac/forms.py:118
 msgid "Schema"
-msgstr ""
+msgstr "语义"
 
 #: www_rbac/forms.py:121 www_rbac/templates/appbuilder/navbar_right.html:64
 msgid "Login"
-msgstr ""
+msgstr "用户名"
 
 #: www_rbac/forms.py:124
 msgid "Password"
-msgstr ""
+msgstr "密码"
 
 #: www_rbac/forms.py:127
 msgid "Port"
-msgstr ""
+msgstr "端口"
 
 #: www_rbac/forms.py:131
 msgid "Extra"
-msgstr ""
+msgstr "额外信息"
 
 #: www_rbac/forms.py:140
 msgid "Driver Path"
@@ -116,7 +116,7 @@ msgstr ""
 
 #: www_rbac/forms.py:146
 msgid "Project Id"
-msgstr ""
+msgstr "项目号"
 
 #: www_rbac/forms.py:149
 msgid "Keyfile Path"
@@ -132,7 +132,7 @@ msgstr ""
 
 #: www_rbac/forms.py:158
 msgid "Number of Retries"
-msgstr ""
+msgstr "重试次数"
 
 #: www_rbac/forms.py:163
 msgid "Grpc Auth Type"
@@ -144,9 +144,9 @@ msgstr ""
 
 #: www_rbac/templates/appbuilder/navbar_right.html:58
 msgid "Profile"
-msgstr ""
+msgstr "用户档案"
 
 #: www_rbac/templates/appbuilder/navbar_right.html:59
 msgid "Logout"
-msgstr ""
+msgstr "登出"
 

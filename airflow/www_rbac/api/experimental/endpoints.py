@@ -71,7 +71,7 @@ def trigger_dag(dag_id):
             error_message = (
                 'Given execution date, {}, could not be identified '
                 'as a date. Example date format: 2015-11-16T14:34:15+00:00'
-                    .format(execution_date))
+                .format(execution_date))
             _log.info(error_message)
             response = jsonify({'error': error_message})
             response.status_code = 400
@@ -83,7 +83,12 @@ def trigger_dag(dag_id):
         replace_microseconds = to_boolean(data['replace_microseconds'])
 
     try:
-        dr = trigger.trigger_dag(dag_id, run_id, conf, execution_date, replace_microseconds)
+        dr = trigger.trigger_dag(
+            dag_id,
+            run_id,
+            conf,
+            execution_date,
+            replace_microseconds)
     except AirflowException as err:
         _log.error(err)
         response = jsonify(error="{}".format(err))
@@ -93,7 +98,9 @@ def trigger_dag(dag_id):
     if getattr(g, 'user', None):
         _log.info("User {} created {}".format(g.user, dr))
 
-    response = jsonify(message="Created {}".format(dr), execution_date=dr.execution_date.isoformat())
+    response = jsonify(
+        message="Created {}".format(dr),
+        execution_date=dr.execution_date.isoformat())
     return response
 
 
@@ -138,7 +145,9 @@ def get_dag_code(dag_id):
         return response
 
 
-@api_experimental.route('/dags/<string:dag_id>/tasks/<string:task_id>', methods=['GET'])
+@api_experimental.route(
+    '/dags/<string:dag_id>/tasks/<string:task_id>',
+    methods=['GET'])
 @requires_authentication
 def task_info(dag_id, task_id):
     """Returns a JSON with a task's public instance variables. """
@@ -157,25 +166,46 @@ def task_info(dag_id, task_id):
     return jsonify(fields)
 
 
-@api_experimental.route('/dags/<string:dag_id>/tasks/<string:task_id>/confirm', methods=['POST'])
+@api_experimental.route(
+    '/dags/<string:dag_id>/tasks/<string:task_id>/<string:execution_date>/confirm',
+    methods=['POST'])
 @requires_authentication
-def double_confirm_task(dag_id, task_id):
+def double_confirm_task(dag_id, task_id, execution_date):
+    try:
+        execution_date = timezone.parse(execution_date)
+    except ValueError:
+        error_message = (
+            'Given execution date, {}, could not be identified '
+            'as a date. Example date format: 2015-11-16T14:34:15+00:00'
+            .format(execution_date))
+        _log.info(error_message)
+        response = jsonify({'error': error_message})
+        response.status_code = 400
+
+        return response
     try:
         params = request.get_json(force=True)  # success failed
         final_state = params.get('final_state', None)
-        get_task(dag_id, task_id)
+        get_task_instance(dag_id, task_id, execution_date)
+
     except AirflowException as err:
         _log.info(err)
         response = jsonify(error="{}".format(err))
         response.status_code = err.status_code
         return response
 
-    set_dag_run_final_state(task_id=task_id, dag_id=dag_id, final_state=final_state)
+    set_dag_run_final_state(
+        task_id=task_id,
+        dag_id=dag_id,
+        execution_date=execution_date,
+        final_state=final_state)
     return jsonify({'response': 'ok'})
 
 
 # ToDo: Shouldn't this be a PUT method?
-@api_experimental.route('/dags/<string:dag_id>/paused/<string:paused>', methods=['GET'])
+@api_experimental.route(
+    '/dags/<string:dag_id>/paused/<string:paused>',
+    methods=['GET'])
 @requires_authentication
 def dag_paused(dag_id, paused):
     """(Un)pauses a dag"""
@@ -184,7 +214,7 @@ def dag_paused(dag_id, paused):
     with create_session() as session:
         orm_dag = (
             session.query(DagModel)
-                .filter(DagModel.dag_id == dag_id).first()
+            .filter(DagModel.dag_id == dag_id).first()
         )
         if paused == 'true':
             orm_dag.is_paused = True
@@ -215,7 +245,7 @@ def task_instance_info(dag_id, execution_date, task_id):
         error_message = (
             'Given execution date, {}, could not be identified '
             'as a date. Example date format: 2015-11-16T14:34:15+00:00'
-                .format(execution_date))
+            .format(execution_date))
         _log.info(error_message)
         response = jsonify({'error': error_message})
         response.status_code = 400
@@ -291,7 +321,8 @@ def latest_dag_runs():
                 'dag_run_url': url_for('Airflow.graph', dag_id=dagrun.dag_id,
                                        execution_date=dagrun.execution_date)
             })
-    return jsonify(items=payload)  # old flask versions dont support jsonifying arrays
+    # old flask versions dont support jsonifying arrays
+    return jsonify(items=payload)
 
 
 @api_experimental.route('/pools/<string:name>', methods=['GET'])

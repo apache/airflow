@@ -64,6 +64,25 @@ class DateTimeWithNumRunsWithDagRunsForm(DateTimeWithNumRunsForm):
     execution_date = SelectField("DAG run")
 
 
+from wtforms.compat import with_metaclass, iteritems, itervalues
+
+
+class VariableForm(DynamicForm):
+    key = StringField(
+        lazy_gettext('Key'),
+        validators=[validators.DataRequired()],
+        widget=BS3TextFieldWidget())
+
+    val = StringField(
+        lazy_gettext('Value'),
+        widget=BS3TextFieldWidget())
+
+    is_curve_template = BooleanField(
+        lazy_gettext('Is Curve Template'),
+        default='checked'
+    )
+
+
 class DagRunForm(DynamicForm):
     dag_id = StringField(
         lazy_gettext('Dag Id'),

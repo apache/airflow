@@ -18,6 +18,7 @@
 # under the License.
 #
 
+import uuid
 import copy
 import itertools
 import json
@@ -70,10 +71,9 @@ from airflow.www_rbac import utils as wwwutils
 from airflow.www_rbac.app import app, appbuilder
 from airflow.www_rbac.decorators import action_logging, gzipped, has_dag_access
 from airflow.www_rbac.forms import (DateTimeForm, DateTimeWithNumRunsForm,
-                                    DateTimeWithNumRunsWithDagRunsForm,
+                                    DateTimeWithNumRunsWithDagRunsForm, VariableForm,
                                     DagRunForm, ConnectionForm)
 from airflow.www_rbac.widgets import AirflowModelListWidget
-
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 FILTER_TAGS_COOKIE = 'tags_filter'
@@ -105,12 +105,12 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
     DR = models.DagRun
     drs = (
         session.query(DR)
-        .filter(
+            .filter(
             DR.dag_id == dag.dag_id,
             DR.execution_date <= base_date)
-        .order_by(desc(DR.execution_date))
-        .limit(num_runs)
-        .all()
+            .order_by(desc(DR.execution_date))
+            .limit(num_runs)
+            .all()
     )
     dr_choices = []
     dr_state = None
@@ -342,7 +342,7 @@ class Airflow(AirflowBaseView):
         if 'all_dags' in allowed_dag_ids:
             allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
-        dag_state_stats = session.query(dr.dag_id, dr.state, sqla.func.count(dr.state))\
+        dag_state_stats = session.query(dr.dag_id, dr.state, sqla.func.count(dr.state)) \
             .group_by(dr.dag_id, dr.state)
 
         # Filter by get parameters
@@ -407,19 +407,19 @@ class Airflow(AirflowBaseView):
 
         LastDagRun = (
             session.query(
-                        DagRun.dag_id,
-                        sqla.func.max(DagRun.execution_date).label('execution_date'))
-                   .join(Dag, Dag.dag_id == DagRun.dag_id)
-                   .filter(DagRun.state != State.RUNNING)
-                   .filter(Dag.is_active == True)  # noqa
-                   .group_by(DagRun.dag_id)
+                DagRun.dag_id,
+                sqla.func.max(DagRun.execution_date).label('execution_date'))
+                .join(Dag, Dag.dag_id == DagRun.dag_id)
+                .filter(DagRun.state != State.RUNNING)
+                .filter(Dag.is_active == True)  # noqa
+                .group_by(DagRun.dag_id)
         )
 
         RunningDagRun = (
             session.query(DagRun.dag_id, DagRun.execution_date)
-                   .join(Dag, Dag.dag_id == DagRun.dag_id)
-                   .filter(DagRun.state == State.RUNNING)
-                   .filter(Dag.is_active == True)  # noqa
+                .join(Dag, Dag.dag_id == DagRun.dag_id)
+                .filter(DagRun.state == State.RUNNING)
+                .filter(Dag.is_active == True)  # noqa
         )
 
         if selected_dag_ids:
@@ -433,15 +433,15 @@ class Airflow(AirflowBaseView):
         # If no dag_run is active, return task instances from most recent dag_run.
         LastTI = (
             session.query(TI.dag_id.label('dag_id'), TI.state.label('state'))
-                   .join(LastDagRun,
-                         and_(LastDagRun.c.dag_id == TI.dag_id,
-                              LastDagRun.c.execution_date == TI.execution_date))
+                .join(LastDagRun,
+                      and_(LastDagRun.c.dag_id == TI.dag_id,
+                           LastDagRun.c.execution_date == TI.execution_date))
         )
         RunningTI = (
             session.query(TI.dag_id.label('dag_id'), TI.state.label('state'))
-                   .join(RunningDagRun,
-                         and_(RunningDagRun.c.dag_id == TI.dag_id,
-                              RunningDagRun.c.execution_date == TI.execution_date))
+                .join(RunningDagRun,
+                      and_(RunningDagRun.c.dag_id == TI.dag_id,
+                           RunningDagRun.c.execution_date == TI.execution_date))
         )
 
         if selected_dag_ids:
@@ -452,7 +452,7 @@ class Airflow(AirflowBaseView):
 
         qry = (
             session.query(UnionTI.c.dag_id, UnionTI.c.state, sqla.func.count())
-                   .group_by(UnionTI.c.dag_id, UnionTI.c.state)
+                .group_by(UnionTI.c.dag_id, UnionTI.c.state)
         )
 
         data = {}
@@ -549,9 +549,9 @@ class Airflow(AirflowBaseView):
         TI = models.TaskInstance
         states = (
             session.query(TI.state, sqla.func.count(TI.dag_id))
-                   .filter(TI.dag_id == dag_id)
-                   .group_by(TI.state)
-                   .all()
+                .filter(TI.dag_id == dag_id)
+                .group_by(TI.state)
+                .all()
         )
 
         active_runs = models.DagRun.find(
@@ -703,13 +703,14 @@ class Airflow(AirflowBaseView):
                     while 'end_of_log' not in metadata or not metadata['end_of_log']:
                         logs, metadata = _get_logs_with_metadata(try_number, metadata)
                         yield "\n".join(logs) + "\n"
+
             return Response(_generate_log_stream(try_number, metadata),
                             mimetype="text/plain",
                             headers={"Content-Disposition": "attachment; filename={}".format(
                                 attachment_filename)})
         except AttributeError as e:
             error_message = ["Task log handler {} does not support read logs.\n{}\n"
-                             .format(task_log_reader, str(e))]
+                                 .format(task_log_reader, str(e))]
             metadata['end_of_log'] = True
             return jsonify(message=error_message, error=True, metadata=metadata)
 
@@ -804,7 +805,7 @@ class Airflow(AirflowBaseView):
             if not attr_name.startswith('_'):
                 attr = getattr(task, attr_name)
                 if type(attr) != type(self.task) and \
-                        attr_name not in wwwutils.get_attr_renderer():  # noqa
+                    attr_name not in wwwutils.get_attr_renderer():  # noqa
                     task_attrs.append((attr_name, str(attr)))
 
         # Color coding the special attributes that are code
@@ -1138,9 +1139,9 @@ class Airflow(AirflowBaseView):
 
         dags = (
             session.query(DR.dag_id, sqla.func.count(DR.id))
-                   .filter(DR.state == State.RUNNING)
-                   .filter(DR.dag_id.in_(filter_dag_ids))
-                   .group_by(DR.dag_id)
+                .filter(DR.state == State.RUNNING)
+                .filter(DR.dag_id.in_(filter_dag_ids))
+                .group_by(DR.dag_id)
         )
 
         payload = []
@@ -1354,12 +1355,12 @@ class Airflow(AirflowBaseView):
         DR = models.DagRun
         dag_runs = (
             session.query(DR)
-            .filter(
+                .filter(
                 DR.dag_id == dag.dag_id,
                 DR.execution_date <= base_date)
-            .order_by(DR.execution_date.desc())
-            .limit(num_runs)
-            .all()
+                .order_by(DR.execution_date.desc())
+                .limit(num_runs)
+                .all()
         )
         dag_runs = {
             dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
@@ -1403,7 +1404,7 @@ class Airflow(AirflowBaseView):
 
             def set_duration(tid):
                 if (isinstance(tid, dict) and tid.get("state") == State.RUNNING and
-                        tid["start_date"] is not None):
+                    tid["start_date"] is not None):
                     d = timezone.utcnow() - pendulum.parse(tid["start_date"])
                     tid["duration"] = d.total_seconds()
                 return tid
@@ -1599,11 +1600,11 @@ class Airflow(AirflowBaseView):
         TF = TaskFail
         ti_fails = (
             session.query(TF)
-                   .filter(TF.dag_id == dag.dag_id,  # noqa
-                           TF.execution_date >= min_date,
-                           TF.execution_date <= base_date,
-                           TF.task_id.in_([t.task_id for t in dag.tasks]))
-                   .all()  # noqa
+                .filter(TF.dag_id == dag.dag_id,  # noqa
+                        TF.execution_date >= min_date,
+                        TF.execution_date <= base_date,
+                        TF.task_id.in_([t.task_id for t in dag.tasks]))
+                .all()  # noqa
         )
 
         fails_totals = defaultdict(int)
@@ -1877,11 +1878,11 @@ class Airflow(AirflowBaseView):
         TF = TaskFail
         ti_fails = list(itertools.chain(*[(
             session
-            .query(TF)
-            .filter(TF.dag_id == ti.dag_id,
-                    TF.task_id == ti.task_id,
-                    TF.execution_date == ti.execution_date)
-            .all()
+                .query(TF)
+                .filter(TF.dag_id == ti.dag_id,
+                        TF.task_id == ti.task_id,
+                        TF.execution_date == ti.execution_date)
+                .all()
         ) for ti in tis]))
 
         # determine bars to show in the gantt chart
@@ -2053,7 +2054,7 @@ class VersionView(AirflowBaseView):
         git_version = None
         try:
             with open(os.path.join(*[settings.AIRFLOW_HOME,
-                                   'airflow', 'git_version'])) as f:
+                                     'airflow', 'git_version'])) as f:
                 git_version = f.readline()
         except Exception as e:
             logging.error(e)
@@ -2112,7 +2113,7 @@ class ConfigurationView(AirflowBaseView):
 ######################################################################################
 
 class DagFilter(BaseFilter):
-    def apply(self, query, func): # noqa
+    def apply(self, query, func):  # noqa
         if appbuilder.sm.has_all_dags_access():
             return query
         filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
@@ -2318,12 +2319,28 @@ class VariableModelView(AirflowModelView):
 
     base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete', 'can_varimport']
 
-    list_columns = ['key', 'val', 'is_encrypted']
-    add_columns = ['key', 'val']
-    edit_columns = ['key', 'val']
-    search_columns = ['key', 'val']
+    list_columns = ['key', 'val', 'is_encrypted', 'is_curve_template', 'active']
+    add_columns = ['key', 'val', 'is_curve_template', 'active']
+    edit_columns = ['key', 'val', 'is_curve_template', 'active']
+    search_columns = ['key', 'val', 'is_curve_template', 'active']
+
+    # add_form = edit_form = VariableForm
 
     base_order = ('key', 'asc')
+
+    @staticmethod
+    def generateCurveParamKey(key):
+        return "{}@@{}".format(key, uuid.uuid4())
+
+    def pre_add(self, item):
+        super(VariableModelView, self).pre_add(item)
+        if item.is_curve_template:
+            item.key = self.generateCurveParamKey(item.key)
+
+    def pre_update(self, item: models.Variable):
+        super(VariableModelView, self).pre_update(item)
+        if item.is_curve_template:
+            item.key = self.generateCurveParamKey(item.key)
 
     def hidden_field_formatter(attr):
         key = attr.get('key')
@@ -2473,7 +2490,7 @@ class DagRunModelView(AirflowModelView):
             count = 0
             dirty_ids = []
             for dr in session.query(DR).filter(
-                    DR.id.in_([dagrun.id for dagrun in drs])).all():
+                DR.id.in_([dagrun.id for dagrun in drs])).all():
                 dirty_ids.append(dr.dag_id)
                 count += 1
                 dr.start_date = timezone.utcnow()
@@ -2496,7 +2513,7 @@ class DagRunModelView(AirflowModelView):
             dirty_ids = []
             altered_tis = []
             for dr in session.query(DR).filter(
-                    DR.id.in_([dagrun.id for dagrun in drs])).all():
+                DR.id.in_([dagrun.id for dagrun in drs])).all():
                 dirty_ids.append(dr.dag_id)
                 count += 1
                 altered_tis += \
@@ -2523,7 +2540,7 @@ class DagRunModelView(AirflowModelView):
             dirty_ids = []
             altered_tis = []
             for dr in session.query(DR).filter(
-                    DR.id.in_([dagrun.id for dagrun in drs])).all():
+                DR.id.in_([dagrun.id for dagrun in drs])).all():
                 dirty_ids.append(dr.dag_id)
                 count += 1
                 altered_tis += \
@@ -2641,10 +2658,22 @@ class TaskInstanceModelView(AirflowModelView):
             for ti in tis:
                 ti.set_state(target_state, session=session)
             session.commit()
-            flash("{count} task instances were set to '{target_state}'".format(
+            flash("{count} task instances state were set to '{target_state}'".format(
                 count=count, target_state=target_state))
         except Exception:
             flash('Failed to set state', 'error')
+
+    @provide_session
+    def set_task_instance_final_state(self, tis, target_state, session=None):
+        try:
+            count = len(tis)
+            for ti in tis:
+                ti.set_final_state(target_state, session=session)
+            session.commit()
+            flash("{count} task instances final state were set to '{target_state}'".format(
+                count=count, target_state=target_state))
+        except Exception:
+            flash('Failed to set final state', 'error')
 
     @action('set_running', "Set state to 'running'", '', single=False)
     @has_dag_access(can_dag_edit=True)
@@ -2657,6 +2686,20 @@ class TaskInstanceModelView(AirflowModelView):
     @has_dag_access(can_dag_edit=True)
     def action_set_failed(self, tis):
         self.set_task_instance_state(tis, State.FAILED)
+        self.update_redirect()
+        return redirect(self.get_redirect())
+
+    @action('set_final_state_nok', "Set Final State to 'failed'", '', single=False)
+    @has_dag_access(can_dag_edit=True)
+    def action_set_final_state_nok(self, tis):
+        self.set_task_instance_final_state(tis, State.FINALNOK)
+        self.update_redirect()
+        return redirect(self.get_redirect())
+
+    @action('set_final_state_ok', "Set Final State to 'success'", '', single=False)
+    @has_dag_access(can_dag_edit=True)
+    def action_set_final_state_ok(self, tis):
+        self.set_task_instance_final_state(tis, State.FINALOK)
         self.update_redirect()
         return redirect(self.get_redirect())
 
@@ -2709,9 +2752,9 @@ class DagModelView(AirflowModelView):
         """
         return (
             super(DagModelView, self).get_query()
-                                     .filter(or_(models.DagModel.is_active,
-                                                 models.DagModel.is_paused))
-                                     .filter(~models.DagModel.is_subdag)
+                .filter(or_(models.DagModel.is_active,
+                            models.DagModel.is_paused))
+                .filter(~models.DagModel.is_subdag)
         )
 
     def get_count_query(self):
@@ -2720,6 +2763,6 @@ class DagModelView(AirflowModelView):
         """
         return (
             super(DagModelView, self).get_count_query()
-                                     .filter(models.DagModel.is_active)
-                                     .filter(~models.DagModel.is_subdag)
+                .filter(models.DagModel.is_active)
+                .filter(~models.DagModel.is_subdag)
         )

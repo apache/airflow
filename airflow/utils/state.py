@@ -42,6 +42,8 @@ class State(object):
     SUCCESS = "success"
     SHUTDOWN = "shutdown"  # External request to shut down
     FAILED = "failed"
+    FINALOK = "OK"
+    FINALNOK = "NOK"
     UP_FOR_RETRY = "up_for_retry"
     UP_FOR_RESCHEDULE = "up_for_reschedule"
     UPSTREAM_FAILED = "upstream_failed"

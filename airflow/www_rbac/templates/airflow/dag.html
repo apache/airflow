@@ -354,7 +354,7 @@
       </div>
     </div>
   </div>
-<!-- Modal for double check -->
+  <!-- Modal for double check -->
   <div class="modal fade" id="doubleCheckModal"
        tabindex="-1" role="dialog"
        aria-labelledby="doubleCheckModalLabel" aria-hidden="true">
@@ -595,14 +595,14 @@
 
     $('form button[data-action]').click(function (e) {
       var form = $(this).closest('form').get(0);
-      if(form.dag_id){
-         form.dag_id.value = dag_id;
+      if (form.dag_id) {
+        form.dag_id.value = dag_id;
       }
-      if(form.execution_date){
-         form.execution_date.value = execution_date;
+      if (form.execution_date) {
+        form.execution_date.value = execution_date;
       }
-      if(form.origin){
-         form.origin.value = window.location;
+      if (form.origin) {
+        form.origin.value = window.location;
       }
       if (form.task_id) {
         form.task_id.value = task_id;
@@ -611,31 +611,32 @@
       form.submit();
     });
 
-    function submitDoubleCheck(finalState){
+    function submitDoubleCheck(finalState) {
       $.ajax({
         type: "POST",
-        url: "{{ url_for('api_experimental.double_confirm_task', dag_id=dag.dag_id, task_id='__TASK_ID__' ) }}".replace('__TASK_ID__',task_id),
+        url: "{{ url_for('api_experimental.double_confirm_task', dag_id=dag.dag_id, task_id='__TASK_ID__', execution_date=execution_date ) }}".replace('__TASK_ID__', task_id),
         data: JSON.stringify({
-          csrf_token:"{{ csrf_token() }}",
+          csrf_token: "{{ csrf_token() }}",
           final_state: finalState,
           execution_date: execution_date
         }),
-        success: function(){},
+        success: function () {
+        },
         dataType: "json",
-        contentType : "application/json"
-      }).then(function(resp){
+        contentType: "application/json"
+      }).then(function (resp) {
         $('#doubleCheckModal').modal('hide');
-        if(resp && resp.response==='ok'){
-          $('#double_check_result').html('二次确认为'+ finalState);
+        if (resp && resp.response === 'ok') {
+          $('#double_check_result').html('二次确认为' + finalState);
         }
       });
     }
 
     $('#btn_double_check_failed').click(function (e) {
-      submitDoubleCheck('failed');
+      submitDoubleCheck('NOK');
     });
     $('#btn_double_check_success').click(function (e) {
-      submitDoubleCheck('success');
+      submitDoubleCheck('OK');
     });
 
     $("#pause_resume").change(function () {
