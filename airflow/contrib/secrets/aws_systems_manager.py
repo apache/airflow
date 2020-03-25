@@ -27,7 +27,7 @@ from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class AwsSsmSecretsBackend(BaseSecretsBackend, LoggingMixin):
+class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
     """
     Retrieves Connection object from AWS SSM Parameter Store
 
@@ -36,7 +36,7 @@ class AwsSsmSecretsBackend(BaseSecretsBackend, LoggingMixin):
     .. code-block:: ini
 
         [secrets]
-        backend = airflow.contrib.secrets.aws_ssm.AwsSsmSecretsBackend
+        backend = airflow.contrib.secrets.aws_systems_manager.SystemsManagerParameterStoreBackend
         backend_kwargs = {"connections_prefix": "/airflow/connections", "profile_name": null}
 
     For example, if ssm path is ``/airflow/connections/smtp_default``, this would be accessible
@@ -51,7 +51,7 @@ class AwsSsmSecretsBackend(BaseSecretsBackend, LoggingMixin):
     ):
         self.connections_prefix = connections_prefix.rstrip("/")
         self.profile_name = profile_name
-        super(AwsSsmSecretsBackend, self).__init__(**kwargs)
+        super(SystemsManagerParameterStoreBackend, self).__init__(**kwargs)
 
     @cached_property
     def client(self):

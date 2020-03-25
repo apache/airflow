@@ -57,7 +57,7 @@ See :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>` for an example 
 AWS SSM Parameter Store Secrets Backend
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To enable SSM parameter store, specify :py:class:`~airflow.contrib.secrets.aws_ssm.AwsSsmSecretsBackend`
+To enable SSM parameter store, specify :py:class:`~airflow.contrib.secrets.aws_systems_manager.SystemsManagerParameterStoreBackend`
 as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg``.
 
 Here is a sample configuration:
@@ -65,7 +65,7 @@ Here is a sample configuration:
 .. code-block:: ini
 
     [secrets]
-    backend = airflow.contrib.secrets.aws_ssm.AwsSsmSecretsBackend
+    backend = airflow.contrib.secrets.aws_systems_manager.SystemsManagerParameterStoreBackend
     backend_kwargs = {"connections_prefix": "/airflow/connections", "profile_name": "default"}
 
 If you have set ``connections_prefix`` as ``/airflow/connections``, then for a connection id of ``smtp_default``,
@@ -81,7 +81,7 @@ of the connection object.
 Hashicorp Vault Secrets Backend
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To enable Hashicorp vault to retrieve connection, specify :py:class:`~airflow.contrib.secrets.hashicorp_vault.VaultSecrets`
+To enable Hashicorp vault to retrieve connection, specify :py:class:`~airflow.contrib.secrets.hashicorp_vault.VaultBackend`
 as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg``.
 
 Here is a sample configuration:
@@ -89,7 +89,7 @@ Here is a sample configuration:
 .. code-block:: ini
 
     [secrets]
-    backend = airflow.contrib.secrets.hashicorp_vault.VaultSecrets
+    backend = airflow.contrib.secrets.hashicorp_vault.VaultBackend
     backend_kwargs = {"connections_path": "connections", "mount_point": "airflow", "url": "http://127.0.0.1:8200"}
 
 The default KV version engine is ``2``, pass ``kv_engine_version: 1`` in ``backend_kwargs`` if you use
@@ -147,7 +147,7 @@ of the connection object.
 GCP Secrets Manager Backend
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To enable GCP Secrets Manager to retrieve connection, specify :py:class:`~airflow.contrib.secrets.gcp_secrets_manager.CloudSecretsManagerSecretsBackend`
+To enable GCP Secrets Manager to retrieve connection, specify :py:class:`~airflow.contrib.secrets.gcp_secrets_manager.CloudSecretsManagerBackend`
 as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg``.
 
 Available parameters to ``backend_kwargs``:
@@ -161,7 +161,7 @@ Here is a sample configuration:
 .. code-block:: ini
 
     [secrets]
-    backend = airflow.contrib.secrets.gcp_secrets_manager.CloudSecretsManagerSecretsBackend
+    backend = airflow.contrib.secrets.gcp_secrets_manager.CloudSecretsManagerBackend
     backend_kwargs = {"connections_prefix": "airflow/connections"}
 
 When ``gcp_key_path`` is not provided, it will use the Application Default Credentials in the current environment. You can set up the credentials with:
