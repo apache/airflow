@@ -73,7 +73,7 @@ class DaskExecutor(BaseExecutor):
             raise AirflowException(NOT_STARTED_MESSAGE)
 
         future = self.client.submit(airflow_run, pure=False)
-        self.futures[future] = key
+        self.futures[future] = key  # type: ignore
 
     def _process_future(self, future: Future) -> None:
         if not self.futures:
