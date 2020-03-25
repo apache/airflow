@@ -463,7 +463,7 @@ devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + datadog + devel 
              sendgrid + sentry + singularity + slack + snowflake + ssh + statsd + tableau +
              virtualenv + webhdfs + yandexcloud + zendesk)
 
-# Snakebite are not Python 3 compatible :'(
+# Snakebite is not Python 3 compatible :'(
 if PY3:
     devel_ci = [package for package in devel_all if package not in
                 ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']]
