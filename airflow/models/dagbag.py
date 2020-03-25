@@ -38,7 +38,7 @@ from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDagBag
 from airflow.exceptions import AirflowDagCycleException
 from airflow.executors import get_default_executor
-from airflow.settings import Stats
+from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, Stats
 from airflow.utils import timezone
 from airflow.utils.dag_processing import list_py_file_paths, correct_maybe_zipped
 from airflow.utils.db import provide_session
@@ -96,6 +96,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
         self.dags = {}
+        self.reload_time_by_dag = {}
         # the file's last modified timestamp when we last read it
         self.file_last_changed = {}
         self.executor = executor
@@ -138,7 +139,12 @@ class DagBag(BaseDagBag, LoggingMixin):
         if self.store_serialized_dags and not from_file_only:
             # Import here so that serialized dag is only imported when serialization is enabled
             from airflow.models.serialized_dag import SerializedDagModel
-            if dag_id not in self.dags:
+            utc_now = datetime.utcnow()
+            if (
+                dag_id not in self.dags or
+                dag_id not in self.reload_time_by_dag or
+                (utc_now - self.reload_time_by_dag.get(dag_id)).total_seconds() > MIN_SERIALIZED_DAG_UPDATE_INTERVAL
+            ):
                 # Load from DB if not (yet) in the bag
                 row = SerializedDagModel.get(dag_id)
                 if not row:
@@ -148,6 +154,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                 for subdag in dag.subdags:
                     self.dags[subdag.dag_id] = subdag
                 self.dags[dag.dag_id] = dag
+                self.reload_time_by_dag[dag.dag_id] = utc_now
 
             return self.dags.get(dag_id)
 
