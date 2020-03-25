@@ -89,29 +89,16 @@ class TestDaskExecutor(TestBaseDask):
         """
         Test that DaskExecutor can be used to backfill example dags
         """
-        dags = [
-            dag for dag in self.dagbag.dags.values()
-            if dag.dag_id in [
-                'example_bash_operator',
-                # 'example_python_operator',
-            ]
-        ]
+        dag = self.dagbag.get_dag('example_bash_operator')
 
-        for dag in dags:
-            dag.clear(
-                start_date=DEFAULT_DATE,
-                end_date=DEFAULT_DATE)
-
-        for dag in sorted(dags, key=lambda d: d.dag_id):
-            job = BackfillJob(
-                dag=dag,
-                start_date=DEFAULT_DATE,
-                end_date=DEFAULT_DATE,
-                ignore_first_depends_on_past=True,
-                executor=DaskExecutor(
-                    cluster_address=self.cluster.scheduler_address))
-            job.executor.start()
-            job.run()
+        job = BackfillJob(
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            ignore_first_depends_on_past=True,
+            executor=DaskExecutor(
+                cluster_address=self.cluster.scheduler_address))
+        job.run()
 
     def tearDown(self):
         self.cluster.close(timeout=5)

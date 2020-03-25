@@ -65,8 +65,8 @@ class DaskExecutor(BaseExecutor):
                       command: CommandType,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None) -> None:
-        if not self.futures:
-            raise AirflowException(NOT_STARTED_MESSAGE)
+        # if not self.futures:
+        #     raise AirflowException(NOT_STARTED_MESSAGE)
 
         def airflow_run():
             return subprocess.check_call(command, close_fds=True)
