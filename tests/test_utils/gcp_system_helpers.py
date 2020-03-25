@@ -23,7 +23,7 @@ from typing import List, Optional, Sequence
 from unittest import mock
 
 import pytest
-from google.auth.environment_vars import CREDENTIALS, CLOUD_SDK_CONFIG_DIR
+from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
 
 from airflow.providers.google.cloud.utils.credentials_provider import provide_gcp_conn_and_credentials
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
