@@ -153,20 +153,18 @@ class GoogleSystemTest(SystemTest):
 
     @classmethod
     def get_project_number(cls, project_id: str) -> str:
-        with cls.authentication():
-            cmd = ['gcloud', 'projects', 'describe', project_id, '--format', 'value(projectNumber)']
-            return cls.check_output(cmd).decode("utf-8").strip()
+        cmd = ['gcloud', 'projects', 'describe', project_id, '--format', 'value(projectNumber)']
+        return cls.check_output(cmd).decode("utf-8").strip()
 
     @classmethod
     def grant_bucket_access(cls, bucket: str, account_email: str):
         bucket_name = f"gs://{bucket}" if not bucket.startswith("gs://") else bucket
-        with cls.authentication():
-            cls.execute_cmd(
-                [
-                    "gsutil",
-                    "iam",
-                    "ch",
-                    "serviceAccount:%s:admin" % account_email,
-                    bucket_name,
-                ]
-            )
+        cls.execute_cmd(
+            [
+                "gsutil",
+                "iam",
+                "ch",
+                "serviceAccount:%s:admin" % account_email,
+                bucket_name,
+            ]
+        )

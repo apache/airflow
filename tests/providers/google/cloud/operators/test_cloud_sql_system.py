@@ -40,12 +40,11 @@ class CloudSqlExampleDagsIntegrationTest(GoogleSystemTest):
             self.log.info("Skip deleting instances as they were created manually (helps to iterate on tests)")
         else:
             # Delete instances just in case the test failed and did not cleanup after itself
-            with self.authentication():
-                SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="-failover-replica")
-                SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="-read-replica")
-                SQL_QUERY_TEST_HELPER.delete_instances()
-                SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="2")
-                SQL_QUERY_TEST_HELPER.delete_service_account_acls()
+            SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="-failover-replica")
+            SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="-read-replica")
+            SQL_QUERY_TEST_HELPER.delete_instances()
+            SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="2")
+            SQL_QUERY_TEST_HELPER.delete_service_account_acls()
         super().tearDown()
 
     @provide_gcp_context(GCP_CLOUDSQL_KEY)
