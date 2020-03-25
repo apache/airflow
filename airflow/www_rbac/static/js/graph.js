@@ -33,7 +33,7 @@ function update_nodes_states(task_instances) {
         const task = tasks[task_id];
         let tt = "";
         if(ti.task_id != undefined) {
-          tt +=  "Task_id: " + escapeHtml(task.task_id) + "<br>";
+          tt +=  "Task_id: " + escapeHtml(ti.task_id) + "<br>";
         }
         tt += "Run: " + converAndFormatUTC(task.execution_date) + "<br>";
         if(ti.run_id != undefined) {
