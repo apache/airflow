@@ -37,7 +37,7 @@ BUCKET = os.environ.get("GCP_DATAPROC_BUCKET", "dataproc-system-tests")
 OUTPUT_FOLDER = "wordcount"
 OUTPUT_PATH = "gs://{}/{}/".format(BUCKET, OUTPUT_FOLDER)
 PYSPARK_MAIN = os.environ.get("PYSPARK_MAIN", "hello_world.py")
-SPARKR_MAIN = os.environ.get("PYSPARK_MAIN", "hello_world.py")
+SPARKR_MAIN = os.environ.get("SPARKR_MAIN", "hello_world.R")
 PYSPARK_URI = "gs://{}/{}".format(BUCKET, PYSPARK_MAIN)
 SPARKR_URI = "gs://{}/{}".format(BUCKET, SPARKR_MAIN)
 

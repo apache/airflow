@@ -24,7 +24,9 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 
 BUCKET = os.environ.get("GCP_DATAPROC_BUCKET", "dataproc-system-tests")
 PYSPARK_MAIN = os.environ.get("PYSPARK_MAIN", "hello_world.py")
+SPARKR_MAIN = os.environ.get("SPARKR_MAIN", "hello_world.R")
 PYSPARK_URI = "gs://{}/{}".format(BUCKET, PYSPARK_MAIN)
+SPARKR_URI = "gs://{}/{}".format(BUCKET, SPARKR_MAIN)
 
 pyspark_file = """
 #!/usr/bin/python
@@ -33,6 +35,16 @@ sc = pyspark.SparkContext()
 rdd = sc.parallelize(['Hello,', 'world!'])
 words = sorted(rdd.collect())
 print(words)
+"""
+
+sparkr_file = """
+#!/usr/bin/r
+if (nchar(Sys.getenv("SPARK_HOME")) < 1) {
+  Sys.setenv(SPARK_HOME = "/home/spark")
+}
+library(SparkR, lib.loc = c(file.path(Sys.getenv("SPARK_HOME"), "R", "lib")))
+sparkR.session(master = "local[*]", sparkConfig = list(spark.driver.memory = "2g"))
+# TODO add equivalent code
 """
 
 
@@ -45,6 +57,7 @@ class DataprocExampleDagsTest(GoogleSystemTest):
         super().setUp()
         self.create_gcs_bucket(BUCKET)
         self.upload_content_to_gcs(lines=pyspark_file, bucket=PYSPARK_URI, filename=PYSPARK_MAIN)
+        self.upload_content_to_gcs(lines=sparkr_file, bucket=SPARKR_URI, filename=SPARKR_MAIN)
 
     @provide_gcp_context(GCP_DATAPROC_KEY)
     def tearDown(self):

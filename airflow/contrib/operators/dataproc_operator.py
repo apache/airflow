@@ -156,6 +156,7 @@ class DataProcPySparkOperator(DataprocSubmitPySparkJobOperator):
         )
         super().__init__(*args, **kwargs)
 
+
 class DataProcSparkROperator(DataprocSubmitSparkRJobOperator):
     """
         This class is deprecated.
