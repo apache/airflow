@@ -1205,7 +1205,7 @@ class Airflow(AirflowBaseView):
 
             response = self.render_template(
                 'airflow/confirm.html',
-                message=("Here's the list of task instances you are about to mark as failed"),
+                message="Here's the list of task instances you are about to mark as failed",
                 details=details)
 
             return response
@@ -1234,7 +1234,7 @@ class Airflow(AirflowBaseView):
 
             response = self.render_template(
                 'airflow/confirm.html',
-                message=("Here's the list of task instances you are about to mark as success"),
+                message="Here's the list of task instances you are about to mark as success",
                 details=details)
 
             return response
@@ -1270,15 +1270,12 @@ class Airflow(AirflowBaseView):
         task = dag.get_task(task_id)
         task.dag = dag
 
+        latest_execution_date = dag.latest_execution_date
+        if not latest_execution_date:
+            flash(f"Cannot make {state}, seem that dag {dag_id} has never run", "error")
+            return redirect(origin)
+
         execution_date = timezone.parse(execution_date)
-
-        if not dag:
-            flash("Cannot find DAG: {}".format(dag_id))
-            return redirect(origin)
-
-        if not task:
-            flash("Cannot find task {} in DAG {}".format(task_id, dag.dag_id))
-            return redirect(origin)
 
         from airflow.api.common.experimental.mark_tasks import set_state
 

@@ -87,6 +87,13 @@ class GCSToGCSOperator(BaseOperator):
         only if they were modified after last_modified_time.
         If tzinfo has not been set, UTC will be assumed.
     :type last_modified_time: datetime.datetime
+    :param maximum_modified_time: When specified, the objects will be copied or moved,
+        only if they were modified before maximum_modified_time.
+        If tzinfo has not been set, UTC will be assumed.
+    :type maximum_modified_time: datetime.datetime
+    :param is_older_than: When specified, the objects will be copied if they are older
+        than the specified time in seconds.
+    :type is_older_than: int
 
     :Example:
 
@@ -174,6 +181,8 @@ class GCSToGCSOperator(BaseOperator):
                  google_cloud_storage_conn_id=None,
                  delegate_to=None,
                  last_modified_time=None,
+                 maximum_modified_time=None,
+                 is_older_than=None,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
@@ -193,6 +202,8 @@ class GCSToGCSOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.last_modified_time = last_modified_time
+        self.maximum_modified_time = maximum_modified_time
+        self.is_older_than = is_older_than
 
     def execute(self, context):
 
@@ -277,13 +288,49 @@ class GCSToGCSOperator(BaseOperator):
                                      destination_object=destination_object)
 
     def _copy_single_object(self, hook, source_object, destination_object):
-        if self.last_modified_time is not None:
+        if self.is_older_than:
+            # Here we check if the given object is older than the given time
+            # If given, last_modified_time and maximum_modified_time is ignored
+            if hook.is_older_than(self.source_bucket,
+                                  source_object,
+                                  self.is_older_than
+                                  ):
+                self.log.info("Object is older than %s seconds ago", self.is_older_than)
+            else:
+                self.log.debug("Object is not older than %s seconds ago", self.is_older_than)
+                return
+        elif self.last_modified_time and self.maximum_modified_time:
+            # check to see if object was modified between last_modified_time and
+            # maximum_modified_time
+            if hook.is_updated_between(self.source_bucket,
+                                       source_object,
+                                       self.last_modified_time,
+                                       self.maximum_modified_time
+                                       ):
+                self.log.info("Object has been modified between %s and %s",
+                              self.last_modified_time, self.maximum_modified_time)
+            else:
+                self.log.debug("Object was not modified between %s and %s",
+                               self.last_modified_time, self.maximum_modified_time)
+                return
+
+        elif self.last_modified_time is not None:
             # Check to see if object was modified after last_modified_time
             if hook.is_updated_after(self.source_bucket,
                                      source_object,
                                      self.last_modified_time):
-                self.log.debug("Object has been modified after %s ", self.last_modified_time)
+                self.log.info("Object has been modified after %s ", self.last_modified_time)
             else:
+                self.log.debug("Object was not modified after %s ", self.last_modified_time)
+                return
+        elif self.maximum_modified_time is not None:
+            # Check to see if object was modified before maximum_modified_time
+            if hook.is_updated_before(self.source_bucket,
+                                      source_object,
+                                      self.maximum_modified_time):
+                self.log.info("Object has been modified before %s ", self.maximum_modified_time)
+            else:
+                self.log.debug("Object was not modified before %s ", self.maximum_modified_time)
                 return
 
         self.log.info('Executing copy of gs://%s/%s to gs://%s/%s',

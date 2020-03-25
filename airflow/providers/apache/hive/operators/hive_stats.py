@@ -86,22 +86,25 @@ class HiveStatsCollectionOperator(BaseOperator):
         self.dttm = '{{ execution_date.isoformat() }}'
 
     def get_default_exprs(self, col, col_type):
+        """
+        Get default expressions
+        """
         if col in self.col_blacklist:
             return {}
-        d = {(col, 'non_null'): "COUNT({col})"}
+        exp = {(col, 'non_null'): f"COUNT({col})"}
         if col_type in ['double', 'int', 'bigint', 'float']:
-            d[(col, 'sum')] = 'SUM({col})'
-            d[(col, 'min')] = 'MIN({col})'
-            d[(col, 'max')] = 'MAX({col})'
-            d[(col, 'avg')] = 'AVG({col})'
+            exp[(col, 'sum')] = f'SUM({col})'
+            exp[(col, 'min')] = f'MIN({col})'
+            exp[(col, 'max')] = f'MAX({col})'
+            exp[(col, 'avg')] = f'AVG({col})'
         elif col_type == 'boolean':
-            d[(col, 'true')] = 'SUM(CASE WHEN {col} THEN 1 ELSE 0 END)'
-            d[(col, 'false')] = 'SUM(CASE WHEN NOT {col} THEN 1 ELSE 0 END)'
+            exp[(col, 'true')] = f'SUM(CASE WHEN {col} THEN 1 ELSE 0 END)'
+            exp[(col, 'false')] = f'SUM(CASE WHEN NOT {col} THEN 1 ELSE 0 END)'
         elif col_type in ['string']:
-            d[(col, 'len')] = 'SUM(CAST(LENGTH({col}) AS BIGINT))'
-            d[(col, 'approx_distinct')] = 'APPROX_DISTINCT({col})'
+            exp[(col, 'len')] = f'SUM(CAST(LENGTH({col}) AS BIGINT))'
+            exp[(col, 'approx_distinct')] = f'APPROX_DISTINCT({col})'
 
-        return {k: v.format(col=col) for k, v in d.items()}
+        return exp
 
     def execute(self, context=None):
         metastore = HiveMetastoreHook(metastore_conn_id=self.metastore_conn_id)
@@ -113,12 +116,12 @@ class HiveStatsCollectionOperator(BaseOperator):
         }
         for col, col_type in list(field_types.items()):
             if self.assignment_func:
-                d = self.assignment_func(col, col_type)
-                if d is None:
-                    d = self.get_default_exprs(col, col_type)
+                assign_exprs = self.assignment_func(col, col_type)
+                if assign_exprs is None:
+                    assign_exprs = self.get_default_exprs(col, col_type)
             else:
-                d = self.get_default_exprs(col, col_type)
-            exprs.update(d)
+                assign_exprs = self.get_default_exprs(col, col_type)
+            exprs.update(assign_exprs)
         exprs.update(self.extra_exprs)
         exprs = OrderedDict(exprs)
         exprs_str = ",\n        ".join([

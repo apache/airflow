@@ -142,7 +142,7 @@ class VerticaToMySqlTransfer(BaseOperator):
                                   rows=result,
                                   target_fields=selected_columns)
             self.log.info("Inserted rows into MySQL %s", count)
-        except (MySQLdb.Error, MySQLdb.Warning):
+        except (MySQLdb.Error, MySQLdb.Warning):  # pylint: disable=no-member
             self.log.info("Inserted rows into MySQL 0")
             raise
 

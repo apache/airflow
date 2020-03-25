@@ -813,6 +813,104 @@ your local sources to the ``/opt/airflow`` location of the sources within the co
     :align: center
     :alt: Source code mapping
 
+Remote Debugging on Travis CI
+=============================
+
+You can also connect IDE to Travis CI. To do this, you must pass a public IP address in the ``pydevd.set_trace``
+method. If you do not have a public IP address then you can start the virtual machine at the cloud service
+provider for the time of debugging. You also need to install the appropriate debugger in Travis CI. You
+need to modify the ``scripts/ci/in_container/entrypoint.sh`` file to add an pip install command
+after the license header.
+
+Setup VM on GCP with SSH forwarding
+-----------------------------------
+
+Below are the steps you need to take to set up your virtual machine in the Google Cloud Platform.
+
+1. The next steps will assume that you have configured environment variables with the name of the network and
+   virtual machine, project ID and the zone where the virtual machine will be created
+
+    .. code-block:: bash
+
+      PROJECT_ID="<PROJECT_ID>"
+      GCP_ZONE="europe-west3-a"
+      GCP_NETWORK_NAME="airflow-debugging"
+      GCP_INSTANCE_NAME="airflow-debugging-ci"
+
+2. It is necessary to configure the network and firewall for your machine.
+   The firewall must have unblocked access to port 22 for SSH traffic and any other port for the debugger.
+   In the example for the debugger we will use port 5555.
+
+    .. code-block:: bash
+
+      gcloud compute --project="${PROJECT_ID}" networks create "${GCP_NETWORK_NAME}" \
+        --subnet-mode=auto
+
+      gcloud compute --project="${PROJECT_ID}" firewall-rules create "${GCP_NETWORK_NAME}-allow-ssh" \
+        --network "${GCP_NETWORK_NAME}" \
+        --allow tcp:22 \
+        --source-ranges 0.0.0.0/0
+
+      gcloud compute --project="${PROJECT_ID}" firewall-rules create "${GCP_NETWORK_NAME}-allow-debugger" \
+        --network "${GCP_NETWORK_NAME}" \
+        --allow tcp:5555 \
+        --source-ranges 0.0.0.0/0
+
+3. If you have a network, you can create a virtual machine. To save costs, you can create a `Preemptible
+   virtual machine <https://cloud.google.com/preemptible-vms>` that is automatically deleted for up
+   to 24 hours.
+
+    .. code-block:: bash
+
+      gcloud beta compute --project="${PROJECT_ID}" instances create "${GCP_INSTANCE_NAME}" \
+        --zone="${GCP_ZONE}" \
+        --machine-type=f1-micro \
+        --subnet="${GCP_NETWORK_NAME}" \
+        --image=debian-10-buster-v20200210 \
+        --image-project=debian-cloud \
+        --preemptible
+
+    To check the public IP address of the machine, you can run the command
+
+    .. code-block:: bash
+
+      gcloud compute --project="${PROJECT_ID}" instances describe "${GCP_INSTANCE_NAME}" \
+        --zone="${GCP_ZONE}" \
+        --format='value(networkInterfaces[].accessConfigs[0].natIP.notnull().list())'
+
+4. The SSH Deamon's default configuration does not allow traffic forwarding to public addresses.
+   To change it, modify the ``GatewayPorts`` options in the ``/etc/ssh/sshd_config`` file to ``Yes``
+   and restart the SSH deamon.
+
+    .. code-block:: bash
+
+      gcloud beta compute --project="${PROJECT_ID}" ssh "${GCP_INSTANCE_NAME}" \
+        --zone="${GCP_ZONE}" -- \
+        sudo sed -i "s/#\?\s*GatewayPorts no/GatewayPorts Yes/" /etc/ssh/sshd_config
+
+      gcloud beta compute --project="${PROJECT_ID}" ssh "${GCP_INSTANCE_NAME}" \
+        --zone="${GCP_ZONE}" -- \
+        sudo service sshd restart
+
+5. To start port forwarding, run the following command:
+
+    .. code-block:: bash
+
+      gcloud beta compute --project="${PROJECT_ID}" ssh "${GCP_INSTANCE_NAME}" \
+        --zone="${GCP_ZONE}" -- \
+        -N \
+        -R 0.0.0.0:5555:localhost:5555 \
+        -v
+
+If you have finished using the virtual machine, remember to delete it.
+
+    .. code-block:: bash
+
+      gcloud beta compute --project="${PROJECT_ID}" instances delete "${GCP_INSTANCE_NAME}" \
+        --zone="${GCP_ZONE}"
+
+You can use the GCP service for free, if you use the `Free Tier <https://cloud.google.com/free>`__.
+
 DAG Testing
 ===========
 

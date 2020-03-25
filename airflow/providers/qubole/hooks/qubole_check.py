@@ -31,6 +31,9 @@ ROW_DELIM = '\r\n'
 
 
 def isint(value):
+    """
+    Whether Qubole column are integer
+    """
     try:
         int(value)
         return True
@@ -39,6 +42,9 @@ def isint(value):
 
 
 def isfloat(value):
+    """
+    Whether Qubole column are float
+    """
     try:
         float(value)
         return True
@@ -47,14 +53,19 @@ def isfloat(value):
 
 
 def isbool(value):
+    """
+    Whether Qubole column are boolean
+    """
     try:
-        if value.lower() in ["true", "false"]:
-            return True
+        return value.lower() in ["true", "false"]
     except ValueError:
         return False
 
 
 def parse_first_row(row_list):
+    """
+    Parse Qubole first record list
+    """
     record_list = []
     first_row = row_list[0] if row_list else ""
 
@@ -71,6 +82,9 @@ def parse_first_row(row_list):
 
 
 class QuboleCheckHook(QuboleHook):
+    """
+    Qubole check hook
+    """
     def __init__(self, context, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.results_parser_callable = parse_first_row
@@ -93,7 +107,10 @@ class QuboleCheckHook(QuboleHook):
                     log.info('Cancelling the Qubole Command Id: %s', cmd_id)
                     cmd.cancel()
 
-    def get_first(self, sql):
+    def get_first(self, sql):  # pylint: disable=unused-argument
+        """
+        Get Qubole query first record list
+        """
         self.execute(context=self.context)
         query_result = self.get_query_results()
         row_list = list(filter(None, query_result.split(ROW_DELIM)))
@@ -101,9 +118,12 @@ class QuboleCheckHook(QuboleHook):
         return record_list
 
     def get_query_results(self):
+        """
+        Get Qubole query result
+        """
         if self.cmd is not None:
             cmd_id = self.cmd.id
-            self.log.info("command id: " + str(cmd_id))
+            self.log.info("command id: %d", cmd_id)
             query_result_buffer = StringIO()
             self.cmd.get_results(fp=query_result_buffer, inline=True, delim=COL_DELIM)
             query_result = query_result_buffer.getvalue()
@@ -111,3 +131,4 @@ class QuboleCheckHook(QuboleHook):
             return query_result
         else:
             self.log.info("Qubole command not found")
+            return None

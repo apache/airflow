@@ -19,7 +19,7 @@ from unittest import TestCase, mock
 
 from hvac.exceptions import InvalidPath, VaultError
 
-from airflow.providers.hashicorp.secrets.vault import VaultSecrets
+from airflow.providers.hashicorp.secrets.vault import VaultBackend
 
 
 class TestVaultSecrets(TestCase):
@@ -52,7 +52,7 @@ class TestVaultSecrets(TestCase):
             "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS"
         }
 
-        test_client = VaultSecrets(**kwargs)
+        test_client = VaultBackend(**kwargs)
         returned_uri = test_client.get_conn_uri(conn_id="test_postgres")
         self.assertEqual('postgresql://airflow:airflow@host:5432/airflow', returned_uri)
 
@@ -79,7 +79,7 @@ class TestVaultSecrets(TestCase):
             "kv_engine_version": 1
         }
 
-        test_client = VaultSecrets(**kwargs)
+        test_client = VaultBackend(**kwargs)
         returned_uri = test_client.get_conn_uri(conn_id="test_postgres")
         mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
             mount_point='airflow', path='connections/test_postgres')
@@ -107,7 +107,7 @@ class TestVaultSecrets(TestCase):
             "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS"
         }
 
-        test_client = VaultSecrets(**kwargs)
+        test_client = VaultBackend(**kwargs)
         self.assertIsNone(test_client.get_conn_uri(conn_id="test_mysql"))
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
             mount_point='airflow', path='connections/test_mysql')
@@ -128,7 +128,7 @@ class TestVaultSecrets(TestCase):
         }
 
         with self.assertRaisesRegex(VaultError, "Vault Authentication Error!"):
-            VaultSecrets(**kwargs).get_connections(conn_id='test')
+            VaultBackend(**kwargs).get_connections(conn_id='test')
 
     @mock.patch("airflow.providers.hashicorp.secrets.vault.hvac")
     def test_empty_token_raises_error(self, mock_hvac):
@@ -143,4 +143,4 @@ class TestVaultSecrets(TestCase):
         }
 
         with self.assertRaisesRegex(VaultError, "token cannot be None for auth_type='token'"):
-            VaultSecrets(**kwargs).get_connections(conn_id='test')
+            VaultBackend(**kwargs).get_connections(conn_id='test')

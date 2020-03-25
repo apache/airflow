@@ -46,6 +46,7 @@ class GrpcHook(BaseHook):
     """
 
     def __init__(self, grpc_conn_id, interceptors=None, custom_connection_func=None):
+        super().__init__()
         self.grpc_conn_id = grpc_conn_id
         self.conn = self.get_connection(self.grpc_conn_id)
         self.extras = self.conn.extra_dejson

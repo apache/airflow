@@ -178,3 +178,23 @@ class GoogleSystemTest(SystemTest):
                 file.flush()
             os.chmod(tmp_path, 555)
             GoogleSystemTest.upload_to_gcs(bucket_uri, tmp_path)
+
+    @staticmethod
+    def get_project_number(project_id: str) -> str:
+        with GoogleSystemTest.authentication():
+            cmd = ['gcloud', 'projects', 'describe', project_id, '--format', 'value(projectNumber)']
+            return GoogleSystemTest.check_output(cmd).decode("utf-8").strip()
+
+    @staticmethod
+    def grant_bucket_access(bucket: str, account_email: str):
+        bucket_name = f"gs://{bucket}" if not bucket.startswith("gs://") else bucket
+        with GoogleSystemTest.authentication():
+            GoogleSystemTest.execute_cmd(
+                [
+                    "gsutil",
+                    "iam",
+                    "ch",
+                    "serviceAccount:%s:admin" % account_email,
+                    bucket_name,
+                ]
+            )

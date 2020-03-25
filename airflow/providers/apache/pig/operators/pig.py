@@ -60,9 +60,7 @@ class PigOperator(BaseOperator):
         self.pig = pig
         self.pig_cli_conn_id = pig_cli_conn_id
         self.pig_opts = pig_opts
-
-    def get_hook(self):
-        return PigCliHook(pig_cli_conn_id=self.pig_cli_conn_id)
+        self.hook = None
 
     def prepare_template(self):
         if self.pigparams_jinja_translate:
@@ -71,7 +69,7 @@ class PigOperator(BaseOperator):
 
     def execute(self, context):
         self.log.info('Executing: %s', self.pig)
-        self.hook = self.get_hook()
+        self.hook = PigCliHook(pig_cli_conn_id=self.pig_cli_conn_id)
         self.hook.run_cli(pig=self.pig, pig_opts=self.pig_opts)
 
     def on_kill(self):

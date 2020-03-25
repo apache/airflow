@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+
 import logging
 import multiprocessing
 import os
@@ -25,13 +26,15 @@ import time
 import unittest
 from contextlib import suppress
 from subprocess import CalledProcessError
+from tempfile import NamedTemporaryFile
 from time import sleep
 from unittest import mock
 
 import psutil
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.utils import process_utils
+from airflow.utils.process_utils import check_if_pidfile_process_is_running, execute_in_subprocess, log
 
 
 class TestReapProcessGroup(unittest.TestCase):
@@ -94,8 +97,8 @@ class TestReapProcessGroup(unittest.TestCase):
 class TestExecuteInSubProcess(unittest.TestCase):
 
     def test_should_print_all_messages1(self):
-        with self.assertLogs(process_utils.log) as logs:
-            process_utils.execute_in_subprocess(["bash", "-c", "echo CAT; echo KITTY;"])
+        with self.assertLogs(log) as logs:
+            execute_in_subprocess(["bash", "-c", "echo CAT; echo KITTY;"])
 
         msgs = [record.getMessage() for record in logs.records]
 
@@ -185,3 +188,24 @@ class TestPatchEnviron(unittest.TestCase):
 
             self.assertEqual("BEFORE", os.environ["TEST_EXISTS"])
             self.assertNotIn("TEST_NOT_EXISTS", os.environ)
+
+
+class TestCheckIfPidfileProcessIsRunning(unittest.TestCase):
+    def test_ok_if_no_file(self):
+        check_if_pidfile_process_is_running('some/pid/file', process_name="test")
+
+    def test_remove_if_no_process(self):
+        # Assert file is deleted
+        with self.assertRaises(FileNotFoundError):
+            with NamedTemporaryFile('+w') as f:
+                f.write('19191919191919191991')
+                f.flush()
+                check_if_pidfile_process_is_running(f.name, process_name="test")
+
+    def test_raise_error_if_process_is_running(self):
+        pid = os.getpid()
+        with NamedTemporaryFile('+w') as f:
+            f.write(str(pid))
+            f.flush()
+            with self.assertRaisesRegex(AirflowException, "is already running under PID"):
+                check_if_pidfile_process_is_running(f.name, process_name="test")

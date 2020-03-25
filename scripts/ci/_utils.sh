@@ -37,7 +37,11 @@ function verbose_docker {
     docker "${@}"
 }
 
-function initialize_breeze_environment {
+# Common environment that is initialized by both Breeze and CI scripts
+function initialize_common_environment {
+    # default python version
+    PYTHON_VERSION=${PYTHON_VERSION:="3.6"}
+
     AIRFLOW_SOURCES=${AIRFLOW_SOURCES:=$(cd "${MY_DIR}/../../" && pwd)}
     export AIRFLOW_SOURCES
 
@@ -133,6 +137,8 @@ function initialize_breeze_environment {
     # We use pulled docker image cache by default to speed up the builds
     export DOCKER_CACHE=${DOCKER_CACHE:="pulled"}
 
+    # We use requirements.txt by default rather than trying to upgrade to latest versions
+    export UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD=${UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD:="false"}
 
     STAT_BIN=stat
     if [[ "${OSTYPE}" == "darwin"* ]]; then
@@ -144,6 +150,21 @@ function initialize_breeze_environment {
 
     # default version for dockerhub images
     export PYTHON_VERSION_FOR_DEFAULT_DOCKERHUB_IMAGE=3.6
+
+
+    if [[ ${CI:="false"} == "true" ]]; then
+        export LOCAL_RUN="false"
+    else
+        export LOCAL_RUN="true"
+    fi
+
+    # upgrade while generating requirements should only happen in localy run
+    # pre-commits or in cron job
+    if [[ ${LOCAL_RUN} == "true" || "${TRAVIS_EVENT_TYPE:=}" != "cron" ]]; then
+        export UPGRADE_WHILE_GENERATING_REQUIREMENTS="true"
+    else
+        export UPGRADE_WHILE_GENERATING_REQUIREMENTS="false"
+    fi
 }
 
 function print_info() {
@@ -163,7 +184,7 @@ LOCAL_MOUNTS="
 .kube /root/
 .rat-excludes /opt/airflow/
 CHANGELOG.txt /opt/airflow/
-Dockerfile /opt/airflow/
+Dockerfile.ci /opt/airflow/
 LICENSE /opt/airflow/
 MANIFEST.in /opt/airflow/
 NOTICE /opt/airflow/
@@ -178,6 +199,7 @@ hooks /opt/airflow/
 logs /root/airflow/
 pylintrc /opt/airflow/
 pytest.ini /opt/airflow/
+requirements.txt /opt/airflow/
 scripts /opt/airflow/
 scripts/ci/in_container/entrypoint_ci.sh /
 setup.cfg /opt/airflow/
@@ -310,12 +332,12 @@ function update_all_md5_files() {
 # the Docker image will only be marked for rebuilding only in case any of the important files change:
 # * setup.py
 # * setup.cfg
-# * Dockerfile
+# * Dockerfile.ci
 # * airflow/version.py
 #
 # This is needed because we want to skip rebuilding of the image when only airflow sources change but
 # Trigger rebuild in case we need to change dependencies (setup.py, setup.cfg, change version of Airflow
-# or the Dockerfile itself changes.
+# or the Dockerfile.ci itself changes.
 #
 # Another reason to skip rebuilding Docker is thar currently it takes a bit longer time than simple Docker
 # We need to fix group permissions of files in Docker because different linux build services have
@@ -656,7 +678,7 @@ function get_remote_image_info() {
 # if there are at least NN chaanged layers in your docker file, you should pull the image.
 #
 # Note that this only matters if you have any of the important files changed since the last build
-# of your image such as Dockerfile, setup.py etc.
+# of your image such as Dockerfile.ci, setup.py etc.
 #
 MAGIC_CUT_OFF_NUMBER_OF_LAYERS=34
 
@@ -962,7 +984,9 @@ function build_image_on_ci() {
         else
             touch "${BUILD_CACHE_DIR}"/.skip_tests
         fi
-    elif [[ ${TRAVIS_JOB_NAME} == *"documentation"* ]]; then
+    elif [[ ${TRAVIS_JOB_NAME} == *"documentation"* || \
+            ${TRAVIS_JOB_NAME} == *"Generate requirements"* || \
+            ${TRAVIS_JOB_NAME} == *"Prepare & test backport packages"* ]]; then
         rebuild_ci_image_if_needed
     else
         echo
@@ -1162,10 +1186,11 @@ Docker building ${AIRFLOW_CI_IMAGE}.
             --build-arg AIRFLOW_BRANCH="${BRANCH_NAME}" \
             --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
             --build-arg AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" \
+            --build-arg UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD="${UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD}" \
             "${DOCKER_CACHE_CI_DIRECTIVE[@]}" \
             -t "${AIRFLOW_CI_IMAGE}" \
             --target "${TARGET_IMAGE}" \
-            . | tee -a "${OUTPUT_LOG}"
+            . -f Dockerfile.ci | tee -a "${OUTPUT_LOG}"
         set -u
     fi
     if [[ -n "${DEFAULT_IMAGE:=}" ]]; then

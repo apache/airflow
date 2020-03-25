@@ -25,7 +25,7 @@ set -euo pipefail
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export MY_DIR
 
-initialize_breeze_environment
+initialize_common_environment
 
 basic_sanity_checks
 

@@ -29,6 +29,7 @@ class SambaHook(BaseHook):
     """
 
     def __init__(self, samba_conn_id):
+        super().__init__()
         self.conn = self.get_connection(samba_conn_id)
 
     def get_conn(self):
@@ -41,6 +42,9 @@ class SambaHook(BaseHook):
         return samba
 
     def push_from_local(self, destination_filepath, local_filepath):
+        """
+        Push local file to samba server
+        """
         samba = self.get_conn()
         if samba.exists(destination_filepath):
             if samba.isfile(destination_filepath):

@@ -19,14 +19,15 @@ from unittest import TestCase, mock
 
 from moto import mock_ssm
 
-from airflow.providers.amazon.aws.secrets.ssm import AwsSsmSecretsBackend
+from airflow.providers.amazon.aws.secrets.systems_manager import SystemsManagerParameterStoreBackend
 
 
 class TestSsmSecrets(TestCase):
-    @mock.patch("airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend.get_conn_uri")
+    @mock.patch("airflow.providers.amazon.aws.secrets.systems_manager."
+                "SystemsManagerParameterStoreBackend.get_conn_uri")
     def test_aws_ssm_get_connections(self, mock_get_uri):
         mock_get_uri.return_value = "scheme://user:pass@host:100"
-        conn_list = AwsSsmSecretsBackend().get_connections("fake_conn")
+        conn_list = SystemsManagerParameterStoreBackend().get_connections("fake_conn")
         conn = conn_list[0]
         assert conn.host == 'host'
 
@@ -38,7 +39,7 @@ class TestSsmSecrets(TestCase):
             'Value': 'postgresql://airflow:airflow@host:5432/airflow'
         }
 
-        ssm_backend = AwsSsmSecretsBackend()
+        ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
 
         returned_uri = ssm_backend.get_conn_uri(conn_id="test_postgres")
@@ -48,7 +49,7 @@ class TestSsmSecrets(TestCase):
     def test_get_conn_uri_non_existent_key(self):
         """
         Test that if the key with connection ID is not present in SSM,
-        AwsSsmSecretsBackend.get_connections should return None
+        SystemsManagerParameterStoreBackend.get_connections should return None
         """
         conn_id = "test_mysql"
         param = {
@@ -57,7 +58,7 @@ class TestSsmSecrets(TestCase):
             'Value': 'postgresql://airflow:airflow@host:5432/airflow'
         }
 
-        ssm_backend = AwsSsmSecretsBackend()
+        ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
 
         self.assertIsNone(ssm_backend.get_conn_uri(conn_id=conn_id))

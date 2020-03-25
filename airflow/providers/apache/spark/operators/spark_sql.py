@@ -56,6 +56,7 @@ class SparkSqlOperator(BaseOperator):
     template_fields = ["_sql"]
     template_ext = [".sql", ".hql"]
 
+    # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(self,
                  sql,

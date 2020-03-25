@@ -20,7 +20,7 @@
 @test "empty test" {
   load bats_utils
 
-  initialize_breeze_environment
+  initialize_common_environment
 
   run pwd
   [ "${status}" == 0 ]

@@ -20,8 +20,8 @@ import os
 import unittest
 
 from airflow.models import Connection
-from airflow.secrets.environment_variables import EnvironmentVariablesSecretsBackend
-from airflow.secrets.metastore import MetastoreSecretsBackend
+from airflow.secrets.environment_variables import EnvironmentVariablesBackend
+from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.session import create_session
 
 
@@ -39,7 +39,7 @@ class SampleConn:
 class TestBaseSecretsBackend(unittest.TestCase):
     def test_env_secrets_backend(self):
         sample_conn_1 = SampleConn("sample_1", "A")
-        env_secrets_backend = EnvironmentVariablesSecretsBackend()
+        env_secrets_backend = EnvironmentVariablesBackend()
         os.environ[sample_conn_1.var_name] = sample_conn_1.conn_uri
         conn_list = env_secrets_backend.get_connections(sample_conn_1.conn_id)
         self.assertEqual(1, len(conn_list))
@@ -55,7 +55,7 @@ class TestBaseSecretsBackend(unittest.TestCase):
             session.add(sample_conn_2a.conn)
             session.add(sample_conn_2b.conn)
             session.commit()
-        metastore_backend = MetastoreSecretsBackend()
+        metastore_backend = MetastoreBackend()
         conn_list = metastore_backend.get_connections("sample_2")
         host_list = {x.host for x in conn_list}
         self.assertEqual(

@@ -26,6 +26,7 @@ env:
     - MOUNT_HOST_AIRFLOW_VOLUME="true"
     - FORCE_ANSWER_TO_QUESTIONS="yes"
     - SKIP_CHECK_REMOTE_IMAGE="true"
+    - DB_RESET="true"
     - VERBOSE="true"
     - CI="true"
 python: "3.6"
@@ -42,7 +43,7 @@ jobs:
       env: >-
         PYTHON_VERSION=3.6
         AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
-        SKIP=pylint-tests
+        SKIP=pylint-tests,generate-requirements
     - name: "Static checks - pylint tests only"
       stage: pre-test
       script: ./scripts/ci/ci_run_static_checks_pylint_tests.sh
@@ -116,7 +117,7 @@ jobs:
         ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
         RUN_INTEGRATION_TESTS=all
       stage: test
-    - name: "Tests [MySQL5.7][3.7][providers][kerberos]"
+    - name: "Tests [MySQL5.7][Py3.7][providers][kerberos]"
       env: >-
         BACKEND=mysql
         PYTHON_VERSION=3.7
@@ -132,10 +133,23 @@ jobs:
         ENABLED_INTEGRATIONS="kerberos"
       script: "./scripts/ci/ci_run_airflow_testing.sh --ignore=tests/providers"
       stage: test
-    - name: "Prepare backport packages"
-      before_install: pip install bowler
+    - name: "Generate requirements"
+      env: >-
+        PYTHON_VERSION=3.6
+        INSTALL_AIRFLOW_VERSION="1.10.9"
       stage: test
-      script: ./scripts/ci/ci_prepare_backport_packages.sh
+      script: ./scripts/ci/ci_generate_requirements.sh
+    - name: "Prepare & test backport packages 1.10.9"
+      env: >-
+        INSTALL_AIRFLOW_VERSION="1.10.9"
+      stage: test
+      script: ./scripts/ci/ci_prepare_and_test_backport_packages.sh
+    - name: "Prepare & test backport packages 1.10.6"
+      env: >-
+        INSTALL_AIRFLOW_VERSION="1.10.6"
+      stage: test
+      script: ./scripts/ci/ci_prepare_and_test_backport_packages.sh
+install: skip
 before_install:
   - ./scripts/ci/ci_before_install.sh
 script: ./scripts/ci/ci_run_airflow_testing.sh

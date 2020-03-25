@@ -21,7 +21,7 @@ import io
 import os
 import tempfile
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest import mock
 
 import dateutil
@@ -29,6 +29,7 @@ from google.cloud import exceptions, storage
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks import gcs
+from airflow.utils import timezone
 from airflow.version import version
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
@@ -70,7 +71,7 @@ class TestGCSHook(unittest.TestCase):
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.gcs_hook = gcs.GCSHook(
-                google_cloud_storage_conn_id='test')
+                gcp_conn_id='test')
 
     @mock.patch(
         'airflow.providers.google.cloud.hooks.base.CloudBaseHook.client_info',
@@ -151,6 +152,77 @@ class TestGCSHook(unittest.TestCase):
 
         # Then
         self.assertTrue(response)
+
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
+    def test_is_updated_before(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+
+        # Given
+        mock_service.return_value.bucket.return_value.get_blob \
+            .return_value.updated = datetime(2019, 8, 28, 14, 7, 20, 700000, dateutil.tz.tzutc())
+
+        # When
+        response = self.gcs_hook.is_updated_before(
+            bucket_name=test_bucket, object_name=test_object,
+            ts=datetime(2020, 1, 1, 1, 1, 1)
+        )
+
+        # Then
+        self.assertTrue(response)
+
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
+    def test_is_updated_between(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+
+        # Given
+        mock_service.return_value.bucket.return_value.get_blob \
+            .return_value.updated = datetime(2019, 8, 28, 14, 7, 20, 700000, dateutil.tz.tzutc())
+
+        # When
+        response = self.gcs_hook.is_updated_between(
+            bucket_name=test_bucket, object_name=test_object,
+            min_ts=datetime(2018, 1, 1, 1, 1, 1),
+            max_ts=datetime(2020, 1, 1, 1, 1, 1)
+        )
+
+        # Then
+        self.assertTrue(response)
+
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
+    def test_is_older_than_with_true_cond(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+
+        # Given
+        mock_service.return_value.bucket.return_value.get_blob \
+            .return_value.updated = datetime(2020, 1, 28, 14, 7, 20, 700000, dateutil.tz.tzutc())
+
+        # When
+        response = self.gcs_hook.is_older_than(
+            bucket_name=test_bucket, object_name=test_object,
+            seconds=86400  # 24hr
+        )
+
+        # Then
+        self.assertTrue(response)
+
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
+    def test_is_older_than_with_false_cond(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+
+        # Given
+        mock_service.return_value.bucket.return_value.get_blob \
+            .return_value.updated = timezone.utcnow() + timedelta(days=2)
+        # When
+        response = self.gcs_hook.is_older_than(
+            bucket_name=test_bucket, object_name=test_object,
+            seconds=86400  # 24hr
+        )
+        # Then
+        self.assertFalse(response)
 
     @mock.patch('google.cloud.storage.Bucket')
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
@@ -591,7 +663,7 @@ class TestGCSHookUpload(unittest.TestCase):
     def setUp(self):
         with mock.patch(BASE_STRING.format('CloudBaseHook.__init__')):
             self.gcs_hook = gcs.GCSHook(
-                google_cloud_storage_conn_id='test'
+                gcp_conn_id='test'
             )
 
         # generate a 384KiB test file (larger than the minimum 256KiB multipart chunk size)
@@ -735,7 +807,7 @@ class TestSyncGcsHook(unittest.TestCase):
         with mock.patch(
             GCS_STRING.format("CloudBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
-            self.gcs_hook = gcs.GCSHook(google_cloud_storage_conn_id="test")
+            self.gcs_hook = gcs.GCSHook(gcp_conn_id="test")
 
     @mock.patch(GCS_STRING.format("GCSHook.copy"))
     @mock.patch(GCS_STRING.format("GCSHook.rewrite"))

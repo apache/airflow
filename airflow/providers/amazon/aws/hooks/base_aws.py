@@ -50,6 +50,7 @@ class AwsBaseHook(BaseHook):
     """
 
     def __init__(self, aws_conn_id="aws_default", verify=None):
+        super().__init__()
         self.aws_conn_id = aws_conn_id
         self.verify = verify
         self.config = None

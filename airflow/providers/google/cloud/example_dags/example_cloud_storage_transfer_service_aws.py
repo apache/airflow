@@ -28,8 +28,6 @@ This DAG relies on the following OS environment variables
   .. warning::
     You need to provide a large enough set of data so that operations do not execute too quickly.
     Otherwise, DAG will fail.
-* GCP_TRANSFER_FIRST_TARGET_BUCKET - Google Cloud Storage bucket to which files are copied from AWS.
-  It is also a source bucket in next step
 * GCP_TRANSFER_SECOND_TARGET_BUCKET - Google Cloud Storage bucket bucket to which files are copied
 * WAIT_FOR_OPERATION_POKE_INTERVAL - interval of what to check the status of the operation
   A smaller value than the default value accelerates the system test and ensures its correct execution with
@@ -40,20 +38,19 @@ This DAG relies on the following OS environment variables
 
 import os
 from datetime import datetime, timedelta
-from typing import Any, Dict
 
 from airflow import models
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ALREADY_EXISTING_IN_SINK, AWS_S3_DATA_SOURCE, BUCKET_NAME, DESCRIPTION, FILTER_JOB_NAMES,
-    FILTER_PROJECT_ID, GCS_DATA_SINK, GCS_DATA_SOURCE, PROJECT_ID, SCHEDULE, SCHEDULE_END_DATE,
-    SCHEDULE_START_DATE, START_TIME_OF_DAY, STATUS, TRANSFER_JOB, TRANSFER_JOB_FIELD_MASK, TRANSFER_OPTIONS,
-    TRANSFER_SPEC, GcpTransferJobsStatus, GcpTransferOperationStatus,
+    FILTER_PROJECT_ID, GCS_DATA_SINK, PROJECT_ID, SCHEDULE, SCHEDULE_END_DATE, SCHEDULE_START_DATE,
+    START_TIME_OF_DAY, STATUS, TRANSFER_OPTIONS, TRANSFER_SPEC, GcpTransferJobsStatus,
+    GcpTransferOperationStatus,
 )
 from airflow.providers.google.cloud.operators.cloud_storage_transfer_service import (
     CloudDataTransferServiceCancelOperationOperator, CloudDataTransferServiceCreateJobOperator,
     CloudDataTransferServiceDeleteJobOperator, CloudDataTransferServiceGetOperationOperator,
     CloudDataTransferServiceListOperationsOperator, CloudDataTransferServicePauseOperationOperator,
-    CloudDataTransferServiceResumeOperationOperator, CloudDataTransferServiceUpdateJobOperator,
+    CloudDataTransferServiceResumeOperationOperator,
 )
 from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service import (
     CloudDataTransferServiceJobStatusSensor,
@@ -68,9 +65,6 @@ WAIT_FOR_OPERATION_POKE_INTERVAL = int(os.environ.get('WAIT_FOR_OPERATION_POKE_I
 GCP_TRANSFER_SOURCE_AWS_BUCKET = os.environ.get('GCP_TRANSFER_SOURCE_AWS_BUCKET')
 GCP_TRANSFER_FIRST_TARGET_BUCKET = os.environ.get(
     'GCP_TRANSFER_FIRST_TARGET_BUCKET', 'gcp-transfer-first-target'
-)
-GCP_TRANSFER_SECOND_TARGET_BUCKET = os.environ.get(
-    'GCP_TRANSFER_SECOND_TARGET_BUCKET', 'gcp-transfer-second-target'
 )
 
 # [START howto_operator_gcp_transfer_create_job_body_aws]
@@ -91,40 +85,13 @@ aws_to_gcs_transfer_body = {
 }
 # [END howto_operator_gcp_transfer_create_job_body_aws]
 
-# [START howto_operator_gcp_transfer_create_job_body_gcp]
-gcs_to_gcs_transfer_body = {
-    DESCRIPTION: GCP_DESCRIPTION,
-    STATUS: GcpTransferJobsStatus.ENABLED,
-    PROJECT_ID: GCP_PROJECT_ID,
-    SCHEDULE: {
-        SCHEDULE_START_DATE: datetime(2015, 1, 1).date(),
-        SCHEDULE_END_DATE: datetime(2030, 1, 1).date(),
-        START_TIME_OF_DAY: (datetime.utcnow() + timedelta(minutes=2)).time(),
-    },
-    TRANSFER_SPEC: {
-        GCS_DATA_SOURCE: {BUCKET_NAME: GCP_TRANSFER_FIRST_TARGET_BUCKET},
-        GCS_DATA_SINK: {BUCKET_NAME: GCP_TRANSFER_SECOND_TARGET_BUCKET},
-        TRANSFER_OPTIONS: {ALREADY_EXISTING_IN_SINK: True},
-    },
-}  # type: Dict[str, Any]
-# [END howto_operator_gcp_transfer_create_job_body_gcp]
-
-# [START howto_operator_gcp_transfer_update_job_body]
-update_body = {
-    PROJECT_ID: GCP_PROJECT_ID,
-    TRANSFER_JOB: {DESCRIPTION: "{}_updated".format(GCP_DESCRIPTION)},
-    TRANSFER_JOB_FIELD_MASK: "description",
-}
-# [END howto_operator_gcp_transfer_update_job_body]
-
-list_filter_dict = {FILTER_PROJECT_ID: GCP_PROJECT_ID, FILTER_JOB_NAMES: []}
 
 # [START howto_operator_gcp_transfer_default_args]
 default_args = {'start_date': days_ago(1)}
 # [END howto_operator_gcp_transfer_default_args]
 
 with models.DAG(
-    'example_gcp_transfer',
+    'example_gcp_transfer_aws',
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
     tags=['example'],
@@ -151,14 +118,6 @@ with models.DAG(
         "key='sensed_operations')[0]['name']}}",
     )
     # [END howto_operator_gcp_transfer_pause_operation]
-
-    # [START howto_operator_gcp_transfer_update_job]
-    update_job = CloudDataTransferServiceUpdateJobOperator(
-        task_id="update_job",
-        job_name="{{task_instance.xcom_pull('create_transfer_job_from_aws')['name']}}",
-        body=update_body,
-    )
-    # [END howto_operator_gcp_transfer_update_job]
 
     # [START howto_operator_gcp_transfer_list_operations]
     list_operations = CloudDataTransferServiceListOperationsOperator(
@@ -192,22 +151,6 @@ with models.DAG(
     )
     # [END howto_operator_gcp_transfer_wait_operation]
 
-    job_time = datetime.utcnow() + timedelta(minutes=2)
-
-    gcs_to_gcs_transfer_body['schedule']['startTimeOfDay'] = (datetime.utcnow() + timedelta(minutes=2)).time()
-
-    create_transfer_job_from_gcp = CloudDataTransferServiceCreateJobOperator(
-        task_id="create_transfer_job_from_gcp", body=gcs_to_gcs_transfer_body
-    )
-
-    wait_for_second_operation_to_start = CloudDataTransferServiceJobStatusSensor(
-        task_id="wait_for_second_operation_to_start",
-        job_name="{{ task_instance.xcom_pull('create_transfer_job_from_gcp')['name'] }}",
-        project_id=GCP_PROJECT_ID,
-        expected_statuses={GcpTransferOperationStatus.IN_PROGRESS},
-        poke_interval=WAIT_FOR_OPERATION_POKE_INTERVAL,
-    )
-
     # [START howto_operator_gcp_transfer_cancel_operation]
     cancel_operation = CloudDataTransferServiceCancelOperationOperator(
         task_id="cancel_operation",
@@ -224,13 +167,6 @@ with models.DAG(
     )
     # [END howto_operator_gcp_transfer_delete_job]
 
-    delete_transfer_from_gcp_job = CloudDataTransferServiceDeleteJobOperator(
-        task_id="delete_transfer_from_gcp_job",
-        job_name="{{task_instance.xcom_pull('create_transfer_job_from_gcp')['name']}}",
-        project_id=GCP_PROJECT_ID,
-    )
-
     create_transfer_job_from_aws >> wait_for_operation_to_start >> pause_operation >> \
         list_operations >> get_operation >> resume_operation >> wait_for_operation_to_end >> \
-        create_transfer_job_from_gcp >> wait_for_second_operation_to_start >> cancel_operation >> \
-        delete_transfer_from_aws_job >> delete_transfer_from_gcp_job
+        cancel_operation >> delete_transfer_from_aws_job
