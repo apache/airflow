@@ -85,7 +85,8 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.images.assert_called_with(name='ubuntu:latest')
         client_mock.attach.assert_called_with(container='some_id', stdout=True,
                                               stderr=True, stream=True)
-        client_mock.pull.assert_called_with('ubuntu:latest', stream=True)
+        client_mock.pull.assert_called_with('ubuntu:latest', stream=True,
+                                            decode=True)
         client_mock.wait.assert_called_with('some_id')
 
     @mock.patch('airflow.operators.docker_operator.tls.TLSConfig')
