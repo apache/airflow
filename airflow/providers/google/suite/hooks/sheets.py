@@ -162,7 +162,7 @@ class GSheetsHook(CloudBaseHook):
         Updates values from Google Sheet from a single range
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/update
 
-        :param spreadsheet_id: The Google Sheet ID to interact with
+        :param spreadsheet_id: The Google Sheet ID to interact with.
         :type spreadsheet_id: str
         :param range_: The A1 notation of the values to retrieve.
         :type range_: str
@@ -374,4 +374,61 @@ class GSheetsHook(CloudBaseHook):
             body=body
         ).execute(num_retries=self.num_retries)
 
+        return response
+
+    def get_spreadsheet(self, spreadsheet_id: str):
+        """
+        Retrieves spreadsheet matching the given id.
+
+        :param spreadsheet_id: The spreadsheet id.
+        :type spreadsheet_id: str
+        :return: An spreadsheet that matches the sheet filter.
+        """
+        response = (
+            self.get_conn()  # pylint: disable=no-member
+            .spreadsheets()
+            .get(spreadsheetId=spreadsheet_id)
+            .execute(num_retries=self.num_retries)
+        )
+        return response
+
+    def get_sheet_titles(self, spreadsheet_id: str, sheet_filter: Optional[List[str]] = None):
+        """
+        Retrieves the sheet titles from a spreadsheet matching the given id and sheet filter.
+
+        :param spreadsheet_id: The spreadsheet id.
+        :type spreadsheet_id: str
+        :param sheet_filter: List of sheet title to retrieve from sheet.
+        :type sheet_filter: List[str]
+        :return: An list of sheet titles from the specified sheet that match
+            the sheet filter.
+        """
+        response = self.get_spreadsheet(spreadsheet_id=spreadsheet_id)
+
+        if sheet_filter:
+            titles = [
+                sh['properties']['title'] for sh in response['sheets']
+                if sh['properties']['title'] in sheet_filter
+            ]
+        else:
+            titles = [sh['properties']['title'] for sh in response['sheets']]
+        return titles
+
+    def create_spreadsheet(self, spreadsheet: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Creates a spreadsheet, returning the newly created spreadsheet.
+
+        :param spreadsheet: an instance of Spreadsheet
+            https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets#Spreadsheet
+        :type spreadsheet: Dict[str, Any]
+        :return: An spreadsheet object.
+        """
+        self.log.info("Creating spreadsheet: %s", spreadsheet['properties']['title'])
+        response = (
+            self.get_conn()  # pylint: disable=no-member
+            .spreadsheets()
+            .create(body=spreadsheet)
+            .execute(num_retries=self.num_retries)
+        )
+        self.log.info("Spreadsheet: %s created", spreadsheet['properties']['title'])
         return response

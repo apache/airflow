@@ -248,3 +248,38 @@ class TestGSheetsHook(unittest.TestCase):
             spreadsheetId=SPREADHSEET_ID,
             body=body
         )
+
+    @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
+    def test_get_spreadsheet(self, mock_get_conn):
+        get_mock = mock_get_conn.return_value.spreadsheets.return_value.get
+        get_mock.return_value.execute.return_value = API_RESPONSE
+
+        result = self.hook.get_spreadsheet(spreadsheet_id=SPREADHSEET_ID)
+
+        get_mock.assert_called_once_with(spreadsheetId=SPREADHSEET_ID)
+        assert result == API_RESPONSE
+
+    @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_spreadsheet")
+    def test_get_sheet_titles(self, mock_get_spreadsheet):
+        sheet1 = {"properties": {"title": "title1"}}
+        sheet2 = {"properties": {"title": "title2"}}
+        mock_get_spreadsheet.return_value = {"sheets": [sheet1, sheet2]}
+
+        result = self.hook.get_sheet_titles(spreadsheet_id=SPREADHSEET_ID)
+        mock_get_spreadsheet.assert_called_once_with(spreadsheet_id=SPREADHSEET_ID)
+        assert result == ["title1", "title2"]
+
+        result = self.hook.get_sheet_titles(spreadsheet_id=SPREADHSEET_ID, sheet_filter=["title1"])
+        assert result == ["title1"]
+
+    @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
+    def test_create_spreadsheet(self, mock_get_conn):
+        spreadsheet = mock.MagicMock()
+
+        create_mock = mock_get_conn.return_value.spreadsheets.return_value.create
+        create_mock.return_value.execute.return_value = API_RESPONSE
+
+        result = self.hook.create_spreadsheet(spreadsheet=spreadsheet)
+
+        create_mock.assert_called_once_with(body=spreadsheet)
+        assert result == API_RESPONSE
