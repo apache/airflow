@@ -21,7 +21,6 @@ import json
 import logging
 import signal
 import subprocess
-import textwrap
 from typing import List
 
 from tabulate import tabulate
@@ -40,7 +39,7 @@ from airflow.utils.dot_renderer import render_dag
 from airflow.utils.session import create_session
 
 
-def _tabulate_dag_runs(dag_runs: List[DagRun], tablefmt="fancy_grid"):
+def _tabulate_dag_runs(dag_runs: List[DagRun], tablefmt: str = "fancy_grid") -> str:
     tabulat_data = (
         {
             'ID': dag_run.id,
@@ -52,9 +51,24 @@ def _tabulate_dag_runs(dag_runs: List[DagRun], tablefmt="fancy_grid"):
             'End date': dag_run.end_date.isoformat() if dag_run.end_date else '',
         } for dag_run in dag_runs
     )
-    return "\n%s" % tabulate(
+    return tabulate(
         tabular_data=tabulat_data,
         tablefmt=tablefmt
+    )
+
+
+def _tabulate_dags(dags: List[DAG], tablefmt: str = "fancy_grid") -> str:
+    tabulat_data = (
+        {
+            'DAG ID': dag.dag_id,
+            'Filepath': dag.filepath,
+            'Owner': dag.owner,
+        } for dag in sorted(dags, key=lambda d: d.dag_id)
+    )
+    return tabulate(
+        tabular_data=tabulat_data,
+        tablefmt=tablefmt,
+        headers='keys'
     )
 
 
@@ -260,16 +274,15 @@ def dag_next_execution(args):
 def dag_list_dags(args):
     """Displays dags with or without stats at the command line"""
     dagbag = DagBag(process_subdir(args.subdir))
-    list_template = textwrap.dedent("""\n
-    -------------------------------------------------------------------
-    DAGS
-    -------------------------------------------------------------------
-    {dag_list}
-    """)
-    dag_list = "\n".join(sorted(dagbag.dags))
-    print(list_template.format(dag_list=dag_list))
-    if args.report:
-        print(dagbag.dagbag_report())
+    dags = dagbag.dags.values()
+    print(_tabulate_dags(dags, tablefmt=args.output))
+
+
+@cli_utils.action_logging
+def dag_report(args):
+    """Displays dagbag stats at the command line"""
+    dagbag = DagBag(process_subdir(args.subdir))
+    print(tabulate(dagbag.dagbag_stats, headers="keys", tablefmt=args.output))
 
 
 @cli_utils.action_logging

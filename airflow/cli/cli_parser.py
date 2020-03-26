@@ -221,12 +221,6 @@ ARG_TREE = Arg(
     help="Tree view",
     action="store_true")
 
-# list_dags
-ARG_REPORT = Arg(
-    ("-r", "--report"),
-    help="Show DagBag loading report",
-    action="store_true")
-
 # clear
 ARG_UPSTREAM = Arg(
     ("-u", "--upstream"),
@@ -665,7 +659,13 @@ DAGS_COMMANDS = (
         name='list',
         help="List all the DAGs",
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_dags'),
-        args=(ARG_SUBDIR, ARG_REPORT),
+        args=(ARG_SUBDIR, ARG_OUTPUT),
+    ),
+    ActionCommand(
+        name='report',
+        help='Show DagBag loading report',
+        func=lazy_load_command('airflow.cli.commands.dag_command.dag_report'),
+        args=(ARG_SUBDIR, ARG_OUTPUT),
     ),
     ActionCommand(
         name='list_runs',
