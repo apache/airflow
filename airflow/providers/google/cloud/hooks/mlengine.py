@@ -431,7 +431,6 @@ class MLEngineHook(CloudBaseHook):
             if e.resp.status != 409:
                 raise e
             str(e)  # Fills in the error_details field
-
             if not e.error_details or len(e.error_details) != 1:
                 raise e
 
