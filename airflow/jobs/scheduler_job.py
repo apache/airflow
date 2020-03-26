@@ -43,6 +43,7 @@ from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagModel, SlaMiss, errors
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies import SCHEDULED_DEPS
@@ -912,6 +913,11 @@ class DagFileProcessor(LoggingMixin):
                 # Task starts out in the scheduled state. All tasks in the
                 # scheduled state will be sent to the executor
                 ti.state = State.SCHEDULED
+                # If the task is dummy, then mark it as done automatically
+                if isinstance(ti.task, DummyOperator) \
+                        and not ti.task.on_execute_callback \
+                        and not ti.task.on_success_callback:
+                    ti.state = State.SUCCESS
 
             # Also save this task instance to the DB.
             self.log.info("Creating / updating %s in ORM", ti)

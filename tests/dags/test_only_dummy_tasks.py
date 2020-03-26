@@ -15,25 +15,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from datetime import datetime
 
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
+from airflow.models import DAG
+from airflow.operators.dummy_operator import DummyOperator
 
+DEFAULT_DATE = datetime(2016, 1, 1)
 
-class DummyOperator(BaseOperator):
-    """
-    Operator that does literally nothing. It can be used to group tasks in a
-    DAG.
+default_args = {
+    "owner": "airflow",
+    "start_date": DEFAULT_DATE,
+}
 
-    The task that uses this operator is automatically marked as successfully completed by the scheduler
-    and is never processed by the executor.
-    """
+dag = DAG(dag_id="test_only_dummy_tasks", default_args=default_args, schedule_interval='@once')
 
-    ui_color = '#e8f7e4'
+with dag:
+    task_a = DummyOperator(task_id="test_task_a")
 
-    @apply_defaults
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    task_b = DummyOperator(task_id="test_task_b")
 
-    def execute(self, context):
-        pass
+    task_a >> task_b
+
+    task_c = DummyOperator(task_id="test_task_c")
+
+    task_d = DummyOperator(task_id="test_task_on_execute", on_execute_callback=lambda *args, **kwargs: 1)
+
+    task_e = DummyOperator(task_id="test_task_on_success", on_success_callback=lambda *args, **kwargs: 1)
