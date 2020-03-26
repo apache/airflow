@@ -1271,7 +1271,7 @@ class DAG(BaseDag, LoggingMixin):
             if dag.is_paused_upon_creation is not None:
                 orm_dag.is_paused = dag.is_paused_upon_creation
             orm_dag.tags = []
-            log.info("Creating ORM DAG for %s", dag.dag_id)
+            log.info("Creating ORM DAG for %s %s", dag.dag_id, orm_dag.is_paused)
             session.add(orm_dag)
             orm_dags.append(orm_dag)
 
