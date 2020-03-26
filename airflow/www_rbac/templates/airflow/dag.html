@@ -413,6 +413,7 @@
     {% endif %}
 
     function call_modal(t, d, extra_links, try_numbers, sd) {
+      $('#double_check_result').html('');
       task_id = t;
       loc = String(window.location);
       $("#btn_filter").on("click", function () {
@@ -524,7 +525,7 @@
       $("#dagModal").css("margin-top", "0px");
     }
 
-    function call_modal_double_check(dag_id) {
+    function call_modal_double_check() {
       $('#doubleCheckModal').modal({});
       $("#doubleCheckModal").css("margin-top", "0px");
     }
@@ -543,13 +544,6 @@
         EXCEPT Log.\n\
         This cannot be undone.")) {
         postAsForm(link.href, {});
-      }
-      return false;
-    }
-
-    function confirmDoubleCheck(link, dag_id) {
-      if (confirm("double check '" + dag_id)) {
-        // postAsForm(link.href, {});
       }
       return false;
     }
@@ -621,8 +615,6 @@
           final_state: finalState,
           execution_date: execution_date
         }),
-        success: function () {
-        },
         dataType: "json",
         contentType: "application/json"
       }).then(function (resp) {
