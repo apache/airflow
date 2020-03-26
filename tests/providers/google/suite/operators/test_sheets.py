@@ -162,6 +162,7 @@ class TestGCStoGoogleSheets:
         file_handle = mock.MagicMock()
         mock_tempfile.return_value.__enter__.return_value = file_handle
         mock_tempfile.return_value.__enter__.return_value.name = filename
+        mock_reader.return_value = VALUES
 
         op = GCStoGoogleSheets(
             task_id="test_task",
@@ -177,14 +178,14 @@ class TestGCStoGoogleSheets:
         )
         mock_gcs_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, delegate_to=None)
 
-        mock_gcs_hook.download.assert_called_once_with(
-            bucket_name=BUCKET, object_name=filename, filename=filename
+        mock_gcs_hook.return_value.download.assert_called_once_with(
+            bucket_name=BUCKET, object_name=PATH, filename=filename
         )
 
         mock_reader.assert_called_once_with(file_handle)
 
         mock_sheet_hook.return_value.update_values.assert_called_once_with(
             spreadsheet_id=SPREADSHEET_ID,
-            spreadsheet_range="Sheet1",
-            values=mock_reader.return_value,
+            range_="Sheet1",
+            values=VALUES,
         )

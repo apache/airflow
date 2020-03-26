@@ -28,6 +28,10 @@ class GoogleSheetsCreateSpreadsheet(BaseOperator):
     """
     Creates a new spreadsheet.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleSheetsCreateSpreadsheet`
+
     :param spreadsheet: an instance of Spreadsheet
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets#Spreadsheet
     :type spreadsheet: Dict[str, Any]
@@ -63,6 +67,10 @@ class GoogleSheetsCreateSpreadsheet(BaseOperator):
 class GoogleSheetsToGCSOperator(BaseOperator):
     """
     Writes Google Sheet data into Google Cloud Storage.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleSheetsToGCSOperator`
 
     :param spreadsheet_id: The Google Sheet ID to interact with.
     :type spreadsheet_id: str
@@ -161,6 +169,10 @@ class GoogleSheetsToGCSOperator(BaseOperator):
 class GCStoGoogleSheets(BaseOperator):
     """
     Uploads .csv file from Google Cloud Storage to provided Google Spreadsheet.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GCStoGoogleSheets`
 
     :param spreadsheet_id: The Google Sheet ID to interact with.
     :type spreadsheet_id: str

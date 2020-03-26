@@ -42,27 +42,35 @@ with models.DAG(
     schedule_interval=None,  # Override to match your needs
     tags=["example"],
 ) as dag:
+    # [START upload_sheet_to_gcs]
     upload_sheet_to_gcs = GoogleSheetsToGCSOperator(
         task_id="upload_sheet_to_gcs",
         destination_bucket=GCS_BUCKET,
         spreadsheet_id=SPREADSHEET_ID,
     )
+    # [END upload_sheet_to_gcs]
 
+    # [START create_spreadsheet]
     create_spreadsheet = GoogleSheetsCreateSpreadsheet(
         task_id="create_spreadsheet", spreadsheet=SPREADSHEET
     )
+    # [END create_spreadsheet]
 
+    # [START print_spreadsheet_url]
     print_spreadsheet_url = BashOperator(
         task_id="print_spreadsheet_url",
         bash_command="echo {{ task_instance.xcom_pull('create_spreadsheet', key='spreadsheet_url') }}",
     )
+    # [END print_spreadsheet_url]
 
+    # [START upload_gcs_to_sheet]
     upload_gcs_to_sheet = GCStoGoogleSheets(
         task_id="upload_gcs_to_sheet",
         bucket_name=GCS_BUCKET,
         object_name="{{ task_instance.xcom_pull('upload_sheet_to_gcs')[0] }}",
         spreadsheet_id=NEW_SPREADSHEET_ID,
     )
+    # [END upload_gcs_to_sheet]
 
     create_spreadsheet >> print_spreadsheet_url
     upload_sheet_to_gcs >> upload_gcs_to_sheet
