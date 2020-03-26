@@ -39,7 +39,7 @@ from sqlalchemy.orm.session import Session
 from airflow import settings, utils
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag
-from airflow.exceptions import AirflowException, DagNotFound, DuplicateTaskIdFound, TaskNotFound
+from airflow.exceptions import AirflowException, DuplicateTaskIdFound, TaskNotFound,
 from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
@@ -1801,31 +1801,27 @@ class DagModel(Base):
     def set_is_paused(self,
                       is_paused: bool,
                       including_subdags: bool = True,
-                      store_serialized_dags: bool = False,
                       session=None) -> None:
         """
         Pause/Un-pause a DAG.
 
         :param is_paused: Is the DAG paused
         :param including_subdags: whether to include the DAG's subdags
-        :param store_serialized_dags: whether to serialize DAGs & store it in DB
         :param session: session
         """
-        dag_ids = [self.dag_id]  # type: List[str]
+        filter_query = [
+            DagModel.dag_id == self.dag_id,
+        ]
         if including_subdags:
-            dag = self.get_dag(store_serialized_dags)
-            if dag is None:
-                raise DagNotFound("Dag id {} not found".format(self.dag_id))
-            subdags = dag.subdags
-            dag_ids.extend([subdag.dag_id for subdag in subdags])
-        dag_models = session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).all()
-        try:
-            for dag_model in dag_models:
-                dag_model.is_paused = is_paused
-            session.commit()
-        except Exception:
-            session.rollback()
-            raise
+            filter_query.append(
+                DagModel.root_dag_id == self.dag_id
+            )
+        session.query(DagModel).filter(or_(
+            *filter_query
+        )).update(
+            {DagModel.is_paused: is_paused}, synchronize_session='fetch'
+        )
+        session.commit()
 
     @classmethod
     @provide_session

@@ -44,7 +44,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
-from airflow.utils.session import create_session
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime as datetime_tz
 from airflow.utils.types import DagRunType
@@ -783,8 +783,8 @@ class TestDag(unittest.TestCase):
         self.assertEqual(orm_dag.default_view, "graph")
         session.close()
 
-    @patch('airflow.models.dag.DagBag')
-    def test_is_paused_subdag(self, mock_dag_bag):
+    @provide_session
+    def test_is_paused_subdag(self, session):
         subdag_id = 'dag.subdag'
         subdag = DAG(
             subdag_id,
@@ -807,33 +807,52 @@ class TestDag(unittest.TestCase):
                 subdag=subdag
             )
 
-        mock_dag_bag.return_value.get_dag.return_value = dag
+        # parent_dag and is_subdag was set by DagBag. We don't use DagBag, so this value is not set.
+        subdag.parent_dag = dag
+        subdag.is_subdag = True
 
-        session = settings.Session()
+        session.query(DagModel).filter(DagModel.dag_id.in_([subdag_id, dag_id])).delete(
+            synchronize_session=False
+        )
+
         dag.sync_to_db(session=session)
 
         unpaused_dags = session.query(
-            DagModel
+            DagModel.dag_id, DagModel.is_paused
         ).filter(
             DagModel.dag_id.in_([subdag_id, dag_id]),
-        ).filter(
-            DagModel.is_paused.is_(False)
-        ).count()
+        ).all()
 
-        self.assertEqual(2, unpaused_dags)
+        self.assertEqual({
+            (dag_id, False),
+            (subdag_id, False),
+        }, set(unpaused_dags))
+
+        DagModel.get_dagmodel(dag.dag_id).set_is_paused(is_paused=True, including_subdags=False)
+
+        paused_dags = session.query(
+            DagModel.dag_id, DagModel.is_paused
+        ).filter(
+            DagModel.dag_id.in_([subdag_id, dag_id]),
+        ).all()
+
+        self.assertEqual({
+            (dag_id, True),
+            (subdag_id, False),
+        }, set(paused_dags))
 
         DagModel.get_dagmodel(dag.dag_id).set_is_paused(is_paused=True)
 
         paused_dags = session.query(
-            DagModel
+            DagModel.dag_id, DagModel.is_paused
         ).filter(
             DagModel.dag_id.in_([subdag_id, dag_id]),
-        ).filter(
-            DagModel.is_paused.is_(True)
-        ).count()
+        ).all()
 
-        self.assertEqual(2, paused_dags)
-        session.close()
+        self.assertEqual({
+            (dag_id, True),
+            (subdag_id, True),
+        }, set(paused_dags))
 
     def test_existing_dag_is_paused_upon_creation(self):
         dag = DAG(
