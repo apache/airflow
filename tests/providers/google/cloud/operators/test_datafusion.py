@@ -35,7 +35,7 @@ PIPELINE_NAME = "shrubberyPipeline"
 PIPELINE = {"test": "pipeline"}
 INSTANCE_URL = "http://datafusion.instance.com"
 NAMESPACE = "TEST_NAMESPACE"
-
+RUNTIME_ARGS = {"arg1": "a", "arg2": "b"}
 
 class TestCloudDataFusionUpdateInstanceOperator:
     @mock.patch(HOOK_STR)
@@ -195,15 +195,15 @@ class TestCloudDataFusionStartPipelineOperator:
             namespace=NAMESPACE,
             location=LOCATION,
             project_id=PROJECT_ID,
-            runtime_args='{"foo":"bar"}'
+            runtime_args=RUNTIME_ARGS
         )
         op.execute({})
         mock_hook.return_value.get_instance.assert_called_once_with(
-            instance_name=INSTANCE_NAME, location=LOCATION, project_id=PROJECT_ID, runtime_args='{"foo":"bar"}'
+            instance_name=INSTANCE_NAME, location=LOCATION, project_id=PROJECT_ID
         )
 
         mock_hook.return_value.start_pipeline.assert_called_once_with(
-            instance_url=INSTANCE_URL, pipeline_name=PIPELINE_NAME, namespace=NAMESPACE, runtime_args='{"foo":"bar"}'
+            instance_url=INSTANCE_URL, pipeline_name=PIPELINE_NAME, namespace=NAMESPACE, runtime_args=RUNTIME_ARGS 
         )
 
 

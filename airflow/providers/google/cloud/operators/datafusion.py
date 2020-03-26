@@ -618,8 +618,8 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
     :type instance_name: str
     :param location: The Cloud Data Fusion location in which to handle the request.
     :type location: str
-    :param runtime_args: Optional runtime args as JSON string to be passed to the pipeline
-    :type runtime_args: str
+    :param runtime_args: Optional runtime args to be passed to the pipeline
+    :type runtime_args: dict
     :param namespace: If your pipeline belongs to a Basic edition instance, the namespace ID
         is always default. If your pipeline belongs to an Enterprise edition instance, you
         can create a namespace.
@@ -641,7 +641,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         pipeline_name: str,
         instance_name: str,
         location: str,
-        runtime_args: Optional[str] = None,
+        runtime_args: Optional[Dict[str, Any]] = None,
         namespace: str = "default",
         project_id: Optional[str] = None,
         api_version: str = "v1beta1",
