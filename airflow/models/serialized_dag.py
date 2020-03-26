@@ -27,10 +27,10 @@ from sqlalchemy import BigInteger, Column, Index, String, and_
 from sqlalchemy.sql import exists
 
 from airflow.models.base import ID_LEN, Base
-from airflow.models.dag import DAG
+from airflow.models.dag import DAG, DagModel
 from airflow.models.dagcode import DagCode
 from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.settings import json
+from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, STORE_SERIALIZED_DAGS, json
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -182,7 +182,6 @@ class SerializedDagModel(Base):
         :param dag_id: the DAG to fetch
         :param session: ORM Session
         """
-        from airflow.models.dag import DagModel
         row = session.query(cls).filter(cls.dag_id == dag_id).one_or_none()
         if row:
             return row
@@ -193,3 +192,24 @@ class SerializedDagModel(Base):
             DagModel.root_dag_id).filter(DagModel.dag_id == dag_id).scalar()
 
         return session.query(cls).filter(cls.dag_id == root_dag_id).one_or_none()
+
+    @staticmethod
+    @provide_session
+    def bulk_sync_to_db(dags: List[DAG], session=None):
+        """
+        Saves DAGs as Seralized DAG objects in the database. Each DAG is saved in a separate database query.
+
+        :param dags: the DAG objects to save to the DB
+        :type dags: List[airflow.models.dag.DAG]
+        :return: None
+        """
+        if not STORE_SERIALIZED_DAGS:
+            return
+
+        for dag in dags:
+            if not dag.is_subdag:
+                SerializedDagModel.write_dag(
+                    dag,
+                    min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
+                    session=session
+                )

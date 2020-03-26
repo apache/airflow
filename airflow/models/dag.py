@@ -49,7 +49,6 @@ from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
-from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, STORE_SERIALIZED_DAGS
 from airflow.utils import timezone
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.file import correct_maybe_zipped
@@ -1475,7 +1474,6 @@ class DAG(BaseDag, LoggingMixin):
         """
         if not dags:
             return
-        from airflow.models.serialized_dag import SerializedDagModel
 
         if sync_time is None:
             sync_time = timezone.utcnow()
@@ -1536,16 +1534,6 @@ class DAG(BaseDag, LoggingMixin):
             DagCode.bulk_sync_to_db([dag.fileloc for dag in orm_dags])
 
         session.commit()
-
-        for dag in dags:
-            cls.bulk_sync_to_db(dag.subdags, sync_time=sync_time, session=session)
-
-            if STORE_SERIALIZED_DAGS and not dag.is_subdag:
-                SerializedDagModel.write_dag(
-                    dag,
-                    min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
-                    session=session
-                )
 
     @provide_session
     def sync_to_db(self, sync_time=None, session=None):

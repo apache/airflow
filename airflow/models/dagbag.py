@@ -455,5 +455,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         """
         Save attributes about list of DAG to the DB.
         """
+        # To avoid circular import - airflow.models.dagbag -> airflow.models.dag -> airflow.models.dagbag
         from airflow.models.dag import DAG
+        from airflow.models.serialized_dag import SerializedDagModel
         DAG.bulk_sync_to_db(self.dags.values())
+        SerializedDagModel.bulk_sync_to_db(self.dags.values())
