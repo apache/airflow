@@ -213,14 +213,14 @@ def dag_show(args):
         )
         sys.exit(1)
     elif filename:
-        save_dot_to_file(dot, filename)
+        _save_dot_to_file(dot, filename)
     elif imgcat:
-        display_dot_via_imgcat(dot)
+        _display_dot_via_imgcat(dot)
     else:
         print(dot.source)
 
 
-def display_dot_via_imgcat(dot: Dot):
+def _display_dot_via_imgcat(dot: Dot):
     data = dot.pipe(format='png')
     try:
         proc = subprocess.Popen("imgcat", stdout=subprocess.PIPE, stdin=subprocess.PIPE)
@@ -238,7 +238,7 @@ def display_dot_via_imgcat(dot: Dot):
         print(err.decode('utf-8'))
 
 
-def save_dot_to_file(dot: Dot, filename: str):
+def _save_dot_to_file(dot: Dot, filename: str):
     _, _, fileformat = filename.rpartition('.')
     dot.render(filename=filename, format=fileformat, cleanup=True)
     print("File {} saved".format(filename))
@@ -390,11 +390,11 @@ def dag_test(args, session=None):
             TaskInstance.execution_date == args.execution_date,
         ).all()
 
-        dot_graph = render_dag(dag, tis)
+        dot_graph = render_dag(dag, tis=tis)
         print()
         if filename:
-            save_dot_to_file(dot_graph, filename)
+            _save_dot_to_file(dot_graph, filename)
         if imgcat:
-            display_dot_via_imgcat(dot_graph)
+            _display_dot_via_imgcat(dot_graph)
         if show_dagrun:
             print(dot_graph.source)

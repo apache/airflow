@@ -411,3 +411,55 @@ class TestCliDags(unittest.TestCase):
     def test_dag_state(self):
         self.assertEqual(None, dag_command.dag_state(self.parser.parse_args([
             'dags', 'state', 'example_bash_operator', DEFAULT_DATE.isoformat()])))
+
+    @mock.patch("airflow.cli.commands.dag_command.DebugExecutor")
+    @mock.patch("airflow.cli.commands.dag_command.get_dag")
+    def test_dag_test(self, mock_get_dag, mock_executor):
+        cli_args = self.parser.parse_args(['dags', 'test', 'example_bash_operator', DEFAULT_DATE.isoformat()])
+        dag_command.dag_test(cli_args)
+
+        mock_get_dag.assert_has_calls([
+            mock.call(
+                subdir=cli_args.subdir, dag_id='example_bash_operator'
+            ),
+            mock.call().clear(
+                start_date=cli_args.execution_date, end_date=cli_args.execution_date, reset_dag_runs=True
+            ),
+            mock.call().run(
+                executor=mock_executor.return_value,
+                start_date=cli_args.execution_date,
+                end_date=cli_args.execution_date
+            )
+        ])
+
+    @mock.patch(
+        "airflow.cli.commands.dag_command.render_dag", **{'return_value.source': "SOURCE"}  # type: ignore
+    )
+    @mock.patch("airflow.cli.commands.dag_command.DebugExecutor")
+    @mock.patch("airflow.cli.commands.dag_command.get_dag")
+    def test_dag_test_show_dag(self, mock_get_dag, mock_executor, mock_render_dag):
+        cli_args = self.parser.parse_args([
+            'dags', 'test', 'example_bash_operator', DEFAULT_DATE.isoformat(), '--show-dagrun'
+        ])
+        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+            dag_command.dag_test(cli_args)
+
+        output = stdout.getvalue()
+
+        mock_get_dag.assert_has_calls([
+            mock.call(
+                subdir=cli_args.subdir, dag_id='example_bash_operator'
+            ),
+            mock.call().clear(
+                start_date=cli_args.execution_date, end_date=cli_args.execution_date, reset_dag_runs=True
+            ),
+            mock.call().run(
+                executor=mock_executor.return_value,
+                start_date=cli_args.execution_date,
+                end_date=cli_args.execution_date
+            )
+        ])
+        mock_render_dag.assert_has_calls([
+            mock.call(mock_get_dag.return_value, tis=[])
+        ])
+        self.assertIn("SOURCE", output)

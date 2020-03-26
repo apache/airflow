@@ -21,10 +21,12 @@ import unittest
 
 import mock
 
+from airflow.models import TaskInstance
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils import dot_renderer
+from airflow.utils.state import State
 
 START_DATE = datetime.datetime.now()
 
@@ -52,3 +54,25 @@ class TestDotRenderer(unittest.TestCase):
         self.assertIn("first -> third", source)
         self.assertIn('fillcolor="#f0ede4"', source)
         self.assertIn('fillcolor="#f0ede4"', source)
+
+    def test_should_render_dag_with_task_instances(self):
+        dag = DAG(dag_id="DAG_ID")
+        task_1 = BashOperator(dag=dag, start_date=START_DATE, task_id="first", bash_command="echo 1")
+        task_2 = BashOperator(dag=dag, start_date=START_DATE, task_id="second", bash_command="echo 1")
+        task_3 = PythonOperator(
+            dag=dag, start_date=START_DATE, task_id="third", python_callable=mock.MagicMock()
+        )
+        task_1 >> task_2
+        task_1 >> task_3
+        tis = [
+            TaskInstance(task_1, execution_date=START_DATE, state=State.SCHEDULED),
+            TaskInstance(task_2, execution_date=START_DATE, state=State.SUCCESS),
+            TaskInstance(task_3, execution_date=START_DATE, state=State.RUNNING),
+        ]
+        dot = dot_renderer.render_dag(dag, tis=tis)
+        source = dot.source
+        # Should render DAG title
+        self.assertIn("label=DAG_ID", source)
+        self.assertIn('first [color=black fillcolor=tan shape=rectangle style="filled,rounded"]', source)
+        self.assertIn('second [color=white fillcolor=green shape=rectangle style="filled,rounded"]', source)
+        self.assertIn('third [color=black fillcolor=lime shape=rectangle style="filled,rounded"]', source)

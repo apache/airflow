@@ -19,9 +19,11 @@
 """
 Renderer DAG (tasks and dependencies) to the graphviz object.
 """
+from typing import List, Optional
 
 import graphviz
 
+from airflow.models import TaskInstance
 from airflow.models.dag import DAG
 from airflow.utils.state import State
 
@@ -42,11 +44,16 @@ def _refine_color(color: str):
     return color
 
 
-def render_dag(dag: DAG, tis=None) -> graphviz.Digraph:
+def render_dag(dag: DAG, tis: Optional[List[TaskInstance]] = None) -> graphviz.Digraph:
     """
     Renders the DAG object to the DOT object.
 
+    If an task instance list is passed, the nodes will be painted according to task statuses.
+
     :param dag: DAG that will be rendered.
+    :type dag: airflow.models.dag.DAG
+    :param tis: List of task instances
+    :type tis: Optional[List[TaskInstance]]
     :return: Graphviz object
     :rtype: graphviz.Digraph
     """
