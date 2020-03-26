@@ -2717,6 +2717,40 @@ class TaskInstanceModelView(AirflowModelView):
         self.update_redirect()
         return redirect(self.get_redirect())
 
+    @expose('/analysis_result', methods=['PUT'])
+    @provide_session
+    def put_anaylysis_result(self, session=None):
+        TiModel = models.TaskInstance
+        dag_id = request.values.get('dag_id')
+        task_id = request.values.get('task_id')
+        real_task_id = request.values.get('real_task_id')
+        execution_date = request.values.get('exec_date')
+        result = request.values.get('result')  # OK, NOK
+        if result:
+            rresult = 'OK'
+        else:
+            rresult = 'NOK'
+        ti = session.query(TiModel).filter(
+            TiModel.id == real_task_id).first()
+        if not ti:
+            ti = session.query(TiModel).filter(
+                TiModel.dag_id == dag_id,
+                TiModel.task_id == task_id,
+                TiModel.execution_date == execution_date).first()
+        if not ti:
+            response = jsonify(
+                {'url': None,
+                 'error': "can't find dag {dag} or task_id {task_id}".format(
+                     dag= dag_id,
+                     task_id=task_id
+                 )}
+            )
+            response.status_code = 404
+            return response
+        ti.result = rresult
+        session.commit()
+        return json.dumps({'response': 'ok'})
+
     def get_one(self, id):
         """
         As a workaround for AIRFLOW-252, this method overrides Flask-Admin's
