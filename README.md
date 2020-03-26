@@ -59,14 +59,14 @@ Apache Airflow is tested with:
 ### Master version (2.0.0dev)
 
 * Python versions: 3.6, 3.7
-* Postgres DB: 9.6 10
+* Postgres DB: 9.6, 10
 * MySQL DB: 5.7
 * Sqlite - latest stable (it is used mainly for development purpose)
 
 ### Stable version (1.10.9)
 
 * Python versions: 2.7, 3.5, 3.6, 3.7
-* Postgres DB: 9.6 10
+* Postgres DB: 9.6, 10
 * MySQL DB: 5.6, 5.7
 * Sqlite - latest stable (it is used mainly for development purpose)
 
