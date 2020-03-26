@@ -44,6 +44,7 @@ class KubernetesHook(BaseHook):
         self,
         conn_id: str = "kubernetes_default"
     ):
+        super().__init__()
         self.conn_id = conn_id
 
     def get_conn(self):

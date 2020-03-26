@@ -40,7 +40,6 @@ class CloudNaturalLanguageAnalyzeEntitiesOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudNaturalLanguageAnalyzeEntitiesOperator`
 
-
     :param document: Input document.
         If a dict is provided, it must be of the same form as the protobuf message Document
     :type document: dict or google.cloud.language_v1.types.Document

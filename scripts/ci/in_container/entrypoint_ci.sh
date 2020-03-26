@@ -57,6 +57,12 @@ ARGS=( "$@" )
 RUN_TESTS=${RUN_TESTS:="true"}
 INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION:=""}"
 
+if [[ ${AIRFLOW_VERSION} == *1.10* || ${INSTALL_AIRFLOW_VERSION} == *1.10* ]]; then
+    export RUN_AIRFLOW_1_10="true"
+else
+    export RUN_AIRFLOW_1_10="false"
+fi
+
 if [[ ${INSTALL_AIRFLOW_VERSION} == "current" ]]; then
     if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/node_modules" ]]; then
         echo
@@ -85,11 +91,6 @@ if [[ ${INSTALL_AIRFLOW_VERSION} == "current" ]]; then
     mkdir -p "${AIRFLOW_SOURCES}"/tmp/
     export PYTHONPATH=${AIRFLOW_SOURCES}
 else
-    if [[ ${AIRFLOW_VERSION} == *1.10* || ${INSTALL_AIRFLOW_VERSION} == *1.10* ]]; then
-        export RUN_AIRFLOW_1_10="true"
-    else
-        export RUN_AIRFLOW_1_10="false"
-    fi
     install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}"
 fi
 

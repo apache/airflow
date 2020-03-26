@@ -90,6 +90,12 @@ class CheckOperator(BaseOperator):
         self.log.info("Success.")
 
     def get_db_hook(self):
+        """
+        Get the database hook for the connection.
+
+        :return: the database hook object.
+        :rtype: DbApiHook
+        """
         return BaseHook.get_hook(conn_id=self.conn_id)
 
 
@@ -195,6 +201,12 @@ class ValueCheckOperator(BaseOperator):
         return [record == numeric_pass_value_conv for record in numeric_records]
 
     def get_db_hook(self):
+        """
+        Get the database hook for the connection.
+
+        :return: the database hook object.
+        :rtype: DbApiHook
+        """
         return BaseHook.get_hook(conn_id=self.conn_id)
 
 
@@ -295,16 +307,16 @@ class IntervalCheckOperator(BaseOperator):
         ratios = {}
         test_results = {}
 
-        for m in self.metrics_sorted:
-            cur = current[m]
-            ref = reference[m]
-            threshold = self.metrics_thresholds[m]
+        for metric in self.metrics_sorted:
+            cur = current[metric]
+            ref = reference[metric]
+            threshold = self.metrics_thresholds[metric]
             if cur == 0 or ref == 0:
-                ratios[m] = None
-                test_results[m] = self.ignore_zero
+                ratios[metric] = None
+                test_results[metric] = self.ignore_zero
             else:
-                ratios[m] = self.ratio_formulas[self.ratio_formula](current[m], reference[m])
-                test_results[m] = ratios[m] < threshold
+                ratios[metric] = self.ratio_formulas[self.ratio_formula](current[metric], reference[metric])
+                test_results[metric] = ratios[metric] < threshold
 
             self.log.info(
                 (
@@ -312,13 +324,12 @@ class IntervalCheckOperator(BaseOperator):
                     "Past metric for %s: %s\n"
                     "Ratio for %s: %s\n"
                     "Threshold: %s\n"
-                ), m, cur, m, ref, m, ratios[m], threshold)
+                ), metric, cur, metric, ref, metric, ratios[metric], threshold)
 
         if not all(test_results.values()):
             failed_tests = [it[0] for it in test_results.items() if not it[1]]
-            j = len(failed_tests)
-            n = len(self.metrics_sorted)
-            self.log.warning("The following %s tests out of %s failed:", j, n)
+            self.log.warning("The following %s tests out of %s failed:",
+                             len(failed_tests), len(self.metrics_sorted))
             for k in failed_tests:
                 self.log.warning(
                     "'%s' check failed. %s is above %s", k, ratios[k], self.metrics_thresholds[k]
@@ -329,4 +340,10 @@ class IntervalCheckOperator(BaseOperator):
         self.log.info("All tests have passed")
 
     def get_db_hook(self):
+        """
+        Get the database hook for the connection.
+
+        :return: the database hook object.
+        :rtype: DbApiHook
+        """
         return BaseHook.get_hook(conn_id=self.conn_id)

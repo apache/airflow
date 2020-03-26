@@ -19,24 +19,24 @@
 """
 This module contains a Google Cloud API base hook.
 """
-
 import functools
 import json
 import logging
 import os
 import tempfile
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, Optional, Sequence, TypeVar
+from subprocess import check_output
+from typing import Any, Callable, Dict, Optional, Sequence, Tuple, TypeVar
 
 import google.auth
+import google.auth.credentials
 import google.oauth2.service_account
 import google_auth_httplib2
 import httplib2
 import tenacity
-from google.api_core.exceptions import (
-    AlreadyExists, Forbidden, GoogleAPICallError, ResourceExhausted, RetryError, TooManyRequests,
-)
+from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
 from google.api_core.gapic_v1.client_info import ClientInfo
+from google.auth import _cloud_sdk
 from google.auth.environment_vars import CREDENTIALS
 from googleapiclient.errors import HttpError
 from googleapiclient.http import set_user_agent
@@ -44,11 +44,13 @@ from googleapiclient.http import set_user_agent
 from airflow import version
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.providers.google.cloud.utils.credentials_provider import (
+    _get_scopes, get_credentials_and_project_id,
+)
+from airflow.utils.process_utils import patch_environ
 
 log = logging.getLogger(__name__)
 
-
-_DEFAULT_SCOPES = ('https://www.googleapis.com/auth/cloud-platform',)  # type: Sequence[str]
 
 # Constants used by the mechanism of repeating requests in reaction to exceeding the temporary quota.
 INVALID_KEYS = [
@@ -91,11 +93,30 @@ def is_soft_quota_exception(exception: Exception):
     return False
 
 
+def is_operation_in_progress_exception(exception: Exception):
+    """
+    Some of the calls return 429 (too many requests!) or 409 errors (Conflict)
+    in case of operation in progress.
+
+    * Google Cloud SQL
+    """
+    if isinstance(exception, HttpError):
+        return exception.resp.status == 429 or exception.resp.status == 409
+    return False
+
+
 class retry_if_temporary_quota(tenacity.retry_if_exception):  # pylint: disable=invalid-name
     """Retries if there was an exception for exceeding the temporary quote limit."""
 
     def __init__(self):
         super().__init__(is_soft_quota_exception)
+
+
+class retry_if_operation_in_progress(tenacity.retry_if_exception):  # pylint: disable=invalid-name
+    """Retries if there was an exception for exceeding the temporary quote limit."""
+
+    def __init__(self):
+        super().__init__(is_operation_in_progress_exception)
 
 
 RT = TypeVar('RT')  # pylint: disable=invalid-name
@@ -134,67 +155,42 @@ class CloudBaseHook(BaseHook):
     """
 
     def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: Optional[str] = None) -> None:
+        super().__init__()
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.extras = self.get_connection(self.gcp_conn_id).extra_dejson  # type: Dict
+        self._cached_credentials: Optional[google.auth.credentials.Credentials] = None
+        self._cached_project_id: Optional[str] = None
 
-    def _get_credentials_and_project_id(self) -> google.auth.credentials.Credentials:
+    def _get_credentials_and_project_id(self) -> Tuple[google.auth.credentials.Credentials, Optional[str]]:
         """
         Returns the Credentials object for Google API and the associated project_id
         """
-        key_path = self._get_field('key_path', None)  # type: Optional[str]
-        keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[str]
-        if key_path and keyfile_dict:
-            raise AirflowException(
-                "The `keyfile_dict` and `key_path` fields are mutually exclusive. "
-                "Please provide only one value."
-            )
-        if not key_path and not keyfile_dict:
-            self.log.info(
-                'Getting connection using `google.auth.default()` since no key file is defined for hook.'
-            )
-            credentials, project_id = google.auth.default(scopes=self.scopes)
-        elif key_path:
-            # Get credentials from a JSON file.
-            if key_path.endswith('.json'):
-                self.log.debug('Getting connection using JSON key file %s', key_path)
-                credentials = (
-                    google.oauth2.service_account.Credentials.from_service_account_file(
-                        key_path, scopes=self.scopes)
-                )
-                project_id = credentials.project_id
-            elif key_path.endswith('.p12'):
-                raise AirflowException(
-                    'Legacy P12 key file are not supported, use a JSON key file.'
-                )
-            else:
-                raise AirflowException('Unrecognised extension for key file.')
-        else:
-            # Get credentials from JSON data provided in the UI.
-            try:
-                if not keyfile_dict:
-                    raise ValueError("The keyfile_dict should be set")
-                keyfile_dict_json: Dict[str, str] = json.loads(keyfile_dict)
+        if self._cached_credentials is not None:
+            return self._cached_credentials, self._cached_project_id
 
-                # Depending on how the JSON was formatted, it may contain
-                # escaped newlines. Convert those to actual newlines.
-                keyfile_dict_json['private_key'] = keyfile_dict_json['private_key'].replace(
-                    '\\n', '\n')
+        key_path: Optional[str] = self._get_field('key_path', None)
+        try:
+            keyfile_dict: Optional[str] = self._get_field('keyfile_dict', None)
+            keyfile_dict_json: Optional[Dict[str, str]] = None
+            if keyfile_dict:
+                keyfile_dict_json = json.loads(keyfile_dict)
+        except json.decoder.JSONDecodeError:
+            raise AirflowException('Invalid key JSON.')
 
-                credentials = (
-                    google.oauth2.service_account.Credentials.from_service_account_info(
-                        keyfile_dict_json, scopes=self.scopes)
-                )
-                project_id = credentials.project_id
-            except json.decoder.JSONDecodeError:
-                raise AirflowException('Invalid key JSON.')
-
-        if self.delegate_to:
-            credentials = credentials.with_subject(self.delegate_to)
+        credentials, project_id = get_credentials_and_project_id(
+            key_path=key_path,
+            keyfile_dict=keyfile_dict_json,
+            scopes=self.scopes,
+            delegate_to=self.delegate_to
+        )
 
         overridden_project_id = self._get_field('project')
         if overridden_project_id:
             project_id = overridden_project_id
+
+        self._cached_credentials = credentials
+        self._cached_project_id = project_id
 
         return credentials, project_id
 
@@ -280,13 +276,12 @@ class CloudBaseHook(BaseHook):
         """
         scope_value = self._get_field('scope', None)  # type: Optional[str]
 
-        return [s.strip() for s in scope_value.split(',')] \
-            if scope_value else _DEFAULT_SCOPES
+        return _get_scopes(scope_value)
 
     @staticmethod
     def quota_retry(*args, **kwargs) -> Callable:
         """
-        A decorator who provides a mechanism to repeat requests in response to exceeding a temporary quote
+        A decorator that provides a mechanism to repeat requests in response to exceeding a temporary quote
         limit.
         """
         def decorator(fun: Callable):
@@ -303,36 +298,24 @@ class CloudBaseHook(BaseHook):
         return decorator
 
     @staticmethod
-    def catch_http_exception(func: Callable[..., RT]) -> Callable[..., RT]:
+    def operation_in_progress_retry(*args, **kwargs) -> Callable:
         """
-        Function decorator that intercepts HTTP Errors and raises AirflowException
-        with more informative message.
+        A decorator that provides a mechanism to repeat requests in response to
+        operation in progress (HTTP 409)
+        limit.
         """
-
-        @functools.wraps(func)
-        def wrapper_decorator(self: CloudBaseHook, *args, **kwargs) -> RT:
-            try:
-                return func(self, *args, **kwargs)
-            except GoogleAPICallError as e:
-                if isinstance(e, AlreadyExists):
-                    raise e
-                else:
-                    self.log.error('The request failed:\n%s', str(e))
-                    raise AirflowException(e)
-            except RetryError as e:
-                self.log.error('The request failed due to a retryable error and retry attempts failed.')
-                raise AirflowException(e)
-            except ValueError as e:
-                self.log.error('The request failed, the parameters are invalid.')
-                raise AirflowException(e)
-            except HttpError as e:
-                if hasattr(e, "content"):
-                    self.log.error('The request failed:\n%s', e.content.decode(encoding="utf-8"))
-                else:
-                    self.log.error('The request failed:\n%s', str(e))
-                raise AirflowException(e)
-
-        return wrapper_decorator
+        def decorator(fun: Callable):
+            default_kwargs = {
+                'wait': tenacity.wait_exponential(multiplier=1, max=300),
+                'retry': retry_if_operation_in_progress(),
+                'before': tenacity.before_log(log, logging.DEBUG),
+                'after': tenacity.after_log(log, logging.DEBUG),
+            }
+            default_kwargs.update(**kwargs)
+            return tenacity.retry(
+                *args, **default_kwargs
+            )(fun)
+        return decorator
 
     @staticmethod
     def fallback_to_default_project_id(func: Callable[..., RT]) -> Callable[..., RT]:
@@ -387,28 +370,77 @@ class CloudBaseHook(BaseHook):
         It can be used to provide credentials for external programs (e.g. gcloud) that expect authorization
         file in ``GOOGLE_APPLICATION_CREDENTIALS`` environment variable.
         """
-        with tempfile.NamedTemporaryFile(mode='w+t') as conf_file:
-            key_path = self._get_field('key_path', None)  # type: Optional[str]  # noqa: E501  #  pylint: disable=protected-access
-            keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[Dict]  # noqa: E501  # pylint: disable=protected-access
-            current_env_state = os.environ.get(CREDENTIALS)
-            try:
-                if key_path:
-                    if key_path.endswith('.p12'):
-                        raise AirflowException(
-                            'Legacy P12 key file are not supported, use a JSON key file.'
-                        )
-                    os.environ[CREDENTIALS] = key_path
-                elif keyfile_dict:
-                    conf_file.write(keyfile_dict)
-                    conf_file.flush()
-                    os.environ[CREDENTIALS] = conf_file.name
-                else:
-                    # We will use the default service account credentials.
-                    pass
-                yield conf_file
-            finally:
-                if current_env_state is None:
-                    if CREDENTIALS in os.environ:
-                        del os.environ[CREDENTIALS]
-                else:
-                    os.environ[CREDENTIALS] = current_env_state
+        key_path = self._get_field('key_path', None)  # type: Optional[str]  # noqa: E501  #  pylint: disable=protected-access
+        keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[Dict]  # noqa: E501  # pylint: disable=protected-access
+        if key_path and keyfile_dict:
+            raise AirflowException(
+                "The `keyfile_dict` and `key_path` fields are mutually exclusive. "
+                "Please provide only one value."
+            )
+        elif key_path:
+            if key_path.endswith('.p12'):
+                raise AirflowException(
+                    'Legacy P12 key file are not supported, use a JSON key file.'
+                )
+            with patch_environ({CREDENTIALS: key_path}):
+                yield key_path
+        elif keyfile_dict:
+            with tempfile.NamedTemporaryFile(mode='w+t') as conf_file:
+                conf_file.write(keyfile_dict)
+                conf_file.flush()
+                with patch_environ({CREDENTIALS: conf_file.name}):
+                    yield conf_file.name
+        else:
+            # We will use the default service account credentials.
+            yield None
+
+    @contextmanager
+    def provide_authorized_gcloud(self):
+        """
+        Provides a separate gcloud configuration with current credentials.
+
+        The gcloud allows you to login to GCP only - ``gcloud auth login`` and
+        for the needs of Application Default Credentials ``gcloud auth application-default login``.
+        In our case, we want all commands to use only the credentials from ADCm so
+        we need to configure the credentials in gcloud manually.
+        """
+        credentials_path = _cloud_sdk.get_application_default_credentials_path()
+        project_id = self.project_id
+
+        with self.provide_gcp_credential_file_as_context(), \
+                tempfile.TemporaryDirectory() as gcloud_config_tmp, \
+                patch_environ({'CLOUDSDK_CONFIG': gcloud_config_tmp}):
+
+            if project_id:
+                # Don't display stdout/stderr for security reason
+                check_output([
+                    "gcloud", "config", "set", "core/project", project_id
+                ])
+            if CREDENTIALS in os.environ:
+                # This solves most cases when we are logged in using the service key in Airflow.
+                # Don't display stdout/stderr for security reason
+                check_output([
+                    "gcloud", "auth", "activate-service-account", f"--key-file={os.environ[CREDENTIALS]}",
+                ])
+            elif os.path.exists(credentials_path):
+                # If we are logged in by `gcloud auth application-default` then we need to log in manually.
+                # This will make the `gcloud auth application-default` and `gcloud auth` credentials equals.
+                with open(credentials_path) as creds_file:
+                    creds_content = json.loads(creds_file.read())
+                    # Don't display stdout/stderr for security reason
+                    check_output([
+                        "gcloud", "config", "set", "auth/client_id", creds_content["client_id"]
+                    ])
+                    # Don't display stdout/stderr for security reason
+                    check_output([
+                        "gcloud", "config", "set", "auth/client_secret", creds_content["client_secret"]
+                    ])
+                    # Don't display stdout/stderr for security reason
+                    check_output([
+                        "gcloud",
+                        "auth",
+                        "activate-refresh-token",
+                        creds_content["client_id"],
+                        creds_content["refresh_token"],
+                    ])
+            yield

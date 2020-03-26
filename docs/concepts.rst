@@ -121,7 +121,7 @@ DAGs can be used as context managers to automatically assign new operators to th
 DAG Runs
 ========
 
-A DAG run is a physical instance of a DAG, containing task instances that run for a specific ``execution_date``.
+A DAG run is an instantiation of a DAG, containing task instances that run for a specific ``execution_date``.
 
 A DAG run is usually created by the Airflow scheduler, but can also be created by an external trigger.
 Multiple DAG runs may be running at once for a particular DAG, each of them having a different ``execution_date``.
@@ -135,7 +135,7 @@ execution_date
 The ``execution_date`` is the *logical* date and time which the DAG Run, and its task instances, are running for.
 
 This allows task instances to process data for the desired *logical* date & time.
-While a task_instance or DAG run might have a *physical* start date of now,
+While a task_instance or DAG run might have a *actual* start date of now,
 their *logical* date might be 3 months ago because we are busy reloading something.
 
 In the prior example the ``execution_date`` was 2016-01-01 for the first DAG Run and 2016-01-02 for the second.
@@ -182,7 +182,7 @@ also have an indicative state, which could be "running", "success", "failed", "s
 for retry", etc.
 
 Tasks are defined in DAGs, and both are written in Python code to define what you want to do.
-Task Instances belong to DAG Runs, have an associated ``execution_date``, and are physicalised, runnable entities.
+Task Instances belong to DAG Runs, have an associated ``execution_date``, and are instantiated, runnable entities.
 
 Relations between Task Instances
 --------------------------------

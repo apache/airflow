@@ -42,7 +42,6 @@ from airflow.providers.google.cloud.operators.spanner import (
 )
 from airflow.utils.dates import days_ago
 
-# [START howto_operator_spanner_arguments]
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCP_SPANNER_INSTANCE_ID = os.environ.get('GCP_SPANNER_INSTANCE_ID', 'testinstance')
 GCP_SPANNER_DATABASE_ID = os.environ.get('GCP_SPANNER_DATABASE_ID', 'testdatabase')
@@ -52,7 +51,6 @@ GCP_SPANNER_NODE_COUNT = os.environ.get('GCP_SPANNER_NODE_COUNT', '1')
 GCP_SPANNER_DISPLAY_NAME = os.environ.get('GCP_SPANNER_DISPLAY_NAME', 'Test Instance')
 # OPERATION_ID should be unique per operation
 OPERATION_ID = 'unique_operation_id'
-# [END howto_operator_spanner_arguments]
 
 default_args = {
     'start_date': days_ago(1)

@@ -45,11 +45,12 @@ docker build \
     --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
     --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH}" \
     --build-arg AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" \
+    --build-arg UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD="${UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD}" \
     --build-arg HOME="${HOME}" \
     --cache-from "${AIRFLOW_CI_IMAGE}" \
     --tag="${AIRFLOW_CI_IMAGE}" \
     --target="main" \
-    -f Dockerfile . >> "${OUTPUT_LOG}"
+    -f Dockerfile.ci . >> "${OUTPUT_LOG}"
 echo
 echo "Adding kubernetes-specific scripts to basic CI image."
 echo "Building ${AIRFLOW_KUBERNETES_IMAGE} from ${AIRFLOW_CI_IMAGE}"

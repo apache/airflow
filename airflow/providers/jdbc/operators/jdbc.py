@@ -57,8 +57,9 @@ class JdbcOperator(BaseOperator):
         self.sql = sql
         self.jdbc_conn_id = jdbc_conn_id
         self.autocommit = autocommit
+        self.hook = None
 
     def execute(self, context):
         self.log.info('Executing: %s', self.sql)
-        self.hook = JdbcHook(jdbc_conn_id=self.jdbc_conn_id)
-        self.hook.run(self.sql, self.autocommit, parameters=self.parameters)
+        hook = JdbcHook(jdbc_conn_id=self.jdbc_conn_id)
+        hook.run(self.sql, self.autocommit, parameters=self.parameters)

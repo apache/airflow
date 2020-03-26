@@ -18,6 +18,8 @@
 """Manages all plugins."""
 # noinspection PyDeprecation
 import importlib
+import importlib.machinery
+import importlib.util
 import inspect
 import logging
 import os
@@ -36,21 +38,21 @@ import_errors = {}
 plugins = None  # type: Optional[List[AirflowPlugin]]
 
 # Plugin components to integrate as modules
-operators_modules = []
-sensors_modules = []
-hooks_modules = []
-executors_modules = []
-macros_modules = []
+operators_modules: Optional[List[Any]] = None
+sensors_modules: Optional[List[Any]] = None
+hooks_modules: Optional[List[Any]] = None
+macros_modules: Optional[List[Any]] = None
+executors_modules: Optional[List[Any]] = None
 
 # Plugin components to integrate directly
-admin_views: List[Any] = []
-flask_blueprints: List[Any] = []
-menu_links: List[Any] = []
-flask_appbuilder_views: List[Any] = []
-flask_appbuilder_menu_links: List[Any] = []
-global_operator_extra_links: List[Any] = []
-operator_extra_links: List[Any] = []
-registered_operator_link_classes: Dict[str, Type] = {}
+admin_views: Optional[List[Any]] = None
+flask_blueprints: Optional[List[Any]] = None
+menu_links: Optional[List[Any]] = None
+flask_appbuilder_views: Optional[List[Any]] = None
+flask_appbuilder_menu_links: Optional[List[Any]] = None
+global_operator_extra_links: Optional[List[Any]] = None
+operator_extra_links: Optional[List[Any]] = None
+registered_operator_link_classes: Optional[Dict[str, Type]] = None
 """Mapping of class names to class of OperatorLinks registered by plugins.
 
 Used by the DAG serialization code to only allow specific classes to be created
@@ -221,43 +223,40 @@ def ensure_plugins_loaded():
     load_plugins_from_plugin_directory()
     load_entrypoint_plugins()
 
-    initialize_plugins()
 
-
-def initialize_plugins():
-    """Creates modules for loaded extension from plugins"""
+def initialize_web_ui_plugins():
+    """Collect extension points for WEB UI"""
     # pylint: disable=global-statement
     global plugins
-    global operators_modules
-    global sensors_modules
-    global hooks_modules
-    global executors_modules
-    global macros_modules
 
     global admin_views
     global flask_blueprints
     global menu_links
     global flask_appbuilder_views
     global flask_appbuilder_menu_links
-    global global_operator_extra_links
-    global operator_extra_links
-    global registered_operator_link_classes
     # pylint: enable=global-statement
 
-    log.debug("Initialize plugin modules")
+    if admin_views is not None and \
+            flask_blueprints is not None and \
+            menu_links is not None and \
+            flask_appbuilder_views is not None and \
+            flask_appbuilder_menu_links is not None:
+        return
+
+    ensure_plugins_loaded()
+
+    if plugins is None:
+        raise AirflowPluginException("Can't load plugins.")
+
+    log.debug("Initialize Web UI plugin")
+
+    admin_views = []
+    flask_blueprints = []
+    menu_links = []
+    flask_appbuilder_views = []
+    flask_appbuilder_menu_links = []
 
     for plugin in plugins:
-        plugin_name: str = plugin.name
-        operators_modules.append(
-            make_module('airflow.operators.' + plugin_name, plugin.operators + plugin.sensors))
-        sensors_modules.append(
-            make_module('airflow.sensors.' + plugin_name, plugin.sensors)
-        )
-        hooks_modules.append(make_module('airflow.hooks.' + plugin_name, plugin.hooks))
-        executors_modules.append(
-            make_module('airflow.executors.' + plugin_name, plugin.executors))
-        macros_modules.append(make_module('airflow.macros.' + plugin_name, plugin.macros))
-
         admin_views.extend(plugin.admin_views)
         menu_links.extend(plugin.menu_links)
         flask_appbuilder_views.extend(plugin.appbuilder_views)
@@ -266,6 +265,33 @@ def initialize_plugins():
             'name': plugin.name,
             'blueprint': bp
         } for bp in plugin.flask_blueprints])
+
+
+def initialize_extra_operators_links_plugins():
+    """Creates modules for loaded extension from extra operators links plugins"""
+    # pylint: disable=global-statement
+    global global_operator_extra_links
+    global operator_extra_links
+    global registered_operator_link_classes
+    # pylint: enable=global-statement
+
+    if global_operator_extra_links is not None and \
+            operator_extra_links is not None and \
+            registered_operator_link_classes is not None:
+        return
+
+    ensure_plugins_loaded()
+
+    if plugins is None:
+        raise AirflowPluginException("Can't load plugins.")
+
+    log.debug("Initialize extra operators links plugins")
+
+    global_operator_extra_links = []
+    operator_extra_links = []
+    registered_operator_link_classes = {}
+
+    for plugin in plugins:
         global_operator_extra_links.extend(plugin.global_operator_extra_links)
         operator_extra_links.extend(list(plugin.operator_extra_links))
 
@@ -278,38 +304,90 @@ def initialize_plugins():
 
 def integrate_executor_plugins() -> None:
     """Integrate executor plugins to the context."""
+    # pylint: disable=global-statement
+    global plugins
+    global executors_modules
+    # pylint: enable=global-statement
+
+    if executors_modules is not None:
+        return
+
     ensure_plugins_loaded()
+
+    if plugins is None:
+        raise AirflowPluginException("Can't load plugins.")
 
     log.debug("Integrate executor plugins")
 
-    for executors_module in executors_modules:
-        sys.modules[executors_module.__name__] = executors_module
+    executors_modules = []
+    for plugin in plugins:
+        if plugin.name is None:
+            raise AirflowPluginException("Invalid plugin name")
+        plugin_name: str = plugin.name
+
+        executors_module = make_module('airflow.executors.' + plugin_name, plugin.executors)
+        executors_modules.append(executors_module)
+
+        sys.modules[executors_module.__name__] = executors_module  # pylint: disable=no-member
         # noinspection PyProtectedMember
         globals()[executors_module._name] = executors_module  # pylint: disable=protected-access
 
 
 def integrate_dag_plugins() -> None:
     """Integrates operator, sensor, hook, macro plugins."""
+    # pylint: disable=global-statement
+    global plugins
+    global operators_modules
+    global sensors_modules
+    global hooks_modules
+    global macros_modules
+    # pylint: enable=global-statement
+
+    if operators_modules is not None and \
+            sensors_modules is not None and \
+            hooks_modules is not None and \
+            macros_modules is not None:
+        return
+
     ensure_plugins_loaded()
 
-    log.debug("Integrate DAG plugins.")
+    if plugins is None:
+        raise AirflowPluginException("Can't load plugins.")
 
-    for operators_module in operators_modules:
-        sys.modules[operators_module.__name__] = operators_module
+    log.debug("Integrate DAG plugins")
+
+    operators_modules = []
+    sensors_modules = []
+    hooks_modules = []
+    macros_modules = []
+
+    for plugin in plugins:
+        if plugin.name is None:
+            raise AirflowPluginException("Invalid plugin name")
+        plugin_name: str = plugin.name
+
+        operators_module = make_module(f'airflow.operators.{plugin_name}', plugin.operators + plugin.sensors)
+        sensors_module = make_module(f'airflow.sensors.{plugin_name}', plugin.sensors)
+        hooks_module = make_module(f'airflow.hooks.{plugin_name}', plugin.hooks)
+        macros_module = make_module(f'airflow.macros.{plugin_name}', plugin.macros)
+
+        operators_modules.append(operators_module)
+        sensors_modules.append(sensors_module)
+        hooks_modules.append(hooks_module)
+        macros_modules.append(macros_module)
+
+        sys.modules[operators_module.__name__] = operators_module  # pylint: disable=no-member
         # noinspection PyProtectedMember
         globals()[operators_module._name] = operators_module  # pylint: disable=protected-access
 
-    for sensors_module in sensors_modules:
-        sys.modules[sensors_module.__name__] = sensors_module
+        sys.modules[sensors_module.__name__] = sensors_module  # pylint: disable=no-member
         # noinspection PyProtectedMember
         globals()[sensors_module._name] = sensors_module  # pylint: disable=protected-access
 
-    for hooks_module in hooks_modules:
-        sys.modules[hooks_module.__name__] = hooks_module
+        sys.modules[hooks_module.__name__] = hooks_module  # pylint: disable=no-member
         # noinspection PyProtectedMember
         globals()[hooks_module._name] = hooks_module  # pylint: disable=protected-access
 
-    for macros_module in macros_modules:
-        sys.modules[macros_module.__name__] = macros_module
+        sys.modules[macros_module.__name__] = macros_module  # pylint: disable=no-member
         # noinspection PyProtectedMember
         globals()[macros_module._name] = macros_module  # pylint: disable=protected-access

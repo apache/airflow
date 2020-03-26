@@ -17,12 +17,20 @@
 """
 Example Airflow DAG that shows how to use Google Analytics 360.
 """
+import os
 
 from airflow import models
 from airflow.providers.google.marketing_platform.operators.analytics import (
-    GoogleAnalyticsListAccountsOperator,
+    GoogleAnalyticsGetAdsLinkOperator, GoogleAnalyticsListAccountsOperator,
+    GoogleAnalyticsRetrieveAdsLinksListOperator,
 )
 from airflow.utils import dates
+
+ACCOUNT_ID = os.environ.get("GA_ACCOUNT_ID", "123456789")
+WEB_PROPERTY = os.environ.get("WEB_PROPERTY_ID", "UA-12345678-1")
+WEB_PROPERTY_AD_WORDS_LINK_ID = os.environ.get(
+    "WEB_PROPERTY_AD_WORDS_LINK_ID", "rQafFTPOQdmkx4U-fxUfhj"
+)
 
 default_args = {"start_date": dates.days_ago(1)}
 
@@ -34,3 +42,18 @@ with models.DAG(
     # [START howto_marketing_platform_list_accounts_operator]
     list_account = GoogleAnalyticsListAccountsOperator(task_id="list_account")
     # [END howto_marketing_platform_list_accounts_operator]
+
+    # [START howto_marketing_platform_get_ads_link_operator]
+    get_ad_words_link = GoogleAnalyticsGetAdsLinkOperator(
+        web_property_ad_words_link_id=WEB_PROPERTY_AD_WORDS_LINK_ID,
+        web_property_id=WEB_PROPERTY,
+        account_id=ACCOUNT_ID,
+        task_id="get_ad_words_link",
+    )
+    # [END howto_marketing_platform_get_ads_link_operator]
+
+    # [START howto_marketing_platform_retrieve_ads_links_list_operator]
+    list_ad_words_link = GoogleAnalyticsRetrieveAdsLinksListOperator(
+        task_id="list_ad_link", account_id=ACCOUNT_ID, web_property_id=WEB_PROPERTY
+    )
+    # [END howto_marketing_platform_retrieve_ads_links_list_operator]

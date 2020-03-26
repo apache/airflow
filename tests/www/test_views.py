@@ -650,6 +650,39 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.post("failed", data=form)
         self.check_content_in_response('Wait a minute', resp)
 
+    def test_failed_dag_never_run(self):
+        endpoint = "failed"
+        dag_id = "example_bash_operator"
+        form = dict(
+            task_id="run_this_last",
+            dag_id=dag_id,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            upstream="false",
+            downstream="false",
+            future="false",
+            past="false",
+            origin="/graph?dag_id=example_bash_operator",
+        )
+        clear_db_runs()
+        resp = self.client.post(endpoint, data=form, follow_redirects=True)
+        self.check_content_in_response(
+            f"Cannot make {endpoint}, seem that dag {dag_id} has never run", resp)
+
+    def test_failed_flash_hint(self):
+        form = dict(
+            task_id="run_this_last",
+            dag_id="example_bash_operator",
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            confirmed="true",
+            upstream="false",
+            downstream="false",
+            future="false",
+            past="false",
+            origin="/graph?dag_id=example_bash_operator",
+        )
+        resp = self.client.post("failed", data=form, follow_redirects=True)
+        self.check_content_in_response("Marked failed on 1 task instances", resp)
+
     def test_success(self):
         form = dict(
             task_id="run_this_last",
@@ -662,6 +695,39 @@ class TestAirflowBaseViews(TestBase):
         )
         resp = self.client.post('success', data=form)
         self.check_content_in_response('Wait a minute', resp)
+
+    def test_success_dag_never_run(self):
+        endpoint = "success"
+        dag_id = "example_bash_operator"
+        form = dict(
+            task_id="run_this_last",
+            dag_id=dag_id,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            upstream="false",
+            downstream="false",
+            future="false",
+            past="false",
+            origin="/graph?dag_id=example_bash_operator",
+        )
+        clear_db_runs()
+        resp = self.client.post('success', data=form, follow_redirects=True)
+        self.check_content_in_response(
+            f"Cannot make {endpoint}, seem that dag {dag_id} has never run", resp)
+
+    def test_success_flash_hint(self):
+        form = dict(
+            task_id="run_this_last",
+            dag_id="example_bash_operator",
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            confirmed="true",
+            upstream="false",
+            downstream="false",
+            future="false",
+            past="false",
+            origin="/graph?dag_id=example_bash_operator",
+        )
+        resp = self.client.post("success", data=form, follow_redirects=True)
+        self.check_content_in_response("Marked success on 1 task instances", resp)
 
     def test_clear(self):
         form = dict(
@@ -1029,12 +1095,12 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
     def __init__(self, test, endpoint):
         self.test = test
         self.endpoint = endpoint
+        self.runs = []
 
-    def setUp(self):  # pylint: disable=invalid-name
+    def setup(self):
         from airflow.www.views import dagbag
         dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
         dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
-        self.runs = []
         for run_data in self.RUNS_DATA:
             run = dag.create_dagrun(
                 run_id=run_data[0],
@@ -1044,7 +1110,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
             )
             self.runs.append(run)
 
-    def tearDown(self):  # pylint: disable=invalid-name
+    def teardown(self):
         self.test.session.query(DagRun).filter(
             DagRun.dag_id == self.DAG_ID).delete()
         self.test.session.commit()
@@ -1114,7 +1180,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         self.assert_run_is_in_dropdown_not_selected(self.runs[2], data)
         self.assert_run_is_in_dropdown_not_selected(self.runs[3], data)
 
-    def test_with_base_date_and_num_runs_parmeters_only(self):
+    def test_with_base_date_and_num_runs_parameters_only(self):
         """
         Tests view with base_date and num_runs URL parameters.
         Should only show dag runs older than base_date in the drop down,
@@ -1204,10 +1270,10 @@ class TestGraphView(TestBase):
         super().setUp()
         self.tester = ViewWithDateTimeAndNumRunsAndDagRunsFormTester(
             self, self.GRAPH_ENDPOINT)
-        self.tester.setUp()
+        self.tester.setup()
 
     def tearDown(self):
-        self.tester.tearDown()
+        self.tester.teardown()
         super().tearDown()
 
     @classmethod
@@ -1221,7 +1287,7 @@ class TestGraphView(TestBase):
         self.tester.test_with_execution_date_parameter_only()
 
     def test_dt_nr_dr_form_with_base_date_and_num_runs_parmeters_only(self):
-        self.tester.test_with_base_date_and_num_runs_parmeters_only()
+        self.tester.test_with_base_date_and_num_runs_parameters_only()
 
     def test_dt_nr_dr_form_with_base_date_and_num_runs_and_execution_date_outside(self):
         self.tester.test_with_base_date_and_num_runs_and_execution_date_outside()
@@ -1243,10 +1309,10 @@ class TestGanttView(TestBase):
         super().setUp()
         self.tester = ViewWithDateTimeAndNumRunsAndDagRunsFormTester(
             self, self.GANTT_ENDPOINT)
-        self.tester.setUp()
+        self.tester.setup()
 
     def tearDown(self):
-        self.tester.tearDown()
+        self.tester.teardown()
         super().tearDown()
 
     @classmethod
@@ -1260,7 +1326,7 @@ class TestGanttView(TestBase):
         self.tester.test_with_execution_date_parameter_only()
 
     def test_dt_nr_dr_form_with_base_date_and_num_runs_parmeters_only(self):
-        self.tester.test_with_base_date_and_num_runs_parmeters_only()
+        self.tester.test_with_base_date_and_num_runs_parameters_only()
 
     def test_dt_nr_dr_form_with_base_date_and_num_runs_and_execution_date_outside(self):
         self.tester.test_with_base_date_and_num_runs_and_execution_date_outside()

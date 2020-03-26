@@ -21,7 +21,6 @@ This module contains Google Kubernetes Engine operators.
 """
 
 import os
-import subprocess
 import tempfile
 from typing import Dict, Optional, Union
 
@@ -33,6 +32,7 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import Kubernete
 from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.process_utils import execute_in_subprocess, patch_environ
 
 
 class GKEDeleteClusterOperator(BaseOperator):
@@ -254,22 +254,21 @@ class GKEStartPodOperator(KubernetesPodOperator):
 
         # Write config to a temp file and set the environment variable to point to it.
         # This is to avoid race conditions of reading/writing a single file
-        with tempfile.NamedTemporaryFile() as conf_file:
-            os.environ[KUBE_CONFIG_ENV_VAR] = conf_file.name
+        with tempfile.NamedTemporaryFile() as conf_file,\
+                patch_environ({KUBE_CONFIG_ENV_VAR: conf_file.name}), \
+                hook.provide_authorized_gcloud():
+            # Attempt to get/update credentials
+            # We call gcloud directly instead of using google-cloud-python api
+            # because there is no way to write kubernetes config to a file, which is
+            # required by KubernetesPodOperator.
+            # The gcloud command looks at the env variable `KUBECONFIG` for where to save
+            # the kubernetes config file.
+            execute_in_subprocess(
+                ["gcloud", "container", "clusters", "get-credentials",
+                 self.cluster_name,
+                 "--zone", self.location,
+                 "--project", self.project_id])
 
-            with hook.provide_gcp_credential_file_as_context():
-                # Attempt to get/update credentials
-                # We call gcloud directly instead of using google-cloud-python api
-                # because there is no way to write kubernetes config to a file, which is
-                # required by KubernetesPodOperator.
-                # The gcloud command looks at the env variable `KUBECONFIG` for where to save
-                # the kubernetes config file.
-                subprocess.check_call(
-                    ["gcloud", "container", "clusters", "get-credentials",
-                     self.cluster_name,
-                     "--zone", self.location,
-                     "--project", self.project_id])
-
-                # Tell `KubernetesPodOperator` where the config file is located
-                self.config_file = os.environ[KUBE_CONFIG_ENV_VAR]
-                return super().execute(context)
+            # Tell `KubernetesPodOperator` where the config file is located
+            self.config_file = os.environ[KUBE_CONFIG_ENV_VAR]
+            return super().execute(context)

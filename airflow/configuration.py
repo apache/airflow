@@ -483,7 +483,8 @@ class AirflowConfigParser(ConfigParser):
         log.info("Reading test configuration from %s", TEST_CONFIG_FILE)
         self.read(TEST_CONFIG_FILE)
 
-    def _warn_deprecate(self, section, key, deprecated_section, deprecated_name):
+    @staticmethod
+    def _warn_deprecate(section, key, deprecated_section, deprecated_name):
         if section == deprecated_section:
             warnings.warn(
                 'The {old} option in [{section}] has been renamed to {new} - the old '

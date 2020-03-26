@@ -26,7 +26,6 @@ This DAG relies on the following OS environment variables:
 """
 import os
 
-# [START howto_operator_vision_retry_import]
 from google.api_core.retry import Retry
 
 from airflow import models
@@ -36,9 +35,6 @@ from airflow.providers.google.cloud.operators.video_intelligence import (
     CloudVideoIntelligenceDetectVideoShotsOperator,
 )
 from airflow.utils.dates import days_ago
-
-# [END howto_operator_vision_retry_import]
-
 
 default_args = {"start_date": days_ago(1)}
 

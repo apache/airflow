@@ -35,6 +35,6 @@ class SqliteHook(DbApiHook):
         """
         Returns a sqlite connection object
         """
-        conn = self.get_connection(self.sqlite_conn_id)
+        conn = self.get_connection(self.sqlite_conn_id)  # pylint: disable=no-member
         conn = sqlite3.connect(conn.host)
         return conn

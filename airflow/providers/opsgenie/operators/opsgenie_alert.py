@@ -42,9 +42,9 @@ class OpsgenieAlertOperator(BaseOperator):
     :param responders: Teams, users, escalations and schedules that
         the alert will be routed to send notifications.
     :type responders: list[dict]
-    :param visibleTo: Teams and users that the alert will become visible
+    :param visible_to: Teams and users that the alert will become visible
         to without sending any notification.
-    :type visibleTo: list[dict]
+    :type visible_to: list[dict]
     :param actions: Custom actions that will be available for the alert.
     :type actions: list[str]
     :param tags: Tags of the alert.
@@ -66,6 +66,7 @@ class OpsgenieAlertOperator(BaseOperator):
     """
     template_fields = ('message', 'alias', 'description', 'entity', 'priority', 'note')
 
+    # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(self,
                  message,
@@ -73,7 +74,7 @@ class OpsgenieAlertOperator(BaseOperator):
                  alias=None,
                  description=None,
                  responders=None,
-                 visibleTo=None,
+                 visible_to=None,
                  actions=None,
                  tags=None,
                  details=None,
@@ -92,7 +93,7 @@ class OpsgenieAlertOperator(BaseOperator):
         self.alias = alias
         self.description = description
         self.responders = responders
-        self.visibleTo = visibleTo
+        self.visible_to = visible_to
         self.actions = actions
         self.tags = tags
         self.details = details
@@ -114,7 +115,7 @@ class OpsgenieAlertOperator(BaseOperator):
 
         for key in [
             "message", "alias", "description", "responders",
-            "visibleTo", "actions", "tags", "details", "entity",
+            "visible_to", "actions", "tags", "details", "entity",
             "source", "priority", "user", "note"
         ]:
             val = getattr(self, key)

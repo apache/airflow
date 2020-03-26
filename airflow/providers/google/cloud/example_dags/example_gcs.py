@@ -34,13 +34,11 @@ from airflow.utils.dates import days_ago
 
 default_args = {"start_date": days_ago(1)}
 
-# [START howto_operator_gcs_acl_args_common]
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-id")
 BUCKET_1 = os.environ.get("GCP_GCS_BUCKET_1", "test-gcs-example-bucket")
 GCS_ACL_ENTITY = os.environ.get("GCS_ACL_ENTITY", "allUsers")
 GCS_ACL_BUCKET_ROLE = "OWNER"
 GCS_ACL_OBJECT_ROLE = "OWNER"
-# [END howto_operator_gcs_acl_args_common]
 
 BUCKET_2 = os.environ.get("GCP_GCS_BUCKET_1", "test-gcs-example-bucket-2")
 

@@ -19,6 +19,8 @@ import datetime
 import unittest
 from unittest.mock import ANY, patch
 
+import mock
+
 from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.utils import mlengine_operator_utils
@@ -110,10 +112,10 @@ class TestCreateEvaluateOps(unittest.TestCase):
                     'metric_keys': 'err',
                     'metric_fn_encoded': self.metric_fn_encoded,
                 },
-                dataflow='airflow.providers.google.cloud.utils.mlengine_prediction_summary',
-                py_options=['-m'],
+                dataflow=mock.ANY,
+                py_options=[],
+                py_requirements=['apache-beam[gcp]>=2.14.0'],
                 py_interpreter='python3',
-                py_requirements=[],
                 py_system_site_packages=False,
                 on_new_job_id_callback=ANY
             )

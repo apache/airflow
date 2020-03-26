@@ -32,10 +32,8 @@ from airflow.providers.google.cloud.operators.text_to_speech import CloudTextToS
 from airflow.providers.google.cloud.operators.translate_speech import GcpTranslateSpeechOperator
 from airflow.utils import dates
 
-# [START howto_operator_text_to_speech_env_variables]
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 BUCKET_NAME = os.environ.get("GCP_SPEECH_TEST_BUCKET", "gcp-speech-test-bucket")
-# [END howto_operator_text_to_speech_env_variables]
 
 # [START howto_operator_text_to_speech_gcp_filename]
 FILENAME = "gcp-speech-test-file"

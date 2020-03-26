@@ -638,6 +638,12 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.providers.google.cloud.operators.functions`
      -
 
+   * - `Cloud Firestore <https://firebase.google.com/docs/firestore>`__
+     - :doc:`How to use <howto/operator/gcp/firestore>`
+     - :mod:`airflow.providers.google.firebase.hooks.firestore`
+     - :mod:`airflow.providers.google.firebase.operators.firestore`
+     -
+
    * - `Cloud Key Management Service (KMS) <https://cloud.google.com/kms/>`__
      -
      - :mod:`airflow.providers.google.cloud.hooks.kms`
@@ -793,6 +799,11 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      -
      - :mod:`airflow.providers.google.cloud.operators.bigquery_to_bigquery`
 
+   * - `Cloud Firestore <https://firebase.google.com/docs/firestore>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/gcp/firestore>`
+     - :mod:`airflow.providers.google.firebase.operators.firestore`
+
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
@@ -839,6 +850,11 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
      - :mod:`airflow.providers.google.cloud.operators.postgres_to_gcs`
+
+   * - `Presto <https://prestodb.io/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/gcp/presto_to_gcs>`
+     - :mod:`airflow.providers.google.cloud.operators.presto_to_gcs`
 
    * - SFTP
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
@@ -977,6 +993,12 @@ These integrations allow you to perform various operations within various servic
      -
      - :mod:`airflow.providers.discord.hooks.discord_webhook`
      - :mod:`airflow.providers.discord.operators.discord_webhook`
+     -
+
+   * - `Google Ads <https://ads.google.com/home/>`__
+     - :doc:`How to use <howto/operator/gcp/ads>`
+     - :mod:`airflow.providers.google.ads.hooks.ads`
+     - :mod:`airflow.providers.google.ads.operators.ads`
      -
 
    * - `Google Campaign Manager <https://developers.google.com/doubleclick-advertisers>`__

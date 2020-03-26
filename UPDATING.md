@@ -61,6 +61,30 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Rename parameter name in PinotAdminHook.create_segment
+
+Rename parameter name from ``format`` to ``segment_format`` in PinotAdminHook function create_segment fro pylint compatible
+
+### Rename parameter name in HiveMetastoreHook.get_partitions
+
+Rename parameter name from ``filter`` to ``partition_filter`` in HiveMetastoreHook function get_partitions for pylint compatible
+
+### Remove unnecessary parameter in FTPHook.list_directory
+
+Remove unnecessary parameter ``nlst`` in FTPHook function list_directory for pylint compatible
+
+### Remove unnecessary parameter in PostgresHook function copy_expert
+
+Remove unnecessary parameter ``open`` in PostgresHook function copy_expert for pylint compatible
+
+### Change parameter name in OpsgenieAlertOperator
+
+Change parameter name from ``visibleTo`` to ``visible_to`` in OpsgenieAlertOperator for pylint compatible
+
+### Use NULL as default value for dag.description
+
+Now use NULL as default value for dag.description in dag table
+
 ### Assigning task to a DAG using bitwise shift (bit-shift) operators are no longer supported
 
 Previously, you could assign a task to a DAG as follows:
@@ -81,7 +105,7 @@ with DAG('my_dag):
 
 ### Deprecating ignore_first_depends_on_past on backfill command and default it to True
 
-When doing backfill with `depends_on_past` dags, users will need to pass `ignore_first_depends_on_past`.
+When doing backfill with `depends_on_past` dags, users will need to pass `--ignore-first-depends-on-past`.
 We should default it as `true` to avoid confusion
 
 ### Custom executors is loaded using full import path
@@ -121,7 +145,7 @@ replaced with its corresponding new path.
 
 ### Success Callback will be called when a task in marked as success from UI
 
-When a task is marked as success by a used from Airflow UI - on_success_callback will be called
+When a task is marked as success by a user from Airflow UI - `on_success_callback` will be called
 
 ### Added `airflow dags test` CLI command
 

@@ -210,7 +210,7 @@ class DAG(BaseDag, LoggingMixin):
     def __init__(
         self,
         dag_id: str,
-        description: str = '',
+        description: Optional[str] = None,
         schedule_interval: Optional[ScheduleInterval] = timedelta(days=1),
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
@@ -1407,8 +1407,8 @@ class DAG(BaseDag, LoggingMixin):
         """
         Exposes a CLI specific to this DAG
         """
-        from airflow.bin import cli
-        parser = cli.CLIFactory.get_parser(dag_parser=True)
+        from airflow.cli import cli_parser
+        parser = cli_parser.get_parser(dag_parser=True)
         args = parser.parse_args()
         args.func(args, self)
 

@@ -35,6 +35,7 @@ class PagerdutyHook(BaseHook):
     """
 
     def __init__(self, token: Optional[str] = None, pagerduty_conn_id: Optional[str] = None) -> None:
+        super().__init__()
         self.routing_key = None
 
         if pagerduty_conn_id is not None:

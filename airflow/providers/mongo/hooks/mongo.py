@@ -40,6 +40,7 @@ class MongoHook(BaseHook):
 
     def __init__(self, conn_id='mongo_default', *args, **kwargs):
 
+        super().__init__()
         self.mongo_conn_id = conn_id
         self.connection = self.get_connection(conn_id)
         self.extras = self.connection.extra_dejson.copy()

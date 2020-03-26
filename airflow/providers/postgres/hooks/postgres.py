@@ -56,6 +56,7 @@ class PostgresHook(DbApiHook):
         super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
         self.connection = kwargs.pop("connection", None)
+        self.conn = None
 
     def _get_cursor(self, raw_cursor):
         _cursor = raw_cursor.lower()
@@ -95,7 +96,7 @@ class PostgresHook(DbApiHook):
         self.conn = psycopg2.connect(**conn_args)
         return self.conn
 
-    def copy_expert(self, sql, filename, open=open):
+    def copy_expert(self, sql, filename):
         """
         Executes SQL using psycopg2 copy_expert method.
         Necessary to execute COPY command without access to a superuser.
@@ -129,6 +130,7 @@ class PostgresHook(DbApiHook):
         """
         self.copy_expert("COPY {table} TO STDOUT".format(table=table), tmp_file)
 
+    # pylint: disable=signature-differs
     @staticmethod
     def _serialize_cell(cell, conn):
         """

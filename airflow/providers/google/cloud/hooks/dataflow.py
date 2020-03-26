@@ -309,6 +309,7 @@ class _DataflowRunner(LoggingMixin):
         cmd: List[str],
         on_new_job_id_callback: Optional[Callable[[str], None]] = None
     ) -> None:
+        super().__init__()
         self.log.info("Running command: %s", ' '.join(cmd))
         self.on_new_job_id_callback = on_new_job_id_callback
         self._proc = subprocess.Popen(

@@ -58,7 +58,7 @@ labelPRBasedOnFilePath:
     - .github/**/*
     - .github/*
     - breeze
-    - Dockerfile
+    - Dockerfile.ci
     - BREEZE.rst
     - breeze-complete
     - confirm
@@ -120,6 +120,12 @@ labelPRBasedOnFilePath:
     - tests/executors/*
     - tests/jobs/*
 
+  area:Secrets:
+    - airflow/secrets/*
+    - airflow/providers/**/secrets/*
+    - tests/secrets/*
+    - tests/providers/**/secrets/*
+
   area:Serialization:
     - airflow/serialization/*
     - tests/serialization/*
@@ -163,6 +169,10 @@ firstPRWelcomeComment: >
 firstPRMergeComment: >
   Awesome work, congrats on your first merged pull request!
 
+# Comment to be posted to on first time issues
+firstIssueWelcomeComment: >
+  Thanks for opening your first issue here! Be sure to follow the issue template!
+
 insertIssueLinkInPrDescription:
   descriptionIssuePlaceholderRegexp: "^Issue link: (.*)$"
   matchers:
@@ -172,10 +182,6 @@ insertIssueLinkInPrDescription:
     docOnlyIssueMatch:
       titleIssueIdRegexp: \[(AIRFLOW-X{4})\]
       descriptionIssueLink: "`Document only change, no JIRA issue`"
-
-verifyTitles:
-  titleRegexp: ^\[AIRFLOW-[0-9]{4}\].*$|^\[AIRFLOW-XXXX\].*$
-  validateEitherPrOrSingleCommitTitle: true
 
 checkUpToDate:
   - airflow/migrations/*

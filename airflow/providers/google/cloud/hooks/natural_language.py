@@ -61,7 +61,6 @@ class CloudNaturalLanguageHook(CloudBaseHook):
             )
         return self._conn
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.quota_retry()
     def analyze_entities(
         self,
@@ -96,7 +95,6 @@ class CloudNaturalLanguageHook(CloudBaseHook):
             document=document, encoding_type=encoding_type, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.quota_retry()
     def analyze_entity_sentiment(
         self,
@@ -131,7 +129,6 @@ class CloudNaturalLanguageHook(CloudBaseHook):
             document=document, encoding_type=encoding_type, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.quota_retry()
     def analyze_sentiment(
         self,
@@ -165,7 +162,6 @@ class CloudNaturalLanguageHook(CloudBaseHook):
             document=document, encoding_type=encoding_type, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.quota_retry()
     def analyze_syntax(
         self,
@@ -200,7 +196,6 @@ class CloudNaturalLanguageHook(CloudBaseHook):
             document=document, encoding_type=encoding_type, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.quota_retry()
     def annotate_text(
         self,
@@ -244,7 +239,6 @@ class CloudNaturalLanguageHook(CloudBaseHook):
             metadata=metadata,
         )
 
-    @CloudBaseHook.catch_http_exception
     @CloudBaseHook.quota_retry()
     def classify_text(
         self,

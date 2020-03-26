@@ -35,7 +35,11 @@
     "microsoft.mssql",
     "mysql",
     "postgres",
+    "presto",
     "sftp"
+  ],
+  "hashicorp": [
+    "google"
   ],
   "microsoft.azure": [
     "oracle"

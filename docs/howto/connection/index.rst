@@ -119,83 +119,11 @@ If using with a docker ``.env`` file, you may need to remove the single quotes.
 
     AIRFLOW_CONN_MY_PROD_DATABASE=my-conn-type://login:password@host:port/schema?param1=val1&param2=val2
 
-.. _alternative_secrets_backend:
-
 Alternative secrets backend
 ---------------------------
 
 In addition to retrieving connections from environment variables or the metastore database, you can enable
-an alternative secrets backend, such as :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>`, or you
-can :ref:`roll your own <roll_your_own_secrets_backend>`.
-
-Search path
-^^^^^^^^^^^
-When looking up a connection, by default airflow will search environment variables first and metastore
-database second.
-
-If you enable an alternative secrets backend, it will be searched first, followed by environment variables,
-then metastore.  This search ordering is not configurable.
-
-.. _secrets_backend_configuration:
-
-Configuration
-^^^^^^^^^^^^^
-
-The ``[secrets]`` section has the following options:
-
-.. code-block:: ini
-
-    [secrets]
-    backend =
-    backend_kwargs =
-
-Set ``backend`` to the fully qualified class name of the backend you want to enable.
-
-You can provide ``backend_kwargs`` with json and it will be passed as kwargs to the ``__init__`` method of
-your secrets backend.
-
-See :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>` for an example configuration.
-
-.. _ssm_parameter_store_secrets:
-
-AWS SSM Parameter Store Secrets Backend
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-To enable SSM parameter store, specify :py:class:`~airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend`
-as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg``.
-
-Here is a sample configuration:
-
-.. code-block:: ini
-
-    [secrets]
-    backend = airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend
-    backend_kwargs = {"prefix": "/airflow", "profile_name": "default"}
-
-If you have set your prefix as ``/airflow``, then for a connection id of ``smtp_default``, you would want to
-store your connection at ``/airflow/AIRFLOW_CONN_SMTP_DEFAULT``.
-
-Optionally you can supply a profile name to reference aws profile, e.g. defined in ``~/.aws/config``.
-
-The value of the SSM parameter must be the :ref:`airflow connection URI representation <generating_connection_uri>` of the connection object.
-
-.. _roll_your_own_secrets_backend:
-
-Roll your own secrets backend
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-A secrets backend is a subclass of :py:class:`airflow.secrets.BaseSecretsBackend`, and just has to implement the
-:py:meth:`~airflow.secrets.BaseSecretsBackend.get_connections` method.
-
-Just create your class, and put the fully qualified class name in ``backend`` key in the ``[secrets]``
-section of ``airflow.cfg``.  You can you can also pass kwargs to ``__init__`` by supplying json to the
-``backend_kwargs`` config param.  See :ref:`Configuration <secrets_backend_configuration>` for more details,
-and :ref:`SSM Parameter Store <ssm_parameter_store_secrets>` for an example.
-
-.. note::
-
-    If you are rolling your own secrets backend, you don't strictly need to use airflow's URI format. But
-    doing so makes it easier to switch between environment variables, the metastore, and your secrets backend.
+an alternative secrets backend to retrieve connections. For more details see :doc:`../use-alternative-secrets-backend`
 
 Connection URI format
 ---------------------

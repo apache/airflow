@@ -42,6 +42,7 @@ class AzureDataLakeHook(BaseHook):
     """
 
     def __init__(self, azure_data_lake_conn_id='azure_data_lake_default'):
+        super().__init__()
         self.conn_id = azure_data_lake_conn_id
         self._conn = None
         self.account_name = None

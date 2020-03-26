@@ -44,6 +44,7 @@ class AzureContainerInstanceHook(BaseHook):
     """
 
     def __init__(self, conn_id='azure_default'):
+        super().__init__()
         self.conn_id = conn_id
         self.connection = self.get_conn()
 

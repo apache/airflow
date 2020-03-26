@@ -153,7 +153,7 @@ class TestPostgresHook(unittest.TestCase):
 
             self.cur.fetchall.return_value = None
 
-            self.assertEqual(None, self.db_hook.copy_expert(statement, filename, open=open_mock))
+            self.assertEqual(None, self.db_hook.copy_expert(statement, filename))
 
             assert self.conn.close.call_count == 1
             assert self.cur.close.call_count == 1

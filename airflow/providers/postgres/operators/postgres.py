@@ -60,6 +60,7 @@ class PostgresOperator(BaseOperator):
         self.autocommit = autocommit
         self.parameters = parameters
         self.database = database
+        self.hook = None
 
     def execute(self, context):
         self.log.info('Executing: %s', self.sql)

@@ -17,13 +17,16 @@
 # under the License.
 
 import re
+import warnings
 from datetime import datetime
 from functools import reduce
-from typing import Any, Dict, Optional
+from itertools import filterfalse, tee
+from typing import Any, Callable, Dict, Iterable, Optional
 
 from jinja2 import Template
 
 from airflow.exceptions import AirflowException
+from airflow.utils.module_loading import import_string
 
 KEY_REGEX = re.compile(r'^[\w.-]+$')
 
@@ -181,3 +184,29 @@ def merge_dicts(dict1, dict2):
         else:
             merged[k] = v
     return merged
+
+
+def partition(pred: Callable, iterable: Iterable):
+    """
+    Use a predicate to partition entries into false entries and true entries
+    """
+    iter_1, iter_2 = tee(iterable)
+    return filterfalse(pred, iter_1), filter(pred, iter_2)
+
+
+def chain(*args, **kwargs):
+    """This module is deprecated. Please use `airflow.models.baseoperator.chain`."""
+    warnings.warn(
+        "This module is deprecated. Please use `airflow.models.baseoperator.chain`.",
+        DeprecationWarning, stacklevel=2
+    )
+    return import_string('airflow.models.baseoperator.chain')(*args, **kwargs)
+
+
+def cross_downstream(*args, **kwargs):
+    """This module is deprecated. Please use `airflow.models.baseoperator.cross_downstream`."""
+    warnings.warn(
+        "This module is deprecated. Please use `airflow.models.baseoperator.cross_downstream`.",
+        DeprecationWarning, stacklevel=2
+    )
+    return import_string('airflow.models.baseoperator.cross_downstream')(*args, **kwargs)

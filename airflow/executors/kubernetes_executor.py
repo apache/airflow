@@ -98,6 +98,8 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
         self.kube_labels = configuration_dict.get('kubernetes_labels', {})
         self.delete_worker_pods = conf.getboolean(
             self.kubernetes_section, 'delete_worker_pods')
+        self.delete_worker_pods_on_success = conf.getboolean(
+            self.kubernetes_section, 'delete_worker_pods_on_success')
         self.worker_pods_creation_batch_size = conf.getint(
             self.kubernetes_section, 'worker_pods_creation_batch_size')
         self.worker_service_account_name = conf.get(
@@ -335,7 +337,8 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 namespace=task.metadata.namespace,
                 status=task.status.phase,
                 labels=task.metadata.labels,
-                resource_version=task.metadata.resource_version
+                resource_version=task.metadata.resource_version,
+                event=event,
             )
             last_resource_version = task.metadata.resource_version
 
@@ -364,10 +367,15 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                        namespace: str,
                        status: str,
                        labels: Dict[str, str],
-                       resource_version: str) -> None:
+                       resource_version: str,
+                       event: Any) -> None:
         """Process status response"""
         if status == 'Pending':
-            self.log.info('Event: %s Pending', pod_id)
+            if event['type'] == 'DELETED':
+                self.log.info('Event: Failed to start pod %s, will reschedule', pod_id)
+                self.watcher_queue.put((pod_id, namespace, State.UP_FOR_RESCHEDULE, labels, resource_version))
+            else:
+                self.log.info('Event: %s Pending', pod_id)
         elif status == 'Failed':
             self.log.info('Event: %s Failed', pod_id)
             self.watcher_queue.put((pod_id, namespace, State.FAILED, labels, resource_version))
@@ -873,7 +881,11 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                       pod_id: str,
                       namespace: str) -> None:
         if state != State.RUNNING:
-            if self.kube_config.delete_worker_pods:
+            if self.kube_config.delete_worker_pods_on_success and state is State.SUCCESS:
+                if not self.kube_scheduler:
+                    raise AirflowException(NOT_STARTED_MESSAGE)
+                self.kube_scheduler.delete_pod(pod_id, namespace)
+            elif self.kube_config.delete_worker_pods:
                 if not self.kube_scheduler:
                     raise AirflowException(NOT_STARTED_MESSAGE)
                 self.kube_scheduler.delete_pod(pod_id, namespace)

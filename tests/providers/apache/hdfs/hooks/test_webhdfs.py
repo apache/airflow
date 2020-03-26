@@ -35,8 +35,10 @@ class TestWebHDFSHook(unittest.TestCase):
         Connection(host='host_1', port=123),
         Connection(host='host_2', port=321, login='user')
     ])
-    def test_get_conn(self, mock_get_connections, mock_insecure_client):
+    @patch("airflow.providers.apache.hdfs.hooks.webhdfs.socket")
+    def test_get_conn(self, socket_mock, mock_get_connections, mock_insecure_client):
         mock_insecure_client.side_effect = [HdfsError('Error'), mock_insecure_client.return_value]
+        socket_mock.socket.return_value.connect_ex.return_value = 0
         conn = self.webhdfs_hook.get_conn()
 
         mock_insecure_client.assert_has_calls([
@@ -52,10 +54,13 @@ class TestWebHDFSHook(unittest.TestCase):
         Connection(host='host_1', port=123)
     ])
     @patch('airflow.providers.apache.hdfs.hooks.webhdfs._kerberos_security_mode', return_value=True)
+    @patch("airflow.providers.apache.hdfs.hooks.webhdfs.socket")
     def test_get_conn_kerberos_security_mode(self,
+                                             socket_mock,
                                              mock_kerberos_security_mode,
                                              mock_get_connections,
                                              mock_kerberos_client):
+        socket_mock.socket.return_value.connect_ex.return_value = 0
         conn = self.webhdfs_hook.get_conn()
 
         connection = mock_get_connections.return_value[0]
@@ -63,7 +68,7 @@ class TestWebHDFSHook(unittest.TestCase):
             'http://{host}:{port}'.format(host=connection.host, port=connection.port))
         self.assertEqual(conn, mock_kerberos_client.return_value)
 
-    @patch('airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_connections', return_value=[])
+    @patch('airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook._find_valid_server', return_value=None)
     def test_get_conn_no_connection_found(self, mock_get_connection):
         with self.assertRaises(AirflowWebHDFSHookException):
             self.webhdfs_hook.get_conn()

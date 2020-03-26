@@ -49,7 +49,6 @@ from airflow.providers.google.cloud.operators.functions import (
 )
 from airflow.utils import dates
 
-# [START howto_operator_gcf_common_variables]
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCP_LOCATION = os.environ.get('GCP_LOCATION', 'europe-west1')
 GCF_SHORT_FUNCTION_NAME = os.environ.get('GCF_SHORT_FUNCTION_NAME', 'hello').\
@@ -57,8 +56,6 @@ GCF_SHORT_FUNCTION_NAME = os.environ.get('GCF_SHORT_FUNCTION_NAME', 'hello').\
 FUNCTION_NAME = 'projects/{}/locations/{}/functions/{}'.format(GCP_PROJECT_ID,
                                                                GCP_LOCATION,
                                                                GCF_SHORT_FUNCTION_NAME)
-# [END howto_operator_gcf_common_variables]
-# [START howto_operator_gcf_deploy_variables]
 GCF_SOURCE_ARCHIVE_URL = os.environ.get('GCF_SOURCE_ARCHIVE_URL', '')
 GCF_SOURCE_UPLOAD_URL = os.environ.get('GCF_SOURCE_UPLOAD_URL', '')
 GCF_SOURCE_REPOSITORY = os.environ.get(
@@ -69,7 +66,6 @@ GCF_ZIP_PATH = os.environ.get('GCF_ZIP_PATH', '')
 GCF_ENTRYPOINT = os.environ.get('GCF_ENTRYPOINT', 'helloWorld')
 GCF_RUNTIME = 'nodejs6'
 GCP_VALIDATE_BODY = os.environ.get('GCP_VALIDATE_BODY', True)
-# [END howto_operator_gcf_deploy_variables]
 
 # [START howto_operator_gcf_deploy_body]
 body = {

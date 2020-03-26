@@ -26,8 +26,8 @@ from datetime import datetime, time, timedelta
 import mock
 import pytz
 
-import airflow.bin.cli as cli
 from airflow import settings
+from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
@@ -58,7 +58,7 @@ class TestCliDags(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = DagBag(include_examples=True)
-        cls.parser = cli.CLIFactory.get_parser()
+        cls.parser = cli_parser.get_parser()
 
     @mock.patch("airflow.cli.commands.dag_command.DAG.run")
     def test_backfill(self, mock_run):

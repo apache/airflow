@@ -53,6 +53,7 @@ class SalesforceHook(BaseHook):
     """
 
     def __init__(self, conn_id):
+        super().__init__()
         self.conn_id = conn_id
         self.conn = None
 

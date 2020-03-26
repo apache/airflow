@@ -41,7 +41,7 @@ class TestOpsgenieAlertOperator(unittest.TestCase):
             {'id': '80564037-1984-4f38-b98e-8a1f662df552', 'type': 'schedule'},
             {'name': 'First Responders Schedule', 'type': 'schedule'}
         ],
-        'visibleTo': [
+        'visible_to': [
             {'id': '4513b7ea-3b91-438f-b7e4-e3e54af9147c', 'type': 'team'},
             {'name': 'rocket_team', 'type': 'team'},
             {'id': 'bb4d9938-c3c2-455d-aaab-727aa701c0d8', 'type': 'user'},
@@ -62,7 +62,7 @@ class TestOpsgenieAlertOperator(unittest.TestCase):
         'alias': _config['alias'],
         'description': _config['description'],
         'responders': _config['responders'],
-        'visibleTo': _config['visibleTo'],
+        'visible_to': _config['visible_to'],
         'actions': _config['actions'],
         'tags': _config['tags'],
         'details': _config['details'],
@@ -106,7 +106,7 @@ class TestOpsgenieAlertOperator(unittest.TestCase):
         self.assertEqual(self._config['alias'], operator.alias)
         self.assertEqual(self._config['description'], operator.description)
         self.assertEqual(self._config['responders'], operator.responders)
-        self.assertEqual(self._config['visibleTo'], operator.visibleTo)
+        self.assertEqual(self._config['visible_to'], operator.visible_to)
         self.assertEqual(self._config['actions'], operator.actions)
         self.assertEqual(self._config['tags'], operator.tags)
         self.assertEqual(self._config['details'], operator.details)

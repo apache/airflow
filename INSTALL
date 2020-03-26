@@ -1,7 +1,20 @@
 # INSTALL / BUILD instructions for Apache Airflow
 
-# [required] fetch the tarball and untar the source
-# change into the directory that was untarred.
+This ia a generic installation method that requires a number of dependencies to be installed.
+
+Depending on your system you might need different prerequisites, but the following
+systems/prerequisites are known to work:
+
+Linux (Debian Buster and Linux Mint Tricia):
+
+sudo apt install build-essentials python3.6-dev python3.7-dev python-dev openssl \
+                 sqlite sqlite-dev default-libmysqlclient-dev libmysqld-dev postgresq
+
+MacOS (Mojave/Catalina):
+
+brew install sqlite mysql postgresql
+
+# [required] fetch the tarball and untar the source move into the directory that was untarred.
 
 # [optional] run Apache RAT (release audit tool) to validate license headers
 # RAT docs here: https://creadur.apache.org/rat/. Requires Java and Apache Rat
@@ -11,12 +24,32 @@ java -jar apache-rat.jar -E ./.rat-excludes -d .
 # to connect to other services. You might want to test or run Airflow
 # from a virtual env to make sure those dependencies are separated
 # from your system wide versions
-python -m my_env
-source my_env/bin/activate
 
-# [required] building and installing
-# by pip (preferred)
+python3 -m venv PATH_TO_YOUR_VENV
+source PATH_TO_YOUR_VENV/bin/activate
+
+# [required] building and installing by pip (preferred)
 pip install .
 
 # or directly
 python setup.py install
+
+# You can also install recommended version of the dependencies by using requirements.txt
+# as constraint file. This is needed in case you have problems with installint latest
+# requirements.
+
+pip install . --constraint requirements.txt
+
+# You can also install Airflow with extras specified. The list of available extras:
+# START EXTRAS HERE
+
+all, all_dbs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant, dask, databricks,
+datadog, devel, devel_ci, devel_hadoop, doc, docker, druid, elasticsearch, gcp, gcp_api,
+github_enterprise, google_auth, grpc, hdfs, hive, hvac, jdbc, jira, kerberos, kubernetes, ldap,
+mongo, mssql, mysql, odbc, oracle, pagerduty, papermill, password, pinot, postgres, presto, qds,
+rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry, singularity, slack, snowflake, ssh,
+statsd, tableau, vertica, webhdfs, winrm, yandexcloud
+
+# END EXTRAS HERE
+
+# For installing Airflow in development environments - see CONTRIBUTING.rst

@@ -51,6 +51,7 @@ class TableauHook(BaseHook):
     """
 
     def __init__(self, site_id: Optional[str] = None, tableau_conn_id: str = 'tableau_default'):
+        super().__init__()
         self.tableau_conn_id = tableau_conn_id
         self.conn = self.get_connection(self.tableau_conn_id)
         self.site_id = site_id or self.conn.extra_dejson.get('site_id', '')

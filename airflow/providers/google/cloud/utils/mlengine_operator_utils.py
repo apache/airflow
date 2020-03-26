@@ -225,8 +225,7 @@ def create_evaluate_ops(task_prefix,  # pylint: disable=too-many-arguments
     metric_fn_encoded = base64.b64encode(dill.dumps(metric_fn, recurse=True)).decode()
     evaluate_summary = DataflowCreatePythonJobOperator(
         task_id=(task_prefix + "-summary"),
-        py_options=["-m"],
-        py_file="airflow.providers.google.cloud.utils.mlengine_prediction_summary",
+        py_file=os.path.join(os.path.dirname(__file__), 'mlengine_prediction_summary.py'),
         dataflow_default_options=dataflow_options,
         options={
             "prediction_path": prediction_path,
@@ -234,11 +233,14 @@ def create_evaluate_ops(task_prefix,  # pylint: disable=too-many-arguments
             "metric_keys": ','.join(metric_keys)
         },
         py_interpreter=py_interpreter,
+        py_requirements=[
+            'apache-beam[gcp]>=2.14.0'
+        ],
         dag=dag)
     evaluate_summary.set_upstream(evaluate_prediction)
 
-    def apply_validate_fn(*args, **kwargs):
-        prediction_path = kwargs["templates_dict"]["prediction_path"]
+    def apply_validate_fn(*args, templates_dict, **kwargs):
+        prediction_path = templates_dict["prediction_path"]
         scheme, bucket, obj, _, _ = urlsplit(prediction_path)
         if scheme != "gs" or not bucket or not obj:
             raise ValueError("Wrong format prediction_path: {}".format(prediction_path))
