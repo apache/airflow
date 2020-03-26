@@ -36,6 +36,7 @@ from airflow.exceptions import AirflowDagCycleException
 from airflow.plugins_manager import integrate_dag_plugins
 from airflow.stats import Stats
 from airflow.utils import timezone
+from airflow.utils.dag_cycle_tester import test_cycle
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timeout import timeout
@@ -78,10 +79,6 @@ class DagBag(BaseDagBag, LoggingMixin):
     :type store_serialized_dags: bool
     """
 
-    # static class variables to detetct dag cycle
-    CYCLE_NEW = 0
-    CYCLE_IN_PROGRESS = 1
-    CYCLE_DONE = 2
     DAGBAG_IMPORT_TIMEOUT = conf.getint('core', 'DAGBAG_IMPORT_TIMEOUT')
     SCHEDULER_ZOMBIE_TASK_THRESHOLD = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
@@ -317,7 +314,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         Throws AirflowDagCycleException if a cycle is detected in this dag or its subdags
         """
 
-        dag.test_cycle()  # throws if a task cycle is found
+        test_cycle(dag)  # throws if a task cycle is found
 
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()

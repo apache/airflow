@@ -24,7 +24,7 @@ import pickle
 import re
 import sys
 import traceback
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 from datetime import datetime, timedelta
 from typing import Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Type, Union
 
@@ -39,9 +39,7 @@ from sqlalchemy.orm.session import Session
 from airflow import settings, utils
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag
-from airflow.exceptions import (
-    AirflowDagCycleException, AirflowException, DagNotFound, DuplicateTaskIdFound, TaskNotFound,
-)
+from airflow.exceptions import AirflowException, DagNotFound, DuplicateTaskIdFound, TaskNotFound
 from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
@@ -1639,44 +1637,6 @@ class DAG(BaseDag, LoggingMixin):
             else:
                 qry = qry.filter(TaskInstance.state.in_(states))
         return qry.scalar()
-
-    def test_cycle(self):
-        """
-        Check to see if there are any cycles in the DAG. Returns False if no cycle found,
-        otherwise raises exception.
-        """
-        from airflow.models.dagbag import DagBag  # Avoid circular imports
-
-        # default of int is 0 which corresponds to CYCLE_NEW
-        visit_map = defaultdict(int)
-        for task_id in self.task_dict.keys():
-            # print('starting %s' % task_id)
-            if visit_map[task_id] == DagBag.CYCLE_NEW:
-                self._test_cycle_helper(visit_map, task_id)
-        return False
-
-    def _test_cycle_helper(self, visit_map, task_id):
-        """
-        Checks if a cycle exists from the input task using DFS traversal
-        """
-        from airflow.models.dagbag import DagBag  # Avoid circular imports
-
-        # print('Inspecting %s' % task_id)
-        if visit_map[task_id] == DagBag.CYCLE_DONE:
-            return False
-
-        visit_map[task_id] = DagBag.CYCLE_IN_PROGRESS
-
-        task = self.task_dict[task_id]
-        for descendant_id in task.get_direct_relative_ids():
-            if visit_map[descendant_id] == DagBag.CYCLE_IN_PROGRESS:
-                msg = "Cycle detected in DAG. Faulty task: {0} to {1}".format(
-                    task_id, descendant_id)
-                raise AirflowDagCycleException(msg)
-            else:
-                self._test_cycle_helper(visit_map, descendant_id)
-
-        visit_map[task_id] = DagBag.CYCLE_DONE
 
     @classmethod
     def get_serialized_fields(cls):
