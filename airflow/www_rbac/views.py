@@ -2332,6 +2332,10 @@ class VariableModelView(AirflowModelView):
     def generateCurveParamKey(key):
         return "{}@@{}".format(key, uuid.uuid4())
 
+    @staticmethod
+    def is_curve_param_key(key: str) -> bool:
+        return '@@' in key
+
     def pre_add(self, item):
         super(VariableModelView, self).pre_add(item)
         if item.is_curve_template:
@@ -2339,8 +2343,14 @@ class VariableModelView(AirflowModelView):
 
     def pre_update(self, item: models.Variable):
         super(VariableModelView, self).pre_update(item)
+        if item.is_curve_template and self.is_curve_param_key(item.key):
+            return
         if item.is_curve_template:
             item.key = self.generateCurveParamKey(item.key)
+            return
+        if self.is_curve_param_key(item.key):
+            item.key = item.key.split('@@')[0]
+            return
 
     def hidden_field_formatter(attr):
         key = attr.get('key')
