@@ -43,18 +43,6 @@ assists users migrating to a new version.
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Airflow 1.10.10
-
-### Success Callback will be called when a task in marked as success from UI
-
-When a task is marked as success by a user from Airflow UI - `on_success_callback` will be called
-
-## Airflow 1.10.9
-
-No breaking changes.
-
-## Airflow 1.10.8
-
 <!--
 
 I'm glad you want to write a new note. Remember that this note is intended for users.
@@ -70,6 +58,27 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+
+## Airflow 1.10.10
+
+### Make behavior of `none_failed` trigger rule consistent with documentation
+The behavior of the `none_failed` trigger rule is documented as "all parents have not failed (`failed` or
+    `upstream_failed`) i.e. all parents have succeeded or been skipped." As previously implemented, the actual behavior
+    would skip if all parents of a task had also skipped.
+
+### Add new trigger rule `none_failed_or_skipped`
+The fix to `none_failed` trigger rule breaks workflows that depend on the previous behavior.
+    If you need the old behavior, you should change the tasks with `none_failed` trigger rule to `none_failed_or_skipped`.
+
+### Success Callback will be called when a task in marked as success from UI
+
+When a task is marked as success by a user from Airflow UI - `on_success_callback` will be called
+
+## Airflow 1.10.9
+
+No breaking changes.
+
+## Airflow 1.10.8
 
 ### Failure callback will be called when task is marked failed
 When task is marked failed by user or task fails due to system failures - on failure call back will be called as part of clean up
