@@ -1131,7 +1131,7 @@ class TestCloudSqlDatabaseHook(unittest.TestCase):
 
 class TestCloudSqlDatabaseQueryHook(unittest.TestCase):
 
-    @mock.patch('airflow.contrib.hooks.gcp_sql_hook.CloudSQLDatabaseHook.get_connection')
+    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection')
     def setUp(self, m):
         super().setUp()
 
