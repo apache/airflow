@@ -1748,20 +1748,6 @@ class DagModel(Base):
     def safe_dag_id(self):
         return self.dag_id.replace('.', '__dot__')
 
-    def get_dag(self, store_serialized_dags=False):
-        """Creates a dagbag to load and return a DAG.
-
-        Calling it from UI should set store_serialized_dags = STORE_SERIALIZED_DAGS.
-        There may be a delay for scheduler to write serialized DAG into database,
-        loads from file in this case.
-        FIXME: remove it when webserver does not access to DAG folder in future.
-        """
-        dag = DagBag(
-            dag_folder=self.fileloc, store_serialized_dags=store_serialized_dags).get_dag(self.dag_id)
-        if store_serialized_dags and dag is None:
-            dag = self.get_dag()
-        return dag
-
     @provide_session
     def create_dagrun(self,
                       run_id,

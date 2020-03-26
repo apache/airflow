@@ -77,6 +77,7 @@ from airflow.www.decorators import action_logging, gzipped, has_dag_access
 from airflow.www.forms import (
     ConnectionForm, DagRunForm, DateTimeForm, DateTimeWithNumRunsForm, DateTimeWithNumRunsWithDagRunsForm,
 )
+from airflow.www.utils import get_dag
 from airflow.www.widgets import AirflowModelListWidget
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
@@ -552,7 +553,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         dag_orm = DagModel.get_dagmodel(dag_id, session=session)
         # FIXME: items needed for this view should move to the database
-        dag = dag_orm.get_dag(STORE_SERIALIZED_DAGS)
+        dag = get_dag(dag_orm, STORE_SERIALIZED_DAGS)
         title = "DAG details"
         root = request.args.get('root', '')
 

@@ -34,8 +34,8 @@ from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import Validator, load_dag_schema
 from airflow.settings import json
+from airflow.utils.code_utils import get_python_source
 from airflow.utils.module_loading import import_string
-from airflow.www.utils import get_python_source
 
 log = logging.getLogger(__name__)
 FAILED = 'serialization_failed'
