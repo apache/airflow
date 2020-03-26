@@ -15,16 +15,63 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.presto.operators.presto_check`."""
+"""This module is deprecated. Please use `airflow.operators.check_operator`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.presto.operators.presto_check import (  # noqa
-    PrestoCheckOperator, PrestoIntervalCheckOperator, PrestoValueCheckOperator,
-)
+from airflow.operators.check_operator import CheckOperator, IntervalCheckOperator, ValueCheckOperator  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.presto.operators.presto_check`.",
+    "This module is deprecated. Please use `airflow.operators.check_operator`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class PrestoCheckOperator(CheckOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.operators.check_operator.CheckOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.operators.check_operator.CheckOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class PrestoIntervalCheckOperator(IntervalCheckOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.operators.check_operator.IntervalCheckOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """
+            This class is deprecated.l
+            Please use `airflow.operators.check_operator.IntervalCheckOperator`.
+            """,
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class PrestoValueCheckOperator(ValueCheckOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.operators.check_operator.ValueCheckOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """
+            This class is deprecated.l
+            Please use `airflow.operators.check_operator.ValueCheckOperator`.
+            """,
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
