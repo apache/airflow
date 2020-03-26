@@ -1151,24 +1151,24 @@ class TestDagFileProcessorQueriesCount(unittest.TestCase):
             # One DAG with one task per DAG file
             ( 1,  1,  1, "1d",  "None",  "no_structure"),  # noqa
             ( 1,  1,  1, "1d",  "None",        "linear"),  # noqa
-            ( 3,  1,  1, "1d", "@once",  "no_structure"),  # noqa
-            ( 3,  1,  1, "1d", "@once",        "linear"),  # noqa
-            ( 3,  1,  1, "1d",   "30m",  "no_structure"),  # noqa
-            ( 3,  1,  1, "1d",   "30m",        "linear"),  # noqa
+            ( 9,  1,  1, "1d", "@once",  "no_structure"),  # noqa
+            ( 9,  1,  1, "1d", "@once",        "linear"),  # noqa
+            ( 9,  1,  1, "1d",   "30m",  "no_structure"),  # noqa
+            ( 9,  1,  1, "1d",   "30m",        "linear"),  # noqa
             # One DAG with five tasks per DAG  file
             ( 1,  1,  5, "1d",  "None",  "no_structure"),  # noqa
             ( 1,  1,  5, "1d",  "None",        "linear"),  # noqa
-            ( 3,  1,  5, "1d", "@once",  "no_structure"),  # noqa
-            ( 3,  1,  5, "1d", "@once",        "linear"),  # noqa
-            ( 3,  1,  5, "1d",   "30m",  "no_structure"),  # noqa
-            ( 3,  1,  5, "1d",   "30m",        "linear"),  # noqa
+            ( 9,  1,  5, "1d", "@once",  "no_structure"),  # noqa
+            (10,  1,  5, "1d", "@once",        "linear"),  # noqa
+            ( 9,  1,  5, "1d",   "30m",  "no_structure"),  # noqa
+            (10,  1,  5, "1d",   "30m",        "linear"),  # noqa
             # 10 DAGs with 10 tasks per DAG file
             ( 1, 10, 10, "1d",  "None",  "no_structure"),  # noqa
             ( 1, 10, 10, "1d",  "None",        "linear"),  # noqa
-            (21, 10, 10, "1d", "@once",  "no_structure"),  # noqa
-            (21, 10, 10, "1d", "@once",        "linear"),  # noqa
-            (21, 10, 10, "1d",   "30m",  "no_structure"),  # noqa
-            (21, 10, 10, "1d",   "30m",        "linear"),  # noqa
+            (81, 10, 10, "1d", "@once",  "no_structure"),  # noqa
+            (91, 10, 10, "1d", "@once",        "linear"),  # noqa
+            (81, 10, 10, "1d",   "30m",  "no_structure"),  # noqa
+            (91, 10, 10, "1d",   "30m",        "linear"),  # noqa
             # pylint: enable=bad-whitespace
         ]
     )
@@ -1196,24 +1196,24 @@ class TestDagFileProcessorQueriesCount(unittest.TestCase):
             # One DAG with two tasks per DAG file
             ( 5,  1,  1, "1d",   "None", "no_structure"),  # noqa
             ( 5,  1,  1, "1d",   "None",       "linear"),  # noqa
-            ( 7,  1,  1, "1d",  "@once", "no_structure"),  # noqa
-            ( 7,  1,  1, "1d",  "@once",       "linear"),  # noqa
-            ( 7,  1,  1, "1d",    "30m", "no_structure"),  # noqa
-            ( 7,  1,  1, "1d",    "30m",       "linear"),  # noqa
+            (15,  1,  1, "1d",  "@once", "no_structure"),  # noqa
+            (15,  1,  1, "1d",  "@once",       "linear"),  # noqa
+            (15,  1,  1, "1d",    "30m", "no_structure"),  # noqa
+            (15,  1,  1, "1d",    "30m",       "linear"),  # noqa
             # One DAG with five tasks per DAG file
             ( 5,  1,  5, "1d",   "None", "no_structure"),  # noqa
             ( 5,  1,  5, "1d",   "None",       "linear"),  # noqa
-            ( 7,  1,  5, "1d",  "@once", "no_structure"),  # noqa
-            ( 7,  1,  5, "1d",  "@once",       "linear"),  # noqa
-            ( 7,  1,  5, "1d",    "30m", "no_structure"),  # noqa
-            ( 7,  1,  5, "1d",    "30m",       "linear"),  # noqa
+            (15,  1,  5, "1d",  "@once", "no_structure"),  # noqa
+            (16,  1,  5, "1d",  "@once",       "linear"),  # noqa
+            (15,  1,  5, "1d",    "30m", "no_structure"),  # noqa
+            (16,  1,  5, "1d",    "30m",       "linear"),  # noqa
             # 10 DAGs with 10 tasks per DAG file
             ( 5, 10, 10, "1d",  "None",  "no_structure"),  # noqa
             ( 5, 10, 10, "1d",  "None",        "linear"),  # noqa
-            (25, 10, 10, "1d", "@once",  "no_structure"),  # noqa
-            (25, 10, 10, "1d", "@once",        "linear"),  # noqa
-            (25, 10, 10, "1d",   "30m",  "no_structure"),  # noqa
-            (25, 10, 10, "1d",   "30m",        "linear"),  # noqa
+            (87, 10, 10, "1d", "@once",  "no_structure"),  # noqa
+            (97, 10, 10, "1d", "@once",        "linear"),  # noqa
+            (87, 10, 10, "1d",   "30m",  "no_structure"),  # noqa
+            (97, 10, 10, "1d",   "30m",        "linear"),  # noqa
             # pylint: enable=bad-whitespace
         ]
     )
