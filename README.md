@@ -143,7 +143,7 @@ packages can only be used in python3.6+ environment.
 Therefore we decided to prepare and release backport packages that can be installed
 for older Airflow versions. Those backport packages are released more frequently. Users do not
 have to upgrade their Airflow version to use those packages. There are a number of changes
-between Airflow 2.0 and 1.10.* - documented in [UPDATING.md](../UPDATING.md). With backported
+between Airflow 2.0 and 1.10.* - documented in [UPDATING.md](UPDATING.md). With backported
 providers package users can migrate their DAGs to the new providers package incrementally
 and once they convert to the new operators/sensors/hooks they can seamlessly migrate their
 environments to Airflow 2.0.
