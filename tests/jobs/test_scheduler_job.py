@@ -34,6 +34,7 @@ from tempfile import mkdtemp
 import psutil
 import pytest
 import six
+from airflow.models.taskinstance import TaskInstance
 from parameterized import parameterized
 
 import airflow.example_dags
@@ -1828,10 +1829,12 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(
             dag_id='test_scheduler_reschedule',
             start_date=DEFAULT_DATE)
-        dummy_task = DummyOperator(
+        dummy_task = BashOperator(
             task_id='dummy',
             dag=dag,
-            owner='airflow')
+            owner='airflow',
+            bash_command='echo 1',
+        )
 
         dag.clear()
         dag.is_subdag = False
@@ -2855,3 +2858,45 @@ class SchedulerJobTest(unittest.TestCase):
             self.assertEqual(state, ti.state)
 
         session.close()
+
+    def test_should_mark_dummy_task_as_success(self):
+        dag_file = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), '../dags/test_only_dummy_tasks.py'
+        )
+        scheduler_job = SchedulerJob(dag_ids=[], log=mock.MagicMock())
+        with create_session() as session:
+            session.query(TaskInstance).delete()
+            session.query(DagModel).delete()
+
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        dagbag.get_dag('test_only_dummy_tasks').sync_to_db()
+
+        simple_dags, import_errors_count = scheduler_job.process_file(
+            file_path=dag_file, zombies=[]
+        )
+        with create_session() as session:
+            tis = session.query(TaskInstance).all()
+
+        self.assertEqual(0, import_errors_count)
+        self.assertEqual(['test_only_dummy_tasks'], [dag.dag_id for dag in simple_dags])
+        self.assertEqual(5, len(tis))
+        self.assertEqual({
+            ('test_task_a', 'success'),
+            ('test_task_b', None),
+            ('test_task_c', 'success'),
+            ('test_task_on_execute', 'scheduled'),
+            ('test_task_on_success', 'scheduled'),
+        }, {(ti.task_id, ti.state) for ti in tis})
+
+        scheduler_job.process_file(file_path=dag_file, zombies=[])
+        with create_session() as session:
+            tis = session.query(TaskInstance).all()
+
+        self.assertEqual(5, len(tis))
+        self.assertEqual({
+            ('test_task_a', 'success'),
+            ('test_task_b', 'success'),
+            ('test_task_c', 'success'),
+            ('test_task_on_execute', 'scheduled'),
+            ('test_task_on_success', 'scheduled'),
+        }, {(ti.task_id, ti.state) for ti in tis})
