@@ -20,10 +20,10 @@
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.redis_hook import RedisHook
+from typing import Optional, Callable, Any, Dict
 
 
 class RedisPubSubSensor(BaseSensorOperator):
-
     """
     Redis sensor for reading a message from pub sub channels
     """
@@ -31,19 +31,22 @@ class RedisPubSubSensor(BaseSensorOperator):
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self, channels, redis_conn_id, *args, **kwargs):
+    def __init__(self, channels, redis_conn_id, msg_type="message",
+                 handler: Optional[Callable[[Any, Dict], None]] = None, *args, **kwargs):
         """
         Create a new RedisPubSubSensor and subscribe to the channels
 
         :param channels: The channels to be subscribed to (templated)
-        :type channels: str or list of str
+        :type channels: str or list of str or dict
         :param redis_conn_id: the redis connection id
         :type redis_conn_id: str
         """
 
         super(RedisPubSubSensor, self).__init__(*args, **kwargs)
         self.channels = channels
+        self.handler = handler
         self.redis_conn_id = redis_conn_id
+        self.pokeMsgType = msg_type
         self.pubsub = RedisHook(redis_conn_id=self.redis_conn_id).get_conn().pubsub()
         self.pubsub.subscribe(self.channels)
 
@@ -59,13 +62,15 @@ class RedisPubSubSensor(BaseSensorOperator):
         """
         self.log.info('RedisPubSubSensor checking for message on channels: %s', self.channels)
 
-        message = self.pubsub.get_message()
+        message = self.pubsub.get_message(timeout=self.timeout)
         self.log.info('Message %s from channel %s', message, self.channels)
 
         # Process only message types
-        if message and message['type'] == 'message':
-
-            context['ti'].xcom_push(key='message', value=message)
+        if message and message['type'] == self.pokeMsgType:
+            if self.handler:
+                self.handler(context, message)
+            else:
+                context['ti'].xcom_push(key='message', value=message)
             self.pubsub.unsubscribe(self.channels)
 
             return True
