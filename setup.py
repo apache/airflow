@@ -593,53 +593,11 @@ def get_dependency_name(dep):
     return dep.replace(">", '=').replace("<", "=").split("=")[0]
 
 
-def read_requirements_txt():
-    """Returns dictionary of requirements read from requirements.txt"""
-    with open(os.path.join(my_dir, "requirements.txt"), "rt") as requirement_file:
-        requirements_content = requirement_file.readlines()
-        requirements = {}
-        for requirements_line in requirements_content:
-            if requirements_line.strip().startswith("#"):
-                continue
-            split_requirement = requirements_line.split("==")
-            requirements[split_requirement[0]] = requirements_line.rstrip("\n")
-    return requirements
-
-
-def get_extras_required(pinned=False):
-    """Get dict of extras requirements - pinned if specified."""
-    if not pinned:
-        return EXTRAS_REQUIREMENTS
-    pinned_extras_required = {}
-    requirements = read_requirements_txt()
-    for extra, dependencies in EXTRAS_REQUIREMENTS.items():
-        pinned_deps = []
-        for dependency in dependencies:
-            dep_name = get_dependency_name(dependency)
-            if requirements.get(dep_name):
-                pinned_deps.append(requirements[dep_name])
-        pinned_extras_required[extra] = pinned_deps
-    return pinned_extras_required
-
-
-def get_install_requires(pinned=False):
-    """Get list of install requirements - pinned if specified."""
-    if not pinned:
-        return INSTALL_REQUIREMENTS
-    pinned_install_requires = []
-    requirements = read_requirements_txt()
-    for dependency in INSTALL_REQUIREMENTS:
-        dep_name = get_dependency_name(dependency)
-        if requirements.get(dep_name):
-            pinned_install_requires.append(requirements[dep_name])
-    return pinned_install_requires
-
-
-def do_setup(pinned=False):
+def do_setup():
     """Perform the Airflow package setup."""
     write_version()
     setup(
-        name='apache-airflow' + ("" if not pinned else "-pinned"),
+        name='apache-airflow',
         description='Programmatically author, schedule and monitor data pipelines',
         long_description=long_description,
         long_description_content_type='text/markdown',
@@ -654,7 +612,7 @@ def do_setup(pinned=False):
         include_package_data=True,
         zip_safe=False,
         scripts=['airflow/bin/airflow'],
-        install_requires=get_install_requires(pinned=pinned),
+        install_requires=INSTALL_REQUIREMENTS,
         setup_requires=[
             'bowler',
             'docutils>=0.14, <0.16'
@@ -662,7 +620,7 @@ def do_setup(pinned=False):
             'setuptools',
             'wheel',
         ],
-        extras_require=get_extras_required(pinned=pinned),
+        extras_require=EXTRAS_REQUIREMENTS,
         classifiers=[
             'Development Status :: 5 - Production/Stable',
             'Environment :: Console',
@@ -699,12 +657,4 @@ if __name__ == "__main__":
             "DEPRECATION: Python 2.7 will reach the end of its life on January 1st, 2020. Airflow 1.10 "
             "will be the last release series to support Python 2\n"
         )
-    pinned_requirements = False
-    if len(sys.argv) > 1 and sys.argv[1] == "pinned":
-        pinned_requirements = True
-        del sys.argv[1]
-    do_setup(pinned=pinned_requirements)
-    if sys.argv[1] == "--help":
-        print()
-        print("You can add 'pinned' as first argument to build pinned version of apache-airflow")
-        print()
+    do_setup()

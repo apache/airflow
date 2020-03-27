@@ -18,5 +18,7 @@
 export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
 export REMEMBER_LAST_ANSWER="true"
 
+export PYTHON_MAJOR_MINOR_VERSION="${1}"
+
 # shellcheck source=scripts/ci/ci_generate_requirements.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/ci_generate_requirements.sh"

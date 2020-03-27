@@ -13,6 +13,7 @@
 .eslintignore
 .flake8
 .rat-excludes
+requirements
 requirements.txt
 .*log
 .travis.yml

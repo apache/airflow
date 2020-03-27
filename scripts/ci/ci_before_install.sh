@@ -20,7 +20,7 @@ set -x
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-export UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD="false"
+export UPGRADE_TO_LATEST_REQUIREMENTS="false"
 
 # In case of CRON jobs on Travis we run builds without cache
 if [[ "${TRAVIS_EVENT_TYPE:=}" == "cron" ]]; then
@@ -29,7 +29,7 @@ if [[ "${TRAVIS_EVENT_TYPE:=}" == "cron" ]]; then
     echo
     export DOCKER_CACHE="no-cache"
     export PULL_BASE_IMAGES="true"
-    export UPGRADE_TO_LATEST_REQUIREMENTS_IN_DOCKER_BUILD="true"
+    export UPGRADE_TO_LATEST_REQUIREMENTS="true"
 fi
 
 

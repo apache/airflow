@@ -34,11 +34,12 @@ pip install .
 # or directly
 python setup.py install
 
-# You can also install recommended version of the dependencies by using requirements.txt
-# as constraint file. This is needed in case you have problems with installint latest
-# requirements.
+# You can also install recommended version of the dependencies by using
+# requirements-python<PYTHON_MAJOR_MINOR_VERSION>.txt as constraint file. This is needed in case
+# you have problems with installing the current requirements from PyPI.
+# There are different requirements for different python versions. For example"
 
-pip install . --constraint requirements.txt
+pip install . --constraint requirements/requirements-python3.7.txt
 
 # You can also install Airflow with extras specified. The list of available extras:
 # START EXTRAS HERE

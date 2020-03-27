@@ -327,8 +327,8 @@ webhdfs, winrm
   .. END EXTRAS HERE
 
 
-Pinned Airflow requirements.txt file
-------------------------------------
+Airflow dependencies
+--------------------
 
 Airflow is not a standard python project. Most of the python projects fall into one of two types -
 application or library. As described in
@@ -343,30 +343,134 @@ be open to allow several different libraries with the same requirements to be in
 The problem is that Apache Airflow is a bit of both - application to install and library to be used when
 you are developing your own operators and DAGs.
 
-This - seemingly unsolvable - puzzle is solved as follows:
+This - seemingly unsolvable - puzzle is solved by having pinned requirement files. Those are available
+as of airflow 1.10.10.
 
-* by default when you install ``apache-airflow`` package - the dependencies are as open as possible while
-  still allowing the apache-airflow to install. This means that 'apache-airflow' package might fail to
-  install in case a direct or transitive dependency is released that breaks the installation. In such case
-  when installing ``apache-airflow``, you might need to provide additional constraints (for
-  example ``pip install apache-airflow==1.10.2 Werkzeug<1.0.0``)
+Pinned requirement files
+------------------------
 
-* we have ``requirements.txt`` file generated automatically based on the set of all latest working
-  and tested requirement versions. You can also use that file as a constraints file when installing
-  apache airflow - either from the sources ``pip install -e . --constraint requirements.txt`` or
-  from the pypi package ``pip install apache-airflow --constraint requirements.txt``. Note that
-  this will also work with extras for example ``pip install .[gcp] --constraint requirements.txt`` or
-  ``pip install apache-airflow[gcp] --constraint requirements.txt``
+By default when you install ``apache-airflow`` package - the dependencies are as open as possible while
+still allowing the apache-airflow package to install. This means that 'apache-airflow' package might fail to
+install in case a direct or transitive dependency is released that breaks the installation. In such case
+when installing ``apache-airflow``, you might need to provide additional constraints (for
+example ``pip install apache-airflow==1.10.2 Werkzeug<1.0.0``)
 
-The ``requirements.txt`` file should be updated automatically via pre-commit whenever you update dependencies
-It reflects the current set of dependencies installed in the CI image of Apache Airflow.
-The same set of requirements will be used to produce the production image.
+However we now have ``requirements-python<PYTHON_MAJOR_MINOR_VERSION>.txt`` file generated
+automatically and committed in the requirements folder based on the set of all latest working and tested
+requirement versions. Those ``requirement-python<PYTHON_MAJOR_MINOR_VERSION>.txt`` files can be used as
+constraints file when installing Apache Airflow - either from the sources
 
-If you do not use pre-commits and the CI builds fails / you need to regenerate it, you can do it manually:
-``pre-commit run generate-requirements --all-files`` or via script
-``./scripts/ci/ci_generate_requirements.sh``.
-This will try to regenerate the requirements.txt file with the latest requirements matching
-the setup.py constraints.
+.. code-block:: bash
+
+  pip install -e . --constraint requirements/requirements-python3.6.txt
+
+
+or from the pypi package
+
+.. code-block:: bash
+
+  pip install apache-airflow --constraint requirements/requirements-python3.6.txt
+
+
+This works also with extras - for example:
+
+.. code-block:: bash
+
+  pip install .[gcp] --constraint requirements/requirements-python3.6.txt
+
+
+It is also possible to use constraints directly from github using tag/version name:
+
+.. code-block:: bash
+
+  pip install apache-airflow[gcp]==1.10.10 \
+      --constraint https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.6.txt
+
+There are different set of fixed requirements for different python major/minor versions and you should
+use the right requirements file for the right python version.
+
+The ``requirements-python<PYTHON_MAJOR_MINOR_VERSION>.txt`` file MUST be regenerated every time after
+the ``setup.py`` is updated. This is checked automatically in Travis CI build. There are separate
+jobs for each python version that checks if the requirements should be updated.
+
+If they are not updated, you should regenerate the requirements locally using Breeze as described below.
+
+Generating requirement files
+----------------------------
+
+This should be done every time after you modify setup.py file. You can generate requirement files
+using `Breeze <BREEZE.rst>`_ . Simply use those commands:
+
+.. code-block:: bash
+
+  breeze generate-requirements --python 3.7
+
+.. code-block:: bash
+
+  breeze generate-requirements --python 3.6
+
+Note that when you generate requirements this way, you might update to latest version of requirements
+that were released since the last time so during tests you might get errors unrelated to your change.
+In this case the easiest way to fix it is to limit the culprit dependency to the previous version
+with ``<NNNN.NN>`` constraint added in setup.py.
+
+Backport providers packages
+---------------------------
+
+Since we are developing new operators in the master branch, we prepared backport packages ready to be
+installed for Airflow 1.10.* series. Those backport operators (the tested ones) are going to be released
+in PyPi and we are going to maintain the list at
+`Backported providers package page <https://cwiki.apache.org/confluence/display/AIRFLOW/Backported+providers+packages+for+Airflow+1.10.*+series>`_
+
+Some of the packages have cross-dependencies with other providers packages. This typically happens for
+transfer operators where operators use hooks from the other providers in case they are transferring
+data between the providers. The list of dependencies is maintained (automatically with pre-commits)
+in the ``airflow/providers/dependencies.json``. Pre-commits are also used to generate dependencies.
+The dependency list is automatically used during pypi packages generation.
+
+Cross-dependencies between provider packages are converted into extras - if you need functionality from
+the other provider package you can install it adding [extra] after the apache-airflow-providers-PROVIDER
+for example ``pip install apache-airflow-providers-google[amazon]`` in case you want to use GCP's
+transfer operators from Amazon ECS.
+
+If you add a new dependency between different providers packages, it will be detected automatically during
+pre-commit phase and pre-commit will fail - and add entry in dependencies.json so that the package extra
+dependencies are properly added when package is installed.
+
+You can regenerate the whole list of provider dependencies by running this command (you need to have
+``pre-commits`` installed).
+
+.. code-block:: bash
+
+  pre-commit run build-providers-dependencies
+
+
+Here is the list of packages and their extras:
+
+
+  .. START PACKAGE DEPENDENCIES HERE
+
+========================== ===========================
+Package                    Extras
+========================== ===========================
+amazon                     apache.hive,google,imap,mongo,postgres,ssh
+apache.druid               apache.hive
+apache.hive                amazon,microsoft.mssql,mysql,presto,samba,vertica
+apache.livy                http
+dingding                   http
+discord                    http
+google                     amazon,apache.cassandra,cncf.kubernetes,microsoft.azure,microsoft.mssql,mysql,postgres,presto,sftp
+hashicorp                  google
+microsoft.azure            oracle
+microsoft.mssql            odbc
+mysql                      amazon,presto,vertica
+opsgenie                   http
+postgres                   amazon
+sftp                       ssh
+slack                      http
+========================== ===========================
+
+  .. END PACKAGE DEPENDENCIES HERE
 
 Static code checks
 ==================
@@ -377,6 +481,48 @@ We check our code quality via static code checks. See
 Your code must pass all the static code checks in Travis CI in order to be eligible for Code Review.
 The easiest way to make sure your code is good before pushing is to use pre-commit checks locally
 as described in the static code checks documentation.
+
+.. _coding_style:
+
+Coding style and best practices
+===============================
+
+Most of our coding style rules are enforced programmatically by flake8 and pylint (which are run automatically
+on every pull request), but there are some rules that are not yet automated and are more Airflow specific or
+semantic than style
+
+Database Session Handling
+-------------------------
+
+**Explicit is better than implicit.** If a function accepts a ``session`` parameter it should not commit the
+transaction itself. Session management is up to the caller.
+
+To make this easier there is the ``create_session`` helper:
+
+.. code-block:: python
+
+    from airflow.utils.session import create_session
+
+    def my_call(*args, session):
+      ...
+      # You MUST not commit the session here.
+
+    with create_session() as session:
+        my_call(*args, session=session)
+
+If this function is designed to be called by "end-users" (i.e. DAG authors) then using the ``@provide_session`` wrapper is okay:
+
+.. code-block:: python
+
+    from airflow.utils.session import provide_session
+
+    ...
+
+    @provide_session
+    def my_method(arg, arg, session=None)
+      ...
+      # You SHOULD not commit the session here. The wrapper will take care of commit()/rollback() if exception
+
 
 Test Infrastructure
 ===================
