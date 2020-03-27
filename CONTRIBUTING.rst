@@ -317,7 +317,7 @@ This is the full list of those extras:
 
 all, all_dbs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant, dask, databricks,
 datadog, devel, devel_ci, devel_hadoop, doc, docker, druid, elasticsearch, gcp, gcp_api,
-github_enterprise, google_auth, grpc, hdfs, hive, hvac, jdbc, jira, kerberos, kubernetes, ldap,
+github_enterprise, google_auth, grpc, hashicorp, hdfs, hive, jdbc, jira, kerberos, kubernetes, ldap,
 mongo, mssql, mysql, odbc, oracle, pagerduty, papermill, password, pinot, postgres, presto, qds,
 rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry, singularity, slack, snowflake, ssh,
 statsd, tableau, vertica, webhdfs, winrm, yandexcloud
