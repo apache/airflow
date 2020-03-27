@@ -18,8 +18,12 @@
 
 import os
 import statistics
-from time import monotonic, sleep
-from typing import List, NamedTuple, Optional, Tuple
+from time import sleep
+from time import monotonic
+from typing import List
+from typing import Tuple
+from typing import Optional
+from typing import NamedTuple
 
 import pandas as pd
 
