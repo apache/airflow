@@ -23,6 +23,7 @@ from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.models import Connection
 from airflow.typing_compat import Protocol
 
 
@@ -59,14 +60,28 @@ class DbApiHook(BaseHook):
             raise AirflowException("conn_name_attr is not defined")
         elif len(args) == 1:
             setattr(self, self.conn_name_attr, args[0])
-        elif self.conn_name_attr not in kwargs:
-            setattr(self, self.conn_name_attr, self.default_conn_name)
         else:
-            setattr(self, self.conn_name_attr, kwargs[self.conn_name_attr])
+            setattr(self, self.conn_name_attr, kwargs.get(self.conn_name_attr, self.default_conn_name))
+
+    @property
+    def conn_name(self) -> str:
+        """
+        Get the name of the database connection attribute which identifies the connection.
+        """
+        return getattr(self, self.conn_name_attr)
+
+    @property
+    def connection(self) -> Connection:
+        """
+        Get the database connection object.
+
+        :return: Connection
+        """
+        return self.get_connection(self.conn_name)
 
     def get_conn(self):
         """Returns a connection object"""
-        db = self.get_connection(getattr(self, self.conn_name_attr))
+        db = self.connection
         return self.connector.connect(host=db.host, port=db.port, username=db.login, schema=db.schema)
 
     def get_uri(self) -> str:
@@ -75,7 +90,7 @@ class DbApiHook(BaseHook):
 
         :return: the extracted uri.
         """
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        conn = self.connection
         login = ''
         if conn.login:
             login = '{conn.login}:{conn.password}@'.format(conn=conn)

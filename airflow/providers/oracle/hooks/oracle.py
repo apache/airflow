@@ -51,9 +51,7 @@ class OracleHook(DbApiHook):
         see more param detail in
         `cx_Oracle.connect <https://cx-oracle.readthedocs.io/en/latest/module.html#cx_Oracle.connect>`_
         """
-        conn = self.get_connection(
-            self.oracle_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
-        )
+        conn = self.connection
         conn_config = {'user': conn.login, 'password': conn.password}
         dsn = conn.extra_dejson.get('dsn')
         sid = conn.extra_dejson.get('sid')

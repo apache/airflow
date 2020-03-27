@@ -46,7 +46,7 @@ class MySqlHook(DbApiHook):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
-        self.connection = kwargs.pop("connection", None)
+        self.param_connection = kwargs.pop("connection", None)
 
     def set_autocommit(self, conn: Connection, autocommit: bool) -> None:  # noqa: D403
         """MySql connection sets autocommit in a different way."""
@@ -131,7 +131,7 @@ class MySqlHook(DbApiHook):
 
         :return: a mysql connection object
         """
-        conn = self.connection or self.get_connection(self.mysql_conn_id)  # pylint: disable=no-member
+        conn = self.param_connection or self.connection
 
         client_name = conn.extra_dejson.get('client', 'mysqlclient')
 
@@ -150,7 +150,7 @@ class MySqlHook(DbApiHook):
         raise ValueError('Unknown MySQL client name provided!')
 
     def get_uri(self) -> str:
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        conn = self.connection
         uri = super().get_uri()
         if conn.extra_dejson.get('charset', False):
             charset = conn.extra_dejson["charset"]

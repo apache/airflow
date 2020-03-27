@@ -53,9 +53,7 @@ class SnowflakeHook(DbApiHook):
         One method to fetch connection params as a dict
         used in get_uri() and get_connection()
         """
-        conn = self.get_connection(
-            self.snowflake_conn_id  # type: ignore[attr-defined] # pylint: disable=no-member
-        )
+        conn = self.connection
         account = conn.extra_dejson.get('account', '')
         warehouse = conn.extra_dejson.get('warehouse', '')
         database = conn.extra_dejson.get('database', '')
@@ -127,13 +125,11 @@ class SnowflakeHook(DbApiHook):
 
         intended to be used by external import and export statements
         """
-        if self.snowflake_conn_id:  # type: ignore[attr-defined]  # pylint: disable=no-member
-            connection_object = self.get_connection(
-                self.snowflake_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
-            )
-            if 'aws_secret_access_key' in connection_object.extra_dejson:
-                aws_access_key_id = connection_object.extra_dejson.get('aws_access_key_id')
-                aws_secret_access_key = connection_object.extra_dejson.get('aws_secret_access_key')
+        connection_object = self.connection
+        if 'aws_secret_access_key' in connection_object.extra_dejson:
+            raise ValueError('Extra config aws_secret_access_key do not exists.')
+        aws_access_key_id = connection_object.extra_dejson.get('aws_access_key_id')
+        aws_secret_access_key = connection_object.extra_dejson.get('aws_secret_access_key')
         return aws_access_key_id, aws_secret_access_key
 
     def set_autocommit(self, conn, autocommit: Any) -> None:

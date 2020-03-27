@@ -263,9 +263,7 @@ class PinotDbApiHook(DbApiHook):
 
     def get_conn(self) -> Any:
         """Establish a connection to pinot broker through pinot dbapi."""
-        # pylint: disable=no-member
-        conn = self.get_connection(self.pinot_broker_conn_id)  # type: ignore
-        # pylint: enable=no-member
+        conn = self.connection
         pinot_broker_conn = connect(
             host=conn.host,
             port=conn.port,
@@ -281,7 +279,7 @@ class PinotDbApiHook(DbApiHook):
 
         e.g: http://localhost:9000/query/sql
         """
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        conn = self.connection
         host = conn.host
         if conn.port is not None:
             host += f':{conn.port}'

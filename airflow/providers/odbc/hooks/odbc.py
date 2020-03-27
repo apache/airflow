@@ -70,7 +70,7 @@ class OdbcHook(DbApiHook):
     def connection(self):
         """``airflow.Connection`` object with connection id ``odbc_conn_id``"""
         if not self._connection:
-            self._connection = self.get_connection(getattr(self, self.conn_name_attr))
+            self._connection = super().connection
         return self._connection
 
     @property

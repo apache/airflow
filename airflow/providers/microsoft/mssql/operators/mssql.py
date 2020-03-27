@@ -79,7 +79,7 @@ class MsSqlOperator(BaseOperator):
         Otherwise, :py:class:`~airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook` will be used.
         """
         if not self._hook:
-            conn = MsSqlHook.get_connection(conn_id=self.mssql_conn_id)
+            conn = MsSqlHook.get_connection(self.mssql_conn_id)
             try:
                 self._hook = conn.get_hook()
                 self._hook.schema = self.database  # type: ignore[union-attr]

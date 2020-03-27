@@ -52,7 +52,8 @@ class TestSnowflakeHook(unittest.TestCase):
             def get_conn(self):
                 return conn
 
-            def get_connection(self, _):
+            @property
+            def connection(self):
                 return conn
 
         self.db_hook = UnitTestSnowflakeHook(session_parameters={"QUERY_TAG": "This is a test hook"})

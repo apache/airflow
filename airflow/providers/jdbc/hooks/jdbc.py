@@ -38,7 +38,7 @@ class JdbcHook(DbApiHook):
     supports_autocommit = True
 
     def get_conn(self) -> jaydebeapi.Connection:
-        conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
+        conn = self.connection
         host: str = conn.host
         login: str = conn.login
         psw: str = conn.password

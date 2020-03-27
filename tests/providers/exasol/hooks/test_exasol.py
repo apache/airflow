@@ -38,11 +38,11 @@ class TestExasolHookConn(unittest.TestCase):
         )
 
         self.db_hook = ExasolHook()
-        self.db_hook.get_connection = mock.Mock()
-        self.db_hook.get_connection.return_value = self.connection
 
+    @mock.patch('airflow.hooks.dbapi_hook.DbApiHook.connection', new_callable=mock.PropertyMock)
     @mock.patch('airflow.providers.exasol.hooks.exasol.pyexasol')
-    def test_get_conn(self, mock_pyexasol):
+    def test_get_conn(self, mock_pyexasol, mock_connection):
+        mock_connection.return_value = self.connection
         self.db_hook.get_conn()
         mock_connect = mock_pyexasol.connect
         mock_connect.assert_called_once()
@@ -53,9 +53,11 @@ class TestExasolHookConn(unittest.TestCase):
         self.assertEqual(kwargs['dsn'], 'host:1234')
         self.assertEqual(kwargs['schema'], 'schema')
 
+    @mock.patch('airflow.hooks.dbapi_hook.DbApiHook.connection', new_callable=mock.PropertyMock)
     @mock.patch('airflow.providers.exasol.hooks.exasol.pyexasol')
-    def test_get_conn_extra_args(self, mock_pyexasol):
+    def test_get_conn_extra_args(self, mock_pyexasol, mock_connection):
         self.connection.extra = json.dumps({'encryption': True})
+        mock_connection.return_value = self.connection
         self.db_hook.get_conn()
         mock_connect = mock_pyexasol.connect
         mock_connect.assert_called_once()

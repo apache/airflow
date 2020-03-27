@@ -48,8 +48,7 @@ class TestMySqlHookConn(unittest.TestCase):
         )
 
         self.db_hook = MySqlHook()
-        self.db_hook.get_connection = mock.Mock()
-        self.db_hook.get_connection.return_value = self.connection
+        self.db_hook.connection = mock.Mock(return_value=self.connection)
 
     @mock.patch('MySQLdb.connect')
     def test_get_conn(self, mock_connect):
@@ -62,12 +61,13 @@ class TestMySqlHookConn(unittest.TestCase):
         self.assertEqual(kwargs['host'], 'host')
         self.assertEqual(kwargs['db'], 'schema')
 
+    @mock.patch('airflow.hooks.dbapi_hook.DbApiHook.get_uri')
     @mock.patch('MySQLdb.connect')
-    def test_get_uri(self, mock_connect):
+    def test_get_uri(self, mock_connect, mock_dbapi_get_uri):
         self.connection.extra = json.dumps({'charset': 'utf-8'})
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
-        args, kwargs = mock_connect.call_args
+        mock_dbapi_get_uri.return_value = "mysql://login:password@host/schema"
         self.assertEqual(self.db_hook.get_uri(), "mysql://login:password@host/schema?charset=utf-8")
 
     @mock.patch('MySQLdb.connect')
@@ -181,8 +181,7 @@ class TestMySqlHookConnMySqlConnectorPython(unittest.TestCase):
         )
 
         self.db_hook = MySqlHook()
-        self.db_hook.get_connection = mock.Mock()
-        self.db_hook.get_connection.return_value = self.connection
+        self.db_hook.connection = mock.Mock(return_value=self.connection)
 
     @mock.patch('mysql.connector.connect')
     def test_get_conn(self, mock_connect):
@@ -329,7 +328,8 @@ TEST_DAG_ID = 'unit_test_dag'
 class MySqlContext:
     def __init__(self, client):
         self.client = client
-        self.connection = MySqlHook.get_connection(MySqlHook.default_conn_name)
+        _hook = MySqlHook()
+        self.connection = _hook.connection
         self.init_client = self.connection.extra_dejson.get('client', 'mysqlclient')
 
     def __enter__(self):

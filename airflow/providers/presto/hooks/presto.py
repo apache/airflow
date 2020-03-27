@@ -58,9 +58,7 @@ class PrestoHook(DbApiHook):
 
     def get_conn(self) -> Connection:
         """Returns a connection object"""
-        db = self.get_connection(
-            self.presto_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
-        )
+        db = self.connection
         extra = db.extra_dejson
         auth = None
         if db.password and extra.get('auth') == 'kerberos':
@@ -103,9 +101,7 @@ class PrestoHook(DbApiHook):
 
     def get_isolation_level(self) -> Any:
         """Returns an isolation level"""
-        db = self.get_connection(
-            self.presto_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
-        )
+        db = self.connection
         isolation_level = db.extra_dejson.get('isolation_level', 'AUTOCOMMIT').upper()
         return getattr(IsolationLevel, isolation_level, IsolationLevel.AUTOCOMMIT)
 

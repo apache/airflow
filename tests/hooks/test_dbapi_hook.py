@@ -20,6 +20,8 @@
 import unittest
 from unittest import mock
 
+from parameterized import parameterized
+
 from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.models import Connection
 
@@ -31,6 +33,11 @@ class TestDbApiHook(unittest.TestCase):
         self.cur = mock.MagicMock()
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
+        self.conn.conn_type = "conn_type"
+        self.conn.host = "host"
+        self.conn.login = "login"
+        self.conn.password = "password"
+        self.conn.port = 3306
         conn = self.conn
 
         class UnitTestDbApiHook(DbApiHook):
@@ -40,7 +47,22 @@ class TestDbApiHook(unittest.TestCase):
             def get_conn(self):
                 return conn
 
+            @property
+            def connection(self) -> Connection:
+                return conn
+
         self.db_hook = UnitTestDbApiHook()
+        self.db_hook_arg = UnitTestDbApiHook('arg_conn_id')
+        self.db_hook_kwargs = UnitTestDbApiHook(test_conn_id='kwargs_conn_id')
+
+    def test_conn_name_default_conn_id(self):
+        assert self.db_hook.conn_name == 'default_conn_id'
+
+    def test_conn_name_arg_conn_id(self):
+        assert self.db_hook_arg.conn_name == 'arg_conn_id'
+
+    def test_conn_name_kwargs_conn_id(self):
+        assert self.db_hook_kwargs.conn_name == 'kwargs_conn_id'
 
     def test_get_records(self):
         statement = "SQL"
@@ -164,8 +186,3 @@ class TestDbApiHook(unittest.TestCase):
             )
         )
         self.assertEqual("conn_type://login:password@host:1/", self.db_hook.get_uri())
-
-    def test_run_log(self):
-        statement = 'SQL'
-        self.db_hook.run(statement)
-        assert self.db_hook.log.info.call_count == 2

@@ -39,10 +39,20 @@ class TestOracleHookConn(unittest.TestCase):
         super().setUp()
 
         self.connection = Connection(login='login', password='password', host='host', port=1521)
+        self.conn = conn = mock.MagicMock()
+        self.conn.login = 'login'
+        self.conn.password = 'password'
+        self.conn.host = 'host'
+        self.conn.port = 1521
 
-        self.db_hook = OracleHook()
-        self.db_hook.get_connection = mock.Mock()
-        self.db_hook.get_connection.return_value = self.connection
+        class UnitTestOracleHook(OracleHook):
+            conn_name_attr = 'test_conn_id'
+
+            @property
+            def connection(self) -> Connection:
+                return conn
+
+        self.db_hook = UnitTestOracleHook()
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
     def test_get_conn_host(self, mock_connect):
@@ -57,19 +67,19 @@ class TestOracleHookConn(unittest.TestCase):
     @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
     def test_get_conn_sid(self, mock_connect):
         dsn_sid = {'dsn': 'dsn', 'sid': 'sid'}
-        self.connection.extra = json.dumps(dsn_sid)
+        self.conn.extra_dejson = dsn_sid
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         self.assertEqual(args, ())
         self.assertEqual(
-            kwargs['dsn'], cx_Oracle.makedsn(dsn_sid['dsn'], self.connection.port, dsn_sid['sid'])
+            kwargs['dsn'], cx_Oracle.makedsn(dsn_sid['dsn'], self.conn.port, dsn_sid['sid'])
         )
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
     def test_get_conn_service_name(self, mock_connect):
         dsn_service_name = {'dsn': 'dsn', 'service_name': 'service_name'}
-        self.connection.extra = json.dumps(dsn_service_name)
+        self.conn.extra_dejson = dsn_service_name
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
@@ -77,7 +87,7 @@ class TestOracleHookConn(unittest.TestCase):
         self.assertEqual(
             kwargs['dsn'],
             cx_Oracle.makedsn(
-                dsn_service_name['dsn'], self.connection.port, service_name=dsn_service_name['service_name']
+                dsn_service_name['dsn'], self.conn.port, service_name=dsn_service_name['service_name']
             ),
         )
 

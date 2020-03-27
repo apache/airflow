@@ -220,7 +220,8 @@ class TestPinotDbApiHook(unittest.TestCase):
             def get_conn(self):
                 return conn
 
-            def get_connection(self, conn_id):
+            @property
+            def connection(self):
                 return conn
 
         self.db_hook = TestPinotDBApiHook

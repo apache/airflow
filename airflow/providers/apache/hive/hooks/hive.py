@@ -814,8 +814,7 @@ class HiveServer2Hook(DbApiHook):
     def get_conn(self, schema: Optional[str] = None) -> Any:
         """Returns a Hive connection object."""
         username: Optional[str] = None
-        # pylint: disable=no-member
-        db = self.get_connection(self.hiveserver2_conn_id)  # type: ignore
+        db = self.connection
 
         auth_mechanism = db.extra_dejson.get('authMechanism', 'NONE')
         if auth_mechanism == 'NONE' and db.login is None:
@@ -830,7 +829,7 @@ class HiveServer2Hook(DbApiHook):
         if auth_mechanism == 'GSSAPI':
             self.log.warning(
                 "Detected deprecated 'GSSAPI' for authMechanism for %s. Please use 'KERBEROS' instead",
-                self.hiveserver2_conn_id,  # type: ignore
+                self.conn_name
             )
             auth_mechanism = 'KERBEROS'
 
@@ -865,9 +864,7 @@ class HiveServer2Hook(DbApiHook):
             cur.arraysize = fetch_size or 1000
 
             # not all query services (e.g. impala AIRFLOW-4434) support the set command
-            # pylint: disable=no-member
-            db = self.get_connection(self.hiveserver2_conn_id)  # type: ignore
-            # pylint: enable=no-member
+            db = self.connection
             if db.extra_dejson.get('run_set_variable_statements', True):
                 env_context = get_context_from_env_var()
                 if hive_conf:

@@ -442,7 +442,8 @@ class TestConnection(unittest.TestCase):
         },
     )
     def test_using_env_var(self):
-        conn = SqliteHook.get_connection(conn_id='test_uri')
+        hook = SqliteHook(sqlite_conn_id='test_uri')
+        conn = hook.connection
         self.assertEqual('ec2.compute.com', conn.host)
         self.assertEqual('the_database', conn.schema)
         self.assertEqual('username', conn.login)
@@ -456,7 +457,8 @@ class TestConnection(unittest.TestCase):
         },
     )
     def test_using_unix_socket_env_var(self):
-        conn = SqliteHook.get_connection(conn_id='test_uri_no_creds')
+        hook = SqliteHook(sqlite_conn_id='test_uri_no_creds')
+        conn = hook.connection
         self.assertEqual('ec2.compute.com', conn.host)
         self.assertEqual('the_database', conn.schema)
         self.assertIsNone(conn.login)
@@ -479,7 +481,8 @@ class TestConnection(unittest.TestCase):
         self.assertIsNone(conn.port)
 
     def test_env_var_priority(self):
-        conn = SqliteHook.get_connection(conn_id='airflow_db')
+        hook = SqliteHook(sqlite_conn_id='airflow_db')
+        conn = hook.connection
         self.assertNotEqual('ec2.compute.com', conn.host)
 
         with mock.patch.dict(
@@ -488,7 +491,8 @@ class TestConnection(unittest.TestCase):
                 'AIRFLOW_CONN_AIRFLOW_DB': 'postgres://username:password@ec2.compute.com:5432/the_database',
             },
         ):
-            conn = SqliteHook.get_connection(conn_id='airflow_db')
+            hook = SqliteHook(sqlite_conn_id='airflow_db')
+            conn = hook.connection
             self.assertEqual('ec2.compute.com', conn.host)
             self.assertEqual('the_database', conn.schema)
             self.assertEqual('username', conn.login)

@@ -29,19 +29,21 @@ class TestVerticaHookConn(unittest.TestCase):
     def setUp(self):
         super().setUp()
 
-        self.connection = Connection(
-            login='login',
-            password='password',
-            host='host',
-            schema='vertica',
-        )
+        self.conn = conn = mock.MagicMock()
+        self.conn.login = 'login'
+        self.conn.password = 'password'
+        self.conn.host = 'host'
+        self.conn.schema = 'vertica'
+        self.conn.port = 5433
 
         class UnitTestVerticaHook(VerticaHook):
             conn_name_attr = 'vertica_conn_id'
 
+            @property
+            def connection(self) -> Connection:
+                return conn
+
         self.db_hook = UnitTestVerticaHook()
-        self.db_hook.get_connection = mock.Mock()
-        self.db_hook.get_connection.return_value = self.connection
 
     @patch('airflow.providers.vertica.hooks.vertica.connect')
     def test_get_conn(self, mock_connect):
@@ -64,6 +66,10 @@ class TestVerticaHook(unittest.TestCase):
             conn_name_attr = 'test_conn_id'
 
             def get_conn(self):
+                return conn
+
+            @property
+            def connection(self) -> Connection:
                 return conn
 
         self.db_hook = UnitTestVerticaHook()

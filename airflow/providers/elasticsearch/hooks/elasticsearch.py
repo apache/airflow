@@ -33,12 +33,11 @@ class ElasticsearchHook(DbApiHook):
     def __init__(self, schema: str = "http", connection: Optional[AirflowConnection] = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.schema = schema
-        self.connection = connection
+        self.param_connection = connection
 
     def get_conn(self) -> ESConnection:
         """Returns a elasticsearch connection object"""
-        conn_id = getattr(self, self.conn_name_attr)
-        conn = self.connection or self.get_connection(conn_id)
+        conn = self.param_connection or self.connection
 
         conn_args = dict(
             host=conn.host,
@@ -59,8 +58,7 @@ class ElasticsearchHook(DbApiHook):
         return conn
 
     def get_uri(self) -> str:
-        conn_id = getattr(self, self.conn_name_attr)
-        conn = self.connection or self.get_connection(conn_id)
+        conn = self.param_connection or self.connection
 
         login = ''
         if conn.login:

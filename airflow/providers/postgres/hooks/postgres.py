@@ -62,7 +62,7 @@ class PostgresHook(DbApiHook):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.schema: Optional[str] = kwargs.pop("schema", None)
-        self.connection: Optional[Connection] = kwargs.pop("connection", None)
+        self.param_connection: Optional[Connection] = kwargs.pop("connection", None)
         self.conn: connection = None
 
     def _get_cursor(self, raw_cursor: str) -> CursorType:
@@ -77,8 +77,7 @@ class PostgresHook(DbApiHook):
 
     def get_conn(self) -> connection:
         """Establishes a connection to a postgres database."""
-        conn_id = getattr(self, self.conn_name_attr)
-        conn = self.connection or self.get_connection(conn_id)
+        conn = self.param_connection or self.connection
 
         # check for authentication via AWS IAM
         if conn.extra_dejson.get('iam', False):

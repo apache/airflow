@@ -29,7 +29,6 @@ class SqliteHook(DbApiHook):
 
     def get_conn(self) -> sqlite3.dbapi2.Connection:
         """Returns a sqlite connection object"""
-        conn_id = getattr(self, self.conn_name_attr)
-        airflow_conn = self.get_connection(conn_id)
+        airflow_conn = self.connection
         conn = sqlite3.connect(airflow_conn.host)
         return conn

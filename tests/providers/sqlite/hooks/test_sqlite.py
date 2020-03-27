@@ -28,14 +28,17 @@ from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 class TestSqliteHookConn(unittest.TestCase):
     def setUp(self):
 
-        self.connection = Connection(host='host')
+        self.conn = conn = mock.MagicMock()
+        self.conn.host = 'host'
 
         class UnitTestSqliteHook(SqliteHook):
             conn_name_attr = 'test_conn_id'
 
+            @property
+            def connection(self) -> Connection:
+                return conn
+
         self.db_hook = UnitTestSqliteHook()
-        self.db_hook.get_connection = mock.Mock()
-        self.db_hook.get_connection.return_value = self.connection
 
     @patch('airflow.providers.sqlite.hooks.sqlite.sqlite3.connect')
     def test_get_conn(self, mock_connect):
