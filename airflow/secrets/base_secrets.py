@@ -18,7 +18,7 @@
 from abc import ABC
 from typing import List, Optional
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 
 
 class BaseSecretsBackend(ABC):
@@ -64,3 +64,12 @@ class BaseSecretsBackend(ABC):
             return []
         conn = Connection(conn_id=conn_id, uri=conn_uri)
         return [conn]
+
+    def get_variable(self, key: str) -> Optional[str]:
+        """
+        Return value for Airflow Connection
+
+        :param key: Variable Key
+        :return: Variable Value
+        """
+        raise NotImplementedError()

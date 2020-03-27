@@ -18,14 +18,17 @@
 #
 import os
 import unittest
+from unittest import mock
 
 from parameterized import parameterized
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
+from airflow.models.variable import Variable
 from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.secrets.environment_variables import EnvironmentVariablesBackend
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.session import create_session
+from tests.test_utils.db import clear_db_connections, clear_db_variables
 
 
 class SampleConn:
@@ -41,6 +44,13 @@ class SampleConn:
 
 class TestBaseSecretsBackend(unittest.TestCase):
 
+    def setUp(self) -> None:
+        clear_db_variables()
+
+    def tearDown(self) -> None:
+        clear_db_connections()
+        clear_db_variables()
+
     @parameterized.expand([
         ('default', {"connections_prefix": "PREFIX", "conn_id": "ID"}, "PREFIX/ID"),
         ('with_sep', {"connections_prefix": "PREFIX", "conn_id": "ID", "sep": "-"}, "PREFIX-ID")
@@ -49,7 +59,7 @@ class TestBaseSecretsBackend(unittest.TestCase):
         build_path = BaseSecretsBackend.build_path
         self.assertEqual(build_path(**kwargs), output)
 
-    def test_env_secrets_backend(self):
+    def test_connection_env_secrets_backend(self):
         sample_conn_1 = SampleConn("sample_1", "A")
         env_secrets_backend = EnvironmentVariablesBackend()
         os.environ[sample_conn_1.var_name] = sample_conn_1.conn_uri
@@ -60,7 +70,7 @@ class TestBaseSecretsBackend(unittest.TestCase):
         # we could make this more precise by defining __eq__ method for Connection
         self.assertEqual(sample_conn_1.host.lower(), conn.host)
 
-    def test_metastore_secrets_backend(self):
+    def test_connection_metastore_secrets_backend(self):
         sample_conn_2a = SampleConn("sample_2", "A")
         sample_conn_2b = SampleConn("sample_2", "B")
         with create_session() as session:
@@ -73,6 +83,22 @@ class TestBaseSecretsBackend(unittest.TestCase):
         self.assertEqual(
             {sample_conn_2a.host.lower(), sample_conn_2b.host.lower()}, set(host_list)
         )
+
+    @mock.patch.dict('os.environ', {
+        'AIRFLOW_VAR_HELLO': 'World',
+    })
+    def test_variable_env_secrets_backend(self):
+        env_secrets_backend = EnvironmentVariablesBackend()
+        variable_value = env_secrets_backend.get_variable(key="hello")
+        self.assertEqual('World', variable_value)
+        self.assertIsNone(env_secrets_backend.get_variable(key="non_existent_key"))
+
+    def test_variable_metastore_secrets_backend(self):
+        Variable.set(key="hello", value="World")
+        metastore_backend = MetastoreBackend()
+        variable_value = metastore_backend.get_variable(key="hello")
+        self.assertEqual("World", variable_value)
+        self.assertIsNone(metastore_backend.get_variable(key="non_existent_key"))
 
 
 if __name__ == "__main__":

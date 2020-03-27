@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 from airflow.models import (
-    Connection, DagModel, DagRun, DagTag, Pool, RenderedTaskInstanceFields, SlaMiss, TaskInstance, errors,
+    Connection, DagModel, DagRun, DagTag, Pool, RenderedTaskInstanceFields, SlaMiss, TaskInstance, Variable,
+    errors,
 )
 from airflow.models.dagcode import DagCode
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections
@@ -55,6 +56,11 @@ def clear_db_connections():
     with create_session() as session:
         session.query(Connection).delete()
         create_default_connections(session)
+
+
+def clear_db_variables():
+    with create_session() as session:
+        session.query(Variable).delete()
 
 
 def clear_db_dag_code():

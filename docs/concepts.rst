@@ -687,6 +687,34 @@ or if you need to deserialize a json object from the variable :
 
     echo {{ var.json.<variable_name> }}
 
+Storing Variables in Environment Variables
+------------------------------------------
+
+Airflow Variables can also be created and managed using Environment Variables. The environment variable
+naming convention is ``AIRFLOW_VAR_<variable_name>``, all uppercase.
+So if your variable key is ``FOO`` then the variable name should be ``AIRFLOW_VAR_FOO``.
+
+For example,
+
+.. code:: bash
+
+    export AIRFLOW_VAR_FOO=BAR
+
+    # To use JSON, store them as JSON strings
+    export AIRFLOW_VAR_FOO_BAZ='{"hello":"world"}'
+
+You can use them in your DAGs as:
+
+.. code:: python
+
+    from airflow.models import Variable
+    foo = Variable.get("foo")
+    foo_json = Variable.get("foo_baz", deserialize_json=True)
+
+.. note::
+
+    Single underscores surround ``VAR``.  This is in contrast with the way ``airflow.cfg``
+    parameters are stored, where double underscores surround the config section name.
 
 Branching
 =========

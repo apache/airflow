@@ -22,15 +22,15 @@ Secrets framework provides means of getting connection objects from various sour
     * Metatsore database
     * AWS SSM Parameter store
 """
-__all__ = ['BaseSecretsBackend', 'get_connections']
+__all__ = ['BaseSecretsBackend', 'get_connections', 'get_variable']
 
 import json
 from json import JSONDecodeError
-from typing import List
+from typing import List, Optional
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.utils.module_loading import import_string
 
@@ -54,6 +54,21 @@ def get_connections(conn_id: str) -> List[Connection]:
             return list(conn_list)
 
     raise AirflowException("The conn_id `{0}` isn't defined".format(conn_id))
+
+
+def get_variable(key: str) -> Optional[str]:
+    """
+    Get Airflow Variable by iterating over all Secret Backends.
+
+    :param key: Variable Key
+    :return: Variable Value
+    """
+    for secrets_backend in ensure_secrets_loaded():
+        var_val = secrets_backend.get_variable(key=key)
+        if var_val:
+            return var_val
+
+    return None
 
 
 def initialize_secrets_backends() -> List[BaseSecretsBackend]:
