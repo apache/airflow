@@ -27,8 +27,9 @@ import textwrap
 from importlib import util
 from os.path import dirname
 from shutil import copyfile, copytree, rmtree
-from typing import Dict, List
+from typing import Callable, Dict, List
 
+from fissix.pgen2.parse import ParseError
 from setuptools import Command, find_packages, setup as setuptools_setup
 
 logger = logging.getLogger(__name__)
@@ -170,6 +171,21 @@ def change_import_paths_to_deprecated():
         provide_context_arg.prefix = fn_args.children[0].prefix
         fn_args.append_child(provide_context_arg)
 
+    def remove_class(qry, class_name) -> None:
+        def _remover(node: LN, capture: Capture, filename: Filename) -> None:
+            if node.type == 300:
+                for ch in node.post_order():
+                    if isinstance(ch, Leaf) and ch.value == class_name:
+                        if ch.next_sibling and ch.next_sibling.value == ",":
+                            ch.next_sibling.remove()
+                        ch.remove()
+            elif node.type == 311:
+                node.parent.remove()
+            else:
+                node.remove()
+
+        qry.select_class(class_name).modify(_remover)
+
     changes = [
         ("airflow.operators.bash", "airflow.operators.bash_operator"),
         ("airflow.operators.python", "airflow.operators.python_operator"),
@@ -227,6 +243,8 @@ def change_import_paths_to_deprecated():
         .is_filename(include=r"mlengine_operator_utils.py$")
         .modify(add_provide_context_to_python_operator)
     )
+
+    remove_class(qry, "GKEStartPodOperator")
 
     qry.execute(write=True, silent=False, interactive=False)
 
