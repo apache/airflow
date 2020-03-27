@@ -97,6 +97,9 @@ class GrpcHook(BaseHook):
         return channel
 
     def run(self, stub_class, call_func, streaming=False, data=None):
+        """
+        Call gRPC function and yield response to caller
+        """
         if data is None:
             data = {}
         with self.get_conn() as channel:

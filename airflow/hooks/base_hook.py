@@ -75,18 +75,3 @@ class BaseHook(LoggingMixin):
     def get_conn(self):
         """Returns connection for the hook."""
         raise NotImplementedError()
-
-    def get_records(self, sql):
-        """Returns records for the sql query (for hooks that support SQL)."""
-        # TODO: move it out from the base hook. It belongs to some common SQL hook most likely
-        raise NotImplementedError()
-
-    def get_pandas_df(self, sql):
-        """Returns pandas dataframe for the sql query (for hooks that support SQL)."""
-        # TODO: move it out from the base hook. It belongs to some common SQL hook most likely
-        raise NotImplementedError()
-
-    def run(self, sql):
-        """Runs SQL query (for hooks that support SQL)."""
-        # TODO: move it out from the base hook. It belongs to some common SQL hook most likely
-        raise NotImplementedError()

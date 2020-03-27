@@ -30,6 +30,7 @@ import unicodecsv as csv
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.security import utils
 from airflow.utils.helpers import as_flattened_list
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
@@ -775,7 +776,7 @@ class HiveMetastoreHook(BaseHook):
             return False
 
 
-class HiveServer2Hook(BaseHook):
+class HiveServer2Hook(DbApiHook):
     """
     Wrapper around the pyhive library
 
@@ -786,15 +787,15 @@ class HiveServer2Hook(BaseHook):
     are using impala you may need to set it to false in the
     ``extra`` of your connection in the UI
     """
-    def __init__(self, hiveserver2_conn_id='hiveserver2_default'):
-        super().__init__()
-        self.hiveserver2_conn_id = hiveserver2_conn_id
+    conn_name_attr = 'hiveserver2_conn_id'
+    default_conn_name = 'hiveserver2_default'
+    supports_autocommit = False
 
     def get_conn(self, schema=None):
         """
         Returns a Hive connection object.
         """
-        db = self.get_connection(self.hiveserver2_conn_id)
+        db = self.get_connection(self.hiveserver2_conn_id)  # pylint: disable=no-member
         auth_mechanism = db.extra_dejson.get('authMechanism', 'NONE')
         if auth_mechanism == 'NONE' and db.login is None:
             # we need to give a username
@@ -809,7 +810,7 @@ class HiveServer2Hook(BaseHook):
             self.log.warning(
                 "Detected deprecated 'GSSAPI' for authMechanism "
                 "for %s. Please use 'KERBEROS' instead",
-                self.hiveserver2_conn_id
+                self.hiveserver2_conn_id    # pylint: disable=no-member
             )
             auth_mechanism = 'KERBEROS'
 
@@ -833,7 +834,7 @@ class HiveServer2Hook(BaseHook):
             cur.arraysize = fetch_size or 1000
 
             # not all query services (e.g. impala AIRFLOW-4434) support the set command
-            db = self.get_connection(self.hiveserver2_conn_id)
+            db = self.get_connection(self.hiveserver2_conn_id)    # pylint: disable=no-member
             if db.extra_dejson.get('run_set_variable_statements', True):
                 env_context = get_context_from_env_var()
                 if hive_conf:
