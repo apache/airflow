@@ -39,7 +39,7 @@ from sqlalchemy.orm.session import Session
 from airflow import settings, utils
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag
-from airflow.exceptions import AirflowException, DuplicateTaskIdFound, TaskNotFound,
+from airflow.exceptions import AirflowException, DuplicateTaskIdFound, TaskNotFound
 from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
