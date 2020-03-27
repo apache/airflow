@@ -82,6 +82,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
         dag_id_white_list: Optional[List[str]],
         failure_callback_requests: List[FailureCallbackRequest]
     ):
+        super().__init__()
         self._file_path = file_path
         self._pickle_dags = pickle_dags
         self._dag_id_white_list = dag_id_white_list
@@ -331,6 +332,7 @@ class DagFileProcessor(LoggingMixin):
     UNIT_TEST_MODE = conf.getboolean('core', 'UNIT_TEST_MODE')
 
     def __init__(self, dag_ids, log):
+        super().__init__()
         self.dag_ids = dag_ids
         self._log = log
 

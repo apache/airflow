@@ -57,6 +57,7 @@ class DbApiHook(BaseHook):
     connector = None  # type: Optional[ConnectorProtocol]
 
     def __init__(self, *args, **kwargs):
+        super().__init__()
         if not self.conn_name_attr:
             raise AirflowException("conn_name_attr is not defined")
         elif len(args) == 1:

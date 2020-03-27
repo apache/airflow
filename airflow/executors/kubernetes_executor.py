@@ -277,7 +277,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                  resource_version: Optional[str],
                  worker_uuid: Optional[str],
                  kube_config: Configuration):
-        multiprocessing.Process.__init__(self)
+        super().__init__()
         self.namespace = namespace
         self.worker_uuid = worker_uuid
         self.watcher_queue = watcher_queue

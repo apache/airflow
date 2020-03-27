@@ -32,7 +32,7 @@ class CustomStatsd(statsd.StatsClient):
     incr_calls = 0
 
     def __init__(self, host=None, port=None, prefix=None):
-        pass
+        super().__init__()
 
     def incr(self, stat, count=1, rate=1):  # pylint: disable=unused-argument
         CustomStatsd.incr_calls += 1
