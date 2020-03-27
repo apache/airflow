@@ -630,7 +630,7 @@ function get_local_image_info() {
     set -e
      # Create manifest from the local manifest image
     verbose_docker cp "local-airflow-manifest:${AIRFLOW_BASE_TAG}.json" "${TMP_MANIFEST_LOCAL_JSON}" >/dev/null 2>&1
-    sed 's/ *//g' "${TMP_MANIFEST_LOCAL_JSON}" | grep '^"sha256:' >"${TMP_MANIFEST_LOCAL_SHA}" >/dev/null 2>&1
+    sed 's/ *//g' "${TMP_MANIFEST_LOCAL_JSON}" | grep '^"sha256:' >"${TMP_MANIFEST_LOCAL_SHA}"
     verbose_docker rm --force "local-airflow-manifest" >/dev/null 2>&1
 }
 
@@ -662,7 +662,7 @@ function get_remote_image_info() {
     # Extract manifest and store it in local file
     verbose_docker cp "remote-airflow-manifest:${AIRFLOW_BASE_TAG}.json" "${TMP_MANIFEST_REMOTE_JSON}" >/dev/null 2>&1
     # Filter everything except SHAs of image layers
-    sed 's/ *//g' "${TMP_MANIFEST_REMOTE_JSON}" | grep '^"sha256:' >"${TMP_MANIFEST_REMOTE_SHA}" >/dev/null  2>&1
+    sed 's/ *//g' "${TMP_MANIFEST_REMOTE_JSON}" | grep '^"sha256:' >"${TMP_MANIFEST_REMOTE_SHA}"
     verbose_docker rm --force "remote-airflow-manifest" >/dev/null 2>&1
 }
 
@@ -690,7 +690,7 @@ function compare_layers() {
         wc -l || true)
     rm -f "${TMP_MANIFEST_REMOTE_JSON}" "${TMP_MANIFEST_REMOTE_SHA}" "${TMP_MANIFEST_LOCAL_JSON}" "${TMP_MANIFEST_LOCAL_SHA}"
     echo
-    echo "Numbe of layers differente between the local and remote image: ${NUM_DIFF}"
+    echo "Number of layers different between the local and remote image: ${NUM_DIFF}"
     echo
     # This is where setup py is rebuilt - it will usually take a looooot of time to build it, so it is
     # Better to pull here
