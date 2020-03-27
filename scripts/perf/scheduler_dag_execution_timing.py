@@ -18,9 +18,10 @@
 
 import gc
 import os
+import statistics
 import sys
 import time
-import statistics
+
 
 import click
 
