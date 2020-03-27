@@ -94,7 +94,7 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
     if dttm:
         dttm = timezone.parse(dttm)
     else:
-        dttm = dag.latest_execution_date or timezone.utcnow()
+        dttm = dag.get_latest_execution_date() or timezone.utcnow()
 
     base_date = request.args.get('base_date')
     if base_date:
@@ -1275,7 +1275,7 @@ class Airflow(AirflowBaseView):
         task = dag.get_task(task_id)
         task.dag = dag
 
-        latest_execution_date = dag.latest_execution_date
+        latest_execution_date = dag.get_latest_execution_date()
         if not latest_execution_date:
             flash(f"Cannot make {state}, seem that dag {dag_id} has never run", "error")
             return redirect(origin)
@@ -1377,7 +1377,7 @@ class Airflow(AirflowBaseView):
         if base_date:
             base_date = timezone.parse(base_date)
         else:
-            base_date = dag.latest_execution_date or timezone.utcnow()
+            base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
         with create_session() as session:
             dag_runs = (
@@ -1622,7 +1622,7 @@ class Airflow(AirflowBaseView):
         if base_date:
             base_date = timezone.parse(base_date)
         else:
-            base_date = dag.latest_execution_date or timezone.utcnow()
+            base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
         dates = dag.date_range(base_date, num=-abs(num_runs))
         min_date = dates[0] if dates else timezone.utc_epoch()
@@ -1730,7 +1730,7 @@ class Airflow(AirflowBaseView):
         if base_date:
             base_date = timezone.parse(base_date)
         else:
-            base_date = dag.latest_execution_date or timezone.utcnow()
+            base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
         dates = dag.date_range(base_date, num=-abs(num_runs))
         min_date = dates[0] if dates else timezone.utc_epoch()
@@ -1795,7 +1795,7 @@ class Airflow(AirflowBaseView):
         if base_date:
             base_date = timezone.parse(base_date)
         else:
-            base_date = dag.latest_execution_date or timezone.utcnow()
+            base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
         dates = dag.date_range(base_date, num=-abs(num_runs))
         min_date = dates[0] if dates else timezone.utc_epoch()

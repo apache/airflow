@@ -561,11 +561,12 @@ class TaskInstance(Base, LoggingMixin):
         return count == len(task.downstream_task_ids)
 
     @provide_session
-    def _get_previous_ti(
+    def get_previous_ti(
         self,
         state: Optional[str] = None,
         session: Session = None
     ) -> Optional['TaskInstance']:
+        """The task instance for the task that ran before this task instance."""
         dag = self.task.dag
         if dag:
             dr = self.get_dagrun(session=session)
@@ -595,25 +596,13 @@ class TaskInstance(Base, LoggingMixin):
 
         return None
 
-    @property
-    def previous_ti(self) -> Optional['TaskInstance']:
-        """The task instance for the task that ran before this task instance."""
-        return self._get_previous_ti()
-
-    @property
-    def previous_ti_success(self) -> Optional['TaskInstance']:
-        """The ti from prior succesful dag run for this task, by execution date."""
-        return self._get_previous_ti(state=State.SUCCESS)
-
-    @property
-    def previous_execution_date_success(self) -> Optional[pendulum.datetime]:
+    def get_previous_execution_date_success(self) -> Optional[pendulum.datetime]:
         """The execution date from property previous_ti_success."""
         self.log.debug("previous_execution_date_success was called")
         prev_ti = self._get_previous_ti(state=State.SUCCESS)
         return prev_ti and prev_ti.execution_date
 
-    @property
-    def previous_start_date_success(self) -> Optional[pendulum.datetime]:
+    def get_previous_start_date_success(self) -> Optional[pendulum.datetime]:
         """The start date from property previous_ti_success."""
         self.log.debug("previous_start_date_success was called")
         prev_ti = self._get_previous_ti(state=State.SUCCESS)
@@ -1343,8 +1332,8 @@ class TaskInstance(Base, LoggingMixin):
             'prev_ds_nodash': prev_ds_nodash,
             'prev_execution_date': prev_execution_date,
             'prev_execution_date_success': lazy_object_proxy.Proxy(
-                lambda: self.previous_execution_date_success),
-            'prev_start_date_success': lazy_object_proxy.Proxy(lambda: self.previous_start_date_success),
+                lambda: self.get_previous_execution_date_success()),
+            'prev_start_date_success': lazy_object_proxy.Proxy(lambda: self.get_previous_start_date_success()),
             'run_id': run_id,
             'task': task,
             'task_instance': self,

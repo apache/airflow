@@ -64,7 +64,7 @@ class PrevDagrunDep(BaseTIDep):
                     reason="This task instance was the first task instance for its task.")
                 return
 
-        previous_ti = ti.previous_ti
+        previous_ti = ti.get_previous_ti()
         if not previous_ti:
             yield self._failing_status(
                 reason="depends_on_past is true for this task's DAG, but the previous "

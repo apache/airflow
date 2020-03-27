@@ -597,7 +597,11 @@ class DAG(BaseDag, LoggingMixin):
             fallback=False) and self.schedule_interval is None
 
     @provide_session
-    def _get_concurrency_reached(self, session=None) -> bool:
+    def get_concurrency_reached(self, session=None) -> bool:
+        """
+        Returns a boolean indicating whether the concurrency limit for this DAG
+        has been reached
+        """
         TI = TaskInstance
         qry = session.query(func.count(TI.task_id)).filter(
             TI.dag_id == self.dag_id,
@@ -605,26 +609,14 @@ class DAG(BaseDag, LoggingMixin):
         )
         return qry.scalar() >= self.concurrency
 
-    @property
-    def concurrency_reached(self) -> bool:
-        """
-        Returns a boolean indicating whether the concurrency limit for this DAG
-        has been reached
-        """
-        return self._get_concurrency_reached()
-
     @provide_session
-    def _get_is_paused(self, session=None):
-        qry = session.query(DagModel).filter(
-            DagModel.dag_id == self.dag_id)
-        return qry.value(DagModel.is_paused)
-
-    @property
-    def is_paused(self) -> bool:
+    def get_is_paused(self, session=None):
         """
         Returns a boolean indicating whether this DAG is paused
         """
-        return self._get_is_paused()
+        qry = session.query(DagModel).filter(
+            DagModel.dag_id == self.dag_id)
+        return qry.value(DagModel.is_paused)
 
     @provide_session
     def handle_callback(self, dagrun, success=True, reason=None, session=None):
@@ -727,17 +719,13 @@ class DAG(BaseDag, LoggingMixin):
         return dagruns
 
     @provide_session
-    def _get_latest_execution_date(self, session=None):
-        return session.query(func.max(DagRun.execution_date)).filter(
-            DagRun.dag_id == self.dag_id
-        ).scalar()
-
-    @property
-    def latest_execution_date(self):
+    def get_latest_execution_date(self, session=None):
         """
         Returns the latest date for which at least one dag run exists
         """
-        return self._get_latest_execution_date()
+        return session.query(func.max(DagRun.execution_date)).filter(
+            DagRun.dag_id == self.dag_id
+        ).scalar()
 
     @property
     def subdags(self):

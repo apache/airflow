@@ -29,7 +29,7 @@ class TestDagTISlotsAvailableDep(unittest.TestCase):
         """
         Test concurrency reached should fail dep
         """
-        dag = Mock(concurrency=1, concurrency_reached=True)
+        dag = Mock(concurrency=1, get_concurrency_reached=Mock(return_value=True))
         task = Mock(dag=dag, pool_slots=1)
         ti = TaskInstance(task, execution_date=None)
 
@@ -39,7 +39,7 @@ class TestDagTISlotsAvailableDep(unittest.TestCase):
         """
         Test all conditions met should pass dep
         """
-        dag = Mock(concurrency=1, concurrency_reached=False)
+        dag = Mock(concurrency=1, get_concurrency_reached=Mock(return_value=False))
         task = Mock(dag=dag, pool_slots=1)
         ti = TaskInstance(task, execution_date=None)
 

@@ -353,12 +353,12 @@ class TestCliDags(unittest.TestCase):
         args = self.parser.parse_args([
             'dags', 'pause', 'example_bash_operator'])
         dag_command.dag_pause(args)
-        self.assertIn(self.dagbag.dags['example_bash_operator'].is_paused, [True, 1])
+        self.assertIn(self.dagbag.dags['example_bash_operator'].get_is_paused(), [True, 1])
 
         args = self.parser.parse_args([
             'dags', 'unpause', 'example_bash_operator'])
         dag_command.dag_unpause(args)
-        self.assertIn(self.dagbag.dags['example_bash_operator'].is_paused, [False, 0])
+        self.assertIn(self.dagbag.dags['example_bash_operator'].get_is_paused(), [False, 0])
 
     def test_trigger_dag(self):
         dag_command.dag_trigger(self.parser.parse_args([
