@@ -67,7 +67,7 @@ class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.body = body
@@ -125,7 +125,7 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.report_id = report_id
@@ -209,7 +209,7 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.report_id = report_id
@@ -312,7 +312,7 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.report_id = report_id
@@ -440,7 +440,7 @@ class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.bucket_name = bucket_name
@@ -450,9 +450,7 @@ class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
         self.delegate_to = delegate_to
 
     def execute(self, context: Dict):
-        gcs_hook = GCSHook(
-            gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to
-        )
+        gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -470,3 +468,152 @@ class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
             )
             f.flush()
             hook.upload_line_items(line_items=line_items)
+
+
+class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
+    """
+    Creates SDF operation task.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleDisplayVideo360CreateSDFDownloadTaskOperator`
+
+    .. seealso::
+        Check also the official API docs:
+        `https://developers.google.com/display-video/api/reference/rest`
+
+    :param version: The SDF version of the downloaded file..
+    :type version: str
+    :param partner_id: The ID of the partner to download SDF for.
+    :type partner_id: str
+    :param advertiser_id: The ID of the advertiser to download SDF for.
+    :type advertiser_id: str
+    :param parent_entity_filter: Filters on selected file types.
+    :type parent_entity_filter: Dict[str, Any]
+    :param id_filter: Filters on entities by their entity IDs.
+    :type id_filter: Dict[str, Any]
+    :param inventory_source_filter: Filters on Inventory Sources by their IDs.
+    :type inventory_source_filter: Dict[str, Any]
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate, if any. For this to work, the service account making the
+        request must have  domain-wide delegation enabled.
+    :type delegate_to: str
+    """
+
+    template_fields = ("body_request", )
+
+    @apply_defaults
+    def __init__(
+        self,
+        body_request: Dict[str, Any],
+        api_version: str = "v1",
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.body_request = body_request
+        self.api_version = api_version
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+
+    def execute(self, context: Dict):
+        hook = GoogleDisplayVideo360Hook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            api_version=self.api_version,
+        )
+
+        self.log.info("Creating operation for SDF download task...")
+        operation = hook.create_sdf_download_operation(
+            body_request=self.body_request
+        )
+
+        return operation
+
+
+class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
+    """
+    Download SDF media and save it in the Google Cloud Storage.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleDisplayVideo360SDFtoGCSOperator`
+
+    .. seealso::
+        Check also the official API docs:
+        `https://developers.google.com/display-video/api/reference/rest`
+
+    :param version: The SDF version of the downloaded file..
+    :type version: str
+    :param partner_id: The ID of the partner to download SDF for.
+    :type partner_id: str
+    :param advertiser_id: The ID of the advertiser to download SDF for.
+    :type advertiser_id: str
+    :param parent_entity_filter: Filters on selected file types.
+    :type parent_entity_filter: Dict[str, Any]
+    :param id_filter: Filters on entities by their entity IDs.
+    :type id_filter: Dict[str, Any]
+    :param inventory_source_filter: Filters on Inventory Sources by their IDs.
+    :type inventory_source_filter: Dict[str, Any]
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate, if any. For this to work, the service account making the
+        request must have  domain-wide delegation enabled.
+    :type delegate_to: str
+    """
+
+    template_fields = ("operation_name", "bucket_name", "object_name", "body_request")
+
+    @apply_defaults
+    def __init__(
+        self,
+        operation_name: str,
+        bucket_name: str,
+        object_name: str,
+        gzip: bool = False,
+        api_version: str = "v1",
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.operation_name = operation_name
+        self.bucket_name = bucket_name
+        self.object_name = object_name
+        self.gzip = gzip
+        self.api_version = api_version
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+
+    def execute(self, context: Dict):
+        hook = GoogleDisplayVideo360Hook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            api_version=self.api_version,
+        )
+        gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+
+        self.log.info("Retrieving operation...")
+        operation = hook.get_sdf_download_operation(operation_name=self.operation_name)
+
+        self.log.info("Creating file for upload...")
+        media = hook.download_media(resource_name=operation)
+
+        self.log.info("Sending file to the Google Cloud Storage...")
+        with tempfile.NamedTemporaryFile() as temp_file:
+            hook.download_content_from_request(
+                temp_file, media, chunk_size=1024 * 1024
+            )
+            temp_file.flush()
+            gcs_hook.upload(
+                bucket_name=self.bucket_name,
+                object_name=self.object_name,
+                filename=temp_file.name,
+                gzip=self.gzip,
+            )
+
+        return f"{self.bucket_name}/{self.object_name}"

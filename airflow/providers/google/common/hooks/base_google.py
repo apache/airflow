@@ -39,7 +39,7 @@ from google.api_core.gapic_v1.client_info import ClientInfo
 from google.auth import _cloud_sdk
 from google.auth.environment_vars import CREDENTIALS
 from googleapiclient.errors import HttpError
-from googleapiclient.http import set_user_agent
+from googleapiclient.http import MediaIoBaseDownload, set_user_agent
 
 from airflow import version
 from airflow.exceptions import AirflowException
@@ -456,3 +456,23 @@ class GoogleBaseHook(BaseHook):
                         creds_content["refresh_token"],
                     ])
             yield
+
+    @staticmethod
+    def download_content_from_request(file_handle, request, chunk_size):
+        """
+        Download media resources.
+        Note that  the Python file object is compatible with io.Base and can be used with this class also.
+
+        :param file_handle: io.Base or file object. The stream in which to write the downloaded
+            bytes.
+        :type file_handle: io.Base or file object
+        :param request: googleapiclient.http.HttpRequest, the media request to perform in chunks.
+        :type request: Dict
+        :param chunk_size: int, File will be downloaded in chunks of this many bytes.
+        :type chunk_size: int
+        """
+        downloader = MediaIoBaseDownload(file_handle, request, chunksize=chunk_size)
+        done = False
+        while done is False:
+            _, done = downloader.next_chunk()
+        file_handle.flush()
