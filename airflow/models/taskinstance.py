@@ -1333,7 +1333,8 @@ class TaskInstance(Base, LoggingMixin):
             'prev_execution_date': prev_execution_date,
             'prev_execution_date_success': lazy_object_proxy.Proxy(
                 lambda: self.get_previous_execution_date_success()),
-            'prev_start_date_success': lazy_object_proxy.Proxy(lambda: self.get_previous_start_date_success()),
+            'prev_start_date_success': lazy_object_proxy.Proxy(
+                lambda: self.get_previous_start_date_success()),
             'run_id': run_id,
             'task': task,
             'task_instance': self,
