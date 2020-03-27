@@ -32,6 +32,7 @@ SUBDIR = 'scripts/perf/dags'
 DAG_IDS = ['perf_dag_1', 'perf_dag_2']
 MAX_RUNTIME_SECS = 6
 
+
 class SchedulerMetricsJob(SchedulerJob):
     """
     This class extends SchedulerJob to instrument the execution performance of
@@ -205,9 +206,9 @@ def main():
     clear_dag_task_instances()
 
     job = SchedulerMetricsJob(
-            dag_ids=DAG_IDS,
-            subdir=SUBDIR,
-            max_runtime_secs=max_runtime_secs)
+        dag_ids=DAG_IDS,
+        subdir=SUBDIR,
+        max_runtime_secs=max_runtime_secs)
 
     job.run()
 
