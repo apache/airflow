@@ -75,7 +75,7 @@ class GoogleSheetsToGCSOperator(BaseOperator):
     :param spreadsheet_id: The Google Sheet ID to interact with.
     :type spreadsheet_id: str
     :param sheet_filter: Default to None, if provided, Should be an array of the sheet
-    titles to pull from.
+        titles to pull from.
     :type sheet_filter: List[str]
     :param destination_bucket: The destination Google cloud storage bucket where the
         report should be written to. (templated)
