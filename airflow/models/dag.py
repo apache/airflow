@@ -1535,6 +1535,9 @@ class DAG(BaseDag, LoggingMixin):
 
         session.commit()
 
+        for dag in dags:
+            cls.bulk_sync_to_db(dag.subdags, sync_time=sync_time, session=session)
+
     @provide_session
     def sync_to_db(self, sync_time=None, session=None):
         """
