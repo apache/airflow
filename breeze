@@ -125,7 +125,7 @@ function setup_default_breeze_variables() {
 
     # If install released airflow is set to specified version, then the source version of airflow
     # is removed and the specified version of airflow is installed from pypi
-    export INSTALL_AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION:="current"}
+    export INSTALL_AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION:=""}
 
     # Determine version of the Airflow from version.py
     AIRFLOW_VERSION=$(grep version "airflow/version.py" | awk '{print $3}' | sed "s/['+]//g")
@@ -143,7 +143,6 @@ function setup_default_breeze_variables() {
     _BREEZE_DEFAULT_BACKEND="sqlite"
     _BREEZE_DEFAULT_KUBERNETES_MODE="git_mode"
     _BREEZE_DEFAULT_KUBERNETES_VERSION="v1.15.3"
-    _BREEZE_DEFAULT_INSTALL_AIRFLOW_VERSION="current"
     _BREEZE_DEFAULT_POSTGRES_VERSION="9.6"
     _BREEZE_DEFAULT_MYSQL_VERSION="5.7"
 
@@ -426,7 +425,7 @@ function prepare_command_files() {
         COMPOSE_FILE=${COMPOSE_FILE}:${FORWARD_CREDENTIALS_DOCKER_COMPOSE_FILE}
     fi
 
-    if [[ ${INSTALL_AIRFLOW_VERSION} != "current" ]]; then
+    if [[ ${INSTALL_AIRFLOW_VERSION} != "" ]]; then
         COMPOSE_FILE=${COMPOSE_FILE}:${REMOVE_SOURCES_DOCKER_COMPOSE_FILE}
     fi
 
@@ -1196,12 +1195,10 @@ $(print_star_line)
 $(print_star_line)
 
 -a, --install-airflow-version <INSTALL_AIRFLOW_VERSION>
-        If different than 'current' removes the source-installed airflow and installs a
+        If specified, removes the source-installed airflow and installs a
         released version of Airflow instead. One of:
 
 ${ALLOWED_INSTALL_AIRFLOW_VERSIONS}
-
-        Default: ${_BREEZE_DEFAULT_INSTALL_AIRFLOW_VERSION:=}.
 
 $(print_star_line)
  Database versions
@@ -1345,7 +1342,6 @@ function check_and_save_all_params() {
     check_and_save_allowed_param "BACKEND"  "backend" "--backend"
     check_and_save_allowed_param "KUBERNETES_MODE"  "Kubernetes mode" "--kubernetes-mode"
     check_and_save_allowed_param "KUBERNETES_VERSION"  "Kubernetes version" "--kubernetes-version"
-    check_and_save_allowed_param "INSTALL_AIRFLOW_VERSION"  "Install airflow version" "--install-airflow-version"
     check_and_save_allowed_param "POSTGRES_VERSION"  "Postgres version" "--postgres-version"
     check_and_save_allowed_param "MYSQL_VERSION"  "Mysql version" "--mysql-version"
 

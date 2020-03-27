@@ -19,7 +19,7 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 OUT_FILE=$(mktemp)
 
-if [[ ! ${INSTALL_AIRFLOW_VERSION:="current"} =~ 1.10* ]]; then
+if [[ ! ${INSTALL_AIRFLOW_VERSION:=""} =~ 1.10* ]]; then
     echo
     echo "ERROR! You can only install providers package in 1.10. airflow series."
     echo "You have: ${INSTALL_AIRFLOW_VERSION}"

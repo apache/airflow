@@ -929,12 +929,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
   ****************************************************************************************************
 
   -a, --install-airflow-version <INSTALL_AIRFLOW_VERSION>
-          If different than 'current' removes the source-installed airflow and installs a
+          If specified, removes the source-installed airflow and installs a
           released version of Airflow instead. One of:
 
                  current 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2
-
-          Default: current.
 
   ****************************************************************************************************
    Database versions

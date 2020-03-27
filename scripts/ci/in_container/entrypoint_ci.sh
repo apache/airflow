@@ -63,7 +63,7 @@ else
     export RUN_AIRFLOW_1_10="false"
 fi
 
-if [[ ${INSTALL_AIRFLOW_VERSION} == "current" ]]; then
+if [[ ${INSTALL_AIRFLOW_VERSION} == "" ]]; then
     if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/node_modules" ]]; then
         echo
         echo "Installing node modules as they are not yet installed (Sources mounted from Host)"
