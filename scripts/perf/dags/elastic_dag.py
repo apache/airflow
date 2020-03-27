@@ -25,9 +25,8 @@ from airflow import DAG
 from airflow.models.baseoperator import chain
 from airflow.operators.bash import BashOperator
 
-"""
-DAG File used in performance tests. Its shape can be configured by environment variables.
-"""
+
+# DAG File used in performance tests. Its shape can be configured by environment variables.
 RE_TIME_DELTA = re.compile(
     r"^((?P<days>[\.\d]+?)d)?((?P<hours>[\.\d]+?)h)?((?P<minutes>[\.\d]+?)m)?((?P<seconds>[\.\d]+?)s)?$"
 )
@@ -42,10 +41,13 @@ def parse_time_delta(time_str: str):
     """
     parts = RE_TIME_DELTA.match(time_str)
 
+    # pylint: disable=E7401
     assert parts is not None, (
         f"Could not parse any time information from '{time_str}'. "
         f"Examples of valid strings: '8h', '2d8h5m20s', '2m4s'"
     )
+    # pylint: enable=E7401
+
     time_params = {name: float(param) for name, param in parts.groupdict().items() if param}
     return timedelta(**time_params)  # type: ignore
 
@@ -76,6 +78,9 @@ def safe_dag_id(s: str) -> str:
 # TODO: We should add more shape types e.g. binary tree
 @enum.unique
 class DagShape(Enum):
+    '''
+    Define shape of the Dag that will be used for testing.
+    '''
     NO_STRUCTURE = "no_structure"
     LINEAR = "linear"
 
