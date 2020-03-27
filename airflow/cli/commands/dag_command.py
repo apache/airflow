@@ -239,8 +239,8 @@ def _display_dot_via_imgcat(dot: Dot):
 
 
 def _save_dot_to_file(dot: Dot, filename: str):
-    _, _, fileformat = filename.rpartition('.')
-    dot.render(filename=filename, format=fileformat, cleanup=True)
+    filename_without_ext, _, ext = filename.rpartition('.')
+    dot.render(filename=filename_without_ext, format=ext, cleanup=True)
     print("File {} saved".format(filename))
 
 
