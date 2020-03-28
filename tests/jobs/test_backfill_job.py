@@ -160,7 +160,7 @@ class BackfillJobTest(unittest.TestCase):
 
         end_date = DEFAULT_DATE + datetime.timedelta(days=1)
 
-        executor = MockExecutor()
+        executor = MockExecutor(parallelism=16)
         job = BackfillJob(
             dag=dag,
             start_date=DEFAULT_DATE,
@@ -710,7 +710,7 @@ class BackfillJobTest(unittest.TestCase):
 
         dag.clear()
 
-        executor = MockExecutor()
+        executor = MockExecutor(parallelism=16)
         job = BackfillJob(dag=dag,
                           executor=executor,
                           start_date=DEFAULT_DATE,
@@ -1443,7 +1443,10 @@ class BackfillJobTest(unittest.TestCase):
         dag = self.dagbag.get_dag("test_start_date_scheduling")
         dag.clear()
 
+        executor = MockExecutor(parallelism=16)
+
         job = BackfillJob(
+            executor=executor,
             dag=dag,
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=1),

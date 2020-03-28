@@ -190,6 +190,15 @@ fi
 # shellcheck source=scripts/ci/in_container/configure_environment.sh
 . "${MY_DIR}/configure_environment.sh"
 
+if [[ ${CI:=} == "true" && ${RUN_TESTS} == "true" ]] ; then
+    echo
+    echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo "  Setting default parallellism to 4 because we can run out of memory during tests on CI"
+    echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo
+    export AIRFLOW__CORE__PARALELLISM=4
+fi
+
 set +u
 # If we do not want to run tests, we simply drop into bash
 if [[ "${RUN_TESTS}" == "false" ]]; then
