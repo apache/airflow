@@ -193,6 +193,18 @@ fi
 # shellcheck source=scripts/ci/in_container/configure_environment.sh
 . "${MY_DIR}/configure_environment.sh"
 
+if [[ ${CI:=} == "true" && ${RUN_TESTS} == "true" ]] ; then
+    NUM_CPU=$(grep processor -c <"/proc/cpuinfo")
+    echo
+    echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo "  Setting default parallellism to ${NUM_CPU} because we can run out of memory during tests on CI"
+    echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo
+    sed -i "s/^parallelism.*/parallelism = ${NUM_CPU}/" \
+            "${AIRFLOW_SOURCES}/airflow/config_templates/default_airflow.cfg"
+    grep -e "^parallelism =" "${AIRFLOW_SOURCES}/airflow/config_templates/default_airflow.cfg"
+fi
+
 set +u
 # If we do not want to run tests, we simply drop into bash
 if [[ "${RUN_TESTS}" == "false" ]]; then
