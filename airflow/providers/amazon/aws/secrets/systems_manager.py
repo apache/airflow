@@ -69,7 +69,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         :type conn_id: str
         """
 
-        ssm_path = self.build_path(connections_prefix=self.connections_prefix, conn_id=conn_id)
+        ssm_path = self.build_path(self.connections_prefix, conn_id)
         try:
             response = self.client.get_parameter(
                 Name=ssm_path, WithDecryption=False

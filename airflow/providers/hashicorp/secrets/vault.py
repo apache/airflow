@@ -150,7 +150,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: connection id
         :type conn_id: str
         """
-        secret_path = self.build_path(connections_prefix=self.connections_path, conn_id=conn_id)
+        secret_path = self.build_path(self.connections_path, conn_id)
 
         try:
             if self.kv_engine_version == 1:

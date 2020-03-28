@@ -30,18 +30,18 @@ class BaseSecretsBackend(ABC):
         pass
 
     @staticmethod
-    def build_path(connections_prefix: str, conn_id: str, sep: str = "/") -> str:
+    def build_path(path_prefix: str, secret_id: str, sep: str = "/") -> str:
         """
         Given conn_id, build path for Secrets Backend
 
-        :param connections_prefix: prefix of the secret to read to get Connections
-        :type connections_prefix: str
-        :param conn_id: connection id
-        :type conn_id: str
+        :param path_prefix: Prefix of the path to get secret
+        :type path_prefix: str
+        :param secret_id: Secret id
+        :type secret_id: str
         :param sep: separator used to concatenate connections_prefix and conn_id. Default: "/"
         :type sep: str
         """
-        return f"{connections_prefix}{sep}{conn_id}"
+        return f"{path_prefix}{sep}{secret_id}"
 
     def get_conn_uri(self, conn_id: str) -> Optional[str]:
         """

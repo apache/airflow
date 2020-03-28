@@ -110,11 +110,7 @@ class CloudSecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: connection id
         :type conn_id: str
         """
-        secret_id = self.build_path(
-            connections_prefix=self.connections_prefix,
-            conn_id=conn_id,
-            sep=self.sep
-        )
+        secret_id = self.build_path(self.connections_prefix, conn_id, self.sep)
         # always return the latest version of the secret
         secret_version = "latest"
         name = self.client.secret_version_path(self.project_id, secret_id, secret_version)
