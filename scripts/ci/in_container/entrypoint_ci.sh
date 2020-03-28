@@ -199,9 +199,7 @@ if [[ ${CI:=} == "true" && ${RUN_TESTS} == "true" ]] ; then
     echo "  Setting default parallellism to 4 because we can run out of memory during tests on CI"
     echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     echo
-    sed -i "s/^parallelism.*/parallelism = 4/" \
-            "${AIRFLOW_SOURCES}/airflow/config_templates/default_airflow.cfg"
-    grep -e "^parallelism =" "${AIRFLOW_SOURCES}/airflow/config_templates/default_airflow.cfg"
+    export AIRFLOW__CORE__PARALELLISM=4
 fi
 
 set +u
