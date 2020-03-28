@@ -66,7 +66,10 @@ Here is a sample configuration:
 
     [secrets]
     backend = airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend
-    backend_kwargs = {"connections_prefix": "/airflow/connections", "profile_name": "default"}
+    backend_kwargs = {"connections_prefix": "/airflow/connections", "variables_prefix": "/airflow/variables", "profile_name": "default"}
+
+Storing and Retrieving Connections
+""""""""""""""""""""""""""""""""""
 
 If you have set ``connections_prefix`` as ``/airflow/connections``, then for a connection id of ``smtp_default``,
 you would want to store your connection at ``/airflow/connections/smtp_default``.
@@ -75,6 +78,14 @@ Optionally you can supply a profile name to reference aws profile, e.g. defined 
 
 The value of the SSM parameter must be the :ref:`connection URI representation <generating_connection_uri>`
 of the connection object.
+
+Storing and Retrieving Variables
+""""""""""""""""""""""""""""""""
+
+If you have set ``variables_prefix`` as ``/airflow/variables``, then for an Variable key of ``hello``,
+you would want to store your Variable at ``/airflow/variables/hello``.
+
+Optionally you can supply a profile name to reference aws profile, e.g. defined in ``~/.aws/config``.
 
 .. _hashicorp_vault_secrets:
 

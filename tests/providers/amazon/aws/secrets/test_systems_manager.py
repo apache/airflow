@@ -63,3 +63,34 @@ class TestSsmSecrets(TestCase):
 
         self.assertIsNone(ssm_backend.get_conn_uri(conn_id=conn_id))
         self.assertEqual([], ssm_backend.get_connections(conn_id=conn_id))
+
+    @mock_ssm
+    def test_get_variable(self):
+        param = {
+            'Name': '/airflow/variables/hello',
+            'Type': 'String',
+            'Value': 'world'
+        }
+
+        ssm_backend = SystemsManagerParameterStoreBackend()
+        ssm_backend.client.put_parameter(**param)
+
+        returned_uri = ssm_backend.get_variable('hello')
+        self.assertEqual('world', returned_uri)
+
+    @mock_ssm
+    def test_get_variable_non_existent_key(self):
+        """
+        Test that if Variable key is not present in SSM,
+        SystemsManagerParameterStoreBackend.get_variables should return None
+        """
+        param = {
+            'Name': '/airflow/variables/hello',
+            'Type': 'String',
+            'Value': 'world'
+        }
+
+        ssm_backend = SystemsManagerParameterStoreBackend()
+        ssm_backend.client.put_parameter(**param)
+
+        self.assertIsNone(ssm_backend.get_variable("test_mysql"))

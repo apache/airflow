@@ -29,7 +29,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
     """
-    Retrieves Connection object from AWS SSM Parameter Store
+    Retrieves Connection or Variables from AWS SSM Parameter Store
 
     Configurable via ``airflow.cfg`` like so:
 
@@ -41,15 +41,19 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
 
     For example, if ssm path is ``/airflow/connections/smtp_default``, this would be accessible
     if you provide ``{"connections_prefix": "/airflow/connections"}`` and request conn_id ``smtp_default``.
+    And if ssm path is ``/airflow/variables/hello``, this would be accessible
+    if you provide ``{"variables_prefix": "/airflow/variables"}`` and request conn_id ``hello``.
     """
 
     def __init__(
         self,
         connections_prefix: str = '/airflow/connections',
+        variables_prefix: str = '/airflow/variables',
         profile_name: Optional[str] = None,
         **kwargs
     ):
         self.connections_prefix = connections_prefix.rstrip("/")
+        self.variables_prefix = variables_prefix.rstrip('/')
         self.profile_name = profile_name
         super().__init__(**kwargs)
 
@@ -69,7 +73,27 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         :type conn_id: str
         """
 
-        ssm_path = self.build_path(self.connections_prefix, conn_id)
+        return self._get_secret(self.connections_prefix, conn_id)
+
+    def get_variable(self, key: str) -> Optional[str]:
+        """
+        Get Airflow Variable from Environment Variable
+
+        :param key: Variable Key
+        :return: Variable Value
+        """
+        return self._get_secret(self.variables_prefix, key)
+
+    def _get_secret(self, path_prefix: str, secret_id: str) -> Optional[str]:
+        """
+        Get secret value from Parameter Store.
+
+        :param path_prefix: Prefix for the Path to get Secret
+        :type path_prefix: str
+        :param secret_id: Secret Key
+        :type secret_id: str
+        """
+        ssm_path = self.build_path(path_prefix, secret_id)
         try:
             response = self.client.get_parameter(
                 Name=ssm_path, WithDecryption=False
