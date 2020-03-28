@@ -2735,6 +2735,7 @@ class TaskInstanceModelView(AirflowModelView):
         task_id = request.values.get('task_id')
         real_task_id = request.values.get('real_task_id')
         execution_date = request.values.get('exec_date')
+        pkg_name = request.values.get('pkg_name')
         result = request.values.get('result')  # OK, NOK
         if result:
             rresult = 'OK'
@@ -2758,6 +2759,7 @@ class TaskInstanceModelView(AirflowModelView):
             response.status_code = 404
             return response
         ti.result = rresult
+        ti.pkg_name = pkg_name
         session.commit()
         return json.dumps({'response': 'ok'})
 

@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from http import HTTPStatus
+import requests
 import airflow.api
 from airflow.api.common.experimental.mark_tasks import set_dag_run_final_state
 from airflow.api.common.experimental import pool as pool_api
@@ -166,6 +169,24 @@ def task_info(dag_id, task_id):
     return jsonify(fields)
 
 
+def docasInvaild(pkg_name):
+    connectionModel = models.connection.Connection
+    cas_base_url = None
+    with create_session() as session:
+        cas_base_url = session.query(connectionModel).filter(
+            connectionModel.conn_id == 'cas_base_url').first()
+    if not cas_base_url:
+        return
+    url = "{}/cas/invalid-curve".format(cas_base_url.get_uri())
+    data = {'pkg_name': pkg_name}
+    try:
+        resp = requests.post(url=url, data=data)
+        if resp.status_code != HTTPStatus.OK:
+            raise Exception(resp.content)
+    except Exception as e:
+        raise AirflowException(str(e))
+
+
 @api_experimental.route(
     '/dags/<string:dag_id>/tasks/<string:task_id>/<string:execution_date>/confirm',
     methods=['POST'])
@@ -186,7 +207,14 @@ def double_confirm_task(dag_id, task_id, execution_date):
     try:
         params = request.get_json(force=True)  # success failed
         final_state = params.get('final_state', None)
-        get_task_instance(dag_id, task_id, execution_date)
+        task = get_task_instance(dag_id, task_id, execution_date)
+        if not task.result:
+            raise AirflowException(u"分析结果还没有生成，请等待分析结果生成后再进行二次确认")
+        if not final_state or final_state not in ['OK', 'NOK']:
+            raise AirflowException("二次确认参数未定义或数值不正确!")
+        if task.result != final_state:
+            # 分析结果与二次确认结果不同
+            docasInvaild(task.pkg_name)
 
     except AirflowException as err:
         _log.info(err)
