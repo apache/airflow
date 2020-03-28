@@ -126,6 +126,28 @@ class Variable(Base, LoggingMixin):
 
     @classmethod
     @provide_session
+    def get_fuzzy_active(
+        cls,
+        key,  # type: str
+        default_var=__NO_DEFAULT_SENTINEL,  # type: Any
+        deserialize_json=False,  # type: bool
+        session=None
+    ):
+        key_p = "%{}%".format(key)
+        obj = session.query(cls).filter(cls.key.like(key_p), cls.active).first()
+        if obj is None:
+            if default_var is not cls.__NO_DEFAULT_SENTINEL:
+                return default_var
+            else:
+                raise KeyError('Variable {} does not exist'.format(key))
+        else:
+            if deserialize_json:
+                return obj.key, json.loads(obj.val)
+            else:
+                return obj.key, obj.val
+
+    @classmethod
+    @provide_session
     def set(
         cls,
         key,  # type: str

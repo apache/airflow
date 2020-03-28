@@ -48,7 +48,10 @@ class RedisPubSubSensor(BaseSensorOperator):
         self.redis_conn_id = redis_conn_id
         self.pokeMsgType = msg_type
         self.pubsub = RedisHook(redis_conn_id=self.redis_conn_id).get_conn().pubsub()
-        self.pubsub.subscribe(self.channels)
+        if isinstance(self.channels, str) and '*' in self.channels:
+            self.pubsub.psubscribe(self.channels)
+        else:
+            self.pubsub.subscribe(self.channels)
 
     def poke(self, context):
         """
@@ -71,7 +74,10 @@ class RedisPubSubSensor(BaseSensorOperator):
                 self.handler(context, message)
             else:
                 context['ti'].xcom_push(key='message', value=message)
-            self.pubsub.unsubscribe(self.channels)
+            if isinstance(self.channels, str) and '*' in self.channels:
+                self.pubsub.punsubscribe(self.channels)
+            else:
+                self.pubsub.unsubscribe(self.channels)
 
             return True
 
