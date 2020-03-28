@@ -194,13 +194,12 @@ fi
 . "${MY_DIR}/configure_environment.sh"
 
 if [[ ${CI:=} == "true" && ${RUN_TESTS} == "true" ]] ; then
-    NUM_CPU=$(grep processor -c <"/proc/cpuinfo")
     echo
     echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    echo "  Setting default parallellism to ${NUM_CPU} because we can run out of memory during tests on CI"
+    echo "  Setting default parallellism to 4 because we can run out of memory during tests on CI"
     echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     echo
-    sed -i "s/^parallelism.*/parallelism = ${NUM_CPU}/" \
+    sed -i "s/^parallelism.*/parallelism = 4/" \
             "${AIRFLOW_SOURCES}/airflow/config_templates/default_airflow.cfg"
     grep -e "^parallelism =" "${AIRFLOW_SOURCES}/airflow/config_templates/default_airflow.cfg"
 fi
