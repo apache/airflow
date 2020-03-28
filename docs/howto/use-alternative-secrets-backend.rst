@@ -19,14 +19,14 @@
 Alternative secrets backend
 ---------------------------
 
-In addition to retrieving connections from environment variables or the metastore database, you can enable
-an alternative secrets backend to retrieve connections,
+In addition to retrieving connections & variables from environment variables or the metastore database, you can enable
+an alternative secrets backend to retrieve Airflow connections or Airflow variables,
 such as :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>`,
 :ref:`Hashicorp Vault Secrets<hashicorp_vault_secrets>` or you can :ref:`roll your own <roll_your_own_secrets_backend>`.
 
 Search path
 ^^^^^^^^^^^
-When looking up a connection, by default Airflow will search environment variables first and metastore
+When looking up a connection/variable, by default Airflow will search environment variables first and metastore
 database second.
 
 If you enable an alternative secrets backend, it will be searched first, followed by environment variables,
@@ -81,7 +81,7 @@ of the connection object.
 Hashicorp Vault Secrets Backend
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To enable Hashicorp vault to retrieve connection, specify :py:class:`~airflow.providers.hashicorp.secrets.vault.VaultBackend`
+To enable Hashicorp vault to retrieve Airflow connection/variable, specify :py:class:`~airflow.providers.hashicorp.secrets.vault.VaultBackend`
 as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg``.
 
 Here is a sample configuration:
@@ -90,7 +90,7 @@ Here is a sample configuration:
 
     [secrets]
     backend = airflow.providers.hashicorp.secrets.vault.VaultBackend
-    backend_kwargs = {"connections_path": "connections", "mount_point": "airflow", "url": "http://127.0.0.1:8200"}
+    backend_kwargs = {"connections_path": "connections", "variables_path": "variables", "mount_point": "airflow", "url": "http://127.0.0.1:8200"}
 
 The default KV version engine is ``2``, pass ``kv_engine_version: 1`` in ``backend_kwargs`` if you use
 KV Secrets Engine Version ``1``.
@@ -105,6 +105,10 @@ key to ``backend_kwargs``:
 
     export VAULT_ADDR="http://127.0.0.1:8200"
 
+
+Storing and Retrieving Connections
+""""""""""""""""""""""""""""""""""
+
 If you have set ``connections_path`` as ``connections`` and ``mount_point`` as ``airflow``, then for a connection id of
 ``smtp_default``, you would want to store your secret as:
 
@@ -112,7 +116,7 @@ If you have set ``connections_path`` as ``connections`` and ``mount_point`` as `
 
     vault kv put airflow/connections/smtp_default conn_uri=smtps://user:host@relay.example.com:465
 
-Note that the ``key`` is ``conn_uri``, ``value`` is ``postgresql://airflow:airflow@host:5432/airflow`` and
+Note that the ``Key`` is ``conn_uri``, ``Value`` is ``postgresql://airflow:airflow@host:5432/airflow`` and
 ``mount_point`` is ``airflow``.
 
 You can make a ``mount_point`` for ``airflow`` as follows:
@@ -140,7 +144,39 @@ Verify that you can get the secret from ``vault``:
     conn_uri    smtps://user:host@relay.example.com:465
 
 The value of the Vault key must be the :ref:`connection URI representation <generating_connection_uri>`
-of the connection object.
+of the connection object to get connection.
+
+Storing and Retrieving Variables
+""""""""""""""""""""""""""""""""
+
+If you have set ``variables_path`` as ``variables`` and ``mount_point`` as ``airflow``, then for a variable with
+``hello`` as key, you would want to store your secret as:
+
+.. code-block:: bash
+
+    vault kv put airflow/variables/hello value=world
+
+Verify that you can get the secret from ``vault``:
+
+.. code-block:: console
+
+    ❯ vault kv get airflow/variables/hello
+    ====== Metadata ======
+    Key              Value
+    ---              -----
+    created_time     2020-03-28T02:10:54.301784Z
+    deletion_time    n/a
+    destroyed        false
+    version          1
+
+    ==== Data ====
+    Key      Value
+    ---      -----
+    value    world
+
+Note that the secret ``Key`` is ``value``, and secret ``Value`` is ``world`` and
+``mount_point`` is ``airflow``.
+
 
 .. _secrets_manager_backend:
 

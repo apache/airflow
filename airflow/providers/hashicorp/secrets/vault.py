@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Objects relating to sourcing connections from Hashicorp Vault
+Objects relating to sourcing connections & variables from Hashicorp Vault
 """
 from typing import Optional
 
@@ -31,7 +31,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 class VaultBackend(BaseSecretsBackend, LoggingMixin):
     """
-    Retrieves Connection object from Hashicorp Vault
+    Retrieves Connections and Variables from Hashicorp Vault
 
     Configurable via ``airflow.cfg`` as follows:
 
@@ -50,7 +50,11 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     conn_id ``smtp_default``.
 
     :param connections_path: Specifies the path of the secret to read to get Connections.
+        (default: 'connections')
     :type connections_path: str
+    :param variables_path: Specifies the path of the secret to read to get Variables.
+        (default: 'variables')
+    :type variables_path: str
     :param url: Base URL for the Vault instance being addressed.
     :type url: str
     :param auth_type: Authentication Type for Vault (one of 'token', 'ldap', 'userpass', 'approle',
@@ -78,7 +82,8 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     """
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        connections_path: str,
+        connections_path: str = 'connections',
+        variables_path: str = 'variables',
         url: Optional[str] = None,
         auth_type: str = 'token',
         mount_point: str = 'secret',
@@ -94,6 +99,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     ):
         super().__init__(**kwargs)
         self.connections_path = connections_path.rstrip('/')
+        self.variables_path = variables_path.rstrip('/')
         self.url = url
         self.auth_type = auth_type
         self.kwargs = kwargs
@@ -150,7 +156,29 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: connection id
         :type conn_id: str
         """
-        secret_path = self.build_path(self.connections_path, conn_id)
+        response = self._get_secret(self.connections_path, conn_id)
+        return response.get("conn_uri") if response else None
+
+    def get_variable(self, key: str) -> Optional[str]:
+        """
+        Get Airflow Variable from Environment Variable
+
+        :param key: Variable Key
+        :return: Variable Value
+        """
+        response = self._get_secret(self.variables_path, key)
+        return response.get("value") if response else None
+
+    def _get_secret(self, path_prefix: str, secret_id: str) -> Optional[dict]:
+        """
+        Get secret value from Vault.
+
+        :param path_prefix: Prefix for the Path to get Secret
+        :type path_prefix: str
+        :param secret_id: Secret Key
+        :type secret_id: str
+        """
+        secret_path = self.build_path(path_prefix, secret_id)
 
         try:
             if self.kv_engine_version == 1:
@@ -161,8 +189,8 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
                 response = self.client.secrets.kv.v2.read_secret_version(
                     path=secret_path, mount_point=self.mount_point)
         except InvalidPath:
-            self.log.info("Connection ID %s not found in Path: %s", conn_id, secret_path)
+            self.log.info("Secret %s not found in Path: %s", secret_id, secret_path)
             return None
 
         return_data = response["data"] if self.kv_engine_version == 1 else response["data"]["data"]
-        return return_data.get("conn_uri")
+        return return_data
