@@ -179,7 +179,7 @@ class TestDataflowHook(unittest.TestCase):
                         '--runner=DataflowRunner', '--project=test',
                         '--labels=foo=bar',
                         '--staging_location=gs://test/staging',
-                        '--job_name={}-{}'.format(JOB_NAME, MOCK_UUID)]
+                        f'--job_name={JOB_NAME}-{MOCK_UUID}']
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]),
                              sorted(expected_cmd))
 
@@ -212,7 +212,7 @@ class TestDataflowHook(unittest.TestCase):
                         '--runner=DataflowRunner', '--project=test',
                         '--labels=foo=bar',
                         '--staging_location=gs://test/staging',
-                        '--job_name={}-{}'.format(JOB_NAME, MOCK_UUID)]
+                        f'--job_name={JOB_NAME}-{MOCK_UUID}']
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]),
                              sorted(expected_cmd))
 
@@ -236,7 +236,7 @@ class TestDataflowHook(unittest.TestCase):
                         '--runner=DataflowRunner', '--project=test',
                         '--stagingLocation=gs://test/staging',
                         '--labels={"foo":"bar"}',
-                        '--jobName={}-{}'.format(JOB_NAME, MOCK_UUID)]
+                        f'--jobName={JOB_NAME}-{MOCK_UUID}']
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]),
                              sorted(expected_cmd))
 
@@ -259,7 +259,7 @@ class TestDataflowHook(unittest.TestCase):
                         '--runner=DataflowRunner', '--project=test',
                         '--stagingLocation=gs://test/staging',
                         '--labels={"foo":"bar"}',
-                        '--jobName={}-{}'.format(JOB_NAME, MOCK_UUID)]
+                        f'--jobName={JOB_NAME}-{MOCK_UUID}']
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]),
                              sorted(expected_cmd))
 
@@ -384,7 +384,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             dataflow=mock_conn.return_value,
             job_id=TEST_JOB_ID,
             location='us-central1',
-            name='test-dataflow-pipeline-{}'.format(MOCK_UUID),
+            name=f'test-dataflow-pipeline-{MOCK_UUID}',
             num_retries=5,
             poll_sleep=10,
             project_number='test'

@@ -67,5 +67,5 @@ class ReadyToRescheduleDep(BaseTIDep):
 
         yield self._failing_status(
             reason="Task is not ready for reschedule yet but will be rescheduled "
-                   "automatically. Current date is {0} and task will be rescheduled "
-                   "at {1}.".format(now.isoformat(), next_reschedule_date.isoformat()))
+                   f"automatically. Current date is {now.isoformat()} and task will be rescheduled "
+                   f"at {next_reschedule_date.isoformat()}.")

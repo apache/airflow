@@ -491,8 +491,8 @@ class DataflowHook(CloudBaseHook):
         variables['jobName'] = name
 
         def label_formatter(labels_dict):
-            return ['--labels={}'.format(
-                json.dumps(labels_dict).replace(' ', ''))]
+            labels = json.dumps(labels_dict).replace(' ', '')
+            return [f'--labels={labels}']
 
         command_prefix = (["java", "-cp", jar, job_class] if job_class
                           else ["java", "-jar", jar])
@@ -633,8 +633,7 @@ class DataflowHook(CloudBaseHook):
         variables['job_name'] = name
 
         def label_formatter(labels_dict):
-            return ['--labels={}={}'.format(key, value)
-                    for key, value in labels_dict.items()]
+            return [f'--labels={key}={value}' for key, value in labels_dict.items()]
 
         if py_requirements is not None:
             with TemporaryDirectory(prefix='dataflow-venv') as tmp_dir:
@@ -687,7 +686,7 @@ class DataflowHook(CloudBaseHook):
     def _build_cmd(variables: Dict, label_formatter: Callable, project_id: str) -> List[str]:
         command = [
             "--runner=DataflowRunner",
-            "--project={}".format(project_id),
+            f"--project={project_id}",
         ]
         if variables is not None:
             for attr, value in variables.items():

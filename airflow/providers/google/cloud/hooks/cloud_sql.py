@@ -351,9 +351,7 @@ class CloudSQLHook(CloudBaseHook):
             self._wait_for_operation_to_complete(project_id=project_id,  # type: ignore
                                                  operation_name=operation_name)
         except HttpError as ex:
-            raise AirflowException(
-                'Importing instance {} failed: {}'.format(instance, ex.content)
-            )
+            raise AirflowException(f'Importing instance {instance} failed: {ex.content}')
 
     def _wait_for_operation_to_complete(self, project_id: str, operation_name: str) -> None:
         """

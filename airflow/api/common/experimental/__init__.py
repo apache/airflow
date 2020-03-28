@@ -28,7 +28,7 @@ def check_and_get_dag(dag_id: str, task_id: Optional[str] = None) -> DagModel:
     """Checks that DAG exists and in case it is specified that Task exist"""
     dag_model = DagModel.get_current(dag_id)
     if dag_model is None:
-        raise DagNotFound("Dag id {} not found in DagModel".format(dag_id))
+        raise DagNotFound(f"Dag id {dag_id} not found in DagModel")
 
     dagbag = DagBag(
         dag_folder=dag_model.fileloc,
@@ -36,11 +36,9 @@ def check_and_get_dag(dag_id: str, task_id: Optional[str] = None) -> DagModel:
     )
     dag = dagbag.get_dag(dag_id)  # prefetch dag if it is stored serialized
     if dag_id not in dagbag.dags:
-        error_message = "Dag id {} not found".format(dag_id)
-        raise DagNotFound(error_message)
+        raise DagNotFound(f"Dag id {dag_id} not found")
     if task_id and not dag.has_task(task_id):
-        error_message = 'Task {} not found in dag {}'.format(task_id, dag_id)
-        raise TaskNotFound(error_message)
+        raise TaskNotFound(f'Task {task_id} not found in dag {dag_id}')
     return dag
 
 

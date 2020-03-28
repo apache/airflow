@@ -50,7 +50,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
         with postgres.get_conn() as conn:
             with conn.cursor() as cur:
                 for table in TABLES:
-                    cur.execute("DROP TABLE IF EXISTS {} CASCADE;".format(table))
+                    cur.execute(f"DROP TABLE IF EXISTS {table} CASCADE;")
                     cur.execute("CREATE TABLE {}(some_str varchar, some_num integer);"
                                 .format(table))
 
@@ -73,7 +73,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
         with postgres.get_conn() as conn:
             with conn.cursor() as cur:
                 for table in TABLES:
-                    cur.execute("DROP TABLE IF EXISTS {} CASCADE;".format(table))
+                    cur.execute(f"DROP TABLE IF EXISTS {table} CASCADE;")
 
     def test_init(self):
         """Test PostgresToGoogleCloudStorageOperator instance is properly initialized."""

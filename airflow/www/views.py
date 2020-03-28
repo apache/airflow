@@ -941,7 +941,7 @@ class Airflow(AirflowBaseView):
         failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
         if failed_deps:
             failed_deps_str = ", ".join(
-                ["{}: {}".format(dep.dep_name, dep.reason) for dep in failed_deps])
+                [f"{dep.dep_name}: {dep.reason}" for dep in failed_deps])
             flash("Could not queue task instance for execution, dependencies not met: "
                   "{}".format(failed_deps_str),
                   "error")
@@ -973,7 +973,7 @@ class Airflow(AirflowBaseView):
         try:
             delete_dag.delete_dag(dag_id)
         except DagNotFound:
-            flash("DAG with id {} not found. Cannot delete".format(dag_id), 'error')
+            flash(f"DAG with id {dag_id} not found. Cannot delete", 'error')
             return redirect(request.referrer)
         except DagFileExists:
             flash("Dag id {} is still in DagBag. "
@@ -1007,7 +1007,7 @@ class Airflow(AirflowBaseView):
 
         dag = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
         if not dag:
-            flash("Cannot find dag {}".format(dag_id))
+            flash(f"Cannot find dag {dag_id}")
             return redirect(origin)
 
         execution_date = timezone.utcnow()
@@ -1015,7 +1015,7 @@ class Airflow(AirflowBaseView):
 
         dr = DagRun.find(dag_id=dag_id, run_id=run_id)
         if dr:
-            flash("This run_id {} already exists".format(run_id))
+            flash(f"This run_id {run_id} already exists")
             return redirect(origin)
 
         run_conf = {}
@@ -1058,7 +1058,7 @@ class Airflow(AirflowBaseView):
                 only_failed=only_failed,
             )
 
-            flash("{0} task instances have been cleared".format(count))
+            flash(f"{count} task instances have been cleared")
             return redirect(origin)
 
         try:
@@ -1109,7 +1109,7 @@ class Airflow(AirflowBaseView):
         only_failed = request.form.get('only_failed') == "true"
 
         dag = dag.sub_dag(
-            task_regex=r"^{0}$".format(task_id),
+            task_regex=fr"^{task_id}$",
             include_downstream=downstream,
             include_upstream=upstream)
 
@@ -1191,7 +1191,7 @@ class Airflow(AirflowBaseView):
         dag = dagbag.get_dag(dag_id)
 
         if not dag:
-            flash('Cannot find DAG: {}'.format(dag_id), 'error')
+            flash(f'Cannot find DAG: {dag_id}', 'error')
             return redirect(origin)
 
         new_dag_state = set_dag_run_state_to_failed(dag, execution_date, commit=confirmed)
@@ -1219,7 +1219,7 @@ class Airflow(AirflowBaseView):
         dag = dagbag.get_dag(dag_id)
 
         if not dag:
-            flash('Cannot find DAG: {}'.format(dag_id), 'error')
+            flash(f'Cannot find DAG: {dag_id}', 'error')
             return redirect(origin)
 
         new_dag_state = set_dag_run_state_to_success(dag, execution_date,
@@ -1297,7 +1297,7 @@ class Airflow(AirflowBaseView):
 
         response = self.render_template(
             "airflow/confirm.html",
-            message=("Here's the list of task instances you are about to mark as {}:".format(state)),
+            message=f"Here's the list of task instances you are about to mark as {state}:",
             details=details)
 
         return response
@@ -1352,7 +1352,7 @@ class Airflow(AirflowBaseView):
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
         if not dag:
-            flash('DAG "{0}" seems to be missing from DagBag.'.format(dag_id), "error")
+            flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
             return redirect(url_for('Airflow.index'))
 
         root = request.args.get('root')
@@ -1507,7 +1507,7 @@ class Airflow(AirflowBaseView):
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
         if not dag:
-            flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
+            flash(f'DAG "{dag_id}" seems to be missing.', "error")
             return redirect(url_for('Airflow.index'))
 
         root = request.args.get('root')
@@ -1526,8 +1526,8 @@ class Airflow(AirflowBaseView):
                 'id': task.task_id,
                 'value': {
                     'label': task.task_id,
-                    'labelStyle': "fill:{0};".format(task.ui_fgcolor),
-                    'style': "fill:{0};".format(task.ui_color),
+                    'labelStyle': f"fill:{task.ui_fgcolor};",
+                    'style': f"fill:{task.ui_color};",
                     'rx': 5,
                     'ry': 5,
                 }
@@ -1611,7 +1611,7 @@ class Airflow(AirflowBaseView):
         num_runs = int(num_runs) if num_runs else default_dag_run
 
         if dag is None:
-            flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
+            flash(f'DAG "{dag_id}" seems to be missing.', "error")
             return redirect(url_for('Airflow.index'))
 
         if base_date:
@@ -1671,10 +1671,10 @@ class Airflow(AirflowBaseView):
         cum_y_unit = infer_time_unit([d for t in cum_y.values() for d in t])
         # update the y Axis on both charts to have the correct time units
         chart.create_y_axis('yAxis', format='.02f', custom_format=False,
-                            label='Duration ({})'.format(y_unit))
+                            label=f'Duration ({y_unit})')
         chart.axislist['yAxis']['axisLabelDistance'] = '40'
         cum_chart.create_y_axis('yAxis', format='.02f', custom_format=False,
-                                label='Duration ({})'.format(cum_y_unit))
+                                label=f'Duration ({cum_y_unit})')
         cum_chart.axislist['yAxis']['axisLabelDistance'] = '40'
 
         for task in dag.tasks:
@@ -1826,7 +1826,7 @@ class Airflow(AirflowBaseView):
         y_unit = infer_time_unit([d for t in y.values() for d in t])
         # update the y Axis to have the correct time units
         chart.create_y_axis('yAxis', format='.02f', custom_format=False,
-                            label='Landing Time ({})'.format(y_unit))
+                            label=f'Landing Time ({y_unit})')
         chart.axislist['yAxis']['axisLabelDistance'] = '40'
         for task in dag.tasks:
             if x[task.task_id]:
@@ -1885,7 +1885,7 @@ class Airflow(AirflowBaseView):
         # sync dag permission
         appbuilder.sm.sync_perm_for_dag(dag_id, dag.access_control)
 
-        flash("DAG [{}] is now fresh as a daisy".format(dag_id))
+        flash(f"DAG [{dag_id}] is now fresh as a daisy")
         return redirect(request.referrer)
 
     @expose('/gantt')
@@ -2052,7 +2052,7 @@ class Airflow(AirflowBaseView):
             return response
         else:
             response = jsonify(
-                {'url': None, 'error': 'No URL found for {dest}'.format(dest=link_name)})
+                {'url': None, 'error': f'No URL found for {link_name}'})
             response.status_code = 404
             return response
 
@@ -2441,9 +2441,9 @@ class VariableModelView(AirflowModelView):
                     fail_count += 1
                 else:
                     suc_count += 1
-            flash("{} variable(s) successfully updated.".format(suc_count))
+            flash(f"{suc_count} variable(s) successfully updated.")
             if fail_count:
-                flash("{} variable(s) failed to be updated.".format(fail_count), 'error')
+                flash(f"{fail_count} variable(s) failed to be updated.", 'error')
             self.update_redirect()
             return redirect(self.get_redirect())
 
@@ -2526,7 +2526,7 @@ class DagRunModelView(AirflowModelView):
                 dr.start_date = timezone.utcnow()
                 dr.state = State.RUNNING
             session.commit()
-            flash("{count} dag runs were set to running".format(count=count))
+            flash(f"{count} dag runs were set to running")
         except Exception as ex:
             flash(str(ex), 'error')
             flash('Failed to set state', 'error')
@@ -2674,7 +2674,7 @@ class TaskInstanceModelView(AirflowModelView):
                 models.clear_task_instances(tis, session, dag=dag)
 
             session.commit()
-            flash("{0} task instances have been cleared".format(len(tis)))
+            flash(f"{len(tis)} task instances have been cleared")
             self.update_redirect()
             return redirect(self.get_redirect())
 

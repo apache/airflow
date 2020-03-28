@@ -47,15 +47,14 @@ def _deep_string_coerce(content, json_path='json'):
         # Databricks can tolerate either numeric or string types in the API backend.
         return str(content)
     elif isinstance(content, (list, tuple)):
-        return [coerce(e, '{0}[{1}]'.format(json_path, i)) for i, e in enumerate(content)]
+        return [coerce(e, f'{json_path}[{i}]') for i, e in enumerate(content)]
     elif isinstance(content, dict):
-        return {k: coerce(v, '{0}[{1}]'.format(json_path, k))
+        return {k: coerce(v, f'{json_path}[{k}]')
                 for k, v in list(content.items())}
     else:
         param_type = type(content)
-        msg = 'Type {0} used for parameter {1} is not a number or a string' \
-            .format(param_type, json_path)
-        raise AirflowException(msg)
+        raise AirflowException(f'Type {param_type} used for parameter '
+                               f'{json_path} is not a number or a string')
 
 
 def _handle_databricks_operator_execution(operator, hook, log, context):

@@ -315,7 +315,7 @@ class DagRun(Base, LoggingMixin):
                         ready_tis.append(ti)
 
         duration = (timezone.utcnow() - start_dttm)
-        Stats.timing("dagrun.dependency-check.{}".format(self.dag_id), duration)
+        Stats.timing(f"dagrun.dependency-check.{self.dag_id}", duration)
 
         leaf_tis = [ti for ti in tis if ti.task_id in {t.task_id for t in dag.leaves}]
 
@@ -414,9 +414,9 @@ class DagRun(Base, LoggingMixin):
 
         duration = (self.end_date - self.start_date)
         if self.state is State.SUCCESS:
-            Stats.timing('dagrun.duration.success.{}'.format(self.dag_id), duration)
+            Stats.timing(f'dagrun.duration.success.{self.dag_id}', duration)
         elif self.state == State.FAILED:
-            Stats.timing('dagrun.duration.failed.{}'.format(self.dag_id), duration)
+            Stats.timing(f'dagrun.duration.failed.{self.dag_id}', duration)
 
     @provide_session
     def verify_integrity(self, session=None):
@@ -441,14 +441,14 @@ class DagRun(Base, LoggingMixin):
                     self.log.warning("Failed to get task '{}' for dag '{}'. "
                                      "Marking it as removed.".format(ti, dag))
                     Stats.incr(
-                        "task_removed_from_dag.{}".format(dag.dag_id), 1, 1)
+                        f"task_removed_from_dag.{dag.dag_id}", 1, 1)
                     ti.state = State.REMOVED
 
             should_restore_task = (task is not None) and ti.state == State.REMOVED
             if should_restore_task:
                 self.log.info("Restoring task '{}' which was previously "
                               "removed from DAG '{}'".format(ti, dag))
-                Stats.incr("task_restored_to_dag.{}".format(dag.dag_id), 1, 1)
+                Stats.incr(f"task_restored_to_dag.{dag.dag_id}", 1, 1)
                 ti.state = State.NONE
 
         # check for missing tasks
@@ -458,7 +458,7 @@ class DagRun(Base, LoggingMixin):
 
             if task.task_id not in task_ids:
                 Stats.incr(
-                    "task_instance_created-{}".format(task.__class__.__name__),
+                    f"task_instance_created-{task.__class__.__name__}",
                     1, 1)
                 ti = TI(task, self.execution_date)
                 session.add(ti)

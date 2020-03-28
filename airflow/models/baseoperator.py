@@ -580,7 +580,7 @@ class BaseOperator(Operator, LoggingMixin):
             return self._dag
         else:
             raise AirflowException(
-                'Operator {} has not been assigned to a DAG yet'.format(self))
+                f'Operator {self} has not been assigned to a DAG yet')
 
     @dag.setter
     def dag(self, dag: Any):
@@ -594,15 +594,15 @@ class BaseOperator(Operator, LoggingMixin):
             return
         if not isinstance(dag, DAG):
             raise TypeError(
-                'Expected DAG; received {}'.format(dag.__class__.__name__))
+                f'Expected DAG; received {dag.__class__.__name__}')
         elif self.has_dag() and self.dag is not dag:
             raise AirflowException(
-                "The DAG assigned to {} can not be changed.".format(self))
+                f"The DAG assigned to {self} can not be changed.")
         elif self.task_id not in dag.task_dict:
             dag.add_task(self)
         elif self.task_id in dag.task_dict and dag.task_dict[self.task_id] != self:
             raise DuplicateTaskIdFound(
-                "Task id '{}' has already been added to the DAG".format(self.task_id))
+                f"Task id '{self.task_id}' has already been added to the DAG")
 
         self._dag = dag  # pylint: disable=attribute-defined-outside-init
 

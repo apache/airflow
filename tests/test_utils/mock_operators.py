@@ -89,7 +89,7 @@ class CustomBaseIndexOpLink(BaseOperatorLink):
         if len(search_queries) < self.index:
             return None
         search_query = search_queries[self.index]
-        return 'https://console.cloud.google.com/bigquery?j={}'.format(search_query)
+        return f'https://console.cloud.google.com/bigquery?j={search_query}'
 
 
 class CustomOpLink(BaseOperatorLink):
@@ -98,7 +98,7 @@ class CustomOpLink(BaseOperatorLink):
     def get_link(self, operator, dttm):
         ti = TaskInstance(task=operator, execution_date=dttm)
         search_query = ti.xcom_pull(task_ids=operator.task_id, key='search_query')
-        return 'http://google.com/custom_base_link?search={}'.format(search_query)
+        return f'http://google.com/custom_base_link?search={search_query}'
 
 
 class CustomOperator(BaseOperator):
@@ -120,7 +120,7 @@ class CustomOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self, bash_command=None, *args, **kwargs):
-        super(CustomOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.bash_command = bash_command
 
     def execute(self, context):

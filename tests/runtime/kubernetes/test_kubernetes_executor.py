@@ -56,7 +56,7 @@ class TestKubernetesExecutor(unittest.TestCase):
 
     def _ensure_airflow_webserver_is_healthy(self):
         response = self.session.get(
-            "http://{host}/health".format(host=KUBERNETES_HOST),
+            f"http://{KUBERNETES_HOST}/health",
             timeout=1,
         )
 
@@ -95,15 +95,15 @@ class TestKubernetesExecutor(unittest.TestCase):
                 self.assertEqual(result.status_code, 200, "Could not get the status")
                 result_json = result.json()
                 state = result_json['state']
-                print("Attempt {}: Current state of operator is {}".format(tries, state))
+                print(f"Attempt {tries}: Current state of operator is {state}")
 
                 if state == expected_final_state:
                     break
                 tries += 1
             except requests.exceptions.ConnectionError as e:
-                check_call(["echo", "api call failed. trying again. error {}".format(e)])
+                check_call(["echo", f"api call failed. trying again. error {e}"])
         if state != expected_final_state:
-            print("The expected state is wrong {} != {} (expected)!".format(state, expected_final_state))
+            print(f"The expected state is wrong {state} != {expected_final_state} (expected)!")
         self.assertEqual(state, expected_final_state)
 
     def ensure_dag_expected_state(self, host, execution_date, dag_id,
@@ -130,8 +130,8 @@ class TestKubernetesExecutor(unittest.TestCase):
             print(result_json)
             state = result_json['state']
             check_call(
-                ["echo", "Attempt {}: Current state of dag is {}".format(tries, state)])
-            print("Attempt {}: Current state of dag is {}".format(tries, state))
+                ["echo", f"Attempt {tries}: Current state of dag is {state}"])
+            print(f"Attempt {tries}: Current state of dag is {state}")
 
             if state == expected_final_state:
                 break
@@ -171,7 +171,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         time.sleep(1)
 
         result = self.session.get(
-            'http://{}/api/experimental/latest_runs'.format(host)
+            f'http://{host}/api/experimental/latest_runs'
         )
         self.assertEqual(result.status_code, 200, "Could not get the latest DAG-run:"
                                                   " {result}"
@@ -188,7 +188,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         self.assertGreater(len(result_json['items']), 0)
 
         execution_date = result_json['items'][0]['execution_date']
-        print("Found the job with execution date {}".format(execution_date))
+        print(f"Found the job with execution date {execution_date}")
 
         # Wait some time for the operator to complete
         self.monitor_task(host=host,
@@ -211,7 +211,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         self.assertGreater(len(result_json['items']), 0)
 
         execution_date = result_json['items'][0]['execution_date']
-        print("Found the job with execution date {}".format(execution_date))
+        print(f"Found the job with execution date {execution_date}")
 
         self._delete_airflow_pod()
 

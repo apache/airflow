@@ -119,9 +119,9 @@ class GoogleAuthBackend:
             token=(google_token, ''))
 
         if not resp or resp.status != 200:
+            status = resp.status if resp else 'None'
             raise AuthenticationError(
-                'Failed to fetch user profile, status ({0})'.format(
-                    resp.status if resp else 'None'))
+                f'Failed to fetch user profile, status ({status})')
 
         return resp.data['name'], resp.data['email']
 

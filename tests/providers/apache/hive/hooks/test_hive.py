@@ -409,8 +409,8 @@ class TestHiveServer2Hook(unittest.TestCase):
         LOAD DATA LOCAL INPATH '{{ params.csv_path }}'
         OVERWRITE INTO TABLE {{ params.table }};
         """
-        self.columns = ['{}.a'.format(self.table),
-                        '{}.b'.format(self.table)]
+        self.columns = [f'{self.table}.a',
+                        f'{self.table}.b']
         self.hook = HiveMetastoreHook()
         op = HiveOperator(
             task_id='HiveHook_' + str(random.randint(1, 10000)),
@@ -455,13 +455,13 @@ class TestHiveServer2Hook(unittest.TestCase):
 
     def test_get_records(self):
         hook = HiveServer2Hook()
-        query = "SELECT * FROM {}".format(self.table)
+        query = f"SELECT * FROM {self.table}"
         results = hook.get_records(query, schema=self.database)
         self.assertListEqual(results, [(1, 1), (2, 2)])
 
     def test_get_pandas_df(self):
         hook = HiveServer2Hook()
-        query = "SELECT * FROM {}".format(self.table)
+        query = f"SELECT * FROM {self.table}"
         df = hook.get_pandas_df(query, schema=self.database)
         self.assertEqual(len(df), 2)
         self.assertListEqual(df.columns.tolist(), self.columns)
@@ -469,20 +469,20 @@ class TestHiveServer2Hook(unittest.TestCase):
 
     def test_get_results_header(self):
         hook = HiveServer2Hook()
-        query = "SELECT * FROM {}".format(self.table)
+        query = f"SELECT * FROM {self.table}"
         results = hook.get_results(query, schema=self.database)
         self.assertListEqual([col[0] for col in results['header']],
                              self.columns)
 
     def test_get_results_data(self):
         hook = HiveServer2Hook()
-        query = "SELECT * FROM {}".format(self.table)
+        query = f"SELECT * FROM {self.table}"
         results = hook.get_results(query, schema=self.database)
         self.assertListEqual(results['data'], [(1, 1), (2, 2)])
 
     def test_to_csv(self):
         hook = HiveServer2Hook()
-        query = "SELECT * FROM {}".format(self.table)
+        query = f"SELECT * FROM {self.table}"
         csv_filepath = 'query_results.csv'
         hook.to_csv(query, csv_filepath, schema=self.database,
                     delimiter=',', lineterminator='\n', output_header=True, fetch_size=2)
@@ -494,7 +494,7 @@ class TestHiveServer2Hook(unittest.TestCase):
     def test_multi_statements(self):
         sqls = [
             "CREATE TABLE IF NOT EXISTS test_multi_statements (i INT)",
-            "SELECT * FROM {}".format(self.table),
+            f"SELECT * FROM {self.table}",
             "DROP TABLE test_multi_statements",
         ]
         hook = HiveServer2Hook()

@@ -148,8 +148,7 @@ class QuboleHook(BaseHook):
             self.log.info("Logs for Command Id: %s \n%s", self.cmd.id, self.cmd.get_log())
 
         if self.cmd.status != 'done':
-            raise AirflowException('Command Id: {0} failed with Status: {1}'.format(
-                                   self.cmd.id, self.cmd.status))
+            raise AirflowException(f'Command Id: {self.cmd.id} failed with Status: {self.cmd.status}')
 
     def kill(self, ti):
         """
@@ -231,18 +230,19 @@ class QuboleHook(BaseHook):
         for key, value in self.kwargs.items():
             if key in COMMAND_ARGS[cmd_type]:
                 if key in HYPHEN_ARGS:
-                    args.append("--{0}={1}".format(key.replace('_', '-'), value))
+                    args.append(f"--{key.replace('_', '-')}={value}")
                 elif key in positional_args_list:
                     inplace_args = value
                 elif key == 'tags':
                     self._add_tags(tags, value)
                 else:
-                    args.append("--{0}={1}".format(key, value))
+                    args.append(f"--{key}={value}")
 
             if key == 'notify' and value is True:
                 args.append("--notify")
 
-        args.append("--tags={0}".format(','.join(filter(None, tags))))
+        tag = ','.join(filter(None, tags))
+        args.append(f"--tags={tag}")
 
         if inplace_args is not None:
             args += inplace_args.split(' ')

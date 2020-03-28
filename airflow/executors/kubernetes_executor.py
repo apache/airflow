@@ -315,7 +315,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         )
         watcher = watch.Watch()
 
-        kwargs = {'label_selector': 'airflow-worker={}'.format(worker_uuid)}
+        kwargs = {'label_selector': f'airflow-worker={worker_uuid}'}
         if resource_version:
             kwargs['resource_version'] = resource_version
         if kube_config.kube_client_request_args:

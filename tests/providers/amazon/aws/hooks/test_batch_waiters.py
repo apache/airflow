@@ -203,7 +203,7 @@ def batch_infrastructure(
     job_definition_arn = resp["jobDefinitionArn"]
     assert resp["revision"]
     assert resp["jobDefinitionArn"].endswith(
-        "{0}:{1}".format(resp["jobDefinitionName"], resp["revision"])
+        f"{resp['jobDefinitionName']}:{resp['revision']}"
     )
 
     infrastructure.vpc_id = vpc_id

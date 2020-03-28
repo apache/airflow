@@ -306,12 +306,12 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                     for event in launcher.read_pod_events(pod).items:
                         self.log.error("Pod Event: %s - %s", event.reason, event.message)
                 raise AirflowException(
-                    'Pod returned a failure: {state}'.format(state=final_state)
+                    f'Pod returned a failure: {final_state}'
                 )
 
             return result
         except AirflowException as ex:
-            raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
+            raise AirflowException(f'Pod Launching failed: {ex}')
 
     @staticmethod
     def _set_resources(resources):

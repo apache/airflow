@@ -283,12 +283,12 @@ class AwsBatchClient(LoggingMixin):
             return True
 
         if job_status == "FAILED":
-            raise AirflowException("AWS Batch job ({}) failed: {}".format(job_id, job))
+            raise AirflowException(f"AWS Batch job ({job_id}) failed: {job}")
 
         if job_status in ["SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING"]:
-            raise AirflowException("AWS Batch job ({}) is not complete: {}".format(job_id, job))
+            raise AirflowException(f"AWS Batch job ({job_id}) is not complete: {job}")
 
-        raise AirflowException("AWS Batch job ({}) has unknown status: {}".format(job_id, job))
+        raise AirflowException(f"AWS Batch job ({job_id}) has unknown status: {job}")
 
     def wait_for_job(self, job_id: str, delay: Union[int, float, None] = None):
         """
@@ -380,7 +380,7 @@ class AwsBatchClient(LoggingMixin):
 
             if retries >= self.max_retries:
                 raise AirflowException(
-                    "AWS Batch job ({}) status checks exceed max_retries".format(job_id)
+                    f"AWS Batch job ({job_id}) status checks exceed max_retries"
                 )
 
             retries += 1
@@ -418,7 +418,7 @@ class AwsBatchClient(LoggingMixin):
                     pass  # allow it to retry, if possible
                 else:
                     raise AirflowException(
-                        "AWS Batch job ({}) description error: {}".format(job_id, err)
+                        f"AWS Batch job ({job_id}) description error: {err}"
                     )
 
             retries += 1
@@ -458,7 +458,7 @@ class AwsBatchClient(LoggingMixin):
         matching_jobs = [job for job in jobs if job.get("jobId") == job_id]
         if len(matching_jobs) != 1:
             raise AirflowException(
-                "AWS Batch job ({}) description error: response: {}".format(job_id, response)
+                f"AWS Batch job ({job_id}) description error: response: {response}"
             )
 
         return matching_jobs[0]

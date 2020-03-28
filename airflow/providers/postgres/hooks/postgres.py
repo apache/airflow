@@ -66,7 +66,7 @@ class PostgresHook(DbApiHook):
             return psycopg2.extras.RealDictCursor
         if _cursor == 'namedtuplecursor':
             return psycopg2.extras.NamedTupleCursor
-        raise ValueError('Invalid cursor passed {}'.format(_cursor))
+        raise ValueError(f'Invalid cursor passed {_cursor}')
 
     def get_conn(self):
 
@@ -122,13 +122,13 @@ class PostgresHook(DbApiHook):
         """
         Loads a tab-delimited file into a database table
         """
-        self.copy_expert("COPY {table} FROM STDIN".format(table=table), tmp_file)
+        self.copy_expert(f"COPY {table} FROM STDIN", tmp_file)
 
     def bulk_dump(self, table, tmp_file):
         """
         Dumps a database table into a tab-delimited file
         """
-        self.copy_expert("COPY {table} TO STDOUT".format(table=table), tmp_file)
+        self.copy_expert(f"COPY {table} TO STDOUT", tmp_file)
 
     # pylint: disable=signature-differs
     @staticmethod

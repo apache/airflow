@@ -32,7 +32,7 @@ class TestHivePartitionSensor(TestHiveEnvironment):
         op = MetastorePartitionSensor(
             task_id='hive_partition_check',
             table='airflow.static_babynames_partitioned',
-            partition_name='ds={}'.format(DEFAULT_DATE_DS),
+            partition_name=f'ds={DEFAULT_DATE_DS}',
             dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                ignore_ti_state=True)

@@ -114,8 +114,7 @@ def perform_krb181_workaround(principal: str):
     ret = subprocess.call(cmdv, close_fds=True)
 
     if ret != 0:
-        principal = "%s/%s" % (principal or conf.get('kerberos', 'principal'),
-                               socket.getfqdn())
+        principal = f"{principal or conf.get('kerberos', 'principal')}/{socket.getfqdn()}"
         princ = principal
         ccache = conf.get('kerberos', 'principal')
         log.error(

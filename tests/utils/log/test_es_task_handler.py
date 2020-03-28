@@ -40,7 +40,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
     DAG_ID = 'dag_for_testing_file_task_handler'
     TASK_ID = 'task_for_testing_file_log_handler'
     EXECUTION_DATE = datetime(2016, 1, 1)
-    LOG_ID = '{dag_id}-{task_id}-2016-01-01T00:00:00+00:00-1'.format(dag_id=DAG_ID, task_id=TASK_ID)
+    LOG_ID = f'{DAG_ID}-{TASK_ID}-2016-01-01T00:00:00+00:00-1'
 
     @elasticmock
     def setUp(self):

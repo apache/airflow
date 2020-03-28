@@ -193,7 +193,7 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
             return False
 
         with self.subTest("Detect missing example dags"):
-            missing_example = set(s for s in operator_sets if not has_example_dag(s))
+            missing_example = {s for s in operator_sets if not has_example_dag(s)}
             missing_example -= self.MISSING_EXAMPLE_DAGS
             self.assertEqual(set(), missing_example)
 

@@ -164,7 +164,7 @@ class SimpleDagBag(BaseDagBag):
         :rtype: airflow.utils.dag_processing.SimpleDag
         """
         if dag_id not in self.dag_id_to_simple_dag:
-            raise AirflowException("Unknown DAG ID {}".format(dag_id))
+            raise AirflowException(f"Unknown DAG ID {dag_id}")
         return self.dag_id_to_simple_dag[dag_id]
 
 
@@ -850,11 +850,11 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             last_run = self.get_last_finish_time(file_path)
             if last_run:
                 seconds_ago = (now - last_run).total_seconds()
-                Stats.gauge('dag_processing.last_run.seconds_ago.{}'.format(file_name), seconds_ago)
+                Stats.gauge(f'dag_processing.last_run.seconds_ago.{file_name}', seconds_ago)
             if runtime:
-                Stats.timing('dag_processing.last_duration.{}'.format(file_name), runtime)
+                Stats.timing(f'dag_processing.last_duration.{file_name}', runtime)
                 # TODO: Remove before Airflow 2.0
-                Stats.timing('dag_processing.last_runtime.{}'.format(file_name), runtime)
+                Stats.timing(f'dag_processing.last_runtime.{file_name}', runtime)
 
             rows.append((file_path,
                          processor_pid,
@@ -874,7 +874,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                                    "{:.2f}s".format(runtime.total_seconds()) if runtime else None,
                                    num_dags,
                                    num_errors,
-                                   "{:.2f}s".format(last_runtime) if last_runtime else None,
+                                   f"{last_runtime:.2f}s" if last_runtime else None,
                                    last_run.strftime("%Y-%m-%dT%H:%M:%S") if last_run else None
                                    ))
         log_str = ("\n" +

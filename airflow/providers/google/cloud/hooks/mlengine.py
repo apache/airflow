@@ -41,7 +41,7 @@ def _poll_with_exponential_delay(request, max_n, is_done_func, is_error_func):
             response = request.execute()
             if is_error_func(response):
                 raise ValueError(
-                    'The response contained an error: {}'.format(response)
+                    f'The response contained an error: {response}'
                 )
             if is_done_func(response):
                 log.info('Operation is done: %s', response)
@@ -55,7 +55,7 @@ def _poll_with_exponential_delay(request, max_n, is_done_func, is_error_func):
             else:
                 time.sleep((2**i) + (random.randint(0, 1000) / 1000))
 
-    raise ValueError('Connection could not be established after {} retries.'.format(max_n))
+    raise ValueError(f'Connection could not be established after {max_n} retries.')
 
 
 class MLEngineHook(CloudBaseHook):
@@ -120,7 +120,7 @@ class MLEngineHook(CloudBaseHook):
         self._append_label(job)
         self.log.info("Creating job.")
         request = hook.projects().jobs().create(  # pylint: disable=no-member
-            parent='projects/{}'.format(project_id),
+            parent=f'projects/{project_id}',
             body=job)
         job_id = job['jobId']
 
@@ -207,7 +207,7 @@ class MLEngineHook(CloudBaseHook):
         :raises: googleapiclient.errors.HttpError
         """
         hook = self.get_conn()
-        job_name = 'projects/{}/jobs/{}'.format(project_id, job_id)
+        job_name = f'projects/{project_id}/jobs/{job_id}'
         request = hook.projects().jobs().get(name=job_name)  # pylint: disable=no-member
         while True:
             try:
@@ -270,7 +270,7 @@ class MLEngineHook(CloudBaseHook):
         :rtype: dict
         """
         hook = self.get_conn()
-        parent_name = 'projects/{}/models/{}'.format(project_id, model_name)
+        parent_name = f'projects/{project_id}/models/{model_name}'
 
         self._append_label(version_spec)
 
@@ -310,8 +310,7 @@ class MLEngineHook(CloudBaseHook):
         :raises: googleapiclient.errors.HttpError
         """
         hook = self.get_conn()
-        full_version_name = 'projects/{}/models/{}/versions/{}'.format(
-            project_id, model_name, version_name)
+        full_version_name = f'projects/{project_id}/models/{model_name}/versions/{version_name}'
         request = hook.projects().models().versions().setDefault(  # pylint: disable=no-member
             name=full_version_name, body={})
 
@@ -344,8 +343,7 @@ class MLEngineHook(CloudBaseHook):
         """
         hook = self.get_conn()
         result = []  # type: List[Dict]
-        full_parent_name = 'projects/{}/models/{}'.format(
-            project_id, model_name)
+        full_parent_name = f'projects/{project_id}/models/{model_name}'
         request = hook.projects().models().versions().list(  # pylint: disable=no-member
             parent=full_parent_name, pageSize=100)
 
@@ -383,8 +381,7 @@ class MLEngineHook(CloudBaseHook):
             raise ValueError("The project_id should be set")
 
         hook = self.get_conn()
-        full_name = 'projects/{}/models/{}/versions/{}'.format(
-            project_id, model_name, version_name)
+        full_name = f'projects/{project_id}/models/{model_name}/versions/{version_name}'
         delete_request = hook.projects().models().versions().delete(  # pylint: disable=no-member
             name=full_name)
         response = delete_request.execute()
@@ -420,7 +417,7 @@ class MLEngineHook(CloudBaseHook):
         if 'name' not in model or not model['name']:
             raise ValueError("Model name must be provided and "
                              "could not be an empty string")
-        project = 'projects/{}'.format(project_id)
+        project = f'projects/{project_id}'
 
         self._append_label(model)
         try:
@@ -516,7 +513,7 @@ class MLEngineHook(CloudBaseHook):
 
         if not model_name:
             raise ValueError("Model name must be provided and it could not be an empty string")
-        model_path = 'projects/{}/models/{}'.format(project_id, model_name)
+        model_path = f'projects/{project_id}/models/{model_name}'
         if delete_contents:
             self._delete_all_versions(model_name, project_id)
         request = hook.projects().models().delete(name=model_path)  # pylint: disable=no-member

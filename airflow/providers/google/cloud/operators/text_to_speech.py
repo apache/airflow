@@ -115,7 +115,7 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
             "target_filename",
         ]:
             if getattr(self, parameter) == "":
-                raise AirflowException("The required parameter '{}' is empty".format(parameter))
+                raise AirflowException(f"The required parameter '{parameter}' is empty")
 
     def execute(self, context):
         hook = CloudTextToSpeechHook(gcp_conn_id=self.gcp_conn_id)

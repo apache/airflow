@@ -38,7 +38,7 @@ class TestPubSubPullSensor(unittest.TestCase):
                 {
                     "ack_id": "%s" % i,
                     "message": {
-                        "data": 'Message {}'.format(i).encode('utf8'),
+                        "data": f'Message {i}'.encode('utf8'),
                         "attributes": {"type": "generated message"},
                     },
                 },

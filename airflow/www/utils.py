@@ -302,12 +302,10 @@ def render(obj, lexer):
         out += pygment_html_render(obj, lexer)
     elif isinstance(obj, (tuple, list)):
         for i, s in enumerate(obj):
-            out += "<div>List item #{}</div>".format(i)
-            out += "<div>" + pygment_html_render(s, lexer) + "</div>"
+            out += f"<div>List item #{i}</div><div>{pygment_html_render(s, lexer)}</div>"
     elif isinstance(obj, dict):
         for k, v in obj.items():
-            out += '<div>Dict item "{}"</div>'.format(k)
-            out += "<div>" + pygment_html_render(v, lexer) + "</div>"
+            out += f'<div>Dict item "{k}"</div><div>{pygment_html_render(v, lexer)}<div>'
     return out
 
 

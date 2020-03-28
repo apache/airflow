@@ -331,7 +331,7 @@ class DAG(BaseDag, LoggingMixin):
         self.tags = tags
 
     def __repr__(self):
-        return "<DAG: {self.dag_id}>".format(self=self)
+        return f"<DAG: {self.dag_id}>"
 
     def __eq__(self, other):
         if (type(self) == type(other) and
@@ -644,7 +644,7 @@ class DAG(BaseDag, LoggingMixin):
         """
         callback = self.on_success_callback if success else self.on_failure_callback
         if callback:
-            self.log.info('Executing dag callback function: {}'.format(callback))
+            self.log.info('Executing dag callback function: %s', callback)
             tis = dagrun.get_task_instances()
             ti = tis[-1]  # get first TaskInstance of DagRun
             ti.task = self.get_task(ti.task_id)
@@ -1051,9 +1051,9 @@ class DAG(BaseDag, LoggingMixin):
                             dag_bag = DagBag()
                         external_dag = dag_bag.get_dag(tii.dag_id)
                         if not external_dag:
-                            raise AirflowException("Could not find dag {}".format(tii.dag_id))
+                            raise AirflowException(f"Could not find dag {tii.dag_id}")
                         downstream = external_dag.sub_dag(
-                            task_regex=r"^{}$".format(tii.task_id),
+                            task_regex=fr"^{tii.task_id}$",
                             include_upstream=False,
                             include_downstream=True
                         )
@@ -1235,7 +1235,7 @@ class DAG(BaseDag, LoggingMixin):
             for dag in self.subdags:
                 if task_id in dag.task_dict:
                     return dag.task_dict[task_id]
-        raise TaskNotFound("Task {task_id} not found".format(task_id=task_id))
+        raise TaskNotFound(f"Task {task_id} not found")
 
     def pickle_info(self):
         d = dict()
@@ -1306,7 +1306,7 @@ class DAG(BaseDag, LoggingMixin):
 
         if task.task_id in self.task_dict and self.task_dict[task.task_id] != task:
             raise DuplicateTaskIdFound(
-                "Task id '{}' has already been added to the DAG".format(task.task_id))
+                f"Task id '{task.task_id}' has already been added to the DAG")
         else:
             self.task_dict[task.task_id] = task
             task.dag = self
@@ -1703,7 +1703,7 @@ class DagModel(Base):
     )
 
     def __repr__(self):
-        return "<DAG: {self.dag_id}>".format(self=self)
+        return f"<DAG: {self.dag_id}>"
 
     @property
     def timezone(self):
@@ -1741,8 +1741,8 @@ class DagModel(Base):
             .all()
         )
 
-        paused_dag_ids = set(paused_dag_id for paused_dag_id, in paused_dag_ids)
-        return paused_dag_ids
+        # todo does this break the code?
+        return set(paused_dag_ids)
 
     @property
     def safe_dag_id(self):
@@ -1815,7 +1815,7 @@ class DagModel(Base):
         if including_subdags:
             dag = self.get_dag(store_serialized_dags)
             if dag is None:
-                raise DagNotFound("Dag id {} not found".format(self.dag_id))
+                raise DagNotFound(f"Dag id {self.dag_id} not found")
             subdags = dag.subdags
             dag_ids.extend([subdag.dag_id for subdag in subdags])
         dag_models = session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).all()

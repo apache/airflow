@@ -30,7 +30,7 @@ class TestOrderSetup(unittest.TestCase):
     def setUp(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         parent_dir = os.path.dirname(current_dir)
-        self.setup_file = open('{parent_dir}/setup.py'.format(parent_dir=parent_dir))
+        self.setup_file = open(f'{parent_dir}/setup.py')
         self.setup_context = self.setup_file.read()
 
     def tearDown(self):
@@ -63,7 +63,7 @@ class TestOrderSetup(unittest.TestCase):
         pattern_dependent_version = re.compile('[~|>|<|=|;].*')
         for group_name in dependent_group_names:
             pattern_sub_dependent = re.compile(
-                '{group_name} = \\[(.*?)\\]'.format(group_name=group_name), re.DOTALL)
+                f'{group_name} = \\[(.*?)\\]', re.DOTALL)
             sub_dependent = pattern_sub_dependent.findall(self.setup_context)[0]
             pattern_dependent = re.compile('\'(.*?)\'')
             dependent = pattern_dependent.findall(sub_dependent)

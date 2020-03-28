@@ -41,4 +41,4 @@ def get_task_runner(local_task_job):
         from airflow.task.task_runner.cgroup_task_runner import CgroupTaskRunner
         return CgroupTaskRunner(local_task_job)
     else:
-        raise AirflowException("Unknown task runner type {}".format(_TASK_RUNNER))
+        raise AirflowException(f"Unknown task runner type {_TASK_RUNNER}")

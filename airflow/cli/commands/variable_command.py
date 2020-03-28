@@ -89,7 +89,7 @@ def _import_helper(filepath):
                 suc_count += 1
         print("{} of {} variables successfully updated.".format(suc_count, len(var_json)))
         if fail_count:
-            print("{} variable(s) failed to be updated.".format(fail_count))
+            print(f"{fail_count} variable(s) failed to be updated.")
 
 
 def _variable_export_helper(filepath):

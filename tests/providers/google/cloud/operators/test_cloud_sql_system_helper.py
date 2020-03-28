@@ -151,13 +151,13 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
         res_postgres = self.execute_cmd(
             ['gcloud', 'sql', 'instances', 'describe',
              get_postgres_instance_name(instance_suffix),
-             "--project={}".format(GCP_PROJECT_ID)])
+             f"--project={GCP_PROJECT_ID}"])
         if res_postgres != 0:
             self.raise_database_exception('postgres')
         res_postgres = self.execute_cmd(
             ['gcloud', 'sql', 'instances', 'describe',
              get_postgres_instance_name(instance_suffix),
-             "--project={}".format(GCP_PROJECT_ID)])
+             f"--project={GCP_PROJECT_ID}"])
         if res_postgres != 0:
             self.raise_database_exception('mysql')
 
@@ -167,13 +167,13 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
         postgres_thread = Thread(target=lambda: self.execute_cmd(
             ['gcloud', 'sql', 'instances', 'patch',
              get_postgres_instance_name(instance_suffix), '--quiet',
-             "--authorized-networks={}".format(ip_address),
-             "--project={}".format(GCP_PROJECT_ID)]))
+             f"--authorized-networks={ip_address}",
+             f"--project={GCP_PROJECT_ID}"]))
         mysql_thread = Thread(target=lambda: self.execute_cmd(
             ['gcloud', 'sql', 'instances', 'patch',
              get_mysql_instance_name(instance_suffix), '--quiet',
-             "--authorized-networks={}".format(ip_address),
-             "--project={}".format(GCP_PROJECT_ID)]))
+             f"--authorized-networks={ip_address}",
+             f"--project={GCP_PROJECT_ID}"]))
         postgres_thread.start()
         mysql_thread.start()
         postgres_thread.join()
@@ -231,8 +231,8 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
         self.log.info('Deleting temporary service accounts from bucket "%s"...',
                       export_bucket_name)
         all_permissions = self.check_output(['gsutil', 'iam', 'get',
-                                             "gs://{}".format(export_bucket_name),
-                                             "--project={}".format(GCP_PROJECT_ID)])
+                                             f"gs://{export_bucket_name}",
+                                             f"--project={GCP_PROJECT_ID}"])
         all_permissions_dejson = json.loads(all_permissions.decode("utf-8"))
         for binding in all_permissions_dejson['bindings']:
             if binding['role'] != 'roles/storage.legacyBucketWriter':
@@ -252,7 +252,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
                         member, member_type
                     )
                 self.execute_cmd(['gsutil', 'acl', 'ch', '-d', member_email,
-                                 "gs://{}".format(export_bucket_name)])
+                                 f"gs://{export_bucket_name}"])
 
     @staticmethod
     def set_ip_addresses_in_env():
@@ -436,7 +436,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
              '--format=get(ipAddresses[0].ipAddress)']
         ).decode('utf-8').strip()
         os.environ[env_var] = ip_address
-        return "{}={}".format(env_var, ip_address)
+        return f"{env_var}={ip_address}"
 
     def __get_operations(self, instance_name: str) -> str:
         op_name_bytes = self.check_output(
@@ -460,7 +460,7 @@ if __name__ == '__main__':
 
     helper = CloudSqlQueryTestHelper()
     gcp_authenticator = GcpAuthenticator(GCP_CLOUDSQL_KEY)
-    helper.log.info('Starting action: {}'.format(action))
+    helper.log.info(f'Starting action: {action}')
 
     gcp_authenticator.gcp_store_authentication()
     try:
@@ -503,7 +503,7 @@ if __name__ == '__main__':
         elif action == 'delete-service-accounts-acls':
             helper.delete_service_account_acls()
         else:
-            raise Exception("Unknown action: {}".format(action))
+            raise Exception(f"Unknown action: {action}")
     finally:
         gcp_authenticator.gcp_restore_authentication()
-    helper.log.info('Finishing action: {}'.format(action))
+    helper.log.info(f'Finishing action: {action}')

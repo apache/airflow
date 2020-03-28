@@ -56,7 +56,7 @@ class MongoHook(BaseHook):
             ) if self.connection.login else '',
 
             host=self.connection.host,
-            port='' if self.connection.port is None else ':{}'.format(self.connection.port),
+            port='' if not self.connection.port else f':{self.connection.port}',
             database=self.connection.schema
         )
 

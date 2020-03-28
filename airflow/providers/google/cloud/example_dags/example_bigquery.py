@@ -72,7 +72,7 @@ PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 BQ_LOCATION = "europe-north1"
 
 DATASET_NAME = os.environ.get("GCP_BIGQUERY_DATASET_NAME", "test_dataset")
-LOCATION_DATASET_NAME = "{}_location".format(DATASET_NAME)
+LOCATION_DATASET_NAME = f"{DATASET_NAME}_location"
 DATA_SAMPLE_GCS_URL = os.environ.get(
     "GCP_BIGQUERY_DATA_GCS_URL", "gs://cloud-samples-data/bigquery/us-states/us-states.csv"
 )
@@ -121,7 +121,7 @@ with models.DAG(
         task_id="execute_query_save",
         sql=MOST_VALUABLE_INCOMING_TRANSACTIONS,
         use_legacy_sql=False,
-        destination_dataset_table="{}.save_query_result".format(DATASET_NAME),
+        destination_dataset_table=f"{DATASET_NAME}.save_query_result",
         query_params=[
             {
                 "name": "to_address",
@@ -147,28 +147,28 @@ with models.DAG(
         task_id="create_external_table",
         bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
         source_objects=[DATA_SAMPLE_GCS_OBJECT_NAME],
-        destination_project_dataset_table="{}.external_table".format(DATASET_NAME),
+        destination_project_dataset_table=f"{DATASET_NAME}.external_table",
         skip_leading_rows=1,
         schema_fields=[{"name": "name", "type": "STRING"}, {"name": "post_abbr", "type": "STRING"}],
     )
 
     execute_query_external_table = BigQueryExecuteQueryOperator(
         task_id="execute_query_external_table",
-        destination_dataset_table="{}.selected_data_from_external_table".format(DATASET_NAME),
-        sql='SELECT * FROM `{}.external_table` WHERE name LIKE "W%"'.format(DATASET_NAME),
+        destination_dataset_table=f"{DATASET_NAME}.selected_data_from_external_table",
+        sql=f'SELECT * FROM `{DATASET_NAME}.external_table` WHERE name LIKE "W%"',
         use_legacy_sql=False,
     )
 
     copy_from_selected_data = BigQueryToBigQueryOperator(
         task_id="copy_from_selected_data",
-        source_project_dataset_tables="{}.selected_data_from_external_table".format(DATASET_NAME),
-        destination_project_dataset_table="{}.copy_of_selected_data_from_external_table".format(DATASET_NAME),
+        source_project_dataset_tables=f"{DATASET_NAME}.selected_data_from_external_table",
+        destination_project_dataset_table=f"{DATASET_NAME}.copy_of_selected_data_from_external_table",
     )
 
     bigquery_to_gcs = BigQueryToGCSOperator(
         task_id="bigquery_to_gcs",
-        source_project_dataset_table="{}.selected_data_from_external_table".format(DATASET_NAME),
-        destination_cloud_storage_uris=["gs://{}/export-bigquery.csv".format(DATA_EXPORT_BUCKET_NAME)],
+        source_project_dataset_table=f"{DATASET_NAME}.selected_data_from_external_table",
+        destination_cloud_storage_uris=[f"gs://{DATA_EXPORT_BUCKET_NAME}/export-bigquery.csv"],
     )
 
     create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create-dataset", dataset_id=DATASET_NAME)
@@ -204,7 +204,7 @@ with models.DAG(
         dataset_id=LOCATION_DATASET_NAME,
         table_id="test_view",
         view={
-            "query": "SELECT * FROM `{}.test_table`".format(DATASET_NAME),
+            "query": f"SELECT * FROM `{DATASET_NAME}.test_table`",
             "useLegacySql": False
         }
     )
@@ -220,11 +220,11 @@ with models.DAG(
     )
 
     delete_view = BigQueryDeleteTableOperator(
-        task_id="delete_view", deletion_dataset_table="{}.test_view".format(DATASET_NAME)
+        task_id="delete_view", deletion_dataset_table=f"{DATASET_NAME}.test_view"
     )
 
     delete_table = BigQueryDeleteTableOperator(
-        task_id="delete_table", deletion_dataset_table="{}.test_table".format(DATASET_NAME)
+        task_id="delete_table", deletion_dataset_table=f"{DATASET_NAME}.test_table"
     )
 
     get_dataset = BigQueryGetDatasetOperator(task_id="get-dataset", dataset_id=DATASET_NAME)

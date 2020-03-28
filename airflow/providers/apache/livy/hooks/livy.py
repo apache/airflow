@@ -71,7 +71,7 @@ class LivyHook(HttpHook, LoggingMixin):
     }
 
     def __init__(self, livy_conn_id='livy_default'):
-        super(LivyHook, self).__init__(http_conn_id=livy_conn_id)
+        super().__init__(http_conn_id=livy_conn_id)
 
     def get_conn(self, headers=None):
         """
@@ -105,7 +105,7 @@ class LivyHook(HttpHook, LoggingMixin):
         :rtype: requests.Response
         """
         if method not in ('GET', 'POST', 'PUT', 'DELETE', 'HEAD'):
-            raise ValueError("Invalid http method '{}'".format(method))
+            raise ValueError(f"Invalid http method '{method}'")
         if extra_options is None:
             extra_options = {'check_response': False}
 
@@ -165,7 +165,7 @@ class LivyHook(HttpHook, LoggingMixin):
         self._validate_session_id(session_id)
 
         self.log.debug("Fetching info for batch session %d", session_id)
-        response = self.run_method(endpoint='/batches/{}'.format(session_id))
+        response = self.run_method(endpoint=f'/batches/{session_id}')
 
         try:
             response.raise_for_status()
@@ -190,7 +190,7 @@ class LivyHook(HttpHook, LoggingMixin):
         self._validate_session_id(session_id)
 
         self.log.debug("Fetching info for batch session %d", session_id)
-        response = self.run_method(endpoint='/batches/{}/state'.format(session_id))
+        response = self.run_method(endpoint=f'/batches/{session_id}/state')
 
         try:
             response.raise_for_status()
@@ -203,7 +203,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
         jresp = response.json()
         if 'state' not in jresp:
-            raise AirflowException("Unable to get state for batch with id: {}".format(session_id))
+            raise AirflowException(f"Unable to get state for batch with id: {session_id}")
         return BatchState(jresp['state'])
 
     def delete_batch(self, session_id):
@@ -220,7 +220,7 @@ class LivyHook(HttpHook, LoggingMixin):
         self.log.info("Deleting batch session %d", session_id)
         response = self.run_method(
             method='DELETE',
-            endpoint='/batches/{}'.format(session_id)
+            endpoint=f'/batches/{session_id}'
         )
 
         try:
@@ -366,7 +366,7 @@ class LivyHook(HttpHook, LoggingMixin):
         :rtype: bool
         """
         if size and not (isinstance(size, str) and re.match(r'^\d+[kmgt]b?$', size, re.IGNORECASE)):
-            raise ValueError("Invalid java size format for string'{}'".format(size))
+            raise ValueError(f"Invalid java size format for string'{size}'")
         return True
 
     @staticmethod

@@ -289,16 +289,14 @@ class ClusterGenerator:
 
     def _build_lifecycle_config(self, cluster_data):
         if self.idle_delete_ttl:
-            cluster_data['config']['lifecycle_config']['idle_delete_ttl'] = \
-                "{}s".format(self.idle_delete_ttl)
+            cluster_data['config']['lifecycle_config']['idle_delete_ttl'] = f"{self.idle_delete_ttl}s"
 
         if self.auto_delete_time:
             utc_auto_delete_time = timezone.convert_to_utc(self.auto_delete_time)
             cluster_data['config']['lifecycle_config']['auto_delete_time'] = \
                 utc_auto_delete_time.format('%Y-%m-%dT%H:%M:%S.%fZ', formatter='classic')
         elif self.auto_delete_ttl:
-            cluster_data['config']['lifecycle_config']['auto_delete_ttl'] = \
-                "{}s".format(self.auto_delete_ttl)
+            cluster_data['config']['lifecycle_config']['auto_delete_ttl'] = f"{self.auto_delete_ttl}s"
 
         return cluster_data
 
@@ -1286,7 +1284,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
             mime_type='application/x-python',
             filename=local_file
         )
-        return "gs://{}/{}".format(bucket, temp_filename)
+        return f"gs://{bucket}/{temp_filename}"
 
     @apply_defaults
     def __init__(
@@ -1329,7 +1327,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
                 cluster_name=self.cluster_name
             )
             bucket = cluster_info['config']['config_bucket']
-            self.main = "gs://{}/{}".format(bucket, self.main)
+            self.main = f"gs://{bucket}/{self.main}"
         self.job_template.set_python_main(self.main)
         self.job_template.add_args(self.arguments)
         self.job_template.add_archive_uris(self.archives)

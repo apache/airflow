@@ -102,11 +102,10 @@ class FileTaskHandler(logging.Handler):
         if os.path.exists(location):
             try:
                 with open(location) as file:
-                    log += "*** Reading local file: {}\n".format(location)
-                    log += "".join(file.readlines())
+                    lines = "".join(file.readlines())
+                    log += f"*** Reading local file: {location}\n{lines}"
             except Exception as e:  # pylint: disable=broad-except
-                log = "*** Failed to load local log file: {}\n".format(location)
-                log += "*** {}\n".format(str(e))
+                log = f"*** Failed to load local log file: {location}\n*** {str(e)}\n"
         else:
             url = os.path.join(
                 "http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path
@@ -114,8 +113,7 @@ class FileTaskHandler(logging.Handler):
                 ti=ti,
                 worker_log_server_port=conf.get('celery', 'WORKER_LOG_SERVER_PORT')
             )
-            log += "*** Log file does not exist: {}\n".format(location)
-            log += "*** Fetching from: {}\n".format(url)
+            log += f"*** Log file does not exist: {location}\n*** Fetching from: {url}\n"
             try:
                 timeout = None  # No timeout
                 try:
@@ -156,7 +154,7 @@ class FileTaskHandler(logging.Handler):
             try_numbers = list(range(1, next_try))
         elif try_number < 1:
             logs = [
-                'Error fetching the logs. Try number {} is invalid.'.format(try_number),
+                f'Error fetching the logs. Try number {try_number} is invalid.',
             ]
             return logs
         else:

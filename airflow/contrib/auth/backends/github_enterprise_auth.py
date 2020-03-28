@@ -132,9 +132,9 @@ class GHEAuthBackend:
                                   token=(ghe_token, ''))
 
         if not resp or resp.status != 200:
+            status = resp.status if resp else 'None'
             raise AuthenticationError(
-                'Failed to fetch user profile, status ({0})'.format(
-                    resp.status if resp else 'None'))
+                f'Failed to fetch user profile, status ({status})')
 
         return resp.data['login'], resp.data['email']
 
@@ -160,9 +160,8 @@ class GHEAuthBackend:
                                   token=(ghe_token, ''))
 
         if not resp or resp.status != 200:
-            raise AuthenticationError(
-                'Bad response from GHE ({0})'.format(
-                    resp.status if resp else 'None'))
+            status = resp.status if resp else 'None'
+            raise AuthenticationError(f'Bad response from GHE ({status})')
 
         for team in resp.data:
             # mylons: previously this line used to be if team['slug'] in teams

@@ -139,7 +139,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
         log = logging.getLogger("airflow.processor")
 
         set_context(log, file_path)
-        setproctitle("airflow scheduler - DagFileProcessor {}".format(file_path))
+        setproctitle(f"airflow scheduler - DagFileProcessor {file_path}")
 
         try:
             # redirect stdout/stderr to log
@@ -189,10 +189,10 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
                 self.file_path,
                 self._pickle_dags,
                 self._dag_id_white_list,
-                "DagFileProcessor{}".format(self._instance_id),
+                f"DagFileProcessor{self._instance_id}",
                 self._failure_callback_requests
             ),
-            name="DagFileProcessor{}-Process".format(self._instance_id)
+            name=f"DagFileProcessor{self._instance_id}-Process"
         )
         self._start_time = timezone.utcnow()
         self._process.start()
@@ -742,7 +742,7 @@ class DagFileProcessor(LoggingMixin):
                     if expected_start_date:
                         schedule_delay = dag_run.start_date - expected_start_date
                         Stats.timing(
-                            'dagrun.schedule_delay.{dag_id}'.format(dag_id=dag.dag_id),
+                            f'dagrun.schedule_delay.{dag.dag_id}',
                             schedule_delay)
                     self.log.info("Created %s", dag_run)
 
@@ -1281,11 +1281,11 @@ class SchedulerJob(BaseJob):
                 dag_concurrency_map[dag_id] += 1
                 task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
 
-            Stats.gauge('pool.starving_tasks.{pool_name}'.format(pool_name=pool_name),
+            Stats.gauge(f'pool.starving_tasks.{pool_name}',
                         num_starving_tasks)
-            Stats.gauge('pool.open_slots.{pool_name}'.format(pool_name=pool_name),
+            Stats.gauge(f'pool.open_slots.{pool_name}',
                         pools[pool_name].open_slots())
-            Stats.gauge('pool.used_slots.{pool_name}'.format(pool_name=pool_name),
+            Stats.gauge(f'pool.used_slots.{pool_name}',
                         pools[pool_name].occupied_slots())
             Stats.gauge('scheduler.tasks.pending', len(task_instances_to_examine))
             Stats.gauge('scheduler.tasks.running', num_tasks_in_executor)

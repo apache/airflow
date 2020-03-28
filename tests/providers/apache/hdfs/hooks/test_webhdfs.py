@@ -42,7 +42,7 @@ class TestWebHDFSHook(unittest.TestCase):
         conn = self.webhdfs_hook.get_conn()
 
         mock_insecure_client.assert_has_calls([
-            call('http://{host}:{port}'.format(host=connection.host, port=connection.port),
+            call(f'http://{connection.host}:{connection.port}',
                  user=connection.login)
             for connection in mock_get_connections.return_value
         ])
@@ -65,7 +65,7 @@ class TestWebHDFSHook(unittest.TestCase):
 
         connection = mock_get_connections.return_value[0]
         mock_kerberos_client.assert_called_once_with(
-            'http://{host}:{port}'.format(host=connection.host, port=connection.port))
+            f'http://{connection.host}:{connection.port}')
         self.assertEqual(conn, mock_kerberos_client.return_value)
 
     @patch('airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook._find_valid_server', return_value=None)

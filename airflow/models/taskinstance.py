@@ -272,7 +272,7 @@ class TaskInstance(Base, LoggingMixin):
 
         should_pass_filepath = not pickle_id and dag
         if should_pass_filepath and dag.full_filepath != dag.filepath:
-            path = "DAGS_FOLDER/{}".format(dag.filepath)
+            path = f"DAGS_FOLDER/{dag.filepath}"
         elif should_pass_filepath and dag.full_filepath:
             path = dag.full_filepath
         else:
@@ -937,7 +937,7 @@ class TaskInstance(Base, LoggingMixin):
                 # Export context to make it available for operators to use.
                 airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
                 self.log.info("Exporting the following env vars:\n%s",
-                              '\n'.join(["{}={}".format(k, v)
+                              '\n'.join([f"{k}={v}"
                                          for k, v in airflow_context_vars.items()]))
                 os.environ.update(airflow_context_vars)
                 task_copy.pre_execute(context=context)
@@ -1127,7 +1127,7 @@ class TaskInstance(Base, LoggingMixin):
         task = self.task
         self.end_date = timezone.utcnow()
         self.set_duration()
-        Stats.incr('operator_failures_{}'.format(task.__class__.__name__), 1, 1)
+        Stats.incr(f'operator_failures_{task.__class__.__name__}', 1, 1)
         Stats.incr('ti_failures')
         if not test_mode:
             session.add(Log(State.FAILED, self))

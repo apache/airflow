@@ -87,4 +87,4 @@ class SegmentHook(BaseHook):
         """
         self.log.error('Encountered Segment error: %s with '
                        'items: %s', error, items)
-        raise AirflowException('Segment error: {}'.format(error))
+        raise AirflowException(f'Segment error: {error}')

@@ -213,7 +213,7 @@ class DockerOperator(BaseOperator):
         self.log.info('Starting docker container from image %s', self.image)
 
         with TemporaryDirectory(prefix='airflowtmp', dir=self.host_tmp_dir) as host_tmp_dir:
-            self.volumes.append('{0}:{1}'.format(host_tmp_dir, self.tmp_dir))
+            self.volumes.append(f'{host_tmp_dir}:{self.tmp_dir}')
 
             self.container = self.cli.create_container(
                 command=self.get_command(),

@@ -40,7 +40,7 @@ TEMPLATED_NOTEBOOK_TASK = {
     'notebook_path': '/test-{{ ds }}'
 }
 RENDERED_TEMPLATED_NOTEBOOK_TASK = {
-    'notebook_path': '/test-{0}'.format(DATE)
+    'notebook_path': f'/test-{DATE}'
 }
 SPARK_JAR_TASK = {
     'main_class_name': 'com.databricks.Test'
@@ -60,7 +60,7 @@ NOTEBOOK_PARAMS = {
 }
 JAR_PARAMS = ["param1", "param2"]
 RENDERED_TEMPLATED_JAR_PARAMS = [
-    '/test-{0}'.format(DATE)
+    f'/test-{DATE}'
 ]
 TEMPLATED_JAR_PARAMS = [
     '/test-{{ ds }}'

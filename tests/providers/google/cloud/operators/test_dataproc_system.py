@@ -24,7 +24,7 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 
 BUCKET = os.environ.get("GCP_DATAPROC_BUCKET", "dataproc-system-tests")
 PYSPARK_MAIN = os.environ.get("PYSPARK_MAIN", "hello_world.py")
-PYSPARK_URI = "gs://{}/{}".format(BUCKET, PYSPARK_MAIN)
+PYSPARK_URI = f"gs://{BUCKET}/{PYSPARK_MAIN}"
 
 pyspark_file = """
 #!/usr/bin/python

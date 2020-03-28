@@ -62,7 +62,7 @@ class CloudFunctionsHook(CloudBaseHook):
         :type location: str
         :return:
         """
-        return 'projects/{}/locations/{}'.format(project_id, location)
+        return f'projects/{project_id}/locations/{location}'
 
     def get_conn(self):
         """
@@ -205,11 +205,7 @@ class CloudFunctionsHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        name = "projects/{project_id}/locations/{location}/functions/{function_id}".format(
-            project_id=project_id,
-            location=location,
-            function_id=function_id
-        )
+        name = f"projects/{project_id}/locations/{location}/functions/{function_id}"
         response = self.get_conn().projects().locations().functions().call(  # pylint: disable=no-member
             name=name,
             body=input_data

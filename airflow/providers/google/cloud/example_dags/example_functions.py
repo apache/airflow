@@ -53,9 +53,7 @@ GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCP_LOCATION = os.environ.get('GCP_LOCATION', 'europe-west1')
 GCF_SHORT_FUNCTION_NAME = os.environ.get('GCF_SHORT_FUNCTION_NAME', 'hello').\
     replace("-", "_")  # make sure there are no dashes in function name (!)
-FUNCTION_NAME = 'projects/{}/locations/{}/functions/{}'.format(GCP_PROJECT_ID,
-                                                               GCP_LOCATION,
-                                                               GCF_SHORT_FUNCTION_NAME)
+FUNCTION_NAME = f'projects/{GCP_PROJECT_ID}/locations/{GCP_LOCATION}/functions/{GCF_SHORT_FUNCTION_NAME}'
 GCF_SOURCE_ARCHIVE_URL = os.environ.get('GCF_SOURCE_ARCHIVE_URL', '')
 GCF_SOURCE_UPLOAD_URL = os.environ.get('GCF_SOURCE_UPLOAD_URL', '')
 GCF_SOURCE_REPOSITORY = os.environ.get(

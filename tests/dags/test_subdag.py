@@ -41,14 +41,14 @@ def subdag(parent_dag_name, child_dag_name, args):
     Create a subdag.
     """
     dag_subdag = DAG(
-        dag_id='%s.%s' % (parent_dag_name, child_dag_name),
+        dag_id=f'{parent_dag_name}.{child_dag_name}',
         default_args=args,
         schedule_interval="@daily",
     )
 
     for i in range(2):
         DummyOperator(
-            task_id='%s-task-%s' % (child_dag_name, i + 1),
+            task_id='{}-task-{}'.format(child_dag_name, i + 1),
             default_args=args,
             dag=dag_subdag,
         )

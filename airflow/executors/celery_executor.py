@@ -110,8 +110,9 @@ def fetch_celery_task_state(celery_task: Tuple[TaskInstanceKeyType, AsyncResult]
             # to get the current state of the task.
             return celery_task[0], celery_task[1].state
     except Exception as e:  # pylint: disable=broad-except
-        exception_traceback = "Celery Task ID: {}\n{}".format(celery_task[0],
-                                                              traceback.format_exc())
+        task_id = celery_task[0]
+        format_ex = traceback.format_exc()
+        exception_traceback = f"Celery Task ID: {task_id}\n{format_ex}"
         return ExceptionWithTraceback(e, exception_traceback)
 
 
@@ -128,7 +129,8 @@ def send_task_to_executor(task_tuple: TaskInstanceInCelery) \
         with timeout(seconds=OPERATION_TIMEOUT):
             result = task_to_run.apply_async(args=[command], queue=queue)
     except Exception as e:  # pylint: disable=broad-except
-        exception_traceback = "Celery Task ID: {}\n{}".format(key, traceback.format_exc())
+        format_ex = traceback.format_exc()
+        exception_traceback = f"Celery Task ID: {key}\n{format_ex}"
         result = ExceptionWithTraceback(e, exception_traceback)
 
     return key, command, result

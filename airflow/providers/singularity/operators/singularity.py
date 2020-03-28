@@ -79,7 +79,7 @@ class SingularityOperator(BaseOperator):
             *args,
             **kwargs) -> None:
 
-        super(SingularityOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.auto_remove = auto_remove
         self.command = command
         self.start_command = start_command

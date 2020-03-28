@@ -72,7 +72,7 @@ class ElasticsearchHook(DbApiHook):
             login = '{conn.login}:{conn.password}@'.format(conn=conn)
         host = conn.host
         if conn.port is not None:
-            host += ':{port}'.format(port=conn.port)
+            host += f':{conn.port}'
         uri = '{conn.conn_type}+{conn.schema}://{login}{host}/'.format(
             conn=conn, login=login, host=host)
 

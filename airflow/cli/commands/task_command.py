@@ -210,7 +210,7 @@ def task_failed_deps(args):
     if failed_deps:
         print("Task instance dependencies not met:")
         for dep in failed_deps:
-            print("{}: {}".format(dep.dep_name, dep.reason))
+            print(f"{dep.dep_name}: {dep.reason}")
     else:
         print("Task instance dependencies are all met.")
 

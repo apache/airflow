@@ -389,8 +389,7 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
             api_version=self.api_version
         )
         if not self._check_if_instance_exists(self.instance, hook):
-            print("Cloud SQL instance with ID {} does not exist. Aborting delete."
-                  .format(self.instance))
+            print(f"Cloud SQL instance with ID {self.instance} does not exist. Aborting delete.")
             return True
         else:
             return hook.delete_instance(

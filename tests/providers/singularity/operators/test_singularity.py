@@ -71,7 +71,7 @@ class SingularityOperatorTestCase(unittest.TestCase):
             image="docker://busybox",
             command=command
         )
-        with six.assertRaisesRegex(self, AirflowException, "You must define a command."):
+        with self.assertRaisesRegex(AirflowException, "You must define a command."):
             task.execute({})
 
     @mock.patch('airflow.providers.singularity.operators.singularity.Client')

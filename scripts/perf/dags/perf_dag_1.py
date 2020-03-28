@@ -41,7 +41,7 @@ task_1 = BashOperator(
 
 for i in range(2, 5):
     task = BashOperator(
-        task_id='perf_task_{}'.format(i),
+        task_id=f'perf_task_{i}',
         bash_command='''
             sleep 5; echo "run_id={{ run_id }} | dag_run={{ dag_run }}"
         ''',

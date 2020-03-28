@@ -458,7 +458,7 @@ class TestPoolApiExperimental(TestBase):
 
     def test_get_pool(self):
         response = self.client.get(
-            '/api/experimental/pools/{}'.format(self.pool.pool),
+            f'/api/experimental/pools/{self.pool.pool}',
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(json.loads(response.data.decode('utf-8')),
@@ -515,7 +515,7 @@ class TestPoolApiExperimental(TestBase):
 
     def test_delete_pool(self):
         response = self.client.delete(
-            '/api/experimental/pools/{}'.format(self.pool.pool),
+            f'/api/experimental/pools/{self.pool.pool}',
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(json.loads(response.data.decode('utf-8')),

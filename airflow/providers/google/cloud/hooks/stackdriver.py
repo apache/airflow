@@ -105,7 +105,7 @@ class StackdriverHook(CloudBaseHook):
         """
         client = self._get_policy_client()
         policies_ = client.list_alert_policies(
-            name='projects/{project_id}'.format(project_id=project_id),
+            name=f'projects/{project_id}',
             filter_=filter_,
             order_by=order_by,
             page_size=page_size,
@@ -286,7 +286,7 @@ class StackdriverHook(CloudBaseHook):
                 old_name = channel.name
                 channel.ClearField('name')
                 new_channel = channel_client.create_notification_channel(
-                    name='projects/{project_id}'.format(project_id=project_id),
+                    name=f'projects/{project_id}',
                     notification_channel=channel,
                     retry=retry,
                     timeout=timeout,
@@ -318,7 +318,7 @@ class StackdriverHook(CloudBaseHook):
                 for condition in policy.conditions:
                     condition.ClearField('name')
                 policy_client.create_alert_policy(
-                    name='projects/{project_id}'.format(project_id=project_id),
+                    name=f'projects/{project_id}',
                     alert_policy=policy,
                     retry=retry,
                     timeout=timeout,
@@ -359,7 +359,7 @@ class StackdriverHook(CloudBaseHook):
             )
         except HttpError as err:
             raise AirflowException(
-                'Delete alerting policy failed. Error was {}'.format(err.content)
+                f'Delete alerting policy failed. Error was {err.content}'
             )
 
     @CloudBaseHook.fallback_to_default_project_id
@@ -415,7 +415,7 @@ class StackdriverHook(CloudBaseHook):
 
         client = self._get_channel_client()
         channels = client.list_notification_channels(
-            name='projects/{project_id}'.format(project_id=project_id),
+            name=f'projects/{project_id}',
             filter_=filter_,
             order_by=order_by,
             page_size=page_size,
@@ -442,7 +442,7 @@ class StackdriverHook(CloudBaseHook):
     ) -> None:
         client = self._get_channel_client()
         channels = client.list_notification_channels(
-            name='projects/{project_id}'.format(project_id=project_id),
+            name=f'projects/{project_id}',
             filter_=filter_
         )
         for channel in channels:
@@ -596,7 +596,7 @@ class StackdriverHook(CloudBaseHook):
                 old_name = channel.name
                 channel.ClearField('name')
                 new_channel = channel_client.create_notification_channel(
-                    name='projects/{project_id}'.format(project_id=project_id),
+                    name=f'projects/{project_id}',
                     notification_channel=channel,
                     retry=retry,
                     timeout=timeout,
@@ -640,5 +640,5 @@ class StackdriverHook(CloudBaseHook):
             )
         except HttpError as err:
             raise AirflowException(
-                'Delete notification channel failed. Error was {}'.format(err.content)
+                f'Delete notification channel failed. Error was {err.content}'
             )

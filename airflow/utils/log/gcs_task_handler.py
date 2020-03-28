@@ -112,12 +112,10 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
         try:
             remote_log = self.gcs_read(remote_loc)
-            log = '*** Reading remote log from {}.\n{}\n'.format(
-                remote_loc, remote_log)
+            log = f'*** Reading remote log from {remote_loc}.\n{remote_log}\n'
             return log, {'end_of_log': True}
         except Exception as e:  # pylint: disable=broad-except
-            log = '*** Unable to read remote log from {}\n*** {}\n\n'.format(
-                remote_loc, str(e))
+            log = f'*** Unable to read remote log from {remote_loc}\n*** {e}\n\n'
             self.log.error(log)
             local_log, metadata = super()._read(ti, try_number)
             log += local_log

@@ -50,7 +50,7 @@ def _trigger_dag(
     dag = dag_bag.get_dag(dag_id)  # prefetch dag if it is stored serialized
 
     if dag_id not in dag_bag.dags:
-        raise DagNotFound("Dag id {} not found".format(dag_id))
+        raise DagNotFound(f"Dag id {dag_id} not found")
 
     execution_date = execution_date if execution_date else timezone.utcnow()
 
@@ -64,9 +64,8 @@ def _trigger_dag(
         min_dag_start_date = dag.default_args["start_date"]
         if min_dag_start_date and execution_date < min_dag_start_date:
             raise ValueError(
-                "The execution_date [{0}] should be >= start_date [{1}] from DAG's default_args".format(
-                    execution_date.isoformat(),
-                    min_dag_start_date.isoformat()))
+                f"The execution_date [{execution_date.isoformat()}] should "
+                f"be >= start_date [{min_dag_start_date.isoformat()}] from DAG's default_args")
 
     if not run_id:
         run_id = f"{DagRunType.MANUAL.value}__{execution_date.isoformat()}"
@@ -120,7 +119,7 @@ def trigger_dag(
     """
     dag_model = DagModel.get_current(dag_id)
     if dag_model is None:
-        raise DagNotFound("Dag id {} not found in DagModel".format(dag_id))
+        raise DagNotFound(f"Dag id {dag_id} not found in DagModel")
 
     def read_store_serialized_dags():
         from airflow.configuration import conf

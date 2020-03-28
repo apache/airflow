@@ -388,7 +388,7 @@ def _parse_s3_config(config_file_name, config_format="boto", profile=None):
     if config.read(config_file_name):  # pragma: no cover
         sections = config.sections()
     else:
-        raise AirflowException("Couldn't read {0}".format(config_file_name))
+        raise AirflowException(f"Couldn't read {config_file_name}")
     # Setting option names depending on file format
     if config_format is None:
         config_format = "boto"

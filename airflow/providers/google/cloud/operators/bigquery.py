@@ -580,7 +580,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
                 for s in self.sql]
         else:
             raise AirflowException(
-                "argument 'sql' of type {} is neither a string nor an iterable".format(type(str)))
+                f"argument 'sql' of type {type(self.sql)} is neither a string nor an iterable")
         context['task_instance'].xcom_push(key='job_id', value=job_id)
 
     def on_kill(self):
@@ -937,7 +937,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         else:
             schema_fields = self.schema_fields
 
-        source_uris = ['gs://{}/{}'.format(self.bucket, source_object)
+        source_uris = [f'gs://{self.bucket}/{source_object}'
                        for source_object in self.source_objects]
 
         try:

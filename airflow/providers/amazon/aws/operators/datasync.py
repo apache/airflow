@@ -158,9 +158,8 @@ class AWSDataSyncOperator(BaseOperator):
         if not valid:
             raise AirflowException(
                 "Either specify task_arn or both source_location_uri and destination_location_uri. "
-                "task_arn={0} source_location_uri={1} destination_location_uri={2}".format(
-                    task_arn, source_location_uri, destination_location_uri
-                )
+                f"task_arn={task_arn} source_location_uri={source_location_uri} "
+                f"destination_location_uri={destination_location_uri}"
             )
 
         # Others
@@ -264,8 +263,7 @@ class AWSDataSyncOperator(BaseOperator):
             # from AWS and might lead to confusion. Rather explicitly
             # choose a random one
             return random.choice(task_arn_list)
-        raise AirflowException(
-            "Unable to choose a Task from {}".format(task_arn_list))
+        raise AirflowException(f"Unable to choose a Task from {task_arn_list}")
 
     def choose_location(self, location_arn_list):
         """Select 1 DataSync LocationArn from a list"""
@@ -279,8 +277,7 @@ class AWSDataSyncOperator(BaseOperator):
             # from AWS and might lead to confusion. Rather explicitly
             # choose a random one
             return random.choice(location_arn_list)
-        raise AirflowException(
-            "Unable to choose a Location from {}".format(location_arn_list))
+        raise AirflowException(f"Unable to choose a Location from {location_arn_list}")
 
     def _create_datasync_task(self):
         """Create a AWS DataSyncTask."""

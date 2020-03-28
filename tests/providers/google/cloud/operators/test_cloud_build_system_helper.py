@@ -62,9 +62,9 @@ class GCPCloudBuildTestHelper(LoggingCommandExecutor):
                 file.flush()
 
             # 2. Prepare bucket
-            self.execute_cmd(["gsutil", "mb", "gs://{}".format(GCP_BUCKET_NAME)])
+            self.execute_cmd(["gsutil", "mb", f"gs://{GCP_BUCKET_NAME}"])
             self.execute_cmd(
-                ["bash", "-c", "tar -zcvf - -C {} . | gsutil cp -r - {}".format(tmp_dir, GCP_ARCHIVE_URL)]
+                ["bash", "-c", f"tar -zcvf - -C {tmp_dir} . | gsutil cp -r - {GCP_ARCHIVE_URL}"]
             )
 
             # 3. Prepare repo
@@ -92,14 +92,14 @@ class GCPCloudBuildTestHelper(LoggingCommandExecutor):
     def delete_bucket(self):
         """Delete bucket in Google Cloud Storage service"""
 
-        self.execute_cmd(["gsutil", "rb", "gs://{}".format(GCP_BUCKET_NAME)])
+        self.execute_cmd(["gsutil", "rb", f"gs://{GCP_BUCKET_NAME}"])
 
     def delete_docker_images(self):
         """Delete images in Google Cloud Container Registry"""
 
-        repo_image_name = "gcr.io/{}/{}".format(GCP_PROJECT_ID, GCP_REPOSITORY_NAME)
+        repo_image_name = f"gcr.io/{GCP_PROJECT_ID}/{GCP_REPOSITORY_NAME}"
         self.execute_cmd(["gcloud", "container", "images", "delete", repo_image_name])
-        bucket_image_name = "gcr.io/{}/{}".format(GCP_PROJECT_ID, GCP_BUCKET_NAME)
+        bucket_image_name = f"gcr.io/{GCP_PROJECT_ID}/{GCP_BUCKET_NAME}"
         self.execute_cmd(["gcloud", "container", "images", "delete", bucket_image_name])
 
 
@@ -145,7 +145,7 @@ if __name__ == "__main__":
         elif action == "delete-docker-images":
             helper.delete_docker_images()
         else:
-            raise Exception("Unknown action: {}".format(action))
+            raise Exception(f"Unknown action: {action}")
     finally:
         gcp_authenticator.gcp_restore_authentication()
 

@@ -610,7 +610,7 @@ class GcsFileTransformOperator(BaseOperator):
             process.wait()
             if process.returncode > 0:
                 raise AirflowException(
-                    "Transform script failed: {0}".format(process.returncode)
+                    f"Transform script failed: {process.returncode}"
                 )
 
             self.log.info(

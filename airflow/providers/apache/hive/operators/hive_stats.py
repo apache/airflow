@@ -128,7 +128,7 @@ class HiveStatsCollectionOperator(BaseOperator):
             v + " AS " + k[0] + '__' + k[1]
             for k, v in exprs.items()])
 
-        where_clause = ["{} = '{}'".format(k, v) for k, v in self.partition.items()]
+        where_clause = [f"{k} = '{v}'" for k, v in self.partition.items()]
         where_clause = " AND\n        ".join(where_clause)
         sql = "SELECT {exprs_str} FROM {table} WHERE {where_clause};".format(
             exprs_str=exprs_str, table=self.table, where_clause=where_clause)

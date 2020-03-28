@@ -67,6 +67,7 @@ class WinRMOperator(BaseOperator):
         self.timeout = timeout
 
     def execute(self, context):
+        global return_code
         if self.ssh_conn_id and not self.winrm_hook:
             self.log.info("Hook not found, creating...")
             self.winrm_hook = WinRMHook(ssh_conn_id=self.ssh_conn_id)
@@ -121,7 +122,7 @@ class WinRMOperator(BaseOperator):
             self.winrm_hook.winrm_protocol.close_shell(winrm_client)
 
         except Exception as e:
-            raise AirflowException("WinRM operator error: {0}".format(str(e)))
+            raise AirflowException(f"WinRM operator error: {e}")
 
         if return_code == 0:
             # returning output if do_xcom_push is set
@@ -133,9 +134,6 @@ class WinRMOperator(BaseOperator):
             else:
                 return b64encode(b''.join(stdout_buffer)).decode('utf-8')
         else:
-            error_msg = "Error running cmd: {0}, return code: {1}, error: {2}".format(
-                self.command,
-                return_code,
-                b''.join(stderr_buffer).decode('utf-8')
-            )
+            stderr = b''.join(stderr_buffer).decode('utf-8')
+            error_msg = f"Error running cmd: {self.command}, return code: {return_code}, error: {stderr}"
             raise AirflowException(error_msg)

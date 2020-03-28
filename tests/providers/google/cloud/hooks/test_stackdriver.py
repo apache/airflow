@@ -117,7 +117,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
             filter_=TEST_FILTER
         )
         method.assert_called_once_with(
-            name='projects/{project}'.format(project=PROJECT_ID),
+            name=f'projects/{PROJECT_ID}',
             filter_=TEST_FILTER,
             retry=DEFAULT,
             timeout=DEFAULT,
@@ -144,7 +144,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
             filter_=TEST_FILTER,
         )
         mock_policy_client.return_value.list_alert_policies.assert_called_once_with(
-            name='projects/{project}'.format(project=PROJECT_ID),
+            name=f'projects/{PROJECT_ID}',
             filter_=TEST_FILTER,
             retry=DEFAULT,
             timeout=DEFAULT,
@@ -181,7 +181,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
             filter_=TEST_FILTER,
         )
         mock_policy_client.return_value.list_alert_policies.assert_called_once_with(
-            name='projects/{project}'.format(project=PROJECT_ID),
+            name=f'projects/{PROJECT_ID}',
             filter_=TEST_FILTER,
             retry=DEFAULT,
             timeout=DEFAULT,
@@ -219,7 +219,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
             alerts=json.dumps({"policies": [TEST_ALERT_POLICY_1, TEST_ALERT_POLICY_2], "channels": []})
         )
         mock_channel_client.return_value.list_notification_channels.assert_called_once_with(
-            name='projects/{project}'.format(project=PROJECT_ID),
+            name=f'projects/{PROJECT_ID}',
             filter_=None,
             retry=DEFAULT,
             timeout=DEFAULT,
@@ -228,7 +228,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
             metadata=None,
         )
         mock_policy_client.return_value.list_alert_policies.assert_called_once_with(
-            name='projects/{project}'.format(project=PROJECT_ID),
+            name=f'projects/{PROJECT_ID}',
             filter_=None,
             retry=DEFAULT,
             timeout=DEFAULT,
@@ -241,7 +241,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
         alert_policy_to_create.ClearField('mutation_record')
         alert_policy_to_create.conditions[0].ClearField('name')  # pylint: disable=no-member
         mock_policy_client.return_value.create_alert_policy.assert_called_once_with(
-            name='projects/{project}'.format(project=PROJECT_ID),
+            name=f'projects/{PROJECT_ID}',
             alert_policy=alert_policy_to_create,
             retry=DEFAULT,
             timeout=DEFAULT,
@@ -284,7 +284,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
             filter_=TEST_FILTER
         )
         mock_channel_client.return_value.list_notification_channels.assert_called_once_with(
-            name='projects/{project}'.format(project=PROJECT_ID),
+            name=f'projects/{PROJECT_ID}',
             filter_=TEST_FILTER,
             order_by=None,
             page_size=None,
@@ -377,7 +377,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
             channels=json.dumps({"channels": [TEST_NOTIFICATION_CHANNEL_1, TEST_NOTIFICATION_CHANNEL_2]})
         )
         mock_channel_client.return_value.list_notification_channels.assert_called_once_with(
-            name='projects/{project}'.format(project=PROJECT_ID),
+            name=f'projects/{PROJECT_ID}',
             filter_=None,
             order_by=None,
             page_size=None,
@@ -393,7 +393,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
         )
         notification_channel_to_be_created.ClearField('name')
         mock_channel_client.return_value.create_notification_channel.assert_called_once_with(
-            name='projects/{project}'.format(project=PROJECT_ID),
+            name=f'projects/{PROJECT_ID}',
             notification_channel=notification_channel_to_be_created,
             retry=DEFAULT,
             timeout=DEFAULT,

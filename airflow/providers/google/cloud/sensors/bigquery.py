@@ -66,7 +66,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
 
     def poke(self, context):
-        table_uri = '{0}:{1}.{2}'.format(self.project_id, self.dataset_id, self.table_id)
+        table_uri = f'{self.project_id}:{self.dataset_id}.{self.table_id}'
         self.log.info('Sensor checks existence of table: %s', table_uri)
         hook = BigQueryHook(
             bigquery_conn_id=self.bigquery_conn_id,

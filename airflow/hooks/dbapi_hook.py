@@ -89,9 +89,8 @@ class DbApiHook(BaseHook):
             login = '{conn.login}:{conn.password}@'.format(conn=conn)
         host = conn.host
         if conn.port is not None:
-            host += ':{port}'.format(port=conn.port)
-        uri = '{conn.conn_type}://{login}{host}/'.format(
-            conn=conn, login=login, host=host)
+            host += f':{conn.port}'
+        uri = f'{conn.conn_type}://{login}{host}/'
         if conn.schema:
             uri += conn.schema
         return uri
@@ -246,7 +245,7 @@ class DbApiHook(BaseHook):
         """
         if target_fields:
             target_fields = ", ".join(target_fields)
-            target_fields = "({})".format(target_fields)
+            target_fields = f"({target_fields})"
         else:
             target_fields = ''
         i = 0
@@ -262,15 +261,12 @@ class DbApiHook(BaseHook):
                     for cell in row:
                         lst.append(self._serialize_cell(cell, conn))
                     values = tuple(lst)
-                    placeholders = ["%s", ] * len(values)
+                    placeholders = ",".join(["%s", ] * len(values))
                     if not replace:
                         sql = "INSERT INTO "
                     else:
                         sql = "REPLACE INTO "
-                    sql += "{0} {1} VALUES ({2})".format(
-                        table,
-                        target_fields,
-                        ",".join(placeholders))
+                    sql += f"{table} {target_fields} VALUES ({placeholders})"
                     cur.execute(sql, values)
                     if commit_every and i % commit_every == 0:
                         conn.commit()

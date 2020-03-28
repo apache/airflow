@@ -299,8 +299,7 @@ class TestTaskInstance(unittest.TestCase):
         patch_dict = {}
         for dep in all_non_requeueable_deps:
             class_name = dep.__class__.__name__
-            dep_patch = patch('%s.%s.%s' % (dep.__module__, class_name,
-                                            dep._get_dep_statuses.__name__))
+            dep_patch = patch(f'{dep.__module__}.{class_name}.{dep._get_dep_statuses.__name__}')
             method_patch = dep_patch.start()
             method_patch.return_value = iter([TIDepStatus('mock_' + class_name, True,
                                                           'mock')])
@@ -834,7 +833,7 @@ class TestTaskInstance(unittest.TestCase):
                                    dag=dag, owner='airflow',
                                    trigger_rule=trigger_rule)
         for i in range(5):
-            task = DummyOperator(task_id='runme_{}'.format(i),
+            task = DummyOperator(task_id=f'runme_{i}',
                                  dag=dag, owner='airflow')
             task.set_downstream(downstream)
         run_date = task.start_date + datetime.timedelta(days=5)

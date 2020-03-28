@@ -116,7 +116,7 @@ class S3FileTransformOperator(BaseOperator):
         self.log.info("Downloading source S3 file %s", self.source_s3_key)
         if not source_s3.check_for_key(self.source_s3_key):
             raise AirflowException(
-                "The source key {0} does not exist".format(self.source_s3_key))
+                f"The source key {self.source_s3_key} does not exist")
         source_s3_key_object = source_s3.get_key(self.source_s3_key)
 
         with NamedTemporaryFile("wb") as f_source, NamedTemporaryFile("wb") as f_dest:
@@ -151,7 +151,7 @@ class S3FileTransformOperator(BaseOperator):
 
                 if process.returncode > 0:
                     raise AirflowException(
-                        "Transform script failed: {0}".format(process.returncode)
+                        f"Transform script failed: {process.returncode}"
                     )
                 else:
                     self.log.info(

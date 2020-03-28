@@ -93,8 +93,7 @@ def restart_workers(gunicorn_master_proc, num_workers_expected, master_timeout):
         while not fn():
             if 0 < timeout <= time.time() - start_time:
                 raise AirflowWebServerTimeout(
-                    "No response from gunicorn master within {0} seconds"
-                    .format(timeout))
+                    f"No response from gunicorn master within {timeout} seconds")
             time.sleep(0.1)
 
     def start_refresh(gunicorn_master_proc):
@@ -120,7 +119,7 @@ def restart_workers(gunicorn_master_proc, num_workers_expected, master_timeout):
             num_ready_workers_running = \
                 get_num_ready_workers_running(gunicorn_master_proc)
 
-            state = '[{0} / {1}]'.format(num_ready_workers_running, num_workers_running)
+            state = f'[{num_ready_workers_running} / {num_workers_running}]'
 
             # Whenever some workers are not ready, wait until all workers are ready
             if num_ready_workers_running < num_workers_running:
@@ -191,9 +190,7 @@ def webserver(args):
             'An SSL key must also be provided for use with ' + ssl_cert)
 
     if args.debug:
-        print(
-            "Starting the web server on port {0} and host {1}.".format(
-                args.port, args.hostname))
+        print(f"Starting the web server on port {args.port} and host {args.hostname}.")
         app, _ = create_app(None, testing=conf.getboolean('core', 'unit_test_mode'))
         app.run(debug=True, use_reloader=not app.config['TESTING'],
                 port=args.port, host=args.hostname,

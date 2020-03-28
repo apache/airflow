@@ -66,7 +66,7 @@ class TestDataprocHook(unittest.TestCase):
             credentials=mock_get_credentials.return_value,
             client_info=mock_client_info.return_value,
             client_options={
-                "api_endpoint": "{}-dataproc.googleapis.com:443".format(GCP_LOCATION)
+                "api_endpoint": f"{GCP_LOCATION}-dataproc.googleapis.com:443"
             },
         )
 
@@ -97,7 +97,7 @@ class TestDataprocHook(unittest.TestCase):
             credentials=mock_get_credentials.return_value,
             client_info=mock_client_info.return_value,
             client_options={
-                "api_endpoint": "{}-dataproc.googleapis.com:443".format(GCP_LOCATION)
+                "api_endpoint": f"{GCP_LOCATION}-dataproc.googleapis.com:443"
             },
         )
 

@@ -59,7 +59,7 @@ class GreaterEqualThan(EqualTo):
             raise ValidationError(message)
 
 
-class ValidJson(object):
+class ValidJson:
     """Validates data is valid JSON.
 
     :param message:
@@ -73,7 +73,7 @@ class ValidJson(object):
             try:
                 json.loads(field.data)
             except Exception as ex:
-                message = self.message or 'JSON Validation Error: {}'.format(ex)
+                message = self.message or f'JSON Validation Error: {ex}'
                 raise ValidationError(
                     message=field.gettext(message.format(field.data))
                 )

@@ -216,7 +216,7 @@ class DataprocHook(CloudBaseHook):
         Returns ClusterControllerClient.
         """
         client_options = {
-            'api_endpoint': '{}-dataproc.googleapis.com:443'.format(location)
+            'api_endpoint': f'{location}-dataproc.googleapis.com:443'
         } if location else None
 
         return ClusterControllerClient(
@@ -240,7 +240,7 @@ class DataprocHook(CloudBaseHook):
         Returns JobControllerClient.
         """
         client_options = {
-            'api_endpoint': '{}-dataproc.googleapis.com:443'.format(location)
+            'api_endpoint': f'{location}-dataproc.googleapis.com:443'
         } if location else None
 
         return JobControllerClient(
@@ -729,9 +729,9 @@ class DataprocHook(CloudBaseHook):
             )
             state = job.status.state
         if state == JobStatus.ERROR:
-            raise AirflowException('Job failed:\n{}'.format(job))
+            raise AirflowException(f'Job failed:\n{job}')
         if state == JobStatus.CANCELLED:
-            raise AirflowException('Job was cancelled:\n{}'.format(job))
+            raise AirflowException(f'Job was cancelled:\n{job}')
 
     @CloudBaseHook.fallback_to_default_project_id
     def get_job(

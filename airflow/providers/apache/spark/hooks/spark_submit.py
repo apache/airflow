@@ -195,7 +195,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # k8s://https://<HOST>:<PORT>
             conn = self.get_connection(self._conn_id)
             if conn.port:
-                conn_data['master'] = "{}:{}".format(conn.host, conn.port)
+                conn_data['master'] = f"{conn.host}:{conn.port}"
             else:
                 conn_data['master'] = conn.host
 
@@ -428,8 +428,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
             if self._driver_status != "FINISHED":
                 raise AirflowException(
-                    "ERROR : Driver {} badly exited with status {}"
-                    .format(self._driver_id, self._driver_status)
+                    f"ERROR : Driver {self._driver_id} badly exited with status {self._driver_status}"
                 )
 
     def _process_spark_submit_log(self, itr):
@@ -619,8 +618,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             if self._yarn_application_id:
                 self.log.info('Killing application %s on YARN', self._yarn_application_id)
 
-                kill_cmd = "yarn application -kill {}" \
-                    .format(self._yarn_application_id).split()
+                kill_cmd = f"yarn application -kill {self._yarn_application_id}".split()
                 yarn_kill = subprocess.Popen(kill_cmd,
                                              stdout=subprocess.PIPE,
                                              stderr=subprocess.PIPE)

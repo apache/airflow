@@ -111,7 +111,7 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
 
         state = result['metadata']['common']['state']
         if state != 'SUCCESSFUL':
-            raise AirflowException('Operation failed: result={}'.format(result))
+            raise AirflowException(f'Operation failed: result={result}')
         return result
 
 
@@ -188,6 +188,6 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
 
         state = result['metadata']['common']['state']
         if state != 'SUCCESSFUL':
-            raise AirflowException('Operation failed: result={}'.format(result))
+            raise AirflowException(f'Operation failed: result={result}')
 
         return result

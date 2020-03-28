@@ -413,7 +413,7 @@ def clear_tasks(dag_bag, dag, task):
     """
     Clear the task and its downstream tasks recursively for the dag in the given dagbag.
     """
-    subdag = dag.sub_dag(task_regex="^{}$".format(task.task_id), include_downstream=True)
+    subdag = dag.sub_dag(task_regex=f"^{task.task_id}$", include_downstream=True)
     subdag.clear(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, dag_bag=dag_bag)
 
 

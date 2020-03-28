@@ -47,7 +47,7 @@ AUDIO_CONFIG = {"audio_encoding": "LINEAR16"}
 
 # [START howto_operator_speech_to_text_api_arguments]
 CONFIG = {"encoding": "LINEAR16", "language_code": "en_US"}
-AUDIO = {"uri": "gs://{bucket}/{object}".format(bucket=BUCKET_NAME, object=FILENAME)}
+AUDIO = {"uri": f"gs://{BUCKET_NAME}/{FILENAME}"}
 # [END howto_operator_speech_to_text_api_arguments]
 
 # [START howto_operator_translate_speech_arguments]

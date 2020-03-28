@@ -48,7 +48,7 @@ def _normalize_mlengine_job_id(job_id: str) -> str:
     # Add a prefix when a job_id starts with a digit or a template
     match = re.search(r'\d|\{{2}', job_id)
     if match and match.start() == 0:
-        job = 'z_{}'.format(job_id)
+        job = f'z_{job_id}'
     else:
         job = job_id
 
@@ -234,26 +234,21 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         if self._uri:
             prediction_request['predictionInput']['uri'] = self._uri
         elif self._model_name:
-            origin_name = 'projects/{}/models/{}'.format(
-                self._project_id, self._model_name)
+            origin_name = f'projects/{self._project_id}/models/{self._model_name}'
             if not self._version_name:
-                prediction_request['predictionInput'][
-                    'modelName'] = origin_name
+                prediction_request['predictionInput']['modelName'] = origin_name
             else:
                 prediction_request['predictionInput']['versionName'] = \
-                    origin_name + '/versions/{}'.format(self._version_name)
+                    origin_name + f'/versions/{self._version_name}'
 
         if self._max_worker_count:
-            prediction_request['predictionInput'][
-                'maxWorkerCount'] = self._max_worker_count
+            prediction_request['predictionInput']['maxWorkerCount'] = self._max_worker_count
 
         if self._runtime_version:
-            prediction_request['predictionInput'][
-                'runtimeVersion'] = self._runtime_version
+            prediction_request['predictionInput']['runtimeVersion'] = self._runtime_version
 
         if self._signature_name:
-            prediction_request['predictionInput'][
-                'signatureName'] = self._signature_name
+            prediction_request['predictionInput']['signatureName'] = self._signature_name
 
         hook = MLEngineHook(self._gcp_conn_id, self._delegate_to)
 
@@ -344,7 +339,7 @@ class MLEngineManageModelOperator(BaseOperator):
         elif self._operation == 'get':
             return hook.get_model(project_id=self._project_id, model_name=self._model['name'])
         else:
-            raise ValueError('Unknown operation: {}'.format(self._operation))
+            raise ValueError(f'Unknown operation: {self._operation}')
 
 
 class MLEngineCreateModelOperator(BaseOperator):
@@ -583,8 +578,7 @@ class MLEngineManageVersionOperator(BaseOperator):
 
         if self._operation == 'create':
             if not self._version:
-                raise ValueError("version attribute of {} could not "
-                                 "be empty".format(self.__class__.__name__))
+                raise ValueError(f"version attribute of {self.__class__.__name__} could not be empty")
             return hook.create_version(
                 project_id=self._project_id,
                 model_name=self._model_name,
@@ -608,7 +602,7 @@ class MLEngineManageVersionOperator(BaseOperator):
                 version_name=self._version['name']
             )
         else:
-            raise ValueError('Unknown operation: {}'.format(self._operation))
+            raise ValueError(f'Unknown operation: {self._operation}')
 
 
 class MLEngineCreateVersionOperator(BaseOperator):

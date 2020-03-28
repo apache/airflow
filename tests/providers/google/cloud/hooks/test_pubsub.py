@@ -46,8 +46,8 @@ TEST_MESSAGES = [
     {'data': b'Knock, knock'},
     {'attributes': {'foo': ''}}]
 
-EXPANDED_TOPIC = 'projects/{}/topics/{}'.format(TEST_PROJECT, TEST_TOPIC)
-EXPANDED_SUBSCRIPTION = 'projects/{}/subscriptions/{}'.format(TEST_PROJECT, TEST_SUBSCRIPTION)
+EXPANDED_TOPIC = f'projects/{TEST_PROJECT}/topics/{TEST_TOPIC}'
+EXPANDED_SUBSCRIPTION = f'projects/{TEST_PROJECT}/subscriptions/{TEST_SUBSCRIPTION}'
 LABELS = {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')}
 
 
@@ -339,7 +339,7 @@ class TestPubSubHook(unittest.TestCase):
     def test_publish_api_call_error(self, mock_service):
         publish_method = mock_service.return_value.publish
         publish_method.side_effect = GoogleAPICallError(
-            'Error publishing to topic {}'.format(EXPANDED_SUBSCRIPTION)
+            f'Error publishing to topic {EXPANDED_SUBSCRIPTION}'
         )
 
         with self.assertRaises(PubSubException):

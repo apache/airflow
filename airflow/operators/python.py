@@ -110,7 +110,7 @@ class PythonOperator(BaseOperator):
             if name in context_keys:
                 # Raise an exception to let the user know that the keyword is reserved
                 raise ValueError(
-                    "The key {} in the op_args is part of the context, and therefore reserved".format(name)
+                    f"The key {name} in the op_args is part of the context, and therefore reserved"
                 )
 
         if any(str(param).startswith("**") for _, param in sig):
@@ -371,7 +371,7 @@ class PythonVirtualenvOperator(PythonOperator):
     def _generate_python_cmd(tmp_dir, script_filename,
                              input_filename, output_filename, string_args_filename):
         # direct path alleviates need to activate
-        return ['{}/bin/python'.format(tmp_dir), script_filename,
+        return [f'{tmp_dir}/bin/python', script_filename,
                 input_filename, output_filename, string_args_filename]
 
     def _generate_python_code(self):

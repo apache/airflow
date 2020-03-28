@@ -92,12 +92,12 @@ class SqlSensor(BaseSensorOperator):
             if callable(self.failure):
                 if self.failure(first_cell):
                     raise AirflowException(
-                        "Failure criteria met. self.failure({}) returned True".format(first_cell))
+                        f"Failure criteria met. self.failure({first_cell}) returned True")
             else:
-                raise AirflowException("self.failure is present, but not callable -> {}".format(self.success))
+                raise AirflowException(f"self.failure is present, but not callable -> {self.success}")
         if self.success is not None:
             if callable(self.success):
                 return self.success(first_cell)
             else:
-                raise AirflowException("self.success is present, but not callable -> {}".format(self.success))
+                raise AirflowException(f"self.success is present, but not callable -> {self.success}")
         return bool(first_cell)

@@ -62,7 +62,7 @@ class TestBigtableInstanceCreate(unittest.TestCase):
                 gcp_conn_id=GCP_CONN_ID
             )
         err = e.exception
-        self.assertEqual(str(err), 'Empty parameter: {}'.format(missing_attribute))
+        self.assertEqual(str(err), f'Empty parameter: {missing_attribute}')
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
@@ -152,7 +152,7 @@ class TestBigtableClusterUpdate(unittest.TestCase):
                 gcp_conn_id=GCP_CONN_ID
             )
         err = e.exception
-        self.assertEqual(str(err), 'Empty parameter: {}'.format(missing_attribute))
+        self.assertEqual(str(err), f'Empty parameter: {missing_attribute}')
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
@@ -312,7 +312,7 @@ class TestBigtableInstanceDelete(unittest.TestCase):
                 task_id="id"
             )
         err = e.exception
-        self.assertEqual(str(err), 'Empty parameter: {}'.format(missing_attribute))
+        self.assertEqual(str(err), f'Empty parameter: {missing_attribute}')
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
@@ -399,7 +399,7 @@ class TestBigtableTableDelete(unittest.TestCase):
                 gcp_conn_id=GCP_CONN_ID
             )
         err = e.exception
-        self.assertEqual(str(err), 'Empty parameter: {}'.format(missing_attribute))
+        self.assertEqual(str(err), f'Empty parameter: {missing_attribute}')
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
@@ -517,7 +517,7 @@ class TestBigtableTableCreate(unittest.TestCase):
                 gcp_conn_id=GCP_CONN_ID
             )
         err = e.exception
-        self.assertEqual(str(err), 'Empty parameter: {}'.format(missing_attribute))
+        self.assertEqual(str(err), f'Empty parameter: {missing_attribute}')
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
@@ -616,7 +616,7 @@ class TestBigtableTableCreate(unittest.TestCase):
         err = e.exception
         self.assertEqual(
             str(err),
-            "Table '{}' already exists with different Column Families.".format(TABLE_ID)
+            f"Table '{TABLE_ID}' already exists with different Column Families."
         )
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
 
@@ -647,6 +647,6 @@ class TestBigtableTableCreate(unittest.TestCase):
         err = e.exception
         self.assertEqual(
             str(err),
-            "Table '{}' already exists with different Column Families.".format(TABLE_ID)
+            f"Table '{TABLE_ID}' already exists with different Column Families."
         )
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)

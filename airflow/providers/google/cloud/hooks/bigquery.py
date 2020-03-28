@@ -406,7 +406,7 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
 
         except HttpError as err:
             raise AirflowException(
-                'BigQuery job failed. Error was: {}'.format(err.content)
+                f'BigQuery job failed. Error was: {err.content}'
             )
 
     def create_external_table(self,  # pylint: disable=too-many-locals,too-many-arguments
@@ -525,16 +525,14 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
             "DATASTORE_BACKUP", "PARQUET"
         ]  # type: List[str]
         if source_format not in allowed_formats:
-            raise ValueError("{0} is not a valid source format. "
-                             "Please use one of the following types: {1}"
-                             .format(source_format, allowed_formats))
+            raise ValueError(f"{source_format} is not a valid source format. "
+                             f"Please use one of the following types: {allowed_formats}")
 
         compression = compression.upper()
         allowed_compressions = ['NONE', 'GZIP']  # type: List[str]
         if compression not in allowed_compressions:
-            raise ValueError("{0} is not a valid compression format. "
-                             "Please use one of the following types: {1}"
-                             .format(compression, allowed_compressions))
+            raise ValueError(f"{compression} is not a valid compression format. "
+                             f"Please use one of the following types: {allowed_compressions}")
 
         table_resource = {
             'externalDataConfiguration': {
@@ -794,7 +792,7 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
                 dataset_project_id, dataset_id, table_id, resp['insertErrors'])
             if fail_on_error:
                 raise AirflowException(
-                    'BigQuery job failed. Error was: {}'.format(error_msg)
+                    f'BigQuery job failed. Error was: {error_msg}'
                 )
             self.log.info(error_msg)
 
@@ -1494,9 +1492,8 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
             "DATASTORE_BACKUP", "PARQUET"
         ]
         if source_format not in allowed_formats:
-            raise ValueError("{0} is not a valid source format. "
-                             "Please use one of the following types: {1}"
-                             .format(source_format, allowed_formats))
+            raise ValueError(f"{source_format} is not a valid source format. "
+                             f"Please use one of the following types: {allowed_formats}")
 
         # bigquery also allows you to define how you want a table's schema to change
         # as a side effect of a load
@@ -1508,9 +1505,8 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
         if not set(allowed_schema_update_options).issuperset(
                 set(schema_update_options)):
             raise ValueError(
-                "{0} contains invalid schema update options."
-                "Please only use one or more of the following options: {1}"
-                .format(schema_update_options, allowed_schema_update_options))
+                f"{schema_update_options} contains invalid schema update options."
+                f"Please only use one or more of the following options: {allowed_schema_update_options}")
 
         destination_project, destination_dataset, destination_table = \
             _split_tablename(table_input=destination_project_dataset_table,
@@ -1900,11 +1896,9 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
 
         if not set(allowed_schema_update_options
                    ).issuperset(set(schema_update_options)):
-            raise ValueError("{0} contains invalid schema update options. "
+            raise ValueError(f"{schema_update_options} contains invalid schema update options. "
                              "Please only use one or more of the following "
-                             "options: {1}"
-                             .format(schema_update_options,
-                                     allowed_schema_update_options))
+                             f"options: {allowed_schema_update_options}")
 
         if schema_update_options:
             if write_disposition not in ["WRITE_APPEND", "WRITE_TRUNCATE"]:
@@ -2582,7 +2576,7 @@ def _split_tablename(table_input: str, default_project_id: str,
         if var_name is None:
             return ""
         else:
-            return "Format exception for {var}: ".format(var=var_name)
+            return f"Format exception for {var_name}: "
 
     if table_input.count('.') + table_input.count(':') > 3:
         raise Exception(('{var}Use either : or . to specify project '
@@ -2691,7 +2685,6 @@ def _validate_src_fmt_configs(source_format: str,
 
     for k, v in src_fmt_configs.items():
         if k not in valid_configs:
-            raise ValueError("{0} is not a valid src_fmt_configs for type {1}."
-                             .format(k, source_format))
+            raise ValueError(f"{k} is not a valid src_fmt_configs for type {source_format}.")
 
     return src_fmt_configs

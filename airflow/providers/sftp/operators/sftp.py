@@ -103,8 +103,8 @@ class SFTPOperator(BaseOperator):
         self.create_intermediate_dirs = create_intermediate_dirs
         if not (self.operation.lower() == SFTPOperation.GET or
                 self.operation.lower() == SFTPOperation.PUT):
-            raise TypeError("unsupported operation value {0}, expected {1} or {2}"
-                            .format(self.operation, SFTPOperation.GET, SFTPOperation.PUT))
+            raise TypeError(f"unsupported operation value {self.operation}, "
+                            f"expected {SFTPOperation.GET} or {SFTPOperation.PUT}")
 
     def execute(self, context):
         file_msg = None
@@ -137,8 +137,7 @@ class SFTPOperator(BaseOperator):
                         except OSError:
                             if not os.path.isdir(local_folder):
                                 raise
-                    file_msg = "from {0} to {1}".format(self.remote_filepath,
-                                                        self.local_filepath)
+                    file_msg = f"from {self.remote_filepath} to {self.local_filepath}"
                     self.log.info("Starting to transfer %s", file_msg)
                     sftp_client.get(self.remote_filepath, self.local_filepath)
                 else:
@@ -148,16 +147,14 @@ class SFTPOperator(BaseOperator):
                             sftp_client=sftp_client,
                             remote_directory=remote_folder,
                         )
-                    file_msg = "from {0} to {1}".format(self.local_filepath,
-                                                        self.remote_filepath)
+                    file_msg = f"from {self.local_filepath} to {self.remote_filepath}"
                     self.log.info("Starting to transfer file %s", file_msg)
                     sftp_client.put(self.local_filepath,
                                     self.remote_filepath,
                                     confirm=self.confirm)
 
         except Exception as e:
-            raise AirflowException("Error while transferring {0}, error: {1}"
-                                   .format(file_msg, str(e)))
+            raise AirflowException(f"Error while transferring {file_msg}, error: {e}")
 
         return self.local_filepath
 

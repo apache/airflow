@@ -234,7 +234,7 @@ class SalesforceHook(BaseHook):
         """
         fmt = fmt.lower()
         if fmt not in ['csv', 'json', 'ndjson']:
-            raise ValueError("Format value is not recognized: {}".format(fmt))
+            raise ValueError(f"Format value is not recognized: {fmt}")
 
         # this line right here will convert all integers to floats
         # if there are any None/np.nan values in the column

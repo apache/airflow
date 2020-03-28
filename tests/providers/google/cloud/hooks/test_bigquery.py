@@ -480,7 +480,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration")
     def test_run_extract(self, run_with_config, mock_get_service, mock_project_id):
-        source_project_dataset_table = "{}.{}.{}".format(PROJECT_ID, DATASET_ID, TABLE_ID)
+        source_project_dataset_table = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
         destination_cloud_storage_uris = ["gs://bucket/file.csv"]
         expected_configuration = {
             "extract": {
@@ -549,7 +549,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_run_table_delete(self, mock_get_service, mock_project_id):
-        source_project_dataset_table = "{}.{}.{}".format(PROJECT_ID, DATASET_ID, TABLE_ID)
+        source_project_dataset_table = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
         method = mock_get_service.return_value.tables.return_value.delete
         bq_hook = hook.BigQueryHook()
         bq_hook.run_table_delete(source_project_dataset_table)
@@ -561,7 +561,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_run_table_delete_ignore_if_missing_fails(self, mock_get_service, mock_project_id):
-        source_project_dataset_table = "{}.{}.{}".format(PROJECT_ID, DATASET_ID, TABLE_ID)
+        source_project_dataset_table = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
         method = mock_get_service.return_value.tables.return_value.delete
         resp = type('', (object,), {"status": 404, "reason": "Address not found"})()
         method.return_value.execute.side_effect = HttpError(
@@ -577,7 +577,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_run_table_delete_ignore_if_missing_pass(self, mock_get_service, mock_project_id):
-        source_project_dataset_table = "{}.{}.{}".format(PROJECT_ID, DATASET_ID, TABLE_ID)
+        source_project_dataset_table = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
         method = mock_get_service.return_value.tables.return_value.delete
         resp = type('', (object,), {"status": 404, "reason": "Address not found"})()
         method.return_value.execute.side_effect = HttpError(
@@ -658,8 +658,8 @@ class TestBigQueryHookMethods(unittest.TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_run_grant_dataset_view_access_granting(self, mock_get_service, mock_project_id):
-        source_dataset = "source_dataset_{}".format(DATASET_ID)
-        view_dataset = "view_dataset_{}".format(DATASET_ID)
+        source_dataset = f"source_dataset_{DATASET_ID}"
+        view_dataset = f"view_dataset_{DATASET_ID}"
         view = {"projectId": PROJECT_ID, "datasetId": view_dataset, "tableId": TABLE_ID}
         access = [{"view": view}]
         body = {"access": access}
@@ -691,8 +691,8 @@ class TestBigQueryHookMethods(unittest.TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_run_grant_dataset_view_access_already_granted(self, mock_get_service, mock_project_id):
-        source_dataset = "source_dataset_{}".format(DATASET_ID)
-        view_dataset = "view_dataset_{}".format(DATASET_ID)
+        source_dataset = f"source_dataset_{DATASET_ID}"
+        view_dataset = f"view_dataset_{DATASET_ID}"
         view = {"projectId": PROJECT_ID, "datasetId": view_dataset, "tableId": TABLE_ID}
         access = [{"view": view}]
         body = {"access": access}
@@ -870,7 +870,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         assert method_jobs_cancel.call_count == 1
         assert poll_job_complete.call_count == 13
         assert mock_sleep.call_count == 11
-        mock_logger_info.has_call(mock.call("Job successfully canceled: {}, {}".format(PROJECT_ID, JOB_ID)))
+        mock_logger_info.has_call(mock.call(f"Job successfully canceled: {PROJECT_ID}, {JOB_ID}"))
 
     @mock.patch(
         'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
@@ -2534,7 +2534,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
     def test_deprecation_warning(self, func_name, mock_bq_hook):
         args, kwargs = [1], {"param1": "val1"}
         new_path = re.escape(f"`airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.{func_name}`")
-        message_pattern = r"This method is deprecated\.\s+Please use {}".format(new_path)
+        message_pattern = fr"This method is deprecated\.\s+Please use {new_path}"
         messege_regex = re.compile(message_pattern, re.MULTILINE)
 
         mocked_func = getattr(mock_bq_hook, func_name)
@@ -2546,7 +2546,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
 
         mocked_func.assert_called_once_with(*args, **kwargs)
         self.assertEqual(mocked_func.return_value, result)
-        self.assertRegex(func.__doc__, ".*{}.*".format(new_path))
+        self.assertRegex(func.__doc__, f".*{new_path}.*")
 
 
 if __name__ == '__main__':

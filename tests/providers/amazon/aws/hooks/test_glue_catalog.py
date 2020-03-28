@@ -40,7 +40,7 @@ TABLE_INPUT = {
                 "Comment": "string"
             }
         ],
-        "Location": "s3://mybucket/{}/{}".format(DB_NAME, TABLE_NAME),
+        "Location": f"s3://mybucket/{DB_NAME}/{TABLE_NAME}",
     }
 }
 

@@ -52,9 +52,7 @@ ELASTIC_INSTANCES = {}  # type: Dict[str, FakeElasticsearch]
 # noinspection PyUnusedLocal
 def _get_elasticmock(hosts=None, *args, **kwargs):  # pylint: disable=unused-argument
     host = _normalize_hosts(hosts)[0]
-    elastic_key = '{0}:{1}'.format(
-        host.get('host', 'localhost'), host.get('port', 9200)
-    )
+    elastic_key = f"{host.get('host', 'localhost')}:{host.get('port', 9200)}"
 
     if elastic_key in ELASTIC_INSTANCES:
         connection = ELASTIC_INSTANCES.get(elastic_key)
