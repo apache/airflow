@@ -66,7 +66,7 @@ function in_container_cleanup_pyc() {
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
-        -name "*.pyc" | grep ".pyc$" | sudo xargs rm -vf
+        -name "*.pyc" | grep ".pyc$" | sudo xargs rm -f
     set -o pipefail
 }
 
