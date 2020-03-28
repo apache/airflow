@@ -17,6 +17,7 @@
 # under the License.
 #
 
+import re
 import copy
 import itertools
 import json
@@ -278,6 +279,7 @@ class Airflow(AirflowBaseView):
                     DagModel.dag_id.ilike('%' + arg_search_query + '%') |
                     DagModel.owners.ilike('%' + arg_search_query + '%')
                 )
+                dags_query = re.findall('*' + arg_search_query +'*', DagModel.dag_id)
 
             if arg_tags_filter:
                 dags_query = dags_query.filter(DagModel.tags.any(DagTag.name.in_(arg_tags_filter)))
