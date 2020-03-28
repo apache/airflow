@@ -15,16 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import enum
 import os
 import re
-import enum
+from datetime import datetime, timedelta
 from enum import Enum
-from datetime import datetime
-from datetime import timedelta
 
 from airflow import DAG
-from airflow.operators.bash import BashOperator
 from airflow.models.baseoperator import chain
+from airflow.operators.bash import BashOperator
 
 # DAG File used in performance tests. Its shape can be configured by environment variables.
 RE_TIME_DELTA = re.compile(

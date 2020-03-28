@@ -15,8 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from airflow.models.dag import DAG
 from airflow.operators.python_operator import PythonOperator

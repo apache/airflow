@@ -16,20 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import sys
 import logging
+import sys
 
 import pandas as pd
 
 from airflow import settings
-from airflow.utils import timezone
-from airflow.models import DagBag
-from airflow.models import DagRun
-from airflow.models import DagModel
-from airflow.models import TaskInstance
-from airflow.utils.state import State
 from airflow.configuration import conf
 from airflow.jobs.scheduler_job import SchedulerJob
+from airflow.models import DagBag, DagModel, DagRun, TaskInstance
+from airflow.utils import timezone
+from airflow.utils.state import State
 
 SUBDIR = 'scripts/perf/dags'
 DAG_IDS = ['perf_dag_1', 'perf_dag_2']
