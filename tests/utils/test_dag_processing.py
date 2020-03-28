@@ -303,8 +303,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
 
             self.assertEqual(len(fake_failure_callback_requests), len(parsing_result))
             self.assertEqual(
-                set(zombie.simple_task_instance.key for zombie in fake_failure_callback_requests),
-                set(result.simple_task_instance.key for result in parsing_result)
+                {zombie.simple_task_instance.key for zombie in fake_failure_callback_requests},
+                {result.simple_task_instance.key for result in parsing_result}
             )
 
     @mock.patch("airflow.jobs.scheduler_job.DagFileProcessorProcess.pid", new_callable=PropertyMock)

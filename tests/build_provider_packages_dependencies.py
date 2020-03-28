@@ -130,7 +130,7 @@ class ImportFinder(NodeVisitor):
         import_names: List[str] = []
         for alias in node.names:
             name = alias.name
-            fullname = '%s.%s' % (node.module, name) if node.module else name
+            fullname = f'{node.module}.{name}' if node.module else name
             import_names.append(fullname)
         return import_names
 

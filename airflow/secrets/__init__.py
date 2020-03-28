@@ -53,7 +53,7 @@ def get_connections(conn_id: str) -> List[Connection]:
         if conn_list:
             return list(conn_list)
 
-    raise AirflowException("The conn_id `{0}` isn't defined".format(conn_id))
+    raise AirflowException(f"The conn_id `{conn_id}` isn't defined")
 
 
 def initialize_secrets_backends() -> List[BaseSecretsBackend]:

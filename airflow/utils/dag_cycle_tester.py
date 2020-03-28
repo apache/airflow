@@ -44,7 +44,7 @@ def test_cycle(dag):
         task = dag.task_dict[task_id]
         for descendant_id in task.get_direct_relative_ids():
             if visit_map[descendant_id] == CYCLE_IN_PROGRESS:
-                msg = "Cycle detected in DAG. Faulty task: {0} to {1}".format(task_id, descendant_id)
+                msg = f"Cycle detected in DAG. Faulty task: {task_id} to {descendant_id}"
                 raise AirflowDagCycleException(msg)
             else:
                 _test_cycle_helper(visit_map, descendant_id)

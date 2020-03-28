@@ -46,7 +46,5 @@ def check_and_get_dagrun(dag: DagModel, execution_date: datetime) -> DagRun:
     """Get DagRun object and check that it exists"""
     dagrun = dag.get_dagrun(execution_date=execution_date)
     if not dagrun:
-        error_message = ('Dag Run for date {} not found in dag {}'
-                         .format(execution_date, dag.dag_id))
-        raise DagRunNotFound(error_message)
+        raise DagRunNotFound(f'Dag Run for date {execution_date} not found in dag {dag.dag_id}')
     return dagrun

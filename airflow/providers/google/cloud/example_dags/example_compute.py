@@ -95,7 +95,7 @@ with models.DAG(
         zone=GCE_ZONE,
         resource_id=GCE_INSTANCE,
         body={
-            'machineType': 'zones/{}/machineTypes/{}'.format(GCE_ZONE, GCE_SHORT_MACHINE_TYPE_NAME)
+            'machineType': f'zones/{GCE_ZONE}/machineTypes/{GCE_SHORT_MACHINE_TYPE_NAME}'
         },
         task_id='gcp_compute_set_machine_type'
     )
@@ -106,7 +106,7 @@ with models.DAG(
         zone=GCE_ZONE,
         resource_id=GCE_INSTANCE,
         body={
-            'machineType': 'zones/{}/machineTypes/{}'.format(GCE_ZONE, GCE_SHORT_MACHINE_TYPE_NAME)
+            'machineType': f'zones/{GCE_ZONE}/machineTypes/{GCE_SHORT_MACHINE_TYPE_NAME}'
         },
         task_id='gcp_compute_set_machine_type2'
     )

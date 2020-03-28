@@ -17,7 +17,6 @@
 # under the License.
 """Setup.py for the Airflow project."""
 
-import io
 import logging
 import os
 import subprocess
@@ -46,7 +45,7 @@ my_dir = dirname(__file__)
 
 # noinspection PyUnboundLocalVariable
 try:
-    with io.open(os.path.join(my_dir, 'README.md'), encoding='utf-8') as f:
+    with open(os.path.join(my_dir, 'README.md'), encoding='utf-8') as f:
         long_description = f.read()
 except FileNotFoundError:
     long_description = ''

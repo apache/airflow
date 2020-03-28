@@ -299,7 +299,7 @@ class TestMLEngineHook(unittest.TestCase):
             'name': model_name,
             'labels': {'airflow-version': hook._AIRFLOW_VERSION}
         }
-        project_path = 'projects/{}'.format(project_id)
+        project_path = f'projects/{project_id}'
 
         (
             mock_get_conn.return_value.

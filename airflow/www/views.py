@@ -533,7 +533,7 @@ class Airflow(AirflowBaseView):
         except Exception as e:
             all_errors += (
                 "Exception encountered during " +
-                "dag_id retrieval/dag retrieval fallback/code highlighting:\n\n{}\n".format(e)
+                f"dag_id retrieval/dag retrieval fallback/code highlighting:\n\n{e}\n"
             )
             html_code = '<p>Failed to load file.</p><p>Details: {}</p>'.format(
                 escape(all_errors))

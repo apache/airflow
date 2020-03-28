@@ -331,10 +331,10 @@ class MySqlContext:
         self.init_client = self.connection.extra_dejson.get('client', 'mysqlclient')
 
     def __enter__(self):
-        self.connection.set_extra('{{"client": "{}"}}'.format(self.client))
+        self.connection.set_extra(f'{{"client": "{self.client}"}}')
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.connection.set_extra('{{"client": "{}"}}'.format(self.init_client))
+        self.connection.set_extra(f'{{"client": "{self.init_client}"}}')
 
 
 @pytest.mark.backend("mysql")
@@ -383,7 +383,7 @@ class TestMySql(unittest.TestCase):
             priv = hook.get_first("SELECT @@global.secure_file_priv")
             if priv and priv[0]:
                 # Confirm that no error occurs
-                hook.bulk_dump("INFORMATION_SCHEMA.TABLES", os.path.join(priv[0], "TABLES_{}".format(client)))
+                hook.bulk_dump("INFORMATION_SCHEMA.TABLES", os.path.join(priv[0], f"TABLES_{client}"))
             else:
                 self.skipTest("Skip test_mysql_hook_test_bulk_load "
                               "since file output is not permitted")

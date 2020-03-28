@@ -17,7 +17,6 @@
 # under the License.
 """Setup.py for the Backport packages of Airflow project."""
 
-import io
 import itertools
 import json
 import logging
@@ -45,7 +44,7 @@ PY3 = sys.version_info[0] == 3
 
 # noinspection PyUnboundLocalVariable
 try:
-    with io.open('README.md', encoding='utf-8') as f:
+    with open('README.md', encoding='utf-8') as f:
         long_description = f.read()
 except FileNotFoundError:
     long_description = ''

@@ -193,11 +193,10 @@ class TriggerRuleDep(BaseTIDep):
             num_failures = upstream - successes - skipped
             if num_failures > 0:
                 yield self._failing_status(
-                    reason="Task's trigger rule '{0}' requires all upstream "
-                    "tasks to have succeeded or been skipped, but found {1} non-success(es). "
-                    "upstream_tasks_state={2}, upstream_task_ids={3}"
-                    .format(trigger_rule, num_failures, upstream_tasks_state,
-                            task.upstream_task_ids))
+                    reason=f"Task's trigger rule '{trigger_rule}' requires all upstream "
+                    f"tasks to have succeeded or been skipped, but found {num_failures} non-success(es). "
+                    f"upstream_tasks_state={upstream_tasks_state}, "
+                    f"upstream_task_ids={task.upstream_task_ids}")
         elif trigger_rule == TR.NONE_FAILED_OR_SKIPPED:
             num_failures = upstream - successes - skipped
             if num_failures > 0:
