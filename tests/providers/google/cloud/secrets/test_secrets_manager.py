@@ -29,9 +29,12 @@ CREDENTIALS = 'test-creds'
 KEY_FILE = 'test-file.json'
 PROJECT_ID = 'test-project-id'
 CONNECTIONS_PREFIX = "test-connections"
+VARIABLES_PREFIX = "test-variables"
 SEP = '-'
 CONN_ID = 'test-postgres'
 CONN_URI = 'postgresql://airflow:airflow@host:5432/airflow'
+VAR_KEY = 'hello'
+VAR_VALUE = 'world'
 
 MODULE_NAME = "airflow.providers.google.cloud.secrets.secrets_manager"
 
@@ -112,6 +115,48 @@ class TestCloudSecretsManagerBackend(TestCase):
         with self.assertLogs(secrets_manager_backend.log, level="ERROR") as log_output:
             self.assertIsNone(secrets_manager_backend.get_conn_uri(conn_id=CONN_ID))
             self.assertEqual([], secrets_manager_backend.get_connections(conn_id=CONN_ID))
+            self.assertRegex(
+                log_output.output[0],
+                f"GCP API Call Error \\(NotFound\\): Secret ID {secret_id} not found"
+            )
+
+    @parameterized.expand([
+        "airflow-variables",
+        "variables",
+        "airflow"
+    ])
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    @mock.patch(MODULE_NAME + ".SecretManagerServiceClient")
+    def test_get_variable(self, variables_prefix, mock_client_callable, mock_get_creds):
+        mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
+        mock_client = mock.MagicMock()
+        mock_client_callable.return_value = mock_client
+
+        test_response = AccessSecretVersionResponse()
+        test_response.payload.data = VAR_VALUE.encode("UTF-8")
+        mock_client.access_secret_version.return_value = test_response
+
+        secrets_manager_backend = CloudSecretsManagerBackend(variables_prefix=variables_prefix)
+        secret_id = secrets_manager_backend.build_path(variables_prefix, VAR_KEY, SEP)
+        returned_uri = secrets_manager_backend.get_variable(VAR_KEY)
+        self.assertEqual(VAR_VALUE, returned_uri)
+        mock_client.secret_version_path.assert_called_once_with(
+            PROJECT_ID, secret_id, "latest"
+        )
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    @mock.patch(MODULE_NAME + ".SecretManagerServiceClient")
+    def test_get_variable_non_existent_key(self, mock_client_callable, mock_get_creds):
+        mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
+        mock_client = mock.MagicMock()
+        mock_client_callable.return_value = mock_client
+        # The requested secret id or secret version does not exist
+        mock_client.access_secret_version.side_effect = NotFound('test-msg')
+
+        secrets_manager_backend = CloudSecretsManagerBackend(variables_prefix=VARIABLES_PREFIX)
+        secret_id = secrets_manager_backend.build_path(VARIABLES_PREFIX, VAR_KEY, SEP)
+        with self.assertLogs(secrets_manager_backend.log, level="ERROR") as log_output:
+            self.assertIsNone(secrets_manager_backend.get_variable(VAR_KEY))
             self.assertRegex(
                 log_output.output[0],
                 f"GCP API Call Error \\(NotFound\\): Secret ID {secret_id} not found"

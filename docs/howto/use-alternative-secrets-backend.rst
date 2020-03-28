@@ -147,25 +147,43 @@ of the connection object.
 GCP Secrets Manager Backend
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To enable GCP Secrets Manager to retrieve connection, specify :py:class:`~airflow.providers.google.cloud.secrets.secrets_manager.CloudSecretsManagerBackend`
+To enable GCP Secrets Manager to retrieve connection/variables, specify :py:class:`~airflow.providers.google.cloud.secrets.secrets_manager.CloudSecretsManagerBackend`
 as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg``.
 
 Available parameters to ``backend_kwargs``:
 
 * ``connections_prefix``: Specifies the prefix of the secret to read to get Connections.
+* ``variables_prefix``: Specifies the prefix of the secret to read to get Variables.
 * ``gcp_key_path``: Path to GCP Credential JSON file
 * ``gcp_scopes``: Comma-separated string containing GCP scopes
 * ``sep``: separator used to concatenate connections_prefix and conn_id. Default: "-"
 
 Note: The full GCP Secrets Manager secret id should follow the pattern "[a-zA-Z0-9-_]".
 
-Here is a sample configuration:
+Here is a sample configuration if you want to just retrieve connections:
 
 .. code-block:: ini
 
     [secrets]
     backend = airflow.providers.google.cloud.secrets.secrets_manager.CloudSecretsManagerBackend
     backend_kwargs = {"connections_prefix": "airflow-connections", "sep": "-"}
+
+Here is a sample configuration if you want to just retrieve variables:
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.providers.google.cloud.secrets.secrets_manager.CloudSecretsManagerBackend
+    backend_kwargs = {"variables_prefix": "airflow-variables", "sep": "-"}
+
+and if you want to retrieve both Variables and connections use the following sample config:
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.providers.google.cloud.secrets.secrets_manager.CloudSecretsManagerBackend
+    backend_kwargs = {"connections_prefix": "airflow-connections", "variables_prefix": "airflow-variables", "sep": "-"}
+
 
 When ``gcp_key_path`` is not provided, it will use the Application Default Credentials in the current environment. You can set up the credentials with:
 

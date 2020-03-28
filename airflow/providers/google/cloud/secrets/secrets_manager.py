@@ -51,10 +51,18 @@ class CloudSecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     For example, if the Secrets Manager secret id is ``airflow-connections-smtp_default``, this would be
     accessiblen if you provide ``{"connections_prefix": "airflow-connections", "sep": "-"}`` and request
-    conn_id ``smtp_default``. The full secret id should follow the pattern "[a-zA-Z0-9-_]".
+    conn_id ``smtp_default``.
+
+    If the Secrets Manager secret id is ``airflow-variables-hello``, this would be
+    accessible if you provide ``{"variables_prefix": "airflow-variables", "sep": "-"}`` and request
+    Variable Key ``hello``.
+
+    The full secret id should follow the pattern "[a-zA-Z0-9-_]".
 
     :param connections_prefix: Specifies the prefix of the secret to read to get Connections.
     :type connections_prefix: str
+    :param variables_prefix: Specifies the prefix of the secret to read to get Variables.
+    :type variables_prefix: str
     :param gcp_key_path: Path to GCP Credential JSON file;
         use default credentials in the current environment if not provided.
     :type gcp_key_path: str
@@ -66,6 +74,7 @@ class CloudSecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     def __init__(
         self,
         connections_prefix: str = "airflow-connections",
+        variables_prefix: str = "airflow-variables",
         gcp_key_path: Optional[str] = None,
         gcp_scopes: Optional[str] = None,
         sep: str = "-",
@@ -73,6 +82,7 @@ class CloudSecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     ):
         super().__init__(**kwargs)
         self.connections_prefix = connections_prefix
+        self.variables_prefix = variables_prefix
         self.gcp_key_path = gcp_key_path
         self.gcp_scopes = gcp_scopes
         self.sep = sep
@@ -80,7 +90,8 @@ class CloudSecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         self.project_id: Optional[str] = None
         if not self._is_valid_prefix_and_sep():
             raise AirflowException(
-                f"`connections_prefix` and `sep` should follows that pattern {SECRET_ID_PATTERN}"
+                "`connections_prefix`, `variables_prefix` and `sep` should "
+                f"follows that pattern {SECRET_ID_PATTERN}"
             )
 
     def _is_valid_prefix_and_sep(self) -> bool:
@@ -110,7 +121,27 @@ class CloudSecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: connection id
         :type conn_id: str
         """
-        secret_id = self.build_path(self.connections_prefix, conn_id, self.sep)
+        return self._get_secret(self.connections_prefix, conn_id)
+
+    def get_variable(self, key: str) -> Optional[str]:
+        """
+        Get Airflow Variable from Environment Variable
+
+        :param key: Variable Key
+        :return: Variable Value
+        """
+        return self._get_secret(self.variables_prefix, key)
+
+    def _get_secret(self, path_prefix: str, secret_id: str) -> Optional[str]:
+        """
+        Get secret value from Parameter Store.
+
+        :param path_prefix: Prefix for the Path to get Secret
+        :type path_prefix: str
+        :param secret_id: Secret Key
+        :type secret_id: str
+        """
+        secret_id = self.build_path(path_prefix, secret_id, self.sep)
         # always return the latest version of the secret
         secret_version = "latest"
         name = self.client.secret_version_path(self.project_id, secret_id, secret_version)
