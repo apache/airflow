@@ -62,8 +62,8 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.executors import get_default_executor
 from airflow.models import (
-    Connection, DagModel, DagBag, DagPickle, TaskInstance, DagRun, Variable, DAG
-)
+    Connection, DagModel, DagBag, DagPickle, TaskInstance, DagRun, Variable, DAG,
+    Pool)
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_QUEUED_DEPS)
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.net import get_hostname
@@ -364,6 +364,81 @@ def _pools(session, pools_config):
         session.delete(pool_to_delete)
 
     session.commit()
+
+@cli_utils.action_logging
+def pools(args):
+    """
+    Set a batch of Airflow pools
+    If a pool is specified in yaml file without slot_counts,
+    it will be default to 3
+
+    The yaml file should look like:
+        first_concurrency:
+          slot_counts: 3
+          description: SOURCE-CONTROLLED-DO-NOT-EDIT-BY-HAND
+        second_concurrency:
+          slot_counts: 1
+          description: SOURCE-CONTROLLED-DO-NOT-EDIT-BY-HAND
+
+    :param args: parsed args object with a property of filepath to airflow pools yaml file
+    :return: None
+    """
+    session = settings.Session()
+    with open(args.filepath, 'r') as stream:
+        pools_config = yaml.load(stream)
+    _pools(session, pools_config)
+    session.close()
+
+
+def _pools(session, pools_config):
+    existing_pools = {p.pool: p for p in session.query(Pool).all()}
+
+    # delete existing airflow pools not defined in configuration
+    pools_to_delete = []
+    for pool_name, _pool in existing_pools.items():
+        if pool_name not in pools_config:
+            pools_to_delete.append(_pool)
+
+    # update airflow pools if not existing or slot/description changed
+    pools_to_update = []
+    for pool_name_config in pools_config:
+        pool_slots_config = pools_config.get(pool_name_config).get('slot_counts', 3)
+        pool_desc_config = pools_config.get(pool_name_config).get('description', '')
+        if pool_name_config not in existing_pools:
+            pools_to_update.append(
+                Pool(
+                    pool=pool_name_config,
+                    slots=int(pool_slots_config),
+                    description=pool_desc_config,
+                )
+            )
+            continue
+
+        existing_pool = existing_pools.get(pool_name_config)
+        if int(pool_slots_config) != int(existing_pool.slots) \
+                or pool_desc_config != existing_pool.description:
+            print("Need to update pool: {}".format(existing_pool.pool))
+            print("Original slots: {}\nNew slots: {}".format(existing_pool.slots, pool_slots_config))
+            print("Original description: {}\nNew description: {}".format(
+                existing_pool.description, pool_desc_config))
+            existing_pool.slots = pool_slots_config
+            existing_pool.description = pool_desc_config
+            pools_to_update.append(
+                existing_pool
+            )
+        else:
+            print("No need to update pool: {}".format(existing_pool.pool))
+
+    for pool_to_update in pools_to_update:
+        print("Need to add/update pool: {}".format(pool_to_update))
+        session.add(pool_to_update)
+
+    for pool_to_delete in pools_to_delete:
+        print("Remove undefined pool: {}".format(pool_to_delete.pool))
+        session.delete(pool_to_delete)
+
+    session.commit()
+
 
 def pool_import_helper(filepath):
     with open(filepath, 'r') as poolfile:
