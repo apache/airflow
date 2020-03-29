@@ -16,24 +16,25 @@
 # specific language governing permissions and limitations
 # under the License.
 import inspect
-import yaml
 
+import yaml
 from kubernetes.client import ApiClient
 
-from airflow.kubernetes.pod_generator import PodGenerator
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.k8s_model import append_to_pod
+from airflow.kubernetes.pod_generator import PodGenerator
+from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.utils.cli import get_dag
 
 
 def is_a_kubernetes_pod_operator_instance(task):
-
+    """Return true if the object is instance of the kubernetes pod generator"""
     return isinstance(task, KubernetesPodOperator)
 
 
 def get_kubernetes_pod_attributes(kubernetes_task_kwargs):
-
+    """Return a dictionoary for all the attributes of a 
+       kubernetes pod operator task"""
     all_instances = inspect.getmro(KubernetesPodOperator)
     attrs = []
     for instance in all_instances:
@@ -43,8 +44,11 @@ def get_kubernetes_pod_attributes(kubernetes_task_kwargs):
 
 
 def generate_pod_preview(kubernetes_tasks_args):
-    POD_GENERATOR_ATTRS = inspect.getfullargspec(PodGenerator).args
-    pod_args = {attr: value for attr, value in kubernetes_tasks_args.items() if attr in POD_GENERATOR_ATTRS}
+    """Returns a dictionary with a kubernetes pod template for a given kubernetes
+       pod operator task"""
+    pod_generator_attrs = inspect.getfullargspec(PodGenerator).args
+    pod_args = {attr: value for attr, value in kubernetes_tasks_args.items()
+                if attr in pod_generator_attrs}
 
     # TODO: This step should not be done there is naming conversion in all
     # kubernetes classes args to env_vars to envs.
@@ -73,7 +77,8 @@ def generate_pod_preview(kubernetes_tasks_args):
 
 
 def kubernetes_preview(args):
-
+    """Cli function prints a yaml template in the console for a given dag for all
+       the kubernetespodoperator tasks"""
     dag_tasks = get_dag(args.subdir, args.dag_id).tasks
     kubernetes_tasks_args = [task.__dict__ for task in dag_tasks
                              if is_a_kubernetes_pod_operator_instance(task)]
