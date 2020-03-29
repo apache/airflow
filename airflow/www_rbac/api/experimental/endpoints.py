@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 from http import HTTPStatus
 import requests
 import airflow.api
@@ -43,6 +44,8 @@ _log = LoggingMixin().log
 requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 
 api_experimental = Blueprint('api_experimental', __name__)
+
+CAS_BASE_URL = os.environ.get("CAS_BASE_URL", "http://localhost:9095")
 
 
 @csrf.exempt
@@ -74,7 +77,7 @@ def trigger_dag(dag_id):
             error_message = (
                 'Given execution date, {}, could not be identified '
                 'as a date. Example date format: 2015-11-16T14:34:15+00:00'
-                .format(execution_date))
+                    .format(execution_date))
             _log.info(error_message)
             response = jsonify({'error': error_message})
             response.status_code = 400
@@ -170,14 +173,14 @@ def task_info(dag_id, task_id):
 
 
 def docasInvaild(pkg_name):
-    connectionModel = models.connection.Connection
-    cas_base_url = None
+    connection_model = models.connection.Connection
     with create_session() as session:
-        cas_base_url = session.query(connectionModel).filter(
-            connectionModel.conn_id == 'cas_base_url').first()
+        cas_base_url = session.query(connection_model).filter(
+            connection_model.conn_id == 'cas_base_url').first()
     if not cas_base_url:
-        return
-    url = "{}/cas/invalid-curve".format(cas_base_url.get_uri())
+        cas_base_url = CAS_BASE_URL  # 从环境变量中获取URL配置
+    url = "{}/cas/invalid-curve".format(
+        cas_base_url.get_uri() if isinstance(cas_base_url, connection_model) else cas_base_url)
     data = {'pkg_name': pkg_name}
     try:
         resp = requests.post(url=url, data=data)
@@ -198,7 +201,7 @@ def double_confirm_task(dag_id, task_id, execution_date):
         error_message = (
             'Given execution date, {}, could not be identified '
             'as a date. Example date format: 2015-11-16T14:34:15+00:00'
-            .format(execution_date))
+                .format(execution_date))
         _log.info(error_message)
         response = jsonify({'error': error_message})
         response.status_code = 400
@@ -242,7 +245,7 @@ def dag_paused(dag_id, paused):
     with create_session() as session:
         orm_dag = (
             session.query(DagModel)
-            .filter(DagModel.dag_id == dag_id).first()
+                .filter(DagModel.dag_id == dag_id).first()
         )
         if paused == 'true':
             orm_dag.is_paused = True
@@ -273,7 +276,7 @@ def task_instance_info(dag_id, execution_date, task_id):
         error_message = (
             'Given execution date, {}, could not be identified '
             'as a date. Example date format: 2015-11-16T14:34:15+00:00'
-            .format(execution_date))
+                .format(execution_date))
         _log.info(error_message)
         response = jsonify({'error': error_message})
         response.status_code = 400
