@@ -29,7 +29,7 @@ if [[ ${UPGRADE_WHILE_GENERATING_REQUIREMENTS} == "true" ]]; then
     echo
     echo "Upgrading requirements to latest ones"
     echo
-    pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade
+    pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy eager
 fi
 
 OLD_REQUIREMENTS_FILE="/tmp/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
