@@ -27,7 +27,8 @@
 [![Twitter Follow](https://img.shields.io/twitter/follow/ApacheAirflow.svg?style=social&label=Follow)](https://twitter.com/ApacheAirflow)
 [![Slack Status](https://img.shields.io/badge/slack-join_chat-white.svg?logo=slack&style=social)](https://apache-airflow-slack.herokuapp.com/)
 
-Apache Airflow (or simply Airflow) is a platform to programmatically author, schedule, and monitor workflows.
+[Apache Airflow](https://airflow.apache.org/docs/stable/) (or simply Airflow) is a platform to programmatically author, schedule, and monitor
+ workflows.
 
 When workflows are defined as code, they become more maintainable,
 versionable, testable, and collaborative.
@@ -513,6 +514,6 @@ Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.
 
 ## Links
 
-- [Documentation](https://airflow.apache.org/)
+- [Documentation](https://airflow.apache.org/docs/stable/)
 - [Chat](https://apache-airflow-slack.herokuapp.com/)
 - [More](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links)
