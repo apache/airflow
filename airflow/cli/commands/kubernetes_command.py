@@ -24,8 +24,7 @@ from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.k8s_model import append_to_pod
-from airflow.settings import pod_mutation_hook
-from airflow.utils.cli import get_dag, get_dag_by_file_location, process_subdir
+from airflow.utils.cli import get_dag
 
 
 def is_a_kubernetes_pod_operator_instance(task):
@@ -47,12 +46,13 @@ def generate_pod_preview(kubernetes_tasks_args):
     POD_GENERATOR_ATTRS = inspect.getfullargspec(PodGenerator).args
     pod_args = {attr: value for attr, value in kubernetes_tasks_args.items() if attr in POD_GENERATOR_ATTRS}
 
-    # TODO: This step should not be done there is naming conversion in all kubernetes classes args to env_vars to envs.
-    if not 'args' in pod_args:
+    # TODO: This step should not be done there is naming conversion in all
+    # kubernetes classes args to env_vars to envs.
+    if 'args' not in pod_args:
         pod_args['args'] = kubernetes_tasks_args.get('arguments', None)
-    if not 'envs' in pod_args:
+    if 'envs' not in pod_args:
         pod_args['envs'] = kubernetes_tasks_args.get('env_vars', None)
-    if not 'extract_xcom' in pod_args:
+    if 'extract_xcom' not in pod_args:
         pod_args['extract_xcom'] = kubernetes_tasks_args.get('do_xcom_push', None)
 
     pod_instance = pod_generator.PodGenerator(**(pod_args)).gen_pod()
@@ -75,7 +75,8 @@ def generate_pod_preview(kubernetes_tasks_args):
 def kubernetes_preview(args):
 
     dag_tasks = get_dag(args.subdir, args.dag_id).tasks
-    kubernetes_tasks_args = [task.__dict__ for task in dag_tasks if is_a_kubernetes_pod_operator_instance(task)]
+    kubernetes_tasks_args = [task.__dict__ for task in dag_tasks
+                             if is_a_kubernetes_pod_operator_instance(task)]
     if kubernetes_tasks_args:
         for task_args in kubernetes_tasks_args:
             kubernetes_pod_args = get_kubernetes_pod_attributes(task_args)
