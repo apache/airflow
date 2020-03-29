@@ -1026,6 +1026,14 @@ ROLES_COMMANDS = (
         args=(ARG_ROLES,),
     ),
 )
+KUBERNETES_COMMANDS = (
+    ActionCommand(
+        name='pod-preview',
+        help='Generate a k8s template',
+        func=lazy_load_command('airflow.cli.commands.kubernetes_command.kubernetes_preview'),
+        args=(ARG_DAG_ID, ARG_SUBDIR),
+    ),
+)
 airflow_commands: List[CLICommand] = [
     GroupCommand(
         name='dags',
@@ -1051,6 +1059,11 @@ airflow_commands: List[CLICommand] = [
         name='db',
         help="Database operations",
         subcommands=DB_COMMANDS,
+    ),
+    GroupCommand(
+        name='kubernetes',
+        help='Kubernetes operations',
+        subcommands=KUBERNETES_COMMANDS,
     ),
     ActionCommand(
         name='kerberos',
