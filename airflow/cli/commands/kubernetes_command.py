@@ -33,7 +33,7 @@ def is_a_kubernetes_pod_operator_instance(task):
 
 
 def get_kubernetes_pod_attributes(kubernetes_task_kwargs):
-    """Return a dictionoary for all the attributes of a 
+    """Return a dictionoary for all the attributes of a
        kubernetes pod operator task"""
     all_instances = inspect.getmro(KubernetesPodOperator)
     attrs = []
