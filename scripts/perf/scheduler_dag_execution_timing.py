@@ -70,7 +70,7 @@ class ShortCircutExecutorMixin:
 
                 if not self.stop_when_these_completed:
                     self.log.warning("STOPPING SCHEDULER -- all runs complete")
-                    self.scheduler_job.processor_agent._done = True  # pylint: disable=W0212
+                    self.scheduler_job.processor_agent._done = True  # pylint: disable=protected-access
                 else:
                     self.log.warning("WAITING ON %d RUNS", len(self.stop_when_these_completed))
 
@@ -155,7 +155,7 @@ def create_dag_runs(dag, num_runs, session):
         Warning: this makes the scheduler do (slightly) less work so may skew your numbers. Use sparingly!
         ''')
 @click.argument('dag_ids', required=True, nargs=-1)
-def main(num_runs, repeat, pre_create_dag_runs, dag_ids):  # pylint: disable=R0914
+def main(num_runs, repeat, pre_create_dag_runs, dag_ids):  # pylint: disable=too-many-locals
     """
     This script can be used to measure the total "scheduler overhead" of Airflow.
 
@@ -234,7 +234,7 @@ def main(num_runs, repeat, pre_create_dag_runs, dag_ids):  # pylint: disable=R09
 
     executor = ShortCircutExecutor(stop_when_these_completed=dag_run_keys)
     scheduler_job = SchedulerJob(dag_ids=dag_ids, do_pickle=False, executor=executor)
-    executor.scheduler_job = scheduler_job  # pylint: disable=W0107
+    executor.scheduler_job = scheduler_job
 
     total_tasks = sum(len(dag.tasks) for dag in dags)
 
@@ -247,7 +247,7 @@ def main(num_runs, repeat, pre_create_dag_runs, dag_ids):  # pylint: disable=R09
 
     # Need a lambda to refer to the _latest_ value fo scheduler_job, not just
     # the initial one
-    code_to_test = lambda: scheduler_job.run()  # pylint: disable=W0108
+    code_to_test = lambda: scheduler_job.run()  # pylint: disable=unnecessary-lambda
 
     for count in range(repeat):
         gc.disable()
@@ -287,4 +287,4 @@ def main(num_runs, repeat, pre_create_dag_runs, dag_ids):  # pylint: disable=R09
 
 
 if __name__ == "__main__":
-    main()  # pylint: disable=E1120
+    main() # pylint: disable=no-value-for-parameter
