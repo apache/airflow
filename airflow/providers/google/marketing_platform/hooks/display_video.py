@@ -18,6 +18,7 @@
 """
 This module contains Google DisplayVideo hook.
 """
+
 from typing import Any, Dict, List, Optional
 
 from googleapiclient.discovery import Resource, build
@@ -151,3 +152,21 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
         return response
+
+    def download_line_items(self, request_body: Dict[str, Any]) -> List[Any]:
+        """
+        Retrieves line items in CSV format.
+
+        :param request_body: dictionary with parameters that should be passed into.
+            More information about it can be found here:
+            https://developers.google.com/bid-manager/v1.1/lineitems/downloadlineitems
+        :type request_body: Dict[str, Any]
+        """
+
+        response = (
+            self.get_conn()  # pylint: disable=no-member
+            .lineitems()
+            .downloadlineitems(body=request_body)
+            .execute(num_retries=self.num_retries)
+        )
+        return response["lineItems"]
