@@ -340,7 +340,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         language: system
         entry: "./scripts/ci/pre_commit_pylint_main.sh"
         files: \.py$
-        exclude: ^tests/.*\.py$|^airflow/_vendor/.*|^scripts/.*\.py$|^dev|^backport_packages
+        exclude: ^tests/.*\.py$|^airflow/_vendor/.*|^scripts/.*\.py$|^dev|^backport_packages|^kubernetes_tests
         pass_filenames: true
         require_serial: true  # Pylint tests should be run in one chunk to detect all cycles
       - id: pylint-tests

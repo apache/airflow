@@ -18,7 +18,7 @@
 export VERBOSE=${VERBOSE:="false"}
 
 function run_airflow_testing_in_docker_with_kubernetes() {
-    export KUBERNETES_MODE=${KUBERNETES_MODE:="git_mode"}
+    export KUBERNETES_MODE=${KUBERNETES_MODE:="image"}
     export KUBERNETES_VERSION=${KUBERNETES_VERSION:="v1.15.3"}
 
     # shellcheck disable=SC2016
@@ -148,4 +148,35 @@ do
     fi
     exit ${EXIT_CODE}
 done
+set -u
+
+#TODO FIXME
+if [[ "${INTEGRATIONS[*]}" == *"kubernetes"* ]]; then
+    export KUBERNETES_MODE=${KUBERNETES_MODE:="image"}
+    export KUBERNETES_VERSION=${KUBERNETES_VERSION:="v1.15.3"}
+    export KIND_CLUSTER_NAME="airflow-python-${PYTHON_MAJOR_MINOR_VERSION}-${KUBERNETES_VERSION}"
+
+    if [[ ${ENABLE_KIND_CLUSTER} == "true" ]]; then
+        install_kind_in_host
+        "${MY_DIR}/setup_kind_cluster_in_host.sh"
+    fi
+
+    # adding trap to exiting trap
+    HANDLERS="$( trap -p EXIT | cut -f2 -d \' )"
+    # shellcheck disable=SC2064
+    trap "${HANDLERS}${HANDLERS:+;}send_kubernetes_logs_to_file_io" EXIT
+fi
+
+set +u
+# shellcheck disable=SC2016
+docker-compose --log-level INFO \
+  -f "${MY_DIR}/docker-compose/base.yml" \
+  -f "${MY_DIR}/docker-compose/backend-${BACKEND}.yml" \
+  "${INTEGRATIONS[@]}" \
+  "${DOCKER_COMPOSE_LOCAL[@]}" \
+     run airflow \
+       '/opt/airflow/scripts/ci/in_container/entrypoint_ci.sh "${@}"' \
+       /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh "${@}"
+     # Note the command is there twice (!) because it is passed via bash -c
+     # and bash -c starts passing parameters from $0. TODO: fixme
 set -u

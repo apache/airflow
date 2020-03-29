@@ -290,34 +290,6 @@ function send_airflow_logs_to_file_io() {
     curl -F "file=@${DUMP_FILE}" https://file.io
 }
 
-
-function dump_kind_logs() {
-    echo "###########################################################################################"
-    echo "                   Dumping logs from KIND"
-    echo "###########################################################################################"
-
-    FILE_NAME="${1}"
-    kind --name "${CLUSTER_NAME}" export logs "${FILE_NAME}"
-}
-
-
-function send_kubernetes_logs_to_file_io() {
-    echo "##############################################################################"
-    echo
-    echo "   DUMPING LOG FILES FROM KIND AND SENDING THEM TO file.io"
-    echo
-    echo "##############################################################################"
-    DUMP_DIR_NAME=$(date "+%Y-%m-%d")_kind_${CI_BUILD_ID:="default"}_${CI_JOB_ID:="default"}
-    DUMP_DIR=/tmp/${DUMP_DIR_NAME}
-    dump_kind_logs "${DUMP_DIR}"
-    tar -cvzf "${DUMP_DIR}.tar.gz" -C /tmp "${DUMP_DIR_NAME}"
-    echo
-    echo "   Logs saved to ${DUMP_DIR}.tar.gz"
-    echo
-    echo "##############################################################################"
-    curl -F "file=@${DUMP_DIR}.tar.gz" https://file.io
-}
-
 function install_released_airflow_version() {
     pip uninstall -y apache-airflow || true
     find /root/airflow/ -type f -print0 | xargs -0 rm -f --

@@ -156,20 +156,6 @@ RUN curl --fail --location https://download.docker.com/linux/debian/gpg | apt-ke
     && apt-get autoremove -yqq --purge \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install kubectl
-ARG KUBECTL_VERSION="v1.15.3"
-
-RUN KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
-  && curl --fail --location  "${KUBECTL_URL}" --output "/usr/local/bin/kubectl" \
-  && chmod +x /usr/local/bin/kubectl
-
-# Install Kind
-ARG KIND_VERSION="v0.6.1"
-
-RUN KIND_URL="https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64" \
-   && curl --fail --location "${KIND_URL}" --output "/usr/local/bin/kind" \
-   && chmod +x /usr/local/bin/kind
-
 # Setup PIP
 # By default PIP install run without cache to make image smaller
 ARG PIP_NO_CACHE_DIR="true"
@@ -343,8 +329,7 @@ COPY Dockerfile.ci ${AIRFLOW_SOURCES}/Dockerfile.ci
 RUN register-python-argcomplete airflow >> ~/.bashrc
 
 # Install autocomplete for Kubeclt
-RUN echo "source /etc/bash_completion" >> ~/.bashrc \
-    && kubectl completion bash >> ~/.bashrc
+RUN echo "source /etc/bash_completion" >> ~/.bashrc
 
 WORKDIR ${AIRFLOW_SOURCES}
 
