@@ -196,10 +196,10 @@ fi
 if [[ ${CI:=} == "true" && ${RUN_TESTS} == "true" ]] ; then
     echo
     echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    echo "  Setting default parallellism to 4 because we can run out of memory during tests on CI"
+    echo "  Setting default parallellism to 2 because we can run out of memory during tests on CI"
     echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     echo
-    export AIRFLOW__CORE__PARALELLISM=4
+    export AIRFLOW__CORE__PARALELLISM=2
 fi
 
 set +u
