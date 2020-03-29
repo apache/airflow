@@ -19,12 +19,8 @@ import os
 import unittest
 from unittest.mock import call
 from datetime import datetime
-import yaml
-
 import mock
-import pytz
 
-from airflow import settings
 from airflow.cli import cli_parser
 from airflow.cli.commands import kubernetes_command
 from airflow.models import DagBag
@@ -61,7 +57,9 @@ class TestCliDags(unittest.TestCase):
     })
     @mock.patch("yaml.dump")
     def test_cli_kubernetes_preview(self, mock_dump):
-        args = self.parser.parse_args(['kubernetes', 'pod-preview', 'example_kubernetes_pod_operator'])
+        args = self.parser.parse_args(['kubernetes',
+                                       'pod-preview',
+                                       'example_kubernetes_pod_operator'])
         kubernetes_command.kubernetes_preview(args)
         expected_calls = [
             call(
@@ -76,7 +74,8 @@ class TestCliDags(unittest.TestCase):
                     'command': ['echo'],
                     'env': [],
                     'envFrom': [],
-                    'image': 'gcr.io/gcp-runtimes/ubuntu_18_0_4', 'imagePullPolicy': 'IfNotPresent', 'name': 'base',
+                    'image': 'gcr.io/gcp-runtimes/ubuntu_18_0_4',
+                    'imagePullPolicy': 'IfNotPresent', 'name': 'base',
                     'ports': [],
                     'resources': [],
                     'volumeMounts': []}],
@@ -96,9 +95,11 @@ class TestCliDags(unittest.TestCase):
                   'containers':
                   [{'args': ['{{ ds }}'],
                     'command': ['echo'],
-                    'env': [{'name': 'MY_VALUE', 'value': '{{ var.value.my_value }}'}],
+                    'env': [{'name': 'MY_VALUE',
+                             'value': '{{ var.value.my_value }}'}],
                     'envFrom': [],
-                    'image': 'bash', 'imagePullPolicy': 'IfNotPresent', 'name': 'base', 'ports': [],
+                    'image': 'bash', 'imagePullPolicy': 'IfNotPresent',
+                    'name': 'base', 'ports': [],
                     'resources': [],
                     'volumeMounts': []}],
                   'hostNetwork': False, 'imagePullSecrets': [],
