@@ -27,9 +27,8 @@ import textwrap
 from importlib import util
 from os.path import dirname
 from shutil import copyfile, copytree, rmtree
-from typing import Callable, Dict, List
+from typing import Dict, List
 
-from fissix.pgen2.parse import ParseError
 from setuptools import Command, find_packages, setup as setuptools_setup
 
 logger = logging.getLogger(__name__)
