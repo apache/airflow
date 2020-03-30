@@ -17,6 +17,7 @@
 
 import unittest
 
+import mock
 from parameterized import parameterized
 
 from airflow import plugins_manager
@@ -56,22 +57,17 @@ class TestExecutorLoader(unittest.TestCase):
             self.assertIsNotNone(executor)
             self.assertIn(executor_name, executor.__class__.__name__)
 
-    def test_should_support_plugin(self):
-        plugins_manager.plugins = [
-            FakePlugin()
-        ]
-
-        self.addCleanup(self.remove_executor_plugins)
+    @mock.patch("airflow.plugins_manager.plugins", [
+        FakePlugin()
+    ])
+    @mock.patch("airflow.plugins_manager.executors_modules", None)
+    def test_should_support_plugins(self):
         with conf_vars({
             ("core", "executor"): f"{TEST_PLUGIN_NAME}.FakeExecutor"
         }):
             executor = ExecutorLoader.get_default_executor()
             self.assertIsNotNone(executor)
             self.assertIn("FakeExecutor", executor.__class__.__name__)
-
-    def remove_executor_plugins(self):
-        plugins_manager.executors_modules = None
-        plugins_manager.plugins = None
 
     def test_should_support_custom_path(self):
         with conf_vars({

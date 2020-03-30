@@ -1,6 +1,4 @@
-#!/usr/bin/env python
-# PYTHON_ARGCOMPLETE_OK
-#
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,22 +15,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Main executable module"""
+export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 
-import os
+# shellcheck source=scripts/ci/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-import argcomplete
+"${MY_DIR}/ci_prepare_packages.sh"
+"${MY_DIR}/ci_test_backport_packages.sh"
 
-from airflow.bin.cli import CLIFactory
-from airflow.configuration import conf
+cd "${MY_DIR}/../../backport_packages" || exit 1
 
-if __name__ == '__main__':
+DUMP_FILE="/tmp/airflow_provider_packages_$(date +"%Y%m%d-%H%M%S").tar.gz"
 
-    if conf.get("core", "security") == 'kerberos':
-        os.environ['KRB5CCNAME'] = conf.get('kerberos', 'ccache')
-        os.environ['KRB5_KTNAME'] = conf.get('kerberos', 'keytab')
+cd "${MY_DIR}/../../dist" || exit 1
+tar -cvzf "${DUMP_FILE}" .
 
-    parser = CLIFactory.get_parser()
-    argcomplete.autocomplete(parser)
-    args = parser.parse_args()
-    args.func(args)
+echo "Packages are in dist and also tar-gzipped in ${DUMP_FILE}"
+
+if [[ "${CI:=false}" == "true" ]]; then
+    curl -F "file=@${DUMP_FILE}" https://file.io
+fi

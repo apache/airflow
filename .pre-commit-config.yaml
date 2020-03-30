@@ -223,6 +223,13 @@ repos:
         files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$
         pass_filenames: false
         require_serial: true
+      - id: update-extras
+        name: Update extras in documentation
+        entry: "./scripts/ci/pre_commit_update_extras.sh"
+        language: system
+        files: ^setup.py$|^INSTALL$|^CONTRIBUTING.rst$
+        pass_filenames: false
+        require_serial: true
       - id: pydevd
         language: pygrep
         name: Check for pydevd debug statements accidentally left
@@ -282,7 +289,7 @@ repos:
         pass_filenames: true
       - id: build
         name: Check if image build is needed
-        entry: ./scripts/ci/pre_commit_ci_build.sh
+        entry: ./scripts/ci/pre_commit_ci_build.sh 3.6 false
         language: system
         always_run: true
         pass_filenames: false

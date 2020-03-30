@@ -312,6 +312,7 @@ class DagFileProcessorAgent(LoggingMixin):
                  processor_factory,
                  processor_timeout,
                  async_mode):
+        super().__init__()
         self._file_path_queue = []
         self._dag_directory = dag_directory
         self._max_runs = max_runs
@@ -560,6 +561,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                  processor_timeout: timedelta,
                  signal_conn: multiprocessing.connection.Connection,
                  async_mode: bool = True):
+        super().__init__()
         self._file_paths: List[str] = []
         self._file_path_queue: List[str] = []
         self._dag_directory = dag_directory

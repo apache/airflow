@@ -23,7 +23,9 @@ from airflow.hooks.dbapi_hook import DbApiHook
 
 
 class PrestoException(Exception):
-    pass
+    """
+    Presto exception
+    """
 
 
 class PrestoHook(DbApiHook):
@@ -41,7 +43,7 @@ class PrestoHook(DbApiHook):
 
     def get_conn(self):
         """Returns a connection object"""
-        db = self.get_connection(self.presto_conn_id)
+        db = self.get_connection(self.presto_conn_id)  # pylint: disable=no-member
         auth = prestodb.auth.BasicAuthentication(db.login, db.password) if db.password else None
 
         return prestodb.dbapi.connect(
@@ -58,7 +60,7 @@ class PrestoHook(DbApiHook):
 
     def get_isolation_level(self):
         """Returns an isolation level"""
-        db = self.get_connection(self.presto_conn_id)
+        db = self.get_connection(self.presto_conn_id)  # pylint: disable=no-member
         isolation_level = db.extra_dejson.get('isolation_level', 'AUTOCOMMIT').upper()
         return getattr(IsolationLevel, isolation_level, IsolationLevel.AUTOCOMMIT)
 

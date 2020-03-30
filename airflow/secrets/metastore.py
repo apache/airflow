@@ -21,12 +21,12 @@ Objects relating to sourcing connections from metastore database
 
 from typing import List
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.session import provide_session
 
 
-class MetastoreSecretsBackend(BaseSecretsBackend):
+class MetastoreBackend(BaseSecretsBackend):
     """
     Retrieves Connection object from airflow metastore database.
     """
@@ -37,3 +37,18 @@ class MetastoreSecretsBackend(BaseSecretsBackend):
         conn_list = session.query(Connection).filter(Connection.conn_id == conn_id).all()
         session.expunge_all()
         return conn_list
+
+    @provide_session
+    def get_variable(self, key: str, session=None):
+        """
+        Get Airflow Variable from Metadata DB
+
+        :param key: Variable Key
+        :return: Variable Value
+        """
+        from airflow.models.variable import Variable
+        var_value = session.query(Variable).filter(Variable.key == key).first()
+        session.expunge_all()
+        if var_value:
+            return var_value.val
+        return None

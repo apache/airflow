@@ -143,9 +143,9 @@ class MySqlHook(DbApiHook):
             return MySQLdb.connect(**conn_config)
 
         if client_name == 'mysql-connector-python':
-            import mysql.connector
+            import mysql.connector  # pylint: disable=no-name-in-module
             conn_config = self._get_conn_config_mysql_connector_python(conn)
-            return mysql.connector.connect(**conn_config)
+            return mysql.connector.connect(**conn_config)  # pylint: disable=no-member
 
         raise ValueError('Unknown MySQL client name provided!')
 

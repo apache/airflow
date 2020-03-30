@@ -16,38 +16,45 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Objects relating to sourcing connections from Hashicorp Vault
+Objects relating to sourcing connections & variables from Hashicorp Vault
 """
-from typing import List, Optional
+from typing import Optional
 
 import hvac
 from cached_property import cached_property
 from hvac.exceptions import InvalidPath, VaultError
 
 from airflow import AirflowException
-from airflow.models import Connection
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class VaultSecrets(BaseSecretsBackend, LoggingMixin):
+class VaultBackend(BaseSecretsBackend, LoggingMixin):
     """
-    Retrieves Connection object from Hashicorp Vault
+    Retrieves Connections and Variables from Hashicorp Vault
 
     Configurable via ``airflow.cfg`` as follows:
 
     .. code-block:: ini
 
         [secrets]
-        backend = airflow.providers.hashicorp.secrets.vault.VaultSecrets
-        backend_kwargs = {"path":"connections","url":"http://127.0.0.1:8200","mount_point":"airflow"}
+        backend = airflow.providers.hashicorp.secrets.vault.VaultBackend
+        backend_kwargs = {
+            "connections_path": "connections",
+            "url": "http://127.0.0.1:8200",
+            "mount_point": "airflow"
+            }
 
     For example, if your keys are under ``connections`` path in ``airflow`` mount_point, this
-    would be accessible if you provide ``{"path": "connections"}`` and request
+    would be accessible if you provide ``{"connections_path": "connections"}`` and request
     conn_id ``smtp_default``.
 
     :param connections_path: Specifies the path of the secret to read to get Connections.
+        (default: 'connections')
     :type connections_path: str
+    :param variables_path: Specifies the path of the secret to read to get Variables.
+        (default: 'variables')
+    :type variables_path: str
     :param url: Base URL for the Vault instance being addressed.
     :type url: str
     :param auth_type: Authentication Type for Vault (one of 'token', 'ldap', 'userpass', 'approle',
@@ -75,7 +82,8 @@ class VaultSecrets(BaseSecretsBackend, LoggingMixin):
     """
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        connections_path: str,
+        connections_path: str = 'connections',
+        variables_path: str = 'variables',
         url: Optional[str] = None,
         auth_type: str = 'token',
         mount_point: str = 'secret',
@@ -91,6 +99,7 @@ class VaultSecrets(BaseSecretsBackend, LoggingMixin):
     ):
         super().__init__(**kwargs)
         self.connections_path = connections_path.rstrip('/')
+        self.variables_path = variables_path.rstrip('/')
         self.url = url
         self.auth_type = auth_type
         self.kwargs = kwargs
@@ -125,7 +134,12 @@ class VaultSecrets(BaseSecretsBackend, LoggingMixin):
         elif self.auth_type == "github":
             _client.auth.github.login(token=self.token)
         elif self.auth_type == "gcp":
-            credentials = self._get_gcp_credentials()
+            from airflow.providers.google.cloud.utils.credentials_provider import (
+                get_credentials_and_project_id,
+                _get_scopes
+            )
+            scopes = _get_scopes(self.gcp_scopes)
+            credentials, _ = get_credentials_and_project_id(key_path=self.gcp_key_path, scopes=scopes)
             _client.auth.gcp.configure(credentials=credentials)
         else:
             raise AirflowException(f"Authentication type '{self.auth_type}' not supported")
@@ -135,15 +149,6 @@ class VaultSecrets(BaseSecretsBackend, LoggingMixin):
         else:
             raise VaultError("Vault Authentication Error!")
 
-    def build_path(self, conn_id: str):
-        """
-        Given conn_id, build path for Vault Secret
-
-        :param conn_id: connection id
-        :type conn_id: str
-        """
-        return self.connections_path + "/" + conn_id
-
     def get_conn_uri(self, conn_id: str) -> Optional[str]:
         """
         Get secret value from Vault. Store the secret in the form of URI
@@ -151,7 +156,29 @@ class VaultSecrets(BaseSecretsBackend, LoggingMixin):
         :param conn_id: connection id
         :type conn_id: str
         """
-        secret_path = self.build_path(conn_id=conn_id)
+        response = self._get_secret(self.connections_path, conn_id)
+        return response.get("conn_uri") if response else None
+
+    def get_variable(self, key: str) -> Optional[str]:
+        """
+        Get Airflow Variable from Environment Variable
+
+        :param key: Variable Key
+        :return: Variable Value
+        """
+        response = self._get_secret(self.variables_path, key)
+        return response.get("value") if response else None
+
+    def _get_secret(self, path_prefix: str, secret_id: str) -> Optional[dict]:
+        """
+        Get secret value from Vault.
+
+        :param path_prefix: Prefix for the Path to get Secret
+        :type path_prefix: str
+        :param secret_id: Secret Key
+        :type secret_id: str
+        """
+        secret_path = self.build_path(path_prefix, secret_id)
 
         try:
             if self.kv_engine_version == 1:
@@ -162,51 +189,8 @@ class VaultSecrets(BaseSecretsBackend, LoggingMixin):
                 response = self.client.secrets.kv.v2.read_secret_version(
                     path=secret_path, mount_point=self.mount_point)
         except InvalidPath:
-            self.log.info("Connection ID %s not found in Path: %s", conn_id, secret_path)
+            self.log.info("Secret %s not found in Path: %s", secret_id, secret_path)
             return None
 
         return_data = response["data"] if self.kv_engine_version == 1 else response["data"]["data"]
-        return return_data.get("conn_uri")
-
-    def get_connections(self, conn_id: str) -> List[Connection]:
-        """
-        Get connections with a specific ID
-
-        :param conn_id: connection id
-        :type conn_id: str
-        """
-        conn_uri = self.get_conn_uri(conn_id=conn_id)
-        if not conn_uri:
-            return []
-        conn = Connection(conn_id=conn_id, uri=conn_uri)
-        return [conn]
-
-    def _get_gcp_credentials(self):
-        import google.auth
-        import google.oauth2.service_account
-
-        default_scopes = ('https://www.googleapis.com/auth/cloud-platform',)
-        scopes = [s.strip() for s in self.gcp_scopes.split(',')] \
-            if self.gcp_scopes else default_scopes
-
-        if self.gcp_key_path:
-            # Get credentials from a JSON file.
-            if self.gcp_key_path.endswith('.json'):
-                self.log.debug('Getting connection using JSON key file %s', self.gcp_key_path)
-                credentials = (
-                    google.oauth2.service_account.Credentials.from_service_account_file(
-                        self.gcp_key_path, scopes=scopes)
-                )
-            elif self.gcp_key_path.endswith('.p12'):
-                raise AirflowException(
-                    'Legacy P12 key file are not supported, use a JSON key file.'
-                )
-            else:
-                raise AirflowException('Unrecognised extension for key file.')
-        else:
-            self.log.debug(
-                'Getting connection using `google.auth.default()` since no key file is defined.'
-            )
-            credentials, _ = google.auth.default(scopes=scopes)
-
-        return credentials
+        return return_data

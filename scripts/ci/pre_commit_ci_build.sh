@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export REMEMBER_LAST_ANSWER="false"
-export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
+export PYTHON_MAJOR_MINOR_VERSION="${1}"
+export REMEMBER_LAST_ANSWER="${2}"
 
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"

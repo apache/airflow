@@ -160,8 +160,6 @@ All operators are in the following packages:
 
   airflow/providers/postgres/operators/index
 
-  airflow/providers/presto/operators/index
-
   airflow/providers/qubole/operators/index
 
   airflow/providers/qubole/sensors/index
@@ -366,3 +364,4 @@ All secrets backends derive from :class:`~airflow.secrets.BaseSecretsBackend`.
 
   airflow/providers/amazon/aws/secrets/index
   airflow/providers/hashicorp/secrets/index
+  airflow/providers/google/cloud/secrets/index

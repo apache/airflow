@@ -33,12 +33,19 @@ _SECOND_LEVEL_TASKS = 10
 DAG_ID = f"big_dag_{_FIRST_LEVEL_TASKS}-{_SECOND_LEVEL_TASKS}"
 
 
-def print_context(ds, ti, **kwargs):
+def print_context(_, ti, **kwargs):
+    '''
+    Print the task_id and execution date.
+    '''
     print(f"Running {ti.task_id} {ti.execution_date}")
     return "Whatever you return gets printed in the logs"
 
 
 def generate_parallel_tasks(name_prefix, num_of_tasks, deps):
+    '''
+    Generate a list of PythonOperator tasks. The generated tasks are set up to
+    be dependent on the `deps` argument.
+    '''
     tasks = []
     for t_id in range(num_of_tasks):
         run_this = PythonOperator(

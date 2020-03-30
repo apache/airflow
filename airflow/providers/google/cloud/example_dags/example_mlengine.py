@@ -172,7 +172,7 @@ with models.DAG(
 
     training >> create_version
     training >> create_version_2
-    create_model >> get_model >> get_model_result
+    create_model >> get_model >> [get_model_result, delete_model]
     create_model >> create_version >> create_version_2 >> set_defaults_version >> list_version
     create_version >> prediction
     create_version_2 >> prediction

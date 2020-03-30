@@ -34,6 +34,7 @@ class FSHook(BaseHook):
     """
 
     def __init__(self, conn_id='fs_default'):
+        super().__init__()
         conn = self.get_connection(conn_id)
         self.basepath = conn.extra_dejson.get('path', '')
         self.conn = conn

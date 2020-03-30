@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from botocore.exceptions import ClientError
+
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.sagemaker_base import SageMakerBaseOperator
@@ -129,13 +131,24 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
             raise ValueError('Invalid value! Argument operation has to be one of "create" and "update"')
 
         self.log.info('%s SageMaker endpoint %s.', log_str, endpoint_info['EndpointName'])
+        try:
+            response = sagemaker_operation(
+                endpoint_info,
+                wait_for_completion=self.wait_for_completion,
+                check_interval=self.check_interval,
+                max_ingestion_time=self.max_ingestion_time
+            )
+        except ClientError:  # Botocore throws a ClientError if the endpoint is already created
+            self.operation = 'update'
+            sagemaker_operation = self.hook.update_endpoint
+            log_str = 'Updating'
+            response = sagemaker_operation(
+                endpoint_info,
+                wait_for_completion=self.wait_for_completion,
+                check_interval=self.check_interval,
+                max_ingestion_time=self.max_ingestion_time
+            )
 
-        response = sagemaker_operation(
-            endpoint_info,
-            wait_for_completion=self.wait_for_completion,
-            check_interval=self.check_interval,
-            max_ingestion_time=self.max_ingestion_time
-        )
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException(
                 'Sagemaker endpoint creation failed: %s' % response)

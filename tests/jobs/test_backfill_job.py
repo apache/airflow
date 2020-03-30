@@ -29,7 +29,7 @@ from mock import Mock, patch
 from parameterized import parameterized
 
 from airflow import settings
-from airflow.bin import cli
+from airflow.cli import cli_parser
 from airflow.exceptions import (
     AirflowException, AirflowTaskTimeout, DagConcurrencyLimitReached, NoAvailablePoolSlot,
     TaskConcurrencyLimitReached,
@@ -85,7 +85,7 @@ class TestBackfillJob(unittest.TestCase):
         clear_db_runs()
         clear_db_pools()
 
-        self.parser = cli.CLIFactory.get_parser()
+        self.parser = cli_parser.get_parser()
 
     def test_unfinished_dag_runs_set_to_failed(self):
         dag = self._get_dummy_dag('dummy_dag')
@@ -166,7 +166,7 @@ class TestBackfillJob(unittest.TestCase):
 
         end_date = DEFAULT_DATE + datetime.timedelta(days=1)
 
-        executor = MockExecutor()
+        executor = MockExecutor(parallelism=16)
         job = BackfillJob(
             dag=dag,
             start_date=DEFAULT_DATE,
@@ -714,7 +714,7 @@ class TestBackfillJob(unittest.TestCase):
 
         dag.clear()
 
-        executor = MockExecutor()
+        executor = MockExecutor(parallelism=16)
         job = BackfillJob(dag=dag,
                           executor=executor,
                           start_date=DEFAULT_DATE,
@@ -1410,7 +1410,10 @@ class TestBackfillJob(unittest.TestCase):
         dag = self.dagbag.get_dag("test_start_date_scheduling")
         dag.clear()
 
+        executor = MockExecutor(parallelism=16)
+
         job = BackfillJob(
+            executor=executor,
             dag=dag,
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=1),

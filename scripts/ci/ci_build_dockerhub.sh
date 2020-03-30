@@ -22,15 +22,6 @@
 export FORCE_ANSWER_TO_QUESTIONS="yes"
 export PULL_BASE_IMAGES="true"
 
-# In case of CRON jobs on Travis we run builds without cache
-if [[ "${TRAVIS_EVENT_TYPE:=}" == "cron" ]]; then
-    echo
-    echo "Disabling cache for CRON jobs"
-    echo
-    export DOCKER_CACHE="no-cache"
-    export PULL_BASE_IMAGES="true"
-fi
-
 if [[ -z ${DOCKER_REPO} ]]; then
    echo
    echo "Error! Missing DOCKER_REPO environment variable"
@@ -60,9 +51,9 @@ else
    echo "DOCKER_TAG=${DOCKER_TAG}"
 fi
 
-[[ ${DOCKER_TAG:=} =~ ${DEFAULT_BRANCH}-python([0-9.]*)(.*) ]] && export PYTHON_VERSION=${BASH_REMATCH[1]}
+[[ ${DOCKER_TAG:=} =~ ${DEFAULT_BRANCH}-python([0-9.]*)(.*) ]] && export PYTHON_MAJOR_MINOR_VERSION=${BASH_REMATCH[1]}
 
-if [[ -z ${PYTHON_VERSION:=} ]]; then
+if [[ -z ${PYTHON_MAJOR_MINOR_VERSION:=} ]]; then
     echo
     echo "Error! Wrong DOCKER_TAG"
     echo "The tag '${DOCKER_TAG}' should follow the pattern ${DEFAULT_BRANCH}-pythonX.Y[-ci]"
@@ -70,7 +61,7 @@ if [[ -z ${PYTHON_VERSION:=} ]]; then
     exit 1
 fi
 
-echo "Detected PYTHON_VERSION=${PYTHON_VERSION}"
+echo "Detected PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}"
 echo
 
 # shellcheck source=scripts/ci/_script_init.sh

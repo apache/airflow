@@ -32,12 +32,13 @@ from google.cloud.exceptions import Forbidden
 from airflow import version
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks import base as hook
+from airflow.providers.google.cloud.utils.credentials_provider import _DEFAULT_SCOPES
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 default_creds_available = True
 default_project = None
 try:
-    _, default_project = google.auth.default(scopes=hook._DEFAULT_SCOPES)
+    _, default_project = google.auth.default(scopes=_DEFAULT_SCOPES)
 except GoogleAuthError:
     default_creds_available = False
 
@@ -259,7 +260,7 @@ class TestProvideGcpCredentialFile(unittest.TestCase):
 class TestProvideGcpCredentialFileAsContext(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            'airflow.contrib.hooks.gcp_api_base_hook.CloudBaseHook.__init__',
+            'airflow.providers.google.cloud.hooks.base.CloudBaseHook.__init__',
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.instance = hook.CloudBaseHook(gcp_conn_id="google-cloud-default")
@@ -332,29 +333,38 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
     def setUp(self):
         self.instance = hook.CloudBaseHook()
 
-    @mock.patch(MODULE_NAME + '.google.auth.default', return_value=("CREDENTIALS", "PROJECT_ID"))
-    def test_get_credentials_and_project_id_with_default_auth(self, mock_auth_default):
+    @mock.patch(MODULE_NAME + '.get_credentials_and_project_id', return_value=("CREDENTIALS", "PROJECT_ID"))
+    def test_get_credentials_and_project_id_with_default_auth(self, mock_get_creds_and_proj_id):
         self.instance.extras = {}
         result = self.instance._get_credentials_and_project_id()
-        mock_auth_default.assert_called_once_with(scopes=self.instance.scopes)
+        mock_get_creds_and_proj_id.assert_called_once_with(
+            key_path=None,
+            keyfile_dict=None,
+            scopes=self.instance.scopes,
+            delegate_to=None)
         self.assertEqual(('CREDENTIALS', 'PROJECT_ID'), result)
 
-    @mock.patch(
-        MODULE_NAME + '.google.oauth2.service_account.Credentials.from_service_account_file',
-    )
-    def test_get_credentials_and_project_id_with_service_account_file(self, mock_from_service_account_file):
-        mock_from_service_account_file.return_value.project_id = "PROJECT_ID"
+    @mock.patch(MODULE_NAME + '.get_credentials_and_project_id')
+    def test_get_credentials_and_project_id_with_service_account_file(
+        self,
+        mock_get_creds_and_proj_id
+    ):
+        mock_credentials = mock.MagicMock()
+        mock_get_creds_and_proj_id.return_value = (mock_credentials, "PROJECT_ID")
         self.instance.extras = {
             'extra__google_cloud_platform__key_path': "KEY_PATH.json"
         }
         result = self.instance._get_credentials_and_project_id()
-        mock_from_service_account_file.assert_called_once_with('KEY_PATH.json', scopes=self.instance.scopes)
-        self.assertEqual((mock_from_service_account_file.return_value, 'PROJECT_ID'), result)
+        mock_get_creds_and_proj_id.assert_called_once_with(
+            key_path='KEY_PATH.json',
+            keyfile_dict=None,
+            scopes=self.instance.scopes,
+            delegate_to=None
+        )
+        self.assertEqual((mock_credentials, 'PROJECT_ID'), result)
 
-    @mock.patch(MODULE_NAME + '.google.oauth2.service_account.Credentials.from_service_account_file')
     def test_get_credentials_and_project_id_with_service_account_file_and_p12_key(
-        self,
-        mock_from_service_account_file
+        self
     ):
         self.instance.extras = {
             'extra__google_cloud_platform__key_path': "KEY_PATH.p12"
@@ -362,10 +372,8 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
         with self.assertRaises(AirflowException):
             self.instance._get_credentials_and_project_id()
 
-    @mock.patch(MODULE_NAME + '.google.oauth2.service_account.Credentials.from_service_account_file')
     def test_get_credentials_and_project_id_with_service_account_file_and_unknown_key(
-        self,
-        mock_from_service_account_file
+        self
     ):
         self.instance.extras = {
             'extra__google_cloud_platform__key_path': "KEY_PATH.unknown"
@@ -373,11 +381,13 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
         with self.assertRaises(AirflowException):
             self.instance._get_credentials_and_project_id()
 
-    @mock.patch(
-        MODULE_NAME + '.google.oauth2.service_account.Credentials.from_service_account_info',
-    )
-    def test_get_credentials_and_project_id_with_service_account_info(self, mock_from_service_account_file):
-        mock_from_service_account_file.return_value.project_id = "PROJECT_ID"
+    @mock.patch(MODULE_NAME + '.get_credentials_and_project_id')
+    def test_get_credentials_and_project_id_with_service_account_info(
+        self,
+        mock_get_creds_and_proj_id
+    ):
+        mock_credentials = mock.MagicMock()
+        mock_get_creds_and_proj_id.return_value = (mock_credentials, "PROJECT_ID")
         service_account = {
             'private_key': "PRIVATE_KEY"
         }
@@ -385,33 +395,50 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
             'extra__google_cloud_platform__keyfile_dict': json.dumps(service_account)
         }
         result = self.instance._get_credentials_and_project_id()
-        mock_from_service_account_file.assert_called_once_with(service_account, scopes=self.instance.scopes)
-        self.assertEqual((mock_from_service_account_file.return_value, 'PROJECT_ID'), result)
+        mock_get_creds_and_proj_id.assert_called_once_with(
+            key_path=None,
+            keyfile_dict=service_account,
+            scopes=self.instance.scopes,
+            delegate_to=None
+        )
+        self.assertEqual((mock_credentials, 'PROJECT_ID'), result)
 
-    @mock.patch(MODULE_NAME + '.google.auth.default')
-    def test_get_credentials_and_project_id_with_default_auth_and_delegate(self, mock_auth_default):
+    @mock.patch(MODULE_NAME + '.get_credentials_and_project_id')
+    def test_get_credentials_and_project_id_with_default_auth_and_delegate(
+        self,
+        mock_get_creds_and_proj_id
+    ):
         mock_credentials = mock.MagicMock()
-        mock_auth_default.return_value = (mock_credentials, "PROJECT_ID")
+        mock_get_creds_and_proj_id.return_value = (mock_credentials, "PROJECT_ID")
         self.instance.extras = {}
         self.instance.delegate_to = "USER"
         result = self.instance._get_credentials_and_project_id()
-        mock_auth_default.assert_called_once_with(scopes=self.instance.scopes)
-        mock_credentials.with_subject.assert_called_once_with("USER")
-        self.assertEqual((mock_credentials.with_subject.return_value, "PROJECT_ID"), result)
+        mock_get_creds_and_proj_id.assert_called_once_with(
+            key_path=None,
+            keyfile_dict=None,
+            scopes=self.instance.scopes,
+            delegate_to="USER"
+        )
+        self.assertEqual((mock_credentials, "PROJECT_ID"), result)
 
     @mock.patch(  # type: ignore
-        MODULE_NAME + '.google.auth.default',
+        MODULE_NAME + '.get_credentials_and_project_id',
         return_value=("CREDENTIALS", "PROJECT_ID")
     )
     def test_get_credentials_and_project_id_with_default_auth_and_overridden_project_id(
         self,
-        mock_auth_default
+        mock_get_creds_and_proj_id
     ):
         self.instance.extras = {
             'extra__google_cloud_platform__project': "SECOND_PROJECT_ID"
         }
         result = self.instance._get_credentials_and_project_id()
-        mock_auth_default.assert_called_once_with(scopes=self.instance.scopes)
+        mock_get_creds_and_proj_id.assert_called_once_with(
+            key_path=None,
+            keyfile_dict=None,
+            scopes=self.instance.scopes,
+            delegate_to=None
+        )
         self.assertEqual(("CREDENTIALS", 'SECOND_PROJECT_ID'), result)
 
     def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(
@@ -420,10 +447,21 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
         self.instance.extras = {
             'extra__google_cloud_platform__project': "PROJECT_ID",
             'extra__google_cloud_platform__key_path': "KEY_PATH",
-            'extra__google_cloud_platform__keyfile_dict': "KEYFILE_DICT",
+            'extra__google_cloud_platform__keyfile_dict': '{"KEY": "VALUE"}',
         }
         with self.assertRaisesRegex(AirflowException, re.escape(
             'The `keyfile_dict` and `key_path` fields are mutually exclusive.'
+        )):
+            self.instance._get_credentials_and_project_id()
+
+    def test_get_credentials_and_project_id_with_invalid_keyfile_dict(
+        self,
+    ):
+        self.instance.extras = {
+            'extra__google_cloud_platform__keyfile_dict': 'INVALID_DICT',
+        }
+        with self.assertRaisesRegex(AirflowException, re.escape(
+            'Invalid key JSON.'
         )):
             self.instance._get_credentials_and_project_id()
 
@@ -469,7 +507,7 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
             return
 
         scopes = credentials.scopes
-        self.assertEqual(tuple(hook._DEFAULT_SCOPES), tuple(scopes))
+        self.assertEqual(tuple(_DEFAULT_SCOPES), tuple(scopes))
 
     def test_provide_gcp_credential_file_decorator_key_path(self):
         key_path = '/test/key-path'

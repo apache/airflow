@@ -53,6 +53,7 @@ class FakeElasticsearch(Elasticsearch):
     __documents_dict = None
 
     def __init__(self):
+        super().__init__()
         self.__documents_dict = {}
 
     @query_params()

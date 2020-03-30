@@ -47,7 +47,7 @@ export VERBOSE_COMMANDS=${VERBOSE_COMMANDS:="false"}
 export FORWARD_CREDENTIALS=${FORWARD_CREDENTIALS:="false"}
 
 # Installs different airflow version than current from the sources
-export INSTALL_AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION:="current"}
+export INSTALL_AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION:=""}
 
 if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then
     DOCKER_COMPOSE_LOCAL=("-f" "${MY_DIR}/docker-compose/local.yml")
@@ -59,7 +59,7 @@ if [[ ${FORWARD_CREDENTIALS} == "true" ]]; then
     DOCKER_COMPOSE_LOCAL+=("-f" "${MY_DIR}/docker-compose/forward-credentials.yml")
 fi
 
-if [[ ${INSTALL_AIRFLOW_VERSION} != "current" ]]; then
+if [[ ${INSTALL_AIRFLOW_VERSION} != "" ]]; then
     DOCKER_COMPOSE_LOCAL+=("-f" "${MY_DIR}/docker-compose/remove-sources.yml")
 fi
 

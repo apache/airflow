@@ -26,6 +26,7 @@ from sqlalchemy.orm import synonym
 
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
+from airflow.secrets import get_variable
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 
@@ -95,25 +96,23 @@ class Variable(Base, LoggingMixin):
             return obj
 
     @classmethod
-    @provide_session
     def get(
         cls,
         key: str,
         default_var: Any = __NO_DEFAULT_SENTINEL,
         deserialize_json: bool = False,
-        session=None
     ):
-        obj = session.query(cls).filter(cls.key == key).first()
-        if obj is None:
+        var_val = get_variable(key=key)
+        if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
             else:
                 raise KeyError('Variable {} does not exist'.format(key))
         else:
             if deserialize_json:
-                return json.loads(obj.val)
+                return json.loads(var_val)
             else:
-                return obj.val
+                return var_val
 
     @classmethod
     @provide_session

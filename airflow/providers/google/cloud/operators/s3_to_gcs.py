@@ -90,6 +90,7 @@ class S3ToGCSOperator(S3ListOperator):
     template_fields = ('bucket', 'prefix', 'delimiter', 'dest_gcs')
     ui_color = '#e09411'
 
+    # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(self,
                  bucket,
@@ -143,6 +144,7 @@ class S3ToGCSOperator(S3ListOperator):
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to)
 
+        # pylint: disable=too-many-nested-blocks
         if not self.replace:
             # if we are not replacing -> list all files in the GCS bucket
             # and only keep those files which are present in
@@ -214,7 +216,7 @@ class S3ToGCSOperator(S3ListOperator):
     # Following functionality may be better suited in
     # airflow/contrib/hooks/gcs.py
     @staticmethod
-    def _gcs_object_is_directory(object):
-        _, blob = _parse_gcs_url(object)
+    def _gcs_object_is_directory(bucket):
+        _, blob = _parse_gcs_url(bucket)
 
         return len(blob) == 0 or blob.endswith('/')

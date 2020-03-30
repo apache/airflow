@@ -35,7 +35,7 @@ ENCODING_TYPE = "UTF32"
 class TestCloudNaturalLanguageHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            "airflow.contrib.hooks." "gcp_api_base_hook.CloudBaseHook.__init__",
+            "airflow.providers.google.cloud.hooks.base.CloudBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = CloudNaturalLanguageHook(gcp_conn_id="test")

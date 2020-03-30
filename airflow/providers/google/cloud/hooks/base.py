@@ -44,12 +44,13 @@ from googleapiclient.http import set_user_agent
 from airflow import version
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.providers.google.cloud.utils.credentials_provider import (
+    _get_scopes, get_credentials_and_project_id,
+)
 from airflow.utils.process_utils import patch_environ
 
 log = logging.getLogger(__name__)
 
-
-_DEFAULT_SCOPES = ('https://www.googleapis.com/auth/cloud-platform',)  # type: Sequence[str]
 
 # Constants used by the mechanism of repeating requests in reaction to exceeding the temporary quota.
 INVALID_KEYS = [
@@ -154,6 +155,7 @@ class CloudBaseHook(BaseHook):
     """
 
     def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: Optional[str] = None) -> None:
+        super().__init__()
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.extras = self.get_connection(self.gcp_conn_id).extra_dejson  # type: Dict
@@ -167,55 +169,21 @@ class CloudBaseHook(BaseHook):
         if self._cached_credentials is not None:
             return self._cached_credentials, self._cached_project_id
 
-        key_path = self._get_field('key_path', None)  # type: Optional[str]
-        keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[str]
-        if key_path and keyfile_dict:
-            raise AirflowException(
-                "The `keyfile_dict` and `key_path` fields are mutually exclusive. "
-                "Please provide only one value."
-            )
-        if not key_path and not keyfile_dict:
-            self.log.info(
-                'Getting connection using `google.auth.default()` since no key file is defined for hook.'
-            )
-            credentials, project_id = google.auth.default(scopes=self.scopes)
-        elif key_path:
-            # Get credentials from a JSON file.
-            if key_path.endswith('.json'):
-                self.log.debug('Getting connection using JSON key file %s', key_path)
-                credentials = (
-                    google.oauth2.service_account.Credentials.from_service_account_file(
-                        key_path, scopes=self.scopes)
-                )
-                project_id = credentials.project_id
-            elif key_path.endswith('.p12'):
-                raise AirflowException(
-                    'Legacy P12 key file are not supported, use a JSON key file.'
-                )
-            else:
-                raise AirflowException('Unrecognised extension for key file.')
-        else:
-            # Get credentials from JSON data provided in the UI.
-            try:
-                if not keyfile_dict:
-                    raise ValueError("The keyfile_dict should be set")
-                keyfile_dict_json: Dict[str, str] = json.loads(keyfile_dict)
+        key_path: Optional[str] = self._get_field('key_path', None)
+        try:
+            keyfile_dict: Optional[str] = self._get_field('keyfile_dict', None)
+            keyfile_dict_json: Optional[Dict[str, str]] = None
+            if keyfile_dict:
+                keyfile_dict_json = json.loads(keyfile_dict)
+        except json.decoder.JSONDecodeError:
+            raise AirflowException('Invalid key JSON.')
 
-                # Depending on how the JSON was formatted, it may contain
-                # escaped newlines. Convert those to actual newlines.
-                keyfile_dict_json['private_key'] = keyfile_dict_json['private_key'].replace(
-                    '\\n', '\n')
-
-                credentials = (
-                    google.oauth2.service_account.Credentials.from_service_account_info(
-                        keyfile_dict_json, scopes=self.scopes)
-                )
-                project_id = credentials.project_id
-            except json.decoder.JSONDecodeError:
-                raise AirflowException('Invalid key JSON.')
-
-        if self.delegate_to:
-            credentials = credentials.with_subject(self.delegate_to)
+        credentials, project_id = get_credentials_and_project_id(
+            key_path=key_path,
+            keyfile_dict=keyfile_dict_json,
+            scopes=self.scopes,
+            delegate_to=self.delegate_to
+        )
 
         overridden_project_id = self._get_field('project')
         if overridden_project_id:
@@ -308,8 +276,7 @@ class CloudBaseHook(BaseHook):
         """
         scope_value = self._get_field('scope', None)  # type: Optional[str]
 
-        return [s.strip() for s in scope_value.split(',')] \
-            if scope_value else _DEFAULT_SCOPES
+        return _get_scopes(scope_value)
 
     @staticmethod
     def quota_retry(*args, **kwargs) -> Callable:

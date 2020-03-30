@@ -19,6 +19,7 @@
 import gc
 import os
 import statistics
+import sys
 import time
 
 import click
@@ -27,21 +28,31 @@ MAX_DAG_RUNS_ALLOWED = 1
 
 
 class ShortCircutExecutorMixin:
+    '''
+    Mixin class to manage the scheduler state during the performance test run.
+    '''
     def __init__(self, stop_when_these_completed):
         super().__init__()
         self.reset(stop_when_these_completed)
 
     def reset(self, stop_when_these_completed):
+        '''
+        Capture the value that will determine when the scheduler is reset.
+        '''
         self.stop_when_these_completed = {
             # We want to store the dag run here, but we don't have them until they are created.
             key: None for key in stop_when_these_completed
         }
 
     def change_state(self, key, state):
+        '''
+        Change the state of scheduler by waiting till the tasks is complete
+        and then shut down the scheduler after the task is complete
+        '''
         from airflow.utils.state import State
         super().change_state(key, state)
 
-        dag_id, task_id, execution_date, __ = key
+        dag_id, _, execution_date, __ = key
         run_key = (dag_id, execution_date.timestamp())
         if run_key in self.stop_when_these_completed:
 
@@ -59,12 +70,16 @@ class ShortCircutExecutorMixin:
 
                 if not self.stop_when_these_completed:
                     self.log.warning("STOPPING SCHEDULER -- all runs complete")
-                    self.scheduler_job.processor_agent._done = True
+                    self.scheduler_job.processor_agent._done = True  # pylint: disable=protected-access
                 else:
                     self.log.warning("WAITING ON %d RUNS", len(self.stop_when_these_completed))
 
 
 def get_executor_under_test():
+    '''
+    Create and return a MockExecutor
+    '''
+
     try:
         # Run against master and 1.10.x releases
         from tests.test_utils.mock_executor import MockExecutor
@@ -74,15 +89,19 @@ def get_executor_under_test():
     # from airflow.executors.local_executor import LocalExecutor
 
     # Change this to try other executors
-    Executor = MockExecutor
-
-    class ShortCircutExecutor(ShortCircutExecutorMixin, Executor):
-        pass
+    class ShortCircutExecutor(ShortCircutExecutorMixin, MockExecutor):
+        '''
+        Placeholder class that implements the inheritance hierarchy
+        '''
+        scheduler_job = None
 
     return ShortCircutExecutor
 
 
 def reset_dag(dag, session):
+    '''
+    Delete all dag and task instances and then un_pause the Dag.
+    '''
     import airflow.models
 
     DR = airflow.models.DagRun
@@ -98,11 +117,17 @@ def reset_dag(dag, session):
 
 
 def pause_all_dags(session):
+    '''
+    Pause all Dags
+    '''
     from airflow.models.dag import DagModel
     session.query(DagModel).update({'is_paused': True})
 
 
 def create_dag_runs(dag, num_runs, session):
+    '''
+    Create  `num_runs` of dag runs for sub-sequent schedules
+    '''
     from airflow.models.dagrun import DagRun
     from airflow.utils import timezone
     from airflow.utils.state import State
@@ -130,7 +155,7 @@ def create_dag_runs(dag, num_runs, session):
         Warning: this makes the scheduler do (slightly) less work so may skew your numbers. Use sparingly!
         ''')
 @click.argument('dag_ids', required=True, nargs=-1)
-def main(num_runs, repeat, pre_create_dag_runs, dag_ids):
+def main(num_runs, repeat, pre_create_dag_runs, dag_ids):  # pylint: disable=too-many-locals
     """
     This script can be used to measure the total "scheduler overhead" of Airflow.
 
@@ -196,8 +221,11 @@ def main(num_runs, repeat, pre_create_dag_runs, dag_ids):
 
             end_date = dag.end_date or dag.default_args.get('end_date')
             if end_date != next_run_date:
-                exit(f"DAG {dag_id} has incorrect end_date ({end_date}) for number of runs! It should be"
-                     f" {next_run_date}")
+                message = (
+                    f"DAG {dag_id} has incorrect end_date ({end_date}) for number of runs! "
+                    f"It should be "
+                    f" {next_run_date}")
+                sys.exit(message)
 
             if pre_create_dag_runs:
                 create_dag_runs(dag, num_runs, session)
@@ -219,18 +247,18 @@ def main(num_runs, repeat, pre_create_dag_runs, dag_ids):
 
     # Need a lambda to refer to the _latest_ value fo scheduler_job, not just
     # the initial one
-    code_to_test = lambda: scheduler_job.run()
+    code_to_test = lambda: scheduler_job.run()  # pylint: disable=unnecessary-lambda
 
-    for n in range(repeat):
+    for count in range(repeat):
         gc.disable()
         start = time.perf_counter()
 
         code_to_test()
         times.append(time.perf_counter() - start)
         gc.enable()
-        print("Run %d time: %.5f" % (n + 1, times[-1]))
+        print("Run %d time: %.5f" % (count + 1, times[-1]))
 
-        if n + 1 != repeat:
+        if count + 1 != repeat:
             with db.create_session() as session:
                 for dag in dags:
                     reset_dag(dag, session)
@@ -259,4 +287,4 @@ def main(num_runs, repeat, pre_create_dag_runs, dag_ids):
 
 
 if __name__ == "__main__":
-    main()
+    main()  # pylint: disable=no-value-for-parameter

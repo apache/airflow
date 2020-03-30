@@ -27,7 +27,7 @@ GCP_CONN_ID = "google_cloud_default"
 class TestSearchAdsHook(TestCase):
     def setUp(self):
         with mock.patch(
-            "airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__",
+            "airflow.providers.google.marketing_platform.hooks.search_ads.CloudBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = GoogleSearchAdsHook(gcp_conn_id=GCP_CONN_ID)

@@ -46,6 +46,7 @@ class GrpcHook(BaseHook):
     """
 
     def __init__(self, grpc_conn_id, interceptors=None, custom_connection_func=None):
+        super().__init__()
         self.grpc_conn_id = grpc_conn_id
         self.conn = self.get_connection(self.grpc_conn_id)
         self.extras = self.conn.extra_dejson
@@ -96,6 +97,9 @@ class GrpcHook(BaseHook):
         return channel
 
     def run(self, stub_class, call_func, streaming=False, data=None):
+        """
+        Call gRPC function and yield response to caller
+        """
         if data is None:
             data = {}
         with self.get_conn() as channel:

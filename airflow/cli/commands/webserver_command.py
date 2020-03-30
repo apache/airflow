@@ -27,12 +27,14 @@ import time
 import daemon
 import psutil
 from daemon.pidfile import TimeoutPIDLockFile
+from lockfile.pidlockfile import read_pid_from_pidfile
 
 from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging
+from airflow.utils.process_utils import check_if_pidfile_process_is_running
 from airflow.www.app import cached_app, create_app
 
 log = logging.getLogger(__name__)
@@ -197,15 +199,17 @@ def webserver(args):
                 port=args.port, host=args.hostname,
                 ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None)
     else:
+        # This pre-warms the cache, and makes possible errors
+        # get reported earlier (i.e. before demonization)
         os.environ['SKIP_DAGS_PARSING'] = 'True'
         app = cached_app(None)
-        pid, stdout, stderr, log_file = setup_locations(
-            "webserver", args.pid, args.stdout, args.stderr, args.log_file)
         os.environ.pop('SKIP_DAGS_PARSING')
-        if args.daemon:
-            handle = setup_logging(log_file)
-            stdout = open(stdout, 'w+')
-            stderr = open(stderr, 'w+')
+
+        pid_file, stdout, stderr, log_file = setup_locations(
+            "webserver", args.pid, args.stdout, args.stderr, args.log_file)
+
+        # Check if webserver is already running if not, remove old pidfile
+        check_if_pidfile_process_is_running(pid_file=pid_file, process_name="webserver")
 
         print(
             textwrap.dedent('''\
@@ -227,7 +231,7 @@ def webserver(args):
             '-t', str(worker_timeout),
             '-b', args.hostname + ':' + str(args.port),
             '-n', 'airflow-webserver',
-            '-p', str(pid),
+            '-p', pid_file,
             '-c', 'python:airflow.www.gunicorn_config',
         ]
 
@@ -243,8 +247,7 @@ def webserver(args):
         if ssl_cert:
             run_args += ['--certfile', ssl_cert, '--keyfile', ssl_key]
 
-        webserver_module = 'www'
-        run_args += ["airflow." + webserver_module + ".app:cached_app()"]
+        run_args += ["airflow.www.app:cached_app()"]
 
         gunicorn_master_proc = None
 
@@ -254,6 +257,10 @@ def webserver(args):
             sys.exit(0)
 
         def monitor_gunicorn(gunicorn_master_proc):
+            # Register signal handlers
+            signal.signal(signal.SIGINT, kill_proc)
+            signal.signal(signal.SIGTERM, kill_proc)
+
             # These run forever until SIG{INT, TERM, KILL, ...} signal is sent
             if conf.getint('webserver', 'worker_refresh_interval') > 0:
                 master_timeout = conf.getint('webserver', 'web_server_master_timeout')
@@ -265,40 +272,31 @@ def webserver(args):
                 sys.exit(gunicorn_master_proc.returncode)
 
         if args.daemon:
-            base, ext = os.path.splitext(pid)
-            ctx = daemon.DaemonContext(
-                pidfile=TimeoutPIDLockFile(base + "-monitor" + ext, -1),
-                files_preserve=[handle],
-                stdout=stdout,
-                stderr=stderr,
-                signal_map={
-                    signal.SIGINT: kill_proc,
-                    signal.SIGTERM: kill_proc
-                },
-            )
-            with ctx:
-                subprocess.Popen(run_args, close_fds=True)
+            handle = setup_logging(log_file)
 
-                # Reading pid file directly, since Popen#pid doesn't
-                # seem to return the right value with DaemonContext.
-                while True:
-                    try:
-                        with open(pid) as file:
-                            gunicorn_master_proc_pid = int(file.read())
-                            break
-                    except OSError:
-                        log.debug("Waiting for gunicorn's pid file to be created.")
+            base, ext = os.path.splitext(pid_file)
+            with open(stdout, 'w+') as stdout, open(stderr, 'w+') as stderr:
+                ctx = daemon.DaemonContext(
+                    pidfile=TimeoutPIDLockFile(f"{base}-monitor{ext}", -1),
+                    files_preserve=[handle],
+                    stdout=stdout,
+                    stderr=stderr,
+                )
+                with ctx:
+                    subprocess.Popen(run_args, close_fds=True)
+
+                    # Reading pid of gunicorn master as it will be different that
+                    # the one of process spawned above.
+                    while True:
                         time.sleep(0.1)
+                        gunicorn_master_proc_pid = read_pid_from_pidfile(pid_file)
+                        if gunicorn_master_proc_pid:
+                            break
 
-                gunicorn_master_proc = psutil.Process(gunicorn_master_proc_pid)
-                monitor_gunicorn(gunicorn_master_proc)
+                    # Run Gunicorn monitor
+                    gunicorn_master_proc = psutil.Process(gunicorn_master_proc_pid)
+                    monitor_gunicorn(gunicorn_master_proc)
 
-            stdout.close()
-            stderr.close()
         else:
             gunicorn_master_proc = subprocess.Popen(run_args, close_fds=True)
-
-            signal.signal(signal.SIGINT, kill_proc)
-            signal.signal(signal.SIGTERM, kill_proc)
-
             monitor_gunicorn(gunicorn_master_proc)

@@ -1026,9 +1026,9 @@ These integrations allow you to perform various operations within various servic
      - :mod:`airflow.providers.google.marketing_platform.sensors.search_ads`
 
    * - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
-     -
+     - :doc:`How to use <howto/operator/gcp/sheets>`
      - :mod:`airflow.providers.google.suite.hooks.sheets`
-     -
+     - :mod:`airflow.providers.google.suite.operators.sheets`
      -
 
    * - `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__

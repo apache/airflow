@@ -27,6 +27,16 @@ def set_common_options(spark_source,
                        user='root',
                        password='root',
                        driver='driver'):
+    """
+    Get Spark source from JDBC connection
+
+    :param spark_source: Spark source, here is Spark reader or writer
+    :param url: JDBC resource url
+    :param jdbc_table: JDBC resource table name
+    :param user: JDBC resource user name
+    :param password: JDBC resource password
+    :param driver: JDBC resource driver
+    """
 
     spark_source = spark_source \
         .format('jdbc') \
@@ -38,10 +48,14 @@ def set_common_options(spark_source,
     return spark_source
 
 
-def spark_write_to_jdbc(spark, url, user, password, metastore_table, jdbc_table, driver,
+# pylint: disable=too-many-arguments
+def spark_write_to_jdbc(spark_session, url, user, password, metastore_table, jdbc_table, driver,
                         truncate, save_mode, batch_size, num_partitions,
                         create_table_column_types):
-    writer = spark \
+    """
+    Transfer data from Spark to JDBC source
+    """
+    writer = spark_session \
         .table(metastore_table) \
         .write \
 
@@ -62,12 +76,16 @@ def spark_write_to_jdbc(spark, url, user, password, metastore_table, jdbc_table,
         .save(mode=save_mode)
 
 
-def spark_read_from_jdbc(spark, url, user, password, metastore_table, jdbc_table, driver,
+# pylint: disable=too-many-arguments
+def spark_read_from_jdbc(spark_session, url, user, password, metastore_table, jdbc_table, driver,
                          save_mode, save_format, fetch_size, num_partitions,
                          partition_column, lower_bound, upper_bound):
+    """
+    Transfer data from JDBC source to Spark
+    """
 
     # first set common options
-    reader = set_common_options(spark.read, url, jdbc_table, user, password, driver)
+    reader = set_common_options(spark_session.read, url, jdbc_table, user, password, driver)
 
     # now set specific read options
     if fetch_size:

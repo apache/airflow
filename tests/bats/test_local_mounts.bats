@@ -21,7 +21,7 @@
 @test "convert volume list to docker params" {
   load bats_utils
 
-  initialize_breeze_environment
+  initialize_common_environment
 
   run convert_local_mounts_to_docker_params
   diff <(echo "${output}") - << EOF
@@ -46,7 +46,7 @@ ${AIRFLOW_SOURCES}/.rat-excludes:/opt/airflow/.rat-excludes:cached
 -v
 ${AIRFLOW_SOURCES}/CHANGELOG.txt:/opt/airflow/CHANGELOG.txt:cached
 -v
-${AIRFLOW_SOURCES}/Dockerfile:/opt/airflow/Dockerfile:cached
+${AIRFLOW_SOURCES}/Dockerfile.ci:/opt/airflow/Dockerfile.ci:cached
 -v
 ${AIRFLOW_SOURCES}/LICENSE:/opt/airflow/LICENSE:cached
 -v
@@ -75,6 +75,8 @@ ${AIRFLOW_SOURCES}/logs:/root/airflow/logs:cached
 ${AIRFLOW_SOURCES}/pylintrc:/opt/airflow/pylintrc:cached
 -v
 ${AIRFLOW_SOURCES}/pytest.ini:/opt/airflow/pytest.ini:cached
+-v
+${AIRFLOW_SOURCES}/requirements:/opt/airflow/requirements:cached
 -v
 ${AIRFLOW_SOURCES}/scripts:/opt/airflow/scripts:cached
 -v

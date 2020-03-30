@@ -58,6 +58,7 @@ class OracleToAzureDataLakeTransfer(BaseOperator):
     template_fields = ('filename', 'sql', 'sql_params')
     ui_color = '#e08c8c'
 
+    # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
             self,

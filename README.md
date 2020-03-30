@@ -27,7 +27,8 @@
 [![Twitter Follow](https://img.shields.io/twitter/follow/ApacheAirflow.svg?style=social&label=Follow)](https://twitter.com/ApacheAirflow)
 [![Slack Status](https://img.shields.io/badge/slack-join_chat-white.svg?logo=slack&style=social)](https://apache-airflow-slack.herokuapp.com/)
 
-Apache Airflow (or simply Airflow) is a platform to programmatically author, schedule, and monitor workflows.
+[Apache Airflow](https://airflow.apache.org/docs/stable/) (or simply Airflow) is a platform to programmatically author, schedule, and monitor
+ workflows.
 
 When workflows are defined as code, they become more maintainable,
 versionable, testable, and collaborative.
@@ -59,14 +60,14 @@ Apache Airflow is tested with:
 ### Master version (2.0.0dev)
 
 * Python versions: 3.6, 3.7
-* Postgres DB: 9.6 10
+* Postgres DB: 9.6, 10
 * MySQL DB: 5.7
 * Sqlite - latest stable (it is used mainly for development purpose)
 
 ### Stable version (1.10.9)
 
 * Python versions: 2.7, 3.5, 3.6, 3.7
-* Postgres DB: 9.6 10
+* Postgres DB: 9.6, 10
 * MySQL DB: 5.6, 5.7
 * Sqlite - latest stable (it is used mainly for development purpose)
 
@@ -143,7 +144,7 @@ packages can only be used in python3.6+ environment.
 Therefore we decided to prepare and release backport packages that can be installed
 for older Airflow versions. Those backport packages are released more frequently. Users do not
 have to upgrade their Airflow version to use those packages. There are a number of changes
-between Airflow 2.0 and 1.10.* - documented in [UPDATING.md](../UPDATING.md). With backported
+between Airflow 2.0 and 1.10.* - documented in [UPDATING.md](UPDATING.md). With backported
 providers package users can migrate their DAGs to the new providers package incrementally
 and once they convert to the new operators/sensors/hooks they can seamlessly migrate their
 environments to Airflow 2.0.
@@ -248,6 +249,7 @@ Currently **officially** using Airflow:
 1. [Classmethod, Inc.](https://classmethod.jp/) [[@shoito](https://github.com/shoito)]
 1. [Cleartax](https://cleartax.in/) [[@anks](https://github.com/anks) & [@codebuff](https://github.com/codebuff)]
 1. [Clover Health](https://www.cloverhealth.com) [[@gwax](https://github.com/gwax) & [@vansivallab](https://github.com/vansivallab)]
+1. [Colgate-Palmolive](https://www.colgatepalmolive.com/) [[@fhoda](https://github.com/fhoda)]
 1. [Collectivehealth Inc.](https://www.collectivehealth.com) [[@retornam](https://github.com/retornam)]
 1. [Compass](https://www.compass.com) [[@wdhorton](https://github.com/wdhorton)]
 1. [ConnectWise](https://www.connectwise.com/) [[@jacobeturpin](https://github.com/jacobeturpin)]
@@ -512,6 +514,6 @@ Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.
 
 ## Links
 
-- [Documentation](https://airflow.apache.org/)
+- [Documentation](https://airflow.apache.org/docs/stable/)
 - [Chat](https://apache-airflow-slack.herokuapp.com/)
 - [More](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links)

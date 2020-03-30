@@ -28,8 +28,6 @@ mergeable:
           - must_exclude:
               regex: ^\[DONT-MERGE\]
               message: Do not merge this PR yet.
-        begins_with:
-          match: '[AIRFLOW-'
       - do: label
         must_exclude:
           regex: 'wip'

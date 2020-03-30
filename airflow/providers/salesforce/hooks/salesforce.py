@@ -50,9 +50,12 @@ class SalesforceHook(BaseHook):
         We need a user's security token to connect to Salesforce.
         So we define it in the `Extras` field as `{"security_token":"YOUR_SECURITY_TOKEN"}`
 
+        For sandbox mode, add `{"domain":"test"}` in the `Extras` field
+
     """
 
     def __init__(self, conn_id):
+        super().__init__()
         self.conn_id = conn_id
         self.conn = None
 
@@ -68,7 +71,7 @@ class SalesforceHook(BaseHook):
                 password=connection.password,
                 security_token=extras['security_token'],
                 instance_url=connection.host,
-                sandbox=extras.get('sandbox', False)
+                domain=extras.get('domain', None)
             )
         return self.conn
 

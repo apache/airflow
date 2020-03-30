@@ -118,7 +118,7 @@ class MLEngineHook(CloudBaseHook):
         hook = self.get_conn()
 
         self._append_label(job)
-
+        self.log.info("Creating job.")
         request = hook.projects().jobs().create(  # pylint: disable=no-member
             parent='projects/{}'.format(project_id),
             body=job)
@@ -236,6 +236,8 @@ class MLEngineHook(CloudBaseHook):
         :type interval: int
         :raises: googleapiclient.errors.HttpError
         """
+        self.log.info("Waiting for job. job_id=%s", job_id)
+
         if interval <= 0:
             raise ValueError("Interval must be > 0")
         while True:
@@ -415,16 +417,42 @@ class MLEngineHook(CloudBaseHook):
         :raises: googleapiclient.errors.HttpError
         """
         hook = self.get_conn()
-        if not model['name']:
+        if 'name' not in model or not model['name']:
             raise ValueError("Model name must be provided and "
                              "could not be an empty string")
         project = 'projects/{}'.format(project_id)
 
         self._append_label(model)
+        try:
+            request = hook.projects().models().create(  # pylint: disable=no-member
+                parent=project, body=model)
+            respone = request.execute()
+        except HttpError as e:
+            if e.resp.status != 409:
+                raise e
+            str(e)  # Fills in the error_details field
+            if not e.error_details or len(e.error_details) != 1:
+                raise e
 
-        request = hook.projects().models().create(  # pylint: disable=no-member
-            parent=project, body=model)
-        return request.execute()
+            error_detail = e.error_details[0]
+            if error_detail["@type"] != 'type.googleapis.com/google.rpc.BadRequest':
+                raise e
+
+            if "fieldViolations" not in error_detail or len(error_detail['fieldViolations']) != 1:
+                raise e
+
+            field_violation = error_detail['fieldViolations'][0]
+            if (
+                field_violation["field"] != "model.name" or
+                field_violation["description"] != "A model with the same name already exists."
+            ):
+                raise e
+            respone = self.get_model(
+                model_name=model['name'],
+                project_id=project_id
+            )
+
+        return respone
 
     @CloudBaseHook.fallback_to_default_project_id
     def get_model(

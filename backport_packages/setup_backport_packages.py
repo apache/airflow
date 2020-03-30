@@ -102,6 +102,7 @@ PROVIDERS_DEPENDENCIES: Dict[str, List[str]] = {
     "ftp": [],
     "google": setup.gcp,
     "grpc": setup.grpc,
+    "hashicorp": setup.hashicorp,
     "http": [],
     "imap": [],
     "jdbc": setup.jdbc,
@@ -126,6 +127,7 @@ PROVIDERS_DEPENDENCIES: Dict[str, List[str]] = {
     "samba": setup.samba,
     "segment": setup.segment,
     "sftp": setup.ssh,
+    "singularity": setup.singularity,
     "slack": setup.slack,
     "snowflake": setup.snowflake,
     "sqlite": [],
@@ -141,6 +143,7 @@ DEPENDENCIES_JSON_FILE = os.path.join(os.pardir, "airflow", "providers", "depend
 def change_import_paths_to_deprecated():
     from bowler import LN, TOKEN, Capture, Filename, Query
     from fissix.pytree import Leaf
+    from fissix.fixer_util import KeywordArg, Name, Comma
 
     def remove_tags_modifier(node: LN, capture: Capture, filename: Filename) -> None:
         for node in capture['function_arguments'][0].post_order():
@@ -152,6 +155,35 @@ def change_import_paths_to_deprecated():
     def pure_airflow_models_filter(node: LN, capture: Capture, filename: Filename) -> bool:
         """Check if select is exactly [airflow, . , models]"""
         return len([ch for ch in node.children[1].leaves()]) == 3
+
+    def remove_super_init_call(node: LN, capture: Capture, filename: Filename) -> None:
+        for ch in node.post_order():
+            if isinstance(ch, Leaf) and ch.value == "super":
+                if any(c.value for c in ch.parent.post_order() if isinstance(c, Leaf)):
+                    ch.parent.remove()
+
+    def add_provide_context_to_python_operator(node: LN, capture: Capture, filename: Filename) -> None:
+        fn_args = capture['function_arguments'][0]
+        fn_args.append_child(Comma())
+
+        provide_context_arg = KeywordArg(Name('provide_context'), Name('True'))
+        provide_context_arg.prefix = fn_args.children[0].prefix
+        fn_args.append_child(provide_context_arg)
+
+    def remove_class(qry, class_name) -> None:
+        def _remover(node: LN, capture: Capture, filename: Filename) -> None:
+            if node.type == 300:
+                for ch in node.post_order():
+                    if isinstance(ch, Leaf) and ch.value == class_name:
+                        if ch.next_sibling and ch.next_sibling.value == ",":
+                            ch.next_sibling.remove()
+                        ch.remove()
+            elif node.type == 311:
+                node.parent.remove()
+            else:
+                node.remove()
+
+        qry.select_class(class_name).modify(_remover)
 
     changes = [
         ("airflow.operators.bash", "airflow.operators.bash_operator"),
@@ -166,9 +198,9 @@ def change_import_paths_to_deprecated():
     # Move and refactor imports for Dataflow
     copyfile(
         os.path.join(dirname(__file__), os.pardir, "airflow", "utils", "python_virtualenv.py"),
-        os.path.join(dirname(__file__), "airflow", "providers",
-                     "google", "cloud", "utils", "python_virtualenv.py"
-                     )
+        os.path.join(
+            dirname(__file__), "airflow", "providers", "google", "cloud", "utils", "python_virtualenv.py"
+        )
     )
     (
         qry
@@ -177,9 +209,9 @@ def change_import_paths_to_deprecated():
     )
     copyfile(
         os.path.join(dirname(__file__), os.pardir, "airflow", "utils", "process_utils.py"),
-        os.path.join(dirname(__file__), "airflow", "providers",
-                     "google", "cloud", "utils", "process_utils.py"
-                     )
+        os.path.join(
+            dirname(__file__), "airflow", "providers", "google", "cloud", "utils", "process_utils.py"
+        )
     )
     (
         qry
@@ -200,6 +232,18 @@ def change_import_paths_to_deprecated():
     files = r"bigquery\.py|mlengine\.py"  # noqa
     qry.select_module("airflow.models").is_filename(include=files).filter(pure_airflow_models_filter).rename(
         "airflow.models.baseoperator")
+
+    # Fix super().__init__() call in hooks
+    qry.select_subclass("BaseHook").modify(remove_super_init_call)
+
+    (
+        qry.select_function("PythonOperator")
+        .is_call()
+        .is_filename(include=r"mlengine_operator_utils.py$")
+        .modify(add_provide_context_to_python_operator)
+    )
+
+    remove_class(qry, "GKEStartPodOperator")
 
     qry.execute(write=True, silent=False, interactive=False)
 

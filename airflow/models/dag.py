@@ -24,7 +24,7 @@ import pickle
 import re
 import sys
 import traceback
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 from datetime import datetime, timedelta
 from typing import Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Type, Union
 
@@ -39,9 +39,7 @@ from sqlalchemy.orm.session import Session
 from airflow import settings, utils
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag
-from airflow.exceptions import (
-    AirflowDagCycleException, AirflowException, DagNotFound, DuplicateTaskIdFound, TaskNotFound,
-)
+from airflow.exceptions import AirflowException, DuplicateTaskIdFound, TaskNotFound
 from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
@@ -49,7 +47,6 @@ from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
-from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, STORE_SERIALIZED_DAGS
 from airflow.utils import timezone
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.file import correct_maybe_zipped
@@ -1407,8 +1404,8 @@ class DAG(BaseDag, LoggingMixin):
         """
         Exposes a CLI specific to this DAG
         """
-        from airflow.bin import cli
-        parser = cli.CLIFactory.get_parser(dag_parser=True)
+        from airflow.cli import cli_parser
+        parser = cli_parser.get_parser(dag_parser=True)
         args = parser.parse_args()
         args.func(args, self)
 
@@ -1475,7 +1472,6 @@ class DAG(BaseDag, LoggingMixin):
         """
         if not dags:
             return
-        from airflow.models.serialized_dag import SerializedDagModel
 
         if sync_time is None:
             sync_time = timezone.utcnow()
@@ -1539,13 +1535,6 @@ class DAG(BaseDag, LoggingMixin):
 
         for dag in dags:
             cls.bulk_sync_to_db(dag.subdags, sync_time=sync_time, session=session)
-
-            if STORE_SERIALIZED_DAGS and not dag.is_subdag:
-                SerializedDagModel.write_dag(
-                    dag,
-                    min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
-                    session=session
-                )
 
     @provide_session
     def sync_to_db(self, sync_time=None, session=None):
@@ -1639,44 +1628,6 @@ class DAG(BaseDag, LoggingMixin):
             else:
                 qry = qry.filter(TaskInstance.state.in_(states))
         return qry.scalar()
-
-    def test_cycle(self):
-        """
-        Check to see if there are any cycles in the DAG. Returns False if no cycle found,
-        otherwise raises exception.
-        """
-        from airflow.models.dagbag import DagBag  # Avoid circular imports
-
-        # default of int is 0 which corresponds to CYCLE_NEW
-        visit_map = defaultdict(int)
-        for task_id in self.task_dict.keys():
-            # print('starting %s' % task_id)
-            if visit_map[task_id] == DagBag.CYCLE_NEW:
-                self._test_cycle_helper(visit_map, task_id)
-        return False
-
-    def _test_cycle_helper(self, visit_map, task_id):
-        """
-        Checks if a cycle exists from the input task using DFS traversal
-        """
-        from airflow.models.dagbag import DagBag  # Avoid circular imports
-
-        # print('Inspecting %s' % task_id)
-        if visit_map[task_id] == DagBag.CYCLE_DONE:
-            return False
-
-        visit_map[task_id] = DagBag.CYCLE_IN_PROGRESS
-
-        task = self.task_dict[task_id]
-        for descendant_id in task.get_direct_relative_ids():
-            if visit_map[descendant_id] == DagBag.CYCLE_IN_PROGRESS:
-                msg = "Cycle detected in DAG. Faulty task: {0} to {1}".format(
-                    task_id, descendant_id)
-                raise AirflowDagCycleException(msg)
-            else:
-                self._test_cycle_helper(visit_map, descendant_id)
-
-        visit_map[task_id] = DagBag.CYCLE_DONE
 
     @classmethod
     def get_serialized_fields(cls):
@@ -1797,20 +1748,6 @@ class DagModel(Base):
     def safe_dag_id(self):
         return self.dag_id.replace('.', '__dot__')
 
-    def get_dag(self, store_serialized_dags=False):
-        """Creates a dagbag to load and return a DAG.
-
-        Calling it from UI should set store_serialized_dags = STORE_SERIALIZED_DAGS.
-        There may be a delay for scheduler to write serialized DAG into database,
-        loads from file in this case.
-        FIXME: remove it when webserver does not access to DAG folder in future.
-        """
-        dag = DagBag(
-            dag_folder=self.fileloc, store_serialized_dags=store_serialized_dags).get_dag(self.dag_id)
-        if store_serialized_dags and dag is None:
-            dag = self.get_dag()
-        return dag
-
     @provide_session
     def create_dagrun(self,
                       run_id,
@@ -1850,31 +1787,27 @@ class DagModel(Base):
     def set_is_paused(self,
                       is_paused: bool,
                       including_subdags: bool = True,
-                      store_serialized_dags: bool = False,
                       session=None) -> None:
         """
         Pause/Un-pause a DAG.
 
         :param is_paused: Is the DAG paused
         :param including_subdags: whether to include the DAG's subdags
-        :param store_serialized_dags: whether to serialize DAGs & store it in DB
         :param session: session
         """
-        dag_ids = [self.dag_id]  # type: List[str]
+        filter_query = [
+            DagModel.dag_id == self.dag_id,
+        ]
         if including_subdags:
-            dag = self.get_dag(store_serialized_dags)
-            if dag is None:
-                raise DagNotFound("Dag id {} not found".format(self.dag_id))
-            subdags = dag.subdags
-            dag_ids.extend([subdag.dag_id for subdag in subdags])
-        dag_models = session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).all()
-        try:
-            for dag_model in dag_models:
-                dag_model.is_paused = is_paused
-            session.commit()
-        except Exception:
-            session.rollback()
-            raise
+            filter_query.append(
+                DagModel.root_dag_id == self.dag_id
+            )
+        session.query(DagModel).filter(or_(
+            *filter_query
+        )).update(
+            {DagModel.is_paused: is_paused}, synchronize_session='fetch'
+        )
+        session.commit()
 
     @classmethod
     @provide_session

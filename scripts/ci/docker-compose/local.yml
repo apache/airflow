@@ -35,7 +35,7 @@ services:
       - ../../../.kube:/root/.kube:cached
       - ../../../.rat-excludes:/opt/airflow/.rat-excludes:cached
       - ../../../CHANGELOG.txt:/opt/airflow/CHANGELOG.txt:cached
-      - ../../../Dockerfile:/opt/airflow/Dockerfile:cached
+      - ../../../Dockerfile.ci:/opt/airflow/Dockerfile.ci:cached
       - ../../../LICENSE:/opt/airflow/LICENSE:cached
       - ../../../MANIFEST.in:/opt/airflow/MANIFEST.in:cached
       - ../../../NOTICE:/opt/airflow/NOTICE:cached
@@ -50,6 +50,7 @@ services:
       - ../../../logs:/root/airflow/logs:cached
       - ../../../pylintrc:/opt/airflow/pylintrc:cached
       - ../../../pytest.ini:/opt/airflow/pytest.ini:cached
+      - ../../../requirements:/opt/airflow/requirements:cached
       - ../../../scripts:/opt/airflow/scripts:cached
       - ../../../scripts/ci/in_container/entrypoint_ci.sh:/entrypoint_ci.sh:cached
       - ../../../setup.cfg:/opt/airflow/setup.cfg:cached

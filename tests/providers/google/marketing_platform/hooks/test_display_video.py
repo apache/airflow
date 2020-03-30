@@ -27,7 +27,7 @@ GCP_CONN_ID = "google_cloud_default"
 class TestGoogleDisplayVideo360Hook(TestCase):
     def setUp(self):
         with mock.patch(
-            "airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__",
+            "airflow.providers.google.cloud.hooks.base.CloudBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = GoogleDisplayVideo360Hook(gcp_conn_id=GCP_CONN_ID)

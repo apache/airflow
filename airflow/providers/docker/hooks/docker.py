@@ -38,6 +38,7 @@ class DockerHook(BaseHook, LoggingMixin):
                  version=None,
                  tls=None
                  ):
+        super().__init__()
         if not base_url:
             raise AirflowException('No Docker base URL provided')
         if not version:
@@ -60,7 +61,7 @@ class DockerHook(BaseHook, LoggingMixin):
         self.__username = conn.login
         self.__password = conn.password
         self.__email = extra_options.get('email')
-        self.__reauth = False if extra_options.get('reauth') == 'no' else True
+        self.__reauth = extra_options.get('reauth') != 'no'
 
     def get_conn(self):
         client = APIClient(
@@ -84,4 +85,4 @@ class DockerHook(BaseHook, LoggingMixin):
             self.log.debug('Login successful')
         except APIError as docker_error:
             self.log.error('Docker registry login failed: %s', str(docker_error))
-            raise AirflowException('Docker registry login failed: %s', str(docker_error))
+            raise AirflowException(f'Docker registry login failed: {docker_error}')

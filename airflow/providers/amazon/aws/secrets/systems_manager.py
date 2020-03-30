@@ -18,39 +18,42 @@
 """
 Objects relating to sourcing connections from AWS SSM Parameter Store
 """
-from typing import List, Optional
+from typing import Optional
 
 import boto3
 from cached_property import cached_property
 
-from airflow.models import Connection
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class AwsSsmSecretsBackend(BaseSecretsBackend, LoggingMixin):
+class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
     """
-    Retrieves Connection object from AWS SSM Parameter Store
+    Retrieves Connection or Variables from AWS SSM Parameter Store
 
     Configurable via ``airflow.cfg`` like so:
 
     .. code-block:: ini
 
         [secrets]
-        backend = airflow.providers.amazon.aws.secrets.ssm.AwsSsmSecretsBackend
+        backend = airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend
         backend_kwargs = {"connections_prefix": "/airflow/connections", "profile_name": null}
 
     For example, if ssm path is ``/airflow/connections/smtp_default``, this would be accessible
     if you provide ``{"connections_prefix": "/airflow/connections"}`` and request conn_id ``smtp_default``.
+    And if ssm path is ``/airflow/variables/hello``, this would be accessible
+    if you provide ``{"variables_prefix": "/airflow/variables"}`` and request conn_id ``hello``.
     """
 
     def __init__(
         self,
         connections_prefix: str = '/airflow/connections',
+        variables_prefix: str = '/airflow/variables',
         profile_name: Optional[str] = None,
         **kwargs
     ):
         self.connections_prefix = connections_prefix.rstrip("/")
+        self.variables_prefix = variables_prefix.rstrip('/')
         self.profile_name = profile_name
         super().__init__(**kwargs)
 
@@ -62,16 +65,6 @@ class AwsSsmSecretsBackend(BaseSecretsBackend, LoggingMixin):
         session = boto3.Session(profile_name=self.profile_name)
         return session.client("ssm")
 
-    def build_ssm_path(self, conn_id: str):
-        """
-        Given conn_id, build SSM path.
-
-        :param conn_id: connection id
-        :type conn_id: str
-        """
-        param_path = self.connections_prefix + "/" + conn_id
-        return param_path
-
     def get_conn_uri(self, conn_id: str) -> Optional[str]:
         """
         Get param value
@@ -80,7 +73,27 @@ class AwsSsmSecretsBackend(BaseSecretsBackend, LoggingMixin):
         :type conn_id: str
         """
 
-        ssm_path = self.build_ssm_path(conn_id=conn_id)
+        return self._get_secret(self.connections_prefix, conn_id)
+
+    def get_variable(self, key: str) -> Optional[str]:
+        """
+        Get Airflow Variable from Environment Variable
+
+        :param key: Variable Key
+        :return: Variable Value
+        """
+        return self._get_secret(self.variables_prefix, key)
+
+    def _get_secret(self, path_prefix: str, secret_id: str) -> Optional[str]:
+        """
+        Get secret value from Parameter Store.
+
+        :param path_prefix: Prefix for the Path to get Secret
+        :type path_prefix: str
+        :param secret_id: Secret Key
+        :type secret_id: str
+        """
+        ssm_path = self.build_path(path_prefix, secret_id)
         try:
             response = self.client.get_parameter(
                 Name=ssm_path, WithDecryption=False
@@ -93,16 +106,3 @@ class AwsSsmSecretsBackend(BaseSecretsBackend, LoggingMixin):
                 "Parameter %s not found.", ssm_path
             )
             return None
-
-    def get_connections(self, conn_id: str) -> List[Connection]:
-        """
-        Create connection object.
-
-        :param conn_id: connection id
-        :type conn_id: str
-        """
-        conn_uri = self.get_conn_uri(conn_id=conn_id)
-        if not conn_uri:
-            return []
-        conn = Connection(conn_id=conn_id, uri=conn_uri)
-        return [conn]

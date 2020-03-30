@@ -25,9 +25,7 @@ from airflow import DAG
 from airflow.models.baseoperator import chain
 from airflow.operators.bash import BashOperator
 
-"""
-DAG File used in performance tests. Its shape can be configured by environment variables.
-"""
+# DAG File used in performance tests. Its shape can be configured by environment variables.
 RE_TIME_DELTA = re.compile(
     r"^((?P<days>[\.\d]+?)d)?((?P<hours>[\.\d]+?)h)?((?P<minutes>[\.\d]+?)m)?((?P<seconds>[\.\d]+?)s)?$"
 )
@@ -42,10 +40,13 @@ def parse_time_delta(time_str: str):
     """
     parts = RE_TIME_DELTA.match(time_str)
 
+    # pylint: disable=do-not-use-asserts
     assert parts is not None, (
         f"Could not parse any time information from '{time_str}'. "
         f"Examples of valid strings: '8h', '2d8h5m20s', '2m4s'"
     )
+    # pylint: enable=do-not-use-asserts
+
     time_params = {name: float(param) for name, param in parts.groupdict().items() if param}
     return timedelta(**time_params)  # type: ignore
 
@@ -76,6 +77,9 @@ def safe_dag_id(s: str) -> str:
 # TODO: We should add more shape types e.g. binary tree
 @enum.unique
 class DagShape(Enum):
+    '''
+    Define shape of the Dag that will be used for testing.
+    '''
     NO_STRUCTURE = "no_structure"
     LINEAR = "linear"
 
@@ -84,7 +88,7 @@ DAG_PREFIX = os.environ.get("PERF_DAG_PREFIX", "perf_scheduler")
 DAG_COUNT = int(os.environ["PERF_DAGS_COUNT"])
 TASKS_COUNT = int(os.environ["PERF_TASKS_COUNT"])
 START_DATE_ENV = os.environ.get("PERF_START_AGO", "1h")
-START_DATE = datetime.now() + parse_time_delta(START_DATE_ENV)
+START_DATE = datetime.now() - parse_time_delta(START_DATE_ENV)
 SCHEDULE_INTERVAL_ENV = os.environ.get("PERF_SCHEDULE_INTERVAL", "@once")
 SCHEDULE_INTERVAL = parse_schedule_interval(SCHEDULE_INTERVAL_ENV)
 SHAPE = DagShape(os.environ["PERF_SHAPE"])

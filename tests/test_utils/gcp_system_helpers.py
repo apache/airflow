@@ -16,12 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+import tempfile
 from contextlib import contextmanager
 from tempfile import TemporaryDirectory
 from typing import List, Optional, Sequence
+from unittest import mock
 
 import pytest
-from google.auth.environment_vars import CREDENTIALS
+from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
 
 from airflow.providers.google.cloud.utils.credentials_provider import provide_gcp_conn_and_credentials
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
@@ -34,6 +36,9 @@ CLOUD_DAG_FOLDER = os.path.join(
 )
 MARKETING_DAG_FOLDER = os.path.join(
     AIRFLOW_MAIN_FOLDER, "airflow", "providers", "google", "marketing_platform", "example_dags"
+)
+GSUITE_DAG_FOLDER = os.path.join(
+    AIRFLOW_MAIN_FOLDER, "airflow", "providers", "google", "suite", "example_dags"
 )
 FIREBASE_DAG_FOLDER = os.path.join(
     AIRFLOW_MAIN_FOLDER, "airflow", "providers", "google", "firebase", "example_dags"
@@ -56,17 +61,19 @@ def resolve_full_gcp_key_path(key: str) -> str:
     return key
 
 
+@contextmanager
 def provide_gcp_context(
     key_file_path: Optional[str] = None,
     scopes: Optional[Sequence] = None,
     project_id: Optional[str] = None,
 ):
     """
-    Context manager that provides both:
+    Context manager that provides:
 
     - GCP credentials for application supporting `Application Default Credentials (ADC)
     strategy <https://cloud.google.com/docs/authentication/production>`__.
     - temporary value of ``AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT`` connection
+    - the ``gcloud`` config directory isolated from user configuration
 
     Moreover it resolves full path to service keys so user can pass ``myservice.json``
     as ``key_file_path``.
@@ -79,9 +86,20 @@ def provide_gcp_context(
     :type project_id: str
     """
     key_file_path = resolve_full_gcp_key_path(key_file_path)  # type: ignore
-    return provide_gcp_conn_and_credentials(
-        key_file_path=key_file_path, scopes=scopes, project_id=project_id
-    )
+    with provide_gcp_conn_and_credentials(key_file_path, scopes, project_id), \
+            tempfile.TemporaryDirectory() as gcloud_config_tmp, \
+            mock.patch.dict('os.environ', {CLOUD_SDK_CONFIG_DIR: gcloud_config_tmp}):
+        executor = get_executor()
+
+        if project_id:
+            executor.execute_cmd([
+                "gcloud", "config", "set", "core/project", project_id
+            ])
+        if key_file_path:
+            executor.execute_cmd([
+                "gcloud", "auth", "activate-service-account", f"--key-file={key_file_path}",
+            ])
+        yield
 
 
 @pytest.mark.system("google")
@@ -94,87 +112,63 @@ class GoogleSystemTest(SystemTest):
     def _service_key():
         return os.environ.get(CREDENTIALS)
 
-    @staticmethod
-    @contextmanager
-    def authentication():
-        GoogleSystemTest._authenticate()
-        try:
-            yield
-        finally:
-            GoogleSystemTest._revoke_authentication()
-
-    @staticmethod
-    def _authenticate():
-        """
-        Authenticate with service account specified via key name.
-        Required only when we use gcloud / gsutil.
-        """
-        executor = get_executor()
-        executor.execute_cmd(
-            [
-                "gcloud",
-                "auth",
-                "activate-service-account",
-                f"--key-file={GoogleSystemTest._service_key()}",
-                f"--project={GoogleSystemTest._project_id()}",
-            ]
-        )
-
-    @staticmethod
-    def _revoke_authentication():
-        """
-        Change default authentication to none - which is not existing one.
-        """
-        executor = get_executor()
-        executor.execute_cmd(
-            [
-                "gcloud",
-                "config",
-                "set",
-                "account",
-                "none",
-                f"--project={GoogleSystemTest._project_id()}",
-            ]
-        )
-
-    @staticmethod
-    def execute_with_ctx(cmd: List[str], key: str = GCP_GCS_KEY):
+    @classmethod
+    def execute_with_ctx(cls, cmd: List[str], key: str = GCP_GCS_KEY, project_id=None, scopes=None):
         """
         Executes command with context created by provide_gcp_context and activated
         service key.
         """
         executor = get_executor()
-        with provide_gcp_context(key), GoogleSystemTest.authentication():
-            env = os.environ.copy()
-            executor.execute_cmd(cmd=cmd, env=env)
+        current_project_id = project_id or cls._project_id()
+        with provide_gcp_context(key, project_id=current_project_id, scopes=scopes):
+            executor.execute_cmd(cmd=cmd)
 
-    @staticmethod
-    def create_gcs_bucket(name: str, location: Optional[str] = None) -> None:
+    @classmethod
+    def create_gcs_bucket(cls, name: str, location: Optional[str] = None) -> None:
         bucket_name = f"gs://{name}" if not name.startswith("gs://") else name
         cmd = ["gsutil", "mb"]
         if location:
             cmd += ["-c", "regional", "-l", location]
         cmd += [bucket_name]
-        GoogleSystemTest.execute_with_ctx(cmd, key=GCP_GCS_KEY)
+        cls.execute_with_ctx(cmd, key=GCP_GCS_KEY)
 
-    @staticmethod
-    def delete_gcs_bucket(name: str):
+    @classmethod
+    def delete_gcs_bucket(cls, name: str):
         bucket_name = f"gs://{name}" if not name.startswith("gs://") else name
         cmd = ["gsutil", "-m", "rm", "-r", bucket_name]
-        GoogleSystemTest.execute_with_ctx(cmd, key=GCP_GCS_KEY)
+        cls.execute_with_ctx(cmd, key=GCP_GCS_KEY)
 
-    @staticmethod
-    def upload_to_gcs(source_uri: str, target_uri: str):
-        GoogleSystemTest.execute_with_ctx(
-            ["gsutil", "cp", f"{target_uri}", f"{source_uri}"], key=GCP_GCS_KEY
+    @classmethod
+    def upload_to_gcs(cls, source_uri: str, target_uri: str):
+        cls.execute_with_ctx(
+            ["gsutil", "cp", source_uri, target_uri], key=GCP_GCS_KEY
         )
 
-    @staticmethod
-    def upload_content_to_gcs(lines: str, bucket_uri: str, filename: str):
+    @classmethod
+    def upload_content_to_gcs(cls, lines: str, bucket: str, filename: str):
+        bucket_name = f"gs://{bucket}" if not bucket.startswith("gs://") else bucket
         with TemporaryDirectory(prefix="airflow-gcp") as tmp_dir:
             tmp_path = os.path.join(tmp_dir, filename)
             with open(tmp_path, "w") as file:
                 file.writelines(lines)
                 file.flush()
             os.chmod(tmp_path, 555)
-            GoogleSystemTest.upload_to_gcs(bucket_uri, tmp_path)
+            cls.upload_to_gcs(tmp_path, bucket_name)
+
+    @classmethod
+    def get_project_number(cls, project_id: str) -> str:
+        cmd = ['gcloud', 'projects', 'describe', project_id, '--format', 'value(projectNumber)']
+        return cls.check_output(cmd).decode("utf-8").strip()
+
+    @classmethod
+    def grant_bucket_access(cls, bucket: str, account_email: str):
+        bucket_name = f"gs://{bucket}" if not bucket.startswith("gs://") else bucket
+        cls.execute_cmd(
+            [
+                "gsutil",
+                "iam",
+                "ch",
+                "serviceAccount:%s:admin" % account_email,
+                bucket_name,
+            ]
+        )

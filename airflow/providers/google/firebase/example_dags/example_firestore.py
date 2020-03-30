@@ -40,6 +40,7 @@ If you want to run this example, you must do the following:
 4. Grant Firebase admin account permissions to manage BigQuery. This is required to create a dataset.
 5. Create a bucket in Firebase project and
 6. Give read/write access for Firebase admin to bucket to step no. 5.
+7. Create collection in the Firestore database.
 """
 
 import os

@@ -1180,15 +1180,15 @@ OPERATOR = [
         'airflow.operators.papermill_operator.PapermillOperator',
     ),
     (
-        'airflow.providers.presto.operators.presto_check.PrestoCheckOperator',
+        'airflow.operators.check_operator.CheckOperator',
         'airflow.operators.presto_check_operator.PrestoCheckOperator',
     ),
     (
-        'airflow.providers.presto.operators.presto_check.PrestoIntervalCheckOperator',
+        'airflow.operators.check_operator.IntervalCheckOperator',
         'airflow.operators.presto_check_operator.PrestoIntervalCheckOperator',
     ),
     (
-        'airflow.providers.presto.operators.presto_check.PrestoValueCheckOperator',
+        'airflow.operators.check_operator.ValueCheckOperator',
         'airflow.operators.presto_check_operator.PrestoValueCheckOperator',
     ),
     (

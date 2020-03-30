@@ -831,7 +831,7 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
 
         hook.import_instance(
             location=self.location,
-            instance=self.instance,
+            instance=self.instance_id,
             input_config=self.input_config,
             project_id=self.project_id,
             retry=self.retry,

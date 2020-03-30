@@ -39,7 +39,7 @@ class CloudFirestoreSystemTest(GoogleSystemTest):
     def clean_up(self):
         self.execute_with_ctx(["gsutil", "rm", "-r", f"{EXPORT_DESTINATION_URL}"], G_FIREBASE_KEY)
         self.execute_with_ctx(
-            ["bq", "rm", f"{self._project_id()}:{DATASET_NAME}"], G_FIREBASE_KEY
+            ["bq", "rm", '--force', '--recursive', f"{self._project_id()}:{DATASET_NAME}"], G_FIREBASE_KEY
         )
 
     @provide_gcp_context(G_FIREBASE_KEY)

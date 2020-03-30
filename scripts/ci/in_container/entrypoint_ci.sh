@@ -26,7 +26,7 @@ TRAVIS=${TRAVIS:=}
 
 AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../.." || exit 1; pwd)
 
-PYTHON_VERSION=${PYTHON_VERSION:=3.6}
+PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.6}
 BACKEND=${BACKEND:=sqlite}
 KUBERNETES_MODE=${KUBERNETES_MODE:=""}
 KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
@@ -57,7 +57,13 @@ ARGS=( "$@" )
 RUN_TESTS=${RUN_TESTS:="true"}
 INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION:=""}"
 
-if [[ ${INSTALL_AIRFLOW_VERSION} == "current" ]]; then
+if [[ ${AIRFLOW_VERSION} == *1.10* || ${INSTALL_AIRFLOW_VERSION} == *1.10* ]]; then
+    export RUN_AIRFLOW_1_10="true"
+else
+    export RUN_AIRFLOW_1_10="false"
+fi
+
+if [[ ${INSTALL_AIRFLOW_VERSION} == "" ]]; then
     if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/node_modules" ]]; then
         echo
         echo "Installing node modules as they are not yet installed (Sources mounted from Host)"
@@ -85,11 +91,6 @@ if [[ ${INSTALL_AIRFLOW_VERSION} == "current" ]]; then
     mkdir -p "${AIRFLOW_SOURCES}"/tmp/
     export PYTHONPATH=${AIRFLOW_SOURCES}
 else
-    if [[ ${AIRFLOW_VERSION} == *1.10* || ${INSTALL_AIRFLOW_VERSION} == *1.10* ]]; then
-        export RUN_AIRFLOW_1_10="true"
-    else
-        export RUN_AIRFLOW_1_10="false"
-    fi
     install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}"
 fi
 
@@ -182,7 +183,7 @@ if [[ ${RUNTIME:=""} == "kubernetes" ]]; then
 fi
 
 if [[ "${ENABLE_KIND_CLUSTER}" == "true" ]]; then
-    export CLUSTER_NAME="airflow-python-${PYTHON_VERSION}-${KUBERNETES_VERSION}"
+    export CLUSTER_NAME="airflow-python-${PYTHON_MAJOR_MINOR_VERSION}-${KUBERNETES_VERSION}"
     "${MY_DIR}/kubernetes/setup_kind_cluster.sh"
     if [[ ${KIND_CLUSTER_OPERATION} == "stop" ]]; then
         exit 1
@@ -191,6 +192,15 @@ fi
 
 # shellcheck source=scripts/ci/in_container/configure_environment.sh
 . "${MY_DIR}/configure_environment.sh"
+
+if [[ ${CI:=} == "true" && ${RUN_TESTS} == "true" ]] ; then
+    echo
+    echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo "  Setting default parallellism to 2 because we can run out of memory during tests on CI"
+    echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo
+    export AIRFLOW__CORE__PARALELLISM=2
+fi
 
 set +u
 # If we do not want to run tests, we simply drop into bash

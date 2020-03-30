@@ -29,8 +29,10 @@ from contextlib import contextmanager
 from typing import Dict, List
 
 import psutil
+from lockfile.pidlockfile import PIDLockFile
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 
 log = logging.getLogger(__name__)
 
@@ -208,3 +210,27 @@ def patch_environ(new_env_variables: Dict[str, str]):
                     del os.environ[key]
             else:
                 os.environ[key] = old_value
+
+
+def check_if_pidfile_process_is_running(pid_file: str, process_name: str):
+    """
+    Checks if a pidfile already exists and process is still running.
+    If process is dead then pidfile is removed.
+
+    :param pid_file: path to the pidfile
+    :param process_name: name used in exception if process is up and
+        running
+    """
+    pid_lock_file = PIDLockFile(path=pid_file)
+    # If file exists
+    if pid_lock_file.is_locked():
+        # Read the pid
+        pid = pid_lock_file.read_pid()
+        try:
+            # Check if process is still running
+            proc = psutil.Process(pid)
+            if proc.is_running():
+                raise AirflowException(f"The {process_name} is already running under PID {pid}.")
+        except psutil.NoSuchProcess:
+            # If process is dead remove the pidfile
+            pid_lock_file.break_lock()

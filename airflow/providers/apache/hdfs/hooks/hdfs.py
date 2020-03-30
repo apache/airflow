@@ -45,6 +45,7 @@ class HDFSHook(BaseHook):
     """
     def __init__(self, hdfs_conn_id='hdfs_default', proxy_user=None,
                  autoconfig=False):
+        super().__init__()
         if not snakebite_loaded:
             raise ImportError(
                 'This HDFSHook implementation requires snakebite, but '

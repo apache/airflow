@@ -22,41 +22,23 @@ Secrets framework provides means of getting connection objects from various sour
     * Metatsore database
     * AWS SSM Parameter store
 """
-__all__ = ['BaseSecretsBackend', 'get_connections']
+__all__ = ['BaseSecretsBackend', 'get_connections', 'get_variable']
 
 import json
-from abc import ABC, abstractmethod
 from json import JSONDecodeError
-from typing import List
+from typing import List, Optional
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
+from airflow.models.connection import Connection
+from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.utils.module_loading import import_string
 
 CONFIG_SECTION = "secrets"
 DEFAULT_SECRETS_SEARCH_PATH = [
-    "airflow.secrets.environment_variables.EnvironmentVariablesSecretsBackend",
-    "airflow.secrets.metastore.MetastoreSecretsBackend",
+    "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
+    "airflow.secrets.metastore.MetastoreBackend",
 ]
-
-
-class BaseSecretsBackend(ABC):
-    """
-    Abstract base class to retrieve secrets given a conn_id and construct a Connection object
-    """
-
-    def __init__(self, **kwargs):
-        pass
-
-    @abstractmethod
-    def get_connections(self, conn_id) -> List[Connection]:
-        """
-        Return list of connection objects matching a given ``conn_id``.
-
-        :param conn_id: connection id to search for
-        :return:
-        """
 
 
 def get_connections(conn_id: str) -> List[Connection]:
@@ -72,6 +54,21 @@ def get_connections(conn_id: str) -> List[Connection]:
             return list(conn_list)
 
     raise AirflowException("The conn_id `{0}` isn't defined".format(conn_id))
+
+
+def get_variable(key: str) -> Optional[str]:
+    """
+    Get Airflow Variable by iterating over all Secret Backends.
+
+    :param key: Variable Key
+    :return: Variable Value
+    """
+    for secrets_backend in ensure_secrets_loaded():
+        var_val = secrets_backend.get_variable(key=key)
+        if var_val:
+            return var_val
+
+    return None
 
 
 def initialize_secrets_backends() -> List[BaseSecretsBackend]:

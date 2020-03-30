@@ -61,6 +61,7 @@ class SlackWebhookOperator(SimpleHttpOperator):
     template_fields = ['webhook_token', 'message', 'attachments', 'blocks', 'channel',
                        'username', 'proxy', ]
 
+    # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(self,
                  http_conn_id=None,
