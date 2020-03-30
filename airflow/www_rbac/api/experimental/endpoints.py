@@ -172,9 +172,7 @@ def task_info(dag_id, task_id):
 
 def docasInvaild(pkg_name):
     cas_base_url = get_cas_base_url()
-    connection_model = models.connection.Connection
-    url = "{}/cas/invalid-curve".format(
-        cas_base_url.get_uri() if isinstance(cas_base_url, connection_model) else cas_base_url)
+    url = "{}/cas/invalid-curve".format(cas_base_url)
     data = {'pkg_name': pkg_name}
     try:
         resp = requests.post(url=url, data=data)
