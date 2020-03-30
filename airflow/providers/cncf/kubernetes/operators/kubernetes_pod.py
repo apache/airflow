@@ -117,11 +117,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :param hostnetwork: If True enable host networking on the pod.
     :type hostnetwork: bool
     :param host_aliases: A list of hostAliases.
-<<<<<<< HEAD
     :type host_aliases: list
-=======
-    :type host_aliases: list hostAliases
->>>>>>> [AIRFLOW-5221] add host_aliases to KubernetesPodOperator
     :param tolerations: A list of kubernetes tolerations.
     :type tolerations: list tolerations
     :param configmaps: A list of configmap names objects that we
