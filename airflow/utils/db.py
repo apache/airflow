@@ -277,6 +277,13 @@ def create_default_connections(session=None):
     )
     merge_conn(
         Connection(
+            conn_id='kubernetes_default',
+            conn_type='kubernetes',
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
             conn_id="livy_default",
             conn_type="livy",
             host="livy",

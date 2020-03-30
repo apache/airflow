@@ -287,6 +287,10 @@ Back-ported {package_name} to 1.10.* series of Airflow.
         license='Apache License 2.0',
         version='0.0.1',
         packages=found_packages,
+        package_data={
+            '': ["airflow/providers/cncf/kubernetes/example_dags/*.yaml"],
+        },
+
         include_package_data=True,
         zip_safe=False,
         install_requires=['apache-airflow~=1.10'] + deps,

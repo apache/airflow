@@ -23,3 +23,4 @@ include README.md
 include ../airflow/git_version
 graft licenses
 global-exclude __pycache__  *.pyc
+include airflow/providers/cncf/kubernetes/example_dags/example_spark_kubernetes_operator_spark_pi.yaml
