@@ -18,9 +18,15 @@
 import datetime
 
 from airflow import models
+from airflow.kubernetes import secret
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
 YESTERDAY = datetime.datetime.now() - datetime.timedelta(days=1)
+secret_env = [secret.Secret(
+    deploy_type='env',
+    deploy_target='SQL_CONN',
+    secret='airflow-secrets',
+    key='sql_alchemy_conn')]
 
 with models.DAG(
         dag_id='example_kubernetes_pod_operator',
@@ -39,6 +45,7 @@ with models.DAG(
         namespace='prod',
         image='bash',
         cmds=['echo'],
+        secrets=secret_env,
         arguments=['{{ ds }}'],
         env_vars={'MY_VALUE': '{{ var.value.my_value }}'},
         config_file="{{ conf.get('core', 'kube_config') }}")
@@ -79,4 +86,5 @@ with models.DAG(
         image_pull_policy='Always',
         annotations={'key1': 'value1'},
         config_file='/home/airflow/composer_kube_config',
+        resources={'limit_memory': 1, 'limit_cpu': 1},
         affinity={})
