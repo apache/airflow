@@ -91,6 +91,16 @@ def create_default_connections(session=None):
     )
     merge_conn(
         Connection(
+            conn_id="azure_batch_default",
+            conn_type="azure_batch",
+            extra='''{"account_name": "<ACCOUNT_NAME>", "account_key": "<ACCOUNT_KEY>",
+                      "account_url": "<ACCOUNT_URL>", "vm_publisher": "<VM_PUBLISHER>",
+                      "vm_offer": "<VM_OFFER>", "vm_sku": "<VM_SKU>",
+                      "vm_version": "<VM_VERSION>", "node_agent_sku_id": "<NODE_AGENT_SKU_ID>"}'''
+        )
+    )
+    merge_conn(
+        Connection(
             conn_id="azure_container_instances_default",
             conn_type="azure_container_instances",
             extra='{"tenantId": "<TENANT>", "subscriptionId": "<SUBSCRIPTION ID>" }',
