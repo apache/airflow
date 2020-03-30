@@ -19,7 +19,6 @@ export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
-
 LIST_OF_DIRS_FILE=$(mktemp)
 
 cd "${MY_DIR}/../../airflow/providers" || exit 1

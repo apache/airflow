@@ -1019,5 +1019,13 @@ prepare such packages on your own easily.
 * You can also build sdist (source distribution packages) by running
   ``python setup.py <PROVIDER_NAME> sdist`` but this is only needed in case of distribution of the packages.
 
+Each package has description generated from the the general ``backport_packages/README.md`` file with the
+following replacements:
+
+* ``{{ PACKAGE_NAME }}`` is replaced with the name of the package (``apache-airflow-providers-<NAME>``)
+* ``{{ PACKAGE_DEPENDENCIES }}`` is replaced with list of optional dependencies for the package
+* ``{{ PACKAGE_BACKPORT_README }}`` is replaced with the content of ``BACKPORT_README.md`` file in the
+  package folder if it exists.
+
 Note that those are unofficial packages yet - they are not yet released in PyPi, but you might use them to
 test the master versions of operators/hooks/sensors in Airflow 1.10.* environment  with Python3.6+

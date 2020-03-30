@@ -1389,6 +1389,51 @@ OPERATOR = [
         'airflow.providers.mysql.operators.presto_to_mysql.PrestoToMySqlTransfer',
         'airflow.operators.presto_to_mysql.PrestoToMySqlTransfer',
     ),
+    (
+        'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLBaseOperator',
+        'airflow.contrib.operators.gcp_sql_operator.CloudSqlBaseOperator'
+    ),
+    (
+        'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLCreateInstanceDatabaseOperator',
+        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseCreateOperator'
+    ),
+    (
+        'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLCreateInstanceOperator',
+        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceCreateOperator'
+    ),
+    (
+        'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLDeleteInstanceDatabaseOperator',
+        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseDeleteOperator'
+    ),
+    (
+        'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLDeleteInstanceOperator',
+        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDeleteOperator'
+    ),
+    (
+        'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLExecuteQueryOperator',
+        'airflow.contrib.operators.gcp_sql_operator.CloudSqlQueryOperator'
+    ),
+    (
+        'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLExportInstanceOperator',
+        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceExportOperator'
+    ),
+    (
+        'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLImportInstanceOperator',
+        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceImportOperator'
+    ),
+    (
+        'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLInstancePatchOperator',
+        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstancePatchOperator'
+    ),
+    (
+        'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLPatchInstanceDatabaseOperator',
+        'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabasePatchOperator'
+    ),
+    (
+        'airflow.providers.google.cloud.operators.cloud_storage_transfer_service'
+        '.CloudDataTransferServiceS3ToGCSOperator',
+        'airflow.contrib.operators.s3_to_gcs_transfer_operator.CloudDataTransferServiceS3ToGCSOperator'
+    ),
 ]
 
 SENSOR = [
