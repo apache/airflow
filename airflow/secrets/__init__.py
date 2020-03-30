@@ -65,7 +65,7 @@ def get_variable(key: str) -> Optional[str]:
     """
     for secrets_backend in ensure_secrets_loaded():
         var_val = secrets_backend.get_variable(key=key)
-        if var_val:
+        if var_val is not None:
             return var_val
 
     return None

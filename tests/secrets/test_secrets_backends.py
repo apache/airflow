@@ -86,19 +86,23 @@ class TestBaseSecretsBackend(unittest.TestCase):
 
     @mock.patch.dict('os.environ', {
         'AIRFLOW_VAR_HELLO': 'World',
+        'AIRFLOW_VAR_EMPTY_STR': '',
     })
     def test_variable_env_secrets_backend(self):
         env_secrets_backend = EnvironmentVariablesBackend()
         variable_value = env_secrets_backend.get_variable(key="hello")
         self.assertEqual('World', variable_value)
         self.assertIsNone(env_secrets_backend.get_variable(key="non_existent_key"))
+        self.assertEqual('', env_secrets_backend.get_variable(key="empty_str"))
 
     def test_variable_metastore_secrets_backend(self):
         Variable.set(key="hello", value="World")
+        Variable.set(key="empty_str", value="")
         metastore_backend = MetastoreBackend()
         variable_value = metastore_backend.get_variable(key="hello")
         self.assertEqual("World", variable_value)
         self.assertIsNone(metastore_backend.get_variable(key="non_existent_key"))
+        self.assertEqual('', metastore_backend.get_variable(key="empty_str"))
 
 
 if __name__ == "__main__":

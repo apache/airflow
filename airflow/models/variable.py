@@ -45,7 +45,7 @@ class Variable(Base, LoggingMixin):
         return '{} : {}'.format(self.key, self._val)
 
     def get_val(self):
-        if self._val and self.is_encrypted:
+        if self._val is not None and self.is_encrypted:
             try:
                 fernet = get_fernet()
                 return fernet.decrypt(bytes(self._val, 'utf-8')).decode()
@@ -59,7 +59,7 @@ class Variable(Base, LoggingMixin):
             return self._val
 
     def set_val(self, value):
-        if value:
+        if value is not None:
             fernet = get_fernet()
             self._val = fernet.encrypt(bytes(value, 'utf-8')).decode()
             self.is_encrypted = fernet.is_encrypted
