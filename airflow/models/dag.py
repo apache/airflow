@@ -978,7 +978,7 @@ class DAG(BaseDag, LoggingMixin):
             conditions = []
             for dag in self.subdags + [self]:
                 conditions.append(
-                    TI.dag_id.like(dag.dag_id) &
+                    (TI.dag_id == dag.dag_id) &
                     TI.task_id.in_(dag.task_ids)
                 )
             tis = tis.filter(or_(*conditions))
