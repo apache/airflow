@@ -93,7 +93,7 @@ flask-swagger==0.2.13
 Flask-WTF==0.14.3
 flower==0.9.4
 freezegun==0.3.15
-fsspec==0.7.0
+fsspec==0.7.1
 funcsigs==1.0.2
 future==0.18.2
 future-fstrings==1.2.0
@@ -203,7 +203,7 @@ numpy==1.18.2
 oauthlib==3.1.0
 oscrypto==1.2.0
 packaging==20.3
-pandas==0.25.3
+pandas==1.0.3
 pandas-gbq==0.13.1
 papermill==2.0.0
 parameterized==0.7.1
@@ -334,7 +334,7 @@ unicodecsv==0.14.1
 Unidecode==1.1.1
 uritemplate==3.0.1
 urllib3==1.25.8
-vertica-python==0.10.2
+vertica-python==0.10.3
 vine==1.3.0
 virtualenv==20.0.15
 watchtower==0.7.3
