@@ -69,9 +69,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.3.0
 bleach==3.1.5
 blinker==1.4
-boto3==1.14.7
+boto3==1.14.8
 boto==2.49.0
-botocore==1.17.7
+botocore==1.17.8
 cached-property==1.5.1
 cachetools==3.1.1
 cassandra-driver==3.20.2
@@ -112,7 +112,7 @@ email-validator==1.1.1
 entrypoints==0.3
 enum34==1.1.10
 execnet==1.7.1
-fastavro==0.23.4
+fastavro==0.23.5
 filelock==3.0.12
 flake8-colors==0.1.6
 flake8==3.8.3
