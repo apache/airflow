@@ -189,6 +189,10 @@ def change_import_paths_to_deprecated():
         ("airflow.operators.bash", "airflow.operators.bash_operator"),
         ("airflow.operators.python", "airflow.operators.python_operator"),
         ("airflow.utils.session", "airflow.utils.db"),
+        (
+            "airflow.providers.cncf.kubernetes.operators.kubernetes_pod",
+            "airflow.contrib.operators.kubernetes_pod_operator"
+        ),
     ]
 
     qry = Query()
@@ -222,10 +226,20 @@ def change_import_paths_to_deprecated():
     # Remove tags
     qry.select_method("DAG").is_call().modify(remove_tags_modifier)
 
-    # Fix KubernetesPodOperator imports to use old path
-    qry.select_module(
-        "airflow.providers.cncf.kubernetes.operators.kubernetes_pod").rename(
-        "airflow.contrib.operators.kubernetes_pod_operator"
+    # Fix AWS import in Google Cloud Transfer Service
+    (
+        qry
+        .select_module("airflow.providers.amazon.aws.hooks.base_aws")
+        .is_filename(include=r"cloud_storage_transfer_service\.py")
+        .rename("airflow.contrib.hooks.aws_hook")
+    )
+
+    (
+        qry
+        .select_class("AwsBaseHook")
+        .is_filename(include=r"cloud_storage_transfer_service\.py")
+        .filter(lambda n, c, f: n.type == 300)
+        .rename("AwsHook")
     )
 
     # Fix BaseOperatorLinks imports
@@ -243,9 +257,17 @@ def change_import_paths_to_deprecated():
         .modify(add_provide_context_to_python_operator)
     )
 
+    # Remove new class
     remove_class(qry, "GKEStartPodOperator")
 
     qry.execute(write=True, silent=False, interactive=False)
+
+    # Add old import to GKE
+    gke_path = os.path.join(
+        dirname(__file__), "airflow", "providers", "google", "cloud", "operators", "kubernetes_engine.py"
+    )
+    with open(gke_path, "a") as f:
+        f.writelines(["", "from airflow.contrib.operators.gcp_container_operator import GKEPodOperator"])
 
 
 def copy_provider_sources():
