@@ -110,9 +110,14 @@ class Variable(Base, LoggingMixin):
         key,  # type: str
         default_var=__NO_DEFAULT_SENTINEL,  # type: Any
         deserialize_json=False,  # type: bool
-        session=None
+        session=None,
+        is_all=False,
+        fun_filter=lambda cls, key: cls.key == key
     ):
-        obj = session.query(cls).filter(cls.key == key).first()
+        objs = session.query(cls).filter(fun_filter(cls, key))
+        if is_all:
+            return objs.all()
+        obj = objs.first()
         if obj is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
