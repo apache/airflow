@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import inspect
-import typing
 
 import yaml
 from kubernetes.client import ApiClient
@@ -28,12 +27,12 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import Kubernete
 from airflow.utils.cli import get_dag
 
 
-def is_a_kubernetes_pod_operator_instance(task: object) -> bool:
+def is_a_kubernetes_pod_operator_instance(task):
     """Return true if the object is instance of the kubernetes pod generator"""
     return isinstance(task, KubernetesPodOperator)
 
 
-def get_kubernetes_pod_attributes(kubernetes_task_kwargs: KubernetesPodOperator) -> typing.Dict:
+def get_kubernetes_pod_attributes(kubernetes_task_kwargs):
     """Return a dictionoary for all the attributes of a
        kubernetespodoperator task"""
     all_instances = inspect.getmro(KubernetesPodOperator)
@@ -44,7 +43,7 @@ def get_kubernetes_pod_attributes(kubernetes_task_kwargs: KubernetesPodOperator)
     return {arg: value for arg, value in kubernetes_task_kwargs.items() if arg in attrs}
 
 
-def generate_pod_preview(kubernetes_tasks_args: typing.Dict) -> typing.Dict:
+def generate_pod_preview(kubernetes_tasks_args):
     """Returns a dictionary with a kubernetes pod template for a given kubernetes
        pod operator task"""
     pod_generator_attrs = inspect.getfullargspec(PodGenerator).args
