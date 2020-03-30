@@ -342,7 +342,7 @@ wrapt==1.12.1
 WTForms==2.2.1
 xmltodict==0.12.0
 yamllint==1.21.0
-yandexcloud==0.29.0
+yandexcloud==0.30.0
 zdesk==2.7.1
 zict==2.0.0
 zipp==3.1.0
