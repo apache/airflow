@@ -62,9 +62,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.3.0
 black==19.10b0
 blinker==1.4
-boto3==1.14.7
+boto3==1.14.8
 boto==2.49.0
-botocore==1.17.7
+botocore==1.17.8
 cached-property==1.5.1
 cachetools==4.1.0
 cassandra-driver==3.20.2
@@ -101,7 +101,7 @@ elasticsearch==5.5.3
 email-validator==1.1.1
 entrypoints==0.3
 execnet==1.7.1
-fastavro==0.23.4
+fastavro==0.23.5
 filelock==3.0.12
 flake8-colors==0.1.6
 flake8==3.8.3
@@ -202,7 +202,7 @@ oauthlib==3.1.0
 oscrypto==1.2.0
 packaging==20.4
 pandas-gbq==0.13.2
-pandas==0.25.3
+pandas==1.0.5
 papermill==2.1.1
 parameterized==0.7.4
 paramiko==2.7.1
