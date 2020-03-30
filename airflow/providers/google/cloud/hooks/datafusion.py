@@ -383,7 +383,7 @@ class DataFusionHook(CloudBaseHook):
         :param instance_url: Endpoint on which the REST APIs is accessible for the instance.
         :type instance_url: str
         :param runtime_args: Optional runtime JSON args to be passed to the pipeline
-        :type runtime_args: dict
+        :type runtime_args: Optional[Dict[str, Any]]
         :param namespace: f your pipeline belongs to a Basic edition instance, the namespace ID
             is always default. If your pipeline belongs to an Enterprise edition instance, you
             can create a namespace.
