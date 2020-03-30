@@ -131,9 +131,8 @@ def breeze_test_helper(request):
     # Setup test environment for breeze
     home = os.path.expanduser("~")
     airflow_home = os.environ.get("AIRFLOW_HOME") or os.path.join(home, "airflow")
-    print(airflow_home)
-
-    #print(f"Home of the user: {home}\nAirflow home {airflow_home}")
+    
+    print(f"Home of the user: {home}\nAirflow home {airflow_home}")
 
     # Initialize Airflow db if required
     lock_file = os.path.join(airflow_home, ".airflow_db_initialised")
