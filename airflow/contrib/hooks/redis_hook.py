@@ -42,7 +42,7 @@ class RedisHook(BaseHook):
         self.password = None
         self.db = None
 
-    def get_conn(self):
+    def get_conn(self) -> Redis:
         """
         Returns a Redis connection.
         """
