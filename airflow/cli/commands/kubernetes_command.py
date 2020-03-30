@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import inspect
+import typing
 
 import yaml
 from kubernetes.client import ApiClient
@@ -27,14 +28,14 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import Kubernete
 from airflow.utils.cli import get_dag
 
 
-def is_a_kubernetes_pod_operator_instance(task):
+def is_a_kubernetes_pod_operator_instance(task: object) -> bool:
     """Return true if the object is instance of the kubernetes pod generator"""
     return isinstance(task, KubernetesPodOperator)
 
 
-def get_kubernetes_pod_attributes(kubernetes_task_kwargs):
+def get_kubernetes_pod_attributes(kubernetes_task_kwargs: KubernetesPodOperator) -> typing.Dict:
     """Return a dictionoary for all the attributes of a
-       kubernetes pod operator task"""
+       kubernetespodoperator task"""
     all_instances = inspect.getmro(KubernetesPodOperator)
     attrs = []
     for instance in all_instances:
@@ -43,7 +44,7 @@ def get_kubernetes_pod_attributes(kubernetes_task_kwargs):
     return {arg: value for arg, value in kubernetes_task_kwargs.items() if arg in attrs}
 
 
-def generate_pod_preview(kubernetes_tasks_args):
+def generate_pod_preview(kubernetes_tasks_args: typing.Dict) -> typing.Dict:
     """Returns a dictionary with a kubernetes pod template for a given kubernetes
        pod operator task"""
     pod_generator_attrs = inspect.getfullargspec(PodGenerator).args
@@ -51,7 +52,7 @@ def generate_pod_preview(kubernetes_tasks_args):
                 if attr in pod_generator_attrs}
 
     # TODO: This step should not be done there is naming conversion in all
-    # kubernetes classes args to env_vars to envs.
+    # kubernetes classes args to arguments and env_vars to envs.
     if 'args' not in pod_args:
         pod_args['args'] = kubernetes_tasks_args.get('arguments', None)
     if 'envs' not in pod_args:
@@ -59,18 +60,19 @@ def generate_pod_preview(kubernetes_tasks_args):
     if 'extract_xcom' not in pod_args:
         pod_args['extract_xcom'] = kubernetes_tasks_args.get('do_xcom_push', None)
 
-    pod_instance = pod_generator.PodGenerator(**(pod_args)).gen_pod()
-    append_to_pod(pod_instance,
-                  kubernetes_tasks_args.get('pod_runtime_info_envs', None) +
-                  kubernetes_tasks_args.get('ports', None) +
-                  kubernetes_tasks_args.get('resources', None) +
-                  kubernetes_tasks_args.get('secrets', None) +
-                  kubernetes_tasks_args.get('volumes', None) +
-                  kubernetes_tasks_args.get('volume_mounts', None)
-                  )
+    pod = pod_generator.PodGenerator(**(pod_args)).gen_pod()
+    pod = append_to_pod(pod,
+                        kubernetes_tasks_args.get('pod_runtime_info_envs', None) +
+                        kubernetes_tasks_args.get('ports', None) +
+                        kubernetes_tasks_args.get('resources', None) +
+                        kubernetes_tasks_args.get('secrets', None) +
+                        kubernetes_tasks_args.get('volumes', None) +
+                        kubernetes_tasks_args.get('volume_mounts', None)
+                        )
 
-    res = ApiClient().sanitize_for_serialization(pod_instance)
+    res = ApiClient().sanitize_for_serialization(pod)
 
+    # We set a default name.
     res['metadata']['name'] = pod_args['name']
 
     return res
