@@ -26,7 +26,7 @@ from typing import Callable, Dict, List, Optional
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base import GoogleBaseHook
 from airflow.version import version as airflow_version
 
 log = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ def _poll_with_exponential_delay(request, max_n, is_done_func, is_error_func):
     raise ValueError('Connection could not be established after {} retries.'.format(max_n))
 
 
-class MLEngineHook(CloudBaseHook):
+class MLEngineHook(GoogleBaseHook):
     """
     Hook for Google ML Engine APIs.
 
@@ -74,7 +74,7 @@ class MLEngineHook(CloudBaseHook):
         authed_http = self._authorize()
         return build('ml', 'v1', http=authed_http, cache_discovery=False)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_job(
         self,
         job: Dict,
@@ -148,7 +148,7 @@ class MLEngineHook(CloudBaseHook):
 
         return self._wait_for_job_done(project_id, job_id)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def cancel_job(
         self,
         job_id: str,
@@ -246,7 +246,7 @@ class MLEngineHook(CloudBaseHook):
                 return job
             time.sleep(interval)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_version(
         self,
         model_name: str,
@@ -286,7 +286,7 @@ class MLEngineHook(CloudBaseHook):
             is_done_func=lambda resp: resp.get('done', False),
             is_error_func=lambda resp: resp.get('error', None) is not None)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def set_default_version(
         self,
         model_name: str,
@@ -323,7 +323,7 @@ class MLEngineHook(CloudBaseHook):
             self.log.error('Something went wrong: %s', e)
             raise
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def list_versions(
         self,
         model_name: str,
@@ -359,7 +359,7 @@ class MLEngineHook(CloudBaseHook):
             time.sleep(5)
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_version(
         self,
         model_name: str,
@@ -397,7 +397,7 @@ class MLEngineHook(CloudBaseHook):
             is_done_func=lambda resp: resp.get('done', False),
             is_error_func=lambda resp: resp.get('error', None) is not None)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_model(
         self,
         model: Dict,
@@ -454,7 +454,7 @@ class MLEngineHook(CloudBaseHook):
 
         return respone
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_model(
         self,
         model_name: str,
@@ -488,7 +488,7 @@ class MLEngineHook(CloudBaseHook):
                 return None
             raise
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_model(
         self,
         model_name: str,

@@ -531,7 +531,7 @@ Airflow has extensive support for the `Google Cloud Platform <https://cloud.goog
 See the :doc:`GCP connection type <howto/connection/gcp>` documentation to
 configure connections to GCP.
 
-All hooks are based on :class:`airflow.providers.google.cloud.hooks.base.GoogleCloudBaseHook`.
+All hooks are based on :class:`airflow.providers.google.common.hooks.base.GoogleBaseHook`.
 
 .. note::
     You can learn how to use GCP integrations by analyzing the
@@ -905,7 +905,7 @@ Airflow has a limited support for the `Yandex.Cloud <https://cloud.yandex.com/>`
 See the :doc:`Yandex.Cloud connection type <howto/connection/yandexcloud>` documentation to
 configure connections to Yandex.Cloud.
 
-All hooks are based on :class:`airflow.contrib.hooks.yandexcloud_base_hook.YandexCloudBaseHook`.
+All hooks are based on :class:`airflow.contrib.hooks.yandexcloud_base_hook.YandexGoogleBaseHook`.
 
 .. note::
     You can learn how to use Yandex.Cloud integrations by analyzing the

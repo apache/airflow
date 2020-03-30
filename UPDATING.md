@@ -233,7 +233,7 @@ The fix to `none_failed` trigger rule breaks workflows that depend on the previo
 ### Standardize handling http exception in BigQuery
 
 Since BigQuery is the part of the GCP it was possible to simplify the code by handling the exceptions
-by usage of the `airflow.providers.google.cloud.hooks.base.CloudBaseHook.catch_http_exception` decorator however it changes
+by usage of the `airflow.providers.google.common.hooks.base.GoogleBaseHook.catch_http_exception` decorator however it changes
 exceptions raised by the following methods:
 * `airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_table_delete` raises `AirflowException` instead of `Exception`.
 * `airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.create_empty_dataset` raises `AirflowException` instead of `ValueError`.
@@ -914,12 +914,12 @@ The following variables were removed from the task instance context:
 - latest_date
 - tables
 
-### Moved provide_gcp_credential_file decorator to GoogleCloudBaseHook
+### Moved provide_gcp_credential_file decorator to GoogleBaseHook
 
 To simplify the code, the decorator has been moved from the inner-class.
 
-Instead of `@GoogleCloudBaseHook._Decorators.provide_gcp_credential_file`,
-you should write `@GoogleCloudBaseHook.provide_gcp_credential_file`
+Instead of `@GoogleBaseHook._Decorators.provide_gcp_credential_file`,
+you should write `@GoogleBaseHook.provide_gcp_credential_file`
 
 ### Changes to S3Hook
 
