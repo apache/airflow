@@ -19,7 +19,7 @@
 
 import json
 from builtins import bytes
-from typing import Any
+from typing import Any, List
 
 from sqlalchemy import Column, Integer, String, Text, Boolean
 from sqlalchemy.ext.declarative import declared_attr
@@ -128,6 +128,15 @@ class Variable(Base, LoggingMixin):
                 return json.loads(obj.val)
             else:
                 return obj.val
+
+    @classmethod
+    @provide_session
+    def get_all_active_curve_tmpls(cls, session=None):
+        tmpls: List[cls] = session.query(cls).filter(cls.active, cls.is_curve_template).all()
+        ret = {}
+        for tmpl in tmpls:
+            ret[tmpl.key] = tmpl.val
+        return ret
 
     @classmethod
     @provide_session
