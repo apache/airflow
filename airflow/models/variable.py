@@ -143,17 +143,13 @@ class Variable(Base, LoggingMixin):
     def get_fuzzy_active(
         cls,
         key,  # type: str
-        default_var=__NO_DEFAULT_SENTINEL,  # type: Any
         deserialize_json=False,  # type: bool
         session=None
     ):
         key_p = "%{}%".format(key)
         obj = session.query(cls).filter(cls.key.like(key_p), cls.active).first()
         if obj is None:
-            if default_var is not cls.__NO_DEFAULT_SENTINEL:
-                return default_var
-            else:
-                raise KeyError('Variable {} does not exist'.format(key))
+            raise KeyError('Variable {} does not exist'.format(key))
         else:
             if deserialize_json:
                 return obj.key, json.loads(obj.val)
@@ -167,6 +163,7 @@ class Variable(Base, LoggingMixin):
         key,  # type: str
         value,  # type: Any
         serialize_json=False,  # type: bool
+        is_curve_template=False,  # type: bool
         session=None
     ):
 
@@ -175,7 +172,24 @@ class Variable(Base, LoggingMixin):
         else:
             stored_value = str(value)
         Variable.delete(key, session=session)
-        session.add(Variable(key=key, val=stored_value))  # type: ignore
+        session.add(Variable(key=key, val=stored_value, is_curve_template=is_curve_template))  # type: ignore
+        session.flush()
+
+    @classmethod
+    @provide_session
+    def update(
+        cls,
+        key,  # type: str
+        value,  # type: Any
+        serialize_json=False,  # type: bool
+        session=None
+    ):
+
+        if serialize_json:
+            stored_value = json.dumps(value, indent=2, separators=(',', ': '))
+        else:
+            stored_value = str(value)
+        session.query(cls).filter(cls.key == key).update(val=stored_value)  # type: ignore
         session.flush()
 
     @classmethod
