@@ -101,11 +101,10 @@ class AzureBatchHook(BaseHook):
         :param vm_offer: The offer type of the Azure Virtual Machines Marketplace Image.
             For example, UbuntuServer or WindowsServer.
         :type vm_offer: str
-        :param sku_starts_with: The start name of the sku
+        :param sku_starts_with: The start name of the sku to search
         :type sku_starts_with: str
         """
         if use_latest_verified_vm_image_and_sku:
-
             self.log.info('Using latest verified virtual machine image with node agent sku')
             sku_to_use, image_ref_to_use = \
                 self._get_latest_verified_image_vm_and_sku(publisher=vm_publisher,
@@ -185,8 +184,7 @@ class AzureBatchHook(BaseHook):
         :param sku_starts_with: The start name of the sku to search
         :type sku_starts_with: str
         """
-        # more info:
-        # https://github.com/Azure-Samples/azure-batch-samples/blob/master/Python/Batch/common/helpers.py
+
         options = batch_models.AccountListSupportedImagesOptions(
             filter="verificationType eq 'verified'")
         images = self.connection.account.list_supported_images(
@@ -319,17 +317,6 @@ class AzureBatchHook(BaseHook):
                 raise
             else:
                 self.log.info("Task {} already exists".format(task.id))
-
-    def add_tasks_to_job(self, job_id, tasks):
-        """
-        Add a list of tasks to a given job
-
-        :param job_id: A string that identifies the given job
-        :type job_id: str
-        :param tasks: A list of batch_models.TaskAddParameter
-        :type tasks: List[batch_models.TaskAddParameter]
-        """
-        self.connection.task.add_collection(job_id, tasks)
 
     def wait_for_job_tasks_to_complete(self, job_id, timeout):
         """
