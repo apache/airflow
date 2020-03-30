@@ -17,8 +17,9 @@
 # under the License.
 import os
 import unittest
-from unittest.mock import call
 from datetime import datetime
+from unittest.mock import call
+
 import mock
 
 from airflow.cli import cli_parser
