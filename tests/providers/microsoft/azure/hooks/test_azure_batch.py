@@ -23,7 +23,6 @@ import mock
 from azure.batch import BatchServiceClient
 from azure.batch import models as batch_models
 
-from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.hooks.azure_batch import AzureBatchHook
 from airflow.models import Connection
 from airflow.utils import db
@@ -96,17 +95,17 @@ class TestAzureBatchHook(unittest.TestCase):
         self.assertIsInstance(pool, batch_models.PoolAddParameter)
 
     def test_configure_pool_with_latest_vm(self):
-        pass
-
-    def test_configure_pool_with_latest_vm_no_publisher_raises(self):
-        hook = AzureBatchHook(azure_batch_conn_id=self.test_cloud_conn_id)
-
-        with self.assertRaises(AirflowException):
-            hook.configure_pool(pool_id='mypool',
-                                vm_size="test_vm_size",
-                                target_dedicated_nodes=1,
-                                use_latest_verified_vm_image_and_sku=True
-                                )
+        with mock.patch("airflow.providers.microsoft.azure.hooks."
+                        "azure_batch.AzureBatchHook._get_latest_verified_image_vm_and_sku")\
+                as mock_getvm:
+            hook = AzureBatchHook(azure_batch_conn_id=self.test_cloud_conn_id)
+            getvm_instance = mock_getvm
+            getvm_instance.return_value = ['test-image', 'test-sku']
+            pool = hook.configure_pool(pool_id='mypool',
+                                       vm_size="test_vm_size",
+                                       use_latest_verified_vm_image_and_sku=True,
+                                       )
+            self.assertIsInstance(pool, batch_models.PoolAddParameter)
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.azure_batch.BatchServiceClient")
     def test_create_pool_with_vm_config(self, mock_batch):
@@ -132,6 +131,7 @@ class TestAzureBatchHook(unittest.TestCase):
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.azure_batch.BatchServiceClient")
     def test_wait_for_all_nodes(self, mock_batch):
+        # TODO: Add test
         pass
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.azure_batch.BatchServiceClient")
@@ -143,3 +143,19 @@ class TestAzureBatchHook(unittest.TestCase):
         hook.create_job(job)
         self.assertIsInstance(job, batch_models.JobAddParameter)
         mock_instance.assert_called_once_with(job)
+
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_batch.BatchServiceClient')
+    def test_add_single_task_to_job(self, mock_batch):
+        hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id)
+        mock_instance = mock_batch.return_value.task.add
+        task = hook.configure_task(task_id="mytask",
+                                   command_line="echo hello")
+        hook.add_single_task_to_job(job_id='myjob',
+                                    task=task)
+        self.assertIsInstance(task, batch_models.TaskAddParameter)
+        mock_instance.assert_called_once_with(job_id="myjob", task=task)
+
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_batch.BatchServiceClient')
+    def test_wait_for_all_task_to_complete(self, mock_batch):
+        # TODO: Add test
+        pass
