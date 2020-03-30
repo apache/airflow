@@ -28,7 +28,8 @@ class RedisHook(BaseHook):
     """
     Wrapper for connection to interact with Redis in-memory data structure store
     """
-    def __init__(self, redis_conn_id='redis_default'):
+
+    def __init__(self, redis_conn_id='redis_default', health_check_interval=0):
         """
         Prepares hook to connect to a Redis database.
 
@@ -41,6 +42,7 @@ class RedisHook(BaseHook):
         self.port = None
         self.password = None
         self.db = None
+        self.health_check_interval = health_check_interval
 
     def get_conn(self) -> Redis:
         """
@@ -58,6 +60,7 @@ class RedisHook(BaseHook):
                 self.redis_conn_id, self.host, self.port, self.db
             )
             self.redis = Redis(
+                health_check_interval=self.health_check_interval,
                 host=self.host,
                 port=self.port,
                 password=self.password,
