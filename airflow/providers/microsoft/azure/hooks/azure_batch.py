@@ -18,6 +18,7 @@
 #
 import time
 from typing import List
+from datetime import timedelta
 
 from azure.batch import BatchServiceClient
 from azure.batch import batch_auth
@@ -104,12 +105,7 @@ class AzureBatchHook(BaseHook):
         :type sku_starts_with: str
         """
         if use_latest_verified_vm_image_and_sku:
-            if not all(elem for elem in [vm_publisher, vm_offer, sku_starts_with]):
-                raise AirflowException("If use_latest_verified_vm_image_and_sku is"
-                                       " set to True then the parameters vm_publisher, vm_offer, "
-                                       "sku_starts_with must all be set. Found "
-                                       "vm_publisher={}, vm_offer={}, sku_starts_with={}".
-                                       format(vm_publisher, vm_offer, sku_starts_with))
+
             self.log.info('Using latest verified virtual machine image with node agent sku')
             sku_to_use, image_ref_to_use = \
                 self._get_latest_verified_image_vm_and_sku(publisher=vm_publisher,
@@ -160,6 +156,12 @@ class AzureBatchHook(BaseHook):
         return pool
 
     def create_pool(self, pool):
+        """
+        Creates a pool if not already existing
+        :param pool: the pool object to create
+        :type pool: batch_models.PoolAddParameter
+
+        """
         try:
             self.log.info("Attempting to create a pool: %s", pool.id)
             self.connection.pool.add(pool)
@@ -233,7 +235,7 @@ class AzureBatchHook(BaseHook):
 
     def configure_job(self,
                       job_id: str,
-                      pool_id,
+                      pool_id: str,
                       display_name: str = None,
                       **kwargs):
         """
@@ -264,6 +266,7 @@ class AzureBatchHook(BaseHook):
         """
         try:
             self.connection.job.add(job)
+            self.log.info("Job {} created".format(job.id))
         except batch_models.BatchErrorException as err:
             if err.error.code != "JobExists":
                 raise
@@ -271,11 +274,11 @@ class AzureBatchHook(BaseHook):
                 self.log.info("Job {} already exists".format(job.id))
 
     def configure_task(self,
-                    task_id: str,
-                    command_line: str,
-                    display_name: str = None,
-                    container_settings=None,
-                    **kwargs):
+                       task_id: str,
+                       command_line: str,
+                       display_name: str = None,
+                       container_settings=None,
+                       **kwargs):
         """
         Creates a task
 
@@ -297,18 +300,25 @@ class AzureBatchHook(BaseHook):
                                              container_settings=container_settings,
                                              **kwargs)
         self.log.info(f"Task {task.id} created")
+        return task
 
     def add_single_task_to_job(self, job_id, task):
         """
-        Add a single task to given job
+        Add a single task to given job if it doesn't exist
         :param job_id: A string that identifies the given job
         :type job_id: str
         :param task: The task to add
         :type task: batch_models.TaskAddParameter
         """
+        try:
 
-        self.connection.task.add(job_id=job_id,
-                                 task=task)
+            self.connection.task.add(job_id=job_id,
+                                     task=task)
+        except batch_models.BatchErrorException as err:
+            if err.error.code != "TaskExists":
+                raise
+            else:
+                self.log.info("Task {} already exists".format(task.id))
 
     def add_tasks_to_job(self, job_id, tasks):
         """
@@ -331,8 +341,8 @@ class AzureBatchHook(BaseHook):
         :type timeout: int
         :return:
         """
-        timeout_time = timezone.utcnow()+timeout
-        while timeout_time < timeout:
+        timeout_time = timezone.utcnow()+timedelta(minutes=timeout)
+        while timezone.utcnow() < timeout_time:
             tasks = self.connection.task.list(job_id)
 
             incomplete_tasks = [task for task in tasks if
@@ -340,6 +350,6 @@ class AzureBatchHook(BaseHook):
             if not incomplete_tasks:
                 return
             for task in incomplete_tasks:
-                self.log.info(f"Waiting for {task.id} to complete, currently on {task.state}")
-            time.sleep(5)
+                self.log.info(f"Waiting for {task.id} to complete, currently on {task.state} state")
+            time.sleep(15)
         raise TimeoutError("Timed out waiting for tasks to complete")
