@@ -36,7 +36,7 @@ from airflow.utils import timezone
 from airflow.www_rbac.app import csrf
 from airflow import models
 from airflow.utils.db import create_session
-
+from .utils import get_cas_base_url
 from flask import g, Blueprint, jsonify, request, url_for
 
 _log = LoggingMixin().log
@@ -44,8 +44,6 @@ _log = LoggingMixin().log
 requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 
 api_experimental = Blueprint('api_experimental', __name__)
-
-CAS_BASE_URL = os.environ.get("CAS_BASE_URL", "http://localhost:9095")
 
 
 @csrf.exempt
@@ -173,12 +171,8 @@ def task_info(dag_id, task_id):
 
 
 def docasInvaild(pkg_name):
+    cas_base_url = get_cas_base_url()
     connection_model = models.connection.Connection
-    with create_session() as session:
-        cas_base_url = session.query(connection_model).filter(
-            connection_model.conn_id == 'cas_base_url').first()
-    if not cas_base_url:
-        cas_base_url = CAS_BASE_URL  # 从环境变量中获取URL配置
     url = "{}/cas/invalid-curve".format(
         cas_base_url.get_uri() if isinstance(cas_base_url, connection_model) else cas_base_url)
     data = {'pkg_name': pkg_name}
