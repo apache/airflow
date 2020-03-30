@@ -556,6 +556,35 @@ class TestDag(unittest.TestCase):
 
         self.assertEqual(task.test_field, ['{{ ds }}', 'some_string'])
 
+    def test_dst_switch(self):
+        """
+        Make sure DST transitions are properly observed if cron has multiple values/intervals for hours
+        """
+        local_tz = pendulum.timezone("America/Los_Angeles")
+        start = local_tz.convert(datetime.datetime(2020, 3, 7, 1, 0))  # 2020-03-07 01:00:00-08:00
+
+        # start time, cron, [expected times]
+        test_cases = [
+            (start, "0 7 * * *", ["2020-03-07T07:00:00-08:00",
+                                  "2020-03-08T07:00:00-07:00"]),
+            (start, "0 7-8 * * *", ["2020-03-07T07:00:00-08:00",
+                                    "2020-03-07T08:00:00-08:00",
+                                    "2020-03-08T07:00:00-07:00"]),
+            (start, "0 7,9 * * *", ["2020-03-07T07:00:00-08:00",
+                                    "2020-03-07T09:00:00-08:00",
+                                    "2020-03-08T07:00:00-07:00",
+                                    "2020-03-08T09:00:00-07:00"]),
+            ]
+
+        for case in test_cases:
+            start_utc = timezone.convert_to_utc(start)
+            dag = DAG("dst_test_dag", start_date=case[0], schedule_interval=case[1])
+            for expected in case[2]:
+                _next = dag.following_schedule(start_utc)
+                next_local = local_tz.convert(_next)
+                self.assertEqual(expected, next_local.isoformat())
+                start_utc = _next
+
     def test_following_previous_schedule(self):
         """
         Make sure DST transitions are properly observed
