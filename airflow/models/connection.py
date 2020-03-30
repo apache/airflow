@@ -33,6 +33,10 @@ from airflow.utils.module_loading import import_string
 # the path of the class and the name of the conn_id key parameter.
 # PLEASE KEEP BELOW LIST IN ALPHABETICAL ORDER.
 CONN_TYPE_TO_HOOK = {
+    "azure_batch": (
+        "airflow.providers.microsoft.azure.hooks.azure_batch.AzureBatchHook",
+        "azure_batch_conn_id"
+    ),
     "azure_cosmos": (
         "airflow.providers.microsoft.azure.hooks.azure_cosmos.AzureCosmosDBHook",
         "azure_cosmos_conn_id",
@@ -150,6 +154,7 @@ class Connection(Base, LoggingMixin):
         ('snowflake', 'Snowflake'),
         ('segment', 'Segment'),
         ('sqoop', 'Sqoop'),
+        ('azure_batch', 'Azure Batch Service'),
         ('azure_data_lake', 'Azure Data Lake'),
         ('azure_container_instances', 'Azure Container Instances'),
         ('azure_cosmos', 'Azure CosmosDB'),
