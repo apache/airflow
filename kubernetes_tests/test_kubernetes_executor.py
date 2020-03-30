@@ -220,12 +220,12 @@ class TestKubernetesExecutor(unittest.TestCase):
                           execution_date=execution_date,
                           dag_id=dag_id,
                           task_id='start_task',
-                          expected_final_state='success', timeout=300)
+                          expected_final_state='success', timeout=200)
 
         self.ensure_dag_expected_state(host=host,
                                        execution_date=execution_date,
                                        dag_id=dag_id,
-                                       expected_final_state='success', timeout=300)
+                                       expected_final_state='success', timeout=200)
 
     def test_integration_run_dag_with_scheduler_failure(self):
         host = KUBERNETES_HOST_PORT
