@@ -75,6 +75,15 @@ Example:
 
 The above code returned `None` previously, now it will return `''`.
 
+### Rename slot name
+
+Used slot has been renamed to running slot to make the name self-explanatory
+and the code more maintainable.
+
+This means `pool.used_slots.<pool_name>` metric has been renamed to
+`pool.running_slots.<pool_name>`. The `Used Slots` column in Pools Web UI view
+has also been changed to `Running Slots`.
+
 ### Remove SQL support in base_hook
 
 Remove ``get_records`` and ``get_pandas_df`` and ``run`` from base_hook, which only apply for sql like hook,
