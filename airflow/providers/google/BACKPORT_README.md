@@ -27,11 +27,13 @@
   - [Limitations](#limitations)
   - [New operators](#new-operators)
     - [Google Cloud operators](#google-cloud-operators)
-    - [Marketing platform operators](#marketing-platform-operators)
-    - [Ads operators](#ads-operators)
+    - [Google Marketing platform operators](#google-marketing-platform-operators)
+    - [Google Suite operators](#google-suite-operators)
+    - [Google Ads operators](#google-ads-operators)
+    - [Google Firebase operators](#google-firebase-operators)
   - [Updated operators](#updated-operators)
     - [Google Cloud operators](#google-cloud-operators-1)
-    - [GSuite operators](#gsuite-operators)
+    - [Google Suite operators](#google-suite-operators-1)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -60,7 +62,7 @@ All operators in `airflow.providers.google.cloud.operators` package
 
 * [AutoML](https://cloud.google.com/automl/)
 
-    All operators in `automl` sub-package.
+    All operators in `automl` module.
 
     * AutoMLBatchPredictOperator
     * AutoMLCreateDatasetOperator
@@ -78,7 +80,7 @@ All operators in `airflow.providers.google.cloud.operators` package
 
 * [BigQuery Data Transfer Service](https://cloud.google.com/bigquery/transfer/)
 
-    All operators in `bigquery_dts` sub-package.
+    All operators in `bigquery_dts` module
 
     * BigQueryCreateDataTransferOperator
     * BigQueryDataTransferServiceStartTransferRunsOperator
@@ -86,7 +88,7 @@ All operators in `airflow.providers.google.cloud.operators` package
 
 * [Cloud Memorystore](https://cloud.google.com/memorystore/)
 
-    All operators in `cloud_memorystore` sub-package.
+    All operators in `cloud_memorystore` module.
 
     * CloudMemorystoreCreateInstanceAndImportOperator
     * CloudMemorystoreCreateInstanceOperator
@@ -102,7 +104,7 @@ All operators in `airflow.providers.google.cloud.operators` package
 
 * [Data Catalog](https://cloud.google.com/data-catalog)
 
-    All operators in `datacatalog` sub-package.
+    All operators in `datacatalog` module.
 
     * CloudDataCatalogCreateEntryGroupOperator
     * CloudDataCatalogCreateEntryOperator
@@ -128,14 +130,14 @@ All operators in `airflow.providers.google.cloud.operators` package
 
 * [Dataproc](https://cloud.google.com/dataproc/)
 
-    All operators in `dataproc` sub-package.
+    All operators in `dataproc` module.
 
     * DataprocSubmitJobOperator
     * DataprocUpdateClusterOperator
 
 * [Data Fusion](https://cloud.google.com/data-fusion/)
 
-    All operators in `datafusion` sub-package.
+    All operators in `datafusion` module.
 
     * CloudDataFusionCreateInstanceOperator
     * CloudDataFusionCreatePipelineOperator
@@ -150,27 +152,27 @@ All operators in `airflow.providers.google.cloud.operators` package
 
 * [Cloud Functions](https://cloud.google.com/functions/)
 
-    All operators in `functions` sub-package.
+    All operators in `functions` module.
 
     * CloudFunctionInvokeFunctionOperator
 
 * [Cloud Storage (GCS)](https://cloud.google.com/gcs/)
 
-    All operators in `gcs` sub-package.
+    All operators in `gcs` module.
 
     * GCSDeleteBucketOperator
     * GCSFileTransformOperator
 
 * [Dataproc](https://cloud.google.com/dataproc/)
 
-    All operators in `dataproc` sub-package.
+    All operators in `dataproc` module.
 
     * DataprocSubmitJobOperator
     * DataprocUpdateClusterOperator
 
 * [Machine Learning Engine](https://cloud.google.com/ml-engine/)
 
-    All operators in `mlengine` sub-package.
+    All operators in `mlengine` module.
 
     * MLEngineCreateModelOperator
     * MLEngineCreateVersionOperator
@@ -183,13 +185,13 @@ All operators in `airflow.providers.google.cloud.operators` package
 
 * [Cloud Pub/Sub](https://cloud.google.com/pubsub/)
 
-    All operators in  `pubsub` package.
+    All operators in  `pubsub` module.
 
     * PubSubPullOperator
 
 * [Cloud Stackdriver](https://cloud.google.com/stackdriver)
 
-    All operators in `stackdriver` sub-package.
+    All operators in `stackdriver` module.
 
     * StackdriverDeleteAlertOperator
     * StackdriverDeleteNotificationChannelOperator
@@ -204,7 +206,7 @@ All operators in `airflow.providers.google.cloud.operators` package
 
 * [Cloud Tasks](https://cloud.google.com/tasks/)
 
-    All operators in `tasks` sub-package.
+    All operators in `tasks` module.
 
     * CloudTasksQueueCreateOperator
     * CloudTasksQueueDeleteOperator
@@ -220,29 +222,22 @@ All operators in `airflow.providers.google.cloud.operators` package
     * CloudTasksTaskRunOperator
     * CloudTasksTasksListOperator
 
-* [Cloud Firestore](https://firebase.google.com/docs/firestore)
-
-    All operators in `firestore` sub-package.
-
-    * CloudFirestoreExportDatabaseOperator
-
 * Transfer Google Cloud operators:
-
-    All operators in `airflow.providers.google.cloud.operators` sub-package:
 
     * cassandra_to_gcs.CassandraToGCSOperator
     * gcs_to_gcs.GCSSynchronizeBuckets
     * gcs_to_sftp.GCSToSFTPOperator
     * presto_to_gcs.PrestoToGCSOperator
     * sftp_to_gcs.SFTPToGCSOperator
+    * sheets_to_gcs.GoogleSheetsToGCSOperator
 
-##### Marketing platform operators
+##### Google Marketing platform operators
 
 All operators in `airflow.providers.google.marketing_platform.operators` package
 
 * [Analytics360](https://analytics.google.com/)
 
-    All operators in `analytics` sub-package.
+    All operators in `analytics` module.
 
     * GoogleAnalyticsDataImportUploadOperator
     * GoogleAnalyticsDeletePreviousDataUploadsOperator
@@ -253,7 +248,7 @@ All operators in `airflow.providers.google.marketing_platform.operators` package
 
 * [Google Campaign Manager](https://developers.google.com/doubleclick-advertisers)
 
-    All operators in `campaign_manager` sub-package.
+    All operators in `campaign_manager` module.
 
     * GoogleCampaignManagerBatchInsertConversionsOperator
     * GoogleCampaignManagerBatchUpdateConversionsOperator
@@ -264,7 +259,7 @@ All operators in `airflow.providers.google.marketing_platform.operators` package
 
 * [Google Display&Video 360](https://marketingplatform.google.com/about/display-video-360/)
 
-    All operators in `display_video` sub-package.
+    All operators in `display_video` module.
 
     * GoogleDisplayVideo360CreateReportOperator
     * GoogleDisplayVideo360DeleteReportOperator
@@ -273,34 +268,44 @@ All operators in `airflow.providers.google.marketing_platform.operators` package
 
 * [Google Search Ads 360](https://marketingplatform.google.com/about/search-ads-360/)
 
-    All operators in `search_ads` sub-package.
+    All operators in `search_ads` module.
 
     * GoogleSearchAdsDownloadReportOperator
     * GoogleSearchAdsInsertReportOperator
 
-**GSuite operators: `airflow.providers.google.suite.operators` package:**
+##### Google Suite operators
+
+All operators in `airflow.providers.google.suite.operators` sub-package:
 
 * [Google Spreadsheet](https://www.google.com/intl/en/sheets/about/)
 
-    All operators in `sheets` sub-package.
+    All operators in `sheets` module.
 
-    * sheets.GoogleSheetsCreateSpreadsheet
+    * GoogleSheetsCreateSpreadsheet
 
 * Transfer Google Suite operators:
-    All operators in `airflow.providers.google.cloud.operators` sub-package:
 
-    * airflow.providers.google.suite.operators.sheets.GCSToGoogleSheets
-    * airflow.providers.google.suite.operators.sheets.GoogleSheetsToGCSOperator
+    * gcs_to_sheets.GCSToGoogleSheetsOperator
 
-##### Ads operators
+##### Google Ads operators
 
 All operators in `airflow.providers.google.ads.operators` package
 
-* [Ads](https://https://ads.google.com/)
+* [Google Ads](https://https://ads.google.com/)
 
-    All operators in `ads` sub-package.
+    All operators in `ads` module.
 
-    * ads.GoogleAdsToGcsOperator
+    * GoogleAdsToGcsOperator
+
+##### Google Firebase operators
+
+All operators in `airflow.providers.google.firebase.operators` package
+
+* [Cloud Firestore](https://firebase.google.com/docs/firestore)
+
+    All operators in `firestore` module.
+
+    * CloudFirestoreExportDatabaseOperator
 
 #### Updated operators
 
@@ -418,7 +423,7 @@ from Airflow 1.10 and its equivalent from Airflow 2.0:
 | gcp_transfer_operator.GcpTransferServiceOperationsListOperator                           | cloud_storage_transfer_service.CloudDataTransferServiceListOperationsOperator  |
 | gcp_transfer_operator.GoogleCloudStorageToGoogleCloudStorageTransferOperator             | cloud_storage_transfer_service.CloudDataTransferServiceGCSToGCSOperator        |
 | gcp_translate_operator.CloudTranslateTextOperator                                        | translate.CloudTranslateTextOperator                                           |
-| gcp_translate_speech_operator.GcpTranslateSpeechOperator                                 | translate_speech.CloudTranslateSpeechOperator                                    |
+| gcp_translate_speech_operator.GcpTranslateSpeechOperator                                 | translate_speech.CloudTranslateSpeechOperator                                  |
 | gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoExplicitContentOperator | video_intelligence.CloudVideoIntelligenceDetectVideoExplicitContentOperator    |
 | gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoLabelsOperator          | video_intelligence.CloudVideoIntelligenceDetectVideoLabelsOperator             |
 | gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoShotsOperator           | video_intelligence.CloudVideoIntelligenceDetectVideoShotsOperator              |
@@ -462,7 +467,7 @@ from Airflow 1.10 and its equivalent from Airflow 2.0:
 | s3_to_gcs_transfer_operator.CloudDataTransferServiceS3ToGCSOperator                      | cloud_storage_transfer_service.CloudDataTransferServiceS3ToGCSOperator         |
 | sql_to_gcs.BaseSQLToGoogleCloudStorageOperator                                           | sql_to_gcs.BaseSQLToGCSOperator                                                |
 
-##### GSuite operators
+##### Google Suite operators
 
 | Airflow 1.10  (`airflow.contrib.operators` package)                                      | Airflow 2.0 (`airflow.providers.google.suite.operators` package)               |
 |------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------|
