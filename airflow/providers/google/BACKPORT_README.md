@@ -214,7 +214,7 @@ through this package. This release includes the following new operators:
 
 **Ads operators: `airflow.providers.google.ads.operators` package:**
 
-    * ads.GoogleAdsToGcsOperator
+* ads.GoogleAdsToGcsOperator
 
 #### Updated operators
 
