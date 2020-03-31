@@ -61,6 +61,20 @@ https://developers.google.com/style/inclusive-documentation
 
 ## Airflow 1.10.10
 
+### Setting Empty string to a Airflow Variable will return an empty string
+
+Previously when you set an Airflow Variable with an empty string (`''`), the value you used to get
+back was ``None``. This will now return an empty string (`'''`)
+
+Example:
+
+```python
+>> Variable.set('test_key', '')
+>> Variable.get('test_key')
+```
+
+The above code returned `None` previously, now it will return `''`.
+
 ### Make behavior of `none_failed` trigger rule consistent with documentation
 The behavior of the `none_failed` trigger rule is documented as "all parents have not failed (`failed` or
     `upstream_failed`) i.e. all parents have succeeded or been skipped." As previously implemented, the actual behavior
