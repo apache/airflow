@@ -47,6 +47,7 @@ atlasclient==1.0.0
 attrs==19.3.0
 aws-sam-translator==1.22.0
 aws-xray-sdk==2.4.3
+azure-batch==9.0.0
 azure-common==1.1.25
 azure-cosmos==3.1.2
 azure-datalake-store==0.0.48

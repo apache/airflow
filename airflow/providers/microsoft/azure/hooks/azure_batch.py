@@ -48,6 +48,7 @@ class AzureBatchHook(BaseHook):
     def get_conn(self):
         """
         Get the batch client connection
+
         :return: Azure batch client
         """
         conn = self._connection()
@@ -163,6 +164,7 @@ class AzureBatchHook(BaseHook):
     def create_pool(self, pool):
         """
         Creates a pool if not already existing
+
         :param pool: the pool object to create
         :type pool: batch_models.PoolAddParameter
 
@@ -218,7 +220,6 @@ class AzureBatchHook(BaseHook):
         """
         self.log.info('waiting for all nodes in pool %s to reach one of: %s',
                       pool_id, node_state)
-        i = 0
         while True:
             # refresh pool to ensure that there is no resize error
             pool = self.connection.pool.get(pool_id)
@@ -231,10 +232,9 @@ class AzureBatchHook(BaseHook):
             if (len(nodes) >= pool.target_dedicated_nodes and
                     all(node.state in node_state for node in nodes)):
                 return nodes
-            i += 1
-            if i % 3 == 0:
-                self.log.info('waiting for %s nodes to reach desired state...',
-                              pool.target_dedicated_nodes)
+            # Allow the timeout to be controlled by the AzureBatchOperator
+            # specified timeout. This way we don't interrupt a startTask inside
+            # the pool
             time.sleep(10)
 
     def configure_job(self,
@@ -309,6 +309,7 @@ class AzureBatchHook(BaseHook):
     def add_single_task_to_job(self, job_id, task):
         """
         Add a single task to given job if it doesn't exist
+
         :param job_id: A string that identifies the given job
         :type job_id: str
         :param task: The task to add
@@ -330,9 +331,8 @@ class AzureBatchHook(BaseHook):
 
         :param job_id: A string that identifies the job
         :type job_id: str
-        :param timeout: The amount of time to wait before timing out
+        :param timeout: The amount of time to wait before timing out in minutes
         :type timeout: int
-        :return:
         """
         timeout_time = timezone.utcnow() + timedelta(minutes=timeout)
         while timezone.utcnow() < timeout_time:

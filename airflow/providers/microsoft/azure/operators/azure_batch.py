@@ -123,7 +123,7 @@ class AzureBatchOperator(BaseOperator):
     :type vm_publisher: Optional[str]
 
     :param vm_offer: The offer type of the Azure Virtual Machines Marketplace Image.
-     For example, UbuntuServer or WindowsServer. Required if
+        For example, UbuntuServer or WindowsServer. Required if
         use_latest_image_and_sku is set to True
     :type vm_offer: Optional[str]
 
@@ -306,7 +306,10 @@ class AzureBatchOperator(BaseOperator):
         self.log.info("Azure Batch job (%s) terminated: %s", self.batch_job_id, response)
 
     def get_hook(self):
-        """Create and return an AzureBatchHook."""
+        """
+        Create and return an AzureBatchHook.
+
+        """
         return AzureBatchHook(
             azure_batch_conn_id=self.azure_batch_conn_id
         )
@@ -314,6 +317,7 @@ class AzureBatchOperator(BaseOperator):
     def clean_up(self, pool_id=None, job_id=None):
         """
         Delete the given pool and job in the batch account
+
         :param pool_id: The id of the pool to delete
         :type pool_id: str
         :param job_id: The id of the job to delete

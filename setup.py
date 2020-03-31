@@ -186,6 +186,7 @@ aws = [
     'watchtower~=0.7.3',
 ]
 azure = [
+    'azure-batch>=8.0.0',
     'azure-cosmos>=3.0.1',
     'azure-datalake-store>=0.0.45',
     'azure-kusto-data>=0.0.43',
@@ -194,7 +195,6 @@ azure = [
     'azure-mgmt-resource>=2.2.0',
     'azure-storage>=0.34.0',
     'azure-storage-blob<12.0',
-    'azure-batch==8.0.0',
 ]
 cassandra = [
     'cassandra-driver>=3.13.0,<3.21.0',

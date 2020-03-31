@@ -231,6 +231,11 @@ These integrations allow you to perform various operations within the Microsoft 
      - Operators
      - Sensors
 
+   * - `Azure Batch <https://azure.microsoft.com/en-us/services/batch/>`__
+     - :mod:`airflow.providers.microsoft.azure.hooks.azure_batch`
+     - :mod:`airflow.providers.microsoft.azure.operators.azure_batch`
+     -
+
    * - `Azure Blob Storage <https://azure.microsoft.com/en-us/services/storage/blobs/>`__
      - :mod:`airflow.providers.microsoft.azure.hooks.wasb`
      - :mod:`airflow.providers.microsoft.azure.operators.wasb_delete_blob`
