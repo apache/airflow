@@ -247,11 +247,11 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
         resource = hook.get_query(query_id=self.report_id)
         # Check if report is ready
         if resource["metadata"]["running"]:
-            raise AirflowException('Report {} is still running'.format(self.report_id))
+            raise AirflowException("Report {} is still running".format(self.report_id))
 
         # If no custom report_name provided, use DV360 name
         file_url = resource["metadata"]["googleCloudStoragePathForLatestReport"]
-        report_name = self.report_name or urlparse(file_url).path.split('/')[2]
+        report_name = self.report_name or urlparse(file_url).path.split("/")[2]
         report_name = self._resolve_file_name(report_name)
 
         # Download the report
@@ -275,7 +275,7 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
             self.bucket_name,
             report_name,
         )
-        self.xcom_push(context, key='report_name', value=report_name)
+        self.xcom_push(context, key="report_name", value=report_name)
 
 
 class GoogleDisplayVideo360RunReportOperator(BaseOperator):
@@ -336,3 +336,73 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
             self.params,
         )
         hook.run_query(query_id=self.report_id, params=self.params)
+
+
+class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
+    """
+    Uploads line items in CSV format.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleDisplayVideo360UploadLineItemsOperator`
+
+    .. seealso::
+        Check also the official API docs:
+        `https://developers.google.com/bid-manager/v1.1/lineitems/uploadlineitems`
+
+    :param request_body: request to upload line items.
+    :type request_body: Dict[str, Any]
+    :param bucket_name: The bucket form data is downloaded.
+    :type bucket_name: str
+    :param object_name: The object to fetch.
+    :type object_name: str,
+    :param filename: The filename to fetch.
+    :type filename: str,
+    :param dry_run: Upload status without actually persisting the line items.
+    :type filename: str,
+    """
+
+    template_fields = (
+        "bucket_name",
+        "object_name",
+    )
+
+    @apply_defaults
+    def __init__(
+        self,
+        bucket_name: str,
+        object_name: str,
+        api_version: str = "v1.1",
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        *args,
+        **kwargs
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.bucket_name = bucket_name
+        self.object_name = object_name
+        self.api_version = api_version
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+
+    def execute(self, context: Dict):
+        gcs_hook = GCSHook(
+            gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to
+        )
+        hook = GoogleDisplayVideo360Hook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            api_version=self.api_version,
+        )
+
+        self.log.info("Uploading file %s...")
+        # Saving file in the temporary directory,
+        # downloaded file from the GCS could be a 1GB size or even more
+        with tempfile.NamedTemporaryFile("w+") as f:
+            line_items = gcs_hook.download(
+                bucket_name=self.bucket_name,
+                object_name=self.object_name,
+                filename=f.name,
+            )
+            f.flush()
+            hook.upload_line_items(line_items=line_items)
