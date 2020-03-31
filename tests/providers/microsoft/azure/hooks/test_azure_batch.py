@@ -20,11 +20,10 @@ import json
 import unittest
 
 import mock
-from azure.batch import BatchServiceClient
-from azure.batch import models as batch_models
+from azure.batch import BatchServiceClient, models as batch_models
 
-from airflow.providers.microsoft.azure.hooks.azure_batch import AzureBatchHook
 from airflow.models import Connection
+from airflow.providers.microsoft.azure.hooks.azure_batch import AzureBatchHook
 from airflow.utils import db
 
 
@@ -50,13 +49,13 @@ class TestAzureBatchHook(unittest.TestCase):
             Connection(conn_id=self.test_vm_conn_id,
                        conn_type="azure_batch",
                        extra=json.dumps({
-                           "AZ_BATCH_ACCOUNT_NAME": self.test_account_name,
-                           "AZ_BATCH_ACCOUNT_KEY": self.test_account_key,
-                           "AZ_BATCH_ACCOUNT_URL": self.test_account_url,
-                           "AZ_BATCH_VM_PUBLISHER": self.test_vm_publisher,
-                           "AZ_BATCH_VM_OFFER": self.test_vm_offer,
-                           "AZ_BATCH_VM_SKU": self.test_vm_sku,
-                           "AZ_BATCH_NODE_AGENT_SKU_ID": self.test_node_agent_sku
+                           "account_name": self.test_account_name,
+                           "account_key": self.test_account_key,
+                           "account_url": self.test_account_url,
+                           "vm_publisher": self.test_vm_publisher,
+                           "vm_offer": self.test_vm_offer,
+                           "vm_sku": self.test_vm_sku,
+                           "node_agent_sku_id": self.test_node_agent_sku
                        }))
         )
         # connect with cloud service
@@ -64,12 +63,12 @@ class TestAzureBatchHook(unittest.TestCase):
             Connection(conn_id=self.test_cloud_conn_id,
                        conn_type="azure_batch",
                        extra=json.dumps({
-                           "AZ_BATCH_ACCOUNT_NAME": self.test_account_name,
-                           "AZ_BATCH_ACCOUNT_KEY": self.test_account_key,
-                           "AZ_BATCH_ACCOUNT_URL": self.test_account_url,
-                           "AZ_BATCH_CLOUD_OS_FAMILY": self.test_cloud_os_family,
-                           "AZ_BATCH_CLOUD_OS_VERSION": self.test_cloud_os_version,
-                           "AZ_BATCH_NODE_AGENT_SKU_ID": self.test_node_agent_sku
+                           "account_name": self.test_account_name,
+                           "account_key": self.test_account_key,
+                           "account_url": self.test_account_url,
+                           "os_family": self.test_cloud_os_family,
+                           "os_version": self.test_cloud_os_version,
+                           "node_agent_sku_id": self.test_node_agent_sku
                        }))
         )
 
@@ -103,7 +102,7 @@ class TestAzureBatchHook(unittest.TestCase):
             getvm_instance.return_value = ['test-image', 'test-sku']
             pool = hook.configure_pool(pool_id='mypool',
                                        vm_size="test_vm_size",
-                                       use_latest_verified_vm_image_and_sku=True,
+                                       use_latest_image_and_sku=True,
                                        )
             self.assertIsInstance(pool, batch_models.PoolAddParameter)
 

@@ -17,15 +17,13 @@
 # under the License.
 #
 import time
-from typing import List
 from datetime import timedelta
+from typing import Optional
 
-from azure.batch import BatchServiceClient
-from azure.batch import batch_auth
-from azure.batch import models as batch_models
+from azure.batch import BatchServiceClient, batch_auth, models as batch_models
 
-from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
 from airflow.utils import timezone
 
 
@@ -35,6 +33,7 @@ class AzureBatchHook(BaseHook):
     """
 
     def __init__(self, azure_batch_conn_id='azure_batch_default'):
+        super().__init__()
         self.conn_id = azure_batch_conn_id
         self.connection = self.get_conn()
         self.extra = self._connection().extra_dejson
@@ -61,9 +60,9 @@ class AzureBatchHook(BaseHook):
                     'Extra connection option is missing required parameter: `{}`'.
                     format(name))
             return value
-        batch_account_name = _get_required_param('AZ_BATCH_ACCOUNT_NAME')
-        batch_account_key = _get_required_param('AZ_BATCH_ACCOUNT_KEY')
-        batch_account_url = _get_required_param('AZ_BATCH_ACCOUNT_URL')
+        batch_account_name = _get_required_param('account_name')
+        batch_account_key = _get_required_param('account_key')
+        batch_account_url = _get_required_param('account_url')
         credentials = batch_auth.SharedKeyCredentials(batch_account_name,
                                                       batch_account_key)
         batch_client = BatchServiceClient(
@@ -74,12 +73,12 @@ class AzureBatchHook(BaseHook):
     def configure_pool(self,
                        pool_id: str,
                        vm_size: str,
-                       display_name: str = None,
-                       target_dedicated_nodes: int = None,
-                       use_latest_verified_vm_image_and_sku: bool = False,
-                       vm_publisher: str = None,
-                       vm_offer: str = None,
-                       sku_starts_with: str = None,
+                       display_name: Optional[str] = None,
+                       target_dedicated_nodes: Optional[int] = None,
+                       use_latest_image_and_sku: bool = False,
+                       vm_publisher: Optional[str] = None,
+                       vm_offer: Optional[str] = None,
+                       sku_starts_with: Optional[str] = None,
                        **kwargs
                        ):
         """
@@ -87,24 +86,31 @@ class AzureBatchHook(BaseHook):
 
         :param pool_id: A string that uniquely identifies the Pool within the Account
         :type pool_id: str
+
         :param vm_size: The size of virtual machines in the Pool.
         :type vm_size: str
+
         :param display_name: The display name for the Pool
         :type display_name: str
+
         :param target_dedicated_nodes: The desired number of dedicated Compute Nodes in the Pool.
-        :type target_dedicated_nodes: int
-        :param use_latest_verified_vm_image_and_sku: Whether to use the latest verified vm image and sku
-        :type use_latest_verified_vm_image_and_sku: bool
+        :type target_dedicated_nodes: Optional[int]
+
+        :param use_latest_image_and_sku: Whether to use the latest verified vm image and sku
+        :type use_latest_image_and_sku: bool
+
         :param vm_publisher: The publisher of the Azure Virtual Machines Marketplace Image.
             For example, Canonical or MicrosoftWindowsServer.
-        :type vm_publisher: str
+        :type vm_publisher: Optional[str]
+
         :param vm_offer: The offer type of the Azure Virtual Machines Marketplace Image.
             For example, UbuntuServer or WindowsServer.
-        :type vm_offer: str
+        :type vm_offer: Optional[str]
+
         :param sku_starts_with: The start name of the sku to search
-        :type sku_starts_with: str
+        :type sku_starts_with: Optional[str]
         """
-        if use_latest_verified_vm_image_and_sku:
+        if use_latest_image_and_sku:
             self.log.info('Using latest verified virtual machine image with node agent sku')
             sku_to_use, image_ref_to_use = \
                 self._get_latest_verified_image_vm_and_sku(publisher=vm_publisher,
@@ -121,7 +127,7 @@ class AzureBatchHook(BaseHook):
                 target_dedicated_nodes=target_dedicated_nodes,
                 **kwargs)
 
-        elif self.extra.get('AZ_BATCH_CLOUD_OS_FAMILY'):
+        elif self.extra.get('os_family'):
             self.log.info('Using cloud service configuration to create pool, '
                           'virtual machine configuration ignored')
             pool = batch_models.PoolAddParameter(
@@ -129,9 +135,9 @@ class AzureBatchHook(BaseHook):
                 vm_size=vm_size,
                 display_name=display_name,
                 cloud_service_configuration=batch_models.CloudServiceConfiguration(
-                                                os_family=self.extra.get('AZ_BATCH_CLOUD_OS_FAMILY'),
-                                                os_version=self.extra.get('AZ_BATCH_CLOUD_OS_VERSION')
-                                                ),
+                    os_family=self.extra.get('os_family'),
+                    os_version=self.extra.get('os_version')
+                ),
                 target_dedicated_nodes=target_dedicated_nodes,
                 **kwargs)
 
@@ -143,12 +149,12 @@ class AzureBatchHook(BaseHook):
                 display_name=display_name,
                 virtual_machine_configuration=batch_models.VirtualMachineConfiguration(
                     image_reference=batch_models.ImageReference(
-                        publisher=self.extra.get('AZ_BATCH_VM_PUBLISHER'),
-                        offer=self.extra.get('AZ_BATCH_VM_OFFER'),
-                        sku=self.extra.get('AZ_BATCH_VM_SKU'),
-                        version=self.extra.get("AZ_BATCH_VM_VERSION")
+                        publisher=self.extra.get('vm_publisher'),
+                        offer=self.extra.get('vm_offer'),
+                        sku=self.extra.get('vm_sku'),
+                        version=self.extra.get("vm_version")
                     ),
-                    node_agent_sku_id=self.extra.get('AZ_BATCH_NODE_AGENT_SKU_ID')
+                    node_agent_sku_id=self.extra.get('node_agent_sku_id')
                 ),
                 target_dedicated_nodes=target_dedicated_nodes,
                 **kwargs)
@@ -169,7 +175,7 @@ class AzureBatchHook(BaseHook):
             if e.error.code != "PoolExists":
                 raise
             else:
-                self.log.info("Pool {} already exists".format(pool.id))
+                self.log.info("Pool %s already exists", pool.id)
 
     def _get_latest_verified_image_vm_and_sku(self, publisher, offer, sku_starts_with):
         """
@@ -210,8 +216,8 @@ class AzureBatchHook(BaseHook):
         :param node_state: A set of batch_models.ComputeNodeState
         :type node_state: set
         """
-        self.log.info('waiting for all nodes in pool {} to reach one of: {!r}'.format(
-            pool_id, node_state))
+        self.log.info('waiting for all nodes in pool %s to reach one of: %s',
+                      pool_id, node_state)
         i = 0
         while True:
             # refresh pool to ensure that there is no resize error
@@ -227,14 +233,14 @@ class AzureBatchHook(BaseHook):
                 return nodes
             i += 1
             if i % 3 == 0:
-                self.log.info('waiting for {} nodes to reach desired state...'.format(
-                    pool.target_dedicated_nodes))
+                self.log.info('waiting for %s nodes to reach desired state...',
+                              pool.target_dedicated_nodes)
             time.sleep(10)
 
     def configure_job(self,
                       job_id: str,
                       pool_id: str,
-                      display_name: str = None,
+                      display_name: Optional[str] = None,
                       **kwargs):
         """
         Configures a job for use in the pool
@@ -264,17 +270,17 @@ class AzureBatchHook(BaseHook):
         """
         try:
             self.connection.job.add(job)
-            self.log.info("Job {} created".format(job.id))
+            self.log.info("Job %s created", job.id)
         except batch_models.BatchErrorException as err:
             if err.error.code != "JobExists":
                 raise
             else:
-                self.log.info("Job {} already exists".format(job.id))
+                self.log.info("Job %s already exists", job.id)
 
     def configure_task(self,
                        task_id: str,
                        command_line: str,
-                       display_name: str = None,
+                       display_name: Optional[str] = None,
                        container_settings=None,
                        **kwargs):
         """
@@ -297,7 +303,7 @@ class AzureBatchHook(BaseHook):
                                              display_name=display_name,
                                              container_settings=container_settings,
                                              **kwargs)
-        self.log.info(f"Task {task.id} created")
+        self.log.info("Task created: %s", task_id)
         return task
 
     def add_single_task_to_job(self, job_id, task):
@@ -316,7 +322,7 @@ class AzureBatchHook(BaseHook):
             if err.error.code != "TaskExists":
                 raise
             else:
-                self.log.info("Task {} already exists".format(task.id))
+                self.log.info("Task %s already exists", task.id)
 
     def wait_for_job_tasks_to_complete(self, job_id, timeout):
         """
@@ -328,7 +334,7 @@ class AzureBatchHook(BaseHook):
         :type timeout: int
         :return:
         """
-        timeout_time = timezone.utcnow()+timedelta(minutes=timeout)
+        timeout_time = timezone.utcnow() + timedelta(minutes=timeout)
         while timezone.utcnow() < timeout_time:
             tasks = self.connection.task.list(job_id)
 
@@ -337,6 +343,6 @@ class AzureBatchHook(BaseHook):
             if not incomplete_tasks:
                 return
             for task in incomplete_tasks:
-                self.log.info(f"Waiting for {task.id} to complete, currently on {task.state} state")
+                self.log.info("Waiting for %s to complete, currently on %s state", task.id, task.state)
             time.sleep(15)
         raise TimeoutError("Timed out waiting for tasks to complete")
