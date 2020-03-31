@@ -172,15 +172,7 @@ def change_import_paths_to_deprecated():
 
     def remove_class(qry, class_name) -> None:
         def _remover(node: LN, capture: Capture, filename: Filename) -> None:
-            if node.type == 300:
-                for ch in node.post_order():
-                    if isinstance(ch, Leaf) and ch.value == class_name:
-                        if ch.next_sibling and ch.next_sibling.value == ",":
-                            ch.next_sibling.remove()
-                        ch.remove()
-            elif node.type == 311:
-                node.parent.remove()
-            else:
+            if node.type not in (300, 311):  # remove only definition
                 node.remove()
 
         qry.select_class(class_name).modify(_remover)
@@ -257,8 +249,14 @@ def change_import_paths_to_deprecated():
         .modify(add_provide_context_to_python_operator)
     )
 
-    # Remove new class
+    # Remove new class and rename usages of old
     remove_class(qry, "GKEStartPodOperator")
+    (
+        qry
+        .select_class("GKEStartPodOperator")
+        .is_filename(include=r"example_kubernetes_engine\.py")
+        .rename("GKEPodOperator")
+    )
 
     qry.execute(write=True, silent=False, interactive=False)
 
@@ -268,6 +266,10 @@ def change_import_paths_to_deprecated():
     )
     with open(gke_path, "a") as f:
         f.writelines(["", "from airflow.contrib.operators.gcp_container_operator import GKEPodOperator"])
+
+    gke_path = os.path.join(
+        dirname(__file__), "airflow", "providers", "google", "cloud", "operators", "kubernetes_engine.py"
+    )
 
 
 def copy_provider_sources():

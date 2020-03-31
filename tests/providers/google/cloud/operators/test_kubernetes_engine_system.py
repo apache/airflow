@@ -24,11 +24,6 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_GKE_KEY)
 class KubernetesEngineExampleDagTest(GoogleSystemTest):
-    @pytest.mark.airflow_2
     @provide_gcp_context(GCP_GKE_KEY)
     def test_run_example_gcp_gke(self):
         self.run_dag('example_gcp_gke', CLOUD_DAG_FOLDER)
-
-    @provide_gcp_context(GCP_GKE_KEY)
-    def test_run_example_gcp_gke_setup(self):
-        self.run_dag('example_gcp_gke_setup', CLOUD_DAG_FOLDER)
