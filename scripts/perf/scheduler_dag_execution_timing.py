@@ -27,7 +27,7 @@ import click
 MAX_DAG_RUNS_ALLOWED = 1
 
 
-class ShortCircutExecutorMixin:
+class ShortCircuitExecutorMixin:
     '''
     Mixin class to manage the scheduler state during the performance test run.
     '''
@@ -89,13 +89,13 @@ def get_executor_under_test():
     # from airflow.executors.local_executor import LocalExecutor
 
     # Change this to try other executors
-    class ShortCircutExecutor(ShortCircutExecutorMixin, MockExecutor):
+    class ShortCircuitExecutor(ShortCircuitExecutorMixin, MockExecutor):
         '''
         Placeholder class that implements the inheritance hierarchy
         '''
         scheduler_job = None
 
-    return ShortCircutExecutor
+    return ShortCircuitExecutor
 
 
 def reset_dag(dag, session):
