@@ -142,7 +142,7 @@ class TaskInstance(Base, LoggingMixin):
     task_id = Column(String(ID_LEN), primary_key=True)
     dag_id = Column(String(ID_LEN), primary_key=True)
     execution_date = Column(UtcDateTime, primary_key=True)
-    result_key = Column(String(128))
+    entity_id = Column(String(128))
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
     duration = Column(Float)
@@ -161,8 +161,6 @@ class TaskInstance(Base, LoggingMixin):
     executor_config = Column(PickleType(pickler=dill))
 
     result = Column(String(20))  # 分析结果, OK/NOK
-
-    pkg_name = Column(String(128))  # 分析结果包
 
     final_state = Column(String(20))  # 最终状态牵涉2次检验
 

@@ -170,10 +170,10 @@ def task_info(dag_id, task_id):
     return jsonify(fields)
 
 
-def docasInvaild(pkg_name):
+def docasInvaild(entity_id):
     cas_base_url = get_cas_base_url()
     url = "{}/cas/invalid-curve".format(cas_base_url)
-    data = {'pkg_name': pkg_name}
+    data = {'entity_id': entity_id}
     try:
         resp = requests.post(url=url, data=data)
         if resp.status_code != HTTPStatus.OK:
@@ -209,7 +209,7 @@ def double_confirm_task(dag_id, task_id, execution_date):
             raise AirflowException("二次确认参数未定义或数值不正确!")
         if task.result != final_state:
             # 分析结果与二次确认结果不同
-            docasInvaild(task.pkg_name)
+            docasInvaild(task.entity_id)
 
     except AirflowException as err:
         _log.info(err)

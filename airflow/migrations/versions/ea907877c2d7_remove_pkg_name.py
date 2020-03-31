@@ -16,17 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add entity_id to task instance
+"""remove pkg_name
 
-Revision ID: 3a7e3b303510
-Revises: 19d2506c1da1
-Create Date: 2020-03-31 09:31:18.745649
+Revision ID: ea907877c2d7
+Revises: 3a7e3b303510
+Create Date: 2020-03-31 11:02:37.647150
 
 """
 
 # revision identifiers, used by Alembic.
-revision = '3a7e3b303510'
-down_revision = '19d2506c1da1'
+revision = 'ea907877c2d7'
+down_revision = '3a7e3b303510'
 branch_labels = None
 depends_on = None
 
@@ -35,8 +35,8 @@ import sqlalchemy as sa
 
 
 def upgrade():
-    op.add_column('task_instance', sa.Column('entity_id', sa.String(128)))
+    op.drop_column('task_instance', 'pkg_name')
 
 
 def downgrade():
-    op.drop_column('task_instance', 'entity_id')
+    op.add_column('task_instance', sa.Column('pkg_name', sa.String(128)))
