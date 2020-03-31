@@ -30,7 +30,7 @@ from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook
 from airflow.utils.decorators import apply_defaults
 
 
-class GcpTranslateSpeechOperator(BaseOperator):
+class CloudTranslateSpeechOperator(BaseOperator):
     """
     Recognizes speech in audio input and translates it.
 
@@ -43,7 +43,7 @@ class GcpTranslateSpeechOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GcpTranslateSpeechOperator`
+        :ref:`howto/operator:CloudTranslateSpeechOperator`
 
     See https://cloud.google.com/translate/docs/translating-text
 

@@ -745,8 +745,8 @@ OPERATOR = [
         "airflow.contrib.operators.gcp_translate_operator.CloudTranslateTextOperator",
     ),
     (
-        "airflow.providers.google.cloud.operators.translate_speech.GcpTranslateSpeechOperator",
-        "airflow.contrib.operators.gcp_translate_speech_operator.GcpTranslateSpeechOperator",
+        "airflow.providers.google.cloud.operators.translate_speech.CloudTranslateSpeechOperator",
+        "airflow.contrib.operators.gcp_translate_speech_operator.CloudTranslateSpeechOperator",
     ),
     (
         "airflow.providers.google.cloud.operators.video_intelligence."
