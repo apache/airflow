@@ -159,7 +159,7 @@ All operators in `airflow.providers.google.cloud.operators` package
     All operators in `gcs` sub-package.
 
     * GCSDeleteBucketOperator
-    * GcsFileTransformOperator
+    * GCSFileTransformOperator
 
 * [Dataproc](https://cloud.google.com/dataproc/)
 
@@ -179,7 +179,7 @@ All operators in `airflow.providers.google.cloud.operators` package
     * MLEngineGetModelOperator
     * MLEngineListVersionsOperator
     * MLEngineSetDefaultVersionOperator
-    * MLEngineTrainingJobFailureOperator
+    * MLEngineTrainingCancelJobOperator
 
 * [Cloud Pub/Sub](https://cloud.google.com/pubsub/)
 
@@ -418,7 +418,7 @@ from Airflow 1.10 and its equivalent from Airflow 2.0:
 | gcp_transfer_operator.GcpTransferServiceOperationsListOperator                           | cloud_storage_transfer_service.CloudDataTransferServiceListOperationsOperator  |
 | gcp_transfer_operator.GoogleCloudStorageToGoogleCloudStorageTransferOperator             | cloud_storage_transfer_service.CloudDataTransferServiceGCSToGCSOperator        |
 | gcp_translate_operator.CloudTranslateTextOperator                                        | translate.CloudTranslateTextOperator                                           |
-| gcp_translate_speech_operator.GcpTranslateSpeechOperator                                 | translate_speech.GcpTranslateSpeechOperator                                    |
+| gcp_translate_speech_operator.GcpTranslateSpeechOperator                                 | translate_speech.CloudTranslateSpeechOperator                                    |
 | gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoExplicitContentOperator | video_intelligence.CloudVideoIntelligenceDetectVideoExplicitContentOperator    |
 | gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoLabelsOperator          | video_intelligence.CloudVideoIntelligenceDetectVideoLabelsOperator             |
 | gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoShotsOperator           | video_intelligence.CloudVideoIntelligenceDetectVideoShotsOperator              |
