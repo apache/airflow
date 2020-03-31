@@ -31,7 +31,7 @@ from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
 from google.cloud.pubsub_v1.types import Duration, MessageStoragePolicy, PushConfig, ReceivedMessage
 from googleapiclient.errors import HttpError
 
-from airflow.providers.google.common.hooks.base import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.version import version
 
 

@@ -892,7 +892,7 @@ Other operators and hooks
 
    * -
      -
-     - :mod:`airflow.providers.google.cloud.hooks.discovery_api`
+     - :mod:`airflow.providers.google.common.hooks.discovery_api`
 
 .. _service:
 

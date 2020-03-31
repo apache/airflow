@@ -28,7 +28,7 @@ from google.cloud.tasks_v2 import CloudTasksClient, enums
 from google.cloud.tasks_v2.types import FieldMask, Queue, Task
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 class CloudTasksHook(GoogleBaseHook):

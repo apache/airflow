@@ -29,7 +29,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_compute_hook.GceHook",
     ),
     (
-        "airflow.providers.google.common.hooks.base.GoogleBaseHook",
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook",
         "airflow.contrib.hooks.gcp_api_base_hook.GoogleBaseHook",
     ),
     (

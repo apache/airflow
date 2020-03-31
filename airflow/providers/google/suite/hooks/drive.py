@@ -21,7 +21,7 @@ from typing import Any, Optional
 from googleapiclient.discovery import Resource, build
 from googleapiclient.http import MediaFileUpload
 
-from airflow.providers.google.common.hooks.base import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 # noinspection PyAbstractClass

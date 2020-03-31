@@ -253,6 +253,8 @@ All hooks are in the following packages:
 
   airflow/providers/google/cloud/hooks/index
 
+  airflow/providers/google/common/hooks/index
+
   airflow/providers/google/firebase/hooks/index
 
   airflow/providers/google/marketing_platform/hooks/index

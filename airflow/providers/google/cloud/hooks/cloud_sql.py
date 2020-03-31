@@ -47,7 +47,7 @@ from airflow.exceptions import AirflowException
 # For requests that are "retriable"
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import Connection
-from airflow.providers.google.common.hooks.base import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.log.logging_mixin import LoggingMixin

@@ -35,7 +35,7 @@ from google.cloud.dataproc_v1beta2.types import (  # pylint: disable=no-name-in-
 )
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.version import version as airflow_version
 
 

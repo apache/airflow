@@ -72,7 +72,7 @@ RUNTIME_ENV = {
         'count': '3'
     }
 }
-BASE_STRING = 'airflow.providers.google.common.hooks.base.{}'
+BASE_STRING = 'airflow.providers.google.common.hooks.base_google.{}'
 DATAFLOW_STRING = 'airflow.providers.google.cloud.hooks.dataflow.{}'
 MOCK_UUID = '12345678'
 TEST_PROJECT = 'test-project'

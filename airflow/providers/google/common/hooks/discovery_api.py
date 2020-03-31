@@ -23,7 +23,7 @@ from typing import Dict, Optional
 
 from googleapiclient.discovery import Resource, build
 
-from airflow.providers.google.common.hooks.base import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 class GoogleDiscoveryApiHook(GoogleBaseHook):

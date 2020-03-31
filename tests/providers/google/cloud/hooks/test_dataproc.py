@@ -37,7 +37,7 @@ CLUSTER_NAME = "cluster-name"
 
 PARENT = "parent"
 NAME = "name"
-BASE_STRING = "airflow.providers.google.common.hooks.base.{}"
+BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 DATAPROC_STRING = "airflow.providers.google.cloud.hooks.dataproc.{}"
 
 

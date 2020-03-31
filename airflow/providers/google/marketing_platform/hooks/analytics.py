@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional
 from googleapiclient.discovery import Resource, build
 from googleapiclient.http import MediaFileUpload
 
-from airflow.providers.google.common.hooks.base import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 class GoogleAnalyticsHook(GoogleBaseHook):

@@ -24,7 +24,7 @@ from google.cloud.datacatalog_v1beta1.types import (
 )
 
 from airflow import AirflowException
-from airflow.providers.google.common.hooks.base import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 class CloudDataCatalogHook(GoogleBaseHook):

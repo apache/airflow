@@ -29,7 +29,7 @@ from google.cloud.automl_v1beta1.types import (
     ImageObjectDetectionModelDeploymentMetadata, InputConfig, Model, Operation, PredictResponse, TableSpec,
 )
 
-from airflow.providers.google.common.hooks.base import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 class CloudAutoMLHook(GoogleBaseHook):

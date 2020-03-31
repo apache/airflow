@@ -30,7 +30,7 @@ from parameterized import parameterized
 from airflow.providers.google.cloud.hooks.pubsub import PubSubException, PubSubHook
 from airflow.version import version
 
-BASE_STRING = 'airflow.providers.google.common.hooks.base.{}'
+BASE_STRING = 'airflow.providers.google.common.hooks.base_google.{}'
 PUBSUB_STRING = 'airflow.providers.google.cloud.hooks.pubsub.{}'
 
 EMPTY_CONTENT = b''

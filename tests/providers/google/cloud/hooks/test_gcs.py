@@ -33,7 +33,7 @@ from airflow.utils import timezone
 from airflow.version import version
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
-BASE_STRING = 'airflow.providers.google.common.hooks.base.{}'
+BASE_STRING = 'airflow.providers.google.common.hooks.base_google.{}'
 GCS_STRING = 'airflow.providers.google.cloud.hooks.gcs.{}'
 
 EMPTY_CONTENT = b''
@@ -74,7 +74,7 @@ class TestGCSHook(unittest.TestCase):
                 gcp_conn_id='test')
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base.GoogleBaseHook.client_info',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.client_info',
         new_callable=mock.PropertyMock,
         return_value="CLIENT_INFO"
     )
