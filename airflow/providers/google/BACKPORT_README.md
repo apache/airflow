@@ -26,13 +26,13 @@
 - [v2020.XX.XX](#v2020xxxx)
   - [Limitations](#limitations)
   - [New operators](#new-operators)
-    - [Google Cloud Platform operators](#google-cloud-operators)
+    - [Google Cloud Platform operators](#google-cloud-platform-operators)
     - [Google Marketing Platform operators](#google-marketing-platform-operators)
     - [Google Suite operators](#google-suite-operators)
     - [Google Ads operators](#google-ads-operators)
     - [Google Firebase operators](#google-firebase-operators)
   - [Updated operators](#updated-operators)
-    - [Google Cloud operators](#google-cloud-operators-1)
+    - [Google Cloud Platform operators](#google-cloud-platform-operators-1)
     - [Google Suite operators](#google-suite-operators-1)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -312,7 +312,7 @@ All operators in `airflow.providers.google.firebase.operators` package
 The operators in Airflow 2.0 have been moved to a new package. The following table showing operators
 from Airflow 1.10 and its equivalent from Airflow 2.0:
 
-##### Google Cloud operators
+##### Google Cloud Platform operators
 
 | Airflow 1.10  (`airflow.contrib.operators` package)                                      | Airflow 2.0 (`airflow.providers.google.cloud.operators` package)               |
 |------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------|
