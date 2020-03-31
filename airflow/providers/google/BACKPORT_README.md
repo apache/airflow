@@ -20,8 +20,20 @@
 ## Changelog
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
+
+- [v2020.XX.XX](#v2020xxxx)
+  - [Limitations](#limitations)
+  - [New operators](#new-operators)
+    - [Google Cloud operators: `airflow.providers.google.cloud.operators` package](#google-cloud-operators-airflowprovidersgooglecloudoperators-package)
+    - [Marketing platform operators: `airflow.providers.google.marketing_platform.operators` package](#marketing-platform-operators-airflowprovidersgooglemarketing_platformoperators-package)
+    - [Ads operators: `airflow.providers.google.ads.operators` package](#ads-operators-airflowprovidersgoogleadsoperators-package)
+  - [Updated operators](#updated-operators)
+    - [Google Cloud operators](#google-cloud-operators)
+    - [GSuite operators](#gsuite-operators)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ### v2020.XX.XX
 
@@ -42,7 +54,7 @@ We have worked intensively on operators that have not appeared in any Airflow re
 through this package. This release includes the following new operators:
 
 
-**Google Cloud operators: `airflow.providers.google.cloud.operators` package:**
+##### Google Cloud operators: `airflow.providers.google.cloud.operators` package
 
 * [AutoML](https://cloud.google.com/automl/): `automl` package
     * AutoMLBatchPredictOperator
@@ -178,7 +190,7 @@ through this package. This release includes the following new operators:
     * presto_to_gcs.PrestoToGCSOperator
     * sftp_to_gcs.SFTPToGCSOperator
 
-**Marketing platform operators: `airflow.providers.google.marketing_platform.operators` package:**
+##### Marketing platform operators: `airflow.providers.google.marketing_platform.operators` package
 
 * [Analytics360](https://analytics.google.com/) `analytics` package
     * GoogleAnalyticsDataImportUploadOperator
@@ -216,7 +228,7 @@ through this package. This release includes the following new operators:
     * airflow.providers.google.suite.operators.sheets.GCStoGoogleSheets
     * airflow.providers.google.suite.operators.sheets.GoogleSheetsToGCSOperator
 
-**Ads operators: `airflow.providers.google.ads.operators` package:**
+##### Ads operators: `airflow.providers.google.ads.operators` package
 
 * ads.GoogleAdsToGcsOperator
 
@@ -225,7 +237,7 @@ through this package. This release includes the following new operators:
 The operators in Airflow 2.0 have been moved to a new package. The following table showing operators
 from Airflow 1.10 and its equivalent from Airflow 2.0:
 
-**Google Cloud operators**
+##### Google Cloud operators
 
 | Airflow 1.10  (`airflow.contrib.operators` package)                                      | Airflow 2.0 (`airflow.providers.google.cloud.operators` package)               |
 |------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------|
@@ -380,7 +392,7 @@ from Airflow 1.10 and its equivalent from Airflow 2.0:
 | s3_to_gcs_transfer_operator.CloudDataTransferServiceS3ToGCSOperator                      | cloud_storage_transfer_service.CloudDataTransferServiceS3ToGCSOperator         |
 | sql_to_gcs.BaseSQLToGoogleCloudStorageOperator                                           | sql_to_gcs.BaseSQLToGCSOperator                                                |
 
-**GSuite operators**
+##### GSuite operators
 
 | Airflow 1.10  (`airflow.contrib.operators` package)                                      | Airflow 2.0 (`airflow.providers.google.suite.operators` package)               |
 |------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------|

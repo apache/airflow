@@ -132,10 +132,16 @@ repos:
     hooks:
       - id: doctoc
         name: Add TOC for md files
-        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.md$|^dev/README.md|BACKPORT_README.md$
+        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.md$|^dev/README\.md$
         args:
           - "--maxlevel"
           - "2"
+  - repo: https://github.com/thlorenz/doctoc.git
+    rev: v1.4.0
+    hooks:
+      - id: doctoc
+        name: Add TOC for backport readme files
+        files: BACKPORT_README\.md$
   - repo: meta
     hooks:
       - id: check-hooks-apply
