@@ -19,6 +19,10 @@
 
 ## Changelog
 
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+
 ### v2020.XX.XX
 
 This is the first released version of the package.

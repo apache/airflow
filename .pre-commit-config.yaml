@@ -132,7 +132,7 @@ repos:
     hooks:
       - id: doctoc
         name: Add TOC for md files
-        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.md$|^dev/README.md$
+        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.md$|^dev/README.md|BACKPORT_README.md$
         args:
           - "--maxlevel"
           - "2"
