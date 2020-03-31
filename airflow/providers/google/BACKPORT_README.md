@@ -26,8 +26,8 @@
 - [v2020.XX.XX](#v2020xxxx)
   - [Limitations](#limitations)
   - [New operators](#new-operators)
-    - [Google Cloud operators](#google-cloud-operators)
-    - [Google Marketing platform operators](#google-marketing-platform-operators)
+    - [Google Cloud Platform operators](#google-cloud-operators)
+    - [Google Marketing Platform operators](#google-marketing-platform-operators)
     - [Google Suite operators](#google-suite-operators)
     - [Google Ads operators](#google-ads-operators)
     - [Google Firebase operators](#google-firebase-operators)
@@ -56,7 +56,7 @@ We have worked intensively on operators that have not appeared in any Airflow re
 through this package. This release includes the following new operators:
 
 
-##### Google Cloud operators
+##### Google Cloud Platform operators
 
 All operators in `airflow.providers.google.cloud.operators` package
 
@@ -231,7 +231,7 @@ All operators in `airflow.providers.google.cloud.operators` package
     * sftp_to_gcs.SFTPToGCSOperator
     * sheets_to_gcs.GoogleSheetsToGCSOperator
 
-##### Google Marketing platform operators
+##### Google Marketing Platform operators
 
 All operators in `airflow.providers.google.marketing_platform.operators` package
 

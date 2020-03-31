@@ -866,6 +866,15 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      -
      - :mod:`airflow.providers.google.cloud.operators.sql_to_gcs`
 
+   * - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
+     - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.providers.google.cloud.operators.sheets_to_gcs`
+
+   * - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
+     -
+     - :mod:`airflow.providers.google.suite.operators.gcs_to_sheets`
 
 .. _integration:GCP-Discovery:
 
