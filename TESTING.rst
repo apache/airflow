@@ -27,11 +27,11 @@ Airflow Test Infrastructure
 * **Integration tests** are available in the Breeze development environment
   that is also used for Airflow Travis CI tests. Integration tests are special tests that require
   additional services running, such as Postgres, MySQL, Kerberos, etc. Currently, these tests are not
-  marked as integration tests but soon they will be clearly separated by ``pytest`` annotations.
+  marked as integration tests but soon they will be separated by ``pytest`` annotations.
 
 * **System tests** are automatic tests that use external systems like
   Google Cloud Platform. These tests are intended for an end-to-end DAG execution.
-  The tests can be executed on both current version of Apache Airflow, and any of the older
+  The tests can be executed on both the current version of Apache Airflow and any of the older
   versions from 1.10.* series.
 
 This document is about running Python tests. Before the tests are run, use
@@ -216,7 +216,7 @@ In the CI environment, integrations can be enabled by specifying the ``ENABLED_I
 storing a space-separated list of integrations to start. Thanks to that, we can run integration and
 integration-less tests separately in different jobs, which is desired from the memory usage point of view.
 
-Note that Kerberos is a special kind of integration. There are some tests that run differently when
+Note that Kerberos is a special kind of integration. Some tests run differently when
 Kerberos integration is enabled (they retrieve and use a Kerberos authentication token) and differently when the
 Kerberos integration is disabled (they neither retrieve nor use the token). Therefore, one of the test jobs
 for the CI system should run all tests with the Kerberos integration enabled to test both scenarios.
@@ -225,7 +225,7 @@ Running Integration Tests
 -------------------------
 
 All tests using an integration are marked with a custom pytest marker ``pytest.mark.integration``.
-The marker has a single parameter - the name of an integration.
+The marker has a single parameter - the name of integration.
 
 Example of the ``redis`` integration test:
 
@@ -238,7 +238,7 @@ Example of the ``redis`` integration test:
 
         self.assertTrue(redis.ping(), 'Connection to Redis with PING works.')
 
-The markers can be specified at the test level or at the class level (then all tests in this class
+The markers can be specified at the test level or the class level (then all tests in this class
 require an integration). You can add multiple markers with different integrations for tests that
 require more than one integration.
 
@@ -258,7 +258,7 @@ To run only ``mongo`` integration tests:
 
     pytest --integrations mongo
 
-To run integration tests fot ``mongo`` and ``rabbitmq``:
+To run integration tests for ``mongo`` and ``rabbitmq``:
 
 .. code-block:: bash
 
@@ -322,7 +322,7 @@ Starting Kubernetes Cluster when Starting Breeze
 To run Kubernetes in Breeze, you can start Breeze with the ``--kind-cluster-start`` switch. This
 automatically creates a Kind Kubernetes cluster in the same ``docker`` engine that is used to run Breeze.
 Setting up the Kubernetes cluster takes some time so the cluster continues running
-until the it is stopped with the ``--kind-cluster-stop`` switch or until the ``--kind-cluster-recreate``
+until it is stopped with the ``--kind-cluster-stop`` switch or until the ``--kind-cluster-recreate``
 switch is used rather than ``--kind-cluster-start``. Starting Breeze with the Kind Cluster automatically
 sets ``runtime`` to ``kubernetes`` (see below).
 
@@ -332,7 +332,7 @@ time for different Python versions and different Kubernetes versions.
 
 The Control Plane is available from inside the Docker image via ``<CLUSTER_NAME>-control-plane:6443``
 host:port, the worker of the Kind Cluster is available at  <CLUSTER_NAME>-worker
-and webserver port for the worker is 30809.
+and the webserver port for the worker is 30809.
 
 After the Kubernetes Cluster is started, you need to deploy Airflow to the cluster:
 
@@ -410,7 +410,7 @@ can speed up the collection of tests by running:
 Travis CI Testing Framework
 ===========================
 
-Airflow test suite is based on Travis CI framework as running all of the tests
+The airflow test suite is based on Travis CI framework as running all of the tests
 locally requires significant setup. You can set up Travis CI in your fork of
 Airflow by following the
 `Travis CI Getting Started guide <https://docs.travis-ci.com/user/getting-started/>`__.
@@ -498,9 +498,9 @@ always at the time of entering Breeze.
 
 There are several typical operations you might want to perform such as:
 
-* generating a file with random value used across the whole Breeze session (this is useful if
+* generating a file with the random value used across the whole Breeze session (this is useful if
   you want to use this random number in names of resources that you create in your service
-* generate variables that will be used as name of your resources
+* generate variables that will be used as the name of your resources
 * decrypt any variables and resources you keep as encrypted in your configuration files
 * install additional packages that are needed in case you are doing tests with 1.10.* Airflow series
   (see below)
@@ -558,7 +558,7 @@ Currently forwarded credentials are:
 Adding a New System Test
 --------------------------
 
-We are working on automating system tests execution (AIP-4) but for now system tests are skipped when
+We are working on automating system tests execution (AIP-4) but for now, system tests are skipped when
 tests are run in our CI system. But to enable the test automation, we encourage you to add system
 tests whenever an operator/hook/sensor is added/modified in a given system.
 
@@ -572,7 +572,7 @@ tests whenever an operator/hook/sensor is added/modified in a given system.
   authentication with external systems, make sure to keep these credentials in the
   ``files/airflow-breeze-config/keys`` directory. Mark your tests with
   ``@pytest.mark.credential_file(<FILE>)`` so that they are skipped if such a credential file is not there.
-  The tests should read the right credentials and authenticate on their own. The credentials are read
+  The tests should read the right credentials and authenticate them on their own. The credentials are read
   in Breeze from the ``/files`` directory. The local "files" folder is mounted to the "/files" folder in Breeze.
 
 * If your system tests are long-lasting ones (i.e., require more than 20-30 minutes
@@ -583,7 +583,7 @@ tests whenever an operator/hook/sensor is added/modified in a given system.
   the DAG specified by its ID. This DAG should contain the actual DAG logic
   to execute. Make sure to define the DAG in ``providers/<SYSTEM_NAME>/example_dags``. These example DAGs
   are also used to take some snippets of code out of them when documentation is generated. So, having these
-  DAGs runnable is a great way to make sure the documenation is describing a working example. Inside
+  DAGs runnable is a great way to make sure the documentation is describing a working example. Inside
   your test class/test method, simply use ``self.run_dag(<DAG_ID>,<DAG_FOLDER>)`` to run the DAG. Then,
   the system class will take care about running the DAG. Note that the DAG_FOLDER should be
   a subdirectory of the ``tests.test_utils.AIRFLOW_MAIN_FOLDER`` + ``providers/<SYSTEM_NAME>/example_dags``.
@@ -599,7 +599,7 @@ It runs two DAGs defined in ``airflow.providers.google.cloud.example_dags.exampl
 Preparing backport packages for System Tests for Airflow 1.10.* series
 ----------------------------------------------------------------------
 
-In order to run system tests with old Airflow version you need to prepare backport packages. This
+To run system tests with old Airflow version you need to prepare backport packages. This
 can be done by running ``./scripts/ci/ci_prepare_backport_packages.sh <PACKAGES TO BUILD>``. For
 example the below command will build google postgres and mysql packages:
 
@@ -608,7 +608,7 @@ example the below command will build google postgres and mysql packages:
   ./scripts/ci/ci_prepare_backport_packages.sh google postgres mysql
 
 Those packages will be prepared in ./dist folder. This folder is mapped to /dist folder
-when you enter Breeze, so it is easy to automate installing of those packages for testing.
+when you enter Breeze, so it is easy to automate installing those packages for testing.
 
 
 Installing backported for Airflow 1.10.* series
@@ -631,7 +631,7 @@ freshly installed version.
 You should automate installing of the backport packages in your own
 ``./files/airflow-breeze-config/variables.env`` file. You should make it depend on
 ``RUN_AIRFLOW_1_10`` variable value equals to "true" so that
-installation of backport packages is only performed when you install airflow 1.10.*.
+the installation of backport packages is only performed when you install airflow 1.10.*.
 The backport packages are available in ``/dist`` directory if they were prepared as described
 in the previous chapter.
 
@@ -644,8 +644,8 @@ Typically the command in you variables.env file will be similar to:
       pip install /dist/apache_airflow_providers_{google,postgres,mysql}*.whl || true
   fi
 
-The command above will automatically install backported google, postgres amd mysql packages if they
-were prepared before entering breeze.
+The command above will automatically install backported google, postgres, and mysql packages if they
+were prepared before entering the breeze.
 
 
 Running system tests for backported packages in Airflow 1.10.* series
@@ -653,12 +653,12 @@ Running system tests for backported packages in Airflow 1.10.* series
 
 Once you installed 1.10.* Airflow version with ``--install-airflow-version`` and prepared and
 installed the required packages via ``variables.env`` it should be as easy as running
-``pytest --systems=<SYSTEM_NAME> TEST_NAME``. Note that we have default timeout for runnning
+``pytest --systems=<SYSTEM_NAME> TEST_NAME``. Note that we have default timeout for running
 system tests set to 8 minutes and some system tests might take much longer to run and you might
 want to add ``-o faulthandler_timeout=2400`` (2400s = 40 minutes for example) to your
 pytest command.
 
-Typical system test session
+The typical system test session
 ---------------------------
 
 Here is the typical session that you need to do to run system tests:
@@ -670,7 +670,7 @@ Here is the typical session that you need to do to run system tests:
   ./scripts/ci/ci_prepare_backport_packages.sh google postgres mysql
 
 2. Enter breeze with installing Airflow 1.10.*, forwarding credentials and installing
-   backported packages (you need appropriate line in ``./files/airflow-breeze-config/variables.env``)
+   backported packages (you need an appropriate line in ``./files/airflow-breeze-config/variables.env``)
 
 .. code-block:: bash
 
@@ -696,25 +696,25 @@ Iteration with System Tests if your resources are slow to create
 
 When you want to iterate on system tests, you might want to create slow resources first.
 
-If you need to setup some external resources for your tests (for example compute instances in Google Cloud)
+If you need to set up some external resources for your tests (for example compute instances in Google Cloud)
 you should set them up and teardown in the setUp/tearDown methods of your tests.
 Since those resources might be slow to create you might want to add some helpers that
 set them up and tear them down separately via manual operations. This way you can iterate on
 the tests without waiting for setUp and tearDown with every test.
 
-In this case you should build in a mechanism to skip setUp and tearDown in case you manually
-created the resources. Somewhat complex example of that can be found in
+In this case, you should build in a mechanism to skip setUp and tearDown in case you manually
+created the resources. A somewhat complex example of that can be found in
 ``tests.providers.google.cloud.operators.test_cloud_sql_system.py`` and the helper is
 available in ``tests.providers.google.cloud.operators.test_cloud_sql_system_helper.py``.
 
 When the helper is run with ``--action create`` to create cloud sql instances which are very slow
 to create and set-up so that you can iterate on running the system tests without
-loosing the time for creating theme every time. A temporary file is created to prevent from
+losing the time for creating theme every time. A temporary file is created to prevent from
 setting up and tearing down the instances when running the test.
 
 This example also shows how you can use the random number generated at the entry of Breeze if you
-have it in your variables.env (see previous chapter). In case of Cloud SQL you cannot reuse the
-same instance name for a week so we generate random number that is used across the whole session
+have it in your variables.env (see the previous chapter). In the case of Cloud SQL, you cannot reuse the
+same instance name for a week so we generate a random number that is used across the whole session
 and store it in ``/random.txt`` file so that the names are unique during tests.
 
 
@@ -727,12 +727,12 @@ Breeze session. They are usually expensive to run.
 
 Note that in case you have to update your backported operators or system tests (they are part of
 the backport packageS) you need to rebuild the packages outside of breeze and
-``pip remove/pip install`` those packages in order to get them installed. This is not needed
+``pip remove/pip install`` those packages to get them installed. This is not needed
 if you run system tests with ``current`` airflow version, so it is better to iterate with the
 system tests with the ``current`` version and fix all problems there and only afterwards run
 the tests with Airflow 1.10.*
 
-Typical session then looks as follows:
+The typical session then looks as follows:
 
 1. Prepare backport packages
 
@@ -741,7 +741,7 @@ Typical session then looks as follows:
   ./scripts/ci/ci_prepare_backport_packages.sh google postgres mysql
 
 2. Enter breeze with installing Airflow 1.10.*, forwarding credentials and installing
-   backported packages (you need appropriate line in ``./files/airflow-breeze-config/variables.env``)
+   backported packages (you need an appropriate line in ``./files/airflow-breeze-config/variables.env``)
 
 .. code-block:: bash
 
@@ -803,7 +803,7 @@ You can set up your remote debugging session as follows:
     :align: center
     :alt: Setup remote debugging
 
-Note that on macOS, you have to use a real IP address of your host rather than default
+Note that on macOS, you have to use a real IP address of your host rather than the default
 localhost because on macOS the container runs in a virtual machine with a different IP address.
 
 Make sure to configure source code mapping in the remote debugging configuration to map
@@ -819,7 +819,7 @@ Remote Debugging on Travis CI
 You can also connect IDE to Travis CI. To do this, you must pass a public IP address in the ``pydevd.set_trace``
 method. If you do not have a public IP address then you can start the virtual machine at the cloud service
 provider for the time of debugging. You also need to install the appropriate debugger in Travis CI. You
-need to modify the ``scripts/ci/in_container/entrypoint.sh`` file to add an pip install command
+need to modify the ``scripts/ci/in_container/entrypoint.sh`` file to add a pip install command
 after the license header.
 
 Setup VM on GCP with SSH forwarding
@@ -828,7 +828,7 @@ Setup VM on GCP with SSH forwarding
 Below are the steps you need to take to set up your virtual machine in the Google Cloud Platform.
 
 1. The next steps will assume that you have configured environment variables with the name of the network and
-   virtual machine, project ID and the zone where the virtual machine will be created
+   a virtual machine, project ID and the zone where the virtual machine will be created
 
     .. code-block:: bash
 
@@ -839,7 +839,7 @@ Below are the steps you need to take to set up your virtual machine in the Googl
 
 2. It is necessary to configure the network and firewall for your machine.
    The firewall must have unblocked access to port 22 for SSH traffic and any other port for the debugger.
-   In the example for the debugger we will use port 5555.
+   In the example for the debugger, we will use port 5555.
 
     .. code-block:: bash
 
@@ -880,7 +880,7 @@ Below are the steps you need to take to set up your virtual machine in the Googl
 
 4. The SSH Deamon's default configuration does not allow traffic forwarding to public addresses.
    To change it, modify the ``GatewayPorts`` options in the ``/etc/ssh/sshd_config`` file to ``Yes``
-   and restart the SSH deamon.
+   and restart the SSH daemon.
 
     .. code-block:: bash
 
@@ -909,12 +909,12 @@ If you have finished using the virtual machine, remember to delete it.
       gcloud beta compute --project="${PROJECT_ID}" instances delete "${GCP_INSTANCE_NAME}" \
         --zone="${GCP_ZONE}"
 
-You can use the GCP service for free, if you use the `Free Tier <https://cloud.google.com/free>`__.
+You can use the GCP service for free if you use the `Free Tier <https://cloud.google.com/free>`__.
 
 DAG Testing
 ===========
 
-To ease and speed up process of developing DAGs, you can use
+To ease and speed up the process of developing DAGs, you can use
 py:class:`~airflow.executors.debug_executor.DebugExecutor`, which is a single process executor
 for debugging purposes. Using this executor, you can run and debug DAGs from your IDE.
 
@@ -958,9 +958,9 @@ To run the tests for Airflow 1.10.* series, you need to run Breeze with
 If ``current`` is specified (default), then the current version of Airflow is used.
 Otherwise, the released version of Airflow is installed.
 
-You should also consider running it with ``restart`` command when you change installed version.
+You should also consider running it with ``restart`` command when you change the installed version.
 This will clean-up the database so that you start with a clean DB and not DB installed in a previous version.
-So typically you'd run it like ``breeze --install-ariflow-version=1.10.9 restart``.
+So typically you'd run it like ``breeze --install-airflow-version=1.10.9 restart``.
 
 BASH Unit Testing (BATS)
 ========================
