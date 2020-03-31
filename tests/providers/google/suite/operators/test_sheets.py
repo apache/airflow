@@ -18,7 +18,7 @@
 import mock
 
 from airflow.providers.google.suite.operators.sheets import (
-    GCStoGoogleSheets, GoogleSheetsCreateSpreadsheet, GoogleSheetsToGCSOperator,
+    GCSToGoogleSheets, GoogleSheetsCreateSpreadsheet, GoogleSheetsToGCSOperator,
 )
 
 GCP_CONN_ID = "test"
@@ -152,7 +152,7 @@ class TestGoogleSheetsToGCSOperator:
         mock_xcom.assert_called_once_with(context, "destination_objects", [PATH, PATH])
 
 
-class TestGCStoGoogleSheets:
+class TestGCSToGoogleSheets:
     @mock.patch("airflow.providers.google.suite.operators.sheets.GCSHook")
     @mock.patch("airflow.providers.google.suite.operators.sheets.GSheetsHook")
     @mock.patch("airflow.providers.google.suite.operators.sheets.NamedTemporaryFile")
@@ -164,7 +164,7 @@ class TestGCStoGoogleSheets:
         mock_tempfile.return_value.__enter__.return_value.name = filename
         mock_reader.return_value = VALUES
 
-        op = GCStoGoogleSheets(
+        op = GCSToGoogleSheets(
             task_id="test_task",
             spreadsheet_id=SPREADSHEET_ID,
             bucket_name=BUCKET,

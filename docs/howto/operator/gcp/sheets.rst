@@ -83,13 +83,13 @@ To get the URL of newly created spreadsheet use XCom value:
     :start-after: [START print_spreadsheet_url]
     :end-before: [END print_spreadsheet_url]
 
-.. _howto/operator:GCStoGoogleSheets:
+.. _howto/operator:GCSToGoogleSheets:
 
 Upload data from GCS to Google Sheets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To upload data from Google Cloud Storage to Google Spreadsheet you can use the
-:class:`~airflow.providers.google.suite.operators.sheet.GCStoGoogleSheets`.
+:class:`~airflow.providers.google.suite.operators.sheet.GCSToGoogleSheets`.
 
 .. exampleinclude:: ../../../../airflow/providers/google/suite/example_dags/example_sheets.py
     :language: python
@@ -98,4 +98,4 @@ To upload data from Google Cloud Storage to Google Spreadsheet you can use the
     :end-before: [END upload_sheet_to_gcs]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.providers.google.suite.operators.sheets.GCStoGoogleSheets`.
+:template-fields:`airflow.providers.google.suite.operators.sheets.GCSToGoogleSheets`.

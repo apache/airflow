@@ -166,13 +166,13 @@ class GoogleSheetsToGCSOperator(BaseOperator):
         return destination_array
 
 
-class GCStoGoogleSheets(BaseOperator):
+class GCSToGoogleSheets(BaseOperator):
     """
     Uploads .csv file from Google Cloud Storage to provided Google Spreadsheet.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GCStoGoogleSheets`
+        :ref:`howto/operator:GCSToGoogleSheets`
 
     :param spreadsheet_id: The Google Sheet ID to interact with.
     :type spreadsheet_id: str

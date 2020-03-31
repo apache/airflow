@@ -21,7 +21,7 @@ import os
 from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.suite.operators.sheets import (
-    GCStoGoogleSheets, GoogleSheetsCreateSpreadsheet, GoogleSheetsToGCSOperator,
+    GCSToGoogleSheets, GoogleSheetsCreateSpreadsheet, GoogleSheetsToGCSOperator,
 )
 from airflow.utils.dates import days_ago
 
@@ -64,7 +64,7 @@ with models.DAG(
     # [END print_spreadsheet_url]
 
     # [START upload_gcs_to_sheet]
-    upload_gcs_to_sheet = GCStoGoogleSheets(
+    upload_gcs_to_sheet = GCSToGoogleSheets(
         task_id="upload_gcs_to_sheet",
         bucket_name=GCS_BUCKET,
         object_name="{{ task_instance.xcom_pull('upload_sheet_to_gcs')[0] }}",

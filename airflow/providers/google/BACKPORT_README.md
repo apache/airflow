@@ -289,7 +289,7 @@ All operators in `airflow.providers.google.marketing_platform.operators` package
 * Transfer Google Suite operators:
     All operators in `airflow.providers.google.cloud.operators` sub-package:
 
-    * airflow.providers.google.suite.operators.sheets.GCStoGoogleSheets
+    * airflow.providers.google.suite.operators.sheets.GCSToGoogleSheets
     * airflow.providers.google.suite.operators.sheets.GoogleSheetsToGCSOperator
 
 ##### Ads operators
