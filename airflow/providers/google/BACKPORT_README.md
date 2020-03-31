@@ -291,7 +291,7 @@ All operators in `airflow.providers.google.suite.operators` sub-package:
 
 All operators in `airflow.providers.google.ads.operators` package
 
-* [Google Ads](https://https://ads.google.com/)
+* [Google Ads](https://ads.google.com/)
 
     All operators in `ads` module.
 
