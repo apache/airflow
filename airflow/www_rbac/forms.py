@@ -37,19 +37,20 @@ from wtforms.fields import (IntegerField, SelectField, TextAreaField, PasswordFi
 from airflow.models import Connection
 from airflow.utils import timezone
 from airflow.www_rbac.validators import ValidJson
+from airflow.www_rbac.widgets import AirflowDateTimePickerWidget
 
 
 class DateTimeForm(FlaskForm):
     # Date filter form needed for task views
     execution_date = DateTimeField(
-        "Execution date", widget=DateTimePickerWidget())
+        "Execution date", widget=AirflowDateTimePickerWidget())
 
 
 class DateTimeWithNumRunsForm(FlaskForm):
     # Date time and number of runs form for tree view, task duration
     # and landing times
     base_date = DateTimeField(
-        "Anchor date", widget=DateTimePickerWidget(), default=timezone.utcnow())
+        "Anchor date", widget=AirflowDateTimePickerWidget(), default=timezone.utcnow())
     num_runs = SelectField("Number of runs", default=25, choices=(
         (5, "5"),
         (25, "25"),

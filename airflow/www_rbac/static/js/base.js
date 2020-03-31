@@ -16,7 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+// global:$
+// global:window
 import {defaultFormatWithTZ, moment} from './datetime-utils';
+
+window.moment = moment;
 
 function displayTime() {
   let utcTime = moment().utc().format(defaultFormatWithTZ);
@@ -114,4 +118,7 @@ $(document).ready(function () {
       }
     }
   });
+
+  $(".datetimepicker").datetimepicker({format: 'YYYY-MM-DD HH:mm:ssZ', sideBySide: true});
+
 });
