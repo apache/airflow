@@ -113,9 +113,9 @@ and set env variable DOCKER_HOST.
 Docker Images Used by Breeze
 ----------------------------
 
-For all development tasks, unit tests, integration tests and static code checks, we use the
+For all development tasks, unit tests, integration tests, and static code checks, we use the
 **CI image** maintained on the Docker Hub in the ``apache/airflow`` repository.
-This Docker image contains a lot test-related packages (size of ~1GB).
+This Docker image contains a lot of test-related packages (size of ~1GB).
 Its tag follows the pattern of ``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>-ci``
 (for example, ``apache/airflow:master-python3.6-ci``). The image is built using the
 `<Dockerfile.ci>`_ Dockerfile.
@@ -136,7 +136,7 @@ dependencies). If you work offline and do not want to rebuild the images when ne
 ``FORCE_ANSWER_TO_QUESTIONS`` variable to ``no`` as described in the
 `Default behaviour for user interaction <#default-behaviour-for-user-interaction>`_ section.
 
-See `Troubleshooting section <#troubleshooting>`_ for steps you can make to clean the environment.
+See the `Troubleshooting section <#troubleshooting>`_ for steps you can make to clean the environment.
 
 Getopt and gstat
 ----------------
@@ -228,9 +228,9 @@ for details.
 
   ./breeze
 
-First time you run Breeze, it pulls and builds a local version of Docker images.
+The First time you run Breeze, it pulls and builds a local version of Docker images.
 It pulls the latest Airflow CI images from `Airflow DockerHub <https://hub.docker.com/r/apache/airflow>`_
-and use them to build your local Docker images. Note that the first run (per python) might take up to 10
+and uses them to build your local Docker images. Note that the first run (per python) might take up to 10
 minutes on a fast connection to start. Subsequent runs should be much faster.
 
 Once you enter the environment, you are dropped into bash shell of the Airflow container and you can
@@ -243,7 +243,7 @@ checked-out Airflow repository to your PATH to run Breeze without the ``./`` and
 When you enter the Breeze environment, automatically an environment file is sourced from
 ``files/airflow-breeze-config/variables.env``. The ``files`` folder from your local sources is
 automatically mounted to the container under ``/files`` path and you can put there any files you want
-to make available fot the Breeze container.
+to make available for the Breeze container.
 
 Launching multiple terminals
 ----------------------------
@@ -252,14 +252,14 @@ Often if you want to run full airflow in the Breeze environment you need to laun
 run ``airflow webserver``, ``airflow scheduler``, ``airflow worker`` in separate terminals.
 
 This can be achieved either via ``tmux`` or via exec-ing into the running container from the host. Tmux
-is installed inside the container and you can launch it with ``tmux`` command. Tmux provide you with the
+is installed inside the container and you can launch it with ``tmux`` command. Tmux provides you with the
 capability of creating multiple virtual terminals and multiplex between them. More about ``tmux`` can be
 found at `tmux github wiki page <https://github.com/tmux/tmux/wiki>`_ . Tmux has several useful shortcuts
 that allow you to split the terminals, open new tabs etc - it's pretty useful to learn it.
 
 Another - slightly easier - way is to exec into Breeze terminal from the host's terminal. Often you can
 have multiple terminals in the host (Linux/MacOS/WSL2 on Windows) and you can simply use those terminals
-to enter running container. It's as easy as launching ``breeze exec`` while you already started the
+to enter the running container. It's as easy as launching ``breeze exec`` while you already started the
 Breeze environment. You will be dropped into bash and environment variables will be read in the same
 way as when you enter the environment. You can do it multiple times and open as many terminals as you need.
 
@@ -416,7 +416,7 @@ by specifying ``--skip-mounting-local-sources`` flag when running Breeze. In thi
 embedded in the container and changes to these sources will not be persistent.
 
 
-After you run Breeze for the first time, you will have an empty directory ``files`` in your source code,
+After you run Breeze for the first time, you will have empty directory ``files`` in your source code,
 which will be mapped to ``/files`` in your Docker container. You can pass there any files you need to
 configure and run Docker. They will not be removed between Docker runs.
 
@@ -1065,7 +1065,7 @@ describe your problem.
 Fixing File/Directory Ownership
 -------------------------------
 
-On Linux there is a problem with propagating ownership of created files (a known Docker problem). Basically,
+On Linux, there is a problem with propagating ownership of created files (a known Docker problem). The
 files and directories created in the container are not owned by the host user (but by the root user in our
 case). This may prevent you from switching branches, for example, if files owned by the root user are
 created within your sources. In case you are on a Linux host and have some files in your sources created
