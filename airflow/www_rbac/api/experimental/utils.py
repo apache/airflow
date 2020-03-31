@@ -9,7 +9,7 @@ def get_cas_base_url():
     connection_model = models.connection.Connection
     with create_session() as session:
         cas_base_url = session.query(connection_model).filter(
-            connection_model.conn_id == 'cas_base_url').first().get_uri()
+            connection_model.conn_id == 'cas_base_url').first()
     if not cas_base_url:
         cas_base_url = CAS_BASE_URL  # 从环境变量中获取URL配置
     return cas_base_url.get_uri() if isinstance(cas_base_url, connection_model) else cas_base_url
