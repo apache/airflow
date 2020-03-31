@@ -998,10 +998,12 @@ prepare such packages on your own easily.
 
 * Enter the ``backport_packages`` directory
 
+* Run ``python setup_backport_packages.py prepare`` to update deprecated modules & paths.
+
 * Usually you only build some of the providers package. The ``providers`` directory is separated into
   separate providers. You can see the list of all available providers by running
   ``python setup_backport_packages.py list-backport-packages``. You can build the backport package
-  by running ``python setup.py <PROVIDER_NAME> bdist_wheel``. Note that there
+  by running ``python setup_backport_packages.py <PROVIDER_NAME> bdist_wheel``. Note that there
   might be (and are) dependencies between some packages that might prevent subset of the packages
   to be used without installing the packages they depend on. This will be solved soon by
   adding cross-dependencies between packages.
