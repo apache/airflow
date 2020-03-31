@@ -37,6 +37,7 @@ INSTANCE_URL = "http://datafusion.instance.com"
 NAMESPACE = "TEST_NAMESPACE"
 RUNTIME_ARGS = {"arg1": "a", "arg2": "b"}
 
+
 class TestCloudDataFusionUpdateInstanceOperator:
     @mock.patch(HOOK_STR)
     def test_execute(self, mock_hook):
@@ -203,7 +204,10 @@ class TestCloudDataFusionStartPipelineOperator:
         )
 
         mock_hook.return_value.start_pipeline.assert_called_once_with(
-            instance_url=INSTANCE_URL, pipeline_name=PIPELINE_NAME, namespace=NAMESPACE, runtime_args=RUNTIME_ARGS 
+            instance_url=INSTANCE_URL, 
+            pipeline_name=PIPELINE_NAME, 
+            namespace=NAMESPACE, 
+            runtime_args=RUNTIME_ARGS 
         )
 
 

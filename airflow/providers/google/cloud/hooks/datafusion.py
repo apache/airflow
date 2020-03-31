@@ -373,7 +373,10 @@ class DataFusionHook(CloudBaseHook):
         return json.loads(response.data)
 
     def start_pipeline(
-        self, pipeline_name: str, instance_url: str, namespace: str = "default", runtime_args: Optional[Dict[str, Any]] = None
+        self, pipeline_name: str, 
+        instance_url: str, 
+        namespace: str = "default", 
+        runtime_args: Optional[Dict[str, Any]] = None
     ) -> None:
         """
         Starts a Cloud Data Fusion pipeline. Works for both batch and stream pipelines.
