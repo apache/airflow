@@ -26,11 +26,11 @@
 - [v2020.XX.XX](#v2020xxxx)
   - [Limitations](#limitations)
   - [New operators](#new-operators)
-    - [Google Cloud operators: `airflow.providers.google.cloud.operators` package](#google-cloud-operators-airflowprovidersgooglecloudoperators-package)
-    - [Marketing platform operators: `airflow.providers.google.marketing_platform.operators` package](#marketing-platform-operators-airflowprovidersgooglemarketing_platformoperators-package)
-    - [Ads operators: `airflow.providers.google.ads.operators` package](#ads-operators-airflowprovidersgoogleadsoperators-package)
-  - [Updated operators](#updated-operators)
     - [Google Cloud operators](#google-cloud-operators)
+    - [Marketing platform operators](#marketing-platform-operators)
+    - [Ads operators](#ads-operators)
+  - [Updated operators](#updated-operators)
+    - [Google Cloud operators](#google-cloud-operators-1)
     - [GSuite operators](#gsuite-operators)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -54,9 +54,14 @@ We have worked intensively on operators that have not appeared in any Airflow re
 through this package. This release includes the following new operators:
 
 
-##### Google Cloud operators: `airflow.providers.google.cloud.operators` package
+##### Google Cloud operators
 
-* [AutoML](https://cloud.google.com/automl/): `automl` package
+All operators in `airflow.providers.google.cloud.operators` package
+
+* [AutoML](https://cloud.google.com/automl/)
+
+    All operators in `automl` sub-package.
+
     * AutoMLBatchPredictOperator
     * AutoMLCreateDatasetOperator
     * AutoMLDeleteDatasetOperator
@@ -71,12 +76,18 @@ through this package. This release includes the following new operators:
     * AutoMLTablesUpdateDatasetOperator
     * AutoMLTrainModelOperator
 
-* [BigQuery Data Transfer Service](https://cloud.google.com/bigquery/transfer/): `bigquery_dts` package
+* [BigQuery Data Transfer Service](https://cloud.google.com/bigquery/transfer/)
+
+    All operators in `bigquery_dts` sub-package.
+
     * BigQueryCreateDataTransferOperator
     * BigQueryDataTransferServiceStartTransferRunsOperator
     * BigQueryDeleteDataTransferConfigOperator
 
-* [Cloud Memorystore](https://cloud.google.com/memorystore/): `cloud_memorystore` package
+* [Cloud Memorystore](https://cloud.google.com/memorystore/)
+
+    All operators in `cloud_memorystore` sub-package.
+
     * CloudMemorystoreCreateInstanceAndImportOperator
     * CloudMemorystoreCreateInstanceOperator
     * CloudMemorystoreDeleteInstanceOperator
@@ -89,7 +100,10 @@ through this package. This release includes the following new operators:
     * CloudMemorystoreScaleInstanceOperator
     * CloudMemorystoreUpdateInstanceOperator
 
-* [Data Catalog](https://cloud.google.com/data-catalog): `datacatalog` package
+* [Data Catalog](https://cloud.google.com/data-catalog)
+
+    All operators in `datacatalog` sub-package.
+
     * CloudDataCatalogCreateEntryGroupOperator
     * CloudDataCatalogCreateEntryOperator
     * CloudDataCatalogCreateTagOperator
@@ -112,11 +126,17 @@ through this package. This release includes the following new operators:
     * CloudDataCatalogUpdateTagTemplateFieldOperator
     * CloudDataCatalogUpdateTagTemplateOperator
 
-* [Dataproc](https://cloud.google.com/dataproc/): `dataproc` package
+* [Dataproc](https://cloud.google.com/dataproc/)
+
+    All operators in `dataproc` sub-package.
+
     * DataprocSubmitJobOperator
     * DataprocUpdateClusterOperator
 
-* [Data Fusion](https://cloud.google.com/data-fusion/): `datafusion` package
+* [Data Fusion](https://cloud.google.com/data-fusion/)
+
+    All operators in `datafusion` sub-package.
+
     * CloudDataFusionCreateInstanceOperator
     * CloudDataFusionCreatePipelineOperator
     * CloudDataFusionDeleteInstanceOperator
@@ -128,18 +148,30 @@ through this package. This release includes the following new operators:
     * CloudDataFusionStopPipelineOperator
     * CloudDataFusionUpdateInstanceOperator
 
-* [Cloud Functions](https://cloud.google.com/functions/): `functions` package
+* [Cloud Functions](https://cloud.google.com/functions/)
+
+    All operators in `functions` sub-package.
+
     * CloudFunctionInvokeFunctionOperator
 
-* [Cloud Storage (GCS)](https://cloud.google.com/gcs/): `gcs` package
+* [Cloud Storage (GCS)](https://cloud.google.com/gcs/)
+
+    All operators in `gcs` sub-package.
+
     * GCSDeleteBucketOperator
     * GcsFileTransformOperator
 
-* [Dataproc](https://cloud.google.com/dataproc/): `dataproc` package
+* [Dataproc](https://cloud.google.com/dataproc/)
+
+    All operators in `dataproc` sub-package.
+
     * DataprocSubmitJobOperator
     * DataprocUpdateClusterOperator
 
-* [Machine Learning Engine](https://cloud.google.com/ml-engine/): `mlengine` package
+* [Machine Learning Engine](https://cloud.google.com/ml-engine/)
+
+    All operators in `mlengine` sub-package.
+
     * MLEngineCreateModelOperator
     * MLEngineCreateVersionOperator
     * MLEngineDeleteModelOperator
@@ -149,10 +181,16 @@ through this package. This release includes the following new operators:
     * MLEngineSetDefaultVersionOperator
     * MLEngineTrainingJobFailureOperator
 
-* [Cloud Pub/Sub](https://cloud.google.com/pubsub/) `pubsub` package
+* [Cloud Pub/Sub](https://cloud.google.com/pubsub/)
+
+    All operators in  `pubsub` package.
+
     * PubSubPullOperator
 
-* [Cloud Stackdriver](https://cloud.google.com/stackdriver) `stackdriver` package
+* [Cloud Stackdriver](https://cloud.google.com/stackdriver)
+
+    All operators in `stackdriver` sub-package.
+
     * StackdriverDeleteAlertOperator
     * StackdriverDeleteNotificationChannelOperator
     * StackdriverDisableAlertPoliciesOperator
@@ -164,7 +202,10 @@ through this package. This release includes the following new operators:
     * StackdriverUpsertAlertOperator
     * StackdriverUpsertNotificationChannelOperator
 
-* [Cloud Tasks](https://cloud.google.com/tasks/) `tasks` package
+* [Cloud Tasks](https://cloud.google.com/tasks/)
+
+    All operators in `tasks` sub-package.
+
     * CloudTasksQueueCreateOperator
     * CloudTasksQueueDeleteOperator
     * CloudTasksQueueGetOperator
@@ -179,10 +220,15 @@ through this package. This release includes the following new operators:
     * CloudTasksTaskRunOperator
     * CloudTasksTasksListOperator
 
-* [Cloud Firestore](https://firebase.google.com/docs/firestore) `firestore` package
+* [Cloud Firestore](https://firebase.google.com/docs/firestore)
+
+    All operators in `firestore` sub-package.
+
     * CloudFirestoreExportDatabaseOperator
 
-* Transfer Google Cloud operators: `airflow.providers.google.cloud.operators` package:
+* Transfer Google Cloud operators:
+
+    All operators in `airflow.providers.google.cloud.operators` sub-package:
 
     * cassandra_to_gcs.CassandraToGCSOperator
     * gcs_to_gcs.GCSSynchronizeBuckets
@@ -190,9 +236,14 @@ through this package. This release includes the following new operators:
     * presto_to_gcs.PrestoToGCSOperator
     * sftp_to_gcs.SFTPToGCSOperator
 
-##### Marketing platform operators: `airflow.providers.google.marketing_platform.operators` package
+##### Marketing platform operators
 
-* [Analytics360](https://analytics.google.com/) `analytics` package
+All operators in `airflow.providers.google.marketing_platform.operators` package
+
+* [Analytics360](https://analytics.google.com/)
+
+    All operators in `analytics` sub-package.
+
     * GoogleAnalyticsDataImportUploadOperator
     * GoogleAnalyticsDeletePreviousDataUploadsOperator
     * GoogleAnalyticsGetAdsLinkOperator
@@ -200,7 +251,10 @@ through this package. This release includes the following new operators:
     * GoogleAnalyticsModifyFileHeadersDataImportOperator
     * GoogleAnalyticsRetrieveAdsLinksListOperator
 
-* [Google Campaign Manager](https://developers.google.com/doubleclick-advertisers) `campaign_manager` package
+* [Google Campaign Manager](https://developers.google.com/doubleclick-advertisers)
+
+    All operators in `campaign_manager` sub-package.
+
     * GoogleCampaignManagerBatchInsertConversionsOperator
     * GoogleCampaignManagerBatchUpdateConversionsOperator
     * GoogleCampaignManagerDeleteReportOperator
@@ -208,29 +262,45 @@ through this package. This release includes the following new operators:
     * GoogleCampaignManagerInsertReportOperator
     * GoogleCampaignManagerRunReportOperator
 
-* [Google Display&Video 360](https://marketingplatform.google.com/about/display-video-360/) `display_video` package
+* [Google Display&Video 360](https://marketingplatform.google.com/about/display-video-360/)
+
+    All operators in `display_video` sub-package.
+
     * GoogleDisplayVideo360CreateReportOperator
     * GoogleDisplayVideo360DeleteReportOperator
     * GoogleDisplayVideo360DownloadReportOperator
     * GoogleDisplayVideo360RunReportOperator
 
-* [Google Search Ads 360](https://marketingplatform.google.com/about/search-ads-360/) `search_ads` package
+* [Google Search Ads 360](https://marketingplatform.google.com/about/search-ads-360/)
+
+    All operators in `search_ads` sub-package.
+
     * GoogleSearchAdsDownloadReportOperator
     * GoogleSearchAdsInsertReportOperator
 
 **GSuite operators: `airflow.providers.google.suite.operators` package:**
 
-* [Google Spreadsheet](https://www.google.com/intl/en/sheets/about/) `sheets` package
+* [Google Spreadsheet](https://www.google.com/intl/en/sheets/about/)
+
+    All operators in `sheets` sub-package.
+
     * sheets.GoogleSheetsCreateSpreadsheet
 
-* Transfer Google Suite operators: `airflow.providers.google.cloud.operators` package:
+* Transfer Google Suite operators:
+    All operators in `airflow.providers.google.cloud.operators` sub-package:
 
     * airflow.providers.google.suite.operators.sheets.GCStoGoogleSheets
     * airflow.providers.google.suite.operators.sheets.GoogleSheetsToGCSOperator
 
-##### Ads operators: `airflow.providers.google.ads.operators` package
+##### Ads operators
 
-* ads.GoogleAdsToGcsOperator
+All operators in `airflow.providers.google.ads.operators` package
+
+* [Ads](https://https://ads.google.com/)
+
+    All operators in `ads` sub-package.
+
+    * ads.GoogleAdsToGcsOperator
 
 #### Updated operators
 
