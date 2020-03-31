@@ -130,9 +130,8 @@ unit of work and continuity.
 
 ## Using hooks and Operators from "master" in Airflow 1.10
 
-Currently stable versions of Apache Airflow are released in 1.10.* series. We are working on the
-future, major version of Airflow from the 2.0.* series. It is going to be released in
-in 2020. However the exact time of release depends on many factors and is yet unknown.
+Currently, stable versions of Apache Airflow are released in 1.10.* series. We are working on the
+future, major version of Airflow from the 2.0.* series. It is going to be released in 2020. However, the exact time of release depends on many factors and is yet unknown.
 We have already a lot of changes in the hooks/operators/sensors for many external systems
 and they are not used because they are part of the master/2.0 release.
 
