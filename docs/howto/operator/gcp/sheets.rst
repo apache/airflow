@@ -41,23 +41,6 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
-.. _howto/operator:GoogleSheetsToGCSOperator:
-
-Upload data from Google Sheets to GCS
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-To upload data from Google Spreadsheet to Google Cloud Storage you can use the
-:class:`~airflow.providers.google.suite.operators.sheet.GoogleSheetsToGCSOperator`.
-
-.. exampleinclude:: ../../../../airflow/providers/google/suite/example_dags/example_sheets.py
-    :language: python
-    :dedent: 4
-    :start-after: [START upload_sheet_to_gcs]
-    :end-before: [END upload_sheet_to_gcs]
-
-You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.providers.google.suite.operators.sheets.GoogleSheetsToGCSOperator`.
-
 .. _howto/operator:GoogleSheetsCreateSpreadsheet:
 
 Create spreadsheet
