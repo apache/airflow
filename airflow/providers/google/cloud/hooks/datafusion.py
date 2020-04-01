@@ -373,9 +373,9 @@ class DataFusionHook(CloudBaseHook):
         return json.loads(response.data)
 
     def start_pipeline(
-        self, pipeline_name: str, 
-        instance_url: str, 
-        namespace: str = "default", 
+        self, pipeline_name: str,
+        instance_url: str,
+        namespace: str = "default",
         runtime_args: Optional[Dict[str, Any]] = None
     ) -> None:
         """

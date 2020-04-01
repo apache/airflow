@@ -204,10 +204,10 @@ class TestCloudDataFusionStartPipelineOperator:
         )
 
         mock_hook.return_value.start_pipeline.assert_called_once_with(
-            instance_url=INSTANCE_URL, 
-            pipeline_name=PIPELINE_NAME, 
-            namespace=NAMESPACE, 
-            runtime_args=RUNTIME_ARGS 
+            instance_url=INSTANCE_URL,
+            pipeline_name=PIPELINE_NAME,
+            namespace=NAMESPACE,
+            runtime_args=RUNTIME_ARGS
         )
 
 
