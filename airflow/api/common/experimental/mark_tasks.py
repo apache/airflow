@@ -385,6 +385,7 @@ def set_task_instance_entity_id(dag_id, task_id, execution_date, entity_id='', s
     tis_altered = tis.with_for_update().all()
     for task_instance in tis_altered:
         task_instance.entity_id = entity_id
+    session.commit()
 
 @provide_session
 def set_dag_run_state_to_running(dag, execution_date, commit=False, session=None):
