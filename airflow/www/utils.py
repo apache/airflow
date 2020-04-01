@@ -24,6 +24,7 @@ import flask_appbuilder.models.sqla.filters as fab_sqlafilters
 import markdown
 import sqlalchemy as sqla
 from flask import Markup, Response, request, url_for
+from flask_appbuilder.forms import DateTimeField, FieldConverter
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
@@ -36,6 +37,7 @@ from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.utils.state import State
+from airflow.www.widgets import AirflowDateTimePickerWidget
 
 DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
     'password',
@@ -256,10 +258,13 @@ def nobr_f(attr_name):
 def datetime_f(attr_name):
     def dt(attr):
         f = attr.get(attr_name)
-        f = f.isoformat() if f else ''
+        as_iso = f.isoformat() if f else ''
+        if not as_iso:
+            return Markup('')
+        f = as_iso
         if timezone.utcnow().isoformat()[:4] == f[:4]:
             f = f[5:]
-        return Markup("<nobr>{}</nobr>").format(f)
+        return Markup('<nobr><time datetime="{}">{}</time></nobr>').format(as_iso, f)
     return dt
 
 
@@ -424,6 +429,15 @@ class CustomSQLAInterface(SQLAInterface):
         return False
 
     filter_converter_class = UtcAwareFilterConverter
+
+
+# This class is used directly (i.e. we cant tell Fab to use a different
+# subclass) so we have no other option than to edit the converstion table in
+# place
+FieldConverter.conversion_table = (
+    (('is_utcdatetime', DateTimeField, AirflowDateTimePickerWidget),) +
+    FieldConverter.conversion_table
+)
 
 
 def get_dag(orm_dag: DagModel, store_serialized_dags=False):

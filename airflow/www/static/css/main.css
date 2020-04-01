@@ -238,6 +238,19 @@ div.square {
   box-shadow: inset 0 6px 6px rgba(0, 0, 0, 0.4);
 }
 
+#timezone-menu li > span {
+  padding: 3px 20px;
+  display: block;
+}
+#timezone-menu li input {
+  margin: 3px 20px;
+}
+#timezone-menu ul.typeahead.dropdown-menu {
+    max-height: 200px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
 .hll { background-color: #ffffcc }
 .c { color: #408080; font-style: italic } /* Comment */
 .err { border: 1px solid #FF0000 } /* Error */

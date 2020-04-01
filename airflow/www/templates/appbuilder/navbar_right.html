@@ -46,8 +46,22 @@
 </li>
 {% endmacro %}
 
-<!-- clock -->
-<li><a id="clock"></a></li>
+{# clock and timezone menu #}
+<li class="dropdown">
+  <a class="dropdown-toggle" data-toggle="dropdown" style="display:none">
+    <span id="clock"></span>
+    <b class="caret"></b>
+  </a>
+  <ul class="dropdown-menu" id="timezone-menu">
+    <li><a id="timezone-utc" data-timezone="UTC">UTC</a></li>
+    <li><a id="timezone-local">Local</a></li>
+    <li style="display: none"><a id="timezone-manual" data-timezone=""></a></li>
+    <hr>
+    <li id="timezone-other"><span>Other</span>
+      <input placeholder="Timezone name" autocomplete="off">
+    </li>
+  </ul>
+</li>
 
 {% if not current_user.is_anonymous %}
     <li class="dropdown">

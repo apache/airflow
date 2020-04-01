@@ -152,7 +152,7 @@
 
     // Set edges
     edges.forEach(function(edge) {
-      g.setEdge(edge.source_id, edge.target_id)
+      g.setEdge(edge.source_id, edge.target_id);
     });
 
     var render = dagreD3.render(),
@@ -327,7 +327,7 @@
 
 
     // Injecting ids to be used for parent/child highlighting
-    // Separated from update_node_states since it must work even
+    // Separated from updateNodeStates since it must work even
     // when there is no valid task instance available
     function inject_node_ids(tasks) {
         $.each(tasks, function(task_id, task) {
@@ -387,6 +387,49 @@
         return false
     }
 
+    function initRefreshButton() {
+      d3.select("#refresh_button").on("click", () => {
+        $("#loading").css("display", "block");
+        $("div#svg_container").css("opacity", "0.2");
+        $.get(getTaskInstanceURL)
+          .done(
+            (task_instances) => {
+              updateNodesStates(JSON.parse(task_instances));
+              $("#loading").hide();
+              $("div#svg_container").css("opacity", "1");
+              $('#error').hide();
+            }
+          ).fail((_, textStatus, err) => {
+            $('#error_msg').html(`${textStatus}: ${err}`);
+            $('#error').show();
+            $('#loading').hide();
+            $('#chart_section').hide(1000);
+            $('#datatable_section').hide(1000);
+          });
+      });
+    }
+
+    // Assigning css classes based on state to nodes
+    // Initiating the tooltips
+    function updateNodesStates(task_instances) {
+      $.each(task_instances, (task_id, ti) => {
+        $('tspan').filter((index, el) => {
+          return $(el).text() === task_id;
+        })
+          .parent().parent().parent().parent()
+          .attr("class", "node enter " + (ti.state ? ti.state : "no_status"))
+          .attr("data-toggle", "tooltip")
+          .on("mouseover", (evt) => {
+            const task = tasks[task_id];
+            const tt = tiTooltip(ti);
+            taskTip.show(tt, evt.target); // taskTip is defined in graph.html
+          })
+          .on('mouseout', taskTip.hide);
+      });
+    }
+
+    updateNodesStates(task_instances);
+    initRefreshButton();
 
 </script>
 <script src="{{ url_for_asset('graph.js') }}"></script>

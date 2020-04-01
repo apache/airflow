@@ -19,7 +19,7 @@
 import json
 
 from flask_appbuilder.fieldwidgets import (
-    BS3PasswordFieldWidget, BS3TextAreaFieldWidget, BS3TextFieldWidget, DateTimePickerWidget, Select2Widget,
+    BS3PasswordFieldWidget, BS3TextAreaFieldWidget, BS3TextFieldWidget, Select2Widget,
 )
 from flask_appbuilder.forms import DynamicForm
 from flask_babel import lazy_gettext
@@ -67,10 +67,10 @@ class DagRunForm(DynamicForm):
         widget=BS3TextFieldWidget())
     start_date = DateTimeField(
         lazy_gettext('Start Date'),
-        widget=DateTimePickerWidget())
+        widget=AirflowDateTimePickerWidget())
     end_date = DateTimeField(
         lazy_gettext('End Date'),
-        widget=DateTimePickerWidget())
+        widget=AirflowDateTimePickerWidget())
     run_id = StringField(
         lazy_gettext('Run Id'),
         validators=[validators.DataRequired()],
@@ -81,7 +81,7 @@ class DagRunForm(DynamicForm):
         widget=Select2Widget())
     execution_date = DateTimeField(
         lazy_gettext('Execution Date'),
-        widget=DateTimePickerWidget())
+        widget=AirflowDateTimePickerWidget())
     external_trigger = BooleanField(
         lazy_gettext('External Trigger'))
     conf = TextAreaField(

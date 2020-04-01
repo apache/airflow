@@ -49,11 +49,12 @@
     "js-yaml": ">=3.13.1",
     "lodash": "^4.17.13",
     "mini-css-extract-plugin": "^0.4.1",
+    "moment-locales-webpack-plugin": "^1.2.0",
     "style-loader": "^0.21.0",
     "url-loader": "^1.0.1",
     "webpack": "^4.16.3",
     "webpack-cli": "^3.1.0",
-    "webpack-manifest-plugin": "^2.0.3"
+    "webpack-manifest-plugin": "^2.2.0"
   },
   "dependencies": {
     "bootstrap-3-typeahead": "^4.0.2",
@@ -67,7 +68,7 @@
     "jquery": ">=3.4.0",
     "js-yaml": ">=3.13.1",
     "lodash": "^4.17.13",
-    "moment-timezone": "^0.5.21",
+    "moment-timezone": "^0.5.28",
     "nvd3": "^1.8.6",
     "url-search-params-polyfill": "^6.0.0"
   }

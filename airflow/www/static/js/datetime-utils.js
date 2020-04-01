@@ -17,16 +17,49 @@
  * under the License.
  */
 
-/* global moment */
+/* global moment, $ */
 export const defaultFormat = 'YYYY-MM-DD, HH:mm:ss';
 export const defaultFormatWithTZ = 'YYYY-MM-DD, HH:mm:ss z';
+export const defaultTZFormat = 'z (Z)';
 
+let currentTimezone = 'UTC'
+
+export function setDisplayedTimezone(tz) {
+  currentTimezone = tz;
+  moment.tz.setDefault(tz);
+  updateAllDateTimes();
+}
+
+export function getCurrentTimezone() {
+  return currentTimezone;
+}
+
+export function formatTimezone(what) {
+  if (what instanceof moment) {
+    return what.isUTC() ? 'UTC' : what.format(defaultTZFormat);
+  }
+
+  if (what === 'UTC') {
+    return what;
+  }
+
+  return moment().tz(what).format(defaultTZFormat);
+}
+
+export function isoDateToTimeEl(datetime) {
+  let dateTimeObj = moment(datetime);
+
+  var el = document.createElement("time");
+  el.setAttribute("datetime", dateTimeObj.format())
+  el.innerText = dateTimeObj.format(defaultFormat);
+  return el
+}
 
 export const formatDateTime = (datetime) => {
   return moment(datetime).format(defaultFormatWithTZ)
 }
 
-export const converAndFormatUTC = (datetime, tz) => {
+export const convertAndFormatUTC = (datetime, tz) => {
   let dateTimeObj = moment.utc(datetime);
   if (tz) dateTimeObj = dateTimeObj.tz(tz);
   return dateTimeObj.format(defaultFormatWithTZ)
@@ -41,4 +74,45 @@ export const secondsToString = (seconds) => {
          (numhours > 0   ? numhours   + (numhours   === 1 ? " hour "   : " hours ")   : "") +
          (numminutes > 0 ? numminutes + (numminutes === 1 ? " minute " : " minutes ") : "") +
          (numseconds > 0 ? numseconds + (numseconds === 1 ? " second"  : " seconds")  : "");
+}
+
+export function updateAllDateTimes() {
+  // Called after `moment.tz.setDefault` has changed the default TZ to display.
+
+  $('time[data-datetime-convert!="false"]').each((_, el) => {
+    const $el = $(el);
+    const dt = moment($el.attr('datetime'));
+    $el.text(dt.format(defaultFormat));
+    if ($el.attr('title')) {
+      $el.attr('title', dt.format());
+    }
+  });
+
+  // A simple sprintf-like function
+  function sprintf(value, args) {
+    let i = 0;
+
+    while (value.indexOf('%') > 0) {
+      value = value.replace('%', args[i]);
+      i++;
+    }
+
+    return value;
+  }
+
+  // Things with a single date in the title attribute
+  $('[data-datetime][data-original-title-fmt]').each((_, el) => {
+    const $el = $(el);
+    const newDt = moment($el.data('datetime')).format(defaultFormat);
+    // We need to update the DOM, not just jQuery's layer
+    $el.attr('data-original-title', sprintf($el.data('original-title-fmt'), [newDt]));
+  });
+
+  // Update any date-time inputs.
+  //
+  // Since we have set the default timezone for moment, it will automatically
+  // convert it to the new target for us
+  $('.datetime input').each((_, el) => {
+    el.value = moment(el.value).format();
+  })
 }
