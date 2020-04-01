@@ -166,6 +166,8 @@ function initialize_common_environment {
     else
         export UPGRADE_WHILE_GENERATING_REQUIREMENTS="false"
     fi
+
+    export SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS=${SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS:="false"}
 }
 
 function print_info() {
@@ -1311,6 +1313,7 @@ function run_generate_requirements() {
             --env HOST_GROUP_ID="$(id -gr)" \
             --env UPGRADE_WHILE_GENERATING_REQUIREMENTS \
             --env PYTHON_MAJOR_MINOR_VERSION \
+            --env SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS \
             --rm \
             "${AIRFLOW_CI_IMAGE}" \
             "--" "/opt/airflow/scripts/ci/in_container/run_generate_requirements.sh" \

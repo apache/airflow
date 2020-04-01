@@ -136,11 +136,13 @@ jobs:
     - name: "Generate requirements Py3.6"
       env: >-
         PYTHON_MAJOR_MINOR_VERSION=3.6
+        SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS="true"
       stage: test
       script: ./scripts/ci/ci_generate_requirements.sh
     - name: "Generate requirements Py3.7"
       env: >-
         PYTHON_MAJOR_MINOR_VERSION=3.7
+        SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS="true"
       stage: test
       script: ./scripts/ci/ci_generate_requirements.sh
     - name: "Prepare & test backport packages 1.10.9"
