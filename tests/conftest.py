@@ -242,7 +242,7 @@ def skip_system_test(item):
 def skip_long_running_test(item):
     for _ in item.iter_markers(name="long_running"):
         pytest.skip("The test is skipped because it has long_running marker. "
-                    "And system tests are only run when --long-lasting flag "
+                    "And system tests are only run when --include-long-running flag "
                     "is passed to pytest. {item}".
                     format(item=item))
 
