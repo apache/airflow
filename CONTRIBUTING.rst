@@ -1010,10 +1010,6 @@ prepare such packages on your own easily.
   to be used without installing the packages they depend on. This will be solved soon by
   adding cross-dependencies between packages.
 
-* You can build 'all providers' package by running
-  ``./scripts/ci/ci_prepare_packages.sh``. This package contains all providers thus
-  it does not have issues with cross-dependencies.
-
 * This creates a wheel package in your ``dist`` folder with a name similar to:
   ``apache_airflow_providers-0.0.1-py2.py3-none-any.whl``
 
