@@ -16,41 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-export const moment = require('moment-timezone');
+
+/* global moment */
 export const defaultFormat = 'YYYY-MM-DD, HH:mm:ss';
 export const defaultFormatWithTZ = 'YYYY-MM-DD, HH:mm:ss z';
 
 
-const makeDateTimeHTML = (start, end) => {
-  return (
-    `Started: ${start.format(defaultFormat)} <br> Ended: ${end.format(defaultFormat)} <br>`
-  )
-};
-
-export const generateTooltipDateTime = (startDate, endDate, dagTZ) => {
-  const tzFormat = 'z (Z)';
-  const localTZ = moment.tz.guess();
-  startDate = moment.utc(startDate);
-  endDate = moment.utc(endDate);
-  dagTZ = dagTZ.toUpperCase();
-
-  // Generate UTC Start and End Date
-  let tooltipHTML = '<br><strong>UTC</strong><br>';
-  tooltipHTML += makeDateTimeHTML(startDate, endDate);
-
-  // Generate User's Local Start and End Date
-  tooltipHTML += `<br><strong>Local: ${moment.tz(localTZ).format(tzFormat)}</strong><br>`;
-  tooltipHTML += makeDateTimeHTML(startDate.local(), endDate.local());
-
-  // Generate DAG's Start and End Date
-  if (dagTZ !== 'UTC' && dagTZ !== localTZ) {
-    tooltipHTML += `<br><strong>DAG's TZ: ${moment.tz(dagTZ).format(tzFormat)}</strong><br>`;
-    tooltipHTML += makeDateTimeHTML(startDate.tz(dagTZ), endDate.tz(dagTZ));
-  }
-
-  return tooltipHTML
-};
-
+export const formatDateTime = (datetime) => {
+  return moment(datetime).format(defaultFormatWithTZ)
+}
 
 export const converAndFormatUTC = (datetime, tz) => {
   let dateTimeObj = moment.utc(datetime);

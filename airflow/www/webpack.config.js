@@ -37,14 +37,18 @@ const config = {
     base: `${STATIC_DIR}/js/base.js`,
     ie: `${STATIC_DIR}/js/ie.js`,
     graph: `${STATIC_DIR}/js/graph.js`,
+    'task-instances': `${STATIC_DIR}/js/task-instances.js`,
     ganttChartD3v2: `${STATIC_DIR}/js/gantt-chart-d3v2.js`,
     main: `${STATIC_DIR}/css/main.css`,
     airflowDefaultTheme: `${STATIC_DIR}/css/bootstrap-theme.css`,
+    moment: 'moment-timezone',
   },
   output: {
     path: BUILD_DIR,
     filename: '[name].[chunkhash].js',
     chunkFilename: '[name].[chunkhash].js',
+    library: ['Airflow', '[name]'],
+    libraryTarget: 'umd',
   },
   resolve: {
     extensions: [
