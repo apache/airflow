@@ -1489,6 +1489,40 @@ def connections(args):
 
         return
 
+    if args.filepath:
+        with open(args.filepath, 'r') as stream:
+            connections_config = yaml.load(stream)
+        connections = {
+            connection['conn_id']: connection['conn_uri']
+            for connection in connections_config['connections']
+        }
+        # check conn_id and conn_uri were passed from yaml file.
+        missing_args = list()
+        for conn_id, conn_uri in connections.items():
+            if conn_id is None:
+                missing_args.append('conn_id')
+            elif conn_uri is None:
+                missing_args.append('conn_uri')
+        if missing_args:
+            print('The following args are required to add a connection: {missing!r}\n'.format(missing=missing_args))
+            return
+        with db.create_session() as session:
+            # get exist conn_id list
+            exist_conns_id = [exist_conn.conn_id for exist_conn in session.query(Connection).all()]
+            print(exist_conns_id)
+            # if conn_id not in exist list, then create the Connection
+            # if conn_id in exist list, then update the Connection
+            for conn_id, conn_uri in connections.items():
+                if conn_id not in exist_conns_id:
+                    new_conn = Connection(conn_id=conn_id, uri=conn_uri)
+                    db.merge_conn(new_conn, session)
+                    print('Successfully added `conn_id`={} : {}\n'.format(conn_id, conn_uri))
+                else:
+                    update_conn = Connection(conn_id=conn_id, uri=conn_uri)
+                    session.add(update_conn)
+                    print('Successfully update `conn_id`={} : {}\n'.format(conn_id, conn_uri))
+        return
+
 
 @cli_utils.action_logging
 def flower(args):
@@ -2332,6 +2366,9 @@ class CLIFactory(object):
             ('--conn_extra',),
             help='Connection `Extra` field, optional when adding a connection',
             type=str),
+        'yaml_filepath': Arg(
+            ("-f", "--filepath"),
+            help="Set airflow pools based on yaml configuration"),
         # users
         'username': Arg(
             ('--username',),
@@ -2594,8 +2631,8 @@ class CLIFactory(object):
             'args': tuple(),
         }, {
             'func': connections,
-            'help': "List/Add/Delete connections",
-            'args': ('list_connections', 'add_connection', 'delete_connection',
+            'help': "List/Add/Delete/Update connections",
+            'args': ('list_connections', 'add_connection', 'delete_connection', 'yaml_filepath',
                      'conn_id', 'conn_uri', 'conn_extra') + tuple(alternative_conn_specs),
         }, {
             'func': users,
