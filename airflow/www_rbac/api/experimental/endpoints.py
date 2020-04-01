@@ -65,7 +65,7 @@ def put_anaylysis_result():
         rresult = 'NOK'
     with create_session() as session:
         ti = session.query(TiModel).filter(
-            TiModel.id == real_task_id).first()
+            TiModel.entity_id == real_task_id).first()
         if not ti:
             ti = session.query(TiModel).filter(
                 TiModel.dag_id == dag_id,
@@ -84,7 +84,9 @@ def put_anaylysis_result():
         ti.result = rresult
         ti.entity_id = entity_id
         session.commit()
-    return json.dumps({'response': 'ok'})
+    resp = jsonify({'response': 'ok'})
+    resp.status_code = 200
+    return resp
 
 
 @csrf.exempt

@@ -189,7 +189,7 @@ class Variable(Base, LoggingMixin):
             stored_value = json.dumps(value, indent=2, separators=(',', ': '))
         else:
             stored_value = str(value)
-        session.query(cls).filter(cls.key == key).update(val=stored_value)  # type: ignore
+        session.query(cls).filter(cls.key == key).update({cls.val: stored_value})  # type: ignore
         session.flush()
 
     @classmethod
