@@ -996,20 +996,22 @@ prepare such packages on your own easily.
 * Make sure you have ``setuptools`` and ``wheel`` installed in your python environment. The easiest way
   to do it is to run ``pip install setuptools wheel``
 
-* Enter the ``backport_packages`` directory
+* Run the following command:
 
-* Run ``python setup_backport_packages.py prepare`` to update deprecated modules & paths.
+  .. code-blamazonock:: bash
+
+    ./scripts/ci/ci_prepare_packages.sh
 
 * Usually you only build some of the providers package. The ``providers`` directory is separated into
   separate providers. You can see the list of all available providers by running
-  ``python setup_backport_packages.py list-backport-packages``. You can build the backport package
-  by running ``python setup_backport_packages.py <PROVIDER_NAME> bdist_wheel``. Note that there
+  ``./scripts/ci/ci_prepare_packages.sh --help``. You can build the backport package
+  by running ``./scripts/ci/ci_prepare_packages.sh <PROVIDER_NAME>``. Note that there
   might be (and are) dependencies between some packages that might prevent subset of the packages
   to be used without installing the packages they depend on. This will be solved soon by
   adding cross-dependencies between packages.
 
 * You can build 'all providers' package by running
-  ``python setup_backport_packages.py providers bdist_wheel``. This package contains all providers thus
+  ``./scripts/ci/ci_prepare_packages.sh``. This package contains all providers thus
   it does not have issues with cross-dependencies.
 
 * This creates a wheel package in your ``dist`` folder with a name similar to:
