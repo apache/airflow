@@ -1,3 +1,4 @@
+
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -27,6 +28,7 @@ DAG_FOLDER = os.path.join(os.path.dirname(__file__), "dags")
 os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = DAG_FOLDER
 os.environ["AIRFLOW__DEBUG__SQLALCHEMY_STATS"] = "True"
 os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
+os.environ["AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS"] = "True"
 
 # Here we setup simpler logger to avoid any code changes in
 # Airflow core code base
@@ -72,6 +74,9 @@ DEBUG_LOGGING_CONFIG = {
 
 
 class Query(NamedTuple):
+    '''
+    Define attributes of the queries that will be picked up by the performance tests.
+    '''
     function: str
     file: str
     location: int
@@ -84,6 +89,9 @@ class Query(NamedTuple):
         return f"{self.function} in {self.file}:{self.location}: {sql}"
 
     def __eq__(self, other):
+        '''
+        Override the __eq__ method to compare specific Query attributes
+        '''
         return (
             self.function == other.function
             and self.sql == other.sql
@@ -92,16 +100,24 @@ class Query(NamedTuple):
         )
 
     def to_dict(self):
+        '''
+        Convert selected attributes of the instance into a dictionary.
+        '''
         return dict(zip(("function", "file", "location", "sql", "stack", "time"), self))
 
 
 def reset_db():
+    '''
+    Wrapper function that calls the airflows resetdb function.
+    '''
     from airflow.utils.db import resetdb
-
     resetdb()
 
 
 def run_scheduler_job(with_db_reset=False) -> None:
+    '''
+    Run the scheduler job, selectively resetting the db before creating a ScheduleJob instance
+    '''
     from airflow.jobs.scheduler_job import SchedulerJob
 
     if with_db_reset:
@@ -110,16 +126,22 @@ def run_scheduler_job(with_db_reset=False) -> None:
 
 
 def is_query(line: str) -> bool:
+    '''
+    Return True, if provided line embeds a query, else False
+    '''
     return "@SQLALCHEMY" in line and "|$" in line
 
 
 def make_report() -> List[Query]:
+    '''
+    Returns a list of Query objects that are expected to be run during the performance run.
+    '''
     queries = []
     with open(LOG_FILE, "r+") as f:
         raw_queries = [line for line in f.readlines() if is_query(line)]
 
     for query in raw_queries:
-        t, info, stack, sql = query.replace("@SQLALCHEMY ", "").split("|$")
+        time, info, stack, sql = query.replace("@SQLALCHEMY ", "").split("|$")
         func, file, loc = info.split(":")
         file_name = file.rpartition("/")[-1] if "/" in file else file
         queries.append(
@@ -129,7 +151,7 @@ def make_report() -> List[Query]:
                 location=int(loc.strip()),
                 sql=sql.strip(),
                 stack=stack.strip(),
-                time=float(t.strip()),
+                time=float(time.strip()),
             )
         )
 
@@ -137,6 +159,10 @@ def make_report() -> List[Query]:
 
 
 def run_test() -> Tuple[List[Query], float]:
+    '''
+    Run the tests inside a scheduler and then return the elapsed time along with
+    the queries that will be run.
+    '''
     if os.path.exists(LOG_FILE):
         os.remove(LOG_FILE)
 
@@ -148,6 +174,9 @@ def run_test() -> Tuple[List[Query], float]:
 
 
 def rows_to_csv(rows: List[dict], name: Optional[str] = None) -> pd.DataFrame:
+    '''
+    Write results stats to a file.
+    '''
     df = pd.DataFrame(rows)
     name = name or f"/files/sql_stats_{int(monotonic())}.csv"
     df.to_csv(name, index=False)
@@ -156,6 +185,9 @@ def rows_to_csv(rows: List[dict], name: Optional[str] = None) -> pd.DataFrame:
 
 
 def main() -> None:
+    '''
+    Run the tests aand write stats to a csv file.
+    '''
     reset_db()
     rows = []
     times = []

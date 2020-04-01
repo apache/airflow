@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
+export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
@@ -24,13 +24,11 @@ if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
     echo
     echo "Skip tests"
     echo
-    script_end
     exit
 fi
 
-rebuild_ci_image_if_needed
+prepare_build
 
-IMAGES_TO_CHECK=("CI")
-export IMAGES_TO_CHECK
+rebuild_ci_image_if_needed
 
 pre-commit run pylint-tests --all-files --show-diff-on-failure --verbose

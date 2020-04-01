@@ -65,6 +65,7 @@ class SegmentTrackEventOperator(BaseOperator):
             'Sending track event (%s) for user id: %s with properties: %s',
             self.event, self.user_id, self.properties)
 
+        # pylint: disable=no-member
         hook.track(
             user_id=self.user_id,
             event=self.event,

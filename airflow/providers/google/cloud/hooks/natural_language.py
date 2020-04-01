@@ -27,11 +27,11 @@ from google.cloud.language_v1.types import (
     AnnotateTextRequest, AnnotateTextResponse, ClassifyTextResponse, Document,
 )
 
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 # noinspection PyAbstractClass
-class CloudNaturalLanguageHook(CloudBaseHook):
+class CloudNaturalLanguageHook(GoogleBaseHook):
     """
     Hook for Google Cloud Natural Language Service.
 
@@ -61,8 +61,7 @@ class CloudNaturalLanguageHook(CloudBaseHook):
             )
         return self._conn
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def analyze_entities(
         self,
         document: Union[Dict, Document],
@@ -96,8 +95,7 @@ class CloudNaturalLanguageHook(CloudBaseHook):
             document=document, encoding_type=encoding_type, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def analyze_entity_sentiment(
         self,
         document: Union[Dict, Document],
@@ -131,8 +129,7 @@ class CloudNaturalLanguageHook(CloudBaseHook):
             document=document, encoding_type=encoding_type, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def analyze_sentiment(
         self,
         document: Union[Dict, Document],
@@ -165,8 +162,7 @@ class CloudNaturalLanguageHook(CloudBaseHook):
             document=document, encoding_type=encoding_type, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def analyze_syntax(
         self,
         document: Union[Dict, Document],
@@ -200,8 +196,7 @@ class CloudNaturalLanguageHook(CloudBaseHook):
             document=document, encoding_type=encoding_type, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def annotate_text(
         self,
         document: Union[Dict, Document],
@@ -244,8 +239,7 @@ class CloudNaturalLanguageHook(CloudBaseHook):
             metadata=metadata,
         )
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def classify_text(
         self,
         document: Union[Dict, Document],

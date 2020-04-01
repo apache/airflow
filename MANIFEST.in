@@ -33,3 +33,4 @@ graft scripts/upstart
 graft airflow/config_templates
 recursive-exclude airflow/www/node_modules *
 global-exclude __pycache__  *.pyc
+include airflow/providers/cncf/kubernetes/example_dags/example_spark_kubernetes_operator_spark_pi.yaml

@@ -23,9 +23,9 @@ from typing import Optional  # noqa: W0611
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 # Please keep these variables in alphabetical order.
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
+from tests.utils.logging_command_executor import LoggingCommandExecutor
 
 GCP_AI_KEY = 'gcp_ai.json'
 GCP_AUTOML_KEY = 'gcp_automl.json'
@@ -47,6 +47,7 @@ GCP_PUBSUB_KEY = "gcp_pubsub.json"
 GCP_SPANNER_KEY = 'gcp_spanner.json'
 GCP_TASKS_KEY = 'gcp_tasks.json'
 GMP_KEY = 'gmp.json'
+G_FIREBASE_KEY = 'g_firebase.json'
 
 KEYPATH_EXTRA = 'extra__google_cloud_platform__key_path'
 KEYFILE_DICT_EXTRA = 'extra__google_cloud_platform__keyfile_dict'

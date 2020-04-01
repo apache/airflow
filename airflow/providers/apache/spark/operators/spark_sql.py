@@ -56,6 +56,7 @@ class SparkSqlOperator(BaseOperator):
     template_fields = ["_sql"]
     template_ext = [".sql", ".hql"]
 
+    # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(self,
                  sql,
@@ -69,6 +70,7 @@ class SparkSqlOperator(BaseOperator):
                  master='yarn',
                  name='default-name',
                  num_executors=None,
+                 verbose=True,
                  yarn_queue='default',
                  *args,
                  **kwargs):
@@ -84,6 +86,7 @@ class SparkSqlOperator(BaseOperator):
         self._master = master
         self._name = name
         self._num_executors = num_executors
+        self._verbose = verbose
         self._yarn_queue = yarn_queue
         self._hook = None
 
@@ -102,6 +105,7 @@ class SparkSqlOperator(BaseOperator):
                                   name=self._name,
                                   num_executors=self._num_executors,
                                   master=self._master,
+                                  verbose=self._verbose,
                                   yarn_queue=self._yarn_queue
                                   )
         self._hook.run_query()

@@ -18,11 +18,13 @@
 import unittest
 
 import pytest
+from parameterized import parameterized
 
 from airflow.models.dag import DAG
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.mysql.operators.mysql import MySqlOperator
 from airflow.utils import timezone
+from tests.providers.mysql.hooks.test_mysql import MySqlContext
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -46,46 +48,52 @@ class TestMySql(unittest.TestCase):
             for table in drop_tables:
                 conn.execute("DROP TABLE IF EXISTS {}".format(table))
 
-    def test_mysql_operator_test(self):
-        sql = """
-        CREATE TABLE IF NOT EXISTS test_airflow (
-            dummy VARCHAR(50)
-        );
-        """
-        op = MySqlOperator(
-            task_id='basic_mysql',
-            sql=sql,
-            dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",), ])
+    def test_mysql_operator_test(self, client):
+        with MySqlContext(client):
+            sql = """
+            CREATE TABLE IF NOT EXISTS test_airflow (
+                dummy VARCHAR(50)
+            );
+            """
+            op = MySqlOperator(
+                task_id='basic_mysql',
+                sql=sql,
+                dag=self.dag)
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    def test_mysql_operator_test_multi(self):
-        sql = [
-            "CREATE TABLE IF NOT EXISTS test_airflow (dummy VARCHAR(50))",
-            "TRUNCATE TABLE test_airflow",
-            "INSERT INTO test_airflow VALUES ('X')",
-        ]
-        op = MySqlOperator(
-            task_id='mysql_operator_test_multi',
-            sql=sql,
-            dag=self.dag,
-        )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",), ])
+    def test_mysql_operator_test_multi(self, client):
+        with MySqlContext(client):
+            sql = [
+                "CREATE TABLE IF NOT EXISTS test_airflow (dummy VARCHAR(50))",
+                "TRUNCATE TABLE test_airflow",
+                "INSERT INTO test_airflow VALUES ('X')",
+            ]
+            op = MySqlOperator(
+                task_id='mysql_operator_test_multi',
+                sql=sql,
+                dag=self.dag,
+            )
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    def test_overwrite_schema(self):
+    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",), ])
+    def test_overwrite_schema(self, client):
         """
         Verifies option to overwrite connection schema
         """
-        sql = "SELECT 1;"
-        op = MySqlOperator(
-            task_id='test_mysql_operator_test_schema_overwrite',
-            sql=sql,
-            dag=self.dag,
-            database="foobar",
-        )
+        with MySqlContext(client):
+            sql = "SELECT 1;"
+            op = MySqlOperator(
+                task_id='test_mysql_operator_test_schema_overwrite',
+                sql=sql,
+                dag=self.dag,
+                database="foobar",
+            )
 
-        from _mysql_exceptions import OperationalError
-        try:
-            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                   ignore_ti_state=True)
-        except OperationalError as e:
-            assert "Unknown database 'foobar'" in str(e)
+            from _mysql_exceptions import OperationalError
+            try:
+                op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+                       ignore_ti_state=True)
+            except OperationalError as e:
+                assert "Unknown database 'foobar'" in str(e)

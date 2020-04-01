@@ -17,10 +17,11 @@
 
 import unittest
 
+import mock
 from parameterized import parameterized
 
+from airflow import plugins_manager
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.plugins_manager import executors_modules, make_module
 from tests.test_utils.config import conf_vars
 
 # Plugin Manager creates new modules, which is difficult to mock, so we use test isolation by a unique name.
@@ -29,6 +30,11 @@ TEST_PLUGIN_NAME = "unique_plugin_name_to_avoid_collision_i_love_kitties"
 
 class FakeExecutor:
     pass
+
+
+class FakePlugin(plugins_manager.AirflowPlugin):
+    name = TEST_PLUGIN_NAME
+    executors = [FakeExecutor]
 
 
 class TestExecutorLoader(unittest.TestCase):
@@ -51,18 +57,17 @@ class TestExecutorLoader(unittest.TestCase):
             self.assertIsNotNone(executor)
             self.assertIn(executor_name, executor.__class__.__name__)
 
-    def test_should_support_plugin(self):
-        executors_modules.append(make_module('airflow.executors.' + TEST_PLUGIN_NAME, [FakeExecutor]))
-        self.addCleanup(self.remove_executor_module)
+    @mock.patch("airflow.plugins_manager.plugins", [
+        FakePlugin()
+    ])
+    @mock.patch("airflow.plugins_manager.executors_modules", None)
+    def test_should_support_plugins(self):
         with conf_vars({
             ("core", "executor"): f"{TEST_PLUGIN_NAME}.FakeExecutor"
         }):
             executor = ExecutorLoader.get_default_executor()
             self.assertIsNotNone(executor)
             self.assertIn("FakeExecutor", executor.__class__.__name__)
-
-    def remove_executor_module(self):
-        executors_modules.pop()
 
     def test_should_support_custom_path(self):
         with conf_vars({

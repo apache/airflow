@@ -61,6 +61,7 @@ CONN_TYPE_TO_HOOK = {
     "hiveserver2": ("airflow.providers.apache.hive.hooks.hive.HiveServer2Hook", "hiveserver2_conn_id"),
     "jdbc": ("airflow.providers.jdbc.hooks.jdbc.JdbcHook", "jdbc_conn_id"),
     "jira": ("airflow.providers.jira.hooks.jira.JiraHook", "jira_conn_id"),
+    "kubernetes": ("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook", "kubernetes_conn_id"),
     "mongo": ("airflow.providers.mongo.hooks.mongo.MongoHook", "conn_id"),
     "mssql": ("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook", "mssql_conn_id"),
     "mysql": ("airflow.providers.mysql.hooks.mysql.MySqlHook", "mysql_conn_id"),
@@ -161,6 +162,7 @@ class Connection(Base, LoggingMixin):
         ('yandexcloud', 'Yandex Cloud'),
         ('livy', 'Apache Livy'),
         ('tableau', 'Tableau'),
+        ('kubernetes', 'Kubernetes cluster Connection'),
     ]
 
     def __init__(

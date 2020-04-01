@@ -101,6 +101,7 @@ COMMAND_ARGS, HYPHEN_ARGS = build_command_args()
 class QuboleHook(BaseHook):
     """Hook for Qubole communication"""
     def __init__(self, *args, **kwargs):  # pylint: disable=unused-argument
+        super().__init__()
         conn = self.get_connection(kwargs['qubole_conn_id'])
         Qubole.configure(api_token=conn.password, api_url=conn.host)
         self.task_id = kwargs['task_id']

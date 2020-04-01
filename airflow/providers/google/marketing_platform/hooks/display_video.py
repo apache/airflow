@@ -22,10 +22,10 @@ from typing import Any, Dict, List, Optional
 
 from googleapiclient.discovery import Resource, build
 
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class GoogleDisplayVideo360Hook(CloudBaseHook):
+class GoogleDisplayVideo360Hook(GoogleBaseHook):
     """
     Hook for Google Display & Video 360.
     """

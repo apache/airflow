@@ -28,7 +28,7 @@ import os
 
 from google.cloud.dlp_v2.types import ContentItem, InspectConfig, InspectTemplate
 
-from airflow import DAG
+from airflow import models
 from airflow.providers.google.cloud.operators.dlp import (
     CloudDLPCreateInspectTemplateOperator, CloudDLPDeleteInspectTemplateOperator,
     CloudDLPInspectContentOperator,
@@ -52,10 +52,10 @@ INSPECT_CONFIG = InspectConfig(
 INSPECT_TEMPLATE = InspectTemplate(inspect_config=INSPECT_CONFIG)
 
 
-with DAG(
+with models.DAG(
     "example_gcp_dlp",
     default_args=default_args,
-    schedule_interval=None,
+    schedule_interval=None,  # Override to match your needs
     tags=['example'],
 ) as dag:
     create_template = CloudDLPCreateInspectTemplateOperator(

@@ -35,7 +35,6 @@ MISSING_TEST_FILES = {
     'tests/providers/apache/spark/hooks/test_spark_jdbc_script.py',
     'tests/providers/cncf/kubernetes/operators/test_kubernetes_pod.py',
     'tests/providers/google/cloud/operators/test_datastore.py',
-    'tests/providers/google/cloud/operators/test_gcs_to_bigquery.py',
     'tests/providers/google/cloud/operators/test_sql_to_gcs.py',
     'tests/providers/google/cloud/sensors/test_bigquery.py',
     'tests/providers/google/cloud/utils/test_field_sanitizer.py',
@@ -45,12 +44,10 @@ MISSING_TEST_FILES = {
     'tests/providers/jenkins/hooks/test_jenkins.py',
     'tests/providers/microsoft/azure/sensors/test_azure_cosmos.py',
     'tests/providers/microsoft/mssql/hooks/test_mssql.py',
-    'tests/providers/microsoft/mssql/operators/test_mssql.py',
     'tests/providers/oracle/operators/test_oracle.py',
     'tests/providers/qubole/hooks/test_qubole.py',
     'tests/providers/samba/hooks/test_samba.py',
-    'tests/providers/sqlite/operators/test_sqlite.py',
-    'tests/providers/vertica/hooks/test_vertica.py'
+    'tests/providers/sqlite/operators/test_sqlite.py'
 }
 
 
@@ -145,7 +142,9 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         ('cloud', 'mysql_to_gcs'),
         ('cloud', 'mssql_to_gcs'),
         ('cloud', 'bigquery_to_gcs'),
-        ('cloud', 'local_to_gcs')
+        ('cloud', 'local_to_gcs'),
+        ('cloud', 'sheets_to_gcs'),
+        ('suite', 'gcs_to_sheets'),
     }
 
     MISSING_DOC_GUIDES = {

@@ -51,8 +51,6 @@ class BackfillJob(BaseJob):
     triggers a set of task instance runs, in the right order and lasts for
     as long as it takes for the set of task instance to be completed.
     """
-    ID_PREFIX = DagRunType.BACKFILL_JOB.value
-    ID_FORMAT_PREFIX = ID_PREFIX + '{0}'
     STATES_COUNT_AS_RUNNING = (State.RUNNING, State.QUEUED)
 
     __mapper_args__ = {
@@ -290,7 +288,7 @@ class BackfillJob(BaseJob):
         :param session: the database session object
         :return: a DagRun in state RUNNING or None
         """
-        run_id = BackfillJob.ID_FORMAT_PREFIX.format(run_date.isoformat())
+        run_id = f"{DagRunType.BACKFILL_JOB.value}__{run_date.isoformat()}"
 
         # consider max_active_runs but ignore when running subdags
         respect_dag_max_active_limit = bool(dag.schedule_interval and not dag.is_subdag)
@@ -774,7 +772,14 @@ class BackfillJob(BaseJob):
 
         # picklin'
         pickle_id = None
-        if not self.donot_pickle and self.executor.__class__ not in (LocalExecutor, SequentialExecutor):
+
+        try:
+            from airflow.executors.dask_executor import DaskExecutor
+        except ImportError:
+            DaskExecutor = None
+
+        if not self.donot_pickle and \
+                self.executor.__class__ not in (LocalExecutor, SequentialExecutor, DaskExecutor):
             pickle = DagPickle(self.dag)
             session.add(pickle)
             session.commit()

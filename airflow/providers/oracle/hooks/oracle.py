@@ -32,6 +32,7 @@ class OracleHook(DbApiHook):
     default_conn_name = 'oracle_default'
     supports_autocommit = False
 
+    # pylint: disable=c-extension-no-member
     def get_conn(self):
         """
         Returns a oracle connection object
@@ -50,7 +51,7 @@ class OracleHook(DbApiHook):
         see more param detail in
         `cx_Oracle.connect <https://cx-oracle.readthedocs.io/en/latest/module.html#cx_Oracle.connect>`_
         """
-        conn = self.get_connection(self.oracle_conn_id)
+        conn = self.get_connection(self.oracle_conn_id)  # pylint: disable=no-member
         conn_config = {
             'user': conn.login,
             'password': conn.password
@@ -154,7 +155,7 @@ class OracleHook(DbApiHook):
                     lst.append("'" + str(cell).replace("'", "''") + "'")
                 elif cell is None:
                     lst.append('NULL')
-                elif type(cell) == float and \
+                elif isinstance(cell, float) and \
                         numpy.isnan(cell):  # coerce numpy NaN to NULL
                     lst.append('NULL')
                 elif isinstance(cell, numpy.datetime64):

@@ -22,14 +22,22 @@ Utilities for running or stopping processes
 import errno
 import logging
 import os
+import pty
+import select
 import shlex
 import signal
 import subprocess
-from typing import List
+import sys
+import termios
+import tty
+from contextlib import contextmanager
+from typing import Dict, List
 
 import psutil
+from lockfile.pidlockfile import PIDLockFile
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 
 log = logging.getLogger(__name__)
 
@@ -141,6 +149,44 @@ def execute_in_subprocess(cmd: List[str]):
         raise subprocess.CalledProcessError(exit_code, cmd)
 
 
+def execute_interactive(cmd: List[str], **kwargs):
+    """
+    Runs the new command as a subprocess and ensures that the terminal's state is restored to its original
+    state after the process is completed e.g. if the subprocess hides the cursor, it will be restored after
+    the process is completed.
+    """
+    log.info("Executing cmd: %s", " ".join([shlex.quote(c) for c in cmd]))
+
+    old_tty = termios.tcgetattr(sys.stdin)
+    tty.setraw(sys.stdin.fileno())
+
+    # open pseudo-terminal to interact with subprocess
+    master_fd, slave_fd = pty.openpty()
+    try:  # pylint: disable=too-many-nested-blocks
+        # use os.setsid() make it run in a new process group, or bash job control will not be enabled
+        proc = subprocess.Popen(
+            cmd,
+            stdin=slave_fd,
+            stdout=slave_fd,
+            stderr=slave_fd,
+            universal_newlines=True,
+            **kwargs
+        )
+
+        while proc.poll() is None:
+            readable_fbs, _, _ = select.select([sys.stdin, master_fd], [], [])
+            if sys.stdin in readable_fbs:
+                input_data = os.read(sys.stdin.fileno(), 10240)
+                os.write(master_fd, input_data)
+            if master_fd in readable_fbs:
+                output_data = os.read(master_fd, 10240)
+                if output_data:
+                    os.write(sys.stdout.fileno(), output_data)
+    finally:
+        # restore tty settings back
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_tty)
+
+
 def kill_child_processes_by_pids(pids_to_kill: List[int], timeout: int = 5) -> None:
     """
     Kills child processes for the current process.
@@ -184,3 +230,50 @@ def kill_child_processes_by_pids(pids_to_kill: List[int], timeout: int = 5) -> N
             log.info("Killing child PID: %s", child.pid)
             child.kill()
             child.wait()
+
+
+@contextmanager
+def patch_environ(new_env_variables: Dict[str, str]):
+    """
+    Sets environment variables in context. After leaving the context, it restores its original state.
+
+    :param new_env_variables: Environment variables to set
+    """
+    current_env_state = {
+        key: os.environ.get(key)
+        for key in new_env_variables.keys()
+    }
+    os.environ.update(new_env_variables)
+    try:  # pylint: disable=too-many-nested-blocks
+        yield
+    finally:
+        for key, old_value in current_env_state.items():
+            if old_value is None:
+                if key in os.environ:
+                    del os.environ[key]
+            else:
+                os.environ[key] = old_value
+
+
+def check_if_pidfile_process_is_running(pid_file: str, process_name: str):
+    """
+    Checks if a pidfile already exists and process is still running.
+    If process is dead then pidfile is removed.
+
+    :param pid_file: path to the pidfile
+    :param process_name: name used in exception if process is up and
+        running
+    """
+    pid_lock_file = PIDLockFile(path=pid_file)
+    # If file exists
+    if pid_lock_file.is_locked():
+        # Read the pid
+        pid = pid_lock_file.read_pid()
+        try:
+            # Check if process is still running
+            proc = psutil.Process(pid)
+            if proc.is_running():
+                raise AirflowException(f"The {process_name} is already running under PID {pid}.")
+        except psutil.NoSuchProcess:
+            # If process is dead remove the pidfile
+            pid_lock_file.break_lock()

@@ -113,12 +113,12 @@ and set env variable DOCKER_HOST.
 Docker Images Used by Breeze
 ----------------------------
 
-For all development tasks, unit tests, integration tests and static code checks, we use the
+For all development tasks, unit tests, integration tests, and static code checks, we use the
 **CI image** maintained on the Docker Hub in the ``apache/airflow`` repository.
-This Docker image contains a lot test-related packages (size of ~1GB).
-Its tag follows the pattern of ``<BRANCH>-python<PYTHON_VERSION>-ci``
+This Docker image contains a lot of test-related packages (size of ~1GB).
+Its tag follows the pattern of ``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>-ci``
 (for example, ``apache/airflow:master-python3.6-ci``). The image is built using the
-`<Dockerfile>`_ Dockerfile.
+`<Dockerfile.ci>`_ Dockerfile.
 
 Before you run tests, enter the environment or run local static checks, the necessary local images should be
 pulled and built from Docker Hub. This happens automatically for the test environment but you need to
@@ -128,7 +128,7 @@ The static checks will fail and inform what to do if the image is not yet built.
 
 Building the image first time pulls a pre-built version of images from the Docker Hub, which may take some
 time. But for subsequent source code changes, no wait time is expected.
-However, changes to sensitive files like ``setup.py`` or ``Dockerfile`` will trigger a rebuild
+However, changes to sensitive files like ``setup.py`` or ``Dockerfile.ci`` will trigger a rebuild
 that may take more time though it is highly optimized to only rebuild what is needed.
 
 In most cases, rebuilding an image requires network connectivity (for example, to download new
@@ -136,7 +136,7 @@ dependencies). If you work offline and do not want to rebuild the images when ne
 ``FORCE_ANSWER_TO_QUESTIONS`` variable to ``no`` as described in the
 `Default behaviour for user interaction <#default-behaviour-for-user-interaction>`_ section.
 
-See `Troubleshooting section <#troubleshooting>`_ for steps you can make to clean the environment.
+See the `Troubleshooting section <#troubleshooting>`_ for steps you can make to clean the environment.
 
 Getopt and gstat
 ----------------
@@ -228,9 +228,9 @@ for details.
 
   ./breeze
 
-First time you run Breeze, it pulls and builds a local version of Docker images.
+The First time you run Breeze, it pulls and builds a local version of Docker images.
 It pulls the latest Airflow CI images from `Airflow DockerHub <https://hub.docker.com/r/apache/airflow>`_
-and use them to build your local Docker images. Note that the first run (per python) might take up to 10
+and uses them to build your local Docker images. Note that the first run (per python) might take up to 10
 minutes on a fast connection to start. Subsequent runs should be much faster.
 
 Once you enter the environment, you are dropped into bash shell of the Airflow container and you can
@@ -243,7 +243,25 @@ checked-out Airflow repository to your PATH to run Breeze without the ``./`` and
 When you enter the Breeze environment, automatically an environment file is sourced from
 ``files/airflow-breeze-config/variables.env``. The ``files`` folder from your local sources is
 automatically mounted to the container under ``/files`` path and you can put there any files you want
-to make available fot the Breeze container.
+to make available for the Breeze container.
+
+Launching multiple terminals
+----------------------------
+
+Often if you want to run full airflow in the Breeze environment you need to launch multiple terminals and
+run ``airflow webserver``, ``airflow scheduler``, ``airflow worker`` in separate terminals.
+
+This can be achieved either via ``tmux`` or via exec-ing into the running container from the host. Tmux
+is installed inside the container and you can launch it with ``tmux`` command. Tmux provides you with the
+capability of creating multiple virtual terminals and multiplex between them. More about ``tmux`` can be
+found at `tmux github wiki page <https://github.com/tmux/tmux/wiki>`_ . Tmux has several useful shortcuts
+that allow you to split the terminals, open new tabs etc - it's pretty useful to learn it.
+
+Another - slightly easier - way is to exec into Breeze terminal from the host's terminal. Often you can
+have multiple terminals in the host (Linux/MacOS/WSL2 on Windows) and you can simply use those terminals
+to enter the running container. It's as easy as launching ``breeze exec`` while you already started the
+Breeze environment. You will be dropped into bash and environment variables will be read in the same
+way as when you enter the environment. You can do it multiple times and open as many terminals as you need.
 
 Stopping Breeze
 ---------------
@@ -394,11 +412,11 @@ Mounting Local Sources to Breeze
 Important sources of Airflow are mounted inside the ``airflow-testing`` container that you enter.
 This means that you can continue editing your changes on the host in your favourite IDE and have them
 visible in the Docker immediately and ready to test without rebuilding images. You can disable mounting
-by specifying ``--skip-mounting-source-volume`` flag when running Breeze. In this case you will have sources
+by specifying ``--skip-mounting-local-sources`` flag when running Breeze. In this case you will have sources
 embedded in the container and changes to these sources will not be persistent.
 
 
-After you run Breeze for the first time, you will have an empty directory ``files`` in your source code,
+After you run Breeze for the first time, you will have empty directory ``files`` in your source code,
 which will be mapped to ``/files`` in your Docker container. You can pass there any files you need to
 configure and run Docker. They will not be removed between Docker runs.
 
@@ -409,9 +427,9 @@ from local sources in Airflow. If you wish to add local DAGs that can be run by 
 Adding/Modifying Dependencies
 -----------------------------
 
-If you need to change apt dependencies in the ``Dockerfile``, add Python packages in ``setup.py`` or
+If you need to change apt dependencies in the ``Dockerfile.ci``, add Python packages in ``setup.py`` or
 add javascript dependencies in ``package.json``, you can either add dependencies temporarily for a single
-Breeze session or permanently in ``setup.py``, ``Dockerfile``, or ``package.json`` files.
+Breeze session or permanently in ``setup.py``, ``Dockerfile.ci``, or ``package.json`` files.
 
 Installing Dependencies for a Single Breeze Session
 ...................................................
@@ -425,23 +443,23 @@ Therefore, if you want to retain a new dependency, follow the second option desc
 Adding Dependencies Permanently
 ...............................
 
-You can add dependencies to the ``Dockerfile``, ``setup.py`` or ``package.json`` and rebuild the image. This
-should happen automatically if you modify any of these files.
+You can add dependencies to the ``Dockerfile.ci``, ``setup.py`` or ``package.json`` and rebuild the image.
+This should happen automatically if you modify any of these files.
 After you exit the container and re-run ``breeze``, Breeze detects changes in dependencies,
 asks you to confirm rebuilding the image and proceeds with rebuilding if you confirm (or skip it
 if you do not confirm). After rebuilding is done, Breeze drops you to shell. You may also use the
 ``build-only`` command to only rebuild images and not to go into shell.
 
-Changing apt Dependencies in the Dockerfile
-............................................
+Changing apt Dependencies in the Dockerfile.ci
+..............................................
 
-During development, changing dependencies in ``apt-get`` closer to the top of the ``Dockerfile``
+During development, changing dependencies in ``apt-get`` closer to the top of the ``Dockerfile.ci``
 invalidates cache for most of the image. It takes long time for Breeze to rebuild the image.
 So, it is a recommended practice to add new dependencies initially closer to the end
-of the ``Dockerfile``. This way dependencies will be added incrementally.
+of the ``Dockerfile.ci``. This way dependencies will be added incrementally.
 
 Before merge, these dependencies should be moved to the appropriate ``apt-get install`` command,
-which is already in the ``Dockerfile``.
+which is already in the ``Dockerfile.ci``.
 
 Port Forwarding
 ---------------
@@ -619,6 +637,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
     build-docs                               Builds documentation in the container
     build-only                               Only builds docker images without entering container
     cleanup-images                           Cleans up the container images created
+    exec                                     Execs into running breeze container in new terminal
+    generate-requirements                    Generates pinned requirements for pip dependencies
     initialize-local-virtualenv              Initializes local virtualenv
     setup-autocomplete                       Sets up autocomplete for breeze
     stop                                     Stops the docker-compose evironment
@@ -683,9 +703,25 @@ This is the current syntax for  `./breeze <./breeze>`_:
         not reclaim space in docker cache. You need to 'docker system prune' (optionally
         with --all) to reclaim that space.
   ****************************************************************************************************
+  breeze [FLAGS] exec -- <EXTRA_ARGS>
+
+        Execs into interactive shell to an already running container. The container mus be started
+        already by breeze shell command. If you are not familiar with tmux, this is the best
+        way to run multiple processes in the same container at the same time for example scheduler,
+        webserver, workers, database console and interactive terminal.
+  ****************************************************************************************************
+  breeze [FLAGS] generate-requirements -- <EXTRA_ARGS>
+
+        Generates pinned requirements from setup.py. Those requirements are generated in requirements
+        directory - separately for different python version. Those requirements are used to run
+        CI builds as well as run repeatable production image builds. You can use those requirements
+        to predictably install released airflow versions. You should run it always after you update
+        setup.py.
+  ****************************************************************************************************
   breeze [FLAGS] initialize-local-virtualenv -- <EXTRA_ARGS>
 
-        Initializes locally created virtualenv installing all dependencies of Airflow.
+        Initializes locally created virtualenv installing all dependencies of Airflow
+        taking into account the frozen requirements from requirements folder.
         This local virtualenv can be used to aid autocompletion and IDE support as
         well as run unit tests directly from the IDE. You need to have virtualenv
         activated before running this command.
@@ -808,7 +844,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
    Choose Airflow variant
   ****************************************************************************************************
 
-  -p, --python <PYTHON_VERSION>
+  -p, --python <PYTHON_MAJOR_MINOR_VERSION>
           Python version used for the image. This is always major/minor version.
           One of:
 
@@ -822,13 +858,20 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Default: sqlite
 
+  -d, --db-reset
+          Resets the database at entry to the envvironment. It will drop all the tables
+          and data and recreate the DB from scratch even if 'restart' command was not used.
+          Combined with 'restart' command it enters the environment in the state that is
+          ready to start airflow webserver/scheduler/worker. Without the switch, the database
+          does not have any tables and you need to run reset db manually.
+
   -i, --integration <INTEGRATION>
           Integration to start during tests - it determines which integrations are started
           for integration tests. There can be more than one integration started, or all to
           start all integrations. Selected integrations are not saved for future execution.
           One of:
 
-                 cassandra kerberos mongo openldap rabbitmq redis all
+                 cassandra kerberos mongo openldap presto rabbitmq redis all
 
   ****************************************************************************************************
    Manage Kind kubernetes cluster (optional)
@@ -877,7 +920,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
    Manage mounting local files
   ****************************************************************************************************
 
-  -l, --skip-mounting-source-volume
+  -l, --skip-mounting-local-sources
           Skips mounting local volume with sources - you get exactly what is in the
           docker image rather than your current local sources of airflow.
 
@@ -886,12 +929,26 @@ This is the current syntax for  `./breeze <./breeze>`_:
   ****************************************************************************************************
 
   -a, --install-airflow-version <INSTALL_AIRFLOW_VERSION>
-          If different than 'current' removes the source-installed airflow and installs a
+          If specified, removes the source-installed airflow and installs a
           released version of Airflow instead. One of:
 
                  current 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2
 
-          Default: current.
+  ****************************************************************************************************
+   Database versions
+  ****************************************************************************************************
+
+  --postgres-version <POSTGRES_VERSION>
+          Postgres version used. One of:
+
+                 9.6 10
+
+
+  --mysql-version <MYSQL_VERSION>
+          Mysql version used. One of:
+
+                 5.7 8
+
 
   ****************************************************************************************************
    Assume answers to questions
@@ -1008,7 +1065,7 @@ describe your problem.
 Fixing File/Directory Ownership
 -------------------------------
 
-On Linux there is a problem with propagating ownership of created files (a known Docker problem). Basically,
+On Linux, there is a problem with propagating ownership of created files (a known Docker problem). The
 files and directories created in the container are not owned by the host user (but by the root user in our
 case). This may prevent you from switching branches, for example, if files owned by the root user are
 created within your sources. In case you are on a Linux host and have some files in your sources created

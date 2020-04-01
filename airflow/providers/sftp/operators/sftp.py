@@ -26,8 +26,10 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils.decorators import apply_defaults
 
 
-# pylint: disable=missing-docstring
 class SFTPOperation:
+    """
+    Operation that can be used with SFTP/
+    """
     PUT = 'put'
     GET = 'get'
 

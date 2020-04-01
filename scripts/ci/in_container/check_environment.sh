@@ -167,6 +167,16 @@ function check_mysql_logs {
     done
 }
 
+function resetdb() {
+    if [[ ${DB_RESET:="false"} == "true" ]]; then
+        if [[ ${RUN_AIRFLOW_1_10} == "true" ]]; then
+                airflow resetdb -y
+        else
+                airflow db reset -y
+        fi
+    fi
+}
+
 if [[ -n ${BACKEND:=} ]]; then
     echo "==============================================================================================="
     echo "             Checking backend: ${BACKEND}"
@@ -200,12 +210,15 @@ check_integration rabbitmq "nc -zvv rabbitmq 5672" 20
 check_integration cassandra "nc -zvv cassandra 9042" 20
 check_integration openldap "nc -zvv openldap 389" 20
 
+resetdb
+
 if [[ ${EXIT_CODE} != 0 ]]; then
     echo
     echo "Error: some of the CI environment failed to initialize!"
     echo
     exit ${EXIT_CODE}
 fi
+
 
 if [[ ${DISABLED_INTEGRATIONS} != "" ]]; then
     echo

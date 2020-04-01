@@ -20,7 +20,7 @@
 FILES_FOR_REBUILD_CHECK=(
  "setup.py"
  "setup.cfg"
- "Dockerfile"
+ "Dockerfile.ci"
  ".dockerignore"
  "airflow/version.py"
  "airflow/www/package.json"

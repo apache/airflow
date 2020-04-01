@@ -120,12 +120,11 @@ class SFTPHook(SSHHook):
 
     def close_conn(self) -> None:
         """
-        Closes the connection. An error will occur if the
-        connection wasnt ever opened.
+        Closes the connection
         """
-        conn = self.conn
-        conn.close()  # type: ignore
-        self.conn = None
+        if self.conn is not None:
+            self.conn.close()
+            self.conn = None
 
     def describe_directory(self, path: str) -> Dict[str, Dict[str, str]]:
         """

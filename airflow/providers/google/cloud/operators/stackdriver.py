@@ -33,6 +33,10 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
     which returns python dictionary, stringified JSON and protobuf
     respectively.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:StackdriverListAlertPoliciesOperator`
+
     :param format_: (Optional) Desired output format of the result. The
         supported formats are "dict", "json" and None which returns
         python dictionary, stringified JSON and protobuf respectively.
@@ -127,6 +131,10 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
     Enables one or more disabled alerting policies identified by filter
     parameter. Inoperative in case the policy is already enabled.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:StackdriverEnableAlertPoliciesOperator`
+
     :param filter_:  If provided, this field specifies the criteria that
         must be met by alert policies to be enabled.
         For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
@@ -194,6 +202,10 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
     Disables one or more enabled alerting policies identified by filter
     parameter. Inoperative in case the policy is already disabled.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:StackdriverDisableAlertPoliciesOperator`
+
     :param filter_:  If provided, this field specifies the criteria that
         must be met by alert policies to be disabled.
         For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
@@ -260,6 +272,10 @@ class StackdriverUpsertAlertOperator(BaseOperator):
     """
     Creates a new alert or updates an existing policy identified
     the name field in the alerts parameter.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:StackdriverUpsertAlertOperator`
 
     :param alerts: A JSON string or file that specifies all the alerts that needs
         to be either created or updated. For more details, see
@@ -330,6 +346,10 @@ class StackdriverDeleteAlertOperator(BaseOperator):
     """
     Deletes an alerting policy.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:StackdriverDeleteAlertOperator`
+
     :param name: The alerting policy to delete. The format is:
                      ``projects/[PROJECT_ID]/alertPolicies/[ALERT_POLICY_ID]``.
     :type name: str
@@ -398,6 +418,10 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
     format parameter, the supported formats are "dict", "json" and None
     which returns python dictionary, stringified JSON and protobuf
     respectively.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:StackdriverListNotificationChannelsOperator`
 
     :param format_: (Optional) Desired output format of the result. The
         supported formats are "dict", "json" and None which returns
@@ -495,6 +519,10 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
     Enables one or more disabled alerting policies identified by filter
     parameter. Inoperative in case the policy is already enabled.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:StackdriverEnableNotificationChannelsOperator`
+
     :param filter_:  If provided, this field specifies the criteria that
         must be met by notification channels to be enabled.
         For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
@@ -563,6 +591,10 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
     """
     Disables one or more enabled notification channels identified by filter
     parameter. Inoperative in case the policy is already disabled.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:StackdriverDisableNotificationChannelsOperator`
 
     :param filter_:  If provided, this field specifies the criteria that
         must be met by alert policies to be disabled.
@@ -633,6 +665,10 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
     Creates a new notification or updates an existing notification channel
     identified the name field in the alerts parameter.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:StackdriverUpsertNotificationChannelOperator`
+
     :param channels: A JSON string or file that specifies all the alerts that needs
         to be either created or updated. For more details, see
         https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.notificationChannels.
@@ -702,6 +738,10 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
 class StackdriverDeleteNotificationChannelOperator(BaseOperator):
     """
     Deletes a notification channel.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:StackdriverDeleteNotificationChannelOperator`
 
     :param name: The alerting policy to delete. The format is:
                      ``projects/[PROJECT_ID]/notificationChannels/[CHANNEL_ID]``.

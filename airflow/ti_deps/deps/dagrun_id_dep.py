@@ -47,7 +47,7 @@ class DagrunIdDep(BaseTIDep):
         """
         dagrun = ti.get_dagrun(session)
 
-        if not dagrun.run_id or not match(DagRunType.BACKFILL_JOB.value + '.*', dagrun.run_id):
+        if not dagrun.run_id or not match(f"{DagRunType.BACKFILL_JOB.value}.*", dagrun.run_id):
             yield self._passing_status(
                 reason=f"Task's DagRun run_id is either NULL "
                        f"or doesn't start with {DagRunType.BACKFILL_JOB.value}")

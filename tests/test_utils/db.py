@@ -15,7 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.models import Connection, DagModel, DagRun, DagTag, Pool, SlaMiss, TaskInstance, errors
+from airflow.models import (
+    Connection, DagModel, DagRun, DagTag, Pool, RenderedTaskInstanceFields, SlaMiss, TaskInstance, Variable,
+    errors,
+)
+from airflow.models.dagcode import DagCode
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections
 from airflow.utils.session import create_session
 
@@ -54,7 +58,22 @@ def clear_db_connections():
         create_default_connections(session)
 
 
+def clear_db_variables():
+    with create_session() as session:
+        session.query(Variable).delete()
+
+
+def clear_db_dag_code():
+    with create_session() as session:
+        session.query(DagCode).delete()
+
+
 def set_default_pool_slots(slots):
     with create_session() as session:
         default_pool = Pool.get_default_pool(session)
         default_pool.slots = slots
+
+
+def clear_rendered_ti_fields():
+    with create_session() as session:
+        session.query(RenderedTaskInstanceFields).delete()

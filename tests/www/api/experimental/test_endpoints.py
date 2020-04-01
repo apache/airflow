@@ -53,11 +53,11 @@ class TestBase(unittest.TestCase):
 
 
 @parameterized_class([
-    {"dag_serialzation": "False"},
-    {"dag_serialzation": "True"},
+    {"dag_serialization": "False"},
+    {"dag_serialization": "True"},
 ])
 class TestApiExperimental(TestBase):
-    dag_serialzation = "False"
+    dag_serialization = "False"
 
     @classmethod
     def setUpClass(cls):
@@ -91,7 +91,7 @@ class TestApiExperimental(TestBase):
 
     def test_task_info(self):
         with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
+            {("core", "store_serialized_dags"): self.dag_serialization}
         ):
             url_template = '/api/experimental/dags/{}/tasks/{}'
 
@@ -116,7 +116,7 @@ class TestApiExperimental(TestBase):
 
     def test_get_dag_code(self):
         with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
+            {("core", "store_serialized_dags"): self.dag_serialization}
         ):
             url_template = '/api/experimental/dags/{}/code'
 
@@ -131,29 +131,39 @@ class TestApiExperimental(TestBase):
             )
             self.assertEqual(404, response.status_code)
 
-    def test_task_paused(self):
+    def test_dag_paused(self):
         with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
+            {("core", "store_serialized_dags"): self.dag_serialization}
         ):
-            url_template = '/api/experimental/dags/{}/paused/{}'
+            pause_url_template = '/api/experimental/dags/{}/paused/{}'
+            paused_url_template = '/api/experimental/dags/{}/paused'
+            paused_url = paused_url_template.format('example_bash_operator')
 
             response = self.client.get(
-                url_template.format('example_bash_operator', 'true')
+                pause_url_template.format('example_bash_operator', 'true')
             )
             self.assertIn('ok', response.data.decode('utf-8'))
             self.assertEqual(200, response.status_code)
 
-            url_template = '/api/experimental/dags/{}/paused/{}'
+            paused_response = self.client.get(paused_url)
+
+            self.assertEqual(200, paused_response.status_code)
+            self.assertEqual({"is_paused": True}, paused_response.json)
 
             response = self.client.get(
-                url_template.format('example_bash_operator', 'false')
+                pause_url_template.format('example_bash_operator', 'false')
             )
             self.assertIn('ok', response.data.decode('utf-8'))
             self.assertEqual(200, response.status_code)
+
+            paused_response = self.client.get(paused_url)
+
+            self.assertEqual(200, paused_response.status_code)
+            self.assertEqual({"is_paused": False}, paused_response.json)
 
     def test_trigger_dag(self):
         with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
+            {("core", "store_serialized_dags"): self.dag_serialization}
         ):
             url_template = '/api/experimental/dags/{}/dag_runs'
             run_id = 'my_run' + utcnow().isoformat()
@@ -187,7 +197,7 @@ class TestApiExperimental(TestBase):
 
     def test_trigger_dag_for_date(self):
         with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
+            {("core", "store_serialized_dags"): self.dag_serialization}
         ):
             url_template = '/api/experimental/dags/{}/dag_runs'
             dag_id = 'example_bash_operator'
@@ -246,7 +256,7 @@ class TestApiExperimental(TestBase):
 
     def test_task_instance_info(self):
         with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
+            {("core", "store_serialized_dags"): self.dag_serialization}
         ):
             url_template = '/api/experimental/dags/{}/dag_runs/{}/tasks/{}'
             dag_id = 'example_bash_operator'
@@ -301,7 +311,7 @@ class TestApiExperimental(TestBase):
 
     def test_dagrun_status(self):
         with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
+            {("core", "store_serialized_dags"): self.dag_serialization}
         ):
             url_template = '/api/experimental/dags/{}/dag_runs/{}'
             dag_id = 'example_bash_operator'
@@ -347,12 +357,12 @@ class TestApiExperimental(TestBase):
 
 
 @parameterized_class([
-    {"dag_serialzation": "False"},
-    {"dag_serialzation": "True"},
+    {"dag_serialization": "False"},
+    {"dag_serialization": "True"},
 ])
 class TestLineageApiExperimental(TestBase):
     PAPERMILL_EXAMPLE_DAGS = os.path.join(ROOT_FOLDER, "airflow", "providers", "papermill", "example_dags")
-    dag_serialzation = "False"
+    dag_serialization = "False"
 
     @classmethod
     def setUpClass(cls):
@@ -371,7 +381,7 @@ class TestLineageApiExperimental(TestBase):
     @mock.patch("airflow.settings.DAGS_FOLDER", PAPERMILL_EXAMPLE_DAGS)
     def test_lineage_info(self):
         with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
+            {("core", "store_serialized_dags"): self.dag_serialization}
         ):
             url_template = '/api/experimental/lineage/{}/{}'
             dag_id = 'example_papermill_operator'

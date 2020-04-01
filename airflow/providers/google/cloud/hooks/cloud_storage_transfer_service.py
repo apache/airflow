@@ -29,7 +29,7 @@ from typing import Dict, List, Optional, Set, Union
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 10
@@ -99,7 +99,7 @@ NEGATIVE_STATUSES = {GcpTransferOperationStatus.FAILED, GcpTransferOperationStat
 
 
 # noinspection PyAbstractClass
-class CloudDataTransferServiceHook(CloudBaseHook):
+class CloudDataTransferServiceHook(GoogleBaseHook):
     """
     Hook for Google Storage Transfer Service.
 
@@ -130,7 +130,6 @@ class CloudDataTransferServiceHook(CloudBaseHook):
             )
         return self._conn
 
-    @CloudBaseHook.catch_http_exception
     def create_transfer_job(self, body: Dict) -> Dict:
         """
         Creates a transfer job that runs periodically.
@@ -147,8 +146,7 @@ class CloudDataTransferServiceHook(CloudBaseHook):
         return self.get_conn().transferJobs().create(body=body).execute(  # pylint: disable=no-member
             num_retries=self.num_retries)
 
-    @CloudBaseHook.fallback_to_default_project_id
-    @CloudBaseHook.catch_http_exception
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_transfer_job(self, job_name: str, project_id: Optional[str] = None) -> Dict:
         """
         Gets the latest state of a long-running operation in Google Storage
@@ -208,7 +206,6 @@ class CloudDataTransferServiceHook(CloudBaseHook):
 
         return jobs
 
-    @CloudBaseHook.catch_http_exception
     def update_transfer_job(self, job_name: str, body: Dict) -> Dict:
         """
         Updates a transfer job that runs periodically.
@@ -229,8 +226,7 @@ class CloudDataTransferServiceHook(CloudBaseHook):
             .execute(num_retries=self.num_retries)
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
-    @CloudBaseHook.catch_http_exception
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_transfer_job(self, job_name: str, project_id: Optional[str] = None) -> None:
         """
         Deletes a transfer job. This is a soft delete. After a transfer job is
@@ -262,7 +258,6 @@ class CloudDataTransferServiceHook(CloudBaseHook):
             .execute(num_retries=self.num_retries)
         )
 
-    @CloudBaseHook.catch_http_exception
     def cancel_transfer_operation(self, operation_name: str) -> None:
         """
         Cancels an transfer operation in Google Storage Transfer Service.
@@ -275,7 +270,6 @@ class CloudDataTransferServiceHook(CloudBaseHook):
         self.get_conn().transferOperations().cancel(  # pylint: disable=no-member
             name=operation_name).execute(num_retries=self.num_retries)
 
-    @CloudBaseHook.catch_http_exception
     def get_transfer_operation(self, operation_name: str) -> Dict:
         """
         Gets an transfer operation in Google Storage Transfer Service.
@@ -294,7 +288,6 @@ class CloudDataTransferServiceHook(CloudBaseHook):
             .execute(num_retries=self.num_retries)
         )
 
-    @CloudBaseHook.catch_http_exception
     def list_transfer_operations(self, request_filter: Optional[Dict] = None, **kwargs) -> List[Dict]:
         """
         Gets an transfer operation in Google Storage Transfer Service.
@@ -344,7 +337,6 @@ class CloudDataTransferServiceHook(CloudBaseHook):
 
         return operations
 
-    @CloudBaseHook.catch_http_exception
     def pause_transfer_operation(self, operation_name: str) -> None:
         """
         Pauses an transfer operation in Google Storage Transfer Service.
@@ -356,7 +348,6 @@ class CloudDataTransferServiceHook(CloudBaseHook):
         self.get_conn().transferOperations().pause(  # pylint: disable=no-member
             name=operation_name).execute(num_retries=self.num_retries)
 
-    @CloudBaseHook.catch_http_exception
     def resume_transfer_operation(self, operation_name: str) -> None:
         """
         Resumes an transfer operation in Google Storage Transfer Service.
@@ -368,7 +359,6 @@ class CloudDataTransferServiceHook(CloudBaseHook):
         self.get_conn().transferOperations().resume(  # pylint: disable=no-member
             name=operation_name).execute(num_retries=self.num_retries)
 
-    @CloudBaseHook.catch_http_exception
     def wait_for_transfer_job(
         self,
         job: Dict,

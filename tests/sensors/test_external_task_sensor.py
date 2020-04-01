@@ -384,7 +384,7 @@ def dag_bag_ext():
     return dag_bag
 
 
-def run_tasks(dag_bag):
+def run_tasks(dag_bag, execution_date=DEFAULT_DATE):
     """
     Run all tasks in the DAGs in the given dag_bag. Return the TaskInstance objects as a dict
     keyed by task_id.
@@ -393,7 +393,7 @@ def run_tasks(dag_bag):
 
     for dag in dag_bag.dags.values():
         for task in dag.tasks:
-            ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+            ti = TaskInstance(task=task, execution_date=execution_date)
             tis[task.task_id] = ti
             ti.run()
             assert_ti_state_equal(ti, State.SUCCESS)
@@ -499,3 +499,48 @@ def test_external_task_marker_cyclic(dag_bag_cyclic):
     task_a_0 = dag_0.get_task("task_a_0")
     with pytest.raises(AirflowException, match="Maximum recursion depth 3"):
         clear_tasks(dag_bag_cyclic, dag_0, task_a_0)
+
+
+@pytest.fixture
+def dag_bag_multiple():
+    """
+    Create a DagBag containing two DAGs, linked by multiple ExternalTaskMarker.
+    """
+    dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
+    daily_dag = DAG("daily_dag", start_date=DEFAULT_DATE, schedule_interval="@daily")
+    agg_dag = DAG("agg_dag", start_date=DEFAULT_DATE, schedule_interval="@daily")
+    dag_bag.bag_dag(daily_dag, None, daily_dag)
+    dag_bag.bag_dag(agg_dag, None, agg_dag)
+
+    daily_task = DummyOperator(task_id="daily_tas", dag=daily_dag)
+
+    start = DummyOperator(task_id="start", dag=agg_dag)
+    for i in range(25):
+        task = ExternalTaskMarker(task_id=f"{daily_task.task_id}_{i}",
+                                  external_dag_id=daily_dag.dag_id,
+                                  external_task_id=daily_task.task_id,
+                                  execution_date="{{ macros.ds_add(ds, -1 * %s) }}" % i,
+                                  dag=agg_dag)
+        start >> task
+
+    yield dag_bag
+
+
+@pytest.mark.backend("postgres", "mysql")
+def test_clear_multiple_external_task_marker(dag_bag_multiple):
+    """
+    Test clearing a dag that has multiple ExternalTaskMarker.
+
+    sqlite3 parser stack size is 100 lexical items by default so this puts a hard limit on
+    the level of nesting in the sql. This test is intentionally skipped in sqlite.
+    """
+    agg_dag = dag_bag_multiple.get_dag("agg_dag")
+
+    for delta in range(len(agg_dag.tasks)):
+        execution_date = DEFAULT_DATE + timedelta(days=delta)
+        run_tasks(dag_bag_multiple, execution_date=execution_date)
+
+    # There used to be some slowness caused by calling count() inside DAG.clear().
+    # That has since been fixed. It should take no more than a few seconds to call
+    # dag.clear() here.
+    assert agg_dag.clear(start_date=execution_date, end_date=execution_date, dag_bag=dag_bag_multiple) == 51

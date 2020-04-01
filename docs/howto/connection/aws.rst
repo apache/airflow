@@ -96,20 +96,66 @@ This assumes all other Connection fields eg **Login** are empty.
 .. code-block:: json
 
     {
-      "role_arn": "role_arn",
+      "role_arn": "arn:aws:iam::112223334444:role/my_role",
       "region_name": "ap-southeast-2"
     }
 
+.. seealso::
+    https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#api_assumerole
 
-3. Configuring an outbound http proxy
+
+3. Configuring an outbound HTTP proxy
 
 .. code-block:: json
 
     {
       "config_kwargs": {
         "proxies": {
-          "http": "http://myproxy:8080",
-          "https": "http://myproxy:8080"
+          "http": "http://myproxy.mycompany.local:8080",
+          "https": "http://myproxy.mycompany.local:8080"
         }
       }
     }
+
+4. Using AssumeRoleWithSAML
+
+.. code-block:: json
+
+    {
+      "region_name":"eu-west-1",
+      "role_arn":"arn:aws:iam::112223334444:role/my_role",
+      "assume_role_method":"assume_role_with_saml",
+      "assume_role_with_saml":{
+        "principal_arn":"arn:aws:iam::112223334444:saml-provider/my_saml_provider",
+        "idp_url":"https://idp.mycompany.local/.../saml/clients/amazon-aws",
+        "idp_auth_method":"http_spegno_auth",
+        "mutual_authentication":"OPTIONAL",
+        "idp_request_kwargs":{
+          "headers":{"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"},
+          "verify":false
+        },
+        "log_idp_response":false,
+        "saml_response_xpath":"////INPUT[@NAME='SAMLResponse']/@VALUE",
+      },
+      "assume_role_kwargs": { "something":"something" }
+    }
+
+AssumeRoleWithSAML
+    The following settings may be used within the ``assume_role_with_saml`` container in Extra.
+    * ``principal_arn``: The ARN of the SAML provider created in IAM that describes the identity provider.
+    * ``idp_url``: The URL to your IDP endpoint, which provides SAML Assertions.
+    * ``idp_auth_method``: Specify "http_spegno_auth" to use the Python ``requests_gssapi`` library. This library is more up to date than ``requests_kerberos`` and is backward compatible. See ``requests_gssapi`` documentation on PyPi.
+    * ``mutual_authentication``: Can be "REQUIRED", "OPTIONAL" or "DISABLED". See ``requests_gssapi`` documentation on PyPi.
+    * ``idp_request_kwargs``: Additional ``kwargs`` passed to ``requests`` when requesting from the IDP (over HTTP/S).
+    * ``log_idp_response``: Useful for debugging - if specified, print the IDP response content to the log. Note that a successful response will contain sensitive information!
+    * ``saml_response_xpath``: How to query the IDP response using XML / HTML xpath.
+    * ``assume_role_kwargs``: Additional ``kwargs`` passed to ``sts_client.assume_role_with_saml``.
+
+.. note:: The ``requests_gssapi`` library is used to obtain a SAML response from your IDP.
+    You may need to ``pip uninstall python-gssapi`` and ``pip install gssapi`` instead for this to work.
+    The ``python-gssapi`` library is outdated, and conflicts with some versions of ``paramiko`` which Airflow uses elsewhere.
+
+.. seealso::
+    :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+    https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#api_assumerolewithsaml
+    https://pypi.org/project/requests-gssapi/

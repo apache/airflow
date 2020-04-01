@@ -32,6 +32,7 @@ from airflow.utils import timezone
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
 
 DEV_NULL = "/dev/null"
@@ -57,7 +58,7 @@ class TestMarkTasks(unittest.TestCase):
         clear_db_runs()
         drs = _create_dagruns(self.dag1, self.execution_dates,
                               state=State.RUNNING,
-                              run_id_template="scheduled__{}")
+                              run_type=DagRunType.SCHEDULED.value)
         for dr in drs:
             dr.dag = self.dag1
             dr.verify_integrity()
@@ -65,7 +66,7 @@ class TestMarkTasks(unittest.TestCase):
         drs = _create_dagruns(self.dag2,
                               [self.dag2.default_args['start_date']],
                               state=State.RUNNING,
-                              run_id_template="scheduled__{}")
+                              run_type=DagRunType.SCHEDULED.value)
 
         for dr in drs:
             dr.dag = self.dag2
@@ -74,7 +75,7 @@ class TestMarkTasks(unittest.TestCase):
         drs = _create_dagruns(self.dag3,
                               self.dag3_execution_dates,
                               state=State.SUCCESS,
-                              run_id_template="manual__{}")
+                              run_type=DagRunType.MANUAL.value)
         for dr in drs:
             dr.dag = self.dag3
             dr.verify_integrity()

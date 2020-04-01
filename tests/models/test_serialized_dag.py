@@ -19,12 +19,15 @@
 """Unit tests for SerializedDagModel."""
 
 import unittest
+from unittest import mock
 
-from airflow import example_dags as example_dags_module
+from airflow import DAG, example_dags as example_dags_module
 from airflow.models import DagBag
+from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel as SDM
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.session import create_session
+from tests.test_utils.asserts import assert_queries_count
 
 
 # To move it to a shared module.
@@ -50,7 +53,8 @@ class SerializedDagModelTest(unittest.TestCase):
 
     def test_dag_fileloc_hash(self):
         """Verifies the correctness of hashing file path."""
-        self.assertTrue(SDM.dag_fileloc_hash('/airflow/dags/test_dag.py') == 60791)
+        self.assertEqual(DagCode.dag_fileloc_hash('/airflow/dags/test_dag.py'),
+                         33826252060516589)
 
     def _write_example_dags(self):
         example_dags = make_example_dags(example_dags_module)
@@ -107,3 +111,11 @@ class SerializedDagModelTest(unittest.TestCase):
         example_dag_files.remove(dag_removed_by_file.full_filepath)
         SDM.remove_deleted_dags(example_dag_files)
         self.assertFalse(SDM.has_dag(dag_removed_by_file.dag_id))
+
+    @mock.patch('airflow.models.serialized_dag.STORE_SERIALIZED_DAGS', True)
+    def test_bulk_sync_to_db(self):
+        dags = [
+            DAG(f"dag_1"), DAG(f"dag_2"), DAG(f"dag_3"),
+        ]
+        with assert_queries_count(7):
+            SDM.bulk_sync_to_db(dags)

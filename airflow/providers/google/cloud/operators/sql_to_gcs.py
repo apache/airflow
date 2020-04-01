@@ -38,7 +38,7 @@ class BaseSQLToGCSOperator(BaseOperator, metaclass=abc.ABCMeta):
     :param bucket: The bucket to upload to.
     :type bucket: str
     :param filename: The filename to use as the object name when uploading
-        to Google Cloud Storage. A {} should be specified in the filename
+        to Google Cloud Storage. A ``{}`` should be specified in the filename
         to allow the operator to inject file numbers in cases where the
         file is split due to size.
     :type filename: str
@@ -118,19 +118,24 @@ class BaseSQLToGCSOperator(BaseOperator, metaclass=abc.ABCMeta):
         self.parameters = parameters
 
     def execute(self, context):
+        self.log.info("Executing query")
         cursor = self.query()
-        files_to_upload = self._write_local_data_files(cursor)
 
+        self.log.info("Writing local data files")
+        files_to_upload = self._write_local_data_files(cursor)
         # If a schema is set, create a BQ schema JSON file.
         if self.schema_filename:
+            self.log.info("Writing local schema file")
             files_to_upload.append(self._write_local_schema_file(cursor))
 
         # Flush all files before uploading
         for tmp_file in files_to_upload:
             tmp_file['file_handle'].flush()
 
+        self.log.info("Uploading %d files to GCS.", len(files_to_upload))
         self._upload_to_gcs(files_to_upload)
 
+        self.log.info("Removing local files")
         # Close all temp file handles.
         for tmp_file in files_to_upload:
             tmp_file['file_handle'].close()
@@ -163,6 +168,7 @@ class BaseSQLToGCSOperator(BaseOperator, metaclass=abc.ABCMeta):
             'file_handle': tmp_file_handle,
             'file_mime_type': file_mime_type
         }]
+        self.log.info("Current file count: %d", len(files_to_upload))
 
         if self.export_format == 'csv':
             csv_writer = self._configure_csv_file(tmp_file_handle, schema)
@@ -177,7 +183,6 @@ class BaseSQLToGCSOperator(BaseOperator, metaclass=abc.ABCMeta):
             else:
                 row_dict = dict(zip(schema, row))
 
-                # TODO validate that row isn't > 2MB. BQ enforces a hard row size of 2MB.
                 tmp_file_handle.write(
                     json.dumps(row_dict, sort_keys=True, ensure_ascii=False).encode("utf-8")
                 )
@@ -194,7 +199,7 @@ class BaseSQLToGCSOperator(BaseOperator, metaclass=abc.ABCMeta):
                     'file_handle': tmp_file_handle,
                     'file_mime_type': file_mime_type
                 })
-
+                self.log.info("Current file count: %d", len(files_to_upload))
                 if self.export_format == 'csv':
                     csv_writer = self._configure_csv_file(tmp_file_handle, schema)
 
@@ -254,7 +259,8 @@ class BaseSQLToGCSOperator(BaseOperator, metaclass=abc.ABCMeta):
         """
         schema = [self.field_to_bigquery(field) for field in cursor.description]
 
-        self.log.info('Using schema for %s: %s', self.schema_filename, schema)
+        self.log.info('Using schema for %s', self.schema_filename)
+        self.log.debug("Current schema: %s", schema)
         tmp_schema_file_handle = NamedTemporaryFile(delete=True)
         tmp_schema_file_handle.write(json.dumps(schema, sort_keys=True).encode('utf-8'))
         schema_file_to_upload = {
@@ -270,7 +276,7 @@ class BaseSQLToGCSOperator(BaseOperator, metaclass=abc.ABCMeta):
         Google Cloud Storage.
         """
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to)
         for tmp_file in files_to_upload:
             hook.upload(self.bucket, tmp_file.get('file_name'),

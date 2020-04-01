@@ -27,7 +27,8 @@
 [![Twitter Follow](https://img.shields.io/twitter/follow/ApacheAirflow.svg?style=social&label=Follow)](https://twitter.com/ApacheAirflow)
 [![Slack Status](https://img.shields.io/badge/slack-join_chat-white.svg?logo=slack&style=social)](https://apache-airflow-slack.herokuapp.com/)
 
-Apache Airflow (or simply Airflow) is a platform to programmatically author, schedule, and monitor workflows.
+[Apache Airflow](https://airflow.apache.org/docs/stable/) (or simply Airflow) is a platform to programmatically author, schedule, and monitor
+ workflows.
 
 When workflows are defined as code, they become more maintainable,
 versionable, testable, and collaborative.
@@ -38,6 +39,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Requirements](#requirements)
 - [Getting started](#getting-started)
 - [Beyond the Horizon](#beyond-the-horizon)
 - [Principles](#principles)
@@ -50,6 +52,24 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Links](#links)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## Requirements
+
+Apache Airflow is tested with:
+
+### Master version (2.0.0dev)
+
+* Python versions: 3.6, 3.7
+* Postgres DB: 9.6, 10
+* MySQL DB: 5.7
+* Sqlite - latest stable (it is used mainly for development purpose)
+
+### Stable version (1.10.9)
+
+* Python versions: 2.7, 3.5, 3.6, 3.7
+* Postgres DB: 9.6, 10
+* MySQL DB: 5.6, 5.7
+* Sqlite - latest stable (it is used mainly for development purpose)
 
 ## Getting started
 
@@ -110,9 +130,8 @@ unit of work and continuity.
 
 ## Using hooks and Operators from "master" in Airflow 1.10
 
-Currently stable versions of Apache Airflow are released in 1.10.* series. We are working on the
-future, major version of Airflow from the 2.0.* series. It is going to be released in
-in 2020. However the exact time of release depends on many factors and is yet unknown.
+Currently, stable versions of Apache Airflow are released in 1.10.* series. We are working on the
+future, major version of Airflow from the 2.0.* series. It is going to be released in 2020. However, the exact time of release depends on many factors and is yet unknown.
 We have already a lot of changes in the hooks/operators/sensors for many external systems
 and they are not used because they are part of the master/2.0 release.
 
@@ -131,6 +150,9 @@ environments to Airflow 2.0.
 
 More information about the status and releases of the back-ported packages are available
 at [Backported providers package page](https://cwiki.apache.org/confluence/display/AIRFLOW/Backported+providers+packages+for+Airflow+1.10.*+series)
+
+Dependencies between packages are stored in ``airflow/providers/dependencies.json``. See
+[CONTRIBUTING.rst](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#backport-providers-packages)
 
 ## Contributing
 
@@ -226,6 +248,7 @@ Currently **officially** using Airflow:
 1. [Classmethod, Inc.](https://classmethod.jp/) [[@shoito](https://github.com/shoito)]
 1. [Cleartax](https://cleartax.in/) [[@anks](https://github.com/anks) & [@codebuff](https://github.com/codebuff)]
 1. [Clover Health](https://www.cloverhealth.com) [[@gwax](https://github.com/gwax) & [@vansivallab](https://github.com/vansivallab)]
+1. [Colgate-Palmolive](https://www.colgatepalmolive.com/) [[@fhoda](https://github.com/fhoda)]
 1. [Collectivehealth Inc.](https://www.collectivehealth.com) [[@retornam](https://github.com/retornam)]
 1. [Compass](https://www.compass.com) [[@wdhorton](https://github.com/wdhorton)]
 1. [ConnectWise](https://www.connectwise.com/) [[@jacobeturpin](https://github.com/jacobeturpin)]
@@ -298,6 +321,7 @@ Currently **officially** using Airflow:
 1. [HelloFresh](https://www.hellofresh.com) [[@tammymendt](https://github.com/tammymendt) & [@davidsbatista](https://github.com/davidsbatista) & [@iuriinedostup](https://github.com/iuriinedostup)]
 1. [Hipages](https://www.hipages.com.au/) [[@arihantsurana](https://github.com/arihantsurana)]
 1. [Holimetrix](http://holimetrix.com/) [[@thibault-ketterer](https://github.com/thibault-ketterer)]
+1. [HomeToGo](https://www.hometogo.com/) [[@HomeToGo](https://github.com/hometogo), [@AurimasGr](https://github.com/AurimasGr)]
 1. [Hootsuite](https://github.com/hootsuite)
 1. [Hostnfly](https://www.hostnfly.com/) [[@CyrilLeMat](https://github.com/CyrilLeMat) & [@pierrechopin](https://github.com/pierrechopin) & [@alexisrosuel](https://github.com/alexisrosuel)]
 1. [HotelQuickly](https://github.com/HotelQuickly) [[@zinuzoid](https://github.com/zinuzoid)]
@@ -389,6 +413,7 @@ Currently **officially** using Airflow:
 1. [Qubole](https://qubole.com) [[@msumit](https://github.com/msumit)]
 1. [Quizlet](https://quizlet.com) [[@quizlet](https://github.com/quizlet)]
 1. [Quora](https://www.quora.com/)
+1. [Rakuten](https://www.rakuten.com)
 1. [Raízen](https://www.raizen.com.br/) [[@rudlac](https://github.com/rudlac) & [@guifneves](https://github.com/guifneves)]
 1. [Rapido](https://rapido.bike/) [[@ChethanUK](https://github.com/ChethanUK)]
 1. [REA Group](https://www.rea-group.com/)
@@ -488,6 +513,6 @@ Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.
 
 ## Links
 
-- [Documentation](https://airflow.apache.org/)
+- [Documentation](https://airflow.apache.org/docs/stable/)
 - [Chat](https://apache-airflow-slack.herokuapp.com/)
 - [More](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links)

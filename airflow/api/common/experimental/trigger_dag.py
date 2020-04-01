@@ -69,7 +69,7 @@ def _trigger_dag(
                     min_dag_start_date.isoformat()))
 
     if not run_id:
-        run_id = "{}{}".format(DagRunType.MANUAL.value, execution_date.isoformat())
+        run_id = f"{DagRunType.MANUAL.value}__{execution_date.isoformat()}"
 
     dag_run_id = dag_run.find(dag_id=dag_id, run_id=run_id)
     if dag_run_id:

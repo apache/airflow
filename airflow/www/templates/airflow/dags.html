@@ -99,13 +99,14 @@
                 <!-- Column 3: Name -->
                 <td>
                     <span>
-                      <a href="{{ url_for('Airflow.'+ dag.default_view, dag_id=dag.dag_id) }}" title="{{ dag.description[0:80] + '...' if dag.description|length > 80 else dag.description }}">
+                      <a href="{{ url_for('Airflow.'+ dag.default_view, dag_id=dag.dag_id) }}"
+                         title="{{ dag.description[0:80] + '...' if dag.description and dag.description|length > 80 else dag.description|default('', true) }}">
                           {{ dag.dag_id }}
                       </a>
                     </span>
 
                     <div style="float: right; max-width: 70%; text-align: right; line-height: 160%;">
-                    {% for tag in dag.tags %}
+                    {% for tag in dag.tags | sort(attribute='name') %}
                       <span class="label label-success" style="margin: 3px;">{{ tag.name }}</span>
                     {% endfor %}
                     </div>
@@ -283,17 +284,27 @@
       var encoded_dag_ids = new URLSearchParams();
 
       $.each($("[id^=toggle]"), function(i, v) {
-        var dag_id = $(v).attr('dag_id');
+        var $input = $(v);
+        var dag_id = $input.attr('dag_id');
         encoded_dag_ids.append('dag_ids', dag_id);
 
-        $(v).change (function() {
-          if ($(v).prop('checked')) {
+        $input.change(function() {
+          var $buttons = $input.parent('.toggle').find('.btn');
+          $buttons.removeClass('btn-danger');
+          if ($input.prop('checked')) {
             is_paused = 'true'
           } else {
             is_paused = 'false'
           }
-          url = 'paused?is_paused=' + is_paused + '&dag_id=' + dag_id;
-          $.post(url);
+          var url = 'paused?is_paused=' + is_paused + '&dag_id=' + dag_id;
+          $.post(url).fail(function() {
+            if (is_paused === 'true') {
+              $input.data('bs.toggle').off(true);
+            } else {
+              $input.data('bs.toggle').on(true);
+            }
+            $buttons.addClass('btn-danger');
+          });
         });
       });
 

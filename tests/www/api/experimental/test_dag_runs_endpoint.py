@@ -29,11 +29,11 @@ from tests.test_utils.config import conf_vars
 
 
 @parameterized_class([
-    {"dag_serialzation": "False"},
-    {"dag_serialzation": "True"},
+    {"dag_serialization": "False"},
+    {"dag_serialization": "True"},
 ])
 class TestDagRunsEndpoint(unittest.TestCase):
-    dag_serialzation = "False"
+    dag_serialization = "False"
 
     @classmethod
     def setUpClass(cls):
@@ -61,7 +61,7 @@ class TestDagRunsEndpoint(unittest.TestCase):
 
     def test_get_dag_runs_success(self):
         with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
+            {("core", "store_serialized_dags"): self.dag_serialization}
         ):
             url_template = '/api/experimental/dags/{}/dag_runs'
             dag_id = 'example_bash_operator'
@@ -80,7 +80,7 @@ class TestDagRunsEndpoint(unittest.TestCase):
 
     def test_get_dag_runs_success_with_state_parameter(self):
         with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
+            {("core", "store_serialized_dags"): self.dag_serialization}
         ):
             url_template = '/api/experimental/dags/{}/dag_runs?state=running'
             dag_id = 'example_bash_operator'
@@ -99,7 +99,7 @@ class TestDagRunsEndpoint(unittest.TestCase):
 
     def test_get_dag_runs_success_with_capital_state_parameter(self):
         with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
+            {("core", "store_serialized_dags"): self.dag_serialization}
         ):
             url_template = '/api/experimental/dags/{}/dag_runs?state=RUNNING'
             dag_id = 'example_bash_operator'
@@ -118,7 +118,7 @@ class TestDagRunsEndpoint(unittest.TestCase):
 
     def test_get_dag_runs_success_with_state_no_result(self):
         with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
+            {("core", "store_serialized_dags"): self.dag_serialization}
         ):
             url_template = '/api/experimental/dags/{}/dag_runs?state=dummy'
             dag_id = 'example_bash_operator'
@@ -134,7 +134,7 @@ class TestDagRunsEndpoint(unittest.TestCase):
 
     def test_get_dag_runs_invalid_dag_id(self):
         with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
+            {("core", "store_serialized_dags"): self.dag_serialization}
         ):
             url_template = '/api/experimental/dags/{}/dag_runs'
             dag_id = 'DUMMY_DAG'
@@ -147,7 +147,7 @@ class TestDagRunsEndpoint(unittest.TestCase):
 
     def test_get_dag_runs_no_runs(self):
         with conf_vars(
-            {("core", "store_serialized_dags"): self.dag_serialzation}
+            {("core", "store_serialized_dags"): self.dag_serialization}
         ):
             url_template = '/api/experimental/dags/{}/dag_runs'
             dag_id = 'example_bash_operator'

@@ -21,6 +21,7 @@ from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOpe
 from airflow.utils.decorators import apply_defaults
 
 
+# pylint: disable=too-many-instance-attributes
 class SparkJDBCOperator(SparkSubmitOperator):
     """
     This operator extends the SparkSubmitOperator specifically for performing data
@@ -111,6 +112,7 @@ class SparkJDBCOperator(SparkSubmitOperator):
                                       types.
     """
 
+    # pylint: disable=too-many-arguments,too-many-locals
     @apply_defaults
     def __init__(self,
                  spark_app_name='airflow-spark-jdbc',

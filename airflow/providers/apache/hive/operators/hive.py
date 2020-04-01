@@ -66,6 +66,7 @@ class HiveOperator(BaseOperator):
     template_ext = ('.hql', '.sql',)
     ui_color = '#f0e4ec'
 
+    # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
             self,
@@ -104,6 +105,9 @@ class HiveOperator(BaseOperator):
         self.hook = None
 
     def get_hook(self):
+        """
+        Get Hive cli hook
+        """
         return HiveCliHook(
             hive_cli_conn_id=self.hive_cli_conn_id,
             run_as=self.run_as,

@@ -55,6 +55,7 @@ class AirflowRescheduleException(AirflowException):
     :type reschedule_date: datetime.datetime
     """
     def __init__(self, reschedule_date):
+        super().__init__()
         self.reschedule_date = reschedule_date
 
 
@@ -80,6 +81,10 @@ class AirflowDagCycleException(AirflowException):
 
 class DagNotFound(AirflowNotFoundException):
     """Raise when a DAG is not available in the system"""
+
+
+class DagCodeNotFound(AirflowNotFoundException):
+    """Raise when a DAG code is not available in the system"""
 
 
 class DagRunNotFound(AirflowNotFoundException):

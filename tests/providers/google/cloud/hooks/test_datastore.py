@@ -34,7 +34,9 @@ def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-ar
 
 class TestDatastoreHook(unittest.TestCase):
     def setUp(self):
-        with patch('airflow.providers.google.cloud.hooks.base.CloudBaseHook.__init__', new=mock_init):
+        with patch(
+            'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__', new=mock_init
+        ):
             self.datastore_hook = DatastoreHook()
 
     @patch('airflow.providers.google.cloud.hooks.datastore.DatastoreHook._authorize')

@@ -24,10 +24,10 @@ from googleapiclient import http
 from googleapiclient.discovery import Resource, build
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class GoogleCampaignManagerHook(CloudBaseHook):
+class GoogleCampaignManagerHook(GoogleBaseHook):
     """
     Hook for Google Campaign Manager.
     """
@@ -250,7 +250,6 @@ class GoogleCampaignManagerHook(CloudBaseHook):
             },
         }
 
-    @CloudBaseHook.catch_http_exception
     def conversions_batch_insert(
         self,
         profile_id: str,
@@ -301,7 +300,6 @@ class GoogleCampaignManagerHook(CloudBaseHook):
                 raise AirflowException(errored_conversions)
         return response
 
-    @CloudBaseHook.catch_http_exception
     def conversions_batch_update(
         self,
         profile_id: str,

@@ -61,9 +61,74 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Setting Empty string to a Airflow Variable will return an empty string
+
+Previously when you set an Airflow Variable with an empty string (`''`), the value you used to get
+back was ``None``. This will now return an empty string (`'''`)
+
+Example:
+
+```python
+>> Variable.set('test_key', '')
+>> Variable.get('test_key')
+```
+
+The above code returned `None` previously, now it will return `''`.
+
+### Remove SQL support in base_hook
+
+Remove ``get_records`` and ``get_pandas_df`` and ``run`` from base_hook, which only apply for sql like hook,
+If want to use them, or your custom hook inherit them, please use ``dbapi_hook``
+
+### Changes to SalesforceHook
+
+Replace parameter ``sandbox`` with ``domain``. According to change in simple-salesforce package
+
+### Rename parameter name in PinotAdminHook.create_segment
+
+Rename parameter name from ``format`` to ``segment_format`` in PinotAdminHook function create_segment fro pylint compatible
+
+### Rename parameter name in HiveMetastoreHook.get_partitions
+
+Rename parameter name from ``filter`` to ``partition_filter`` in HiveMetastoreHook function get_partitions for pylint compatible
+
+### Remove unnecessary parameter in FTPHook.list_directory
+
+Remove unnecessary parameter ``nlst`` in FTPHook function list_directory for pylint compatible
+
+### Remove unnecessary parameter in PostgresHook function copy_expert
+
+Remove unnecessary parameter ``open`` in PostgresHook function copy_expert for pylint compatible
+
+### Change parameter name in OpsgenieAlertOperator
+
+Change parameter name from ``visibleTo`` to ``visible_to`` in OpsgenieAlertOperator for pylint compatible
+
+### Use NULL as default value for dag.description
+
+Now use NULL as default value for dag.description in dag table
+
+### Assigning task to a DAG using bitwise shift (bit-shift) operators are no longer supported
+
+Previously, you could assign a task to a DAG as follows:
+
+```python
+dag = DAG('my_dag')
+dummy = DummyOperator(task_id='dummy')
+
+dag >> dummy
+```
+
+This is no longer supported. Instead, we recommend using the DAG as context manager:
+
+```python
+with DAG('my_dag):
+    dummy = DummyOperator(task_id='dummy')
+```
+
 ### Deprecating ignore_first_depends_on_past on backfill command and default it to True
 
-When doing backfill with `depends_on_past` dags, users will need to pass `ignore_first_depends_on_past`.
+When doing backfill with `depends_on_past` dags, users will need to pass `--ignore-first-depends-on-past`.
 We should default it as `true` to avoid confusion
 
 ### Custom executors is loaded using full import path
@@ -103,7 +168,7 @@ replaced with its corresponding new path.
 
 ### Success Callback will be called when a task in marked as success from UI
 
-When a task is marked as success by a used from Airflow UI - on_success_callback will be called
+When a task is marked as success by a user from Airflow UI - `on_success_callback` will be called
 
 ### Added `airflow dags test` CLI command
 
@@ -170,10 +235,19 @@ The following methods were moved:
 | airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_with_configuration        | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration        |
 | airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.update_dataset                | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_dataset                |
 
+### Make behavior of `none_failed` trigger rule consistent with documentation
+The behavior of the `none_failed` trigger rule is documented as "all parents have not failed (`failed` or
+    `upstream_failed`) i.e. all parents have succeeded or been skipped." As previously implemented, the actual behavior
+    would skip if all parents of a task had also skipped.
+
+### Add new trigger rule `none_failed_or_skipped`
+The fix to `none_failed` trigger rule breaks workflows that depend on the previous behavior.
+    If you need the old behavior, you should change the tasks with `none_failed` trigger rule to `none_failed_or_skipped`.
+
 ### Standardize handling http exception in BigQuery
 
 Since BigQuery is the part of the GCP it was possible to simplify the code by handling the exceptions
-by usage of the `airflow.providers.google.cloud.hooks.base.CloudBaseHook.catch_http_exception` decorator however it changes
+by usage of the `airflow.providers.google.common.hooks.base.GoogleBaseHook.catch_http_exception` decorator however it changes
 exceptions raised by the following methods:
 * `airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_table_delete` raises `AirflowException` instead of `Exception`.
 * `airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.create_empty_dataset` raises `AirflowException` instead of `ValueError`.
@@ -854,12 +928,12 @@ The following variables were removed from the task instance context:
 - latest_date
 - tables
 
-### Moved provide_gcp_credential_file decorator to GoogleCloudBaseHook
+### Moved provide_gcp_credential_file decorator to GoogleBaseHook
 
 To simplify the code, the decorator has been moved from the inner-class.
 
-Instead of `@GoogleCloudBaseHook._Decorators.provide_gcp_credential_file`,
-you should write `@GoogleCloudBaseHook.provide_gcp_credential_file`
+Instead of `@GoogleBaseHook._Decorators.provide_gcp_credential_file`,
+you should write `@GoogleBaseHook.provide_gcp_credential_file`
 
 ### Changes to S3Hook
 

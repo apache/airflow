@@ -212,7 +212,7 @@ class BaseOperator(Operator, LoggingMixin):
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
         ``{ all_success | all_failed | all_done | one_success |
-        one_failed | none_failed | none_skipped | dummy}``
+        one_failed | none_failed | none_failed_or_skipped | none_skipped | dummy}``
         default is ``all_success``. Options can be set as string or
         using the constants defined in the static class
         ``airflow.utils.TriggerRule``
@@ -471,38 +471,20 @@ class BaseOperator(Operator, LoggingMixin):
     def __rshift__(self, other):
         """
         Implements Self >> Other == self.set_downstream(other)
-
-        If "Other" is a DAG, the DAG is assigned to the Operator.
         """
-        from airflow.models.dag import DAG
-        if isinstance(other, DAG):
-            # if this dag is already assigned, do nothing
-            # otherwise, do normal dag assignment
-            if not (self.has_dag() and self.dag is other):
-                self.dag = other
-        else:
-            self.set_downstream(other)
+        self.set_downstream(other)
         return other
 
     def __lshift__(self, other):
         """
         Implements Self << Other == self.set_upstream(other)
-
-        If "Other" is a DAG, the DAG is assigned to the Operator.
         """
-        from airflow.models.dag import DAG
-        if isinstance(other, DAG):
-            # if this dag is already assigned, do nothing
-            # otherwise, do normal dag assignment
-            if not (self.has_dag() and self.dag is other):
-                self.dag = other
-        else:
-            self.set_upstream(other)
+        self.set_upstream(other)
         return other
 
     def __rrshift__(self, other):
         """
-        Called for [DAG] >> [Operator] because DAGs don't have
+        Called for Operator >> [Operator] because list don't have
         __rshift__ operators.
         """
         self.__lshift__(other)
@@ -510,7 +492,7 @@ class BaseOperator(Operator, LoggingMixin):
 
     def __rlshift__(self, other):
         """
-        Called for [DAG] << [Operator] because DAGs don't have
+        Called for Operator << [Operator] because list don't have
         __lshift__ operators.
         """
         self.__rshift__(other)
@@ -686,8 +668,11 @@ class BaseOperator(Operator, LoggingMixin):
         """Returns dictionary of all extra links for the operator"""
 
         op_extra_links_from_plugin: Dict[str, Any] = {}
-        from airflow.plugins_manager import operator_extra_links
-        for ope in operator_extra_links:
+        from airflow import plugins_manager
+        plugins_manager.initialize_extra_operators_links_plugins()
+        if plugins_manager.operator_extra_links is None:
+            raise AirflowException("Can't load operators")
+        for ope in plugins_manager.operator_extra_links:
             if ope.operators and self.__class__ in ope.operators:
                 op_extra_links_from_plugin.update({ope.name: ope})
 
@@ -702,8 +687,11 @@ class BaseOperator(Operator, LoggingMixin):
     @cached_property
     def global_operator_extra_link_dict(self) -> Dict[str, Any]:
         """Returns dictionary of all global extra links"""
-        from airflow.plugins_manager import global_operator_extra_links
-        return {link.name: link for link in global_operator_extra_links}
+        from airflow import plugins_manager
+        plugins_manager.initialize_extra_operators_links_plugins()
+        if plugins_manager.global_operator_extra_links is None:
+            raise AirflowException("Can't load operators")
+        return {link.name: link for link in plugins_manager.global_operator_extra_links}
 
     @prepare_lineage
     def pre_execute(self, context: Any):

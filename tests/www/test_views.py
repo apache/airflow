@@ -17,6 +17,7 @@
 # under the License.
 
 import copy
+import html
 import io
 import json
 import logging.config
@@ -45,6 +46,9 @@ from airflow.executors.celery_executor import CeleryExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, Connection, DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.ti_deps.dependencies import QUEUEABLE_STATES, RUNNABLE_STATES
@@ -52,6 +56,7 @@ from airflow.utils import dates, timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
+from airflow.utils.types import DagRunType
 from airflow.www import app as application
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
@@ -321,13 +326,13 @@ class TestMountPoint(unittest.TestCase):
 
 class TestAirflowBaseViews(TestBase):
     EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
-    run_id = "test_{}".format(models.DagRun.id_for_date(EXAMPLE_DAG_DEFAULT_DATE))
+    run_id = f"test_{DagRunType.SCHEDULED.value}__{EXAMPLE_DAG_DEFAULT_DATE.isoformat()}"
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        dagbag = models.DagBag(include_examples=True)
-        DAG.bulk_sync_to_db(dagbag.dags.values())
+        cls.dagbag = models.DagBag(include_examples=True)
+        DAG.bulk_sync_to_db(cls.dagbag.dags.values())
 
     def setUp(self):
         super().setUp()
@@ -337,10 +342,9 @@ class TestAirflowBaseViews(TestBase):
         self.prepare_dagruns()
 
     def prepare_dagruns(self):
-        dagbag = models.DagBag(include_examples=True)
-        self.bash_dag = dagbag.dags['example_bash_operator']
-        self.sub_dag = dagbag.dags['example_subdag_operator']
-        self.xcom_dag = dagbag.dags['example_xcom']
+        self.bash_dag = self.dagbag.dags['example_bash_operator']
+        self.sub_dag = self.dagbag.dags['example_subdag_operator']
+        self.xcom_dag = self.dagbag.dags['example_xcom']
 
         self.bash_dagrun = self.bash_dag.create_dagrun(
             run_id=self.run_id,
@@ -488,6 +492,34 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('DAG details', resp)
 
+    def test_dag_details_trigger_origin_tree_view(self):
+        dag = self.dagbag.dags['test_tree_view']
+        dag.create_dagrun(
+            run_id=self.run_id,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            start_date=timezone.utcnow(),
+            state=State.RUNNING)
+
+        url = 'dag_details?dag_id=test_tree_view'
+        resp = self.client.get(url, follow_redirects=True)
+        params = {'dag_id': 'test_tree_view', 'origin': '/tree?dag_id=test_tree_view'}
+        href = "/trigger?{}".format(html.escape(urllib.parse.urlencode(params)))
+        self.check_content_in_response(href, resp)
+
+    def test_dag_details_trigger_origin_graph_view(self):
+        dag = self.dagbag.dags['test_graph_view']
+        dag.create_dagrun(
+            run_id=self.run_id,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            start_date=timezone.utcnow(),
+            state=State.RUNNING)
+
+        url = 'dag_details?dag_id=test_graph_view'
+        resp = self.client.get(url, follow_redirects=True)
+        params = {'dag_id': 'test_graph_view', 'origin': '/graph?dag_id=test_graph_view'}
+        href = "/trigger?{}".format(html.escape(urllib.parse.urlencode(params)))
+        self.check_content_in_response(href, resp)
+
     def test_dag_details_subdag(self):
         url = 'dag_details?dag_id=example_subdag_operator.section-1'
         resp = self.client.get(url, follow_redirects=True)
@@ -559,6 +591,7 @@ class TestAirflowBaseViews(TestBase):
     def test_code(self):
         url = 'code?dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
+        self.check_content_not_in_response('Failed to load file', resp)
         self.check_content_in_response('example_bash_operator', resp)
 
     def test_code_no_file(self):
@@ -568,6 +601,36 @@ class TestAirflowBaseViews(TestBase):
         with mock.patch('io.open', mock_open_patch):
             resp = self.client.get(url, follow_redirects=True)
             self.check_content_in_response('Failed to load file', resp)
+            self.check_content_in_response('example_bash_operator', resp)
+
+    def test_code_from_db(self):
+        with conf_vars(
+            {
+                ("core", "store_dag_code"): "True"
+            }
+        ):
+            from airflow.models.dagcode import DagCode
+            dag = models.DagBag(include_examples=True).get_dag("example_bash_operator")
+            DagCode(dag.fileloc).sync_to_db()
+            url = 'code?dag_id=example_bash_operator'
+            resp = self.client.get(url)
+            self.check_content_not_in_response('Failed to load file', resp)
+            self.check_content_in_response('example_bash_operator', resp)
+
+    def test_code_from_db_all_example_dags(self):
+        with conf_vars(
+            {
+                ("core", "store_dag_code"): "True"
+            }
+        ):
+            from airflow.models.dagcode import DagCode
+            dagbag = models.DagBag(include_examples=True)
+            for dag in dagbag.dags.values():
+                DagCode(dag.fileloc).sync_to_db()
+            url = 'code?dag_id=example_bash_operator'
+            resp = self.client.get(url)
+            self.check_content_not_in_response('Failed to load file', resp)
+            self.check_content_in_response('example_bash_operator', resp)
 
     def test_paused(self):
         url = 'paused?dag_id=example_bash_operator&is_paused=false'
@@ -587,6 +650,39 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.post("failed", data=form)
         self.check_content_in_response('Wait a minute', resp)
 
+    def test_failed_dag_never_run(self):
+        endpoint = "failed"
+        dag_id = "example_bash_operator"
+        form = dict(
+            task_id="run_this_last",
+            dag_id=dag_id,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            upstream="false",
+            downstream="false",
+            future="false",
+            past="false",
+            origin="/graph?dag_id=example_bash_operator",
+        )
+        clear_db_runs()
+        resp = self.client.post(endpoint, data=form, follow_redirects=True)
+        self.check_content_in_response(
+            f"Cannot make {endpoint}, seem that dag {dag_id} has never run", resp)
+
+    def test_failed_flash_hint(self):
+        form = dict(
+            task_id="run_this_last",
+            dag_id="example_bash_operator",
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            confirmed="true",
+            upstream="false",
+            downstream="false",
+            future="false",
+            past="false",
+            origin="/graph?dag_id=example_bash_operator",
+        )
+        resp = self.client.post("failed", data=form, follow_redirects=True)
+        self.check_content_in_response("Marked failed on 1 task instances", resp)
+
     def test_success(self):
         form = dict(
             task_id="run_this_last",
@@ -599,6 +695,39 @@ class TestAirflowBaseViews(TestBase):
         )
         resp = self.client.post('success', data=form)
         self.check_content_in_response('Wait a minute', resp)
+
+    def test_success_dag_never_run(self):
+        endpoint = "success"
+        dag_id = "example_bash_operator"
+        form = dict(
+            task_id="run_this_last",
+            dag_id=dag_id,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            upstream="false",
+            downstream="false",
+            future="false",
+            past="false",
+            origin="/graph?dag_id=example_bash_operator",
+        )
+        clear_db_runs()
+        resp = self.client.post('success', data=form, follow_redirects=True)
+        self.check_content_in_response(
+            f"Cannot make {endpoint}, seem that dag {dag_id} has never run", resp)
+
+    def test_success_flash_hint(self):
+        form = dict(
+            task_id="run_this_last",
+            dag_id="example_bash_operator",
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            confirmed="true",
+            upstream="false",
+            downstream="false",
+            future="false",
+            past="false",
+            origin="/graph?dag_id=example_bash_operator",
+        )
+        resp = self.client.post("success", data=form, follow_redirects=True)
+        self.check_content_in_response("Marked success on 1 task instances", resp)
 
     def test_clear(self):
         form = dict(
@@ -966,12 +1095,12 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
     def __init__(self, test, endpoint):
         self.test = test
         self.endpoint = endpoint
+        self.runs = []
 
-    def setUp(self):  # pylint: disable=invalid-name
+    def setup(self):
         from airflow.www.views import dagbag
         dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
         dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
-        self.runs = []
         for run_data in self.RUNS_DATA:
             run = dag.create_dagrun(
                 run_id=run_data[0],
@@ -981,7 +1110,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
             )
             self.runs.append(run)
 
-    def tearDown(self):  # pylint: disable=invalid-name
+    def teardown(self):
         self.test.session.query(DagRun).filter(
             DagRun.dag_id == self.DAG_ID).delete()
         self.test.session.commit()
@@ -1051,7 +1180,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         self.assert_run_is_in_dropdown_not_selected(self.runs[2], data)
         self.assert_run_is_in_dropdown_not_selected(self.runs[3], data)
 
-    def test_with_base_date_and_num_runs_parmeters_only(self):
+    def test_with_base_date_and_num_runs_parameters_only(self):
         """
         Tests view with base_date and num_runs URL parameters.
         Should only show dag runs older than base_date in the drop down,
@@ -1141,10 +1270,10 @@ class TestGraphView(TestBase):
         super().setUp()
         self.tester = ViewWithDateTimeAndNumRunsAndDagRunsFormTester(
             self, self.GRAPH_ENDPOINT)
-        self.tester.setUp()
+        self.tester.setup()
 
     def tearDown(self):
-        self.tester.tearDown()
+        self.tester.teardown()
         super().tearDown()
 
     @classmethod
@@ -1158,7 +1287,7 @@ class TestGraphView(TestBase):
         self.tester.test_with_execution_date_parameter_only()
 
     def test_dt_nr_dr_form_with_base_date_and_num_runs_parmeters_only(self):
-        self.tester.test_with_base_date_and_num_runs_parmeters_only()
+        self.tester.test_with_base_date_and_num_runs_parameters_only()
 
     def test_dt_nr_dr_form_with_base_date_and_num_runs_and_execution_date_outside(self):
         self.tester.test_with_base_date_and_num_runs_and_execution_date_outside()
@@ -1180,10 +1309,10 @@ class TestGanttView(TestBase):
         super().setUp()
         self.tester = ViewWithDateTimeAndNumRunsAndDagRunsFormTester(
             self, self.GANTT_ENDPOINT)
-        self.tester.setUp()
+        self.tester.setup()
 
     def tearDown(self):
-        self.tester.tearDown()
+        self.tester.teardown()
         super().tearDown()
 
     @classmethod
@@ -1197,7 +1326,7 @@ class TestGanttView(TestBase):
         self.tester.test_with_execution_date_parameter_only()
 
     def test_dt_nr_dr_form_with_base_date_and_num_runs_parmeters_only(self):
-        self.tester.test_with_base_date_and_num_runs_parmeters_only()
+        self.tester.test_with_base_date_and_num_runs_parameters_only()
 
     def test_dt_nr_dr_form_with_base_date_and_num_runs_and_execution_date_outside(self):
         self.tester.test_with_base_date_and_num_runs_and_execution_date_outside()
@@ -1212,7 +1341,7 @@ class TestDagACLView(TestBase):
     """
     next_year = dt.now().year + 1
     default_date = timezone.datetime(next_year, 6, 1)
-    run_id = "test_{}".format(models.DagRun.id_for_date(default_date))
+    run_id = f"test_{DagRunType.SCHEDULED.value}__{default_date.isoformat()}"
 
     @classmethod
     def setUpClass(cls):
@@ -1878,6 +2007,102 @@ class TestTaskInstanceView(TestBase):
         self.check_content_in_response('List Task Instance', resp)
 
 
+class TestRenderedView(TestBase):
+
+    def setUp(self):
+        super().setUp()
+        self.default_date = datetime(2020, 3, 1)
+        self.dag = DAG(
+            "testdag",
+            start_date=self.default_date,
+            user_defined_filters={"hello": lambda name: f'Hello {name}'},
+            user_defined_macros={"fullname": lambda fname, lname: f'{fname} {lname}'}
+        )
+        self.task1 = BashOperator(
+            task_id='task1',
+            bash_command='{{ task_instance_key_str }}',
+            dag=self.dag
+        )
+        self.task2 = BashOperator(
+            task_id='task2',
+            bash_command='echo {{ fullname("Apache", "Airflow") | hello }}',
+            dag=self.dag
+        )
+        SerializedDagModel.write_dag(self.dag)
+        with create_session() as session:
+            session.query(RTIF).delete()
+
+    def tearDown(self) -> None:
+        super().tearDown()
+        with create_session() as session:
+            session.query(RTIF).delete()
+
+    @mock.patch('airflow.www.views.STORE_SERIALIZED_DAGS', True)
+    @mock.patch('airflow.models.taskinstance.STORE_SERIALIZED_DAGS', True)
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_rendered_view(self, get_dag_function):
+        """
+        Test that the Rendered View contains the values from RenderedTaskInstanceFields
+        """
+        get_dag_function.return_value = SerializedDagModel.get(self.dag.dag_id).dag
+
+        self.assertEqual(self.task1.bash_command, '{{ task_instance_key_str }}')
+        ti = TaskInstance(self.task1, self.default_date)
+
+        with create_session() as session:
+            session.add(RTIF(ti))
+
+        url = ('rendered?task_id=task1&dag_id=testdag&execution_date={}'
+               .format(self.percent_encode(self.default_date)))
+
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_in_response("testdag__task1__20200301", resp)
+
+    @mock.patch('airflow.www.views.STORE_SERIALIZED_DAGS', True)
+    @mock.patch('airflow.models.taskinstance.STORE_SERIALIZED_DAGS', True)
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_rendered_view_for_unexecuted_tis(self, get_dag_function):
+        """
+        Test that the Rendered View is able to show rendered values
+        even for TIs that have not yet executed
+        """
+        get_dag_function.return_value = SerializedDagModel.get(self.dag.dag_id).dag
+
+        self.assertEqual(self.task1.bash_command, '{{ task_instance_key_str }}')
+
+        url = ('rendered?task_id=task1&dag_id=task1&execution_date={}'
+               .format(self.percent_encode(self.default_date)))
+
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_in_response("testdag__task1__20200301", resp)
+
+    @mock.patch('airflow.www.views.STORE_SERIALIZED_DAGS', True)
+    @mock.patch('airflow.models.taskinstance.STORE_SERIALIZED_DAGS', True)
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_user_defined_filter_and_macros_raise_error(self, get_dag_function):
+        """
+        Test that the Rendered View is able to show rendered values
+        even for TIs that have not yet executed
+        """
+        get_dag_function.return_value = SerializedDagModel.get(self.dag.dag_id).dag
+
+        self.assertEqual(self.task2.bash_command,
+                         'echo {{ fullname("Apache", "Airflow") | hello }}')
+
+        url = ('rendered?task_id=task2&dag_id=testdag&execution_date={}'
+               .format(self.percent_encode(self.default_date)))
+
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_not_in_response("echo Hello Apache Airflow", resp)
+        self.check_content_in_response(
+            "Webserver does not have access to User-defined Macros or Filters "
+            "when Dag Serialization is enabled. Hence for the task that have not yet "
+            "started running, please use &#39;airflow tasks render&#39; for debugging the "
+            "rendering of template_fields.<br/><br/>OriginalError: no filter named &#39;hello&#39",
+            resp
+        )
+
+
 class TestTriggerDag(TestBase):
 
     def setUp(self):
@@ -1922,7 +2147,6 @@ class TestTriggerDag(TestBase):
         self.assertIn("manual__", run.run_id)
         self.assertEqual(run.conf, conf_dict)
 
-    @pytest.mark.xfail(condition=True, reason="This test might be flaky on mysql")
     def test_trigger_dag_conf_malformed(self):
         test_dag_id = "example_bash_operator"
 
@@ -1931,7 +2155,7 @@ class TestTriggerDag(TestBase):
         self.session.commit()
 
         response = self.client.post('trigger?dag_id={}'.format(test_dag_id), data={'conf': '{"a": "b"'})
-        self.assertEqual(response.status_code, 302)
+        self.check_content_in_response('Invalid JSON configuration', response)
 
         run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
         self.assertIsNone(run)
@@ -2224,7 +2448,7 @@ class TestDagRunModelView(TestBase):
 
 class TestDecorators(TestBase):
     EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
-    run_id = "test_{}".format(models.DagRun.id_for_date(EXAMPLE_DAG_DEFAULT_DATE))
+    run_id = f"test_{DagRunType.SCHEDULED.value}__{EXAMPLE_DAG_DEFAULT_DATE.isoformat()}"
 
     @classmethod
     def setUpClass(cls):

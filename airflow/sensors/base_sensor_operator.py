@@ -19,7 +19,7 @@
 import hashlib
 from datetime import timedelta
 from time import sleep
-from typing import Dict, Iterable
+from typing import Any, Dict, Iterable
 
 from airflow.exceptions import (
     AirflowException, AirflowRescheduleException, AirflowSensorTimeout, AirflowSkipException,
@@ -103,7 +103,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         """
         raise AirflowException('Override me.')
 
-    def execute(self, context: Dict) -> None:
+    def execute(self, context: Dict) -> Any:
         started_at = timezone.utcnow()
         try_number = 1
         if self.reschedule:

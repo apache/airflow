@@ -503,7 +503,8 @@ def initdb():
     """
     upgradedb()
 
-    create_default_connections()
+    if conf.getboolean('core', 'LOAD_DEFAULT_CONNECTIONS'):
+        create_default_connections()
 
     dagbag = DagBag()
     # Save DAGs in the ORM

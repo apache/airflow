@@ -37,14 +37,14 @@ from pandas_gbq.gbq import (
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.dbapi_hook import DbApiHook
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = logging.getLogger(__name__)
 
 
 # pylint: disable=too-many-public-methods
-class BigQueryHook(CloudBaseHook, DbApiHook):
+class BigQueryHook(GoogleBaseHook, DbApiHook):
     """
     Interact with BigQuery. This hook uses the Google Cloud Platform
     connection.
@@ -161,7 +161,6 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
                 return False
             raise
 
-    @CloudBaseHook.catch_http_exception
     def create_empty_table(self,  # pylint: disable=too-many-arguments
                            project_id: str,
                            dataset_id: str,
@@ -224,6 +223,8 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
                     "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
                 }
         :type encryption_configuration: dict
+        :param num_retries: Maximum number of retries in case of connection problems.
+        :type num_retries: int
         :return: None
         """
         service = self.get_service()
@@ -266,7 +267,6 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
             datasetId=dataset_id,
             body=table_resource).execute(num_retries=num_retries)
 
-    @CloudBaseHook.catch_http_exception
     def create_empty_dataset(self,
                              dataset_id: str = "",
                              project_id: str = "",
@@ -341,7 +341,6 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
             projectId=dataset_project_id,
             body=dataset_reference).execute(num_retries=self.num_retries)
 
-    @CloudBaseHook.catch_http_exception
     def get_dataset_tables(self, dataset_id: str, project_id: Optional[str] = None,
                            max_results: Optional[int] = None,
                            page_token: Optional[str] = None) -> Dict[str, Union[str, int, List]]:
@@ -377,7 +376,6 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
             datasetId=dataset_id,
             **optional_params).execute(num_retries=self.num_retries))
 
-    @CloudBaseHook.catch_http_exception
     def delete_dataset(self, project_id: str, dataset_id: str, delete_contents: bool = False) -> None:
         """
         Delete a dataset of Big query in your project.
@@ -411,7 +409,6 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
                 'BigQuery job failed. Error was: {}'.format(err.content)
             )
 
-    @CloudBaseHook.catch_http_exception
     def create_external_table(self,  # pylint: disable=too-many-locals,too-many-arguments
                               external_project_dataset_table: str,
                               schema_fields: List,
@@ -618,7 +615,6 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
         self.log.info('External table created successfully: %s',
                       external_project_dataset_table)
 
-    @CloudBaseHook.catch_http_exception
     def patch_table(self,  # pylint: disable=too-many-arguments
                     dataset_id: str,
                     table_id: str,
@@ -731,7 +727,6 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
         self.log.info('Table patched successfully: %s:%s.%s',
                       project_id, dataset_id, table_id)
 
-    @CloudBaseHook.catch_http_exception
     def insert_all(self, project_id: str, dataset_id: str, table_id: str,
                    rows: List, ignore_unknown_values: bool = False,
                    skip_invalid_rows: bool = False, fail_on_error: bool = False) -> None:
@@ -803,7 +798,6 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
                 )
             self.log.info(error_msg)
 
-    @CloudBaseHook.catch_http_exception
     def update_dataset(self, dataset_id: str,
                        dataset_resource: Dict, project_id: Optional[str] = None) -> Dict:
         """
@@ -846,7 +840,6 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
 
         return dataset
 
-    @CloudBaseHook.catch_http_exception
     def patch_dataset(self, dataset_id: str, dataset_resource: str, project_id: Optional[str] = None) -> Dict:
         """
         Patches information in an existing dataset.
@@ -888,7 +881,6 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
 
         return dataset
 
-    @CloudBaseHook.catch_http_exception
     def get_dataset_tables_list(self, dataset_id, project_id=None, table_prefix=None, max_results=None):
         """
         Method returns tables list of a BigQuery dataset. If table prefix is specified,
@@ -951,7 +943,6 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
 
         return dataset_tables_list
 
-    @CloudBaseHook.catch_http_exception
     def get_datasets_list(self, project_id: Optional[str] = None) -> List:
         """
         Method returns full list of BigQuery datasets in the current project
@@ -996,7 +987,6 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
 
         return datasets_list
 
-    @CloudBaseHook.catch_http_exception
     def get_dataset(self, dataset_id: str, project_id: Optional[str] = None) -> Dict:
         """
         Method returns dataset_resource if dataset exist
@@ -1025,7 +1015,6 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
 
         return dataset_resource
 
-    @CloudBaseHook.catch_http_exception
     def run_grant_dataset_view_access(self,
                                       source_dataset: str,
                                       view_dataset: str,
@@ -1090,7 +1079,6 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
                 view_project, view_dataset, view_table, source_project, source_dataset)
             return source_dataset_resource
 
-    @CloudBaseHook.catch_http_exception
     def run_table_upsert(self, dataset_id: str, table_resource: Dict,
                          project_id: Optional[str] = None) -> Dict:
         """
@@ -1142,7 +1130,6 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
                     datasetId=dataset_id,
                     body=table_resource).execute(num_retries=self.num_retries)
 
-    @CloudBaseHook.catch_http_exception
     def run_table_delete(self, deletion_dataset_table: str,
                          ignore_if_missing: bool = False) -> None:
         """
@@ -1180,7 +1167,6 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
             else:
                 raise e
 
-    @CloudBaseHook.catch_http_exception
     def get_tabledata(self, dataset_id: str, table_id: str,
                       max_results: Optional[int] = None, selected_fields: Optional[str] = None,
                       page_token: Optional[str] = None, start_index: Optional[int] = None) -> Dict:
@@ -1216,7 +1202,6 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
             tableId=table_id,
             **optional_params).execute(num_retries=self.num_retries))
 
-    @CloudBaseHook.catch_http_exception
     def get_schema(self, dataset_id: str, table_id: str, project_id: Optional[str] = None) -> Dict:
         """
         Get the schema for a given datset.table.
@@ -1238,7 +1223,6 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
         )
         return tables_resource['schema']
 
-    @CloudBaseHook.catch_http_exception
     def poll_job_complete(self, job_id: str) -> bool:
         """
         Check if jobs completed.
@@ -1268,7 +1252,6 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
                 raise err
         return False
 
-    @CloudBaseHook.catch_http_exception
     def cancel_query(self) -> None:
         """
         Cancel all started queries that have not yet completed
@@ -2084,6 +2067,7 @@ class BigQueryBaseCursor(LoggingMixin):
                  location: Optional[str] = None,
                  num_retries: int = 5) -> None:
 
+        super().__init__()
         self.service = service
         self.project_id = project_id
         self.use_legacy_sql = use_legacy_sql
@@ -2304,7 +2288,7 @@ class BigQueryBaseCursor(LoggingMixin):
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.cancel_query`",
             DeprecationWarning, stacklevel=3)
-        return self.hook.cancel_query(*args, **kwargs)
+        return self.hook.cancel_query(*args, **kwargs)  # type: ignore  # noqa
 
     def run_with_configuration(self, *args, **kwargs) -> str:
         """

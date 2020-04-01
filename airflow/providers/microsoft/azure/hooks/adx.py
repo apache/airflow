@@ -81,6 +81,7 @@ class AzureDataExplorerHook(BaseHook):
     def __init__(
             self,
             azure_data_explorer_conn_id: str = 'azure_data_explorer_default'):
+        super().__init__()
         self.conn_id = azure_data_explorer_conn_id
         self.connection = self.get_conn()
 

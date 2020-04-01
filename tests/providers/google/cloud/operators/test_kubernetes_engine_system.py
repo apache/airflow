@@ -25,5 +25,5 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 @pytest.mark.credential_file(GCP_GKE_KEY)
 class KubernetesEngineExampleDagTest(GoogleSystemTest):
     @provide_gcp_context(GCP_GKE_KEY)
-    def test_run_example_dag(self):
+    def test_run_example_gcp_gke(self):
         self.run_dag('example_gcp_gke', CLOUD_DAG_FOLDER)

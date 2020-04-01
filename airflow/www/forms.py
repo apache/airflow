@@ -32,19 +32,20 @@ from wtforms.fields import (
 from airflow.models import Connection
 from airflow.utils import timezone
 from airflow.www.validators import ValidJson
+from airflow.www.widgets import AirflowDateTimePickerWidget
 
 
 class DateTimeForm(FlaskForm):
     # Date filter form needed for task views
     execution_date = DateTimeField(
-        "Execution date", widget=DateTimePickerWidget())
+        "Execution date", widget=AirflowDateTimePickerWidget())
 
 
 class DateTimeWithNumRunsForm(FlaskForm):
     # Date time and number of runs form for tree view, task duration
     # and landing times
     base_date = DateTimeField(
-        "Anchor date", widget=DateTimePickerWidget(), default=timezone.utcnow())
+        "Anchor date", widget=AirflowDateTimePickerWidget(), default=timezone.utcnow())
     num_runs = SelectField("Number of runs", default=25, choices=(
         (5, "5"),
         (25, "25"),
@@ -192,3 +193,11 @@ class ConnectionForm(DynamicForm):
         description='Optional. This key will be placed to all created Compute nodes'
         'to let you have a root shell there',
     )
+    extra__kubernetes__in_cluster = BooleanField(
+        lazy_gettext('In cluster configuration'))
+    extra__kubernetes__kube_config = StringField(
+        lazy_gettext('Kube config (JSON format)'),
+        widget=BS3TextFieldWidget())
+    extra__kubernetes__namespace = StringField(
+        lazy_gettext('Namespace'),
+        widget=BS3TextFieldWidget())

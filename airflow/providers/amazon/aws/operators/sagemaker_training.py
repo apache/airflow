@@ -46,6 +46,9 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         doesn't finish within max_ingestion_time seconds. If you set this parameter to None,
         the operation does not timeout.
     :type max_ingestion_time: int
+    :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "increment"
+        (default) and "fail".
+    :type action_if_job_exists: str
     """
 
     integer_fields = [
@@ -61,14 +64,22 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                  print_log=True,
                  check_interval=30,
                  max_ingestion_time=None,
+                 action_if_job_exists: str = "increment",  # TODO use typing.Literal for this in Python 3.8
                  *args, **kwargs):
-        super().__init__(config=config,
-                         *args, **kwargs)
+        super().__init__(config=config, *args, **kwargs)
 
         self.wait_for_completion = wait_for_completion
         self.print_log = print_log
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
+
+        if action_if_job_exists in ("increment", "fail"):
+            self.action_if_job_exists = action_if_job_exists
+        else:
+            raise AirflowException(
+                "Argument action_if_job_exists accepts only 'increment' and 'fail'. "
+                f"Provided value: '{action_if_job_exists}'."
+            )
 
     def expand_role(self):
         if 'RoleArn' in self.config:
@@ -78,8 +89,22 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
     def execute(self, context):
         self.preprocess_config()
 
-        self.log.info('Creating SageMaker Training Job %s.', self.config['TrainingJobName'])
+        training_job_name = self.config["TrainingJobName"]
+        training_jobs = self.hook.list_training_jobs(name_contains=training_job_name)
 
+        # Check if given TrainingJobName already exists
+        if training_job_name in [tj["TrainingJobName"] for tj in training_jobs]:
+            if self.action_if_job_exists == "increment":
+                self.log.info("Found existing training job with name '%s'.", training_job_name)
+                new_training_job_name = f"{training_job_name}-{len(training_jobs) + 1}"
+                self.config["TrainingJobName"] = new_training_job_name
+                self.log.info("Incremented training job name to '%s'.", new_training_job_name)
+            elif self.action_if_job_exists == "fail":
+                raise AirflowException(
+                    f"A SageMaker training job with name {training_job_name} already exists."
+                )
+
+        self.log.info("Creating SageMaker training job %s.", self.config["TrainingJobName"])
         response = self.hook.create_training_job(
             self.config,
             wait_for_completion=self.wait_for_completion,

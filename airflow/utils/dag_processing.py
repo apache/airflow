@@ -39,7 +39,7 @@ from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
 from airflow.jobs.local_task_job import LocalTaskJob as LJ
-from airflow.models import Connection, errors
+from airflow.models import errors
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.stats import Stats
@@ -187,6 +187,13 @@ class AbstractDagFileProcessorProcess(metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
+    @abstractmethod
+    def kill(self):
+        """
+        Kill the process launched to process the file, and ensure consistent state.
+        """
+        raise NotImplementedError()
+
     @property
     @abstractmethod
     def pid(self) -> int:
@@ -256,8 +263,8 @@ class DagFileStat(NamedTuple):
     """Information about single processing of one file"""
     num_dags: int
     import_errors: int
-    last_finish_time: datetime
-    last_duration: float
+    last_finish_time: Optional[datetime]
+    last_duration: Optional[float]
     run_count: int
 
 
@@ -305,6 +312,7 @@ class DagFileProcessorAgent(LoggingMixin):
                  processor_factory,
                  processor_timeout,
                  async_mode):
+        super().__init__()
         self._file_path_queue = []
         self._dag_directory = dag_directory
         self._max_runs = max_runs
@@ -551,8 +559,9 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                      AbstractDagFileProcessorProcess
                  ],
                  processor_timeout: timedelta,
-                 signal_conn: Connection,
+                 signal_conn: multiprocessing.connection.Connection,
                  async_mode: bool = True):
+        super().__init__()
         self._file_paths: List[str] = []
         self._file_path_queue: List[str] = []
         self._dag_directory = dag_directory
@@ -580,6 +589,9 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
         self._zombie_threshold_secs = (
             conf.getint('scheduler', 'scheduler_zombie_task_threshold'))
+
+        # Should store dag file source in a database?
+        self.store_dag_code = conf.getboolean('core', 'store_dag_code', fallback=False)
         # Map from file path to the processor
         self._processors: Dict[str, AbstractDagFileProcessorProcess] = {}
 
@@ -766,6 +778,10 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 from airflow.models.dag import DagModel
                 SerializedDagModel.remove_deleted_dags(self._file_paths)
                 DagModel.deactivate_deleted_dags(self._file_paths)
+
+            if self.store_dag_code:
+                from airflow.models.dagcode import DagCode
+                DagCode.remove_deleted_code(self._file_paths)
 
     def _print_stat(self):
         """
@@ -1002,15 +1018,20 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             if processor.done:
                 self.log.debug("Processor for %s finished", file_path)
                 Stats.decr('dag_processing.processes')
-                now = timezone.utcnow()
+                last_finish_time = timezone.utcnow()
                 finished_processors[file_path] = processor
 
+                if processor.result is not None:
+                    dags, count_import_errors = processor.result
+                else:
+                    dags, count_import_errors = [], -1
+
                 stat = DagFileStat(
-                    len(processor.result[0]) if processor.result is not None else 0,
-                    processor.result[1] if processor.result is not None else -1,
-                    now,
-                    (now - processor.start_time).total_seconds(),
-                    self.get_run_count(file_path) + 1,
+                    num_dags=len(dags),
+                    import_errors=count_import_errors,
+                    last_finish_time=last_finish_time,
+                    last_duration=(last_finish_time - processor.start_time).total_seconds(),
+                    run_count=self.get_run_count(file_path) + 1,
                 )
                 self._file_stats[file_path] = stat
             else:
@@ -1094,7 +1115,13 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
         for file_path in files_paths_to_queue:
             if file_path not in self._file_stats:
-                self._file_stats[file_path] = DagFileStat(0, 0, None, None, 0)
+                self._file_stats[file_path] = DagFileStat(
+                    num_dags=0,
+                    import_errors=0,
+                    last_finish_time=None,
+                    last_duration=None,
+                    run_count=0
+                )
 
         self._file_path_queue.extend(files_paths_to_queue)
 

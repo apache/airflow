@@ -41,6 +41,7 @@ from airflow.settings import Session
 from airflow.utils.dates import infer_time_unit, round_time, scale_time_units
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
+from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 
 DEV_NULL = '/dev/null'
@@ -469,7 +470,8 @@ class TestCore(unittest.TestCase):
             start_date=DEFAULT_DATE)
         task = DummyOperator(task_id='test_externally_triggered_dag_context',
                              dag=dag)
-        dag.create_dagrun(run_id=DagRun.id_for_date(execution_date),
+        run_id = f"{DagRunType.SCHEDULED.value}__{execution_date.isoformat()}"
+        dag.create_dagrun(run_id=run_id,
                           execution_date=execution_date,
                           state=State.RUNNING,
                           external_trigger=True)

@@ -18,6 +18,8 @@
 """
 Example LatestOnlyOperator and TriggerRule interactions
 """
+
+# [START example]
 import datetime as dt
 
 from airflow import DAG
@@ -41,3 +43,4 @@ task4 = DummyOperator(task_id='task4', dag=dag, trigger_rule=TriggerRule.ALL_DON
 
 latest_only >> task1 >> [task3, task4]
 task2 >> [task3, task4]
+# [END example]

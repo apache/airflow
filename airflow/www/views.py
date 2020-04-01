@@ -56,10 +56,12 @@ from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed, set_dag_run_state_to_success,
 )
 from airflow.configuration import AIRFLOW_CONFIG, conf
+from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.ti_deps.dep_context import DepContext
@@ -75,6 +77,7 @@ from airflow.www.decorators import action_logging, gzipped, has_dag_access
 from airflow.www.forms import (
     ConnectionForm, DagRunForm, DateTimeForm, DateTimeWithNumRunsForm, DateTimeWithNumRunsWithDagRunsForm,
 )
+from airflow.www.utils import get_dag
 from airflow.www.widgets import AirflowModelListWidget
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
@@ -519,20 +522,25 @@ class Airflow(AirflowBaseView):
     @has_access
     @provide_session
     def code(self, session=None):
-        dm = models.DagModel
-        dag_id = request.args.get('dag_id')
-        dag = session.query(dm).filter(dm.dag_id == dag_id).first()
+        all_errors = ""
+
         try:
-            with wwwutils.open_maybe_zipped(dag.fileloc, 'r') as f:
-                code = f.read()
+            dag_id = request.args.get('dag_id')
+            dag_orm = DagModel.get_dagmodel(dag_id, session=session)
+            code = DagCode.get_code_by_fileloc(dag_orm.fileloc)
             html_code = highlight(
                 code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
-        except OSError as e:
+
+        except Exception as e:
+            all_errors += (
+                "Exception encountered during " +
+                "dag_id retrieval/dag retrieval fallback/code highlighting:\n\n{}\n".format(e)
+            )
             html_code = '<p>Failed to load file.</p><p>Details: {}</p>'.format(
-                escape(str(e)))
+                escape(all_errors))
 
         return self.render_template(
-            'airflow/dag_code.html', html_code=html_code, dag=dag, title=dag_id,
+            'airflow/dag_code.html', html_code=html_code, dag=dag_orm, title=dag_id,
             root=request.args.get('root'),
             demo_mode=conf.getboolean('webserver', 'demo_mode'),
             wrapped=conf.getboolean('webserver', 'default_wrap'))
@@ -545,7 +553,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         dag_orm = DagModel.get_dagmodel(dag_id, session=session)
         # FIXME: items needed for this view should move to the database
-        dag = dag_orm.get_dag(STORE_SERIALIZED_DAGS)
+        dag = get_dag(dag_orm, STORE_SERIALIZED_DAGS)
         title = "DAG details"
         root = request.args.get('root', '')
 
@@ -571,25 +579,32 @@ class Airflow(AirflowBaseView):
     @has_dag_access(can_dag_read=True)
     @has_access
     @action_logging
-    def rendered(self):
+    @provide_session
+    def rendered(self, session=None):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
         dttm = timezone.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
-        # Loads dag from file
-        logging.info("Processing DAG file to render template.")
-        dag = dagbag.get_dag(dag_id, from_file_only=True)
+
+        logging.info("Retrieving rendered templates.")
+        dag = dagbag.get_dag(dag_id)
+
         task = copy.copy(dag.get_task(task_id))
         ti = models.TaskInstance(task=task, execution_date=dttm)
         try:
-            ti.render_templates()
+            ti.get_rendered_template_fields()
+        except AirflowException as e:
+            msg = "Error rendering template: " + escape(e)
+            if e.__cause__:
+                msg += Markup("<br/><br/>OriginalError: ") + escape(e.__cause__)
+            flash(msg, "error")
         except Exception as e:
             flash("Error rendering template: " + str(e), "error")
         title = "Rendered Template"
         html_dict = {}
-        for template_field in task.__class__.template_fields:
+        for template_field in task.template_fields:
             content = getattr(task, template_field)
             if template_field in wwwutils.get_attr_renderer():
                 html_dict[template_field] = \
@@ -997,7 +1012,7 @@ class Airflow(AirflowBaseView):
             return redirect(origin)
 
         execution_date = timezone.utcnow()
-        run_id = "{}{}".format(DagRunType.MANUAL.value, execution_date.isoformat())
+        run_id = f"{DagRunType.MANUAL.value}__{execution_date.isoformat()}"
 
         dr = DagRun.find(dag_id=dag_id, run_id=run_id)
         if dr:
@@ -1191,7 +1206,7 @@ class Airflow(AirflowBaseView):
 
             response = self.render_template(
                 'airflow/confirm.html',
-                message=("Here's the list of task instances you are about to mark as failed"),
+                message="Here's the list of task instances you are about to mark as failed",
                 details=details)
 
             return response
@@ -1220,7 +1235,7 @@ class Airflow(AirflowBaseView):
 
             response = self.render_template(
                 'airflow/confirm.html',
-                message=("Here's the list of task instances you are about to mark as success"),
+                message="Here's the list of task instances you are about to mark as success",
                 details=details)
 
             return response
@@ -1256,15 +1271,12 @@ class Airflow(AirflowBaseView):
         task = dag.get_task(task_id)
         task.dag = dag
 
+        latest_execution_date = dag.latest_execution_date
+        if not latest_execution_date:
+            flash(f"Cannot make {state}, seem that dag {dag_id} has never run", "error")
+            return redirect(origin)
+
         execution_date = timezone.parse(execution_date)
-
-        if not dag:
-            flash("Cannot find DAG: {}".format(dag_id))
-            return redirect(origin)
-
-        if not task:
-            flash("Cannot find task {} in DAG {}".format(task_id, dag.dag_id))
-            return redirect(origin)
 
         from airflow.api.common.experimental.mark_tasks import set_state
 
@@ -1850,8 +1862,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         is_paused = True if request.args.get('is_paused') == 'false' else False
         models.DagModel.get_dagmodel(dag_id).set_is_paused(
-            is_paused=is_paused,
-            store_serialized_dags=STORE_SERIALIZED_DAGS)
+            is_paused=is_paused)
         return "OK"
 
     @expose('/refresh', methods=['POST'])
@@ -1929,12 +1940,13 @@ class Airflow(AirflowBaseView):
         prev_task_id = ""
         for tf in ti_fails:
             end_date = tf.end_date or timezone.utcnow()
+            start_date = tf.start_date or end_date
             if tf_count != 0 and tf.task_id == prev_task_id:
                 try_count = try_count + 1
             else:
                 try_count = 1
             prev_task_id = tf.task_id
-            gantt_bar_items.append((tf.task_id, tf.start_date, end_date, State.FAILED, try_count))
+            gantt_bar_items.append((tf.task_id, start_date, end_date, State.FAILED, try_count))
             tf_count = tf_count + 1
 
         task_types = {}
@@ -2235,7 +2247,9 @@ class ConnectionModelView(AirflowModelView):
                     'extra__yandexcloud__oauth',
                     'extra__yandexcloud__public_ssh_key',
                     'extra__yandexcloud__folder_id',
-                    ]
+                    'extra__kubernetes__in_cluster',
+                    'extra__kubernetes__kube_config',
+                    'extra__kubernetes__namespace']
     list_columns = ['conn_id', 'conn_type', 'host', 'port', 'is_encrypted',
                     'is_extra_encrypted']
     add_columns = edit_columns = ['conn_id', 'conn_type', 'host', 'schema',
@@ -2256,7 +2270,7 @@ class ConnectionModelView(AirflowModelView):
 
     def process_form(self, form, is_created):
         formdata = form.data
-        if formdata['conn_type'] in ['jdbc', 'google_cloud_platform', 'grpc', 'yandexcloud']:
+        if formdata['conn_type'] in ['jdbc', 'google_cloud_platform', 'grpc', 'yandexcloud', 'kubernetes']:
             extra = {
                 key: formdata[key]
                 for key in self.extra_fields if key in formdata}

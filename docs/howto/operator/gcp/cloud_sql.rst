@@ -29,25 +29,16 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
-.. _howto/operator:CloudSqlInstanceDatabaseCreateOperator:
+.. _howto/operator:CloudSQLCreateInstanceDatabaseOperator:
 
-CloudSqlInstanceDatabaseCreateOperator
+CloudSQLCreateInstanceDatabaseOperator
 --------------------------------------
 
 Creates a new database inside a Cloud SQL instance.
 
 For parameter definition, take a look at
-:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSqlInstanceDatabaseCreateOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSQLCreateInstanceDatabaseOperator`.
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_arguments]
-    :end-before: [END howto_operator_cloudsql_arguments]
 
 Using the operator
 """"""""""""""""""
@@ -83,25 +74,16 @@ More information
 See Google Cloud SQL API documentation for `to create a new database inside the instance
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert>`_.
 
-.. _howto/operator:CloudSqlInstanceDatabaseDeleteOperator:
+.. _howto/operator:CloudSQLDeleteInstanceDatabaseOperator:
 
-CloudSqlInstanceDatabaseDeleteOperator
+CloudSQLDeleteInstanceDatabaseOperator
 --------------------------------------
 
 Deletes a database from a Cloud SQL instance.
 
 For parameter definition, take a look at
-:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSqlInstanceDatabaseDeleteOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSQLDeleteInstanceDatabaseOperator`.
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_arguments]
-    :end-before: [END howto_operator_cloudsql_arguments]
 
 Using the operator
 """"""""""""""""""
@@ -130,9 +112,9 @@ More information
 See Google Cloud SQL API documentation to `delete a database
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/delete>`_.
 
-.. _howto/operator:CloudSqlInstanceDatabasePatchOperator:
+.. _howto/operator:CloudSQLPatchInstanceDatabaseOperator:
 
-CloudSqlInstanceDatabasePatchOperator
+CloudSQLPatchInstanceDatabaseOperator
 -------------------------------------
 
 Updates a resource containing information about a database inside a Cloud SQL instance
@@ -140,17 +122,8 @@ using patch semantics.
 See: https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch
 
 For parameter definition, take a look at
-:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSqlInstanceDatabasePatchOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSQLPatchInstanceDatabaseOperator`.
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_arguments]
-    :end-before: [END howto_operator_cloudsql_arguments]
 
 Using the operator
 """"""""""""""""""
@@ -186,9 +159,9 @@ More information
 See Google Cloud SQL API documentation to `update a database
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/patch>`_.
 
-.. _howto/operator:CloudSqlInstanceDeleteOperator:
+.. _howto/operator:CloudSQLDeleteInstanceOperator:
 
-CloudSqlInstanceDeleteOperator
+CloudSQLDeleteInstanceOperator
 ------------------------------
 
 Deletes a Cloud SQL instance in Google Cloud Platform.
@@ -196,17 +169,8 @@ Deletes a Cloud SQL instance in Google Cloud Platform.
 It is also used for deleting read and failover replicas.
 
 For parameter definition, take a look at
-:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSqlInstanceDeleteOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSQLDeleteInstanceOperator`.
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_arguments]
-    :end-before: [END howto_operator_cloudsql_arguments]
 
 Using the operator
 """"""""""""""""""
@@ -244,9 +208,9 @@ More information
 See Google Cloud SQL API documentation to `delete a SQL instance
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/delete>`_.
 
-.. _howto/operator:CloudSqlInstanceExportOperator:
+.. _howto/operator:CloudSQLExportInstanceOperator:
 
-CloudSqlInstanceExportOperator
+CloudSQLExportInstanceOperator
 ------------------------------
 
 Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump
@@ -257,22 +221,10 @@ or CSV file.
     export file URI, the export file in GCS will simply be overridden.
 
 For parameter definition take a look at
-:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSqlInstanceExportOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSQLExportInstanceOperator`.
 
 Arguments
 """""""""
-
-Some arguments in the example DAG are taken from Airflow variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_arguments]
-    :end-before: [END howto_operator_cloudsql_arguments]
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_export_import_arguments]
-    :end-before: [END howto_operator_cloudsql_export_import_arguments]
 
 Example body defining the export operation:
 
@@ -318,7 +270,7 @@ It is not the service account configured in Airflow that communicates with GCS,
 but rather the service account of the particular Cloud SQL instance.
 
 To grant the service account with the appropriate WRITE permissions for the GCS bucket
-you can use the :class:`~airflow.contrib.operators.gcs.GoogleCloudStorageBucketCreateAclEntryOperator`,
+you can use the :class:`~airflow.providers.google.cloud.operators.gcs.GCSBucketCreateAclEntryOperator`,
 as shown in the example:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
@@ -328,7 +280,7 @@ as shown in the example:
     :end-before: [END howto_operator_cloudsql_export_gcs_permissions]
 
 
-.. _howto/operator:CloudSqlInstanceImportOperator:
+.. _howto/operator:CloudSQLImportInstanceOperator:
 
 CloudSqlInstanceImportOperator
 ------------------------------
@@ -354,22 +306,10 @@ If the import file was generated in a different way, idempotence is not guarante
 It has to be ensured on the SQL file level.
 
 For parameter definition take a look at
-:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSqlInstanceImportOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSQLImportInstanceOperator`.
 
 Arguments
 """""""""
-
-Some arguments in the example DAG are taken from Airflow variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_arguments]
-    :end-before: [END howto_operator_cloudsql_arguments]
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_export_import_arguments]
-    :end-before: [END howto_operator_cloudsql_export_import_arguments]
 
 Example body defining the import operation:
 
@@ -415,7 +355,7 @@ It is not the service account configured in Airflow that communicates with GCS,
 but rather the service account of the particular Cloud SQL instance.
 
 To grant the service account with the appropriate READ permissions for the GCS object
-you can use the :class:`~airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageObjectCreateAclEntryOperator`,
+you can use the :class:`~airflow.providers.google.cloud.operators.gcs.GCSBucketCreateAclEntryOperator`,
 as shown in the example:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
@@ -424,9 +364,9 @@ as shown in the example:
     :start-after: [START howto_operator_cloudsql_import_gcs_permissions]
     :end-before: [END howto_operator_cloudsql_import_gcs_permissions]
 
-.. _howto/operator:CloudSqlInstanceCreateOperator:
+.. _howto/operator:CloudSQLCreateInstanceOperator:
 
-CloudSqlInstanceCreateOperator
+CloudSQLCreateInstanceOperator
 ------------------------------
 
 Creates a new Cloud SQL instance in Google Cloud Platform.
@@ -434,27 +374,13 @@ Creates a new Cloud SQL instance in Google Cloud Platform.
 It is also used for creating read replicas.
 
 For parameter definition, take a look at
-:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSqlInstanceCreateOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSQLCreateInstanceOperator`.
 
 If an instance with the same name exists, no action will be taken and the operator
 will succeed.
 
 Arguments
 """""""""
-
-Some arguments in the example DAG are taken from OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_arguments]
-    :end-before: [END howto_operator_cloudsql_arguments]
-
-Some other arguments are created based on the arguments above:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_create_arguments]
-    :end-before: [END howto_operator_cloudsql_create_arguments]
 
 Example body defining the instance with failover replica:
 
@@ -500,15 +426,15 @@ More information
 See Google Cloud SQL API documentation to `create an instance
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/insert>`_.
 
-.. _howto/operator:CloudSqlInstancePatchOperator:
+.. _howto/operator:CloudSQLInstancePatchOperator:
 
-CloudSqlInstancePatchOperator
+CloudSQLInstancePatchOperator
 -----------------------------
 
 Updates settings of a Cloud SQL instance in Google Cloud Platform (partial update).
 
 For parameter definition, take a look at
-:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSqlInstancePatchOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSQLInstancePatchOperator`.
 
 This is a partial update, so only values for the settings specified in the body
 will be set / updated. The rest of the existing instance's configuration will remain
@@ -516,13 +442,6 @@ unchanged.
 
 Arguments
 """""""""
-
-Some arguments in the example DAG are taken from OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_arguments]
-    :end-before: [END howto_operator_cloudsql_arguments]
 
 Example body defining the instance:
 
@@ -558,10 +477,10 @@ More information
 See Google Cloud SQL API documentation to `patch an instance
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/patch>`_.
 
-.. _howto/operator:CloudSqlQueryOperator:
+.. _howto/operator:CloudSQLExecuteQueryOperator:
 
-CloudSqlQueryOperator
----------------------
+CloudSQLExecuteQueryOperator
+----------------------------
 
 Performs DDL or DML SQL queries in Google Cloud SQL instance. The DQL
 (retrieving data from Google Cloud SQL) is not supported. You might run the SELECT
@@ -575,7 +494,7 @@ dynamically as needed by the operator.
 There is a *gcpcloudsql://* connection type that you should use to define what
 kind of connectivity you want the operator to use. The connection is a "meta"
 type of connection. It is not used to make an actual connectivity on its own, but it
-determines whether Cloud SQL Proxy should be started by ``CloudSqlDatabaseHook``
+determines whether Cloud SQL Proxy should be started by ``CloudSQLDatabaseHook``
 and what kind of database connection (Postgres or MySQL) should be created
 dynamically to connect to Cloud SQL via public IP address or via the proxy.
 The 'CloudSqlDatabaseHook` uses
@@ -583,13 +502,13 @@ The 'CloudSqlDatabaseHook` uses
 Proxy lifecycle (each task has its own Cloud SQL Proxy)
 
 When you build connection, you should use connection parameters as described in
-:class:`~airflow.providers.google.cloud.hooks.cloud_sql.CloudSqlDatabaseHook`. You can see
+:class:`~airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook`. You can see
 examples of connections below for all the possible types of connectivity. Such connection
 can be reused between different tasks (instances of ``CloudSqlQueryOperator``). Each
 task will get their own proxy started if needed with their own TCP or UNIX socket.
 
 For parameter definition, take a look at
-:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSqlQueryOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSQLExecuteQueryOperator`.
 
 Since query operator can run arbitrary query, it cannot be guaranteed to be
 idempotent. SQL query designer should design the queries to be idempotent. For example,
@@ -607,13 +526,6 @@ Note that in case of SSL connections you need to have a mechanism to make the
 certificate/key files available in predefined locations for all the workers on
 which the operator can run. This can be provided for example by mounting
 NFS-like volumes in the same path for all the workers.
-
-Some arguments in the example DAG are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql_query.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_query_arguments]
-    :end-before: [END howto_operator_cloudsql_query_arguments]
 
 Example connection definitions for all connectivity cases. Note that all the components
 of the connection URI should be URL-encoded:

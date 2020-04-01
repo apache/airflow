@@ -56,7 +56,6 @@ from airflow.providers.google.cloud.operators.bigtable import (
 from airflow.providers.google.cloud.sensors.bigtable import BigtableTableReplicationCompletedSensor
 from airflow.utils.dates import days_ago
 
-# [START howto_operator_gcp_bigtable_args]
 GCP_PROJECT_ID = getenv('GCP_PROJECT_ID', 'example-project')
 CBT_INSTANCE_ID = getenv('CBT_INSTANCE_ID', 'some-instance-id')
 CBT_INSTANCE_DISPLAY_NAME = getenv('CBT_INSTANCE_DISPLAY_NAME', 'Human-readable name')
@@ -69,7 +68,6 @@ CBT_CLUSTER_NODES_UPDATED = getenv('CBT_CLUSTER_NODES_UPDATED', '5')
 CBT_CLUSTER_STORAGE_TYPE = getenv('CBT_CLUSTER_STORAGE_TYPE', '2')
 CBT_TABLE_ID = getenv('CBT_TABLE_ID', 'some-table-id')
 CBT_POKE_INTERVAL = getenv('CBT_POKE_INTERVAL', '60')
-# [END howto_operator_gcp_bigtable_args]
 
 default_args = {
     'start_date': days_ago(1)

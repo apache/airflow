@@ -87,9 +87,9 @@ mapfile -t DEPRECATED_MODULES < <(grep -R -i -l 'This module is deprecated.' ../
     cut -d "." -f 1 | \
     sed "s#/#.#g")
 
-IGNORED_MISSING_MODULES=('airflow.providers.google.cloud.hooks.base')
+IGNORED_MISSING_MODULES=('airflow.providers.google.common.hooks.base')
 
-mapfile -t ALL_MODULES < <(find ../airflow/{,gcp/,providers/*/*/,providers/*/}{operators,sensors,hooks} -name "*.py" | \
+mapfile -t ALL_MODULES < <(find ../airflow/{,providers/*/*/,providers/*/}{operators,sensors,hooks} -name "*.py" | \
     grep -v "__init__" | \
     grep -v "__pycache__" | \
     cut -d "/" -f 2- | \

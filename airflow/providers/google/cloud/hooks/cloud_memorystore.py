@@ -29,10 +29,10 @@ from google.protobuf.json_format import ParseDict
 
 from airflow import version
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class CloudMemorystoreHook(CloudBaseHook):
+class CloudMemorystoreHook(GoogleBaseHook):
     """
     Hook for Google Cloud Memorystore APIs.
 
@@ -81,7 +81,7 @@ class CloudMemorystoreHook(CloudBaseHook):
         instance.labels.update({key: val})
         return instance
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_instance(
         self,
         location: str,
@@ -157,7 +157,7 @@ class CloudMemorystoreHook(CloudBaseHook):
         self.log.info("Instance created.")
         return client.get_instance(name=instance_name, retry=retry, timeout=timeout, metadata=metadata)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_instance(
         self,
         location: str,
@@ -199,7 +199,7 @@ class CloudMemorystoreHook(CloudBaseHook):
         result.result()
         self.log.info("Instance deleted: %s", name)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def export_instance(
         self,
         location: str,
@@ -245,7 +245,7 @@ class CloudMemorystoreHook(CloudBaseHook):
         result.result()
         self.log.info("Instance exported: %s", name)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def failover_instance(
         self,
         location: str,
@@ -294,7 +294,7 @@ class CloudMemorystoreHook(CloudBaseHook):
         result.result()
         self.log.info("Instance failovered: %s", name)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_instance(
         self,
         location: str,
@@ -329,7 +329,7 @@ class CloudMemorystoreHook(CloudBaseHook):
         self.log.info("Fetched Instance: %s", name)
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def import_instance(
         self,
         location: str,
@@ -376,7 +376,7 @@ class CloudMemorystoreHook(CloudBaseHook):
         result.result()
         self.log.info("Instance imported: %s", name)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def list_instances(
         self,
         location: str,
@@ -419,7 +419,7 @@ class CloudMemorystoreHook(CloudBaseHook):
         self.log.info("Fetched instances")
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def update_instance(
         self,
         update_mask: Union[Dict, FieldMask],

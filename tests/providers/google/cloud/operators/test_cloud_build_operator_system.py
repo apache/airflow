@@ -33,20 +33,18 @@ class CloudBuildExampleDagsSystemTest(GoogleSystemTest):
     """
     helper = GCPCloudBuildTestHelper()
 
-    @provide_gcp_context(GCP_CLOUD_BUILD_KEY)
+    @provide_gcp_context(GCP_CLOUD_BUILD_KEY, project_id=GoogleSystemTest._project_id())
     def setUp(self):
         super().setUp()
-        with self.authentication():
-            self.helper.create_repository_and_bucket()
+        self.helper.create_repository_and_bucket()
 
     @provide_gcp_context(GCP_CLOUD_BUILD_KEY)
     def test_run_example_dag(self):
         self.run_dag("example_gcp_cloud_build", CLOUD_DAG_FOLDER)
 
-    @provide_gcp_context(GCP_CLOUD_BUILD_KEY)
+    @provide_gcp_context(GCP_CLOUD_BUILD_KEY, project_id=GoogleSystemTest._project_id())
     def tearDown(self):
-        with self.authentication():
-            self.helper.delete_bucket()
-            self.helper.delete_docker_images()
-            self.helper.delete_repo()
+        self.helper.delete_bucket()
+        self.helper.delete_docker_images()
+        self.helper.delete_repo()
         super().tearDown()

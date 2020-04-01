@@ -29,6 +29,7 @@ from airflow.providers.apache.sqoop.hooks.sqoop import SqoopHook
 from airflow.utils.decorators import apply_defaults
 
 
+# pylint: disable=too-many-instance-attributes
 class SqoopOperator(BaseOperator):
     """
     Execute a Sqoop job.
@@ -91,6 +92,7 @@ class SqoopOperator(BaseOperator):
                        'extra_export_options', 'hcatalog_database', 'hcatalog_table',)
     ui_color = '#7D8CA4'
 
+    # pylint: disable=too-many-arguments,too-many-locals
     @apply_defaults
     def __init__(self,
                  conn_id='sqoop_default',
@@ -160,6 +162,7 @@ class SqoopOperator(BaseOperator):
         self.properties = properties
         self.extra_import_options = extra_import_options or {}
         self.extra_export_options = extra_export_options or {}
+        self.hook = None
 
     def execute(self, context):
         """
@@ -233,4 +236,4 @@ class SqoopOperator(BaseOperator):
 
     def on_kill(self):
         self.log.info('Sending SIGTERM signal to bash process group')
-        os.killpg(os.getpgid(self.hook.sp.pid), signal.SIGTERM)
+        os.killpg(os.getpgid(self.hook.sub_process.pid), signal.SIGTERM)

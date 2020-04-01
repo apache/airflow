@@ -18,8 +18,11 @@
 # shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
+# adding trap to exiting trap
+HANDLERS="$( trap -p EXIT | cut -f2 -d \' )"
+# shellcheck disable=SC2064
+trap "${HANDLERS}${HANDLERS:+;}in_container_fix_ownership" EXIT
+
 sudo rm -rf "$(pwd)/docs/_build/*"
 sudo rm -rf "$(pwd)/docs/_api/*"
 sudo -E "$(pwd)/docs/build.sh"
-
-in_container_fix_ownership

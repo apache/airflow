@@ -91,7 +91,7 @@ function ts_to_dtstr(ts) {
 }
 
 function is_dag_run(d) {
-  return d.run_id !== undefined;
+  return d.operator === undefined;
 }
 
 var now_ts = Date.now()/1000;
@@ -120,6 +120,7 @@ function populate_taskinstance_properties(node) {
     node.instances[j] = task_instance;
 
     task_instance.task_id = node.name;
+    task_instance.operator = node.operator;
     task_instance.execution_date = dr_instance.execution_date;
     task_instance.external_trigger = dr_instance.external_trigger;
 
@@ -338,30 +339,9 @@ function update(source) {
       .style("stroke-width", function(d) {return is_dag_run(d)? "2": "1"})
       .style("stroke-opacity", function(d) {return d.external_trigger ? "0": "1"})
       .on("mouseover", function(d){
-        var s = "";
-        if (d.task_id != undefined ) {
-          s += "Task_id: " + escapeHtml(d.task_id) + "<br>";
-        }
-        s += "Run: " + escapeHtml(d.execution_date) + "<br>";
-        if(is_dag_run(d)){
-          s += "run_id: <nobr>" + escapeHtml(d.run_id) + "</nobr><br>";
-        }
-
-        var task = nodeobj[d.task_id];
-
-        s += "Operator: " + escapeHtml(task.operator) + "<br>"
-        if(d.start_date != undefined){
-          s += "Started: " + escapeHtml(d.start_date) + "<br>";
-          if(d.end_date != undefined){
-            s += "Ended: " + escapeHtml(d.end_date) + "<br>";
-          }
-          if (d.duration != undefined) {
-            s += "Duration: " + escapeHtml(convertSecsToHumanReadable(d.duration)) + "<br>";
-          }
-          s += "State: " + escapeHtml(d.state) + "<br>";
-        }
-        taskTip.direction('n')
-        taskTip.show(s, this)
+        var tt = tiTooltip(d);
+        taskTip.direction('n');
+        taskTip.show(tt, this);
         d3.select(this).transition()
          .style('stroke-width', 3)
       })
@@ -468,4 +448,5 @@ function click(d) {
 }
 
 </script>
+<script src="{{ url_for_asset('task-instances.js') }}"></script>
 {% endblock %}

@@ -21,6 +21,8 @@ import tarfile
 import tempfile
 import time
 import warnings
+from functools import partial
+from typing import Dict, List, Optional
 
 from botocore.exceptions import ClientError
 
@@ -742,3 +744,86 @@ class SageMakerHook(AwsBaseHook):
             billable_time = (last_description['TrainingEndTime'] - last_description['TrainingStartTime']) \
                 * instance_count
             self.log.info('Billable seconds: %d', int(billable_time.total_seconds()) + 1)
+
+    def list_training_jobs(
+        self, name_contains: Optional[str] = None, max_results: Optional[int] = None, **kwargs
+    ) -> List[Dict]:
+        """
+        This method wraps boto3's list_training_jobs(). The training job name and max results are configurable
+        via arguments. Other arguments are not, and should be provided via kwargs. Note boto3 expects these in
+        CamelCase format, for example:
+
+        .. code-block:: python
+
+            list_training_jobs(name_contains="myjob", StatusEquals="Failed")
+
+        .. seealso::
+            https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.list_training_jobs
+
+        :param name_contains: (optional) partial name to match
+        :param max_results: (optional) maximum number of results to return. None returns infinite results
+        :param kwargs: (optional) kwargs to boto3's list_training_jobs method
+        :return: results of the list_training_jobs request
+        """
+
+        config = dict()
+
+        if name_contains:
+            if "NameContains" in kwargs:
+                raise AirflowException("Either name_contains or NameContains can be provided, not both.")
+            config["NameContains"] = name_contains
+
+        if "MaxResults" in kwargs and kwargs["MaxResults"] is not None:
+            if max_results:
+                raise AirflowException("Either max_results or MaxResults can be provided, not both.")
+            # Unset MaxResults, we'll use the SageMakerHook's internal method for iteratively fetching results
+            max_results = kwargs["MaxResults"]
+            del kwargs["MaxResults"]
+
+        config.update(kwargs)
+        list_training_jobs_request = partial(self.get_conn().list_training_jobs, **config)
+        results = self._list_request(
+            list_training_jobs_request, "TrainingJobSummaries", max_results=max_results
+        )
+        return results
+
+    def _list_request(self, partial_func, result_key: str, max_results: Optional[int] = None) -> List[Dict]:
+        """
+        All AWS boto3 list_* requests return results in batches (if the key "NextToken" is contained in the
+        result, there are more results to fetch). The default AWS batch size is 10, and configurable up to
+        100. This function iteratively loads all results (or up to a given maximum).
+
+        Each boto3 list_* function returns the results in a list with a different name. The key of this
+        structure must be given to iterate over the results, e.g. "TransformJobSummaries" for
+        list_transform_jobs().
+
+        :param partial_func: boto3 function with arguments
+        :param result_key: the result key to iterate over
+        :param max_results: maximum number of results to return (None = infinite)
+        :return: Results of the list_* request
+        """
+
+        sagemaker_max_results = 100  # Fixed number set by AWS
+
+        results: List[Dict] = []
+        next_token = None
+
+        while True:
+            kwargs = dict()
+            if next_token is not None:
+                kwargs["NextToken"] = next_token
+
+            if max_results is None:
+                kwargs["MaxResults"] = sagemaker_max_results
+            else:
+                kwargs["MaxResults"] = min(max_results - len(results), sagemaker_max_results)
+
+            response = partial_func(**kwargs)
+            self.log.debug("Fetched %s results.", len(response[result_key]))
+            results.extend(response[result_key])
+
+            if "NextToken" not in response or (max_results is not None and len(results) == max_results):
+                # Return when there are no results left (no NextToken) or when we've reached max_results.
+                return results
+            else:
+                next_token = response["NextToken"]

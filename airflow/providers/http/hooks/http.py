@@ -35,11 +35,8 @@ class HttpHook(BaseHook):
     :type method: str
     """
 
-    def __init__(
-        self,
-        method='POST',
-        http_conn_id='http_default'
-    ):
+    def __init__(self, method='POST', http_conn_id='http_default'):
+        super().__init__()
         self.http_conn_id = http_conn_id
         self.method = method.upper()
         self.base_url = None
@@ -179,7 +176,7 @@ class HttpHook(BaseHook):
             return response
 
         except requests.exceptions.ConnectionError as ex:
-            self.log.warning(str(ex) + ' Tenacity will retry to execute the operation')
+            self.log.warning('%s Tenacity will retry to execute the operation', ex)
             raise ex
 
     def run_with_advanced_retry(self, _retry_args, *args, **kwargs):

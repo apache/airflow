@@ -63,11 +63,11 @@ class EmailOperator(BaseOperator):
             mime_charset: str = 'utf-8',
             *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.to = to
+        self.to = to  # pylint: disable=invalid-name
         self.subject = subject
         self.html_content = html_content
         self.files = files or []
-        self.cc = cc
+        self.cc = cc  # pylint: disable=invalid-name
         self.bcc = bcc
         self.mime_subtype = mime_subtype
         self.mime_charset = mime_charset

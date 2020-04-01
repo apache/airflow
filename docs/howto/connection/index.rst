@@ -59,6 +59,33 @@ to the connection you wish to edit in the connection list.
 Modify the connection properties and click the ``Save`` button to save your
 changes.
 
+.. _connection/cli:
+
+Creating a Connection from the CLI
+----------------------------------
+
+You may add a connection to the database from the CLI.
+
+Obtain the URI for your connection (see :ref:`Generating a Connection URI <generating_connection_uri>`).
+
+Then add connection like so:
+
+.. code-block:: bash
+
+    airflow connections add --conn_id 'my_prod_db' --conn_uri 'my-conn-type://login:password@host:port/schema?param1=val1&param2=val2'
+
+Alternatively you may specify each parameter individually:
+
+.. code-block:: bash
+
+    airflow connections add \
+        --conn_id 'my_prod_db' \
+        --login 'login' \
+        --password 'password' \
+        ...
+
+.. _environment_variables_secrets_backend:
+
 Storing a Connection in Environment Variables
 ---------------------------------------------
 
@@ -92,32 +119,11 @@ If using with a docker ``.env`` file, you may need to remove the single quotes.
 
     AIRFLOW_CONN_MY_PROD_DATABASE=my-conn-type://login:password@host:port/schema?param1=val1&param2=val2
 
+Alternative secrets backend
+---------------------------
 
-.. _connection/cli:
-
-Creating a Connection from the CLI
-----------------------------------
-
-You may add a connection to the database from the CLI.
-
-Obtain the URI for your connection (see :ref:`Generating a Connection URI <generating_connection_uri>`).
-
-Then add connection like so:
-
-.. code-block:: bash
-
-    airflow connections add --conn-id 'my_prod_db' --conn-uri 'my-conn-type://login:password@host:port/schema?param1=val1&param2=val2'
-
-Alternatively you may specify each parameter individually:
-
-.. code-block:: bash
-
-    airflow connections add \
-        --conn-id 'my_prod_db' \
-        --login 'login' \
-        --password 'password' \
-        ...
-
+In addition to retrieving connections from environment variables or the metastore database, you can enable
+an alternative secrets backend to retrieve connections. For more details see :doc:`../use-alternative-secrets-backend`
 
 Connection URI format
 ---------------------
@@ -158,7 +164,6 @@ You can verify a URI is parsed correctly like so:
     my-login
     >>> print(c.password)
     my-password
-
 
 .. _generating_connection_uri:
 

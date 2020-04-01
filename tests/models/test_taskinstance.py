@@ -33,7 +33,9 @@ from sqlalchemy.orm.session import Session
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.models import DAG, DagRun, Pool, TaskFail, TaskInstance as TI, TaskReschedule, Variable
+from airflow.models import (
+    DAG, DagRun, Pool, RenderedTaskInstanceFields, TaskFail, TaskInstance as TI, TaskReschedule, Variable,
+)
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import PythonOperator
@@ -219,35 +221,16 @@ class TestTaskInstance(unittest.TestCase):
 
     def test_bitshift_compose_operators(self):
         dag = DAG('dag', start_date=DEFAULT_DATE)
-        op1 = DummyOperator(task_id='test_op_1', owner='test')
-        op2 = DummyOperator(task_id='test_op_2', owner='test')
-        op3 = DummyOperator(task_id='test_op_3', owner='test')
-        op4 = DummyOperator(task_id='test_op_4', owner='test')
-        op5 = DummyOperator(task_id='test_op_5', owner='test')
+        with dag:
+            op1 = DummyOperator(task_id='test_op_1', owner='test')
+            op2 = DummyOperator(task_id='test_op_2', owner='test')
+            op3 = DummyOperator(task_id='test_op_3', owner='test')
 
-        # can't compose operators without dags
-        with self.assertRaises(AirflowException):
-            op1 >> op2
-
-        dag >> op1 >> op2 << op3
-
-        # make sure dag assignment carries through
-        # using __rrshift__
-        self.assertIs(op1.dag, dag)
-        self.assertIs(op2.dag, dag)
-        self.assertIs(op3.dag, dag)
+            op1 >> op2 << op3
 
         # op2 should be downstream of both
         self.assertIn(op2, op1.downstream_list)
         self.assertIn(op2, op3.downstream_list)
-
-        # test dag assignment with __rlshift__
-        dag << op4
-        self.assertIs(op4.dag, dag)
-
-        # dag assignment with __rrshift__
-        dag >> op5
-        self.assertIs(op5.dag, dag)
 
     @patch.object(DAG, 'concurrency_reached')
     def test_requeue_over_dag_concurrency(self, mock_concurrency_reached):
@@ -1541,6 +1524,36 @@ class TestTaskInstance(unittest.TestCase):
         generate_command = TI.generate_command(dag_id=dag_id, task_id=task_id,
                                                execution_date=DEFAULT_DATE, mark_success=True)
         assert assert_command == generate_command
+
+    @parameterized.expand([
+        (True, ),
+        (False, )
+    ])
+    def test_get_rendered_template_fields(self, store_serialized_dag):
+        # SetUp
+        settings.STORE_SERIALIZED_DAGS = store_serialized_dag
+
+        with DAG('test-dag', start_date=DEFAULT_DATE):
+            task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
+
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
+
+        with create_session() as session:
+            session.add(RenderedTaskInstanceFields(ti))
+
+        # Create new TI for the same Task
+        with DAG('test-dag', start_date=DEFAULT_DATE):
+            new_task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
+
+        new_ti = TI(task=new_task, execution_date=DEFAULT_DATE)
+        new_ti.get_rendered_template_fields()
+
+        self.assertEqual(settings.STORE_SERIALIZED_DAGS, store_serialized_dag)
+        self.assertEqual("op1", ti.task.bash_command)
+
+        # CleanUp
+        with create_session() as session:
+            session.query(RenderedTaskInstanceFields).delete()
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])

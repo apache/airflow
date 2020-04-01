@@ -22,6 +22,7 @@ from airflow.settings import WEB_COLORS
 from airflow.utils.decorators import apply_defaults
 
 
+# pylint: disable=too-many-instance-attributes
 class SparkSubmitOperator(BaseOperator):
     """
     This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
@@ -93,6 +94,7 @@ class SparkSubmitOperator(BaseOperator):
                        '_application_args', '_env_vars')
     ui_color = WEB_COLORS['LIGHTORANGE']
 
+    # pylint: disable=too-many-arguments,too-many-locals
     @apply_defaults
     def __init__(self,
                  application='',

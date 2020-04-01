@@ -401,7 +401,7 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleCloudStorageBucketCreateAclEntryOperator`
+        :ref:`howto/operator:GCSBucketCreateAclEntryOperator`
 
     :param bucket: Name of a bucket.
     :type bucket: str
@@ -465,7 +465,7 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleCloudStorageObjectCreateAclEntryOperator`
+        :ref:`howto/operator:GCSObjectCreateAclEntryOperator`
 
     :param bucket: Name of a bucket.
     :type bucket: str
@@ -534,7 +534,7 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
                                user_project=self.user_project)
 
 
-class GcsFileTransformOperator(BaseOperator):
+class GCSFileTransformOperator(BaseOperator):
     """
     Copies data from a source GCS location to a temporary location on the
     local filesystem. Runs a transformation on this file as specified by

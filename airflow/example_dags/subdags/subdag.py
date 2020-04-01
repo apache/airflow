@@ -18,6 +18,7 @@
 
 """Helper function to generate a DAG and operators given some arguments."""
 
+# [START subdag]
 from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
 
@@ -46,3 +47,4 @@ def subdag(parent_dag_name, child_dag_name, args):
         )
 
     return dag_subdag
+# [END subdag]

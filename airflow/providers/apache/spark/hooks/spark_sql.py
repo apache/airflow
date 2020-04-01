@@ -54,6 +54,8 @@ class SparkSqlHook(BaseHook):
     :param yarn_queue: The YARN queue to submit to (Default: "default")
     :type yarn_queue: str
     """
+
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  sql,
                  conf=None,
@@ -69,6 +71,7 @@ class SparkSqlHook(BaseHook):
                  verbose=True,
                  yarn_queue='default'
                  ):
+        super().__init__()
         self._sql = sql
         self._conf = conf
         self._conn = self.get_connection(conn_id)
@@ -93,7 +96,7 @@ class SparkSqlHook(BaseHook):
         as default.
 
         :param cmd: command to append to the spark-sql command
-        :type cmd: str
+        :type cmd: str or list[str]
         :return: full command to be executed
         """
         connection_cmd = ["spark-sql"]
@@ -127,7 +130,13 @@ class SparkSqlHook(BaseHook):
         if self._yarn_queue:
             connection_cmd += ["--queue", self._yarn_queue]
 
-        connection_cmd += cmd
+        if isinstance(cmd, str):
+            connection_cmd += cmd.split()
+        elif isinstance(cmd, list):
+            connection_cmd += cmd
+        else:
+            raise AirflowException("Invalid additional command: {}".format(cmd))
+
         self.log.debug("Spark-Sql cmd: %s", connection_cmd)
 
         return connection_cmd
@@ -136,8 +145,10 @@ class SparkSqlHook(BaseHook):
         """
         Remote Popen (actually execute the Spark-sql query)
 
-        :param cmd: command to remotely execute
+        :param cmd: command to append to the spark-sql command
+        :type cmd: str or list[str]
         :param kwargs: extra arguments to Popen (see subprocess.Popen)
+        :type kwargs: dict
         """
         spark_sql_cmd = self._prepare_command(cmd)
         self._sp = subprocess.Popen(spark_sql_cmd,
@@ -158,6 +169,9 @@ class SparkSqlHook(BaseHook):
             )
 
     def kill(self):
+        """
+        Kill Spark job
+        """
         if self._sp and self._sp.poll() is None:
             self.log.info("Killing the Spark-Sql job")
             self._sp.kill()

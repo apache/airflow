@@ -29,13 +29,11 @@ import os
 from airflow import models
 from airflow.providers.google.cloud.operators.speech_to_text import CloudSpeechToTextRecognizeSpeechOperator
 from airflow.providers.google.cloud.operators.text_to_speech import CloudTextToSpeechSynthesizeOperator
-from airflow.providers.google.cloud.operators.translate_speech import GcpTranslateSpeechOperator
+from airflow.providers.google.cloud.operators.translate_speech import CloudTranslateSpeechOperator
 from airflow.utils import dates
 
-# [START howto_operator_text_to_speech_env_variables]
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 BUCKET_NAME = os.environ.get("GCP_SPEECH_TEST_BUCKET", "gcp-speech-test-bucket")
-# [END howto_operator_text_to_speech_env_variables]
 
 # [START howto_operator_text_to_speech_gcp_filename]
 FILENAME = "gcp-speech-test-file"
@@ -89,7 +87,7 @@ with models.DAG(
     text_to_speech_synthesize_task >> speech_to_text_recognize_task
 
     # [START howto_operator_translate_speech]
-    translate_speech_task = GcpTranslateSpeechOperator(
+    translate_speech_task = CloudTranslateSpeechOperator(
         project_id=GCP_PROJECT_ID,
         audio=AUDIO,
         config=CONFIG,

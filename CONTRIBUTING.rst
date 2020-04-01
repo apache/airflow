@@ -42,8 +42,7 @@ to follow it and apply to the programme and follow up with the community.
 Report Bugs
 -----------
 
-Report bugs through `Apache
-JIRA <https://issues.apache.org/jira/browse/AIRFLOW>`__.
+Report bugs through `GitHub <https://github.com/apache/airflow/issues>`__.
 
 Please report relevant information and preferably code that exhibits the
 problem.
@@ -51,16 +50,16 @@ problem.
 Fix Bugs
 --------
 
-Look through the JIRA issues for bugs. Anything is open to whoever wants to
+Look through the GitHub issues for bugs. Anything is open to whoever wants to
 implement it.
 
 Implement Features
 ------------------
 
-Look through the `Apache
-JIRA <https://issues.apache.org/jira/browse/AIRFLOW>`__ for features.
+Look through the `GitHub issues labeled "kind:feature"
+<https://github.com/apache/airflow/labels/kind%3Afeature>`__ for features.
 
-Any unassigned "Improvement" issue is open to whoever wants to implement it.
+Any unassigned feature request issue is open to whoever wants to implement it.
 
 We've created the operators, hooks, macros and executors we needed, but we've
 made sure that this part of Airflow is extensible. New operators, hooks, macros
@@ -76,8 +75,7 @@ articles.
 Submit Feedback
 ---------------
 
-The best way to send feedback is to open an issue on `Apache
-JIRA <https://issues.apache.org/jira/browse/AIRFLOW>`__.
+The best way to send feedback is to `open an issue on GitHub <https://github.com/apache/airflow/issues/new/choose>`__.
 
 If you are proposing a new feature:
 
@@ -90,7 +88,7 @@ Documentation
 =============
 
 The latest API documentation is usually available
-`here <https://airflow.apache.org/>`__.
+`here <https://airflow.apache.org/docs/>`__.
 
 To generate a local version:
 
@@ -151,18 +149,6 @@ these guidelines:
     commits, and resolve all conflicts.
 
 -   When merging PRs, wherever possible try to use **Squash and Merge** instead of **Rebase and Merge**.
-
--   Make sure every pull request introducing code changes has an associated
-    `JIRA <https://issues.apache.org/jira/browse/AIRFLOW/?selectedTab=com.atlassian.jira.jira-projects-plugin:summary-panel>`__
-    ticket. The JIRA link should also be added to the PR description. In case of documentation only changes
-    the JIRA ticket is not necessary.
-
--   Preface your commit's subject & PR title with **[AIRFLOW-NNNN] COMMIT_MSG** where *NNNN*
-    is the JIRA number. For example: [AIRFLOW-5574] Fix Google Analytics script loading. In case of
-    documentation only changes you should put "[AIRFLOW-XXXX]" instead.
-    We compose Airflow release notes from all commit titles in a release. By placing the JIRA number in the
-    commit title and hence in the release notes, we let Airflow users look into
-    JIRA and GitHub PRs for more details about a particular change.
 
 -   Add an `Apache License <http://www.apache.org/legal/src-headers.html>`__ header
     to all new files.
@@ -315,6 +301,174 @@ Limitations:
 **NOTE:** Breeze CI images are not supposed to be used in production environments.
 They are optimized for repeatability of tests, maintainability and speed of building rather
 than production performance. The production images are not yet officially published.
+
+Extras
+------
+
+There are a number of extras that can be specified when installing Airflow. Those
+extras can be specified after the usual pip install - for example
+``pip install -e .[gcp]``. For development purpose there is a ``devel`` extra that
+installs all development dependencies. There is also ``devel_ci`` that installs
+all dependencies needed in CI envioronment.
+
+This is the full list of those extras:
+
+  .. START EXTRAS HERE
+
+all, all_dbs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant, dask, databricks,
+datadog, devel, devel_ci, devel_hadoop, doc, docker, druid, elasticsearch, gcp, gcp_api,
+github_enterprise, google_auth, grpc, hashicorp, hdfs, hive, jdbc, jira, kerberos, kubernetes, ldap,
+mongo, mssql, mysql, odbc, oracle, pagerduty, papermill, password, pinot, postgres, presto, qds,
+rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry, singularity, slack, snowflake, ssh,
+statsd, tableau, vertica, webhdfs, winrm, yandexcloud
+
+  .. END EXTRAS HERE
+
+
+Airflow dependencies
+--------------------
+
+Airflow is not a standard python project. Most of the python projects fall into one of two types -
+application or library. As described in
+[StackOverflow Question](https://stackoverflow.com/questions/28509481/should-i-pin-my-python-dependencies-versions)
+decision whether to pin (freeze) requirements for a python project depdends on the type. For
+applications, dependencies should be pinned, but for libraries, they should be open.
+
+For application, pinning the dependencies makes it more stable to install in the future - because new
+(even transitive) dependencies might cause installation to fail. For libraries - the dependencies should
+be open to allow several different libraries with the same requirements to be installed at the same time.
+
+The problem is that Apache Airflow is a bit of both - application to install and library to be used when
+you are developing your own operators and DAGs.
+
+This - seemingly unsolvable - puzzle is solved by having pinned requirement files. Those are available
+as of airflow 1.10.10.
+
+Pinned requirement files
+------------------------
+
+By default when you install ``apache-airflow`` package - the dependencies are as open as possible while
+still allowing the apache-airflow package to install. This means that 'apache-airflow' package might fail to
+install in case a direct or transitive dependency is released that breaks the installation. In such case
+when installing ``apache-airflow``, you might need to provide additional constraints (for
+example ``pip install apache-airflow==1.10.2 Werkzeug<1.0.0``)
+
+However we now have ``requirements-python<PYTHON_MAJOR_MINOR_VERSION>.txt`` file generated
+automatically and committed in the requirements folder based on the set of all latest working and tested
+requirement versions. Those ``requirement-python<PYTHON_MAJOR_MINOR_VERSION>.txt`` files can be used as
+constraints file when installing Apache Airflow - either from the sources
+
+.. code-block:: bash
+
+  pip install -e . --constraint requirements/requirements-python3.6.txt
+
+
+or from the pypi package
+
+.. code-block:: bash
+
+  pip install apache-airflow --constraint requirements/requirements-python3.6.txt
+
+
+This works also with extras - for example:
+
+.. code-block:: bash
+
+  pip install .[gcp] --constraint requirements/requirements-python3.6.txt
+
+
+It is also possible to use constraints directly from github using tag/version name:
+
+.. code-block:: bash
+
+  pip install apache-airflow[gcp]==1.10.10 \
+      --constraint https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.6.txt
+
+There are different set of fixed requirements for different python major/minor versions and you should
+use the right requirements file for the right python version.
+
+The ``requirements-python<PYTHON_MAJOR_MINOR_VERSION>.txt`` file MUST be regenerated every time after
+the ``setup.py`` is updated. This is checked automatically in Travis CI build. There are separate
+jobs for each python version that checks if the requirements should be updated.
+
+If they are not updated, you should regenerate the requirements locally using Breeze as described below.
+
+Generating requirement files
+----------------------------
+
+This should be done every time after you modify setup.py file. You can generate requirement files
+using `Breeze <BREEZE.rst>`_ . Simply use those commands:
+
+.. code-block:: bash
+
+  breeze generate-requirements --python 3.7
+
+.. code-block:: bash
+
+  breeze generate-requirements --python 3.6
+
+Note that when you generate requirements this way, you might update to latest version of requirements
+that were released since the last time so during tests you might get errors unrelated to your change.
+In this case the easiest way to fix it is to limit the culprit dependency to the previous version
+with ``<NNNN.NN>`` constraint added in setup.py.
+
+Backport providers packages
+---------------------------
+
+Since we are developing new operators in the master branch, we prepared backport packages ready to be
+installed for Airflow 1.10.* series. Those backport operators (the tested ones) are going to be released
+in PyPi and we are going to maintain the list at
+`Backported providers package page <https://cwiki.apache.org/confluence/display/AIRFLOW/Backported+providers+packages+for+Airflow+1.10.*+series>`_
+
+Some of the packages have cross-dependencies with other providers packages. This typically happens for
+transfer operators where operators use hooks from the other providers in case they are transferring
+data between the providers. The list of dependencies is maintained (automatically with pre-commits)
+in the ``airflow/providers/dependencies.json``. Pre-commits are also used to generate dependencies.
+The dependency list is automatically used during pypi packages generation.
+
+Cross-dependencies between provider packages are converted into extras - if you need functionality from
+the other provider package you can install it adding [extra] after the apache-airflow-providers-PROVIDER
+for example ``pip install apache-airflow-providers-google[amazon]`` in case you want to use GCP's
+transfer operators from Amazon ECS.
+
+If you add a new dependency between different providers packages, it will be detected automatically during
+pre-commit phase and pre-commit will fail - and add entry in dependencies.json so that the package extra
+dependencies are properly added when package is installed.
+
+You can regenerate the whole list of provider dependencies by running this command (you need to have
+``pre-commits`` installed).
+
+.. code-block:: bash
+
+  pre-commit run build-providers-dependencies
+
+
+Here is the list of packages and their extras:
+
+
+  .. START PACKAGE DEPENDENCIES HERE
+
+========================== ===========================
+Package                    Extras
+========================== ===========================
+amazon                     apache.hive,google,imap,mongo,postgres,ssh
+apache.druid               apache.hive
+apache.hive                amazon,microsoft.mssql,mysql,presto,samba,vertica
+apache.livy                http
+dingding                   http
+discord                    http
+google                     amazon,apache.cassandra,cncf.kubernetes,microsoft.azure,microsoft.mssql,mysql,postgres,presto,sftp
+hashicorp                  google
+microsoft.azure            oracle
+microsoft.mssql            odbc
+mysql                      amazon,presto,vertica
+opsgenie                   http
+postgres                   amazon
+sftp                       ssh
+slack                      http
+========================== ===========================
+
+  .. END PACKAGE DEPENDENCIES HERE
 
 Static code checks
 ==================
@@ -506,10 +660,10 @@ Contribution Workflow Example
 ==============================
 
 Typically, you start your first contribution by reviewing open tickets
-at `Apache JIRA <https://issues.apache.org/jira/browse/AIRFLOW>`__.
+at `GitHub issues <https://github.com/apache/airflow/issues>`__.
 
 For example, you want to have the following sample ticket assigned to you:
-`AIRFLOW-5934: Add extra CC: to the emails sent by Aiflow <https://issues.apache.org/jira/browse/AIRFLOW-5934>`_.
+`#7782: Add extra CC: to the emails sent by Aiflow <https://github.com/apache/airflow/issues/7782>`_.
 
 In general, your contribution includes the following stages:
 
@@ -591,16 +745,16 @@ For effective collaboration, make sure to join the following Airflow groups:
   - Airflow users mailing list: `<users-subscribe@airflow.apache.org>`_
     (reasonably small traffic on this list)
 
-- `Issues on Apache’s JIRA <https://issues.apache.org/jira/browse/AIRFLOW>`__
+- `Issues on GitHub <https://github.com/apache/airflow/issues>`__
 
 - `Slack (chat) <https://apache-airflow-slack.herokuapp.com/>`__
 
 Step 4: Prepare PR
 ------------------
 
-1. Update the local sources to address the JIRA ticket.
+1. Update the local sources to address the issue.
 
-   For example, to address this example JIRA ticket, do the following:
+   For example, to address this example issue, do the following:
 
    * Read about `email configuration in Airflow <https://airflow.readthedocs.io/en/latest/howto/email-config.html>`__.
 
@@ -669,6 +823,7 @@ useful for "bisecting" when looking for a commit that introduced some bugs.
 
 
 First of all - you can read about rebase workflow here:
+`Merging vs. rebasing <https://www.atlassian.com/git/tutorials/merging-vs-rebasing>`_ - this is an
 `Merging vs. rebasing <https://www.atlassian.com/git/tutorials/merging-vs-rebasing>`_ - this is an
 excellent article that describes all ins/outs of rebase. I recommend reading it and keeping it as reference.
 
@@ -841,19 +996,19 @@ prepare such packages on your own easily.
 * Make sure you have ``setuptools`` and ``wheel`` installed in your python environment. The easiest way
   to do it is to run ``pip install setuptools wheel``
 
-* Enter the ``backport_packages`` directory
+* Run the following command:
+
+  .. code-block:: bash
+
+    ./scripts/ci/ci_prepare_packages.sh
 
 * Usually you only build some of the providers package. The ``providers`` directory is separated into
   separate providers. You can see the list of all available providers by running
-  ``python setup_backport_packages.py list-backport-packages``. You can build the backport package
-  by running ``python setup.py <PROVIDER_NAME> bdist_wheel``. Note that there
+  ``./scripts/ci/ci_prepare_packages.sh --help``. You can build the backport package
+  by running ``./scripts/ci/ci_prepare_packages.sh <PROVIDER_NAME>``. Note that there
   might be (and are) dependencies between some packages that might prevent subset of the packages
   to be used without installing the packages they depend on. This will be solved soon by
   adding cross-dependencies between packages.
-
-* You can build 'all providers' package by running
-  ``python setup_backport_packages.py providers bdist_wheel``. This package contains all providers thus
-  it does not have issues with cross-dependencies.
 
 * This creates a wheel package in your ``dist`` folder with a name similar to:
   ``apache_airflow_providers-0.0.1-py2.py3-none-any.whl``
@@ -864,5 +1019,13 @@ prepare such packages on your own easily.
 * You can also build sdist (source distribution packages) by running
   ``python setup.py <PROVIDER_NAME> sdist`` but this is only needed in case of distribution of the packages.
 
+Each package has description generated from the the general ``backport_packages/README.md`` file with the
+following replacements:
+
+* ``{{ PACKAGE_NAME }}`` is replaced with the name of the package (``apache-airflow-providers-<NAME>``)
+* ``{{ PACKAGE_DEPENDENCIES }}`` is replaced with list of optional dependencies for the package
+* ``{{ PACKAGE_BACKPORT_README }}`` is replaced with the content of ``BACKPORT_README.md`` file in the
+  package folder if it exists.
+
 Note that those are unofficial packages yet - they are not yet released in PyPi, but you might use them to
-test the master versions of operators/hooks/sensors in a 1.10.* environment of airflow with Python3.6+
+test the master versions of operators/hooks/sensors in Airflow 1.10.* environment  with Python3.6+

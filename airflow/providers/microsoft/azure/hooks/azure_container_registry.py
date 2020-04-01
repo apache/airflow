@@ -32,6 +32,7 @@ class AzureContainerRegistryHook(BaseHook):
     """
 
     def __init__(self, conn_id='azure_registry'):
+        super().__init__()
         self.conn_id = conn_id
         self.connection = self.get_conn()
 

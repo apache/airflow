@@ -40,7 +40,7 @@ class GCSToBigQueryOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleCloudStorageToBigQueryOperator`
+        :ref:`howto/operator:GCSToBigQueryOperator`
 
     :param bucket: The bucket to load from. (templated)
     :type bucket: str
@@ -298,10 +298,15 @@ class GCSToBigQueryOperator(BaseOperator):
                 cluster_fields=self.cluster_fields,
                 encryption_configuration=self.encryption_configuration)
 
+        if cursor.use_legacy_sql:
+            escaped_table_name = f'[{self.destination_project_dataset_table}]'
+        else:
+            escaped_table_name = f'`{self.destination_project_dataset_table}`'
+
         if self.max_id_key:
             cursor.execute('SELECT MAX({}) FROM {}'.format(
                 self.max_id_key,
-                self.destination_project_dataset_table))
+                escaped_table_name))
             row = cursor.fetchone()
             max_id = row[0] if row[0] else 0
             self.log.info(

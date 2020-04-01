@@ -28,7 +28,7 @@ class Pool(Base):
     __tablename__ = "slot_pool"
 
     id = Column(Integer, primary_key=True)
-    pool = Column(String(50), unique=True)
+    pool = Column(String(256), unique=True)
     # -1 for infinite
     slots = Column(Integer, default=0)
     description = Column(Text)

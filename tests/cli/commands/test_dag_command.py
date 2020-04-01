@@ -26,14 +26,15 @@ from datetime import datetime, time, timedelta
 import mock
 import pytz
 
-import airflow.bin.cli as cli
 from airflow import settings
+from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.state import State
+from tests.test_utils.config import conf_vars
 
 dag_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])
 
@@ -58,7 +59,7 @@ class TestCliDags(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = DagBag(include_examples=True)
-        cls.parser = cli.CLIFactory.get_parser()
+        cls.parser = cli_parser.get_parser()
 
     @mock.patch("airflow.cli.commands.dag_command.DAG.run")
     def test_backfill(self, mock_run):
@@ -302,9 +303,29 @@ class TestCliDags(unittest.TestCase):
 
             reset_dr_db(dag_id)
 
+    @conf_vars({
+        ('core', 'load_examples'): 'true'
+    })
+    def test_cli_report(self):
+        args = self.parser.parse_args(['dags', 'report'])
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            dag_command.dag_report(args)
+            out = temp_stdout.getvalue()
+
+        self.assertIn("airflow/example_dags/example_complex.py ", out)
+        self.assertIn("['example_complex']", out)
+
+    @conf_vars({
+        ('core', 'load_examples'): 'true'
+    })
     def test_cli_list_dags(self):
-        args = self.parser.parse_args(['dags', 'list', '--report'])
-        dag_command.dag_list_dags(args)
+        args = self.parser.parse_args(['dags', 'list'])
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            dag_command.dag_list_dags(args)
+            out = temp_stdout.getvalue()
+        self.assertIn("Owner", out)
+        self.assertIn("│ airflow │", out)
+        self.assertIn("airflow/example_dags/example_complex.py", out)
 
     def test_cli_list_dag_runs(self):
         dag_command.dag_trigger(self.parser.parse_args([

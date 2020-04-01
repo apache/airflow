@@ -26,6 +26,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.errors import ImportError  # pylint: disable=redefined-builtin
 from airflow.models.log import Log
 from airflow.models.pool import Pool
+from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.slamiss import SlaMiss
 from airflow.models.taskfail import TaskFail

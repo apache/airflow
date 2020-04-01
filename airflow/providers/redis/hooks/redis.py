@@ -40,6 +40,7 @@ class RedisHook(BaseHook):
         :param conn_id:     the name of the connection that has the parameters
                             we need to connect to Redis.
         """
+        super().__init__()
         self.redis_conn_id = redis_conn_id
         self.redis = None
         self.host = None

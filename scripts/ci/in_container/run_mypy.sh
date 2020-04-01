@@ -18,12 +18,6 @@
 # Script to run mypy on all code. Can be started from any working directory
 # shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
-
-print_in_container_info
-print_in_container_info "Running mypy with parameters: $*"
-print_in_container_info
-print_in_container_info
-
 set +e
 
 mypy "$@"

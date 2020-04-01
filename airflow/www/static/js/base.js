@@ -16,7 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {defaultFormatWithTZ, moment} from './datetime-utils';
+/* global $, window, moment, Airflow */
+
+import { defaultFormatWithTZ } from './datetime-utils';
+
+// We pull moment in via a webpack entrypoint rather than import so that we don't put it in more than a single .js file. This "exports" it to be globally available.
+window.moment = Airflow.moment;
 
 function displayTime() {
   let utcTime = moment().utc().format(defaultFormatWithTZ);
@@ -114,4 +119,7 @@ $(document).ready(function () {
       }
     }
   });
+
+  $(".datetimepicker").datetimepicker({format: 'YYYY-MM-DD HH:mm:ssZ', sideBySide: true});
+
 });

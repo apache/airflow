@@ -35,7 +35,7 @@ from pendulum import utcnow
 
 from airflow import models, settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowDagCycleException, AirflowException, DuplicateTaskIdFound
+from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.jobs.scheduler_job import DagFileProcessor
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
@@ -44,9 +44,10 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
-from airflow.utils.session import create_session
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime as datetime_tz
+from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.asserts import assert_queries_count
@@ -555,137 +556,6 @@ class TestDag(unittest.TestCase):
 
         self.assertEqual(task.test_field, ['{{ ds }}', 'some_string'])
 
-    def test_cycle_empty(self):
-        # test empty
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
-
-        self.assertFalse(dag.test_cycle())
-
-    def test_cycle_single_task(self):
-        # test single task
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
-
-        with dag:
-            DummyOperator(task_id='A')
-
-        self.assertFalse(dag.test_cycle())
-
-    def test_cycle_no_cycle(self):
-        # test no cycle
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
-
-        # A -> B -> C
-        #      B -> D
-        # E -> F
-        with dag:
-            op1 = DummyOperator(task_id='A')
-            op2 = DummyOperator(task_id='B')
-            op3 = DummyOperator(task_id='C')
-            op4 = DummyOperator(task_id='D')
-            op5 = DummyOperator(task_id='E')
-            op6 = DummyOperator(task_id='F')
-            op1.set_downstream(op2)
-            op2.set_downstream(op3)
-            op2.set_downstream(op4)
-            op5.set_downstream(op6)
-
-        self.assertFalse(dag.test_cycle())
-
-    def test_cycle_loop(self):
-        # test self loop
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
-
-        # A -> A
-        with dag:
-            op1 = DummyOperator(task_id='A')
-            op1.set_downstream(op1)
-
-        with self.assertRaises(AirflowDagCycleException):
-            dag.test_cycle()
-
-    def test_cycle_downstream_loop(self):
-        # test downstream self loop
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
-
-        # A -> B -> C -> D -> E -> E
-        with dag:
-            op1 = DummyOperator(task_id='A')
-            op2 = DummyOperator(task_id='B')
-            op3 = DummyOperator(task_id='C')
-            op4 = DummyOperator(task_id='D')
-            op5 = DummyOperator(task_id='E')
-            op1.set_downstream(op2)
-            op2.set_downstream(op3)
-            op3.set_downstream(op4)
-            op4.set_downstream(op5)
-            op5.set_downstream(op5)
-
-        with self.assertRaises(AirflowDagCycleException):
-            dag.test_cycle()
-
-    def test_cycle_large_loop(self):
-        # large loop
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
-
-        # A -> B -> C -> D -> E -> A
-        with dag:
-            op1 = DummyOperator(task_id='A')
-            op2 = DummyOperator(task_id='B')
-            op3 = DummyOperator(task_id='C')
-            op4 = DummyOperator(task_id='D')
-            op5 = DummyOperator(task_id='E')
-            op1.set_downstream(op2)
-            op2.set_downstream(op3)
-            op3.set_downstream(op4)
-            op4.set_downstream(op5)
-            op5.set_downstream(op1)
-
-        with self.assertRaises(AirflowDagCycleException):
-            dag.test_cycle()
-
-    def test_cycle_arbitrary_loop(self):
-        # test arbitrary loop
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
-
-        # E-> A -> B -> F -> A
-        #       -> C -> F
-        with dag:
-            op1 = DummyOperator(task_id='A')
-            op2 = DummyOperator(task_id='B')
-            op3 = DummyOperator(task_id='C')
-            op4 = DummyOperator(task_id='E')
-            op5 = DummyOperator(task_id='F')
-            op1.set_downstream(op2)
-            op1.set_downstream(op3)
-            op4.set_downstream(op1)
-            op3.set_downstream(op5)
-            op2.set_downstream(op5)
-            op5.set_downstream(op1)
-
-        with self.assertRaises(AirflowDagCycleException):
-            dag.test_cycle()
-
     def test_following_previous_schedule(self):
         """
         Make sure DST transitions are properly observed
@@ -913,8 +783,8 @@ class TestDag(unittest.TestCase):
         self.assertEqual(orm_dag.default_view, "graph")
         session.close()
 
-    @patch('airflow.models.dag.DagBag')
-    def test_is_paused_subdag(self, mock_dag_bag):
+    @provide_session
+    def test_is_paused_subdag(self, session):
         subdag_id = 'dag.subdag'
         subdag = DAG(
             subdag_id,
@@ -937,33 +807,52 @@ class TestDag(unittest.TestCase):
                 subdag=subdag
             )
 
-        mock_dag_bag.return_value.get_dag.return_value = dag
+        # parent_dag and is_subdag was set by DagBag. We don't use DagBag, so this value is not set.
+        subdag.parent_dag = dag
+        subdag.is_subdag = True
 
-        session = settings.Session()
+        session.query(DagModel).filter(DagModel.dag_id.in_([subdag_id, dag_id])).delete(
+            synchronize_session=False
+        )
+
         dag.sync_to_db(session=session)
 
         unpaused_dags = session.query(
-            DagModel
+            DagModel.dag_id, DagModel.is_paused
         ).filter(
             DagModel.dag_id.in_([subdag_id, dag_id]),
-        ).filter(
-            DagModel.is_paused.is_(False)
-        ).count()
+        ).all()
 
-        self.assertEqual(2, unpaused_dags)
+        self.assertEqual({
+            (dag_id, False),
+            (subdag_id, False),
+        }, set(unpaused_dags))
+
+        DagModel.get_dagmodel(dag.dag_id).set_is_paused(is_paused=True, including_subdags=False)
+
+        paused_dags = session.query(
+            DagModel.dag_id, DagModel.is_paused
+        ).filter(
+            DagModel.dag_id.in_([subdag_id, dag_id]),
+        ).all()
+
+        self.assertEqual({
+            (dag_id, True),
+            (subdag_id, False),
+        }, set(paused_dags))
 
         DagModel.get_dagmodel(dag.dag_id).set_is_paused(is_paused=True)
 
         paused_dags = session.query(
-            DagModel
+            DagModel.dag_id, DagModel.is_paused
         ).filter(
             DagModel.dag_id.in_([subdag_id, dag_id]),
-        ).filter(
-            DagModel.is_paused.is_(True)
-        ).count()
+        ).all()
 
-        self.assertEqual(2, paused_dags)
-        session.close()
+        self.assertEqual({
+            (dag_id, True),
+            (subdag_id, True),
+        }, set(paused_dags))
 
     def test_existing_dag_is_paused_upon_creation(self):
         dag = DAG(
@@ -1219,7 +1108,8 @@ class TestDag(unittest.TestCase):
             start_date=DEFAULT_DATE))
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        dag.create_dagrun(run_id=DagRun.id_for_date(DEFAULT_DATE),
+        run_id = f"{DagRunType.SCHEDULED.value}__{DEFAULT_DATE.isoformat()}"
+        dag.create_dagrun(run_id=run_id,
                           execution_date=DEFAULT_DATE,
                           state=State.SUCCESS,
                           external_trigger=True)

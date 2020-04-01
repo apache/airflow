@@ -38,17 +38,6 @@ Use the
 :class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineStartInstanceOperator`
 to start an existing Google Compute Engine instance.
 
-
-Arguments
-"""""""""
-
-The following examples of OS environment variables used to pass arguments to the operator:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute.py
-    :language: python
-    :start-after: [START howto_operator_gce_args_common]
-    :end-before: [END howto_operator_gce_args_common]
-
 Using the operator
 """"""""""""""""""
 
@@ -94,16 +83,6 @@ Use the operator to stop Google Compute Engine instance.
 
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineStopInstanceOperator`
-
-Arguments
-"""""""""
-
-The following examples of OS environment variables used to pass arguments to the operator:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute.py
-   :language: python
-   :start-after: [START howto_operator_gce_args_common]
-   :end-before: [END howto_operator_gce_args_common]
 
 Using the operator
 """"""""""""""""""
@@ -153,18 +132,7 @@ For parameter definition, take a look at
 Arguments
 """""""""
 
-The following examples of OS environment variables used to pass arguments to the operator:
 
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute.py
-    :language: python
-    :start-after: [START howto_operator_gce_args_common]
-    :end-before: [END howto_operator_gce_args_common]
-
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute.py
-    :language: python
-    :start-after: [START howto_operator_gce_args_set_machine_type]
-    :end-before: [END howto_operator_gce_args_set_machine_type]
 
 Using the operator
 """"""""""""""""""
@@ -212,25 +180,15 @@ applying a patch to it.
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineCopyInstanceTemplateOperator`.
 
-Arguments
-"""""""""
+Using the operator
+""""""""""""""""""
 
-The following examples of OS environment variables used to pass arguments to the operator:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
-    :language: python
-    :start-after: [START howto_operator_compute_igm_common_args]
-    :end-before: [END howto_operator_compute_igm_common_args]
+The code to create the operator:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python
     :start-after: [START howto_operator_compute_template_copy_args]
     :end-before: [END howto_operator_compute_template_copy_args]
-
-Using the operator
-""""""""""""""""""
-
-The code to create the operator:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python
@@ -275,22 +233,16 @@ For parameter definition, take a look at
 Arguments
 """""""""
 
-The following examples of OS environment variables used to pass arguments to the operator:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
-    :language: python
-    :start-after: [START howto_operator_compute_igm_common_args]
-    :end-before: [END howto_operator_compute_igm_common_args]
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
-    :language: python
-    :start-after: [START howto_operator_compute_igm_update_template_args]
-    :end-before: [END howto_operator_compute_igm_update_template_args]
 
 Using the operator
 """"""""""""""""""
 
 The code to create the operator:
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
+    :language: python
+    :start-after: [START howto_operator_compute_igm_update_template_args]
+    :end-before: [END howto_operator_compute_igm_update_template_args]
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python

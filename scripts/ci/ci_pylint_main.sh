@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
+export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
@@ -49,6 +49,8 @@ function run_pylint_main() {
     fi
 }
 
+prepare_build
+
 rebuild_ci_image_if_needed
 
 if [[ "${#@}" != "0" ]]; then
@@ -62,5 +64,3 @@ if [[ "${#@}" != "0" ]]; then
 else
     run_pylint_main
 fi
-
-script_end

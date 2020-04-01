@@ -33,8 +33,10 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDagBag
 from airflow.exceptions import AirflowDagCycleException
+from airflow.plugins_manager import integrate_dag_plugins
 from airflow.stats import Stats
 from airflow.utils import timezone
+from airflow.utils.dag_cycle_tester import test_cycle
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timeout import timeout
@@ -77,10 +79,6 @@ class DagBag(BaseDagBag, LoggingMixin):
     :type store_serialized_dags: bool
     """
 
-    # static class variables to detetct dag cycle
-    CYCLE_NEW = 0
-    CYCLE_IN_PROGRESS = 1
-    CYCLE_DONE = 2
     DAGBAG_IMPORT_TIMEOUT = conf.getint('core', 'DAGBAG_IMPORT_TIMEOUT')
     SCHEDULER_ZOMBIE_TASK_THRESHOLD = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
@@ -116,25 +114,18 @@ class DagBag(BaseDagBag, LoggingMixin):
     def dag_ids(self) -> List[str]:
         return self.dags.keys()
 
-    def get_dag(self, dag_id: str, from_file_only: bool = False):
+    def get_dag(self, dag_id):
         """
         Gets the DAG out of the dictionary, and refreshes it if expired
 
         :param dag_id: DAG Id
         :type dag_id: str
-        :param from_file_only: returns a DAG loaded from file.
-        :type from_file_only: bool
         """
         # Avoid circular import
         from airflow.models.dag import DagModel
 
         # Only read DAGs from DB if this dagbag is store_serialized_dags.
-        # from_file_only is an exception, currently it is for renderring templates
-        # in UI only. Because functions are gone in serialized DAGs, DAGs must be
-        # imported from files.
-        # FIXME: this exception should be removed in future, then webserver can be
-        # decoupled from DAG files.
-        if self.store_serialized_dags and not from_file_only:
+        if self.store_serialized_dags:
             # Import here so that serialized dag is only imported when serialization is enabled
             from airflow.models.serialized_dag import SerializedDagModel
             if dag_id not in self.dags:
@@ -191,6 +182,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         """
         from airflow.models.dag import DAG  # Avoid circular import
 
+        integrate_dag_plugins()
         found_dags = []
 
         # if the source file no longer exists in the DB or in the filesystem,
@@ -322,7 +314,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         Throws AirflowDagCycleException if a cycle is detected in this dag or its subdags
         """
 
-        dag.test_cycle()  # throws if a task cycle is found
+        test_cycle(dag)  # throws if a task cycle is found
 
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()
@@ -460,5 +452,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         """
         Save attributes about list of DAG to the DB.
         """
+        # To avoid circular import - airflow.models.dagbag -> airflow.models.dag -> airflow.models.dagbag
         from airflow.models.dag import DAG
+        from airflow.models.serialized_dag import SerializedDagModel
         DAG.bulk_sync_to_db(self.dags.values())
+        SerializedDagModel.bulk_sync_to_db(self.dags.values())

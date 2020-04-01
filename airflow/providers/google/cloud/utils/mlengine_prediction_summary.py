@@ -85,6 +85,7 @@ subprocess.check_call(["python",
 import argparse
 import base64
 import json
+import logging
 import os
 
 import apache_beam as beam
@@ -156,23 +157,24 @@ def run(argv=None):
         raise ValueError("--metric_fn_encoded must be an encoded callable.")
     metric_keys = known_args.metric_keys.split(",")
 
-    with beam.Pipeline(
-        options=beam.pipeline.PipelineOptions(pipeline_args)) as pipe:
-        # This is apache-beam ptransform's convention
+    with beam.Pipeline(options=beam.pipeline.PipelineOptions(pipeline_args)) as pipe:
         # pylint: disable=no-value-for-parameter
-        _ = (pipe
-             | "ReadPredictionResult" >> beam.io.ReadFromText(
-                 os.path.join(known_args.prediction_path,
-                              "prediction.results-*-of-*"),
-                 coder=JsonCoder())
-             | "Summary" >> MakeSummary(metric_fn, metric_keys)
-             | "Write" >> beam.io.WriteToText(
-                 os.path.join(known_args.prediction_path,
-                              "prediction.summary.json"),
-                 shard_name_template='',  # without trailing -NNNNN-of-NNNNN.
-                 coder=JsonCoder()))
-        # pylint: enable=no-value-for-parameter
+        prediction_result_pattern = os.path.join(known_args.prediction_path, "prediction.results-*-of-*")
+        prediction_summary_path = os.path.join(known_args.prediction_path, "prediction.summary.json")
+        # This is apache-beam ptransform's convention
+        _ = (
+            pipe | "ReadPredictionResult" >> beam.io.ReadFromText(
+                    prediction_result_pattern, coder=JsonCoder())
+                 | "Summary" >> MakeSummary(metric_fn, metric_keys)
+                 | "Write" >> beam.io.WriteToText(
+                    prediction_summary_path,
+                    shard_name_template='',  # without trailing -NNNNN-of-NNNNN.
+                    coder=JsonCoder())
+        )
 
 
 if __name__ == "__main__":
+    # Dataflow does not print anything on the screen by default. Good practice says to configure the logger
+    # to be able to track the progress. This code is run in a separate process, so it's safe.
+    logging.getLogger().setLevel(logging.INFO)
     run()

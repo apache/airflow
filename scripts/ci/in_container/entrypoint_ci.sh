@@ -26,7 +26,7 @@ TRAVIS=${TRAVIS:=}
 
 AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../.." || exit 1; pwd)
 
-PYTHON_VERSION=${PYTHON_VERSION:=3.6}
+PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.6}
 BACKEND=${BACKEND:=sqlite}
 KUBERNETES_MODE=${KUBERNETES_MODE:=""}
 KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
@@ -46,6 +46,10 @@ echo
 echo "Airflow home: ${AIRFLOW_HOME}"
 echo "Airflow sources: ${AIRFLOW_SOURCES}"
 echo "Airflow core SQL connection: ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
+if [[ -n "${AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS:=}" ]]; then
+    echo "Airflow collation for IDs: ${AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS}"
+fi
+
 echo
 
 ARGS=( "$@" )
@@ -53,7 +57,13 @@ ARGS=( "$@" )
 RUN_TESTS=${RUN_TESTS:="true"}
 INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION:=""}"
 
-if [[ ${INSTALL_AIRFLOW_VERSION} == "current" ]]; then
+if [[ ${AIRFLOW_VERSION} == *1.10* || ${INSTALL_AIRFLOW_VERSION} == *1.10* ]]; then
+    export RUN_AIRFLOW_1_10="true"
+else
+    export RUN_AIRFLOW_1_10="false"
+fi
+
+if [[ ${INSTALL_AIRFLOW_VERSION} == "" ]]; then
     if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/node_modules" ]]; then
         echo
         echo "Installing node modules as they are not yet installed (Sources mounted from Host)"
@@ -81,13 +91,11 @@ if [[ ${INSTALL_AIRFLOW_VERSION} == "current" ]]; then
     mkdir -p "${AIRFLOW_SOURCES}"/tmp/
     export PYTHONPATH=${AIRFLOW_SOURCES}
 else
-    if [[ ${AIRFLOW_VERSION} == *1.10* || ${INSTALL_AIRFLOW_VERSION} == *1.10* ]]; then
-        export RUN_AIRFLOW_1_10="true"
-    else
-        export RUN_AIRFLOW_1_10="false"
-    fi
     install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}"
 fi
+
+
+export RUN_AIRFLOW_1_10=${RUN_AIRFLOW_1_10:="false"}
 
 export HADOOP_DISTRO="${HADOOP_DISTRO:="cdh"}"
 export HADOOP_HOME="${HADOOP_HOME:="/opt/hadoop-cdh"}"
@@ -150,7 +158,14 @@ if [[ "${RUNTIME}" == "" ]]; then
 
     # SSH Service
     sudo service ssh restart >/dev/null 2>&1
-    ssh-keyscan -H localhost >> ~/.ssh/known_hosts
+
+    # Sometimes the server is not quick enough to load the keys!
+    while [[ $(ssh-keyscan -H localhost 2>/dev/null | wc -l) != "3" ]] ; do
+        echo "Not all keys yet loaded by the server"
+        sleep 0.05
+    done
+
+    ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
 fi
 
 
@@ -168,46 +183,24 @@ if [[ ${RUNTIME:=""} == "kubernetes" ]]; then
 fi
 
 if [[ "${ENABLE_KIND_CLUSTER}" == "true" ]]; then
-    export CLUSTER_NAME="airflow-python-${PYTHON_VERSION}-${KUBERNETES_VERSION}"
+    export CLUSTER_NAME="airflow-python-${PYTHON_MAJOR_MINOR_VERSION}-${KUBERNETES_VERSION}"
     "${MY_DIR}/kubernetes/setup_kind_cluster.sh"
     if [[ ${KIND_CLUSTER_OPERATION} == "stop" ]]; then
         exit 1
     fi
 fi
 
-export FILES_DIR="/files"
-export AIRFLOW_BREEZE_CONFIG_DIR="${FILES_DIR}/airflow-breeze-config"
-VARIABLES_ENV_FILE="variables.env"
+# shellcheck source=scripts/ci/in_container/configure_environment.sh
+. "${MY_DIR}/configure_environment.sh"
 
-if [[ -d "${FILES_DIR}" ]]; then
-    export AIRFLOW__CORE__DAGS_FOLDER="/files/dags"
-    mkdir -pv "${AIRFLOW__CORE__DAGS_FOLDER}"
-    sudo chown "${HOST_USER_ID}":"${HOST_GROUP_ID}" "${AIRFLOW__CORE__DAGS_FOLDER}"
-    echo "Your dags for webserver and scheduler are read from ${AIRFLOW__CORE__DAGS_FOLDER} directory"
-    echo "which is mounted from your <AIRFLOW_SOURCES>/files/dags folder"
+if [[ ${CI:=} == "true" && ${RUN_TESTS} == "true" ]] ; then
     echo
-else
-    export AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_HOME}/dags"
-    echo "Your dags for webserver and scheduler are read from ${AIRFLOW__CORE__DAGS_FOLDER} directory"
+    echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo "  Setting default parallellism to 2 because we can run out of memory during tests on CI"
+    echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo
+    export AIRFLOW__CORE__PARALELLISM=2
 fi
-
-
-if [[ -d "${AIRFLOW_BREEZE_CONFIG_DIR}" && \
-    -f "${AIRFLOW_BREEZE_CONFIG_DIR}/${VARIABLES_ENV_FILE}" ]]; then
-    pushd "${AIRFLOW_BREEZE_CONFIG_DIR}" >/dev/null 2>&1 || exit 1
-    echo
-    echo "Sourcing environment variables from ${VARIABLES_ENV_FILE} in ${AIRFLOW_BREEZE_CONFIG_DIR}"
-    echo
-     # shellcheck disable=1090
-    source "${VARIABLES_ENV_FILE}"
-    popd >/dev/null 2>&1 || exit 1
-else
-    echo
-    echo "You can add ${AIRFLOW_BREEZE_CONFIG_DIR} directory and place ${VARIABLES_ENV_FILE}"
-    echo "In it to make breeze source the variables automatically for you"
-    echo
-fi
-
 
 set +u
 # If we do not want to run tests, we simply drop into bash

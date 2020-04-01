@@ -165,6 +165,11 @@ Foundation.
      -
      - :mod:`airflow.providers.apache.hive.operators.s3_to_hive`
 
+   * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
+     - `MySQL <https://www.mysql.com/>`__
+     -
+     - :mod:`airflow.providers.mysql.operators.s3_to_mysql`
+
    * - `Apache Cassandra <http://cassandra.apache.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
@@ -531,7 +536,7 @@ Airflow has extensive support for the `Google Cloud Platform <https://cloud.goog
 See the :doc:`GCP connection type <howto/connection/gcp>` documentation to
 configure connections to GCP.
 
-All hooks are based on :class:`airflow.providers.google.cloud.hooks.base.GoogleCloudBaseHook`.
+All hooks are based on :class:`airflow.providers.google.common.hooks.base.GoogleBaseHook`.
 
 .. note::
     You can learn how to use GCP integrations by analyzing the
@@ -553,6 +558,12 @@ These integrations allow you to perform various operations within the Google Clo
      - Hook
      - Operators
      - Sensors
+
+   * - `Analytics360 <https://analytics.google.com/>`__
+     - :doc:`How to use <howto/operator/gcp/analytics>`
+     - :mod:`airflow.providers.google.marketing_platform.hooks.analytics`
+     - :mod:`airflow.providers.google.marketing_platform.operators.analytics`
+     -
 
    * - `AutoML <https://cloud.google.com/automl/>`__
      - :doc:`How to use <howto/operator/gcp/automl>`
@@ -602,6 +613,12 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.providers.google.cloud.operators.datafusion`
      -
 
+   * - `Datacatalog <https://cloud.google.com/data-catalog>`__
+     -
+     - :mod:`airflow.providers.google.cloud.hooks.datacatalog`
+     - :mod:`airflow.providers.google.cloud.operators.datacatalog`
+     -
+
    * - `Dataflow <https://cloud.google.com/dataflow/>`__
      -
      - :mod:`airflow.providers.google.cloud.hooks.dataflow`
@@ -624,6 +641,12 @@ These integrations allow you to perform various operations within the Google Clo
      - :doc:`How to use <howto/operator/gcp/functions>`
      - :mod:`airflow.providers.google.cloud.hooks.functions`
      - :mod:`airflow.providers.google.cloud.operators.functions`
+     -
+
+   * - `Cloud Firestore <https://firebase.google.com/docs/firestore>`__
+     - :doc:`How to use <howto/operator/gcp/firestore>`
+     - :mod:`airflow.providers.google.firebase.hooks.firestore`
+     - :mod:`airflow.providers.google.firebase.operators.firestore`
      -
 
    * - `Cloud Key Management Service (KMS) <https://cloud.google.com/kms/>`__
@@ -781,6 +804,11 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      -
      - :mod:`airflow.providers.google.cloud.operators.bigquery_to_bigquery`
 
+   * - `Cloud Firestore <https://firebase.google.com/docs/firestore>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/gcp/firestore>`
+     - :mod:`airflow.providers.google.firebase.operators.firestore`
+
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
@@ -828,6 +856,11 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      -
      - :mod:`airflow.providers.google.cloud.operators.postgres_to_gcs`
 
+   * - `Presto <https://prestodb.io/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/gcp/presto_to_gcs>`
+     - :mod:`airflow.providers.google.cloud.operators.presto_to_gcs`
+
    * - SFTP
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/sftp_to_gcs>`
@@ -838,6 +871,15 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      -
      - :mod:`airflow.providers.google.cloud.operators.sql_to_gcs`
 
+   * - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
+     - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.providers.google.cloud.operators.sheets_to_gcs`
+
+   * - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
+     -
+     - :mod:`airflow.providers.google.suite.operators.gcs_to_sheets`
 
 .. _integration:GCP-Discovery:
 
@@ -864,7 +906,7 @@ Other operators and hooks
 
    * -
      -
-     - :mod:`airflow.providers.google.cloud.hooks.discovery_api`
+     - :mod:`airflow.providers.google.common.hooks.discovery_api`
 
 .. _service:
 
@@ -877,7 +919,7 @@ Airflow has a limited support for the `Yandex.Cloud <https://cloud.yandex.com/>`
 See the :doc:`Yandex.Cloud connection type <howto/connection/yandexcloud>` documentation to
 configure connections to Yandex.Cloud.
 
-All hooks are based on :class:`airflow.contrib.hooks.yandexcloud_base_hook.YandexCloudBaseHook`.
+All hooks are based on :class:`airflow.contrib.hooks.yandexcloud_base_hook.YandexGoogleBaseHook`.
 
 .. note::
     You can learn how to use Yandex.Cloud integrations by analyzing the
@@ -967,6 +1009,12 @@ These integrations allow you to perform various operations within various servic
      - :mod:`airflow.providers.discord.operators.discord_webhook`
      -
 
+   * - `Google Ads <https://ads.google.com/home/>`__
+     - :doc:`How to use <howto/operator/gcp/ads>`
+     - :mod:`airflow.providers.google.ads.hooks.ads`
+     - :mod:`airflow.providers.google.ads.operators.ads`
+     -
+
    * - `Google Campaign Manager <https://developers.google.com/doubleclick-advertisers>`__
      - :doc:`How to use <howto/operator/gcp/campaign_manager>`
      - :mod:`airflow.providers.google.marketing_platform.hooks.campaign_manager`
@@ -992,9 +1040,9 @@ These integrations allow you to perform various operations within various servic
      - :mod:`airflow.providers.google.marketing_platform.sensors.search_ads`
 
    * - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
-     -
+     - :doc:`How to use <howto/operator/gcp/sheets>`
      - :mod:`airflow.providers.google.suite.hooks.sheets`
-     -
+     - :mod:`airflow.providers.google.suite.operators.sheets`
      -
 
    * - `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
@@ -1136,9 +1184,11 @@ These integrations allow you to perform various operations using various softwar
 
    * - `Kubernetes <https://kubernetes.io/>`__
      - :doc:`How to use <howto/operator/kubernetes>`
-     -
+     - :mod:`airflow.providers.cncf.kubernetes.hooks.kubernetes`
      - :mod:`airflow.providers.cncf.kubernetes.operators.kubernetes_pod`
-     -
+       :mod:`airflow.providers.cncf.kubernetes.operators.spark_kubernetes`
+     - :mod:`airflow.providers.cncf.kubernetes.sensors.spark_kubernetes`
+
 
    * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
      -
@@ -1169,7 +1219,7 @@ These integrations allow you to perform various operations using various softwar
 
    * - `OpenFaaS <https://www.openfaas.com/>`__
      -
-     - :mod:`airflow.providers.openfass.hooks.openfaas`
+     - :mod:`airflow.providers.openfaas.hooks.openfaas`
      -
      -
 

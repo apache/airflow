@@ -20,6 +20,7 @@
 Example Airflow DAG for Google BigQuery service.
 """
 import os
+import time
 from urllib.parse import urlparse
 
 from airflow import models
@@ -256,9 +257,9 @@ with models.DAG(
     update_table = BigQueryUpsertTableOperator(
         task_id="update_table", dataset_id=DATASET_NAME, table_resource={
             "tableReference": {
-                "tableId": "test-table-id"
+                "tableId": "test_table_id"
             },
-            "expirationTime": 12345678
+            "expirationTime": (int(time.time()) + 300) * 1000
         }
     )
 
