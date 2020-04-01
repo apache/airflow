@@ -44,7 +44,7 @@ echo
 echo "Freezing requirements to ${GENERATED_REQUIREMENTS_FILE}"
 echo
 
-pip freeze | \
+pip freeze | sort | \
     grep -v "apache_airflow" | \
     grep -v "/opt/airflow" >"${GENERATED_REQUIREMENTS_FILE}"
 
@@ -57,7 +57,7 @@ set +e
 diff --color=always "${OLD_REQUIREMENTS_FILE}" "${GENERATED_REQUIREMENTS_FILE}"
 RES=$?
 
-if [[ ${RES} != "0" ]]; then
+if [[ ${RES} != "0" && ${SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS:=} == "true" ]]; then
     echo
     echo " ERROR! Requirements need to be updated!"
     echo
