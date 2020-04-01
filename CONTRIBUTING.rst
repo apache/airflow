@@ -998,7 +998,7 @@ prepare such packages on your own easily.
 
 * Run the following command:
 
-  .. code-blamazonock:: bash
+  .. code-block:: bash
 
     ./scripts/ci/ci_prepare_packages.sh
 
