@@ -65,7 +65,7 @@ export default function tiTooltip(ti) {
   }
   tt += `Run: ${formatDateTime(ti.execution_date)}<br>`;
   if(ti.run_id !== undefined) {
-    tt += `run_id: <nobr>${escapeHtml(ti.run_id)}</nobr><br>`;
+    tt += `Run Id: <nobr>${escapeHtml(ti.run_id)}</nobr><br>`;
   }
   if(ti.operator !== undefined) {
     tt += `Operator: ${escapeHtml(ti.operator)}<br>`;
