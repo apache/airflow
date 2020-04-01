@@ -37,6 +37,7 @@ from airflow.www_rbac.app import csrf
 from airflow import models
 from airflow.utils.db import create_session
 from .utils import get_cas_base_url
+import json
 from flask import g, Blueprint, jsonify, request, url_for
 
 _log = LoggingMixin().log
@@ -44,6 +45,46 @@ _log = LoggingMixin().log
 requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 
 api_experimental = Blueprint('api_experimental', __name__)
+
+
+@csrf.exempt
+@api_experimental.route('/taskinstance/analysis_result', methods=['PUT'])
+@requires_authentication
+def put_anaylysis_result():
+    TiModel = models.TaskInstance
+    data = request.get_json(force=True)
+    dag_id = data.get('dag_id')
+    task_id = data.get('task_id')
+    real_task_id = data.get('real_task_id')
+    execution_date = data.get('exec_date')
+    entity_id = data.get('entity_id')
+    result = data.get('result')  # OK, NOK
+    if result:
+        rresult = 'OK'
+    else:
+        rresult = 'NOK'
+    with create_session() as session:
+        ti = session.query(TiModel).filter(
+            TiModel.id == real_task_id).first()
+        if not ti:
+            ti = session.query(TiModel).filter(
+                TiModel.dag_id == dag_id,
+                TiModel.task_id == task_id,
+                TiModel.execution_date == execution_date).first()
+        if not ti:
+            response = jsonify(
+                {'url': None,
+                 'error': "can't find dag {dag} or task_id {task_id}".format(
+                     dag=dag_id,
+                     task_id=task_id
+                 )}
+            )
+            response.status_code = 404
+            return response
+        ti.result = rresult
+        ti.entity_id = entity_id
+        session.commit()
+    return json.dumps({'response': 'ok'})
 
 
 @csrf.exempt
