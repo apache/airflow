@@ -25,6 +25,7 @@ import warnings
 from tempfile import NamedTemporaryFile
 
 import unicodecsv as csv
+from six import string_types
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -251,18 +252,20 @@ class BaseSQLToGCSOperator(BaseOperator, metaclass=abc.ABCMeta):
     def _write_local_schema_file(self, cursor):
         """
         Takes a cursor, and writes the BigQuery schema for the results to a
-        local file system.
+        local file system. Schema for database will be read from cursor if
+        not specified.
 
         :return: A dictionary where key is a filename to be used as an object
             name in GCS, and values are file handles to local files that
             contains the BigQuery schema fields in .json format.
         """
-        schema = [self.field_to_bigquery(field) for field in cursor.description]
+        schema = self.schema or [self.field_to_bigquery(field) for field in cursor.description]
 
         self.log.info('Using schema for %s', self.schema_filename)
         self.log.debug("Current schema: %s", schema)
         tmp_schema_file_handle = NamedTemporaryFile(delete=True)
-        tmp_schema_file_handle.write(json.dumps(schema, sort_keys=True).encode('utf-8'))
+        schema_json = json.dumps(schema, sort_keys=True) if isinstance(schema, list) else schema
+        tmp_schema_file_handle.write(schema_json.encode('utf-8'))
         schema_file_to_upload = {
             'file_name': self.schema_filename,
             'file_handle': tmp_schema_file_handle,
