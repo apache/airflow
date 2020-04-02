@@ -258,7 +258,7 @@ class BaseSQLToGCSOperator(BaseOperator, metaclass=abc.ABCMeta):
             name in GCS, and values are file handles to local files that
             contains the BigQuery schema fields in .json format.
         """
-        if self.shcema:
+        if self.schema:
             self.log.info("Using user schema")
             schema = self.schema
         else:
