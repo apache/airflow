@@ -220,7 +220,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
         self._process.terminate()
         # Arbitrarily wait 5s for the process to die
         with suppress(TimeoutError):
-            self._process.wait(5)
+            self._process._popen.wait(5)  # pylint: disable=protected-access
         if sigkill:
             self._kill_process()
         self._parent_channel.close()
