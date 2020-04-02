@@ -34,7 +34,7 @@ from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models import DagPickle, TaskInstance
 from airflow.models.dag import DAG
 from airflow.ti_deps.dep_context import DepContext
-from airflow.ti_deps.dependencies import SCHEDULER_QUEUED_DEPS
+from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import get_dag, get_dag_by_file_location, get_dag_by_pickle, get_dags
 from airflow.utils.log.logging_mixin import StreamLogWriter

@@ -51,7 +51,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
-from airflow.ti_deps.dependencies import QUEUEABLE_STATES, RUNNABLE_STATES
+from airflow.ti_deps.dependencies_states import QUEUEABLE_STATES, RUNNABLE_STATES
 from airflow.utils import dates, timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State

@@ -30,7 +30,7 @@ from airflow.models.base import ID_LEN, Base
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
-from airflow.ti_deps.dependencies import SCHEDULEABLE_STATES
+from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session

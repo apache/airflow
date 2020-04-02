@@ -25,36 +25,12 @@ from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
 from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
 from airflow.ti_deps.deps.task_not_running_dep import TaskNotRunningDep
 from airflow.ti_deps.deps.valid_state_dep import ValidStateDep
-from airflow.utils.state import State
-
-# In order to be able to get queued a task must have one of these states
-SCHEDULEABLE_STATES = {
-    State.NONE,
-    State.UP_FOR_RETRY,
-    State.UP_FOR_RESCHEDULE,
-}
-
-RUNNABLE_STATES = {
-    # For cases like unit tests and run manually
-    State.NONE,
-    State.UP_FOR_RETRY,
-    State.UP_FOR_RESCHEDULE,
-    # For normal scheduler/backfill cases
-    State.QUEUED,
-}
-
-QUEUEABLE_STATES = {
-    State.SCHEDULED,
-}
-
-BACKFILL_QUEUEABLE_STATES = {
-    # For cases like unit tests and run manually
-    State.NONE,
-    State.UP_FOR_RESCHEDULE,
-    State.UP_FOR_RETRY,
-    # For normal backfill cases
-    State.SCHEDULED,
-}
+from airflow.ti_deps.dependencies_states import (
+    SCHEDULEABLE_STATES,
+    RUNNABLE_STATES,
+    BACKFILL_QUEUEABLE_STATES,
+    QUEUEABLE_STATES,
+)
 
 # Context to get the dependencies that need to be met in order for a task instance to be
 # set to 'scheduled' state.

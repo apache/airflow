@@ -46,8 +46,8 @@ from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
-from airflow.ti_deps.dependencies import SCHEDULED_DEPS
-from airflow.ti_deps.deps.pool_slots_available_dep import STATES_TO_COUNT_AS_RUNNING
+from airflow.ti_deps.dependencies_deps import SCHEDULED_DEPS
+from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils import asciiart, helpers, timezone
 from airflow.utils.dag_processing import (
     AbstractDagFileProcessorProcess, DagFileProcessorAgent, FailureCallbackRequest, SimpleDag, SimpleDagBag,
@@ -1198,7 +1198,7 @@ class SchedulerJob(BaseJob):
 
         # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
         dag_concurrency_map, task_concurrency_map = self.__get_concurrency_maps(
-            states=STATES_TO_COUNT_AS_RUNNING, session=session)
+            states=list(EXECUTION_STATES), session=session)
 
         # Go through each pool, and queue up a task for execution if there are
         # any open slots in the pool.
