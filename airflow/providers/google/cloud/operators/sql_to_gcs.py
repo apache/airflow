@@ -25,7 +25,6 @@ import warnings
 from tempfile import NamedTemporaryFile
 
 import unicodecsv as csv
-from six import string_types
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
