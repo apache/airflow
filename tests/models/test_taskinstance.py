@@ -1290,16 +1290,16 @@ class TestTaskInstance(unittest.TestCase):
 
         ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario)
 
-        self.assertIsNone(ti_list[0].get_previous_ti_success(state=State.SUCCESS))
-        self.assertIsNone(ti_list[1].get_previous_ti_success(state=State.SUCCESS))
+        self.assertIsNone(ti_list[0].get_previous_ti(state=State.SUCCESS))
+        self.assertIsNone(ti_list[1].get_previous_ti(state=State.SUCCESS))
 
         self.assertEqual(
-            ti_list[3].get_previous_ti_success(state=State.SUCCESS).execution_date,
+            ti_list[3].get_previous_ti(state=State.SUCCESS).execution_date,
             ti_list[1].execution_date
         )
 
         self.assertNotEqual(
-            ti_list[3].get_previous_ti_success(state=State.SUCCESS).execution_date,
+            ti_list[3].get_previous_ti(state=State.SUCCESS).execution_date,
             ti_list[2].execution_date
         )
 
@@ -1310,14 +1310,14 @@ class TestTaskInstance(unittest.TestCase):
 
         ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario)
 
-        self.assertIsNone(ti_list[0].get_previous_execution_date_success())
-        self.assertIsNone(ti_list[1].get_previous_execution_date_success())
+        self.assertIsNone(ti_list[0].get_previous_execution_date(state=State.SUCCESS))
+        self.assertIsNone(ti_list[1].get_previous_execution_date(state=State.SUCCESS))
         self.assertEqual(
-            ti_list[3].get_previous_execution_date_success(),
+            ti_list[3].get_previous_execution_date(state=State.SUCCESS),
             ti_list[1].execution_date
         )
         self.assertNotEqual(
-            ti_list[3].get_previous_execution_date_success(),
+            ti_list[3].get_previous_execution_date(state=State.SUCCESS),
             ti_list[2].execution_date
         )
 

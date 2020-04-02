@@ -24,6 +24,7 @@ import math
 import os
 import signal
 import time
+import warnings
 from datetime import datetime, timedelta
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 from urllib.parse import quote
@@ -566,7 +567,11 @@ class TaskInstance(Base, LoggingMixin):
         state: Optional[str] = None,
         session: Session = None
     ) -> Optional['TaskInstance']:
-        """The task instance for the task that ran before this task instance."""
+        """
+        The task instance for the task that ran before this task instance.
+
+        :param state: If passed, it only take into account instances of a specific state.
+        """
         dag = self.task.dag
         if dag:
             dr = self.get_dagrun(session=session)
@@ -596,17 +601,81 @@ class TaskInstance(Base, LoggingMixin):
 
         return None
 
-    def get_previous_execution_date_success(self) -> Optional[pendulum.datetime]:
-        """The execution date from property previous_ti_success."""
-        self.log.debug("previous_execution_date_success was called")
-        prev_ti = self._get_previous_ti(state=State.SUCCESS)
+    @property
+    def previous_ti(self):
+        """
+        This attribute is deprecated.
+        Please use `airflow.models.taskinstance.TaskInstance.get_previous_ti` method.
+        """
+        warnings.warn(
+            """
+            This attribute is deprecated.
+            Please use `airflow.models.taskinstance.TaskInstance.get_previous_ti` method.
+            """,
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.get_latest_execution_date()
+
+    @property
+    def previous_ti_success(self) -> Optional['TaskInstance']:
+        """
+        This attribute is deprecated.
+        Please use `airflow.models.taskinstance.TaskInstance.get_previous_ti` method.
+        """
+        warnings.warn(
+            """
+            This attribute is deprecated.
+            Please use `airflow.models.taskinstance.TaskInstance.get_previous_ti` method.
+            """,
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self._get_previous_ti(state=State.SUCCESS)
+
+    def get_previous_execution_date(
+        self,
+        state: Optional[str] = None,
+        session: Session = None,
+    ) -> Optional[pendulum.datetime]:
+        """
+        The execution date from property previous_ti_success.
+
+        :param state: If passed, it only take into account instances of a specific state.
+        """
+        self.log.debug("previous_execution_date was called")
+        prev_ti = self.get_previous_ti(state=state, session=session)
         return prev_ti and prev_ti.execution_date
 
-    def get_previous_start_date_success(self) -> Optional[pendulum.datetime]:
-        """The start date from property previous_ti_success."""
-        self.log.debug("previous_start_date_success was called")
-        prev_ti = self._get_previous_ti(state=State.SUCCESS)
+    def get_previous_start_date(
+        self,
+        state: Optional[str] = None,
+        session: Session = None
+    ) -> Optional[pendulum.datetime]:
+        """
+        The start date from property previous_ti_success.
+
+        :param state: If passed, it only take into account instances of a specific state.
+        """
+        self.log.debug("previous_start_date was called")
+        prev_ti = self.get_previous_ti(state=state, session=session)
         return prev_ti and prev_ti.start_date
+
+    @property
+    def previous_start_date_success(self) -> Optional[pendulum.datetime]:
+        """
+        This attribute is deprecated.
+        Please use `airflow.models.taskinstance.TaskInstance.get_previous_start_date` method.
+        """
+        warnings.warn(
+            """
+            This attribute is deprecated.
+            Please use `airflow.models.taskinstance.TaskInstance.get_previous_start_date` method.
+            """,
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.get_previous_start_date(state=State.SUCCESS)
 
     @provide_session
     def are_dependencies_met(
@@ -1332,9 +1401,9 @@ class TaskInstance(Base, LoggingMixin):
             'prev_ds_nodash': prev_ds_nodash,
             'prev_execution_date': prev_execution_date,
             'prev_execution_date_success': lazy_object_proxy.Proxy(
-                lambda: self.get_previous_execution_date_success()),
+                lambda: self.get_previous_execution_date(state=State.SUCCESS)),
             'prev_start_date_success': lazy_object_proxy.Proxy(
-                lambda: self.get_previous_start_date_success()),
+                lambda: self.get_previous_start_date(state=State.SUCCESS)),
             'run_id': run_id,
             'task': task,
             'task_instance': self,

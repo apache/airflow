@@ -879,7 +879,7 @@ class TestDag(unittest.TestCase):
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'new_nonexisting_dag').one()
         # Since the dag didn't exist before, it should follow the pause flag upon creation
-        self.assertTrue(orm_dag.get_is_paused())
+        self.assertTrue(orm_dag.is_paused)
         session.close()
 
     def test_dag_is_deactivated_upon_dagfile_deletion(self):

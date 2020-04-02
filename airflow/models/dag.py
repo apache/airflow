@@ -25,6 +25,7 @@ import re
 import sys
 import traceback
 from collections import OrderedDict
+import warnings
 from datetime import datetime, timedelta
 from typing import Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Type, Union
 
@@ -609,6 +610,18 @@ class DAG(BaseDag, LoggingMixin):
         )
         return qry.scalar() >= self.concurrency
 
+    @property
+    def concurrency_reached(self):
+        """
+        This attribute is deprecated. Please use `airflow.models.DAG.get_concurrency_reached` method.
+        """
+        warnings.warn(
+            "This attribute is deprecated. Please use `airflow.models.DAG.get_concurrency_reached` method.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.get_concurrency_reached()
+
     @provide_session
     def get_is_paused(self, session=None):
         """
@@ -617,6 +630,18 @@ class DAG(BaseDag, LoggingMixin):
         qry = session.query(DagModel).filter(
             DagModel.dag_id == self.dag_id)
         return qry.value(DagModel.is_paused)
+
+    @property
+    def is_paused(self):
+        """
+        This attribute is deprecated. Please use `airflow.models.DAG.get_is_paused` method.
+        """
+        warnings.warn(
+            "This attribute is deprecated. Please use `airflow.models.DAG.get_is_paused` method.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.get_is_paused()
 
     @provide_session
     def handle_callback(self, dagrun, success=True, reason=None, session=None):
@@ -726,6 +751,18 @@ class DAG(BaseDag, LoggingMixin):
         return session.query(func.max(DagRun.execution_date)).filter(
             DagRun.dag_id == self.dag_id
         ).scalar()
+
+    @property
+    def latest_execution_date(self):
+        """
+        This attribute is deprecated. Please use `airflow.models.DAG.get_latest_execution_date` method.
+        """
+        warnings.warn(
+            "This attribute is deprecated. Please use `airflow.models.DAG.get_latest_execution_date` method.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.get_latest_execution_date()
 
     @property
     def subdags(self):

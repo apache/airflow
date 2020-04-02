@@ -94,7 +94,7 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
     if dttm:
         dttm = timezone.parse(dttm)
     else:
-        dttm = dag.get_latest_execution_date() or timezone.utcnow()
+        dttm = dag.get_latest_execution_date(session=session) or timezone.utcnow()
 
     base_date = request.args.get('base_date')
     if base_date:
