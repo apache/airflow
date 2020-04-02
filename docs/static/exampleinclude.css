@@ -1,0 +1,79 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.example-header {
+  position: relative;
+  background: #9AAA7A;
+  padding: 8px 16px;
+  margin-bottom: 0;
+}
+.example-header--with-button {
+  padding-right: 166px;
+}
+.example-header:after{
+  content: '';
+  display: table;
+  clear: both;
+}
+.example-title {
+  display:block;
+  padding: 4px;
+  margin-right: 16px;
+  color: white;
+  overflow-x: auto;
+}
+.example-header-button {
+  top: 8px;
+  right: 16px;
+  position: absolute;
+}
+.example-header + .highlight-python {
+  margin-top: 0 !important;
+}
+.viewcode-button {
+  display: inline-block;
+  padding: 8px 16px;
+  border: 0;
+  margin: 0;
+  outline: 0;
+  border-radius: 2px;
+  -webkit-box-shadow: 0 3px 5px 0 rgba(0,0,0,.3);
+  box-shadow: 0 3px 6px 0 rgba(0,0,0,.3);
+  color: #404040;
+  background-color: #e7e7e7;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  text-transform: uppercase;
+  -webkit-transition: background-color .2s;
+  transition: background-color .2s;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.viewcode-button:visited {
+  color: #404040;
+}
+.viewcode-button:hover, .viewcode-button:focus {
+  color: #404040;
+  background-color: #d6d6d6;
+}

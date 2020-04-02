@@ -1,26 +1,90 @@
+# Note: these patterns are applied to single files or directories, not full paths
+# coverage/* will ignore any coverage dir, but airflow/www/static/coverage/* will match nothing
+
+.github/*
 .gitignore
 .gitattributes
+.airflow_db_initialised
+.airflowignore
 .coverage
 .coveragerc
 .codecov.yml
+.eslintrc
+.eslintignore
+.flake8
 .rat-excludes
+requirements
 requirements.txt
 .*log
 .travis.yml
 .*pyc
-docs
-.*md
+.*lock
 dist
 build
 airflow.egg-info
+apache_airflow.egg-info
 .idea
 metastore_db
 .*sql
+.*svg
 .*csv
 CHANGELOG.txt
 .*zip
+.*lock
+unittests.cfg
+logs
+.bash_aliases
+venv
+files
+airflow.iml
+
+# Generated doc files
+.*html
+_build/*
+_static/*
+_images/*
+.buildinfo
+searchindex.js
+_api/*
+
 # Apache Rat does not detect BSD-2 clause properly
 # it is compatible according to http://www.apache.org/legal/resolved.html#category-a
 kerberos_auth.py
 airflow_api_auth_backend_kerberos_auth_py.html
+licenses/*
+parallel.js
+underscore.js
+jquery.dataTables.min.js
+jqClock.min.js
+dagre-d3.min.js
+bootstrap-toggle.min.js
+bootstrap-toggle.min.css
+d3.v3.min.js
+ace.js
+node_modules/*
+.*json
+coverage/*
+git_version
+flake8_diff.sh
+coverage.xml
+_sources/*
 
+rat-results.txt
+apache-airflow-.*\+source.tar.gz.*
+apache-airflow-.*\+bin.tar.gz.*
+PULL_REQUEST_TEMPLATE.md
+
+# vendored modules
+_vendor/*
+
+# Temporary list of files to make compatible with Pylint
+pylint_todo.txt
+
+# Locally mounted files
+.*egg-info/*
+.bash_history
+.bash_aliases
+.inputrc
+
+# the example notebook is ASF 2 licensed but RAT cannot read this
+input_notebook.ipynb

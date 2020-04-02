@@ -1,25 +1,27 @@
-# -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 from airflow.exceptions import AirflowException
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 
 
 class ValidStateDep(BaseTIDep):
-    NAME = "Task Instance State"
-    IGNOREABLE = True
-
     """
     Ensures that the task instance's state is in a given set of valid states.
 
@@ -28,8 +30,11 @@ class ValidStateDep(BaseTIDep):
     :type valid_states: set(str)
     :return: whether or not the task instance's state is valid
     """
+    NAME = "Task Instance State"
+    IGNOREABLE = True
+
     def __init__(self, valid_states):
-        super(ValidStateDep, self).__init__()
+        super().__init__()
 
         if not valid_states:
             raise AirflowException(
@@ -37,7 +42,7 @@ class ValidStateDep(BaseTIDep):
         self._valid_states = valid_states
 
     def __eq__(self, other):
-        return type(self) == type(other) and self._valid_states == other._valid_states
+        return isinstance(self, type(other)) and self._valid_states == other._valid_states
 
     def __hash__(self):
         return hash((type(self), tuple(self._valid_states)))
@@ -47,11 +52,11 @@ class ValidStateDep(BaseTIDep):
         if dep_context.ignore_ti_state:
             yield self._passing_status(
                 reason="Context specified that state should be ignored.")
-            raise StopIteration
+            return
 
         if ti.state in self._valid_states:
             yield self._passing_status(reason="Task state {} was valid.".format(ti.state))
-            raise StopIteration
+            return
 
         yield self._failing_status(
             reason="Task is in the '{0}' state which is not a valid state for "

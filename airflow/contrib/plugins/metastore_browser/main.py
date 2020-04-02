@@ -1,48 +1,62 @@
-# -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
-from datetime import datetime
+'''Plugins metabrowser'''
+
 import json
+from datetime import datetime
+from typing import List
 
-from flask import Blueprint, request
-from flask_admin import BaseView, expose
 import pandas as pd
+from flask import Blueprint, request
+from flask_appbuilder import BaseView, expose
 
-from airflow.hooks.hive_hooks import HiveMetastoreHook, HiveCliHook
-from airflow.hooks.mysql_hook import MySqlHook
-from airflow.hooks.presto_hook import PrestoHook
 from airflow.plugins_manager import AirflowPlugin
-from airflow.www import utils as wwwutils
+from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook
+from airflow.providers.mysql.hooks.mysql import MySqlHook
+from airflow.providers.presto.hooks.presto import PrestoHook
+from airflow.www.decorators import gzipped
 
 METASTORE_CONN_ID = 'metastore_default'
 METASTORE_MYSQL_CONN_ID = 'metastore_mysql'
 PRESTO_CONN_ID = 'presto_default'
 HIVE_CLI_CONN_ID = 'hive_default'
 DEFAULT_DB = 'default'
-DB_WHITELIST = None
-DB_BLACKLIST = ['tmp']
+DB_WHITELIST = []  # type: List[str]
+DB_BLACKLIST = ['tmp']  # type: List[str]
 TABLE_SELECTOR_LIMIT = 2000
 
 # Keeping pandas from truncating long strings
 pd.set_option('display.max_colwidth', -1)
 
 
-# Creating a flask admin BaseView
-class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
+class MetastoreBrowserView(BaseView):
+    """
+    Creating a Flask-AppBuilder BaseView
+    """
+
+    default_view = 'index'
 
     @expose('/')
     def index(self):
+        """
+        Create default view
+        """
         sql = """
         SELECT
             a.name as db, db_location_uri as location,
@@ -50,40 +64,49 @@ class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
         FROM DBS a
         JOIN TBLS b ON a.DB_ID = b.DB_ID
         GROUP BY a.name, db_location_uri, a.desc
-        """.format(**locals())
-        h = MySqlHook(METASTORE_MYSQL_CONN_ID)
-        df = h.get_pandas_df(sql)
+        """
+        hook = MySqlHook(METASTORE_MYSQL_CONN_ID)
+        df = hook.get_pandas_df(sql)
         df.db = (
-            '<a href="/admin/metastorebrowserview/db/?db=' +
+            '<a href="/metastorebrowserview/db/?db=' +
             df.db + '">' + df.db + '</a>')
         table = df.to_html(
             classes="table table-striped table-bordered table-hover",
             index=False,
             escape=False,
             na_rep='',)
-        return self.render(
+        return self.render_template(
             "metastore_browser/dbs.html", table=table)
 
     @expose('/table/')
     def table(self):
+        """
+        Create table view
+        """
         table_name = request.args.get("table")
-        m = HiveMetastoreHook(METASTORE_CONN_ID)
-        table = m.get_table(table_name)
-        return self.render(
+        metastore = HiveMetastoreHook(METASTORE_CONN_ID)
+        table = metastore.get_table(table_name)
+        return self.render_template(
             "metastore_browser/table.html",
             table=table, table_name=table_name, datetime=datetime, int=int)
 
     @expose('/db/')
     def db(self):
+        """
+        Show tables in database
+        """
         db = request.args.get("db")
-        m = HiveMetastoreHook(METASTORE_CONN_ID)
-        tables = sorted(m.get_tables(db=db), key=lambda x: x.tableName)
-        return self.render(
+        metastore = HiveMetastoreHook(METASTORE_CONN_ID)
+        tables = sorted(metastore.get_tables(db=db), key=lambda x: x.tableName)
+        return self.render_template(
             "metastore_browser/db.html", tables=tables, db=db)
 
-    @wwwutils.gzipped
+    @gzipped
     @expose('/partitions/')
     def partitions(self):
+        """
+        Retrieve table partitions
+        """
         schema, table = request.args.get("table").split('.')
         sql = """
         SELECT
@@ -101,17 +124,20 @@ class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
             b.TBL_NAME like '{table}' AND
             d.NAME like '{schema}'
         ORDER BY PART_NAME DESC
-        """.format(**locals())
-        h = MySqlHook(METASTORE_MYSQL_CONN_ID)
-        df = h.get_pandas_df(sql)
+        """.format(table=table, schema=schema)
+        hook = MySqlHook(METASTORE_MYSQL_CONN_ID)
+        df = hook.get_pandas_df(sql)
         return df.to_html(
             classes="table table-striped table-bordered table-hover",
             index=False,
             na_rep='',)
 
-    @wwwutils.gzipped
+    @gzipped
     @expose('/objects/')
     def objects(self):
+        """
+        Retrieve objects from TBLS and DBS
+        """
         where_clause = ''
         if DB_WHITELIST:
             dbs = ",".join(["'" + db + "'" for db in DB_WHITELIST])
@@ -131,19 +157,22 @@ class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
         {where_clause}
         LIMIT {LIMIT};
         """.format(where_clause=where_clause, LIMIT=TABLE_SELECTOR_LIMIT)
-        h = MySqlHook(METASTORE_MYSQL_CONN_ID)
-        d = [
-                {'id': row[0], 'text': row[0]}
-            for row in h.get_records(sql)]
-        return json.dumps(d)
+        hook = MySqlHook(METASTORE_MYSQL_CONN_ID)
+        data = [
+            {'id': row[0], 'text': row[0]}
+            for row in hook.get_records(sql)]
+        return json.dumps(data)
 
-    @wwwutils.gzipped
+    @gzipped
     @expose('/data/')
     def data(self):
+        """
+        Retrieve data from table
+        """
         table = request.args.get("table")
         sql = "SELECT * FROM {table} LIMIT 1000;".format(table=table)
-        h = PrestoHook(PRESTO_CONN_ID)
-        df = h.get_pandas_df(sql)
+        hook = PrestoHook(PRESTO_CONN_ID)
+        df = hook.get_pandas_df(sql)
         return df.to_html(
             classes="table table-striped table-bordered table-hover",
             index=False,
@@ -151,14 +180,16 @@ class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
 
     @expose('/ddl/')
     def ddl(self):
+        """
+        Retrieve table ddl
+        """
         table = request.args.get("table")
         sql = "SHOW CREATE TABLE {table};".format(table=table)
-        h = HiveCliHook(HIVE_CLI_CONN_ID)
-        return h.run_cli(sql)
+        hook = HiveCliHook(HIVE_CLI_CONN_ID)
+        return hook.run_cli(sql)
 
-v = MetastoreBrowserView(category="Plugins", name="Hive Metadata Browser")
 
-# Creating a flask blueprint to intergrate the templates and static folder
+# Creating a flask blueprint to integrate the templates and static folder
 bp = Blueprint(
     "metastore_browser", __name__,
     template_folder='templates',
@@ -166,8 +197,12 @@ bp = Blueprint(
     static_url_path='/static/metastore_browser')
 
 
-# Defining the plugin class
 class MetastoreBrowserPlugin(AirflowPlugin):
+    """
+    Defining the plugin class
+    """
     name = "metastore_browser"
     flask_blueprints = [bp]
-    admin_views = [v]
+    appbuilder_views = [{"name": "Hive Metadata Browser",
+                         "category": "Plugins",
+                         "view": MetastoreBrowserView()}]

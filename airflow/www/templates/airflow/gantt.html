@@ -1,33 +1,40 @@
 {#
-  Licensed to the Apache Software Foundation (ASF) under one or more
-  contributor license agreements.  See the NOTICE file distributed with
-  this work for additional information regarding copyright ownership.
-  The ASF licenses this file to You under the Apache License, Version 2.0
-  (the "License"); you may not use this file except in compliance with
-  the License.  You may obtain a copy of the License at
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+   http://www.apache.org/licenses/LICENSE-2.0
 
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
-
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
 #}
+
 {% extends "airflow/dag.html" %}
+
+{% block page_title %}{{ dag.dag_id }} - Gantt - Airflow{% endblock %}
 
 {% block head_css %}
 {{ super() }}
-<link href="{{ admin_static.url(filename='vendor/bootstrap-daterangepicker/daterangepicker-bs2.css') }}" rel="stylesheet"/>
-<link type="text/css" href="{{ url_for('static', filename='gantt.css') }}" rel="stylesheet" />
-<link type="text/css" href="{{ url_for('static', filename='tree.css') }}" rel="stylesheet" />
+<link rel="stylesheet" type="text/css"
+    href="{{url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.css')}}" >
+<link type="text/css" href="{{ url_for('static', filename='css/gantt.css') }}" rel="stylesheet" />
+<link type="text/css" href="{{ url_for('static', filename='css/tree.css') }}" rel="stylesheet" />
 {% endblock %}
 
-{% block body %}
+{% block content %}
 {{ super() }}
 <form method="get">
   <div class="form-inline">
+    Base date: {{ form.base_date(class_="form-control") }}
+    Number of runs: {{ form.num_runs(class_="form-control") }}
     Run:<input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
     {{ form.execution_date(class_="form-control") | safe }}
     <input type="submit" value="Go" class="btn btn-default" action="" method="get">
@@ -43,17 +50,16 @@
 
 {% block tail %}
 {{ super() }}
-<script src="{{ admin_static.url(
-  filename='vendor/bootstrap-daterangepicker/daterangepicker.js') }}"></script>
-<script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
-<script src="{{ url_for('static', filename='d3.tip.v0.6.3.js') }}"></script>/
-<script src="{{ url_for('static', filename='gantt-chart-d3v2.js') }}"></script>
+<script src="{{ url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.js') }}"></script>
+<script src="{{ url_for_asset('d3.min.js') }}"></script>
+<script src="{{ url_for_asset('d3-tip.js') }}"></script>/
+<script src="{{ url_for_asset('ganttChartD3v2.js') }}"></script>
 <script>
   $( document ).ready(function() {
     var dag_id = '{{ dag.dag_id }}';
     var task_id = '';
-    var exection_date = '';
-    data = {{ data |safe }};
+    var execution_date = '';
+    data = {{ data |tojson|safe }};
     var gantt = d3.gantt()
       .taskTypes(data.taskNames)
       .taskStatus(data.taskStatus)

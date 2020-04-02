@@ -1,44 +1,46 @@
-# -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-import sys
-import logging
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""This module is deprecated. Please use `airflow.providers.amazon.aws.operators.ecs`."""
 
-from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+import warnings
 
-from airflow.contrib.hooks.aws_hook import AwsHook
+# pylint: disable=unused-import
+from airflow.providers.amazon.aws.operators.ecs import ECSOperator, ECSProtocol as NewECSProtocol  # noqa
+from airflow.typing_compat import Protocol, runtime_checkable
 
+<<<<<<< HEAD
 _log = logging.getLogger(__name__)
 
+=======
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.ecs`.",
+    DeprecationWarning, stacklevel=2
+)
+>>>>>>> 0d5ecde61bc080d2c53c9021af252973b497fb7d
 
-class ECSOperator(BaseOperator):
 
+@runtime_checkable
+class ECSProtocol(NewECSProtocol, Protocol):
     """
-    Execute a task on AWS EC2 Container Service
-
-    :param task_definition: the task definition name on EC2 Container Service
-    :type task_definition: str
-    :param cluster: the cluster name on EC2 Container Service
-    :type cluster: str
-    :param: overrides: the same parameter that boto3 will receive: http://boto3.readthedocs.org/en/latest/reference/services/ecs.html#ECS.Client.run_task
-    :type: overrides: dict
-    :param aws_conn_id: connection id of AWS credentials / region name. If None, credential boto3 strategy will be used (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
-    :type aws_conn_id: str
-    :param region_name: region name to use in AWS Hook. Override the region_name in connection (if provided)
+    This class is deprecated. Please use `airflow.providers.amazon.aws.operators.ecs.ECSProtocol`.
     """
 
+<<<<<<< HEAD
     ui_color = '#f0ede4'
     client = None
     arn = None
@@ -105,21 +107,18 @@ class ECSOperator(BaseOperator):
 
         if (len(response.get('failures', [])) > 0):
             raise AirflowException(response)
+=======
+    # A Protocol cannot be instantiated
+>>>>>>> 0d5ecde61bc080d2c53c9021af252973b497fb7d
 
-        for task in response['tasks']:
-            containers = task['containers']
-            for container in containers:
-                if container.get('lastStatus') == 'STOPPED' and container['exitCode'] != 0:
-                    raise AirflowException('This task is not in success state {}'.format(task))
-                elif container.get('lastStatus') == 'PENDING':
-                    raise AirflowException('This task is still pending {}'.format(task))
-                elif 'error' in container.get('reason', '').lower():
-                    raise AirflowException('This containers encounter an error during launching : {}'.format(container.get('reason', '').lower()))
-
-    def get_hook(self):
-        return AwsHook(
-            aws_conn_id=self.aws_conn_id
+    def __new__(cls, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.amazon.aws.operators.ecs.ECSProtocol`.""",
+            DeprecationWarning,
+            stacklevel=2,
         )
+<<<<<<< HEAD
 
     def on_kill(self):
         response = self.client.stop_task(
@@ -127,3 +126,5 @@ class ECSOperator(BaseOperator):
             task=self.arn,
             reason='Task killed by the user')
         _log.info(response)
+=======
+>>>>>>> 0d5ecde61bc080d2c53c9021af252973b497fb7d

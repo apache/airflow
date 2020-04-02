@@ -1,21 +1,21 @@
 #!/usr/bin/env python
 
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# Licensed to the Apache Software Foundation (ASF) under one or more
-# contributor license agreements.  See the NOTICE file distributed with
-# this work for additional information regarding copyright ownership.
-# The ASF licenses this file to You under the Apache License, Version 2.0
-# (the "License"); you may not use this file except in compliance with
-# the License.  You may obtain a copy of the License at
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 # Utility for creating well-formed pull request merges and pushing them to
 # Apache.
@@ -29,21 +29,13 @@
 # This tool is based on the Spark merge_spark_pr script:
 # https://github.com/apache/spark/blob/master/dev/merge_spark_pr.py
 
-from __future__ import print_function
 import json
 import os
 import re
 import subprocess
 import sys
 import textwrap
-
-# Python 3 compatibility
-try:
-    import urllib2 as urllib
-except ImportError:
-    import urllib.request as urllib
-if sys.version_info[0] == 3:
-    raw_input = input
+import urllib.request as urllib
 
 try:
     import click
@@ -51,23 +43,30 @@ except ImportError:
     print("Could not find the click library. Run 'sudo pip install click' to install.")
     sys.exit(-1)
 
+try:
+    import keyring
+except ImportError:
+    print("Could not find the keyring library. "
+          "Run 'sudo pip install keyring' to install.")
+    sys.exit(-1)
+
 # Location of your Airflow git development area
 AIRFLOW_GIT_LOCATION = os.environ.get(
     "AIRFLOW_GIT",
     os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
-# Remote name which points to the Gihub site
+# Remote name which points to the GitHub site
 GITHUB_REMOTE_NAME = os.environ.get("GITHUB_REMOTE_NAME", "github")
-# Remote name which points to Apache git
-APACHE_REMOTE_NAME = os.environ.get("APACHE_REMOTE_NAME", "apache")
-# OAuth key used for issuing requests against the GitHub API. If this is not defined, then requests
-# will be unauthenticated. You should only need to configure this if you find yourself regularly
-# exceeding your IP's unauthenticated request rate limit. You can create an OAuth key at
-# https://github.com/settings/tokens. This tool only requires the "public_repo" scope.
+# OAuth key used for issuing requests against the GitHub API. If this is not
+# defined, then requests will be unauthenticated. You should only need to
+# configure this if you find yourself regularly exceeding your IP's
+# unauthenticated request rate limit. You can create an OAuth key at
+# https://github.com/settings/tokens. This tool only requires the "public_repo"
+# scope.
 GITHUB_OAUTH_KEY = os.environ.get("GITHUB_OAUTH_KEY")
 
-GITHUB_BASE = "https://github.com/apache/incubator-airflow/pull"
-GITHUB_API_BASE = "https://api.github.com/repos/apache/incubator-airflow"
+GITHUB_BASE = "https://github.com/apache/airflow/pull"
+GITHUB_API_BASE = "https://api.github.com/repos/apache/airflow"
 GITHUB_USER = 'asfgit'
 
 JIRA_BASE = "https://issues.apache.org/jira/browse"
@@ -76,6 +75,7 @@ JIRA_API_BASE = "https://issues.apache.org/jira"
 BRANCH_PREFIX = "PR_TOOL"
 
 TMP_CREDENTIALS = {}
+
 
 class PRToolError(Exception):
     pass
@@ -165,7 +165,7 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
     pr_branch_name = "%s_MERGE_PR_%s" % (BRANCH_PREFIX, pr_num)
     target_branch_name = "%s_MERGE_PR_%s_%s" % (BRANCH_PREFIX, pr_num, target_ref.upper())
     run_cmd("git fetch %s pull/%s/head:%s" % (GITHUB_REMOTE_NAME, pr_num, pr_branch_name))
-    run_cmd("git fetch %s %s:%s" % (APACHE_REMOTE_NAME, target_ref, target_branch_name))
+    run_cmd("git fetch %s %s:%s" % (GITHUB_REMOTE_NAME, target_ref, target_branch_name))
     run_cmd("git checkout %s" % target_branch_name)
 
     had_conflicts = False
@@ -198,7 +198,8 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
     except Exception as e:
         msg = "Error merging: %s\nWould you like to manually fix-up this merge?" % e
         continue_maybe(msg)
-        msg = "Okay, please fix any conflicts and 'git add' conflicting files... Finished?"
+        msg = ("Okay, please fix any conflicts and 'git add' conflicting files... " +
+               "Finished?")
         continue_maybe(msg)
         had_conflicts = True
 
@@ -209,7 +210,6 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
     if pr_commits:
         all_text += ' '.join(c['commit']['message'] for c in pr_commits)
     all_jira_refs = standardize_jira_ref(all_text, only_jira=True)
-    all_jira_issues = re.findall("AIRFLOW-[0-9]{1,6}", all_jira_refs)
 
     merge_message_flags = []
 
@@ -308,8 +308,7 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
         if primary_author == "":
             primary_author = distinct_authors[0]
 
-        authors = "\n".join(["Author: %s" % a for a in distinct_authors])
-        merge_message_flags.append(u'--author="{}"'.format(primary_author))
+        merge_message_flags.append('--author="{}"'.format(primary_author))
 
     else:
         # This will mark the PR as merged
@@ -320,7 +319,7 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
     # reflow commit message
     seen_first_line = False
     for i in range(1, len(merge_message_flags)):
-        if merge_message_flags[i-1] == '-m':
+        if merge_message_flags[i - 1] == '-m':
             # let the first line be as long as the user wants
             if not seen_first_line:
                 if '\n\n' in merge_message_flags[i]:
@@ -369,7 +368,7 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
             run_cmd(['git', 'commit'] + commit_flags, echo_cmd=False)
 
     if local:
-        msg ='\n' + reflow("""
+        msg = '\n' + reflow("""
             The PR has been merged locally in branch {}.
             You may leave this program running while you work on it. When
             you are finished, press any key to delete the PR branch and
@@ -383,13 +382,13 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
     else:
         continue_maybe(
             '\n\nThe local merge is complete ({}).\n'.format(
-                target_branch_name)
-            + click.style(
-                'Push to Apache ({})?'.format(APACHE_REMOTE_NAME), 'red'))
+                target_branch_name) +
+            click.style(
+                'Push to Gitbox ({})?'.format(GITHUB_REMOTE_NAME), 'red'))
 
     try:
         run_cmd('git push %s %s:%s' % (
-            APACHE_REMOTE_NAME, target_branch_name, target_ref))
+            GITHUB_REMOTE_NAME, target_branch_name, target_ref))
     except Exception as e:
         clean_up()
         fail("Exception while pushing: %s" % e)
@@ -412,7 +411,7 @@ def cherry_pick(pr_num, merge_hash, default_branch):
         BRANCH_PREFIX, pr_num, pick_ref.upper())
 
     run_cmd("git fetch %s %s:%s" % (
-        APACHE_REMOTE_NAME, pick_ref, pick_branch_name))
+        GITHUB_REMOTE_NAME, pick_ref, pick_branch_name))
     run_cmd("git checkout %s" % pick_branch_name)
 
     try:
@@ -428,12 +427,12 @@ def cherry_pick(pr_num, merge_hash, default_branch):
         continue_maybe(msg)
 
     continue_maybe("Pick complete (local ref %s). Push to %s?" % (
-        pick_branch_name, APACHE_REMOTE_NAME))
+        pick_branch_name, GITHUB_REMOTE_NAME))
 
     try:
         run_cmd(
             'git push %s %s:%s' % (
-                APACHE_REMOTE_NAME, pick_branch_name, pick_ref))
+                GITHUB_REMOTE_NAME, pick_branch_name, pick_ref))
     except Exception as e:
         clean_up()
         fail("Exception while pushing: %s" % e)
@@ -452,12 +451,18 @@ def fix_version_from_branch(branch, versions):
     if branch == "master":
         return versions[0]
     else:
-        #TODO adopt a release scheme with branches. Spark uses branch-XX.
+        # TODO adopt a release scheme with branches. Spark uses branch-XX.
         branch_ver = branch.replace("branch-", "")
         versions = list(filter(
             lambda x: x.name.startswith(branch_ver), versions))
         if versions:
             return versions[-1]
+
+
+def register(username, password):
+    """ Use this function to register a JIRA account in your OS' keyring """
+    keyring.set_password('airflow-pr', 'username', username)
+    keyring.set_password('airflow-pr', 'password', password)
 
 
 def validate_jira_id(jira_id):
@@ -530,6 +535,11 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
     JIRA_USERNAME = os.environ.get("JIRA_USERNAME", '')
     if not JIRA_USERNAME:
         JIRA_USERNAME = TMP_CREDENTIALS.get('JIRA_USERNAME', '')
+    if not JIRA_USERNAME:
+        JIRA_USERNAME = keyring.get_password("airflow-pr", "username")
+        if JIRA_USERNAME:
+            click.echo("Obtained jira username from keyring. To reset remove it there")
+
     # ASF JIRA password
     JIRA_PASSWORD = os.environ.get("JIRA_PASSWORD", '')
     if not JIRA_PASSWORD:
@@ -542,13 +552,19 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
         click.echo(
             'Set a JIRA_USERNAME env var to avoid this prompt in the future.')
         TMP_CREDENTIALS['JIRA_USERNAME'] = JIRA_USERNAME
+    if JIRA_USERNAME and not JIRA_PASSWORD:
+        JIRA_PASSWORD = keyring.get_password("airflow-pr", 'password')
+        if JIRA_PASSWORD:
+            click.echo("Obtained password from keyring. To reset remove it there.")
     if not JIRA_PASSWORD:
         JIRA_PASSWORD = click.prompt(
             click.style('Password for Airflow JIRA', fg='blue', bold=True),
             type=str,
             hide_input=True)
-        click.echo(
-            'Set a JIRA_PASSWORD env var to avoid this prompt in the future.')
+        if JIRA_USERNAME and JIRA_PASSWORD:
+            if click.confirm(click.style("Would you like to store your password "
+                                         "in your keyring?", fg='blue', bold=True)):
+                register(JIRA_USERNAME, JIRA_PASSWORD)
         TMP_CREDENTIALS['JIRA_PASSWORD'] = JIRA_PASSWORD
 
     try:
@@ -668,18 +684,19 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
         action["id"],
         fixVersions=jira_fix_versions,
         comment=comment or None,
-        resolution = {'id': resolution.raw['id']})
+        resolution={'id': resolution.raw['id']})
 
     click.echo("Successfully resolved {id}{fv}!".format(
         id=jira_id,
         fv=' with fix versions={}'.format(fix_versions) if fix_versions else ''
-        ))
+    ))
 
 
 def standardize_jira_ref(text, only_jira=False):
     """
     Standardize the [AIRFLOW-XXXXX] [MODULE] prefix
-    Converts "[AIRFLOW-XXX][mllib] Issue", "[MLLib] AIRFLOW-XXX. Issue" or "AIRFLOW XXX [MLLIB]: Issue" to "[AIRFLOW-XXX][MLLIB] Issue"
+    Converts "[AIRFLOW-XXX][mllib] Issue", "[MLLib] AIRFLOW-XXX. Issue" or
+    "AIRFLOW XXX [MLLIB]: Issue" to "[AIRFLOW-XXX][MLLIB] Issue"
 
     >>> standardize_jira_ref("[AIRFLOW-5821] [SQL] ParquetRelation2 CTAS should check if delete is successful")
     '[AIRFLOW-5821][SQL] ParquetRelation2 CTAS should check if delete is successful'
@@ -689,8 +706,8 @@ def standardize_jira_ref(text, only_jira=False):
     '[AIRFLOW-5954][MLLIB] Top by key'
     >>> standardize_jira_ref("[AIRFLOW-979] a LRU scheduler for load balancing in TaskSchedulerImpl")
     '[AIRFLOW-979] a LRU scheduler for load balancing in TaskSchedulerImpl'
-    >>> standardize_jira_ref("AIRFLOW-1094 Support MiMa for reporting binary compatibility accross versions.")
-    '[AIRFLOW-1094] Support MiMa for reporting binary compatibility accross versions.'
+    >>> standardize_jira_ref("AIRFLOW-1094 Support MiMa for reporting binary compatibility across versions.")
+    '[AIRFLOW-1094] Support MiMa for reporting binary compatibility across versions.'
     >>> standardize_jira_ref("[WIP]  [AIRFLOW-1146] Vagrant support for Spark")
     '[AIRFLOW-1146][WIP] Vagrant support for Spark'
     >>> standardize_jira_ref("AIRFLOW-1032. If Yarn app fails before registering, app master stays aroun...")
@@ -701,7 +718,7 @@ def standardize_jira_ref(text, only_jira=False):
     'Additional information for users building from source code'
     >>> standardize_jira_ref('AIRFLOW 35 AIRFLOW--36 AIRFLOW  37 test', only_jira=True)
     '[AIRFLOW-35][AIRFLOW-36][AIRFLOW-37]'
-    """
+    """  # noqa
     jira_refs = []
     components = []
 
@@ -733,7 +750,7 @@ def standardize_jira_ref(text, only_jira=False):
 
     # Cleanup any remaining symbols:
     pattern = re.compile(r'^\W+(.*)', re.IGNORECASE)
-    if (pattern.search(text) is not None):
+    if pattern.search(text) is not None:
         text = pattern.search(text).groups()[0]
 
     def unique(seq):
@@ -746,8 +763,8 @@ def standardize_jira_ref(text, only_jira=False):
     # Assemble full text (JIRA ref(s), module(s), remaining text)
     clean_text = ''.join(unique(jira_refs)).strip()
     if not only_jira:
-         clean_text += (
-             ''.join(unique(components)).strip() + " " + text.strip())
+        clean_text += (
+            ''.join(unique(components)).strip() + " " + text.strip())
 
     # Replace multiple spaces with a single space, e.g. if no jira refs
     # and/or components were included
@@ -781,9 +798,6 @@ def main(pr_num, local=False):
 
     - GITHUB_REMOTE_NAME
         GitHub remote name (defaults to "github")
-
-    - APACHE_REMOTE_NAME
-        Apache git remote name (defaults to "apache")
 
     - JIRA_USERNAME
         ASF JIRA username for automatically closing JIRA issues. Users will be
@@ -823,7 +837,6 @@ def main(pr_num, local=False):
         click.echo('Working with pull request {}'.format(pr_num))
 
     pr = get_json("{}/pulls/{}".format(GITHUB_API_BASE, pr_num))
-    pr_events = get_json("{}/issues/{}/events".format(GITHUB_API_BASE, pr_num))
 
     url = pr["url"]
 
@@ -850,33 +863,6 @@ def main(pr_num, local=False):
     user_login = pr["user"]["login"]
     base_ref = pr["head"]["ref"]
     pr_repo_desc = "%s/%s" % (user_login, base_ref)
-
-    # Merged pull requests are either closed or merged by asfgit
-    merge_commits = [
-        e for e in pr_events
-        if e["actor"]["login"] == GITHUB_USER and
-        (e["event"] == "closed" or e["event"] == "merged")]
-
-    if merge_commits and False:
-        merge_hash = merge_commits[0]["commit_id"]
-        message = get_json(
-            "%s/commits/%s" % (GITHUB_API_BASE, merge_hash)
-            )["commit"]["message"]
-
-        continue_maybe(
-            "Pull request %s has already been merged. "
-            "Do you want to backport?" % pr_num)
-        commit_is_downloaded = run_cmd(
-            ['git', 'rev-parse', '--quiet', '--verify',
-             "%s^{commit}" % merge_hash]) != ""
-        if not commit_is_downloaded:
-            fail(
-                "Couldn't find any merge commit for #%s, "
-                "you may need to update HEAD." % pr_num)
-
-        click.echo("Found commit %s:\n%s" % (merge_hash, message))
-        cherry_pick(pr_num, merge_hash, latest_branch)
-        sys.exit(0)
 
     if not bool(pr["mergeable"]):
         msg = ('Pull request {} is not mergeable in its current form.\n'
@@ -937,11 +923,10 @@ def cli():
     This tool should be used by Airflow committers to test PRs, merge them
     into the master branch, and close related JIRA issues.
 
-    Before you begin, make sure you have created the 'apache' and 'github' git
-    remotes. You can use the "setup_git_remotes" command to do this
-    automatically. If you do not want to use these remote names, you can tell
-    the PR tool by setting the appropriate environment variables. For more
-    information, run:
+    Before you begin, make sure you have created the 'github' git remote. You
+    can use the "setup_git_remotes" command to do this automatically. If you do
+    not want to use these remote names, you can tell the PR tool by setting the
+    appropriate environment variable. For more information, run:
 
         airflow-pr merge --help
     """
@@ -949,7 +934,7 @@ def cli():
     status = run_cmd('git status --porcelain', echo_cmd=False)
     if status:
         msg = (
-            'You have uncomitted changes in this branch. Running this tool\n'
+            'You have uncommitted changes in this branch. Running this tool\n'
             'will delete them permanently. Continue?')
         if click.confirm(click.style(msg, fg='red', bold=True)):
             run_cmd('git reset --hard', echo_cmd=False)
@@ -962,11 +947,10 @@ def cli():
 def merge(pr_num):
     """
     Utility for creating well-formed pull request merges and pushing them
-    to Apache, as well as closing JIRA issues.
+    to Gitbox (a.k.a. GitHub), as well as closing JIRA issues.
 
     This tool assumes you already have a local Airflow git folder and that you
-    have added remotes corresponding to both (i) the github apache Airflow
-    mirror and (ii) the apache git repo.
+    have added remote corresponding to the github apache Airflow repo.
 
     To configure the tool, set the following env vars:
     - AIRFLOW_GIT
@@ -975,9 +959,6 @@ def merge(pr_num):
 
     - GITHUB_REMOTE_NAME
         GitHub remote name (defaults to "github")
-
-    - APACHE_REMOTE_NAME
-        Apache git remote name (defaults to "apache")
 
     - JIRA_USERNAME
         ASF JIRA username for automatically closing JIRA issues. Users will be
@@ -1021,13 +1002,11 @@ def setup_git_remotes():
     click.echo(reflow("""
         This command will create git remotes to mirror the following
         structure. If you do not want to use these names, you must set the
-        GITHUB_REMOTE_NAME and APACHE_REMOTE_NAME environment variables:
+        GITHUB_REMOTE_NAME environment variable:
 
           git remote -v
-          apache https://git-wip-us.apache.org/repos/asf/incubator-airflow.git (fetch)
-          apache https://git-wip-us.apache.org/repos/asf/incubator-airflow.git (push)
-          github https://github.com/apache/incubator-airflow.git (fetch)
-          github https://github.com/apache/incubator-airflow.git (push)
+          github https://github.com/apache/airflow.git (fetch)
+          github https://github.com/apache/airflow.git (push)
 
         If these remotes already exist, the tool will display an error.
         """))
@@ -1035,20 +1014,14 @@ def setup_git_remotes():
 
     error = False
     try:
-        run_cmd('git remote add apache https://git-wip-us.apache.org/repos/asf/incubator-airflow.git')
-    except:
-        click.echo(click.style(reflow(
-            '>>ERROR: Could not create apache remote. If it already exists, '
-            'run `git remote remove apache` to delete it.', fg='red')))
-        error = True
-    try:
-        run_cmd('git remote add github https://github.com/apache/incubator-airflow.git')
+        run_cmd('git remote add github git@github.com:apache/airflow.git')
     except:
         click.echo(click.style(reflow(
             '>>ERROR: Could not create github remote. If it already exists, '
             'run `git remote remove github` to delete it.', fg='red')))
         error = True
-    click.echo('Done setting up git remotes. Run git remote -v to see them.')
+    if not error:
+        click.echo('Done setting up git remotes. Run git remote -v to see them.')
 
 
 if __name__ == "__main__":

@@ -1,21 +1,26 @@
-# -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-from builtins import str
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""Sequential executor."""
 import subprocess
+from typing import Any, Optional
 
-from airflow.executors.base_executor import BaseExecutor
+from airflow.executors.base_executor import BaseExecutor, CommandType
+from airflow.models.taskinstance import TaskInstanceKeyType
 from airflow.utils.state import State
 
 
@@ -28,25 +33,34 @@ class SequentialExecutor(BaseExecutor):
     Since we want airflow to work out of the box, it defaults to this
     SequentialExecutor alongside sqlite as you first install it.
     """
+
     def __init__(self):
-        super(SequentialExecutor, self).__init__()
+        super().__init__()
         self.commands_to_run = []
 
-    def execute_async(self, key, command, queue=None):
-        self.commands_to_run.append((key, command,))
+    def execute_async(self,
+                      key: TaskInstanceKeyType,
+                      command: CommandType,
+                      queue: Optional[str] = None,
+                      executor_config: Optional[Any] = None) -> None:
+        self.commands_to_run.append((key, command))
 
-    def sync(self):
+    def sync(self) -> None:
         for key, command in self.commands_to_run:
-            self.logger.info("Executing command: {}".format(command))
+            self.log.info("Executing command: %s", command)
 
             try:
-                subprocess.check_call(command, shell=True)
+                subprocess.check_call(command, close_fds=True)
                 self.change_state(key, State.SUCCESS)
             except subprocess.CalledProcessError as e:
                 self.change_state(key, State.FAILED)
-                self.logger.error("Failed to execute task {}:".format(str(e)))
+                self.log.error("Failed to execute task %s.", str(e))
 
         self.commands_to_run = []
 
     def end(self):
+        """End the executor."""
         self.heartbeat()
+
+    def terminate(self):
+        """Terminate the executor is not doing anything."""

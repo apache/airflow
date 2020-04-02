@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 .idea/*
 *.bkp
 *.egg-info
@@ -10,23 +11,193 @@
 airflow/git_version
 airflow/www/static/coverage/
 airflow.db
+=======
+# Airflow configuration
+>>>>>>> 0d5ecde61bc080d2c53c9021af252973b497fb7d
 airflow.cfg
-airflow_login.py
-build
-cover
-dbinit.py
-docs/_*
-dist
-env
-initdb.py
-logs
-MANIFEST
-secrets.py
-sftp-config.json
 unittests.cfg
-error.log
+airflow_login.py
+dbinit.py
+initdb.py
+secrets.py
+
+# Airflow sqlite databases
+airflow.db
 unittests.db
+
+# Airflow temporary artifacts
+airflow/git_version
+airflow/www/static/coverage/
+airflow/www/static/dist
+airflow/www_rbac/static/coverage/
+airflow/www_rbac/static/dist/
+
+logs/
+airflow-webserver.pid
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*,cover
+.hypothesis/
+.pytest_cache
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+# *.log
+local_settings.py
+
+# Flask stuff:
+instance/
+.webassets-cache
+/webserver_config.py
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+docs/_api/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# dotenv
+.env
+.autoenv*.zsh
+
+# virtualenv
+.venv*
+venv*
+ENV/
+
+# Spyder project settings
+.spyderproject
+
+# Rope project settings
+.ropeproject
+
+# PyCharm
+.idea/
+*.iml
+
+# Visual Studio Code
+.vscode/
+
+# vim
+*.swp
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# OSX
+.DS_Store
+
+# SQL Server backups
+*.bkp
+
+# Spark
 rat-results.txt
-/.eggs/
-/.tox/
-venv
+
+# Git stuff
+.gitattributes
+# Kubernetes generated templated files
+*.generated
+*.tar.gz
+scripts/ci/in_container/kubernetes/kube/.generated/airflow.yaml
+scripts/ci/in_container/kubernetes/docker/requirements.txt
+
+# Node & Webpack Stuff
+*.entry.js
+node_modules
+npm-debug.log*
+derby.log
+metastore_db
+
+# Airflow log files when airflow is run locally
+airflow-*.err
+airflow-*.out
+airflow-*.log
+airflow-*.pid
+.airflow_db_initialised
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Needed for CI Dockerfile.ci build system
+.build
+/tmp
+/files
+
+/hive_scratch_dir/
+/.bash_aliases
+/.bash_history
+/.kube
+/.inputrc
+log.txt*

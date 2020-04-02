@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        {% for header_element in chart.header_css+chart.header_js %}
+        {{ header_element }}
+        {% endfor %}
+    </head>
+    <body>
+        {{ chart.content }}
+    </body>
+</html>

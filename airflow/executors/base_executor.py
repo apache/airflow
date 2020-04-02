@@ -1,67 +1,101 @@
-# -*- coding: utf-8 -*-
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""
+Base executor - this is the base class for all the implemented executors.
+"""
+from collections import OrderedDict
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
-from builtins import range
-
-from airflow import configuration
+from airflow.configuration import conf
+from airflow.models import TaskInstance
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
+from airflow.stats import Stats
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
-from airflow.utils.logging import LoggingMixin
 
-PARALLELISM = configuration.getint('core', 'PARALLELISM')
+PARALLELISM: int = conf.getint('core', 'PARALLELISM')
+
+NOT_STARTED_MESSAGE = "The executor should be started first!"
+
+# Command to execute - list of strings
+# the first element is always "airflow".
+# It should be result of TaskInstance.generate_command method.q
+CommandType = List[str]
+
+
+# Task that is queued. It contains all the information that is
+# needed to run the task.
+#
+# Tuple of: command, priority, queue name, SimpleTaskInstance
+QueuedTaskInstanceType = Tuple[CommandType, int, Optional[str], Union[SimpleTaskInstance, TaskInstance]]
 
 
 class BaseExecutor(LoggingMixin):
+    """
+    Class to derive in order to interface with executor-type systems
+    like Celery, Kubernetes, Local, Sequential and the likes.
 
-    def __init__(self, parallelism=PARALLELISM):
-        """
-        Class to derive in order to interface with executor-type systems
-        like Celery, Mesos, Yarn and the likes.
-
-        :param parallelism: how many jobs should run at one time. Set to
-            ``0`` for infinity
-        :type parallelism: int
-        """
-        self.parallelism = parallelism
-        self.queued_tasks = {}
-        self.running = {}
-        self.event_buffer = {}
+    :param parallelism: how many jobs should run at one time. Set to
+        ``0`` for infinity
+    """
+    def __init__(self, parallelism: int = PARALLELISM):
+        super().__init__()
+        self.parallelism: int = parallelism
+        self.queued_tasks: OrderedDict[TaskInstanceKeyType, QueuedTaskInstanceType] \
+            = OrderedDict()
+        self.running: Set[TaskInstanceKeyType] = set()
+        self.event_buffer: Dict[TaskInstanceKeyType, Optional[str]] = {}
 
     def start(self):  # pragma: no cover
         """
-        Executors may need to get things started. For example LocalExecutor
-        starts N workers.
+        Executors may need to get things started.
         """
-        pass
 
-    def queue_command(self, task_instance, command, priority=1, queue=None):
-        key = task_instance.key
-        if key not in self.queued_tasks and key not in self.running:
-            self.logger.info("Adding to queue: {}".format(command))
-            self.queued_tasks[key] = (command, priority, queue, task_instance)
+    def queue_command(self,
+                      simple_task_instance: SimpleTaskInstance,
+                      command: CommandType,
+                      priority: int = 1,
+                      queue: Optional[str] = None):
+        """Queues command to task"""
+        if simple_task_instance.key not in self.queued_tasks and simple_task_instance.key not in self.running:
+            self.log.info("Adding to queue: %s", command)
+            self.queued_tasks[simple_task_instance.key] = (command, priority, queue, simple_task_instance)
+        else:
+            self.log.info("could not queue task %s", simple_task_instance.key)
 
     def queue_task_instance(
             self,
-            task_instance,
-            mark_success=False,
-            pickle_id=None,
-            ignore_all_deps=False,
-            ignore_depends_on_past=False,
-            ignore_task_deps=False,
-            ignore_ti_state=False,
-            pool=None):
+            task_instance: TaskInstance,
+            mark_success: bool = False,
+            pickle_id: Optional[str] = None,
+            ignore_all_deps: bool = False,
+            ignore_depends_on_past: bool = False,
+            ignore_task_deps: bool = False,
+            ignore_ti_state: bool = False,
+            pool: Optional[str] = None,
+            cfg_path: Optional[str] = None) -> None:
+        """Queues task instance."""
         pool = pool or task_instance.pool
-        command = task_instance.command(
+
+        # TODO (edgarRd): AIRFLOW-1985:
+        # cfg_path is needed to propagate the config values if using impersonation
+        # (run_as_user), given that there are different code paths running tasks.
+        # For a long term solution we need to address AIRFLOW-1986
+        command_list_to_run = task_instance.command_as_list(
             local=True,
             mark_success=mark_success,
             ignore_all_deps=ignore_all_deps,
@@ -69,86 +103,152 @@ class BaseExecutor(LoggingMixin):
             ignore_task_deps=ignore_task_deps,
             ignore_ti_state=ignore_ti_state,
             pool=pool,
-            pickle_id=pickle_id)
+            pickle_id=pickle_id,
+            cfg_path=cfg_path)
         self.queue_command(
-            task_instance,
-            command,
+            SimpleTaskInstance(task_instance),
+            command_list_to_run,
             priority=task_instance.task.priority_weight_total,
             queue=task_instance.task.queue)
 
-    def sync(self):
+    def has_task(self, task_instance: TaskInstance) -> bool:
+        """
+        Checks if a task is either queued or running in this executor.
+
+        :param task_instance: TaskInstance
+        :return: True if the task is known to this executor
+        """
+        return task_instance.key in self.queued_tasks or task_instance.key in self.running
+
+    def sync(self) -> None:
         """
         Sync will get called periodically by the heartbeat method.
         Executors should override this to perform gather statuses.
         """
-        pass
 
-    def heartbeat(self):
-
-        # Triggering new jobs
+    def heartbeat(self) -> None:
+        """
+        Heartbeat sent to trigger new jobs.
+        """
         if not self.parallelism:
             open_slots = len(self.queued_tasks)
         else:
             open_slots = self.parallelism - len(self.running)
 
-        self.logger.debug("{} running task instances".format(len(self.running)))
-        self.logger.debug("{} in queue".format(len(self.queued_tasks)))
-        self.logger.debug("{} open slots".format(open_slots))
+        num_running_tasks = len(self.running)
+        num_queued_tasks = len(self.queued_tasks)
 
-        sorted_queue = sorted(
-            [(k, v) for k, v in self.queued_tasks.items()],
-            key=lambda x: x[1][1],
-            reverse=True)
-        for i in range(min((open_slots, len(self.queued_tasks)))):
-            key, (command, _, queue, ti) = sorted_queue.pop(0)
-            # TODO(jlowin) without a way to know what Job ran which tasks,
-            # there is a danger that another Job started running a task
-            # that was also queued to this executor. This is the last chance
-            # to check if that happened. The most probable way is that a
-            # Scheduler tried to run a task that was originally queued by a
-            # Backfill. This fix reduces the probability of a collision but
-            # does NOT eliminate it.
-            self.queued_tasks.pop(key)
-            ti.refresh_from_db()
-            if ti.state != State.RUNNING:
-                self.running[key] = command
-                self.execute_async(key, command=command, queue=queue)
-            else:
-                self.logger.debug(
-                    'Task is already running, not sending to '
-                    'executor: {}'.format(key))
+        self.log.debug("%s running task instances", num_running_tasks)
+        self.log.debug("%s in queue", num_queued_tasks)
+        self.log.debug("%s open slots", open_slots)
+
+        Stats.gauge('executor.open_slots', open_slots)
+        Stats.gauge('executor.queued_tasks', num_queued_tasks)
+        Stats.gauge('executor.running_tasks', num_running_tasks)
+
+        self.trigger_tasks(open_slots)
 
         # Calling child class sync method
-        self.logger.debug("Calling the {} sync method".format(self.__class__))
+        self.log.debug("Calling the %s sync method", self.__class__)
         self.sync()
 
-    def change_state(self, key, state):
-        self.running.pop(key)
+    def order_queued_tasks_by_priority(self) -> List[Tuple[TaskInstanceKeyType, QueuedTaskInstanceType]]:
+        """
+        Orders the queued tasks by priority.
+
+        :return: List of tuples from the queued_tasks according to the priority.
+        """
+        return sorted(
+            [(k, v) for k, v in self.queued_tasks.items()],  # pylint: disable=unnecessary-comprehension
+            key=lambda x: x[1][1],
+            reverse=True)
+
+    def trigger_tasks(self, open_slots: int) -> None:
+        """
+        Triggers tasks
+
+        :param open_slots: Number of open slots
+        """
+        sorted_queue = self.order_queued_tasks_by_priority()
+
+        for _ in range(min((open_slots, len(self.queued_tasks)))):
+            key, (command, _, _, simple_ti) = sorted_queue.pop(0)
+            self.queued_tasks.pop(key)
+            self.running.add(key)
+            self.execute_async(key=key,
+                               command=command,
+                               queue=None,
+                               executor_config=simple_ti.executor_config)
+
+    def change_state(self, key: TaskInstanceKeyType, state: str) -> None:
+        """
+        Changes state of the task.
+
+        :param key: Unique key for the task instance
+        :param state: State to set for the task.
+        """
+        self.log.debug("Changing state: %s", key)
+        try:
+            self.running.remove(key)
+        except KeyError:
+            self.log.debug('Could not find key: %s', str(key))
         self.event_buffer[key] = state
 
-    def fail(self, key):
+    def fail(self, key: TaskInstanceKeyType) -> None:
+        """
+        Set fail state for the event.
+
+        :param key: Unique key for the task instance
+        """
         self.change_state(key, State.FAILED)
 
-    def success(self, key):
+    def success(self, key: TaskInstanceKeyType) -> None:
+        """
+        Set success state for the event.
+
+        :param key: Unique key for the task instance
+        """
         self.change_state(key, State.SUCCESS)
 
-    def get_event_buffer(self):
+    def get_event_buffer(self, dag_ids=None) -> Dict[TaskInstanceKeyType, Optional[str]]:
         """
-        Returns and flush the event buffer
-        """
-        d = self.event_buffer
-        self.event_buffer = {}
-        return d
+        Returns and flush the event buffer. In case dag_ids is specified
+        it will only return and flush events for the given dag_ids. Otherwise
+        it returns and flushes all events.
 
-    def execute_async(self, key, command, queue=None):  # pragma: no cover
+        :param dag_ids: to dag_ids to return events for, if None returns all
+        :return: a dict of events
+        """
+        cleared_events: Dict[TaskInstanceKeyType, Optional[str]] = dict()
+        if dag_ids is None:
+            cleared_events = self.event_buffer
+            self.event_buffer = dict()
+        else:
+            for key in list(self.event_buffer.keys()):
+                dag_id, _, _, _ = key
+                if dag_id in dag_ids:
+                    cleared_events[key] = self.event_buffer.pop(key)
+
+        return cleared_events
+
+    def execute_async(self,
+                      key: TaskInstanceKeyType,
+                      command: CommandType,
+                      queue: Optional[str] = None,
+                      executor_config: Optional[Any] = None) -> None:  # pragma: no cover
         """
         This method will execute the command asynchronously.
+
+        :param key: Unique key for the task instance
+        :param command: Command to run
+        :param queue: name of the queue
+        :param executor_config: Configuration passed to the executor.
         """
         raise NotImplementedError()
 
-    def end(self):  # pragma: no cover
+    def end(self) -> None:  # pragma: no cover
         """
-        This method is called when the caller is done submitting job and is
+        This method is called when the caller is done submitting job and
         wants to wait synchronously for the job submitted previously to be
         all done.
         """

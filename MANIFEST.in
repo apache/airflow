@@ -1,17 +1,36 @@
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
-graft airflow/www/templates
+include NOTICE
+include LICENSE
+include CHANGELOG.txt
+include README.md
+graft licenses
+graft airflow/www
 graft airflow/www/static
+graft airflow/www/templates
+graft airflow/_vendor/
 include airflow/alembic.ini
-include requirements.txt
+include airflow/git_version
+include airflow/serialization/schema.json
+graft scripts/systemd
+graft scripts/upstart
+graft airflow/config_templates
+recursive-exclude airflow/www/node_modules *
+global-exclude __pycache__  *.pyc
+include airflow/providers/cncf/kubernetes/example_dags/example_spark_kubernetes_operator_spark_pi.yaml

@@ -1,38 +1,43 @@
-# -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""This module is deprecated. Please use `airflow.providers.google.cloud.operators.mysql_to_gcs`."""
 
-import json
-import logging
-import time
+import warnings
 
-from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
-from airflow.hooks.mysql_hook import MySqlHook
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
-from collections import OrderedDict
-from datetime import date, datetime
-from decimal import Decimal
-from MySQLdb.constants import FIELD_TYPE
-from tempfile import NamedTemporaryFile
+from airflow.providers.google.cloud.operators.mysql_to_gcs import MySQLToGCSOperator
 
+<<<<<<< HEAD
 _log = logging.getLogger(__name__)
 
+=======
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.mysql_to_gcs`.",
+    DeprecationWarning, stacklevel=2
+)
+>>>>>>> 0d5ecde61bc080d2c53c9021af252973b497fb7d
 
-class MySqlToGoogleCloudStorageOperator(BaseOperator):
+
+class MySqlToGoogleCloudStorageOperator(MySQLToGCSOperator):
     """
-    Copy data from MySQL to Google cloud storage in JSON format.
+    This class is deprecated.
+    Please use `airflow.providers.google.cloud.operators.mysql_to_gcs.MySQLToGCSOperator`.
     """
+<<<<<<< HEAD
     template_fields = ('sql', 'bucket', 'filename', 'schema_filename')
     template_ext = ('.sql',)
     ui_color = '#a0e08c'
@@ -200,27 +205,13 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
             return float(value)
         else:
             return value
+=======
+>>>>>>> 0d5ecde61bc080d2c53c9021af252973b497fb7d
 
-    @classmethod
-    def type_map(cls, mysql_type):
-        """
-        Helper function that maps from MySQL fields to BigQuery fields. Used
-        when a schema_filename is set.
-        """
-        d = {
-            FIELD_TYPE.INT24: 'INTEGER',
-            FIELD_TYPE.TINY: 'INTEGER',
-            FIELD_TYPE.BIT: 'INTEGER',
-            FIELD_TYPE.DATETIME: 'TIMESTAMP',
-            FIELD_TYPE.DECIMAL: 'FLOAT',
-            FIELD_TYPE.NEWDECIMAL: 'FLOAT',
-            FIELD_TYPE.DOUBLE: 'FLOAT',
-            FIELD_TYPE.FLOAT: 'FLOAT',
-            FIELD_TYPE.INT24: 'INTEGER',
-            FIELD_TYPE.LONG: 'INTEGER',
-            FIELD_TYPE.LONGLONG: 'INTEGER',
-            FIELD_TYPE.SHORT: 'INTEGER',
-            FIELD_TYPE.TIMESTAMP: 'TIMESTAMP',
-            FIELD_TYPE.YEAR: 'INTEGER',
-        }
-        return d[mysql_type] if mysql_type in d else 'STRING'
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.google.cloud.operators.mysql_to_gcs.MySQLToGCSOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

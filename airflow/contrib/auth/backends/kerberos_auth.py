@@ -1,109 +1,131 @@
-# -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""Kerberos authentication module"""
+import logging
 
 import flask_login
-from flask_login import login_required, current_user, logout_user
-from flask import flash
-from wtforms import (
-    Form, PasswordField, StringField)
-from wtforms.validators import InputRequired
-
 # pykerberos should be used as it verifies the KDC, the "kerberos" module does not do so
 # and make it possible to spoof the KDC
 import kerberos
-import airflow.security.utils as utils
+from flask import flash, redirect, url_for
+from flask_login import current_user
+from wtforms import Form, PasswordField, StringField
+from wtforms.validators import InputRequired
 
-from flask import url_for, redirect
-
-from airflow import settings
 from airflow import models
-from airflow import configuration
+from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
+from airflow.security import utils
+from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 
-import logging
-
-login_manager = flask_login.LoginManager()
-login_manager.login_view = 'airflow.login'  # Calls login() below
-login_manager.login_message = None
+# pylint: disable=c-extension-no-member
+LOGIN_MANAGER = flask_login.LoginManager()
+LOGIN_MANAGER.login_view = 'airflow.login'  # Calls login() below
+LOGIN_MANAGER.login_message = None
 
 _log = logging.getLogger(__name__)
 
 
 class AuthenticationError(Exception):
-    pass
+    """Error raised when authentication error occurs"""
 
 
-class KerberosUser(models.User):
+class KerberosUser(models.User, LoggingMixin):
+    """User authenticated with Kerberos"""
     def __init__(self, user):
         self.user = user
 
     @staticmethod
     def authenticate(username, password):
-        service_principal = "%s/%s" % (configuration.get('kerberos', 'principal'), utils.get_fqdn())
-        realm = configuration.get("kerberos", "default_realm")
-        user_principal = utils.principal_from_username(username)
+        service_principal = "%s/%s" % (
+            conf.get('kerberos', 'principal'),
+            utils.get_fqdn()
+        )
+        realm = conf.get("kerberos", "default_realm")
+
+        try:
+            user_realm = conf.get("security", "default_realm")
+        except AirflowConfigException:
+            user_realm = realm
+
+        user_principal = utils.principal_from_username(username, user_realm)
 
         try:
             # this is pykerberos specific, verify = True is needed to prevent KDC spoofing
-            if not kerberos.checkPassword(user_principal, password, service_principal, realm, True):
+            if not kerberos.checkPassword(user_principal,
+                                          password,
+                                          service_principal, realm, True):
                 raise AuthenticationError()
         except kerberos.KrbError as e:
+<<<<<<< HEAD
             _log.error('Password validation for principal %s failed %s',
                     user_principal, e)
+=======
+            logging.error(
+                'Password validation for user '
+                '%s in realm %s failed %s', user_principal, realm, e)
+>>>>>>> 0d5ecde61bc080d2c53c9021af252973b497fb7d
             raise AuthenticationError(e)
 
         return
 
+    @property
     def is_active(self):
-        '''Required by flask_login'''
+        """Required by flask_login"""
         return True
 
+    @property
     def is_authenticated(self):
-        '''Required by flask_login'''
+        """Required by flask_login"""
         return True
 
+    @property
     def is_anonymous(self):
-        '''Required by flask_login'''
+        """Required by flask_login"""
         return False
 
     def get_id(self):
-        '''Returns the current user id as required by flask_login'''
+        """Returns the current user id as required by flask_login"""
         return self.user.get_id()
 
     def data_profiling(self):
-        '''Provides access to data profiling tools'''
+        """Provides access to data profiling tools"""
         return True
 
     def is_superuser(self):
-        '''Access all the things'''
+        """Access all the things"""
         return True
 
 
-@login_manager.user_loader
-def load_user(userid):
+@LOGIN_MANAGER.user_loader
+@provide_session
+def load_user(userid, session=None):
     if not userid or userid == 'None':
         return None
 
-    session = settings.Session()
     user = session.query(models.User).filter(models.User.id == int(userid)).first()
-    session.expunge_all()
-    session.commit()
-    session.close()
     return KerberosUser(user)
 
 
-def login(self, request):
-    if current_user.is_authenticated():
+@provide_session
+def login(self, request, session=None):
+    if current_user.is_authenticated:
         flash("You are already logged in")
         return redirect(url_for('index'))
 
@@ -124,7 +146,6 @@ def login(self, request):
     try:
         KerberosUser.authenticate(username, password)
 
-        session = settings.Session()
         user = session.query(models.User).filter(
             models.User.username == username).first()
 
@@ -137,7 +158,6 @@ def login(self, request):
         session.commit()
         flask_login.login_user(KerberosUser(user))
         session.commit()
-        session.close()
 
         return redirect(request.args.get("next") or url_for("admin.index"))
     except AuthenticationError:

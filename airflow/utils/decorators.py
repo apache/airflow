@@ -1,32 +1,30 @@
-# -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
+
+import inspect
 import os
-
-# inspect.signature is only available in Python 3. funcsigs.signature is
-# a backport.
-try:
-    import inspect
-    signature = inspect.signature
-except AttributeError:
-    import funcsigs
-    signature = funcsigs.signature
-
 from copy import copy
 from functools import wraps
 
 from airflow.exceptions import AirflowException
+
+signature = inspect.signature
 
 
 def apply_defaults(func):
@@ -39,22 +37,33 @@ def apply_defaults(func):
     inheritance and argument defaults, this decorator also alerts with
     specific information about the missing arguments.
     """
+
+    # Cache inspect.signature for the wrapper closure to avoid calling it
+    # at every decorated invocation. This is separate sig_cache created
+    # per decoration, i.e. each function decorated using apply_defaults will
+    # have a different sig_cache.
+    sig_cache = signature(func)
+    non_optional_args = {
+        name for (name, param) in sig_cache.parameters.items()
+        if param.default == param.empty and
+        param.name != 'self' and
+        param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)}
+
     @wraps(func)
     def wrapper(*args, **kwargs):
+        from airflow.models.dag import DagContext
         if len(args) > 1:
             raise AirflowException(
                 "Use keyword arguments when initializing operators")
         dag_args = {}
         dag_params = {}
-        import airflow.models
-        if kwargs.get('dag', None) or airflow.models._CONTEXT_MANAGER_DAG:
-            dag = kwargs.get('dag', None) or airflow.models._CONTEXT_MANAGER_DAG
+
+        dag = kwargs.get('dag', None) or DagContext.get_current_dag()
+        if dag:
             dag_args = copy(dag.default_args) or {}
             dag_params = copy(dag.params) or {}
 
-        params = {}
-        if 'params' in kwargs:
-            params = kwargs['params']
+        params = kwargs.get('params', {}) or {}
         dag_params.update(params)
 
         default_args = {}
@@ -67,16 +76,11 @@ def apply_defaults(func):
         dag_args.update(default_args)
         default_args = dag_args
 
-        sig = signature(func)
-        non_optional_args = [
-            name for (name, param) in sig.parameters.items()
-            if param.default == param.empty and
-            param.name != 'self' and
-            param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)]
-        for arg in sig.parameters:
-            if arg in default_args and arg not in kwargs:
+        for arg in sig_cache.parameters:
+            if arg not in kwargs and arg in default_args:
                 kwargs[arg] = default_args[arg]
-        missing_args = list(set(non_optional_args) - set(kwargs))
+
+        missing_args = list(non_optional_args - set(kwargs))
         if missing_args:
             msg = "Argument {0} is required".format(missing_args)
             raise AirflowException(msg)
@@ -87,6 +91,8 @@ def apply_defaults(func):
         return result
     return wrapper
 
+
 if 'BUILDING_AIRFLOW_DOCS' in os.environ:
+    # flake8: noqa: F811
     # Monkey patch hook to get good function headers while building docs
     apply_defaults = lambda x: x

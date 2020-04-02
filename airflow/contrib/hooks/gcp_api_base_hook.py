@@ -1,50 +1,38 @@
-# -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""This module is deprecated. Please use `airflow.providers.google.common.hooks.base_google`."""
+import warnings
 
-import logging
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
-import httplib2
-from oauth2client.client import GoogleCredentials
-from oauth2client.service_account import ServiceAccountCredentials
-
-from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.google.common.hooks.base_google`.",
+    DeprecationWarning, stacklevel=2
+)
 
 _log = logging.getLogger(__name__)
 
 
-class GoogleCloudBaseHook(BaseHook):
+class GoogleCloudBaseHook(GoogleBaseHook):
     """
-    A base hook for Google cloud-related hooks. Google cloud has a shared REST
-    API client that is built in the same way no matter which service you use.
-    This class helps construct and authorize the credentials needed to then
-    call apiclient.discovery.build() to actually discover and build a client
-    for a Google cloud service.
-
-    The class also contains some miscellaneous helper functions.
-
-    All hook derived from this base hook use the 'Google Cloud Platform' connection
-    type. Two ways of authentication are supported:
-
-    Default credentials: Only specify 'Project Id'. Then you need to have executed
-    ``gcloud auth`` on the Airflow worker machine.
-
-    JSON key file: Specify 'Project Id', 'Key Path' and 'Scope'.
-
-    Legacy P12 key files are not supported.
+    This class is deprecated. Please use `airflow.providers.google.common.hooks.base_google.GoogleBaseHook`.
     """
+<<<<<<< HEAD
 
     def __init__(self, conn_id, delegate_to=None):
         """
@@ -108,3 +96,12 @@ class GoogleCloudBaseHook(BaseHook):
     @property
     def project_id(self):
         return self._get_field('project')
+=======
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This class is deprecated. Please use "
+            "`airflow.providers.google.common.hooks.base_google.GoogleBaseHook`.",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+>>>>>>> 0d5ecde61bc080d2c53c9021af252973b497fb7d

@@ -1,30 +1,34 @@
+ .. Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
 
-.. image:: img/pin_large.png
+ ..   http://www.apache.org/licenses/LICENSE-2.0
+
+ .. Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+
+
+
+.. image:: ../airflow/www/static/pin_large.png
     :width: 100
-.. image:: img/incubator.jpg
-    :width: 150
 
-Apache Airflow (incubating) Documentation
+Apache Airflow Documentation
 =========================================
-
-.. important::
-
-    **Disclaimer**: Apache Airflow is an effort undergoing incubation at The
-    Apache Software Foundation (ASF), sponsored by the Apache Incubator.
-    Incubation is required of all newly accepted projects until a further
-    review indicates that the infrastructure, communications, and
-    decision making process have stabilized in a manner consistent with
-    other successful ASF projects. While incubation status is not
-    necessarily a reflection of the completeness or stability of
-    the code, it does indicate that the project has yet to be fully
-    endorsed by the ASF.
-
 
 Airflow is a platform to programmatically author, schedule and monitor
 workflows.
 
-Use airflow to author workflows as directed acyclic graphs (DAGs) of tasks.
-The airflow scheduler executes your tasks on an array of workers while
+Use Airflow to author workflows as Directed Acyclic Graphs (DAGs) of tasks.
+The Airflow scheduler executes your tasks on an array of workers while
 following the specified dependencies. Rich command line utilities make
 performing complex surgeries on DAGs a snap. The rich user interface
 makes it easy to visualize pipelines running in production,
@@ -56,7 +60,7 @@ one to the other (though tasks can exchange metadata!). Airflow is not
 in the `Spark Streaming <http://spark.apache.org/streaming/>`_
 or `Storm <https://storm.apache.org/>`_ space, it is more comparable to
 `Oozie <http://oozie.apache.org/>`_ or
-`Azkaban <http://data.linkedin.com/opensource/azkaban>`_.
+`Azkaban <https://azkaban.github.io/>`_.
 
 Workflows are expected to be mostly static or slowly changing. You can think
 of the structure of the tasks in your workflow as slightly more dynamic
@@ -75,15 +79,34 @@ Content
     start
     installation
     tutorial
-    configuration
+    howto/index
     ui
     concepts
-    profiling
-    cli
     scheduler
+    executor/index
+    dag-run
     plugins
     security
-    api
+    timezone
+    Using the CLI <usage-cli>
     integration
+    metrics
+    errors
+    kubernetes
+    lineage
+    dag-serialization
+    changelog
+    best-practices
     faq
-    code
+    privacy_notice
+
+.. toctree::
+    :maxdepth: 1
+    :caption: References
+
+    Operators and hooks <operators-and-hooks-ref>
+    CLI <cli-ref>
+    Macros <macros-ref>
+    Python API <_api/index>
+    REST API <rest-api-ref>
+    Configurations <configurations-ref>
