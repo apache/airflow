@@ -125,3 +125,50 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
 
         assert mock_run.call_count == 1
         assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
+
+    @parameterized.expand([
+        [None, "table"],
+        ["schema", None],
+        [None, None]
+    ])
+    @mock.patch("boto3.session.Session")
+    @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.run")
+    def test_transfer_failure(self, expected_schema, expected_table, mock_run, mock_session, ):
+        access_key = "aws_access_key_id"
+        secret_key = "aws_secret_access_key"
+        mock_session.return_value = Session(access_key, secret_key)
+        schema = "schema"
+        table = "table"
+        s3_bucket = "bucket"
+        s3_key = "key"
+        unload_options = ['HEADER', ]
+
+        RedshiftToS3Transfer(
+            schema=schema,
+            table=table,
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            unload_options=unload_options,
+            include_header=True,
+            redshift_conn_id="redshift_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            dag=None
+        ).execute(None)
+        select_query = "SELECT * FROM {schema}.{table}".format(schema=schema, table=table)
+        unload_options = '\n\t\t\t'.join(unload_options)
+        unload_query = """
+                    UNLOAD ('{select_query}')
+                    TO 's3://{s3_bucket}/{s3_key}'
+                    with credentials
+                    'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
+                    {unload_options};
+                    """.format(select_query=select_query,
+                               s3_bucket=s3_bucket,
+                               s3_key=s3_key,
+                               access_key=access_key,
+                               secret_key=secret_key,
+                               unload_options=unload_options)
+
+        assert mock_run.call_count == 1
+        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
