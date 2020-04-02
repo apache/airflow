@@ -47,7 +47,7 @@
 {% endmacro %}
 
 {# clock and timezone menu #}
-<li class="dropdown">
+<li class="dropdown" id="timezone-dropdown">
   <a class="dropdown-toggle" data-toggle="dropdown" style="display:none">
     <span id="clock"></span>
     <b class="caret"></b>
@@ -57,8 +57,11 @@
     <li><a id="timezone-local">Local</a></li>
     <li style="display: none"><a id="timezone-manual" data-timezone=""></a></li>
     <hr>
-    <li id="timezone-other"><span>Other</span>
-      <input placeholder="Timezone name" autocomplete="off">
+    <li>
+      <form>
+      <label for="timezone-other">Other</label>
+      <input id="timezone-other" placeholder="Timezone name" autocomplete="off">
+      </form>
     </li>
   </ul>
 </li>

@@ -16,12 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/* global $, moment, Airflow */
+/* global $, moment, Airflow, window, localStorage, document */
 
 import {
   defaultFormat,
-  defaultTZFormat,
-  getCurrentTimezone,
   formatTimezone,
   isoDateToTimeEl,
   setDisplayedTimezone,
@@ -122,36 +120,61 @@ function initializeUITimezone() {
   const local = moment.tz.guess();
 
   const selectedTz = localStorage.getItem('selected-timezone');
+  const manualTz = localStorage.getItem('chosen-timezone');
+
+  function setManualTimezone(tz) {
+    localStorage.setItem('chosen-timezone', tz)
+    $('#timezone-manual')
+      .data('timezone', tz)
+      .text(formatTimezone(tz))
+      .parent().show();
+  }
+
+  if (manualTz) {
+    setManualTimezone(manualTz);
+  }
+
   setDisplayedTimezone(selectedTz || 'UTC');
   $('#timezone-local')
     .attr('data-timezone', local)
     .text(`Local: ${formatTimezone(local)}`);
 
-  if (selectedTz && selectedTz != 'UTC' && selectedTz != local) {
-    $('#timezone-manual')
-      .data('timezone', selectedTz)
-      .text(formatTimezone(selectedTz))
-      .parent().show()
-  }
-
   $('a[data-timezone]').click((evt) => {
     changDisplayedTimezone($(evt.target).data('timezone'));
-  })
+  });
 
-  $('#timezone-menu input').typeahead({
+  $('#timezone-dropdown').on('hide.bs.dropdown', (evt) => {
+    if (document.activeElement.id === 'timezone-other') {
+      // Don't let the dropdown close if the input is active
+      evt.preventDefault();
+    }
+  });
+
+  $('#timezone-other').typeahead({
     source: $(moment.tz.names().map((tzName) => {
-      const category = tzName.split('/', 1)[0]
-      return { category, name: tzName.replace('_', ' '), tzName }
+      const category = tzName.split('/', 1)[0];
+      return { category, name: tzName.replace('_', ' '), tzName };
     })),
-    showHintOnFocus: true,
+    showHintOnFocus: 'all',
     showCategoryHeader: true,
     items: 'all',
     afterSelect(data) {
-      $('#timezone-manual').text(formatTimezone(data.tzName)).data('timezone', data.tzName).parent().show()
-      // Clear it for next time
+      // Clear it for next time we open the pop-up
       this.$element.val('');
-      $('#timezone-menu').dropdown('toggle');
+
+      setManualTimezone(data.tzName);
       changDisplayedTimezone(data.tzName);
+
+      // We need to delay the close event to not be in the form handler,
+      // otherwise bootstrap ignores it, thinking it's caused by interaction on
+      // the <form>
+      setTimeout(() => {
+        document.activeElement.blur();
+        // Bug in typeahed, it thinks it's still shown!
+        this.shown = false;
+        this.focused = false;
+        $('#timezone-menu').dropdown('toggle');
+      }, 1);
     },
   });
 }

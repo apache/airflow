@@ -238,12 +238,9 @@ div.square {
   box-shadow: inset 0 6px 6px rgba(0, 0, 0, 0.4);
 }
 
-#timezone-menu li > span {
-  padding: 3px 20px;
-  display: block;
-}
-#timezone-menu li input {
+label[for="timezone-other"], #timezone-other {
   margin: 3px 20px;
+  font-weight: normal;
 }
 #timezone-menu ul.typeahead.dropdown-menu {
     max-height: 200px;
