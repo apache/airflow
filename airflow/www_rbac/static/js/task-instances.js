@@ -20,7 +20,7 @@
 /* global window, dagTZ, moment, convertSecsToHumanReadable */
 
 // We don't re-import moment again, otherwise webpack will include it twice in the bundle!
-import { defaultFormat, formatDateTime } from './datetime-utils';
+import { defaultFormat, formatDateTime, getCurrentTimezone } from './datetime-utils';
 import { escapeHtml } from './base';
 
 function makeDateTimeHTML(start, end) {
@@ -31,7 +31,7 @@ function makeDateTimeHTML(start, end) {
 
 function generateTooltipDateTimes(startDate, endDate, dagTZ) {
   const tzFormat = 'z (Z)';
-  const localTZ = moment.tz.guess();
+  const localTZ = getCurrentTimezone();
   startDate = moment.utc(startDate);
   endDate = moment.utc(endDate);
   dagTZ = dagTZ.toUpperCase();

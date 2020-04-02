@@ -25,9 +25,10 @@ from sqlalchemy import or_, and_
 
 from airflow import models
 from airflow.exceptions import AirflowException
-from airflow.www_rbac.app import appbuilder
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.www_rbac.app import appbuilder
+from airflow.www_rbac.utils import CustomSQLAInterface
 
 
 EXISTING_ROLES = {
@@ -171,6 +172,20 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             'vms': VIEWER_VMS | DAG_VMS | USER_VMS | OP_VMS,
         },
     ]
+
+    def __init__(self, appbuilder):
+        super(AirflowSecurityManager, self).__init__(appbuilder)
+
+        # Go and fix up the SQLAInterface used from the stock one to our subclass.
+        # This is needed to support the "hack" where we had to edit
+        # FieldConverter.conversion_table in place in airflow.www.utils
+        for attr in dir(self):
+            if not attr.endswith('view'):
+                continue
+            view = getattr(self, attr, None)
+            if not view or not getattr(view, 'datamodel', None):
+                continue
+            view.datamodel = CustomSQLAInterface(view.datamodel.obj)
 
     def init_role(self, role_name, role_vms, role_perms):
         """

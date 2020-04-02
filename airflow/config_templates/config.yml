@@ -629,6 +629,16 @@
       type: string
       example: ~
       default: "http://localhost:8080"
+    - name: default_ui_timezone
+      description: |
+        Default timezone to display all dates in the UI, can be UTC, system, or
+        any IANA timezone string (e.g. Europe/Amsterdam). If left empty the
+        default value of core/default_timezone will be used
+      version_added: 1.10.10
+      type: string
+      example: "America/New_York"
+      # Default is left as UTC for now so the date's don't "suddenly" change on upgrade
+      default: "UTC"
     - name: web_server_host
       description: |
         The ip specified when starting the web server

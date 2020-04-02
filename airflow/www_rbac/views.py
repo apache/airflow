@@ -505,7 +505,7 @@ class Airflow(AirflowBaseView):
         resp = {
             r.dag_id.replace('.', '__dot__'): {
                 'dag_id': r.dag_id,
-                'last_run': r.last_run.strftime("%Y-%m-%d %H:%M"),
+                'last_run': r.last_run.isoformat(),
             } for r in query
         }
         return wwwutils.json_response(resp)

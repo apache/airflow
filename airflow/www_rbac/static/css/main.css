@@ -238,6 +238,16 @@ div.square {
   box-shadow: inset 0 6px 6px rgba(0, 0, 0, 0.4);
 }
 
+label[for="timezone-other"], #timezone-other {
+  margin: 3px 20px;
+  font-weight: normal;
+}
+#timezone-menu ul.typeahead.dropdown-menu {
+    max-height: 200px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
 .hll { background-color: #ffffcc }
 .c { color: #408080; font-style: italic } /* Comment */
 .err { border: 1px solid #FF0000 } /* Error */
