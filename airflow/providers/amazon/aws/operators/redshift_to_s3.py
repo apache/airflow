@@ -112,7 +112,7 @@ class RedshiftToS3Transfer(BaseOperator):
             select_query = self.custom_select_query
         else:
             raise AirflowBadRequest("Either (schema, table) or custom_select_query should be set. "
-                                    f"They are ({self.schema},{self.table}) and {self.custom_select_query} now.")
+                                    f"They are ({self.schema},{self.table}) and {self.custom_select_query}")
         postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
