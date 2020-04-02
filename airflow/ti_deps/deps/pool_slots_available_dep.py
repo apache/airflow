@@ -63,7 +63,7 @@ class PoolSlotsAvailableDep(BaseTIDep):
         if ti.state in STATES_TO_COUNT_AS_RUNNING:
             open_slots += ti.pool_slots
 
-        if open_slots <= (ti.pool_slots - 1):
+        if open_slots < ti.pool_slots:
             yield self._failing_status(
                 reason=("Not scheduling since there are %s open slots in pool %s "
                         "and require %s pool slots",

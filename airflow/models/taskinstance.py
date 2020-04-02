@@ -48,6 +48,7 @@ from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.sentry import Sentry
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.stats import Stats
@@ -826,7 +827,7 @@ class TaskInstance(Base, LoggingMixin):
                 ignore_depends_on_past=ignore_depends_on_past,
                 ignore_task_deps=ignore_task_deps,
                 ignore_ti_state=ignore_ti_state)
-            if not self.are_dependencies_met(
+            if not isinstance(self.task, DummyOperator) and not self.are_dependencies_met(
                     dep_context=dep_context,
                     session=session,
                     verbose=True):

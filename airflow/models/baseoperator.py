@@ -177,7 +177,7 @@ class BaseOperator(Operator, LoggingMixin):
         way to limit concurrency for certain tasks
     :type pool: str
     :param pool_slots: the number of pool slots this task should use (>= 1)
-        Values less than 1 are not allowed.
+        Values less than 1 are not allowed (unless DummyOperator).
     :type pool_slots: int
     :param sla: time by which the job is expected to succeed. Note that
         this represents the ``timedelta`` after the period is closed. For
@@ -386,8 +386,8 @@ class BaseOperator(Operator, LoggingMixin):
         self.retries = retries
         self.queue = queue
         self.pool = pool
-        self.pool_slots = pool_slots
-        if self.pool_slots < 1:
+        self.pool_slots = 0 if self.__class__.__name__ == 'DummyOperator' else pool_slots
+        if self.pool_slots < 0 or (self.pool_slots == 0 and self.__class__.__name__ != 'DummyOperator'):
             raise AirflowException("pool slots for %s in dag %s cannot be less than 1"
                                    % (self.task_id, dag.dag_id))
         self.sla = sla
