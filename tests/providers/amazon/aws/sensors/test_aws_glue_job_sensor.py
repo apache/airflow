@@ -20,8 +20,8 @@
 import unittest
 
 from airflow import configuration
-from airflow.contrib.hooks.aws_glue_job_hook import AwsGlueJobHook
-from airflow.contrib.sensors.aws_glue_job_sensor import AwsGlueJobSensor
+from airflow.providers.amazon.aws.hooks.glue import AwsGlueJobHook
+from airflow.providers.amazon.aws.sensors.glue import AwsGlueJobSensor
 
 
 try:

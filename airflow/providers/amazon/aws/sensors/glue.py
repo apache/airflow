@@ -28,7 +28,7 @@ class AwsGlueJobSensor(BaseSensorOperator):
     'FAILED', 'STOPPED', 'SUCCEEDED'
 
     :param job_name: The AWS Glue Job unique name
-    :type str
+    :type job_name: str
     :param run_id: The AWS Glue current running job identifier
     :type str
     """

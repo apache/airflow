@@ -20,8 +20,8 @@
 import unittest
 
 from airflow import configuration
-from airflow.contrib.hooks.aws_glue_job_hook import AwsGlueJobHook
-from airflow.contrib.operators.aws_glue_job_operator import AWSGlueJobOperator
+from airflow.providers.amazon.aws.hooks.glue import AwsGlueJobHook
+from airflow.providers.amazon.aws.operators.glue import AWSGlueJobOperator
 
 try:
     from unittest import mock
@@ -34,7 +34,7 @@ except ImportError:
 
 class TestAwsGlueJobOperator(unittest.TestCase):
 
-    @mock.patch('airflow.contrib.operators.aws_glue_job_operator.AwsGlueJobHook')
+    @mock.patch('airflow.providers.amazon.aws.hooks.glue.AwsGlueJobHook')
     def setUp(self, glue_hook_mock):
         configuration.load_test_config()
 

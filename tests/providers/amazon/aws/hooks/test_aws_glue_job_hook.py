@@ -32,7 +32,7 @@ except ImportError:
     mock_iam = None
 
 
-from airflow.contrib.hooks.aws_glue_job_hook import AwsGlueJobHook
+from airflow.providers.amazon.aws.hooks.glue import AwsGlueJobHook
 
 class TestGlueJobHook(unittest.TestCase):
     def setUp(self):

@@ -30,27 +30,27 @@ class AWSGlueJobOperator(BaseOperator):
     Language support: Python and Scala
 
     :param job_name: unique job name per AWS Account
-    :type str
+    :type job_name: Optional[str]
     :param script_location: location of ETL script. Must be a local or S3 path
-    :type str
+    :type script_location: Optional[str]
     :param job_desc: job description details
-    :type str
+    :type job_desc: Optional[str]
     :param concurrent_run_limit: The maximum number of concurrent runs allowed for a job
-    :type int
+    :type concurrent_run_limit: Optional[int]
     :param script_args: etl script arguments and AWS Glue arguments
-    :type dict
+    :type script_args: dict
     :param connections: AWS Glue connections to be used by the job.
-    :type list
+    :type connections: list
     :param retry_limit: The maximum number of times to retry this job if it fails
-    :type int
+    :type retry_limit:Optional[int]
     :param num_of_dpus: Number of AWS Glue DPUs to allocate to this Job.
-    :type int
+    :type num_of_dpus: int
     :param region_name: aws region name (example: us-east-1)
     :type region_name: str
     :param s3_bucket: S3 bucket where logs and local etl script will be uploaded
-    :type str
+    :type s3_bucket: Optional[str]
     :param iam_role_name: AWS IAM Role for Glue Job Execution
-    :type str
+    :type iam_role_name: Optional[str]
     """
     template_fields = ()
     template_ext = ()
@@ -62,8 +62,8 @@ class AWSGlueJobOperator(BaseOperator):
                  job_desc='AWS Glue Job with Airflow',
                  script_location=None,
                  concurrent_run_limit=None,
-                 script_args={},
-                 connections=[],
+                 script_args=None,
+                 connections=None,
                  retry_limit=None,
                  num_of_dpus=6,
                  aws_conn_id='aws_default',
@@ -77,8 +77,8 @@ class AWSGlueJobOperator(BaseOperator):
         self.job_desc = job_desc
         self.script_location = script_location
         self.concurrent_run_limit = concurrent_run_limit
-        self.script_args = script_args
-        self.connections = connections
+        self.script_args = script_args or {}
+        self.connections = connections or []
         self.retry_limit = retry_limit
         self.num_of_dpus = num_of_dpus
         self.aws_conn_id = aws_conn_id,
@@ -89,9 +89,9 @@ class AWSGlueJobOperator(BaseOperator):
     def execute(self, context):
         """
         Executes AWS Glue Job from Airflow
-        :return:
+
+        :return: the id of the current glue job.
         """
-        task_instance = context['ti']
         glue_job = AwsGlueJobHook(job_name=self.job_name,
                                   desc=self.job_desc,
                                   concurrent_run_limit=self.concurrent_run_limit,
@@ -103,8 +103,7 @@ class AWSGlueJobOperator(BaseOperator):
                                   region_name=self.region_name,
                                   s3_bucket=self.s3_bucket,
                                   iam_role_name=self.iam_role_name)
-
         self.log.info("Initializing AWS Glue Job: %s",self.job_name)
         glue_job_run = glue_job.initialize_job(self.script_args)
-        task_instance.xcom_push(key='run_id', value=glue_job_run['JobRunId'])
-        self.log.info("AWS Glue Job: %s status: %s. Run Id: %s",glue_job_run['JobRunId'],self.job_name,glue_job_run['JobRunState'])
+        self.log.info("AWS Glue Job: %s status: %s. Run Id: %s",self.job_name,glue_job_run['JobRunState'],glue_job_run['JobRunId'])
+        return glue_job_run['JobRunId']
