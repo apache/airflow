@@ -72,7 +72,7 @@ from airflow.utils.helpers import alchemy_to_dict, render_log_filename
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.www import utils as wwwutils
-from airflow.www.app import app, appbuilder
+from airflow.www.app import appbuilder
 from airflow.www.decorators import action_logging, gzipped, has_dag_access
 from airflow.www.forms import (
     ConnectionForm, DagRunForm, DateTimeForm, DateTimeWithNumRunsForm, DateTimeWithNumRunsWithDagRunsForm,
@@ -142,9 +142,9 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
 
 
 ######################################################################################
-#                                    BaseViews
+#                                    Error handlers
 ######################################################################################
-@app.errorhandler(404)
+
 def circles(error):
     return render_template(
         'airflow/circles.html', hostname=socket.getfqdn() if conf.getboolean(
@@ -153,7 +153,6 @@ def circles(error):
             fallback=True) else 'redact'), 404
 
 
-@app.errorhandler(500)
 def show_traceback(error):
     from airflow.utils import asciiart as ascii_
     return render_template(
@@ -167,6 +166,10 @@ def show_traceback(error):
             'webserver',
             'EXPOSE_STACKTRACE',
             fallback=True) else 'Error! Please contact server admin'), 500
+
+######################################################################################
+#                                    BaseViews
+######################################################################################
 
 
 class AirflowBaseView(BaseView):

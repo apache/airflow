@@ -202,8 +202,14 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                 log.debug("Adding blueprint %s:%s", bp["name"], bp["blueprint"].import_name)
                 app.register_blueprint(bp["blueprint"])
 
+        def init_error_handlers(app: Flask):
+            from airflow.www import views
+            app.register_error_handler(500, views.show_traceback)
+            app.register_error_handler(404, views.circles)
+
         init_views(appbuilder)
         init_plugin_blueprints(app)
+        init_error_handlers(app)
 
         if conf.getboolean('webserver', 'UPDATE_FAB_PERMS'):
             security_manager = appbuilder.sm
