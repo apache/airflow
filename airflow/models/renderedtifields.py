@@ -19,7 +19,7 @@
 from typing import Optional
 
 import sqlalchemy_jsonfield
-from sqlalchemy import Column, String, and_, tuple_
+from sqlalchemy import Column, String, and_, not_
 from sqlalchemy.orm import Session
 
 from airflow.configuration import conf
@@ -110,28 +110,20 @@ class RenderedTaskInstanceFields(Base):
             return
 
         # Fetch Top X records given dag_id & task_id ordered by Execution Date
-        subq1 = (
+        tis_to_keep = (
             session
             .query(cls.dag_id, cls.task_id, cls.execution_date)
             .filter(cls.dag_id == dag_id, cls.task_id == task_id)
             .order_by(cls.execution_date.desc())
             .limit(num_to_keep)
-            .subquery('subq1')
-        )
+        ).all()
 
-        # Second Subquery
-        # Workaround for MySQL Limitation (https://stackoverflow.com/a/19344141/5691525)
-        # Limitation: This version of MySQL does not yet support
-        # LIMIT & IN/ALL/ANY/SOME subquery
-        subq2 = (
-            session
-            .query(subq1.c.dag_id, subq1.c.task_id, subq1.c.execution_date)
-            .subquery('subq2')
-        )
+        filter_tis = [not_(and_(
+            cls.dag_id == ti.dag_id,
+            cls.task_id == ti.task_id,
+            cls.execution_date == ti.execution_date
+        )) for ti in tis_to_keep]
 
         session.query(cls) \
-            .filter(and_(
-                cls.dag_id == dag_id,
-                cls.task_id == task_id,
-                tuple_(cls.dag_id, cls.task_id, cls.execution_date).notin_(subq2))) \
+            .filter(and_(*filter_tis)) \
             .delete(synchronize_session=False)
