@@ -33,6 +33,10 @@ SQL = 'select 1'
 BUCKET = 'gs://test'
 JSON_FILENAME = 'test_{}.ndjson'
 CSV_FILENAME = 'test_{}.csv'
+SCHEMA = [
+    {'mode': 'REQUIRED', 'name': 'some_str', 'type': 'FLOAT'},
+    {'mode': 'REQUIRED', 'name': 'some_num', 'type': 'TIMESTAMP'}
+]
 
 ROWS = [
     ('mock_row_content_1', 42),
@@ -321,7 +325,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
             bucket=BUCKET,
             filename=JSON_FILENAME,
             schema_filename=SCHEMA_FILENAME,
-            schema=CUSTOM_SCHEMA_JSON)
+            schema=SCHEMA)
         op.execute(None)
 
         # once for the file and once for the schema
