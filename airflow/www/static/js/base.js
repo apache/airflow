@@ -123,21 +123,35 @@ function initializeUITimezone() {
   const manualTz = localStorage.getItem('chosen-timezone');
 
   function setManualTimezone(tz) {
-    localStorage.setItem('chosen-timezone', tz)
-    $('#timezone-manual')
-      .data('timezone', tz)
-      .text(formatTimezone(tz))
-      .parent().show();
+    localStorage.setItem('chosen-timezone', tz);
+    if (tz == local && tz == Airflow.serverTimezone) {
+      $('#timezone-manual').hide();
+      return;
+    }
+
+    $('#timezone-manual a').data('timezone', tz).text(formatTimezone(tz));
+    $('#timezone-manual').show();
   }
 
   if (manualTz) {
     setManualTimezone(manualTz);
   }
 
-  changDisplayedTimezone(selectedTz || 'UTC');
-  $('#timezone-local')
-    .attr('data-timezone', local)
-    .text(`Local: ${formatTimezone(local)}`);
+  changDisplayedTimezone(selectedTz || Airflow.defaultUITimezone);
+
+  if (Airflow.serverTimezone !== 'UTC') {
+    $('#timezone-server a').text(`Server: ${formatTimezone(Airflow.serverTimezone)}`);
+    $('#timezone-server').show();
+  }
+
+  if (Airflow.serverTimezone != local) {
+    $('#timezone-local a')
+      .attr('data-timezone', local)
+      .text(`Local: ${formatTimezone(local)}`);
+  } else {
+    $('#timezone-local').hide();
+  }
+
 
   $('a[data-timezone]').click((evt) => {
     changDisplayedTimezone($(evt.target).data('timezone'));

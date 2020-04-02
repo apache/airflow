@@ -57,6 +57,10 @@
 
   <script type="text/javascript">
     // below variables are used in base.js
+    var Airflow = {
+      serverTimezone: '{{ server_timezone }}',
+      defaultUITimezone: '{{ default_ui_timezone }}'
+    };
     var hostName = '{{ hostname }}';
     var csrfToken = '{{ csrf_token() }}';
     $("time[title]").tooltip()
