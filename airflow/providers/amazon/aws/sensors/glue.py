@@ -48,9 +48,8 @@ class AwsGlueJobSensor(BaseSensorOperator):
         self.targeted_status = ['FAILED', 'STOPPED', 'SUCCEEDED']
 
     def poke(self, context):
-        self.log.info("Poking for job run status : {self.targeted_status}\n"
-                      "for Glue Job {self.job_name} and ID {self.run_id}"
-                      .format(**locals()))
+        self.log.info("Poking for job run status : %s\n"
+          "for Glue Job %s and ID %s",self.targeted_status, self.job_name,self.run_id)
         hook = AwsGlueJobHook(aws_conn_id=self.aws_conn_id)
         job_state = hook.job_completion(job_name=self.job_name,
                                         run_id=self.run_id)
