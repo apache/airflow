@@ -34,7 +34,7 @@ The images are named as follows:
 
 where:
 
-* BRANCH_OR_TAG - branch or tag used when creating the image. Examples: master, v1-10-test, 1.10.10
+* ``BRANCH_OR_TAG`` - branch or tag used when creating the image. Examples: master, v1-10-test, 1.10.10
   The ``master`` and ``v1-10-test`` labels are built from branches so they change over time. the 1.10.* and in
   the future ``2.*`` labels are build from git tags and they are "fixed" once built.
 * PYTHON_MAJOR_MINOR_VERSION - version of python used to build the image. Examples: 3.5, 3.7
