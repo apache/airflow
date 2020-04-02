@@ -31,6 +31,7 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.bash import BashOperator
 from airflow.utils.session import create_session
 from airflow.utils.timezone import datetime
+from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_rendered_ti_fields
 
 TEST_DAG = DAG("example_rendered_ti_field", schedule_interval=None)
@@ -130,14 +131,14 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
         self.assertIsNone(RTIF.get_templated_fields(ti=ti2))
 
     @parameterized.expand([
-        (0, 1, 0),
-        (1, 1, 1),
-        (1, 0, 1),
-        (3, 1, 1),
-        (4, 2, 2),
-        (5, 2, 2),
+        (0, 1, 0, 1),
+        (1, 1, 1, 1),
+        (1, 0, 1, 0),
+        (3, 1, 1, 1),
+        (4, 2, 2, 1),
+        (5, 2, 2, 1),
     ])
-    def test_delete_old_records(self, rtif_num, num_to_keep, remaining_rtifs):
+    def test_delete_old_records(self, rtif_num, num_to_keep, remaining_rtifs, expected_query_count):
         """
         Test that old records are deleted from rendered_task_instance_fields table
         for a given task_id and dag_id.
@@ -164,7 +165,8 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
         self.assertEqual(rtif_num, len(result))
 
         # Verify old records are deleted and only 'num_to_keep' records are kept
-        RTIF.delete_old_records(task_id=task.task_id, dag_id=task.dag_id, num_to_keep=num_to_keep)
+        with assert_queries_count(expected_query_count):
+            RTIF.delete_old_records(task_id=task.task_id, dag_id=task.dag_id, num_to_keep=num_to_keep)
         result = session.query(RTIF) \
             .filter(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id).all()
         self.assertEqual(remaining_rtifs, len(result))
