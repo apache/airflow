@@ -84,6 +84,12 @@ attack. Creating a new user has to be done via a Python REPL on the same machine
 LDAP
 ''''
 
+.. note::
+
+   This is for flask-admin based web UI only. If you are using FAB-based web UI with RBAC feature,
+   check the `Security section of FAB docs <https://flask-appbuilder.readthedocs.io/en/latest/security.html>`_
+   for how to configure in ``webserver_config.py`` file.
+
 To turn on LDAP authentication configure your ``airflow.cfg`` as follows. Please note that the example uses
 an encrypted connection to the ldap server as we do not want passwords be readable on the network level.
 
@@ -268,6 +274,12 @@ To use kerberos authentication, you must install Airflow with the ``kerberos`` e
 
 OAuth Authentication
 --------------------
+
+.. note::
+
+   This is for flask-admin based web UI only. If you are using FAB-based web UI with RBAC feature,
+   check the `Security section of FAB docs <https://flask-appbuilder.readthedocs.io/en/latest/security.html>`_
+   for how to configure in ``webserver_config.py`` file.
 
 GitHub Enterprise (GHE) Authentication
 ''''''''''''''''''''''''''''''''''''''
