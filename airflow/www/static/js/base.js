@@ -134,7 +134,7 @@ function initializeUITimezone() {
     setManualTimezone(manualTz);
   }
 
-  setDisplayedTimezone(selectedTz || 'UTC');
+  changDisplayedTimezone(selectedTz || 'UTC');
   $('#timezone-local')
     .attr('data-timezone', local)
     .text(`Local: ${formatTimezone(local)}`);

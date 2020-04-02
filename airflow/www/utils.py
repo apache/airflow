@@ -264,7 +264,8 @@ def datetime_f(attr_name):
         f = as_iso
         if timezone.utcnow().isoformat()[:4] == f[:4]:
             f = f[5:]
-        return Markup('<nobr><time datetime="{}">{}</time></nobr>').format(as_iso, f)
+        # The empty title will be replaced in JS code when non-UTC dates are displayed
+        return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(as_iso, f)
     return dt
 
 

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global moment, $ */
+/* global moment, $, document */
 export const defaultFormat = 'YYYY-MM-DD, HH:mm:ss';
 export const defaultFormatWithTZ = 'YYYY-MM-DD, HH:mm:ss z';
 export const defaultTZFormat = 'z (Z)';
@@ -46,13 +46,18 @@ export function formatTimezone(what) {
   return moment().tz(what).format(defaultTZFormat);
 }
 
-export function isoDateToTimeEl(datetime) {
-  let dateTimeObj = moment(datetime);
+export function isoDateToTimeEl(datetime, options) {
+  const dateTimeObj = moment(datetime);
 
-  var el = document.createElement("time");
-  el.setAttribute("datetime", dateTimeObj.format())
+  const addTitle = $.extend({title: true}, options).title;
+
+  const el = document.createElement('time');
+  el.setAttribute('datetime', dateTimeObj.format())
+  if (addTitle) {
+    el.setAttribute('title',dateTimeObj.isUTC() ? '' : `UTC: ${dateTimeObj.clone().utc().format()}`);
+  }
   el.innerText = dateTimeObj.format(defaultFormat);
-  return el
+  return el;
 }
 
 export const formatDateTime = (datetime) => {
@@ -83,8 +88,9 @@ export function updateAllDateTimes() {
     const $el = $(el);
     const dt = moment($el.attr('datetime'));
     $el.text(dt.format(defaultFormat));
-    if ($el.attr('title')) {
-      $el.attr('title', dt.format());
+    if ($el.attr('title') !== undefined) {
+      // If displayed date is not UTC, have the UTC date in a title attriubte
+      $el.attr('title', dt.isUTC() ? "" : `UTC: ${dt.clone().utc().format()}`);
     }
   });
 
@@ -99,15 +105,6 @@ export function updateAllDateTimes() {
 
     return value;
   }
-
-  // Things with a single date in the title attribute
-  $('[data-datetime][data-original-title-fmt]').each((_, el) => {
-    const $el = $(el);
-    const newDt = moment($el.data('datetime')).format(defaultFormat);
-    // We need to update the DOM, not just jQuery's layer
-    $el.attr('data-original-title', sprintf($el.data('original-title-fmt'), [newDt]));
-  });
-
   // Update any date-time inputs.
   //
   // Since we have set the default timezone for moment, it will automatically
