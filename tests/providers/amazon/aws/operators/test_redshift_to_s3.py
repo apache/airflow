@@ -83,7 +83,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
     ])
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.run")
-    def test_transfer_customquery_success(self, expected_custom_select_query, mock_run, mock_session,):
+    def test_transfer_customquery_success(self, expected_custom_select_query, mock_run, mock_session):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
         mock_session.return_value = Session(access_key, secret_key)
@@ -109,10 +109,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         ).execute(None)
 
         unload_options = '\n\t\t\t'.join(unload_options)
-        if expected_custom_select_query:
-            select_query = expected_custom_select_query
-        else:
-            select_query = "SELECT * FROM schema.table;"
+        select_query = expected_custom_select_query or "SELECT * FROM schema.table;"
         unload_query = """
                     UNLOAD ('{select_query}')
                     TO 's3://{s3_bucket}/{s3_key}'
