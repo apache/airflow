@@ -318,7 +318,7 @@ function send_kubernetes_logs_to_file_io() {
 
 function install_released_airflow_version() {
     pip uninstall -y apache-airflow || true
-    find /root/airflow/ -type f -print0 | xargs rm -f --
+    find /root/airflow/ -type f -print0 | xargs -0 rm -f --
     if [[ ${1} == "1.10.2" || ${1} == "1.10.1" ]]; then
         export SLUGIFY_USES_TEXT_UNIDECODE=yes
     fi
