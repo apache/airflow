@@ -145,5 +145,5 @@ class DebugExecutor(BaseExecutor):
 
     def change_state(self, key, state):
         self.log.debug("Popping %s from executor task queue.", key)
-        self.running.remove(key)
+        self.running.pop(key)
         self.event_buffer[key] = state
