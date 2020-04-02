@@ -19,7 +19,6 @@
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-import os.path
 import time
 
 
@@ -67,8 +66,6 @@ class AwsGlueJobHook(AwsBaseHook):
         self.region_name = region_name
         self.s3_bucket = s3_bucket
         self.role_name = iam_role_name
-        self.S3_PROTOCOL = "s3://"
-        self.S3_ARTIFACTS_PREFIX = 'artifacts/glue-scripts/'
         self.S3_GLUE_LOGS = 'logs/glue-logs/'
         super(AwsGlueJobHook, self).__init__(*args, **kwargs)
 
@@ -158,7 +155,6 @@ class AwsGlueJobHook(AwsBaseHook):
             self.log.info("Job doesnt exist. Now creating and running AWS Glue Job")
             s3_log_path = f's3://{str(self.s3_bucket)}/{str(self.S3_GLUE_LOGS)}{str(self.job_name)}'
             execution_role = self.get_iam_execution_role()
-            script_location = self._check_script_location()
             try:
                 create_job_response = glue_client.create_job(
                     Name=self.job_name,
@@ -166,33 +162,11 @@ class AwsGlueJobHook(AwsBaseHook):
                     LogUri=s3_log_path,
                     Role=execution_role['Role']['RoleName'],
                     ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
-                    Command={"Name": "glueetl", "ScriptLocation": script_location},
+                    Command={"Name": "glueetl", "ScriptLocation": self.script_location},
                     MaxRetries=self.retry_limit,
                     AllocatedCapacity=self.num_of_dpus
                 )
                 return create_job_response['Name']   
             except Exception as general_error:
             self.log.error(f'Failed to create aws glue job, error: {str(general_error)}')
-            raise  
-
-    def _check_script_location(self):
-        """
-        :return: S3 Script location path
-        """
-        if self.script_location[:5] == self.S3_PROTOCOL:
-            return self.script_location
-        elif os.path.isfile(self.script_location):
-            s3 = self.get_resource_type('s3', self.region_name)
-            script_name = os.path.basename(self.script_location)
-            s3.meta.client.upload_file(self.script_location,
-                                       self.s3_bucket,
-                                       self.S3_ARTIFACTS_PREFIX + script_name)
-
-            s3_script_path = "s3://{s3_bucket}/{prefix}{job_name}/{script_name}" \
-                .format(s3_bucket=self.s3_bucket,
-                        prefix=self.S3_ARTIFACTS_PREFIX,
-                        job_name=self.job_name,
-                        script_name=script_name)
-            return s3_script_path
-        else:
-            return None
+            raise

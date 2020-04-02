@@ -19,8 +19,10 @@
 from __future__ import unicode_literals
 
 from airflow.providers.amazon.aws.hooks.glue import AwsGlueJobHook
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
+import os.path
 
 
 class AWSGlueJobOperator(BaseOperator):
@@ -85,6 +87,8 @@ class AWSGlueJobOperator(BaseOperator):
         self.region_name = region_name
         self.s3_bucket = s3_bucket
         self.iam_role_name = iam_role_name
+        self.S3_PROTOCOL = "s3://"
+        self.S3_ARTIFACTS_PREFIX = 'artifacts/glue-scripts/'
 
     def execute(self, context):
         """
@@ -92,6 +96,10 @@ class AWSGlueJobOperator(BaseOperator):
 
         :return: the id of the current glue job.
         """
+        if not self.script_location.startsWith(self.S3_PROTOCOL):
+            s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
+            script_name = os.path.basename(self.script_location)
+            s3_hook.load_file(self.script_location, self.s3_bucket, self.S3_ARTIFACTS_PREFIX + script_name)
         glue_job = AwsGlueJobHook(job_name=self.job_name,
                                   desc=self.job_desc,
                                   concurrent_run_limit=self.concurrent_run_limit,
