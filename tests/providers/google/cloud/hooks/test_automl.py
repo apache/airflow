@@ -52,7 +52,7 @@ MASK = {"field": "mask"}
 class TestAuoMLHook(unittest.TestCase):
     def setUp(self) -> None:
         with mock.patch(
-            "airflow.providers.google.cloud.hooks.automl.CloudBaseHook.__init__",
+            "airflow.providers.google.cloud.hooks.automl.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = CloudAutoMLHook()
@@ -61,7 +61,7 @@ class TestAuoMLHook(unittest.TestCase):
             )
 
     @mock.patch(
-        "airflow.providers.google.cloud.hooks.automl.CloudBaseHook.client_info",
+        "airflow.providers.google.cloud.hooks.automl.GoogleBaseHook.client_info",
         new_callable=lambda: CLIENT_INFO,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient")
@@ -72,7 +72,7 @@ class TestAuoMLHook(unittest.TestCase):
         )
 
     @mock.patch(
-        "airflow.providers.google.cloud.hooks.automl.CloudBaseHook.client_info",
+        "airflow.providers.google.cloud.hooks.automl.GoogleBaseHook.client_info",
         new_callable=lambda: CLIENT_INFO,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.automl.PredictionServiceClient")

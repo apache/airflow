@@ -31,7 +31,7 @@ from google.cloud.vision_v1.types import (
 from google.protobuf.json_format import MessageToDict
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 ERR_DIFF_NAMES = \
     """The {label} name provided in the object ({explicit_name}) is different than the name created
@@ -116,7 +116,7 @@ class NameDeterminer:
             )
 
 
-class CloudVisionHook(CloudBaseHook):
+class CloudVisionHook(GoogleBaseHook):
     """
     Hook for Google Cloud Vision APIs.
 
@@ -162,7 +162,7 @@ class CloudVisionHook(CloudBaseHook):
         if "error" in response:
             raise AirflowException(response)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_product_set(
         self,
         location: str,
@@ -200,7 +200,7 @@ class CloudVisionHook(CloudBaseHook):
 
         return product_set_id
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_product_set(
         self,
         location: str,
@@ -223,7 +223,7 @@ class CloudVisionHook(CloudBaseHook):
         self.log.debug('ProductSet retrieved:\n%s', response)
         return MessageToDict(response)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def update_product_set(
         self,
         product_set: Union[dict, ProductSet],
@@ -253,7 +253,7 @@ class CloudVisionHook(CloudBaseHook):
         self.log.debug('ProductSet updated:\n%s', response)
         return MessageToDict(response)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_product_set(
         self,
         location: str,
@@ -275,7 +275,7 @@ class CloudVisionHook(CloudBaseHook):
         client.delete_product_set(name=name, retry=retry, timeout=timeout, metadata=metadata)
         self.log.info('ProductSet with the name [%s] deleted.', name)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_product(
         self,
         location: str,
@@ -313,7 +313,7 @@ class CloudVisionHook(CloudBaseHook):
 
         return product_id
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_product(
         self,
         location: str,
@@ -337,7 +337,7 @@ class CloudVisionHook(CloudBaseHook):
         self.log.debug('Product retrieved:\n%s', response)
         return MessageToDict(response)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def update_product(
         self,
         product: Union[dict, Product],
@@ -365,7 +365,7 @@ class CloudVisionHook(CloudBaseHook):
         self.log.debug('Product updated:\n%s', response)
         return MessageToDict(response)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_product(
         self,
         location: str,
@@ -387,7 +387,7 @@ class CloudVisionHook(CloudBaseHook):
         client.delete_product(name=name, retry=retry, timeout=timeout, metadata=metadata)
         self.log.info('Product with the name [%s] deleted:', name)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_reference_image(
         self,
         location: str,
@@ -430,7 +430,7 @@ class CloudVisionHook(CloudBaseHook):
 
         return reference_image_id
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_reference_image(
         self,
         location: str,
@@ -460,7 +460,7 @@ class CloudVisionHook(CloudBaseHook):
         self.log.info('ReferenceImage with the name [%s] deleted.', name)
         return MessageToDict(response)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def add_product_to_product_set(
         self,
         product_set_id: str,
@@ -490,7 +490,7 @@ class CloudVisionHook(CloudBaseHook):
 
         self.log.info('Product added to Product Set')
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def remove_product_from_product_set(
         self,
         product_set_id: str,
@@ -541,7 +541,7 @@ class CloudVisionHook(CloudBaseHook):
 
         return MessageToDict(response)
 
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def batch_annotate_images(
         self,
         requests: Union[List[dict], List[AnnotateImageRequest]],
@@ -564,7 +564,7 @@ class CloudVisionHook(CloudBaseHook):
 
         return MessageToDict(response)
 
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def text_detection(
         self,
         image: Union[Dict, Image],
@@ -594,7 +594,7 @@ class CloudVisionHook(CloudBaseHook):
 
         return response
 
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def document_text_detection(
         self,
         image: Union[Dict, Image],
@@ -624,7 +624,7 @@ class CloudVisionHook(CloudBaseHook):
 
         return response
 
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def label_detection(
         self,
         image: Union[Dict, Image],
@@ -654,7 +654,7 @@ class CloudVisionHook(CloudBaseHook):
 
         return response
 
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def safe_search_detection(
         self,
         image: Union[Dict, Image],

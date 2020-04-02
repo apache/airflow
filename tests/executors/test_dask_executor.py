@@ -20,8 +20,6 @@ import unittest
 from datetime import timedelta
 from unittest import mock
 
-import pytest
-
 from airflow.configuration import conf
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.models import DagBag
@@ -41,8 +39,6 @@ except ImportError:
     pass
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
-pytestmark = pytest.mark.xfail(condition=True, reason="The Dask executor is expected to fail: "
-                               "TODO: WE SHOULD REMOVE IT ALTOGETHER OR FIX ????")
 
 
 class TestBaseDask(unittest.TestCase):
@@ -93,28 +89,16 @@ class TestDaskExecutor(TestBaseDask):
         """
         Test that DaskExecutor can be used to backfill example dags
         """
-        dags = [
-            dag for dag in self.dagbag.dags.values()
-            if dag.dag_id in [
-                'example_bash_operator',
-                # 'example_python_operator',
-            ]
-        ]
+        dag = self.dagbag.get_dag('example_bash_operator')
 
-        for dag in dags:
-            dag.clear(
-                start_date=DEFAULT_DATE,
-                end_date=DEFAULT_DATE)
-
-        for dag in sorted(dags, key=lambda d: d.dag_id):
-            job = BackfillJob(
-                dag=dag,
-                start_date=DEFAULT_DATE,
-                end_date=DEFAULT_DATE,
-                ignore_first_depends_on_past=True,
-                executor=DaskExecutor(
-                    cluster_address=self.cluster.scheduler_address))
-            job.run()
+        job = BackfillJob(
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            ignore_first_depends_on_past=True,
+            executor=DaskExecutor(
+                cluster_address=self.cluster.scheduler_address))
+        job.run()
 
     def tearDown(self):
         self.cluster.close(timeout=5)
@@ -127,8 +111,8 @@ class TestDaskExecutorTLS(TestBaseDask):
 
     def test_tls(self):
         with dask_testing_cluster(
-                worker_kwargs={'security': tls_security()},
-                scheduler_kwargs={'security': tls_security()}) as (cluster, _):
+                worker_kwargs={'security': tls_security(), "protocol": "tls"},
+                scheduler_kwargs={'security': tls_security(), "protocol": "tls"}) as (cluster, _):
 
             # These use test certs that ship with dask/distributed and should not be
             #  used in production

@@ -63,6 +63,10 @@ class SchedulerMetricsJob(SchedulerJob):
         'polymorphic_identity': 'SchedulerMetricsJob'
     }
 
+    def __init__(self, dag_ids, subdir, max_runtime_secs):
+        self.max_runtime_secs = max_runtime_secs
+        super().__init__(dag_ids=dag_ids, subdir=subdir)
+
     def print_stats(self):
         """
         Print operational metrics for the scheduler test.
@@ -126,7 +130,7 @@ class SchedulerMetricsJob(SchedulerJob):
 
         if (len(successful_tis) == num_task_instances or
                 (timezone.utcnow() - self.start_date).total_seconds() >
-                MAX_RUNTIME_SECS):
+                self.max_runtime_secs):
             if len(successful_tis) == num_task_instances:
                 self.log.info("All tasks processed! Printing stats.")
             else:
@@ -172,22 +176,25 @@ def set_dags_paused_state(is_paused):
     Toggle the pause state of the DAGs in the test.
     """
     session = settings.Session()
-    dms = session.query(DagModel).filter(
+    dag_models = session.query(DagModel).filter(
         DagModel.dag_id.in_(DAG_IDS))
-    for dm in dms:
-        logging.info('Setting DAG :: %s is_paused=%s', dm, is_paused)
-        dm.is_paused = is_paused
+    for dag_model in dag_models:
+        logging.info('Setting DAG :: %s is_paused=%s', dag_model, is_paused)
+        dag_model.is_paused = is_paused
     session.commit()
 
 
 def main():
-    global MAX_RUNTIME_SECS
+    '''
+    Run the scheduler metrics jobs after loading the test configuration and
+    clearing old instances of dags and tasks
+    '''
+    max_runtime_secs = MAX_RUNTIME_SECS
     if len(sys.argv) > 1:
         try:
             max_runtime_secs = int(sys.argv[1])
             if max_runtime_secs < 1:
                 raise ValueError
-            MAX_RUNTIME_SECS = max_runtime_secs
         except ValueError:
             logging.error('Specify a positive integer for timeout.')
             sys.exit(1)
@@ -198,7 +205,11 @@ def main():
     clear_dag_runs()
     clear_dag_task_instances()
 
-    job = SchedulerMetricsJob(dag_ids=DAG_IDS, subdir=SUBDIR)
+    job = SchedulerMetricsJob(
+        dag_ids=DAG_IDS,
+        subdir=SUBDIR,
+        max_runtime_secs=max_runtime_secs)
+
     job.run()
 
 

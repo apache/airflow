@@ -31,7 +31,7 @@ from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
 from google.cloud.pubsub_v1.types import Duration, MessageStoragePolicy, PushConfig, ReceivedMessage
 from googleapiclient.errors import HttpError
 
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.version import version
 
 
@@ -42,7 +42,7 @@ class PubSubException(Exception):
 
 
 # noinspection PyAbstractClass
-class PubSubHook(CloudBaseHook):
+class PubSubHook(GoogleBaseHook):
     """
     Hook for accessing Google Pub/Sub.
 
@@ -81,7 +81,7 @@ class PubSubHook(CloudBaseHook):
             client_info=self.client_info
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def publish(
         self,
         topic: str,
@@ -150,7 +150,7 @@ class PubSubHook(CloudBaseHook):
                     "Wrong message. If 'data' is not provided 'attributes' must be a non empty dictionary.")
 
     # pylint: disable=too-many-arguments
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_topic(
         self,
         topic: str,
@@ -229,7 +229,7 @@ class PubSubHook(CloudBaseHook):
 
         self.log.info("Created topic (path) %s", topic_path)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_topic(
         self,
         topic: str,
@@ -284,7 +284,7 @@ class PubSubHook(CloudBaseHook):
         self.log.info("Deleted topic (path) %s", topic_path)
 
     # pylint: disable=too-many-arguments
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_subscription(
         self,
         topic: str,
@@ -396,7 +396,7 @@ class PubSubHook(CloudBaseHook):
         self.log.info("Created subscription (path) %s for topic (path) %s", subscription_path, topic_path)
         return subscription
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_subscription(
         self,
         subscription: str,
@@ -451,7 +451,7 @@ class PubSubHook(CloudBaseHook):
 
         self.log.info("Deleted subscription (path) %s", subscription_path)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def pull(
         self,
         subscription: str,
@@ -514,7 +514,7 @@ class PubSubHook(CloudBaseHook):
         except (HttpError, GoogleAPICallError) as e:
             raise PubSubException('Error pulling messages from subscription {}'.format(subscription_path), e)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def acknowledge(
         self,
         subscription: str,

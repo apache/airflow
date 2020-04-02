@@ -29,10 +29,10 @@ from google.cloud.automl_v1beta1.types import (
     ImageObjectDetectionModelDeploymentMetadata, InputConfig, Model, Operation, PredictResponse, TableSpec,
 )
 
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class CloudAutoMLHook(CloudBaseHook):
+class CloudAutoMLHook(GoogleBaseHook):
     """
     Google Cloud AutoML hook.
 
@@ -78,7 +78,7 @@ class CloudAutoMLHook(CloudBaseHook):
             credentials=self._get_credentials(), client_info=self.client_info
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_model(
         self,
         model: Union[dict, Model],
@@ -121,7 +121,7 @@ class CloudAutoMLHook(CloudBaseHook):
             parent=parent, model=model, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def batch_predict(
         self,
         model_id: str,
@@ -183,7 +183,7 @@ class CloudAutoMLHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def predict(
         self,
         model_id: str,
@@ -237,7 +237,7 @@ class CloudAutoMLHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_dataset(
         self,
         dataset: Union[dict, Dataset],
@@ -282,7 +282,7 @@ class CloudAutoMLHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def import_data(
         self,
         dataset_id: str,
@@ -332,7 +332,7 @@ class CloudAutoMLHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def list_column_specs(  # pylint: disable=too-many-arguments
         self,
         dataset_id: str,
@@ -400,7 +400,7 @@ class CloudAutoMLHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_model(
         self,
         model_id: str,
@@ -440,7 +440,7 @@ class CloudAutoMLHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_model(
         self,
         model_id: str,
@@ -480,7 +480,7 @@ class CloudAutoMLHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def update_dataset(
         self,
         dataset: Union[dict, Dataset],
@@ -525,7 +525,7 @@ class CloudAutoMLHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def deploy_model(
         self,
         model_id: str,
@@ -640,7 +640,7 @@ class CloudAutoMLHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def list_datasets(
         self,
         location: str,
@@ -680,7 +680,7 @@ class CloudAutoMLHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_dataset(
         self,
         dataset_id: str,

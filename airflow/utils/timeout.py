@@ -29,6 +29,7 @@ class timeout(LoggingMixin):  # pylint: disable=invalid-name
     """
 
     def __init__(self, seconds=1, error_message='Timeout'):
+        super().__init__()
         self.seconds = seconds
         self.error_message = error_message + ', PID: ' + str(os.getpid())
 

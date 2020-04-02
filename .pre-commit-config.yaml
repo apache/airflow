@@ -132,10 +132,16 @@ repos:
     hooks:
       - id: doctoc
         name: Add TOC for md files
-        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.md$|^dev/README.md$
+        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.md$|^dev/README\.md$
         args:
           - "--maxlevel"
           - "2"
+  - repo: https://github.com/thlorenz/doctoc.git
+    rev: v1.4.0
+    hooks:
+      - id: doctoc
+        name: Add TOC for backport readme files
+        files: BACKPORT_README\.md$
   - repo: meta
     hooks:
       - id: check-hooks-apply
@@ -289,17 +295,10 @@ repos:
         pass_filenames: true
       - id: build
         name: Check if image build is needed
-        entry: ./scripts/ci/pre_commit_ci_build.sh
+        entry: ./scripts/ci/pre_commit_ci_build.sh 3.6 false
         language: system
         always_run: true
         pass_filenames: false
-      - id: generate-requirements
-        name: Generate requirements
-        entry: "./scripts/ci/pre_commit_generate_requirements.sh"
-        language: system
-        files: ^setup.py$
-        pass_filenames: false
-        require_serial: true
       - id: check-apache-license
         name: Check if licenses are OK for Apache
         entry: "./scripts/ci/pre_commit_check_license.sh"

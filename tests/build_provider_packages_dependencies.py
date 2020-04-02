@@ -212,9 +212,11 @@ def insert_documentation(deps_dict: Dict[str, List[str]], res: List[str]):
 if __name__ == '__main__':
     print()
     files, provider_dependencies_file_name, documentation_file_name = parse_arguments()
+    num_files = 0
     for file in files:
-        print(f"Verifying file {file}")
         check_if_different_provider_used(file)
+        num_files += 1
+    print(f"Verified {num_files} files.")
     if infos:
         print("\nInformation messages:\n")
         for info in infos:

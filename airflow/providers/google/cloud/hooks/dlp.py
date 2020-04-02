@@ -35,7 +35,7 @@ from google.cloud.dlp_v2.types import (
 )
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 DLP_JOB_PATH_PATTERN = "^projects/[^/]+/dlpJobs/(?P<job>.*?)$"
 # Time to sleep between active checks of the operation results
@@ -43,7 +43,7 @@ TIME_TO_SLEEP_IN_SECONDS = 1
 
 
 # pylint: disable=R0904, C0302
-class CloudDLPHook(CloudBaseHook):
+class CloudDLPHook(GoogleBaseHook):
     """
     Hook for Google Cloud Data Loss Prevention (DLP) APIs.
     Cloud DLP allows clients to detect the presence of Personally Identifiable
@@ -75,7 +75,7 @@ class CloudDLPHook(CloudBaseHook):
             self._client = DlpServiceClient(credentials=self._get_credentials(), client_info=self.client_info)
         return self._client
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def cancel_dlp_job(
         self,
         dlp_job_id: str,
@@ -169,7 +169,7 @@ class CloudDLPHook(CloudBaseHook):
             metadata=metadata,
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_dlp_job(
         self,
         project_id: Optional[str] = None,
@@ -309,7 +309,7 @@ class CloudDLPHook(CloudBaseHook):
             metadata=metadata,
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_job_trigger(
         self,
         project_id: Optional[str] = None,
@@ -412,7 +412,7 @@ class CloudDLPHook(CloudBaseHook):
             metadata=metadata,
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def deidentify_content(
         self,
         project_id: Optional[str] = None,
@@ -519,7 +519,7 @@ class CloudDLPHook(CloudBaseHook):
 
         client.delete_deidentify_template(name=name, retry=retry, timeout=timeout, metadata=metadata)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_dlp_job(
         self,
         dlp_job_id: str,
@@ -606,7 +606,7 @@ class CloudDLPHook(CloudBaseHook):
 
         client.delete_inspect_template(name=name, retry=retry, timeout=timeout, metadata=metadata)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_job_trigger(
         self,
         job_trigger_id: str,
@@ -742,7 +742,7 @@ class CloudDLPHook(CloudBaseHook):
 
         return client.get_deidentify_template(name=name, retry=retry, timeout=timeout, metadata=metadata)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_dlp_job(
         self,
         dlp_job_id: str,
@@ -830,7 +830,7 @@ class CloudDLPHook(CloudBaseHook):
 
         return client.get_inspect_template(name=name, retry=retry, timeout=timeout, metadata=metadata)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_job_trigger(
         self,
         job_trigger_id: str,
@@ -918,7 +918,7 @@ class CloudDLPHook(CloudBaseHook):
 
         return client.get_stored_info_type(name=name, retry=retry, timeout=timeout, metadata=metadata)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def inspect_content(
         self,
         project_id: Optional[str] = None,
@@ -1031,7 +1031,7 @@ class CloudDLPHook(CloudBaseHook):
 
         return list(results)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def list_dlp_jobs(
         self,
         project_id: Optional[str] = None,
@@ -1186,7 +1186,7 @@ class CloudDLPHook(CloudBaseHook):
         )
         return list(results)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def list_job_triggers(
         self,
         project_id: Optional[str] = None,
@@ -1298,7 +1298,7 @@ class CloudDLPHook(CloudBaseHook):
         )
         return list(results)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def redact_image(
         self,
         project_id: Optional[str] = None,
@@ -1358,7 +1358,7 @@ class CloudDLPHook(CloudBaseHook):
             metadata=metadata,
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def reidentify_content(
         self,
         project_id: Optional[str] = None,
@@ -1544,7 +1544,7 @@ class CloudDLPHook(CloudBaseHook):
             metadata=metadata,
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def update_job_trigger(
         self,
         job_trigger_id: str,

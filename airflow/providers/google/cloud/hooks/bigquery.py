@@ -37,14 +37,14 @@ from pandas_gbq.gbq import (
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.dbapi_hook import DbApiHook
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = logging.getLogger(__name__)
 
 
 # pylint: disable=too-many-public-methods
-class BigQueryHook(CloudBaseHook, DbApiHook):
+class BigQueryHook(GoogleBaseHook, DbApiHook):
     """
     Interact with BigQuery. This hook uses the Google Cloud Platform
     connection.

@@ -772,7 +772,14 @@ class BackfillJob(BaseJob):
 
         # picklin'
         pickle_id = None
-        if not self.donot_pickle and self.executor.__class__ not in (LocalExecutor, SequentialExecutor):
+
+        try:
+            from airflow.executors.dask_executor import DaskExecutor
+        except ImportError:
+            DaskExecutor = None
+
+        if not self.donot_pickle and \
+                self.executor.__class__ not in (LocalExecutor, SequentialExecutor, DaskExecutor):
             pickle = DagPickle(self.dag)
             session.add(pickle)
             session.commit()

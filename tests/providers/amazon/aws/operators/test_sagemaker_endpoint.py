@@ -19,6 +19,7 @@
 import unittest
 
 import mock
+from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
@@ -111,6 +112,22 @@ class TestSageMakerEndpointOperator(unittest.TestCase):
                                       'ResponseMetadata':
                                       {'HTTPStatusCode': 404}}
         self.assertRaises(AirflowException, self.sagemaker.execute, None)
+
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    @mock.patch.object(SageMakerHook, 'create_model')
+    @mock.patch.object(SageMakerHook, 'create_endpoint_config')
+    @mock.patch.object(SageMakerHook, 'create_endpoint')
+    @mock.patch.object(SageMakerHook, 'update_endpoint')
+    def test_execute_with_duplicate_endpoint_creation(self, mock_endpoint_update,
+                                                      mock_endpoint, mock_endpoint_config,
+                                                      mock_model, mock_client):
+        response = {"Error": {"Code": "ValidationException",
+                    "Message": "Cannot create already existing endpoint."}}
+        mock_endpoint.side_effect = ClientError(error_response=response, operation_name="CreateEndpoint")
+        mock_endpoint_update.return_value = {'EndpointArn': 'testarn',
+                                             'ResponseMetadata':
+                                             {'HTTPStatusCode': 200}}
+        self.sagemaker.execute(None)
 
 
 if __name__ == '__main__':

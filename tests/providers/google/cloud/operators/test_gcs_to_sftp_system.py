@@ -50,7 +50,7 @@ class GcsToSftpExampleDagsSystemTest(GoogleSystemTest):
             source_path = "gs://{}/{}".format(bucket_src, object_source)
             self.upload_content_to_gcs(
                 lines=f"{os.urandom(1 * 1024 * 1024)}",
-                bucket_uri=source_path,
+                bucket=source_path,
                 filename=object_source
             )
 

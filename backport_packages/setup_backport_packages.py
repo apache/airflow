@@ -170,10 +170,21 @@ def change_import_paths_to_deprecated():
         provide_context_arg.prefix = fn_args.children[0].prefix
         fn_args.append_child(provide_context_arg)
 
+    def remove_class(qry, class_name) -> None:
+        def _remover(node: LN, capture: Capture, filename: Filename) -> None:
+            if node.type not in (300, 311):  # remove only definition
+                node.remove()
+
+        qry.select_class(class_name).modify(_remover)
+
     changes = [
         ("airflow.operators.bash", "airflow.operators.bash_operator"),
         ("airflow.operators.python", "airflow.operators.python_operator"),
         ("airflow.utils.session", "airflow.utils.db"),
+        (
+            "airflow.providers.cncf.kubernetes.operators.kubernetes_pod",
+            "airflow.contrib.operators.kubernetes_pod_operator"
+        ),
     ]
 
     qry = Query()
@@ -207,10 +218,20 @@ def change_import_paths_to_deprecated():
     # Remove tags
     qry.select_method("DAG").is_call().modify(remove_tags_modifier)
 
-    # Fix KubernetesPodOperator imports to use old path
-    qry.select_module(
-        "airflow.providers.cncf.kubernetes.operators.kubernetes_pod").rename(
-        "airflow.contrib.operators.kubernetes_pod_operator"
+    # Fix AWS import in Google Cloud Transfer Service
+    (
+        qry
+        .select_module("airflow.providers.amazon.aws.hooks.base_aws")
+        .is_filename(include=r"cloud_storage_transfer_service\.py")
+        .rename("airflow.contrib.hooks.aws_hook")
+    )
+
+    (
+        qry
+        .select_class("AwsBaseHook")
+        .is_filename(include=r"cloud_storage_transfer_service\.py")
+        .filter(lambda n, c, f: n.type == 300)
+        .rename("AwsHook")
     )
 
     # Fix BaseOperatorLinks imports
@@ -228,22 +249,57 @@ def change_import_paths_to_deprecated():
         .modify(add_provide_context_to_python_operator)
     )
 
+    # Remove new class and rename usages of old
+    remove_class(qry, "GKEStartPodOperator")
+    (
+        qry
+        .select_class("GKEStartPodOperator")
+        .is_filename(include=r"example_kubernetes_engine\.py")
+        .rename("GKEPodOperator")
+    )
+
     qry.execute(write=True, silent=False, interactive=False)
+
+    # Add old import to GKE
+    gke_path = os.path.join(
+        dirname(__file__), "airflow", "providers", "google", "cloud", "operators", "kubernetes_engine.py"
+    )
+    with open(gke_path, "a") as f:
+        f.writelines(["", "from airflow.contrib.operators.gcp_container_operator import GKEPodOperator"])
+
+    gke_path = os.path.join(
+        dirname(__file__), "airflow", "providers", "google", "cloud", "operators", "kubernetes_engine.py"
+    )
+
+
+def get_source_providers_folder():
+    return os.path.join(dirname(__file__), os.pardir, "airflow", "providers")
+
+
+def get_providers_folder():
+    return os.path.join(dirname(__file__), "airflow", "providers")
+
+
+def get_providers_package_folder(provider_package: str):
+    return os.path.join(get_providers_folder(), *provider_package.split("."))
+
+
+def get_provider_package_name(provider_package: str):
+    return "apache-airflow-providers-" + provider_package.replace(".", "-")
 
 
 def copy_provider_sources():
+    rm_build_dir()
+    package_providers_dir = get_providers_folder()
+    if os.path.isdir(package_providers_dir):
+        rmtree(package_providers_dir)
+    copytree(get_source_providers_folder(), get_providers_folder())
+
+
+def rm_build_dir():
     build_dir = os.path.join(dirname(__file__), "build")
     if os.path.isdir(build_dir):
         rmtree(build_dir)
-    package_providers_dir = os.path.join(dirname(__file__), "airflow", "providers")
-    if os.path.isdir(package_providers_dir):
-        rmtree(package_providers_dir)
-    copytree(os.path.join(dirname(__file__), os.pardir, "airflow", "providers"),
-             os.path.join(dirname(__file__), "airflow", "providers"))
-
-
-def get_provider_package_name(provider_module: str):
-    return "apache-airflow-providers-" + provider_module.replace(".", "-")
 
 
 def copy_and_refactor_sources():
@@ -251,21 +307,41 @@ def copy_and_refactor_sources():
     change_import_paths_to_deprecated()
 
 
-def do_setup_package_providers(provider_module: str, deps: List[str], extras: Dict[str, List[str]]):
+def get_long_description(provider_package: str):
+    providers_folder = get_providers_folder()
+    package_name = get_provider_package_name(provider_package)
+    package_folder = get_providers_package_folder(provider_package)
+    with open(os.path.join(providers_folder, "dependencies.json"), "rt") as dependencies_file:
+        dependent_packages = json.load(dependencies_file).get(provider_package) or ""
+    package_dependencies = ""
+    if dependent_packages:
+        package_dependencies = "This package has those optional dependencies:\n"
+        for dependent_package in dependent_packages:
+            package_dependencies += f"  * {get_provider_package_name(dependent_package)}\n"
+    package_backport_readme = ""
+    backport_readme_file_path = os.path.join(package_folder, "BACKPORT_README.md")
+    if os.path.isfile(backport_readme_file_path):
+        with open(backport_readme_file_path, "tr") as backport_readme:
+            package_backport_readme = backport_readme.read()
+    # No jinja here - we do not have any more dependencies in setup.py
+    return long_description.replace("{{ PACKAGE_NAME }}", package_name) \
+        .replace("{{ PACKAGE_BACKPORT_README }}", package_backport_readme) \
+        .replace("{{ PACKAGE_DEPENDENCIES }}", package_dependencies)
+
+
+def do_setup_package_providers(provider_package: str, deps: List[str], extras: Dict[str, List[str]]):
     setup.write_version()
-    provider_package_name = get_provider_package_name(provider_module)
-    package_name = f'{provider_package_name}' if provider_module != "providers" \
+    provider_package_name = get_provider_package_name(provider_package)
+    package_name = f'{provider_package_name}' if provider_package != "providers" \
         else f'apache-airflow-providers'
-    package_prefix = f'airflow.providers.{provider_module}' if provider_module != 'providers' \
+    package_prefix = f'airflow.providers.{provider_package}' if provider_package != 'providers' \
         else 'airflow.providers'
     found_packages = find_packages()
     found_packages = [package for package in found_packages if package.startswith(package_prefix)]
     setuptools_setup(
         name=package_name,
-        description=f'Back-porting ${package_name} package for Airflow 1.10.*',
-        long_description=f"""
-Back-ported {package_name} to 1.10.* series of Airflow.
-""",
+        description=f'Back-ported ${package_name} package for Airflow 1.10.*',
+        long_description=get_long_description(provider_package),
         long_description_content_type='text/markdown',
         license='Apache License 2.0',
         version='0.0.1',
@@ -362,6 +438,6 @@ if __name__ == "__main__":
         del sys.argv[1]
         print(f"Building backport package: {provider_package}")
         dependencies = find_package_dependencies(package=provider_package)
-        do_setup_package_providers(provider_module=provider_package,
+        do_setup_package_providers(provider_package=provider_package,
                                    deps=dependencies,
                                    extras=find_package_extras(provider_package))

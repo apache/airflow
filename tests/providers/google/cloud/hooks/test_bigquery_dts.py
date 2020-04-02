@@ -56,7 +56,7 @@ TRANSFER_CONFIG_ID = "id1234"
 class BigQueryDataTransferHookTestCase(unittest.TestCase):
     def setUp(self) -> None:
         with mock.patch(
-            "airflow.providers.google.cloud.hooks.bigquery_dts.CloudBaseHook.__init__",
+            "airflow.providers.google.cloud.hooks.bigquery_dts.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = BiqQueryDataTransferServiceHook()

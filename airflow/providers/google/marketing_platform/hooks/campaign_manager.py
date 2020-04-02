@@ -24,10 +24,10 @@ from googleapiclient import http
 from googleapiclient.discovery import Resource, build
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class GoogleCampaignManagerHook(CloudBaseHook):
+class GoogleCampaignManagerHook(GoogleBaseHook):
     """
     Hook for Google Campaign Manager.
     """

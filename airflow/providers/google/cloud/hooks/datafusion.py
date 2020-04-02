@@ -28,12 +28,12 @@ import google.auth
 from googleapiclient.discovery import Resource, build
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 Operation = Dict[str, Any]
 
 
-class DataFusionHook(CloudBaseHook):
+class DataFusionHook(GoogleBaseHook):
     """
     Hook for Google DataFusion.
     """
@@ -104,7 +104,7 @@ class DataFusionHook(CloudBaseHook):
             )
         return self._conn
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def restart_instance(
         self, instance_name: str, location: str, project_id: Optional[str] = None
     ) -> Operation:
@@ -132,7 +132,7 @@ class DataFusionHook(CloudBaseHook):
         )
         return operation
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_instance(
         self, instance_name: str, location: str, project_id: Optional[str] = None
     ) -> Operation:
@@ -159,7 +159,7 @@ class DataFusionHook(CloudBaseHook):
         )
         return operation
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_instance(
         self,
         instance_name: str,
@@ -197,7 +197,7 @@ class DataFusionHook(CloudBaseHook):
         )
         return operation
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_instance(
         self, instance_name: str, location: str, project_id: Optional[str] = None
     ) -> Dict[str, Any]:
@@ -224,7 +224,7 @@ class DataFusionHook(CloudBaseHook):
         )
         return instance
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def patch_instance(
         self,
         instance_name: str,

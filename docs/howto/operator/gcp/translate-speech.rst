@@ -44,15 +44,15 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
-.. _howto/operator:GcpTranslateSpeechOperator:
+.. _howto/operator:CloudTranslateSpeechOperator:
 
-GcpTranslateSpeechOperator
---------------------------
+CloudTranslateSpeechOperator
+----------------------------
 
 Recognizes speech in audio input and translates it.
 
 For parameter definition, take a look at
-:class:`~airflow.providers.google.cloud.operators.translate_speech.GcpTranslateSpeechOperator`
+:class:`~airflow.providers.google.cloud.operators.translate_speech.CloudTranslateSpeechOperator`
 
 Arguments
 """""""""

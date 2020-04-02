@@ -199,7 +199,7 @@ cassandra = [
     'cassandra-driver>=3.13.0,<3.21.0',
 ]
 celery = [
-    'celery~=4.3',
+    'celery~=4.4.2',
     'flower>=0.7.3, <1.0',
     'tornado>=4.2.0, <6.0',  # Dep of flower. Pin to a version that works on Py3.5.2
 ]
@@ -210,7 +210,7 @@ cloudant = [
     'cloudant>=2.0',
 ]
 dask = [
-    'distributed>=1.17.1, <2',
+    'distributed>=2.11.1, <3',
 ]
 databricks = [
     'requests>=2.20.0, <3',
@@ -359,7 +359,7 @@ redis = [
     'redis~=3.2',
 ]
 salesforce = [
-    'simple-salesforce>=0.72,<1.0.0',
+    'simple-salesforce>=1.0.0',
 ]
 samba = [
     'pysmbclient>=0.1.3',
@@ -460,8 +460,9 @@ else:
 
 devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
 devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
-devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + datadog + devel + doc + docker +
-             elasticsearch + exasol + gcp + grpc + hashicorp jdbc + jenkins + kerberos + kubernetes +
+
+devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + dask + datadog + devel + doc + docker +
+             elasticsearch + exasol + gcp + grpc + hashicorp + jdbc + jenkins + kerberos + kubernetes +
              ldap + odbc + oracle + pagerduty + papermill + password + redis + salesforce + samba +
              segment + sendgrid + sentry + singularity + slack + snowflake + ssh + statsd + tableau +
              virtualenv + webhdfs + yandexcloud + zendesk)
@@ -500,9 +501,9 @@ EXTRAS_REQUIREMENTS = {
     'github_enterprise': flask_oauth,
     'google_auth': flask_oauth,
     'grpc': grpc,
+    'hashicorp': hashicorp,
     'hdfs': hdfs,
     'hive': hive,
-    'hvac': hashicorp,
     'jdbc': jdbc,
     'jira': jira,
     'kerberos': kerberos,
@@ -570,7 +571,7 @@ INSTALL_REQUIREMENTS = [
     'lazy_object_proxy~=1.3',
     'lockfile>=0.12.2',
     'markdown>=2.5.2, <3.0',
-    'pandas>=0.17.1, <1.0.0',
+    'pandas>=0.17.1, <2.0',
     'pendulum==1.4.4',
     'pep562~=1.0;python_version<"3.7"',
     'psutil>=4.2.0, <6.0.0',
@@ -599,53 +600,11 @@ def get_dependency_name(dep):
     return dep.replace(">", '=').replace("<", "=").split("=")[0]
 
 
-def read_requirements_txt():
-    """Returns dictionary of requirements read from requirements.txt"""
-    with open(os.path.join(my_dir, "requirements.txt"), "rt") as requirement_file:
-        requirements_content = requirement_file.readlines()
-        requirements = {}
-        for requirements_line in requirements_content:
-            if requirements_line.strip().startswith("#"):
-                continue
-            split_requirement = requirements_line.split("==")
-            requirements[split_requirement[0]] = requirements_line.rstrip("\n")
-    return requirements
-
-
-def get_extras_required(pinned=False):
-    """Get dict of extras requirements - pinned if specified."""
-    if not pinned:
-        return EXTRAS_REQUIREMENTS
-    pinned_extras_required = {}
-    requirements = read_requirements_txt()
-    for extra, dependencies in EXTRAS_REQUIREMENTS.items():
-        pinned_deps = []
-        for dependency in dependencies:
-            dep_name = get_dependency_name(dependency)
-            if requirements.get(dep_name):
-                pinned_deps.append(requirements[dep_name])
-        pinned_extras_required[extra] = pinned_deps
-    return pinned_extras_required
-
-
-def get_install_requires(pinned=False):
-    """Get list of install requirements - pinned if specified."""
-    if not pinned:
-        return INSTALL_REQUIREMENTS
-    pinned_install_requires = []
-    requirements = read_requirements_txt()
-    for dependency in INSTALL_REQUIREMENTS:
-        dep_name = get_dependency_name(dependency)
-        if requirements.get(dep_name):
-            pinned_install_requires.append(requirements[dep_name])
-    return pinned_install_requires
-
-
-def do_setup(pinned=False):
+def do_setup():
     """Perform the Airflow package setup."""
     write_version()
     setup(
-        name='apache-airflow' + ("" if not pinned else "-pinned"),
+        name='apache-airflow',
         description='Programmatically author, schedule and monitor data pipelines',
         long_description=long_description,
         long_description_content_type='text/markdown',
@@ -664,7 +623,7 @@ def do_setup(pinned=False):
                 "airflow = airflow.__main__:main",
             ],
         },
-        install_requires=get_install_requires(pinned=pinned),
+        install_requires=INSTALL_REQUIREMENTS,
         setup_requires=[
             'bowler',
             'docutils>=0.14, <0.16'
@@ -672,8 +631,7 @@ def do_setup(pinned=False):
             'setuptools',
             'wheel',
         ],
-
-        extras_require=get_extras_required(pinned=pinned),
+        extras_require=EXTRAS_REQUIREMENTS,
         classifiers=[
             'Development Status :: 5 - Production/Stable',
             'Environment :: Console',
@@ -701,12 +659,4 @@ def do_setup(pinned=False):
 
 
 if __name__ == "__main__":
-    pinned_requirements = False
-    if len(sys.argv) > 1 and sys.argv[1] == "pinned":
-        pinned_requirements = True
-        del sys.argv[1]
-    do_setup(pinned=pinned_requirements)
-    if sys.argv[1] == "--help":
-        print()
-        print("You can add 'pinned' as first argument to build pinned version of apache-airflow")
-        print()
+    do_setup()

@@ -63,6 +63,7 @@
     "dagre-d3": "^0.6.4",
     "datatables.net": "^1.10.19",
     "datatables.net-bs": "^1.10.19",
+    "eonasdan-bootstrap-datetimepicker": "^4.17.47",
     "jquery": ">=3.4.0",
     "js-yaml": ">=3.13.1",
     "lodash": "^4.17.13",

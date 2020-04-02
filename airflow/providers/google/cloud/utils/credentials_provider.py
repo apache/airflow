@@ -22,13 +22,13 @@ Google Cloud Platform authentication.
 import json
 import logging
 import tempfile
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from typing import Dict, Optional, Sequence, Tuple
 from urllib.parse import urlencode
 
 import google.auth
 import google.oauth2.service_account
-from google.auth.environment_vars import CREDENTIALS
+from google.auth.environment_vars import CREDENTIALS, LEGACY_PROJECT, PROJECT
 
 from airflow.exceptions import AirflowException
 from airflow.utils.process_utils import patch_environ
@@ -160,9 +160,19 @@ def provide_gcp_conn_and_credentials(
     :param project_id: The id of GCP project for the connection.
     :type project_id: str
     """
-    with provide_gcp_credentials(key_file_path), provide_gcp_connection(
-        key_file_path, scopes, project_id
-    ):
+    with ExitStack() as stack:
+        if key_file_path:
+            stack.enter_context(  # type; ignore  # pylint: disable=no-member
+                provide_gcp_credentials(key_file_path)
+            )
+        if project_id:
+            stack.enter_context(  # type; ignore  # pylint: disable=no-member
+                patch_environ({PROJECT: project_id, LEGACY_PROJECT: project_id})
+            )
+
+        stack.enter_context(  # type; ignore  # pylint: disable=no-member
+            provide_gcp_connection(key_file_path, scopes, project_id)
+        )
         yield
 
 

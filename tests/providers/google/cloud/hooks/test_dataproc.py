@@ -37,7 +37,7 @@ CLUSTER_NAME = "cluster-name"
 
 PARENT = "parent"
 NAME = "name"
-BASE_STRING = "airflow.providers.google.cloud.hooks.base.{}"
+BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 DATAPROC_STRING = "airflow.providers.google.cloud.hooks.dataproc.{}"
 
 
@@ -48,7 +48,7 @@ def mock_init(*args, **kwargs):
 class TestDataprocHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            BASE_STRING.format("CloudBaseHook.__init__"), new=mock_init
+            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init
         ):
             self.hook = DataprocHook(gcp_conn_id="test")
 

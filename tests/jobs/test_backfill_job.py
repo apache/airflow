@@ -132,6 +132,7 @@ class TestBackfillJob(unittest.TestCase):
 
         self.assertEqual(State.SUCCESS, dag_run.state)
 
+    @pytest.mark.xfail(condition=True, reason="This test is flaky")
     @pytest.mark.backend("postgres", "mysql")
     def test_trigger_controller_dag(self):
         dag = self.dagbag.get_dag('example_trigger_controller_dag')
@@ -166,7 +167,7 @@ class TestBackfillJob(unittest.TestCase):
 
         end_date = DEFAULT_DATE + datetime.timedelta(days=1)
 
-        executor = MockExecutor()
+        executor = MockExecutor(parallelism=16)
         job = BackfillJob(
             dag=dag,
             start_date=DEFAULT_DATE,
@@ -714,7 +715,7 @@ class TestBackfillJob(unittest.TestCase):
 
         dag.clear()
 
-        executor = MockExecutor()
+        executor = MockExecutor(parallelism=16)
         job = BackfillJob(dag=dag,
                           executor=executor,
                           start_date=DEFAULT_DATE,
@@ -1410,7 +1411,10 @@ class TestBackfillJob(unittest.TestCase):
         dag = self.dagbag.get_dag("test_start_date_scheduling")
         dag.clear()
 
+        executor = MockExecutor(parallelism=16)
+
         job = BackfillJob(
+            executor=executor,
             dag=dag,
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=1),

@@ -162,8 +162,6 @@ All operators are in the following packages:
 
   airflow/providers/postgres/operators/index
 
-  airflow/providers/presto/operators/index
-
   airflow/providers/qubole/operators/index
 
   airflow/providers/qubole/sensors/index
@@ -258,6 +256,8 @@ All hooks are in the following packages:
   airflow/providers/google/ads/hooks/index
 
   airflow/providers/google/cloud/hooks/index
+
+  airflow/providers/google/common/hooks/index
 
   airflow/providers/google/firebase/hooks/index
 

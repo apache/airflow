@@ -72,7 +72,7 @@ RUNTIME_ENV = {
         'count': '3'
     }
 }
-BASE_STRING = 'airflow.providers.google.cloud.hooks.base.{}'
+BASE_STRING = 'airflow.providers.google.common.hooks.base_google.{}'
 DATAFLOW_STRING = 'airflow.providers.google.cloud.hooks.dataflow.{}'
 MOCK_UUID = '12345678'
 TEST_PROJECT = 'test-project'
@@ -145,7 +145,7 @@ def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-ar
 class TestDataflowHook(unittest.TestCase):
 
     def setUp(self):
-        with mock.patch(BASE_STRING.format('CloudBaseHook.__init__'),
+        with mock.patch(BASE_STRING.format('GoogleBaseHook.__init__'),
                         new=mock_init):
             self.dataflow_hook = DataflowHook(gcp_conn_id='test')
 
@@ -297,7 +297,7 @@ class TestDataflowHook(unittest.TestCase):
 class TestDataflowTemplateHook(unittest.TestCase):
 
     def setUp(self):
-        with mock.patch(BASE_STRING.format('CloudBaseHook.__init__'),
+        with mock.patch(BASE_STRING.format('GoogleBaseHook.__init__'),
                         new=mock_init):
             self.dataflow_hook = DataflowHook(gcp_conn_id='test')
 

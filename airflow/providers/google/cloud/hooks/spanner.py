@@ -28,10 +28,10 @@ from google.cloud.spanner_v1.transaction import Transaction
 from google.longrunning.operations_grpc_pb2 import Operation  # noqa: F401
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class SpannerHook(CloudBaseHook):
+class SpannerHook(GoogleBaseHook):
     """
     Hook for Google Cloud Spanner APIs.
 
@@ -60,7 +60,7 @@ class SpannerHook(CloudBaseHook):
             )
         return self._client
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_instance(
         self,
         instance_id: str,
@@ -126,7 +126,7 @@ class SpannerHook(CloudBaseHook):
             result = operation.result()
             self.log.info(result)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_instance(
         self,
         instance_id: str,
@@ -161,7 +161,7 @@ class SpannerHook(CloudBaseHook):
         self._apply_to_instance(project_id, instance_id, configuration_name,
                                 node_count, display_name, lambda x: x.create())
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def update_instance(
         self,
         instance_id: str,
@@ -196,7 +196,7 @@ class SpannerHook(CloudBaseHook):
         self._apply_to_instance(project_id, instance_id, configuration_name,
                                 node_count, display_name, lambda x: x.update())
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_instance(self, instance_id: str, project_id: Optional[str] = None) -> None:
         """
         Deletes an existing Cloud Spanner instance.
@@ -218,7 +218,7 @@ class SpannerHook(CloudBaseHook):
             self.log.error('An error occurred: %s. Exiting.', e.message)
             raise e
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_database(
         self,
         instance_id: str,
@@ -253,7 +253,7 @@ class SpannerHook(CloudBaseHook):
 
         return database
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_database(
         self,
         instance_id: str,
@@ -295,7 +295,7 @@ class SpannerHook(CloudBaseHook):
             result = operation.result()
             self.log.info(result)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def update_database(
         self,
         instance_id: str,
@@ -346,7 +346,7 @@ class SpannerHook(CloudBaseHook):
             self.log.error('An error occurred: %s. Exiting.', e.message)
             raise e
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_database(self, instance_id: str, database_id, project_id: Optional[str] = None) -> bool:
         """
         Drops a database in Cloud Spanner.
@@ -384,7 +384,7 @@ class SpannerHook(CloudBaseHook):
 
         return True
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def execute_dml(
         self,
         instance_id: str,

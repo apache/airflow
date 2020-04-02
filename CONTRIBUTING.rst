@@ -317,7 +317,7 @@ This is the full list of those extras:
 
 all, all_dbs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant, dask, databricks,
 datadog, devel, devel_ci, devel_hadoop, doc, docker, druid, elasticsearch, gcp, gcp_api,
-github_enterprise, google_auth, grpc, hdfs, hive, hvac, jdbc, jira, kerberos, kubernetes, ldap,
+github_enterprise, google_auth, grpc, hashicorp, hdfs, hive, jdbc, jira, kerberos, kubernetes, ldap,
 mongo, mssql, mysql, odbc, oracle, pagerduty, papermill, password, pinot, postgres, presto, qds,
 rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry, singularity, slack, snowflake, ssh,
 statsd, tableau, vertica, webhdfs, winrm, yandexcloud
@@ -325,8 +325,8 @@ statsd, tableau, vertica, webhdfs, winrm, yandexcloud
   .. END EXTRAS HERE
 
 
-Pinned Airflow requirements.txt file
-------------------------------------
+Airflow dependencies
+--------------------
 
 Airflow is not a standard python project. Most of the python projects fall into one of two types -
 application or library. As described in
@@ -341,31 +341,76 @@ be open to allow several different libraries with the same requirements to be in
 The problem is that Apache Airflow is a bit of both - application to install and library to be used when
 you are developing your own operators and DAGs.
 
-This - seemingly unsolvable - puzzle is solved as follows:
+This - seemingly unsolvable - puzzle is solved by having pinned requirement files. Those are available
+as of airflow 1.10.10.
 
-* by default when you install ``apache-airflow`` package - the dependencies are as open as possible while
-  still allowing the apache-airflow to install. This means that 'apache-airflow' package might fail to
-  install in case a direct or transitive dependency is released that breaks the installation. In such case
-  when installing ``apache-airflow``, you might need to provide additional constraints (for
-  example ``pip install apache-airflow==1.10.2 Werkzeug<1.0.0``)
+Pinned requirement files
+------------------------
 
-* we have ``requirements.txt`` file generated automatically based on the set of all latest working
-  and tested requirement versions. You can also use that file as a constraints file when installing
-  apache airflow - either from the sources ``pip install -e . --constraint requirements.txt`` or
-  from the pypi package ``pip install apache-airflow --constraint requirements.txt``. Note that
-  this will also work with extras for example ``pip install .[gcp] --constraint requirements.txt`` or
-  ``pip install apache-airflow[gcp] --constraint requirements.txt``
+By default when you install ``apache-airflow`` package - the dependencies are as open as possible while
+still allowing the apache-airflow package to install. This means that 'apache-airflow' package might fail to
+install in case a direct or transitive dependency is released that breaks the installation. In such case
+when installing ``apache-airflow``, you might need to provide additional constraints (for
+example ``pip install apache-airflow==1.10.2 Werkzeug<1.0.0``)
 
-The ``requirements.txt`` file should be updated automatically via pre-commit whenever you update dependencies
-It reflects the current set of dependencies installed in the CI image of Apache Airflow.
-The same set of requirements will be used to produce the production image.
+However we now have ``requirements-python<PYTHON_MAJOR_MINOR_VERSION>.txt`` file generated
+automatically and committed in the requirements folder based on the set of all latest working and tested
+requirement versions. Those ``requirement-python<PYTHON_MAJOR_MINOR_VERSION>.txt`` files can be used as
+constraints file when installing Apache Airflow - either from the sources
 
-If you do not use pre-commits and the CI builds fails / you need to regenerate it, you can do it manually:
-``pre-commit run generate-requirements --all-files`` or via script
-``./scripts/ci/ci_generate_requirements.sh``.
-This will try to regenerate the requirements.txt file with the latest requirements matching
-the setup.py constraints.
+.. code-block:: bash
 
+  pip install -e . --constraint requirements/requirements-python3.6.txt
+
+
+or from the pypi package
+
+.. code-block:: bash
+
+  pip install apache-airflow --constraint requirements/requirements-python3.6.txt
+
+
+This works also with extras - for example:
+
+.. code-block:: bash
+
+  pip install .[gcp] --constraint requirements/requirements-python3.6.txt
+
+
+It is also possible to use constraints directly from github using tag/version name:
+
+.. code-block:: bash
+
+  pip install apache-airflow[gcp]==1.10.10 \
+      --constraint https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.6.txt
+
+There are different set of fixed requirements for different python major/minor versions and you should
+use the right requirements file for the right python version.
+
+The ``requirements-python<PYTHON_MAJOR_MINOR_VERSION>.txt`` file MUST be regenerated every time after
+the ``setup.py`` is updated. This is checked automatically in Travis CI build. There are separate
+jobs for each python version that checks if the requirements should be updated.
+
+If they are not updated, you should regenerate the requirements locally using Breeze as described below.
+
+Generating requirement files
+----------------------------
+
+This should be done every time after you modify setup.py file. You can generate requirement files
+using `Breeze <BREEZE.rst>`_ . Simply use those commands:
+
+.. code-block:: bash
+
+  breeze generate-requirements --python 3.7
+
+.. code-block:: bash
+
+  breeze generate-requirements --python 3.6
+
+Note that when you generate requirements this way, you might update to latest version of requirements
+that were released since the last time so during tests you might get errors unrelated to your change.
+In this case the easiest way to fix it is to limit the culprit dependency to the previous version
+with ``<NNNN.NN>`` constraint added in setup.py.
 
 Backport providers packages
 ---------------------------
@@ -951,19 +996,19 @@ prepare such packages on your own easily.
 * Make sure you have ``setuptools`` and ``wheel`` installed in your python environment. The easiest way
   to do it is to run ``pip install setuptools wheel``
 
-* Enter the ``backport_packages`` directory
+* Run the following command:
+
+  .. code-block:: bash
+
+    ./scripts/ci/ci_prepare_packages.sh
 
 * Usually you only build some of the providers package. The ``providers`` directory is separated into
   separate providers. You can see the list of all available providers by running
-  ``python setup_backport_packages.py list-backport-packages``. You can build the backport package
-  by running ``python setup.py <PROVIDER_NAME> bdist_wheel``. Note that there
+  ``./scripts/ci/ci_prepare_packages.sh --help``. You can build the backport package
+  by running ``./scripts/ci/ci_prepare_packages.sh <PROVIDER_NAME>``. Note that there
   might be (and are) dependencies between some packages that might prevent subset of the packages
   to be used without installing the packages they depend on. This will be solved soon by
   adding cross-dependencies between packages.
-
-* You can build 'all providers' package by running
-  ``python setup_backport_packages.py providers bdist_wheel``. This package contains all providers thus
-  it does not have issues with cross-dependencies.
 
 * This creates a wheel package in your ``dist`` folder with a name similar to:
   ``apache_airflow_providers-0.0.1-py2.py3-none-any.whl``
@@ -974,5 +1019,13 @@ prepare such packages on your own easily.
 * You can also build sdist (source distribution packages) by running
   ``python setup.py <PROVIDER_NAME> sdist`` but this is only needed in case of distribution of the packages.
 
+Each package has description generated from the the general ``backport_packages/README.md`` file with the
+following replacements:
+
+* ``{{ PACKAGE_NAME }}`` is replaced with the name of the package (``apache-airflow-providers-<NAME>``)
+* ``{{ PACKAGE_DEPENDENCIES }}`` is replaced with list of optional dependencies for the package
+* ``{{ PACKAGE_BACKPORT_README }}`` is replaced with the content of ``BACKPORT_README.md`` file in the
+  package folder if it exists.
+
 Note that those are unofficial packages yet - they are not yet released in PyPi, but you might use them to
-test the master versions of operators/hooks/sensors in a 1.10.* environment of airflow with Python3.6+
+test the master versions of operators/hooks/sensors in Airflow 1.10.* environment  with Python3.6+

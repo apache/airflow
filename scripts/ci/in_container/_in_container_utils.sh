@@ -66,7 +66,7 @@ function in_container_cleanup_pyc() {
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
-        -name "*.pyc" | grep ".pyc$" | sudo xargs rm -vf
+        -name "*.pyc" | grep ".pyc$" | sudo xargs rm -f
     set -o pipefail
 }
 
@@ -91,7 +91,8 @@ function in_container_cleanup_pycache() {
 #
 function in_container_fix_ownership() {
     set +o pipefail
-    sudo find . -user root | sudo xargs chown -v "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference
+    sudo find . -user root \
+    | sudo xargs chown -v "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference >/dev/null 2>&1
     set -o pipefail
 }
 

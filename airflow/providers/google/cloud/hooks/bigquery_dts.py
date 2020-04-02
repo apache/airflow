@@ -30,7 +30,7 @@ from google.cloud.bigquery_datatransfer_v1.types import (
 from google.protobuf.json_format import MessageToDict, ParseDict
 from googleapiclient.discovery import Resource
 
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 def get_object_id(obj: dict) -> str:
@@ -40,7 +40,7 @@ def get_object_id(obj: dict) -> str:
     return obj["name"].rpartition("/")[-1]
 
 
-class BiqQueryDataTransferServiceHook(CloudBaseHook):
+class BiqQueryDataTransferServiceHook(GoogleBaseHook):
     """
      Hook for Google Bigquery Transfer API.
 
@@ -93,7 +93,7 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
             )
         return self._conn
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_transfer_config(
         self,
         transfer_config: Union[dict, TransferConfig],
@@ -138,7 +138,7 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
             metadata=metadata,
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_transfer_config(
         self,
         transfer_config_id: str,
@@ -176,7 +176,7 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
             name=name, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def start_manual_transfer_runs(
         self,
         transfer_config_id: str,
@@ -233,7 +233,7 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
             metadata=metadata,
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_transfer_run(
         self,
         run_id: str,

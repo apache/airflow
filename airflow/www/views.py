@@ -77,6 +77,7 @@ from airflow.www.decorators import action_logging, gzipped, has_dag_access
 from airflow.www.forms import (
     ConnectionForm, DagRunForm, DateTimeForm, DateTimeWithNumRunsForm, DateTimeWithNumRunsWithDagRunsForm,
 )
+from airflow.www.utils import get_dag
 from airflow.www.widgets import AirflowModelListWidget
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
@@ -552,7 +553,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         dag_orm = DagModel.get_dagmodel(dag_id, session=session)
         # FIXME: items needed for this view should move to the database
-        dag = dag_orm.get_dag(STORE_SERIALIZED_DAGS)
+        dag = get_dag(dag_orm, STORE_SERIALIZED_DAGS)
         title = "DAG details"
         root = request.args.get('root', '')
 
@@ -1861,8 +1862,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         is_paused = True if request.args.get('is_paused') == 'false' else False
         models.DagModel.get_dagmodel(dag_id).set_is_paused(
-            is_paused=is_paused,
-            store_serialized_dags=STORE_SERIALIZED_DAGS)
+            is_paused=is_paused)
         return "OK"
 
     @expose('/refresh', methods=['POST'])
@@ -1940,12 +1940,13 @@ class Airflow(AirflowBaseView):
         prev_task_id = ""
         for tf in ti_fails:
             end_date = tf.end_date or timezone.utcnow()
+            start_date = tf.start_date or end_date
             if tf_count != 0 and tf.task_id == prev_task_id:
                 try_count = try_count + 1
             else:
                 try_count = 1
             prev_task_id = tf.task_id
-            gantt_bar_items.append((tf.task_id, tf.start_date, end_date, State.FAILED, try_count))
+            gantt_bar_items.append((tf.task_id, start_date, end_date, State.FAILED, try_count))
             tf_count = tf_count + 1
 
         task_types = {}

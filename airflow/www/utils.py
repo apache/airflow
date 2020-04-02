@@ -16,11 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import functools
-import inspect
 import json
 import time
-from typing import Any, Optional
 from urllib.parse import urlencode
 
 import flask_appbuilder.models.sqla.filters as fab_sqlafilters
@@ -33,8 +30,10 @@ from pygments.formatters import HtmlFormatter
 
 from airflow.configuration import conf
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DagBag, DagModel
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
+from airflow.utils.code_utils import get_python_source
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.utils.state import State
 
@@ -360,38 +359,6 @@ def get_chart_height(dag):
     return 600 + len(dag.tasks) * 10
 
 
-def get_python_source(x: Any) -> Optional[str]:
-    """
-    Helper function to get Python source (or not), preventing exceptions
-    """
-    if isinstance(x, str):
-        return x
-
-    if x is None:
-        return None
-
-    source_code = None
-
-    if isinstance(x, functools.partial):
-        source_code = inspect.getsource(x.func)
-
-    if source_code is None:
-        try:
-            source_code = inspect.getsource(x)
-        except TypeError:
-            pass
-
-    if source_code is None:
-        try:
-            source_code = inspect.getsource(x.__call__)
-        except (TypeError, AttributeError):
-            pass
-
-    if source_code is None:
-        source_code = 'No source code available for {}'.format(type(x))
-    return source_code
-
-
 class UtcAwareFilterMixin:
     def apply(self, query, value):
         value = timezone.parse(value, timezone=timezone.utc)
@@ -457,3 +424,19 @@ class CustomSQLAInterface(SQLAInterface):
         return False
 
     filter_converter_class = UtcAwareFilterConverter
+
+
+def get_dag(orm_dag: DagModel, store_serialized_dags=False):
+    """Creates a dagbag to load and return a DAG.
+
+    Calling it from UI should set store_serialized_dags = STORE_SERIALIZED_DAGS.
+    There may be a delay for scheduler to write serialized DAG into database,
+    loads from file in this case.
+    FIXME: remove it when webserver does not access to DAG folder in future.
+    """
+    dag = DagBag(
+        dag_folder=orm_dag.fileloc, store_serialized_dags=store_serialized_dags).get_dag(orm_dag.dag_id)
+    if store_serialized_dags and dag is None:
+        dag = DagBag(
+            dag_folder=orm_dag.fileloc, store_serialized_dags=False).get_dag(orm_dag.dag_id)
+    return dag

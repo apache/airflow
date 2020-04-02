@@ -541,6 +541,9 @@ reached, runnable tasks get queued and their state will show as such in the
 UI. As slots free up, queued tasks start running based on the
 ``priority_weight`` (of the task and its descendants).
 
+``Pools are not thread-safe , in case of more than one scheduler in localExecutor Mode
+you can't ensure the non-scheduling of task even if the pool is full.``
+
 Note that if tasks are not given a pool, they are assigned to a default
 pool ``default_pool``.  ``default_pool`` is initialized with 128 slots and
 can changed through the UI or CLI (though it cannot be removed).
@@ -687,6 +690,34 @@ or if you need to deserialize a json object from the variable :
 
     echo {{ var.json.<variable_name> }}
 
+Storing Variables in Environment Variables
+------------------------------------------
+
+Airflow Variables can also be created and managed using Environment Variables. The environment variable
+naming convention is ``AIRFLOW_VAR_<variable_name>``, all uppercase.
+So if your variable key is ``FOO`` then the variable name should be ``AIRFLOW_VAR_FOO``.
+
+For example,
+
+.. code:: bash
+
+    export AIRFLOW_VAR_FOO=BAR
+
+    # To use JSON, store them as JSON strings
+    export AIRFLOW_VAR_FOO_BAZ='{"hello":"world"}'
+
+You can use them in your DAGs as:
+
+.. code:: python
+
+    from airflow.models import Variable
+    foo = Variable.get("foo")
+    foo_json = Variable.get("foo_baz", deserialize_json=True)
+
+.. note::
+
+    Single underscores surround ``VAR``.  This is in contrast with the way ``airflow.cfg``
+    parameters are stored, where double underscores surround the config section name.
 
 Branching
 =========
@@ -874,6 +905,7 @@ while creating tasks:
 * ``one_failed``: fires as soon as at least one parent has failed, it does not wait for all parents to be done
 * ``one_success``: fires as soon as at least one parent succeeds, it does not wait for all parents to be done
 * ``none_failed``: all parents have not failed (``failed`` or ``upstream_failed``) i.e. all parents have succeeded or been skipped
+* ``none_failed_or_skipped``: all parents have not failed (``failed`` or ``upstream_failed``) and at least one parent has succeeded.
 * ``none_skipped``: no parent is in a ``skipped`` state, i.e. all parents are in a ``success``, ``failed``, or ``upstream_failed`` state
 * ``dummy``: dependencies are just for show, trigger at will
 
@@ -884,7 +916,7 @@ previous schedule for the task hasn't succeeded.
 One must be aware of the interaction between trigger rules and skipped tasks
 in schedule level. Skipped tasks will cascade through trigger rules
 ``all_success`` and ``all_failed`` but not ``all_done``, ``one_failed``, ``one_success``,
-``none_failed``, ``none_skipped`` and ``dummy``.
+``none_failed``, ``none_failed_or_skipped``, ``none_skipped`` and ``dummy``.
 
 For example, consider the following DAG:
 
@@ -927,19 +959,19 @@ skipped tasks will cascade through ``all_success``.
 
 .. image:: img/branch_without_trigger.png
 
-By setting ``trigger_rule`` to ``none_failed`` in ``join`` task,
+By setting ``trigger_rule`` to ``none_failed_or_skipped`` in ``join`` task,
 
 .. code:: python
 
   #dags/branch_with_trigger.py
   ...
-  join = DummyOperator(task_id='join', dag=dag, trigger_rule='none_failed')
+  join = DummyOperator(task_id='join', dag=dag, trigger_rule='none_failed_or_skipped')
   ...
 
 The ``join`` task will be triggered as soon as
 ``branch_false`` has been skipped (a valid completion state) and
 ``follow_branch_a`` has succeeded. Because skipped tasks **will not**
-cascade through ``none_failed``.
+cascade through ``none_failed_or_skipped``.
 
 .. image:: img/branch_with_trigger.png
 

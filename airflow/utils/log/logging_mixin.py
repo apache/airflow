@@ -125,6 +125,7 @@ class RedirectStdHandler(StreamHandler):
     whatever sys.stderr/stderr is currently set to rather than the value of
     sys.stderr/stdout at handler construction time.
     """
+    # pylint: disable=super-init-not-called
     def __init__(self, stream):
         if not isinstance(stream, str):
             raise Exception("Cannot use file like objects. Use 'stdout' or 'stderr'"

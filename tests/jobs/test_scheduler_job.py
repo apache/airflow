@@ -1082,6 +1082,50 @@ class TestDagFileProcessor(unittest.TestCase):
         self.assertEqual(['test_multiple_dags__dag_2'], [dag.dag_id for dag in simple_dags])
         self.assertEqual({'test_multiple_dags__dag_2'}, {ti.dag_id for ti in tis})
 
+    def test_should_mark_dummy_task_as_success(self):
+        dag_file = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), '../dags/test_only_dummy_tasks.py'
+        )
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        with create_session() as session:
+            session.query(TaskInstance).delete()
+            session.query(DagModel).delete()
+
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        dagbag.sync_to_db()
+
+        simple_dags, import_errors_count = dag_file_processor.process_file(
+            file_path=dag_file, failure_callback_requests=[]
+        )
+        with create_session() as session:
+            tis = session.query(TaskInstance).all()
+
+        self.assertEqual(0, import_errors_count)
+        self.assertEqual(['test_only_dummy_tasks'], [dag.dag_id for dag in simple_dags])
+        self.assertEqual(5, len(tis))
+        self.assertEqual({
+            ('test_task_a', 'success'),
+            ('test_task_b', None),
+            ('test_task_c', 'success'),
+            ('test_task_on_execute', 'scheduled'),
+            ('test_task_on_success', 'scheduled'),
+        }, {(ti.task_id, ti.state) for ti in tis})
+
+        dag_file_processor.process_file(
+            file_path=dag_file, failure_callback_requests=[]
+        )
+        with create_session() as session:
+            tis = session.query(TaskInstance).all()
+
+        self.assertEqual(5, len(tis))
+        self.assertEqual({
+            ('test_task_a', 'success'),
+            ('test_task_b', 'success'),
+            ('test_task_c', 'success'),
+            ('test_task_on_execute', 'scheduled'),
+            ('test_task_on_success', 'scheduled'),
+        }, {(ti.task_id, ti.state) for ti in tis})
+
 
 class TestDagFileProcessorQueriesCount(unittest.TestCase):
     """
@@ -1107,24 +1151,24 @@ class TestDagFileProcessorQueriesCount(unittest.TestCase):
             # One DAG with one task per DAG file
             ( 1,  1,  1, "1d",  "None",  "no_structure"),  # noqa
             ( 1,  1,  1, "1d",  "None",        "linear"),  # noqa
-            ( 3,  1,  1, "1d", "@once",  "no_structure"),  # noqa
-            ( 3,  1,  1, "1d", "@once",        "linear"),  # noqa
-            ( 3,  1,  1, "1d",   "30m",  "no_structure"),  # noqa
-            ( 3,  1,  1, "1d",   "30m",        "linear"),  # noqa
+            ( 9,  1,  1, "1d", "@once",  "no_structure"),  # noqa
+            ( 9,  1,  1, "1d", "@once",        "linear"),  # noqa
+            ( 9,  1,  1, "1d",   "30m",  "no_structure"),  # noqa
+            ( 9,  1,  1, "1d",   "30m",        "linear"),  # noqa
             # One DAG with five tasks per DAG  file
             ( 1,  1,  5, "1d",  "None",  "no_structure"),  # noqa
             ( 1,  1,  5, "1d",  "None",        "linear"),  # noqa
-            ( 3,  1,  5, "1d", "@once",  "no_structure"),  # noqa
-            ( 3,  1,  5, "1d", "@once",        "linear"),  # noqa
-            ( 3,  1,  5, "1d",   "30m",  "no_structure"),  # noqa
-            ( 3,  1,  5, "1d",   "30m",        "linear"),  # noqa
+            ( 9,  1,  5, "1d", "@once",  "no_structure"),  # noqa
+            (10,  1,  5, "1d", "@once",        "linear"),  # noqa
+            ( 9,  1,  5, "1d",   "30m",  "no_structure"),  # noqa
+            (10,  1,  5, "1d",   "30m",        "linear"),  # noqa
             # 10 DAGs with 10 tasks per DAG file
             ( 1, 10, 10, "1d",  "None",  "no_structure"),  # noqa
             ( 1, 10, 10, "1d",  "None",        "linear"),  # noqa
-            (21, 10, 10, "1d", "@once",  "no_structure"),  # noqa
-            (21, 10, 10, "1d", "@once",        "linear"),  # noqa
-            (21, 10, 10, "1d",   "30m",  "no_structure"),  # noqa
-            (21, 10, 10, "1d",   "30m",        "linear"),  # noqa
+            (81, 10, 10, "1d", "@once",  "no_structure"),  # noqa
+            (91, 10, 10, "1d", "@once",        "linear"),  # noqa
+            (81, 10, 10, "1d",   "30m",  "no_structure"),  # noqa
+            (91, 10, 10, "1d",   "30m",        "linear"),  # noqa
             # pylint: enable=bad-whitespace
         ]
     )
@@ -1152,24 +1196,24 @@ class TestDagFileProcessorQueriesCount(unittest.TestCase):
             # One DAG with two tasks per DAG file
             ( 5,  1,  1, "1d",   "None", "no_structure"),  # noqa
             ( 5,  1,  1, "1d",   "None",       "linear"),  # noqa
-            ( 7,  1,  1, "1d",  "@once", "no_structure"),  # noqa
-            ( 7,  1,  1, "1d",  "@once",       "linear"),  # noqa
-            ( 7,  1,  1, "1d",    "30m", "no_structure"),  # noqa
-            ( 7,  1,  1, "1d",    "30m",       "linear"),  # noqa
+            (15,  1,  1, "1d",  "@once", "no_structure"),  # noqa
+            (15,  1,  1, "1d",  "@once",       "linear"),  # noqa
+            (15,  1,  1, "1d",    "30m", "no_structure"),  # noqa
+            (15,  1,  1, "1d",    "30m",       "linear"),  # noqa
             # One DAG with five tasks per DAG file
             ( 5,  1,  5, "1d",   "None", "no_structure"),  # noqa
             ( 5,  1,  5, "1d",   "None",       "linear"),  # noqa
-            ( 7,  1,  5, "1d",  "@once", "no_structure"),  # noqa
-            ( 7,  1,  5, "1d",  "@once",       "linear"),  # noqa
-            ( 7,  1,  5, "1d",    "30m", "no_structure"),  # noqa
-            ( 7,  1,  5, "1d",    "30m",       "linear"),  # noqa
+            (15,  1,  5, "1d",  "@once", "no_structure"),  # noqa
+            (16,  1,  5, "1d",  "@once",       "linear"),  # noqa
+            (15,  1,  5, "1d",    "30m", "no_structure"),  # noqa
+            (16,  1,  5, "1d",    "30m",       "linear"),  # noqa
             # 10 DAGs with 10 tasks per DAG file
             ( 5, 10, 10, "1d",  "None",  "no_structure"),  # noqa
             ( 5, 10, 10, "1d",  "None",        "linear"),  # noqa
-            (25, 10, 10, "1d", "@once",  "no_structure"),  # noqa
-            (25, 10, 10, "1d", "@once",        "linear"),  # noqa
-            (25, 10, 10, "1d",   "30m",  "no_structure"),  # noqa
-            (25, 10, 10, "1d",   "30m",        "linear"),  # noqa
+            (87, 10, 10, "1d", "@once",  "no_structure"),  # noqa
+            (97, 10, 10, "1d", "@once",        "linear"),  # noqa
+            (87, 10, 10, "1d",   "30m",  "no_structure"),  # noqa
+            (97, 10, 10, "1d",   "30m",        "linear"),  # noqa
             # pylint: enable=bad-whitespace
         ]
     )
@@ -2493,10 +2537,12 @@ class TestSchedulerJob(unittest.TestCase):
         dag = DAG(
             dag_id='test_scheduler_reschedule',
             start_date=DEFAULT_DATE)
-        dummy_task = DummyOperator(
+        dummy_task = BashOperator(
             task_id='dummy',
             dag=dag,
-            owner='airflow')
+            owner='airflow',
+            bash_command='echo 1',
+        )
 
         dag.clear()
         dag.is_subdag = False

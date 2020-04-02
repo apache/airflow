@@ -38,7 +38,7 @@ JOB_ID = 1234
 
 class TestBigQueryHookMethods(unittest.TestCase):
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryConnection")
@@ -63,10 +63,10 @@ class TestBigQueryHookMethods(unittest.TestCase):
         self.assertEqual(mock_bigquery_connection.return_value, result)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.base.CloudBaseHook.__init__")
+    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__")
     def test_bigquery_bigquery_conn_id_deprecation_warning(
         self, mock_base_hook_init, mock_get_creds_and_proj_id
     ):
@@ -79,7 +79,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         self.assertEqual(warning_message, str(warn.warning))
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     def test_bigquery_insert_rows_not_implemented(self, mock_get_creds_and_proj_id):
@@ -88,7 +88,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
             bq_hook.insert_rows(table="table", rows=[1, 2])
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -102,7 +102,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         self.assertTrue(result)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -121,7 +121,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         self.assertFalse(result)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -141,7 +141,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         resp_getitem.assert_called_once_with('status')
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch('airflow.providers.google.cloud.hooks.bigquery.read_gbq')
@@ -154,7 +154,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=("CREDENTIALS", "PROJECT_ID",)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -173,7 +173,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
             )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -194,7 +194,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         side_effect=[False, True]
     )
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -211,7 +211,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -226,7 +226,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
 
     @parameterized.expand([(None, True), (True, True), (False, False)])
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -240,7 +240,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         self.assertIs(args[0]['query']['useLegacySql'], expected)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -259,7 +259,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         self.assertIs(args[0]['query']['useLegacySql'], False)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -276,7 +276,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
             bq_hook.run_query('query', use_legacy_sql=True, query_params=params)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -299,7 +299,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         (['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'], 'WRITE_TRUNCATE'),
     ])
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -351,7 +351,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
             r"'WRITE_APPEND' or 'WRITE_TRUNCATE'"),
     ])
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -374,7 +374,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
 
     @parameterized.expand([(True,), (False,)])
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -391,7 +391,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         self.assertIs(args[0]['query']['useLegacySql'], True)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -455,7 +455,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         [("AVRO",), ("PARQUET",), ("NEWLINE_DELIMITED_JSON",), ("DATASTORE_BACKUP",)]
     )
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -474,7 +474,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
             self.fail("run_load() raised ValueError unexpectedly!")
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -505,7 +505,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         run_with_config.assert_called_once_with(expected_configuration)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -517,7 +517,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         method.assert_called_once_with(datasetId=DATASET_ID, projectId=PROJECT_ID, tableId=TABLE_ID)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -544,7 +544,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -556,7 +556,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         method.assert_called_once_with(datasetId=DATASET_ID, projectId=PROJECT_ID, tableId=TABLE_ID)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -572,7 +572,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         method.assert_called_once_with(datasetId=DATASET_ID, projectId=PROJECT_ID, tableId=TABLE_ID)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -587,7 +587,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         method.assert_called_once_with(datasetId=DATASET_ID, projectId=PROJECT_ID, tableId=TABLE_ID)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -614,7 +614,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         assert method_tables_insert_execute.call_count == 1
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -653,7 +653,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         assert method_tables_update_execute.call_count == 1
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -686,7 +686,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         assert method_patch_execute.call_count == 1
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -716,7 +716,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         method_patch.assert_not_called()
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -762,7 +762,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         ),
     ])
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -786,7 +786,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         assert method_execute.call_count == 1
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -802,7 +802,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
             bq_hook.poll_job_complete(JOB_ID)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -822,7 +822,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         mock_logger_info.has_call(mock.call("No running BigQuery jobs to cancel."))
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -849,7 +849,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -873,7 +873,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         mock_logger_info.has_call(mock.call("Job successfully canceled: {}, {}".format(PROJECT_ID, JOB_ID)))
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -891,7 +891,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         self.assertEqual(schema, result)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -958,7 +958,7 @@ class TestBigQueryTableSplitter(unittest.TestCase):
 
 class TestBigQueryHookSourceFormat(unittest.TestCase):
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -976,7 +976,7 @@ class TestBigQueryHookSourceFormat(unittest.TestCase):
 
 class TestBigQueryExternalTableSourceFormat(unittest.TestCase):
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -997,7 +997,7 @@ class TestBigQueryExternalTableSourceFormat(unittest.TestCase):
 
 class TestTableDataOperations(unittest.TestCase):
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1028,7 +1028,7 @@ class TestTableDataOperations(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1059,7 +1059,7 @@ class TestTableDataOperations(unittest.TestCase):
 
 class TestTableOperations(unittest.TestCase):
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1079,7 +1079,7 @@ class TestTableOperations(unittest.TestCase):
             bq_hook.create_empty_table(PROJECT_ID, DATASET_ID, TABLE_ID, view=view)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1102,7 +1102,7 @@ class TestTableOperations(unittest.TestCase):
         method.assert_called_once_with(projectId=PROJECT_ID, datasetId=DATASET_ID, body=body)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1154,7 +1154,7 @@ class TestTableOperations(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1169,7 +1169,7 @@ class TestTableOperations(unittest.TestCase):
             bq_hook.patch_table(DATASET_ID, TABLE_ID)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=("CREDENTIALS", "PROJECT_ID",)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1195,7 +1195,7 @@ class TestTableOperations(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1220,7 +1220,7 @@ class TestTableOperations(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1265,7 +1265,7 @@ class TestTableOperations(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1280,7 +1280,7 @@ class TestTableOperations(unittest.TestCase):
             bq_hook.create_empty_table(PROJECT_ID, DATASET_ID, TABLE_ID)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1326,7 +1326,7 @@ class TestTableOperations(unittest.TestCase):
         self.assertEqual(result, expected_result)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1353,7 +1353,7 @@ class TestTableOperations(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID),
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1417,7 +1417,7 @@ class TestTableOperations(unittest.TestCase):
 class TestBigQueryCursor(unittest.TestCase):
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1441,7 +1441,7 @@ class TestBigQueryCursor(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1475,7 +1475,7 @@ class TestBigQueryCursor(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1486,7 +1486,7 @@ class TestBigQueryCursor(unittest.TestCase):
             bq_cursor.description
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1497,7 +1497,7 @@ class TestBigQueryCursor(unittest.TestCase):
         self.assertIsNone(result)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1508,7 +1508,7 @@ class TestBigQueryCursor(unittest.TestCase):
         self.assertEqual(-1, result)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1521,7 +1521,7 @@ class TestBigQueryCursor(unittest.TestCase):
         self.assertEqual(mock_next.return_value, result)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1536,7 +1536,7 @@ class TestBigQueryCursor(unittest.TestCase):
         self.assertEqual([1, 2, 3], result)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1558,7 +1558,7 @@ class TestBigQueryCursor(unittest.TestCase):
         self.assertEqual([1, 2, 3], result)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1570,7 +1570,7 @@ class TestBigQueryCursor(unittest.TestCase):
         self.assertIsNone(result)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1588,7 +1588,7 @@ class TestBigQueryCursor(unittest.TestCase):
         self.assertIsNone(result)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1623,7 +1623,7 @@ class TestBigQueryCursor(unittest.TestCase):
         mock_execute.assert_called_once_with(num_retries=bq_cursor.num_retries)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1645,7 +1645,7 @@ class TestBigQueryCursor(unittest.TestCase):
         assert mock_flush_results.call_count == 1
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1658,7 +1658,7 @@ class TestBigQueryCursor(unittest.TestCase):
         assert mocked_fr.call_count == 1
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1676,7 +1676,7 @@ class TestBigQueryCursor(unittest.TestCase):
         self.assertListEqual(bq_cursor.buffer, [])
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1692,7 +1692,7 @@ class TestBigQueryCursor(unittest.TestCase):
 
 class TestLabelsInRunJob(unittest.TestCase):
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1717,7 +1717,7 @@ class TestLabelsInRunJob(unittest.TestCase):
 
 class TestDatasetsOperations(unittest.TestCase):
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1731,7 +1731,7 @@ class TestDatasetsOperations(unittest.TestCase):
             bq_hook.create_empty_dataset(dataset_id="", project_id="")
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1751,7 +1751,7 @@ class TestDatasetsOperations(unittest.TestCase):
                          "projectId": "project_test2"}})
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1774,7 +1774,7 @@ class TestDatasetsOperations(unittest.TestCase):
                          "projectId": "project_test"}})
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=("CREDENTIALS", "PROJECT_ID",)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1796,7 +1796,7 @@ class TestDatasetsOperations(unittest.TestCase):
         method.assert_called_once_with(projectId=PROJECT_ID, body=expected_body)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1822,7 +1822,7 @@ class TestDatasetsOperations(unittest.TestCase):
         method.assert_called_once_with(projectId=PROJECT_ID, body=expected_body)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=("CREDENTIALS", "PROJECT_ID",)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1835,7 +1835,7 @@ class TestDatasetsOperations(unittest.TestCase):
             bq_hook.get_dataset(dataset_id="", project_id="project_test")
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1859,7 +1859,7 @@ class TestDatasetsOperations(unittest.TestCase):
         self.assertEqual(result, expected_result)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1895,7 +1895,7 @@ class TestDatasetsOperations(unittest.TestCase):
         self.assertEqual(result, expected_result['datasets'])
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1910,7 +1910,7 @@ class TestDatasetsOperations(unittest.TestCase):
                                        deleteContents=delete_contents)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=("CREDENTIALS", "PROJECT_ID",)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1939,7 +1939,7 @@ class TestDatasetsOperations(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1971,7 +1971,7 @@ class TestDatasetsOperations(unittest.TestCase):
 
 class TestTimePartitioningInRunJob(unittest.TestCase):
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1993,7 +1993,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
         assert mocked_rwc.call_count == 1
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -2006,7 +2006,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
         self.assertIs(args[0]['load']['autodetect'], True)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -2035,7 +2035,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
         assert mocked_rwc.call_count == 1
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -2052,7 +2052,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
         assert mocked_rwc.call_count == 1
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -2104,7 +2104,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
 class TestClusteringInRunJob(unittest.TestCase):
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -2125,7 +2125,7 @@ class TestClusteringInRunJob(unittest.TestCase):
         assert mocked_rwc.call_count == 1
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -2153,7 +2153,7 @@ class TestClusteringInRunJob(unittest.TestCase):
         assert mocked_rwc.call_count == 1
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -2170,7 +2170,7 @@ class TestClusteringInRunJob(unittest.TestCase):
         assert mocked_rwc.call_count == 1
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -2202,7 +2202,7 @@ class TestBigQueryHookLegacySql(unittest.TestCase):
     """Ensure `use_legacy_sql` param in `BigQueryHook` propagates properly."""
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -2216,7 +2216,7 @@ class TestBigQueryHookLegacySql(unittest.TestCase):
         self.assertIs(args[0]['query']['useLegacySql'], True)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -2232,7 +2232,7 @@ class TestBigQueryHookLegacySql(unittest.TestCase):
 
 class TestBigQueryHookLocation(unittest.TestCase):
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -2250,7 +2250,7 @@ class TestBigQueryHookLocation(unittest.TestCase):
 
 class TestBigQueryHookRunWithConfiguration(unittest.TestCase):
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -2286,7 +2286,7 @@ class TestBigQueryHookRunWithConfiguration(unittest.TestCase):
 
 class TestBigQueryWithKMS(unittest.TestCase):
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -2321,7 +2321,7 @@ class TestBigQueryWithKMS(unittest.TestCase):
 
     # pylint: disable=too-many-locals
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=mock.PropertyMock,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -2403,7 +2403,7 @@ class TestBigQueryWithKMS(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=mock.PropertyMock,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -2435,7 +2435,7 @@ class TestBigQueryWithKMS(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -2456,7 +2456,7 @@ class TestBigQueryWithKMS(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=mock.PropertyMock,
         return_value=PROJECT_ID
     )
@@ -2479,7 +2479,7 @@ class TestBigQueryWithKMS(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=mock.PropertyMock,
         return_value=PROJECT_ID
     )

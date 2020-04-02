@@ -114,6 +114,94 @@ class TestVaultSecrets(TestCase):
         self.assertEqual([], test_client.get_connections(conn_id="test_mysql"))
 
     @mock.patch("airflow.providers.hashicorp.secrets.vault.hvac")
+    def test_get_variable_value(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v2.read_secret_version.return_value = {
+            'request_id': '2d48a2ad-6bcb-e5b6-429d-da35fdf31f56',
+            'lease_id': '',
+            'renewable': False,
+            'lease_duration': 0,
+            'data': {'data': {'value': 'world'},
+                     'metadata': {'created_time': '2020-03-28T02:10:54.301784Z',
+                                  'deletion_time': '',
+                                  'destroyed': False,
+                                  'version': 1}},
+            'wrap_info': None,
+            'warnings': None,
+            'auth': None
+        }
+
+        kwargs = {
+            "variables_path": "variables",
+            "mount_point": "airflow",
+            "auth_type": "token",
+            "url": "http://127.0.0.1:8200",
+            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS"
+        }
+
+        test_client = VaultBackend(**kwargs)
+        returned_uri = test_client.get_variable("hello")
+        self.assertEqual('world', returned_uri)
+
+    @mock.patch("airflow.providers.hashicorp.secrets.vault.hvac")
+    def test_get_variable_value_engine_version_1(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v1.read_secret.return_value = {
+            'request_id': '182d0673-618c-9889-4cba-4e1f4cfe4b4b',
+            'lease_id': '',
+            'renewable': False,
+            'lease_duration': 2764800,
+            'data': {'value': 'world'},
+            'wrap_info': None,
+            'warnings': None,
+            'auth': None}
+
+        kwargs = {
+            "variables_path": "variables",
+            "mount_point": "airflow",
+            "auth_type": "token",
+            "url": "http://127.0.0.1:8200",
+            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
+            "kv_engine_version": 1
+        }
+
+        test_client = VaultBackend(**kwargs)
+        returned_uri = test_client.get_variable("hello")
+        mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
+            mount_point='airflow', path='variables/hello')
+        self.assertEqual('world', returned_uri)
+
+    @mock.patch.dict('os.environ', {
+        'AIRFLOW_VAR_HELLO': 'world',
+    })
+    @mock.patch("airflow.providers.hashicorp.secrets.vault.hvac")
+    def test_get_variable_value_non_existent_key(self, mock_hvac):
+        """
+        Test that if the key with connection ID is not present in Vault, VaultClient.get_connections
+        should return None
+        """
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        # Response does not contain the requested key
+        mock_client.secrets.kv.v2.read_secret_version.side_effect = InvalidPath()
+
+        kwargs = {
+            "variables_path": "variables",
+            "mount_point": "airflow",
+            "auth_type": "token",
+            "url": "http://127.0.0.1:8200",
+            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS"
+        }
+
+        test_client = VaultBackend(**kwargs)
+        self.assertIsNone(test_client.get_variable("hello"))
+        mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
+            mount_point='airflow', path='variables/hello')
+        self.assertIsNone(test_client.get_variable("hello"))
+
+    @mock.patch("airflow.providers.hashicorp.secrets.vault.hvac")
     def test_auth_failure_raises_error(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client

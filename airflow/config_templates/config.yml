@@ -321,7 +321,7 @@
       default: "0"
     - name: store_serialized_dags
       description: |
-        Whether to serialises DAGs and persist them in DB.
+        Whether to serialise DAGs and persist them in DB.
         If set to True, Webserver reads from DB instead of parsing DAG files
         More details: https://airflow.apache.org/docs/stable/dag-serialization.html
       version_added: 1.10.7

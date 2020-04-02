@@ -65,6 +65,7 @@ Committers
 - @feluelle (Felix Uellendall)
 - @sekikn (Kengo Seki)
 - @nuclearpinguin (Tomasz Urbaszek)
+- @zhongjiajie (Jiajie Zhong)
 
 
 For the full list of contributors, take a look at `Airflow's Github

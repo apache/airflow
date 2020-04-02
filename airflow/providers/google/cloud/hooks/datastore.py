@@ -26,10 +26,10 @@ from typing import Any, Dict, List, Optional, Union
 
 from googleapiclient.discovery import build
 
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class DatastoreHook(CloudBaseHook):
+class DatastoreHook(GoogleBaseHook):
     """
     Interact with Google Cloud Datastore. This hook uses the Google Cloud Platform connection.
 
@@ -70,7 +70,7 @@ class DatastoreHook(CloudBaseHook):
 
         return self.connection
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def allocate_ids(self, partial_keys: List, project_id: Optional[str] = None) -> List:
         """
         Allocate IDs for incomplete keys.
@@ -94,7 +94,7 @@ class DatastoreHook(CloudBaseHook):
 
         return resp['keys']
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def begin_transaction(self, project_id: Optional[str] = None) -> str:
         """
         Begins a new transaction.
@@ -116,7 +116,7 @@ class DatastoreHook(CloudBaseHook):
 
         return resp['transaction']
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def commit(self, body: Dict, project_id: Optional[str] = None) -> Dict:
         """
         Commit a transaction, optionally creating, deleting or modifying some entities.
@@ -140,7 +140,7 @@ class DatastoreHook(CloudBaseHook):
 
         return resp
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def lookup(self,
                keys: List,
                read_consistency: Optional[str] = None,
@@ -178,7 +178,7 @@ class DatastoreHook(CloudBaseHook):
 
         return resp
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def rollback(self, transaction: str, project_id: Optional[str] = None) -> Any:
         """
         Roll back a transaction.
@@ -197,7 +197,7 @@ class DatastoreHook(CloudBaseHook):
             projectId=project_id, body={'transaction': transaction}
         ).execute(num_retries=self.num_retries)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def run_query(self, body: Dict, project_id: Optional[str] = None) -> Dict:
         """
         Run a query for entities.
@@ -288,7 +288,7 @@ class DatastoreHook(CloudBaseHook):
             else:
                 return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def export_to_storage_bucket(self,
                                  bucket: str,
                                  namespace: Optional[str] = None,
@@ -336,7 +336,7 @@ class DatastoreHook(CloudBaseHook):
 
         return resp
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def import_from_storage_bucket(self,
                                    bucket: str,
                                    file: str,

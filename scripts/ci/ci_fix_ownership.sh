@@ -20,13 +20,13 @@
 # Fixes ownership for files created inside container (files owned by root will be owned by host user)
 #
 
-export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
+export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
 export AIRFLOW_CI_IMAGE=\
-${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-python${PYTHON_VERSION}-ci
+${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci
 
 docker-compose \
     -f "${MY_DIR}/docker-compose/base.yml" \

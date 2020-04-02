@@ -25,6 +25,7 @@ from typing import Optional
 from airflow.secrets import BaseSecretsBackend
 
 CONN_ENV_PREFIX = "AIRFLOW_CONN_"
+VAR_ENV_PREFIX = "AIRFLOW_VAR_"
 
 
 class EnvironmentVariablesBackend(BaseSecretsBackend):
@@ -36,3 +37,12 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
     def get_conn_uri(self, conn_id: str) -> Optional[str]:
         environment_uri = os.environ.get(CONN_ENV_PREFIX + conn_id.upper())
         return environment_uri
+
+    def get_variable(self, key: str) -> Optional[str]:
+        """
+        Get Airflow Variable from Environment Variable
+
+        :param key: Variable Key
+        :return: Variable Value
+        """
+        return os.environ.get(VAR_ENV_PREFIX + key.upper())

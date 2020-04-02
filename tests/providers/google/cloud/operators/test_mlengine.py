@@ -31,7 +31,7 @@ from airflow.providers.google.cloud.operators.mlengine import (
     MLEngineDeleteModelOperator, MLEngineDeleteVersionOperator, MLEngineGetModelOperator,
     MLEngineListVersionsOperator, MLEngineManageModelOperator, MLEngineManageVersionOperator,
     MLEngineSetDefaultVersionOperator, MLEngineStartBatchPredictionJobOperator,
-    MLEngineStartTrainingJobOperator, MLEngineTrainingJobFailureOperator,
+    MLEngineStartTrainingJobOperator, MLEngineTrainingCancelJobOperator,
 )
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.dates import days_ago
@@ -480,7 +480,7 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
         )
 
 
-class TestMLEngineTrainingJobFailureOperator(unittest.TestCase):
+class TestMLEngineTrainingCancelJobOperator(unittest.TestCase):
 
     TRAINING_DEFAULT_ARGS = {
         'project_id': 'test-project',
@@ -494,7 +494,7 @@ class TestMLEngineTrainingJobFailureOperator(unittest.TestCase):
         hook_instance = mock_hook.return_value
         hook_instance.cancel_job.return_value = success_response
 
-        cancel_training_op = MLEngineTrainingJobFailureOperator(
+        cancel_training_op = MLEngineTrainingCancelJobOperator(
             **self.TRAINING_DEFAULT_ARGS)
         cancel_training_op.execute(None)
 
@@ -516,7 +516,7 @@ class TestMLEngineTrainingJobFailureOperator(unittest.TestCase):
             content=b'Forbidden')
 
         with self.assertRaises(HttpError) as context:
-            cancel_training_op = MLEngineTrainingJobFailureOperator(
+            cancel_training_op = MLEngineTrainingCancelJobOperator(
                 **self.TRAINING_DEFAULT_ARGS)
             cancel_training_op.execute(None)
 

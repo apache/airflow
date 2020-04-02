@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+from contextlib import closing, suppress
 
 import pytest
 
@@ -58,7 +59,7 @@ CREATE TABLE memory.default.test_multiple_types (
   z_ipaddress_v6 IPADDRESS,
   -- UUID
   z_uuid UUID
-);
+)
 """
 
 LOAD_QUERY = """
@@ -92,9 +93,9 @@ INSERT INTO memory.default.test_multiple_types VALUES(
   IPADDRESS '2001:db8::1',                                 -- z_ipaddress_v6 IPADDRESS,
   -- UUID
   UUID '12151fd2-7586-11e9-8f9e-2a86e4085a59'              -- z_uuid UUID
-);
+)
 """
-DELETE_QUERY = "DROP TABLE memory.default.test_multiple_types;"
+DELETE_QUERY = "DROP TABLE memory.default.test_multiple_types"
 
 
 @pytest.mark.integration("presto")
@@ -112,21 +113,34 @@ class PrestoToGCSSystemTest(GoogleSystemTest):
     @staticmethod
     def init_db():
         hook = PrestoHook()
-        hook.run(CREATE_QUERY)
-        hook.run(LOAD_QUERY)
+        with hook.get_conn() as conn:
+            with closing(conn.cursor()) as cur:
+                cur.execute(CREATE_QUERY)
+                # Presto does not execute queries until the result is fetched. :-(
+                cur.fetchone()
+                cur.execute(LOAD_QUERY)
+                cur.fetchone()
 
     @staticmethod
     def drop_db():
         hook = PrestoHook()
-        hook.run(DELETE_QUERY)
+        with hook.get_conn() as conn:
+            with closing(conn.cursor()) as cur:
+                cur.execute(DELETE_QUERY)
+                # Presto does not execute queries until the result is fetched. :-(
+                cur.fetchone()
 
     @provide_gcp_context(GCP_GCS_KEY)
     def setUp(self):
         super().setUp()
         self.init_connection()
         self.create_gcs_bucket(GCS_BUCKET)
+        with suppress(Exception):
+            self.drop_db()
         self.init_db()
-        self.execute_with_ctx(["bq", "rm", f"{self._project_id()}:{DATASET_NAME}"], key=GCP_BIGQUERY_KEY)
+        self.execute_with_ctx([
+            "bq", "rm", "--recursive", "--force", f"{self._project_id()}:{DATASET_NAME}"
+        ], key=GCP_BIGQUERY_KEY)
 
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     def test_run_example_dag(self):
@@ -136,5 +150,7 @@ class PrestoToGCSSystemTest(GoogleSystemTest):
     def tearDown(self):
         self.delete_gcs_bucket(GCS_BUCKET)
         self.drop_db()
-        self.execute_with_ctx(["bq", "rm", f"{self._project_id()}:{DATASET_NAME}"], key=GCP_BIGQUERY_KEY)
+        self.execute_with_ctx([
+            "bq", "rm", "--recursive", "--force", f"{self._project_id()}:{DATASET_NAME}"
+        ], key=GCP_BIGQUERY_KEY)
         super().tearDown()

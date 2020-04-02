@@ -15,14 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from googleapiclient.discovery import Resource, build
+from googleapiclient.http import MediaFileUpload
 
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class GoogleAnalyticsHook(CloudBaseHook):
+class GoogleAnalyticsHook(GoogleBaseHook):
     """
     Hook for Google Analytics 360.
     """
@@ -30,14 +31,29 @@ class GoogleAnalyticsHook(CloudBaseHook):
     def __init__(
         self,
         api_version: str = "v3",
-        gcp_connection_id: str = "google_cloud_default",
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
         super().__init__(*args, **kwargs)
         self.api_version = api_version
-        self.gcp_connection_is = gcp_connection_id
+        self.gcp_connection_is = gcp_conn_id
         self._conn = None
+
+    def _paginate(self, resource: Resource, list_args: Optional[Dict[str, Any]] = None):
+        list_args = list_args or {}
+        result: List[Dict] = []
+        while True:
+            # start index has value 1
+            request = resource.list(start_index=len(result) + 1, **list_args)  # pylint: disable=no-member
+            response = request.execute(num_retries=self.num_retries)
+            result.extend(response.get("items", []))
+            # result is the number of fetched links from Analytics
+            # when all links will be added to the result
+            # the loop will break
+            if response["totalResults"] <= len(result):
+                break
+        return result
 
     def get_conn(self) -> Resource:
         """
@@ -59,19 +75,9 @@ class GoogleAnalyticsHook(CloudBaseHook):
         """
 
         self.log.info("Retrieving accounts list...")
-        result = []  # type: List[Dict]
         conn = self.get_conn()
         accounts = conn.management().accounts()  # pylint: disable=no-member
-        while True:
-            # start index has value 1
-            request = accounts.list(start_index=len(result) + 1)
-            response = request.execute(num_retries=self.num_retries)
-            result.extend(response.get("items", []))
-            # result is the number of fetched accounts from Analytics
-            # when all accounts will be add to the result
-            # the loop will be break
-            if response["totalResults"] <= len(result):
-                break
+        result = self._paginate(accounts)
         return result
 
     def get_ad_words_link(
@@ -121,21 +127,119 @@ class GoogleAnalyticsHook(CloudBaseHook):
         """
 
         self.log.info("Retrieving ad words list...")
-        result = []  # type: List[Dict]
         conn = self.get_conn()
-        ads_links = conn.management().webPropertyAdWordsLinks()  # pylint: disable=no-member
-        while True:
-            # start index has value 1
-            request = ads_links.list(
-                accountId=account_id,
-                webPropertyId=web_property_id,
-                start_index=len(result) + 1,
-            )
-            response = request.execute(num_retries=self.num_retries)
-            result.extend(response.get("items", []))
-            # result is the number of fetched links from Analytics
-            # when all links will be added to the result
-            # the loop will break
-            if response["totalResults"] <= len(result):
-                break
+        ads_links = (
+            conn.management().webPropertyAdWordsLinks()  # pylint: disable=no-member
+        )
+        list_args = {"accountId": account_id, "webPropertyId": web_property_id}
+        result = self._paginate(ads_links, list_args)
+        return result
+
+    def upload_data(
+        self,
+        file_location: str,
+        account_id: str,
+        web_property_id: str,
+        custom_data_source_id: str,
+        resumable_upload: bool = False,
+    ) -> None:
+
+        """
+        Uploads file to GA via the Data Import API
+
+        :param file_location: The path and name of the file to upload.
+        :type file_location: str
+        :param account_id: The GA account Id to which the data upload belongs.
+        :type account_id: str
+        :param web_property_id: UA-string associated with the upload.
+        :type web_property_id: str
+        :param custom_data_source_id: Custom Data Source Id to which this data import belongs.
+        :type custom_data_source_id: str
+        :param resumable_upload: flag to upload the file in a resumable fashion, using a
+            series of at least two requests.
+        :type resumable_upload: bool
+        """
+
+        media = MediaFileUpload(
+            file_location,
+            mimetype="application/octet-stream",
+            resumable=resumable_upload,
+        )
+
+        self.log.info(
+            "Uploading file to GA file for accountId: %s, webPropertyId:%s and customDataSourceId:%s ",
+            account_id,
+            web_property_id,
+            custom_data_source_id,
+        )
+
+        self.get_conn().management().uploads().uploadData(  # pylint: disable=no-member
+            accountId=account_id,
+            webPropertyId=web_property_id,
+            customDataSourceId=custom_data_source_id,
+            media_body=media,
+        ).execute()
+
+    def delete_upload_data(
+        self,
+        account_id: str,
+        web_property_id: str,
+        custom_data_source_id: str,
+        delete_request_body: Dict[str, Any],
+    ) -> None:
+        """
+        Deletes the uploaded data for a given account/property/dataset
+
+        :param account_id: The GA account Id to which the data upload belongs.
+        :type account_id: str
+        :param web_property_id: UA-string associated with the upload.
+        :type web_property_id: str
+        :param custom_data_source_id: Custom Data Source Id to which this data import belongs.
+        :type custom_data_source_id: str
+        :param delete_request_body: Dict of customDataImportUids to delete.
+        :type delete_request_body: dict
+        """
+
+        self.log.info(
+            "Deleting previous uploads to GA file for accountId:%s, "
+            "webPropertyId:%s and customDataSourceId:%s ",
+            account_id,
+            web_property_id,
+            custom_data_source_id,
+        )
+
+        self.get_conn().management().uploads().deleteUploadData(  # pylint: disable=no-member
+            accountId=account_id,
+            webPropertyId=web_property_id,
+            customDataSourceId=custom_data_source_id,
+            body=delete_request_body,
+        ).execute()
+
+    def list_uploads(
+        self, account_id, web_property_id, custom_data_source_id
+    ) -> List[Dict[str, Any]]:
+        """
+        Get list of data upload from GA
+
+        :param account_id: The GA account Id to which the data upload belongs.
+        :type account_id: str
+        :param web_property_id: UA-string associated with the upload.
+        :type web_property_id: str
+        :param custom_data_source_id: Custom Data Source Id to which this data import belongs.
+        :type custom_data_source_id: str
+        """
+        self.log.info(
+            "Getting list of uploads for accountId:%s, webPropertyId:%s and customDataSourceId:%s ",
+            account_id,
+            web_property_id,
+            custom_data_source_id,
+        )
+
+        uploads = self.get_conn().management().uploads()  # pylint: disable=no-member
+        list_args = {
+            "accountId": account_id,
+            "webPropertyId": web_property_id,
+            "customDataSourceId": custom_data_source_id,
+        }
+        result = self._paginate(uploads, list_args)
         return result

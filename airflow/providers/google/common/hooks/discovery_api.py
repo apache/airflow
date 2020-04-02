@@ -23,10 +23,10 @@ from typing import Dict, Optional
 
 from googleapiclient.discovery import Resource, build
 
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class GoogleDiscoveryApiHook(CloudBaseHook):
+class GoogleDiscoveryApiHook(GoogleBaseHook):
     """
     A hook to use the Google API Discovery Service.
 

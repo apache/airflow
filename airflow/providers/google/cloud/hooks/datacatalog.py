@@ -24,10 +24,10 @@ from google.cloud.datacatalog_v1beta1.types import (
 )
 
 from airflow import AirflowException
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class CloudDataCatalogHook(CloudBaseHook):
+class CloudDataCatalogHook(GoogleBaseHook):
     """
     Hook for Google Cloud Data Catalog Service.
 
@@ -54,7 +54,7 @@ class CloudDataCatalogHook(CloudBaseHook):
             )
         return self._client
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_entry(
         self,
         location: str,
@@ -102,7 +102,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         self.log.info('Created a entry: name=%s', result.name)
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_entry_group(
         self,
         location: str,
@@ -155,7 +155,7 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_tag(
         self,
         location: str,
@@ -210,7 +210,7 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_tag_template(
         self,
         location,
@@ -262,7 +262,7 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_tag_template_field(
         self,
         location: str,
@@ -321,7 +321,7 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_entry(
         self,
         location: str,
@@ -359,7 +359,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         client.delete_entry(name=name, retry=retry, timeout=timeout, metadata=metadata)
         self.log.info('Deleted a entry: name=%s', name)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_entry_group(
         self,
         location,
@@ -397,7 +397,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         client.delete_entry_group(name=name, retry=retry, timeout=timeout, metadata=metadata)
         self.log.info('Deleted a entry group: name=%s', name)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_tag(
         self,
         location: str,
@@ -439,7 +439,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         client.delete_tag(name=name, retry=retry, timeout=timeout, metadata=metadata)
         self.log.info('Deleted a tag: name=%s', name)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_tag_template(
         self,
         location,
@@ -480,7 +480,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         client.delete_tag_template(name=name, force=force, retry=retry, timeout=timeout, metadata=metadata)
         self.log.info('Deleted a tag template: name=%s', name)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_tag_template_field(
         self,
         location: str,
@@ -524,7 +524,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         )
         self.log.info('Deleted a tag template field: name=%s', name)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_entry(
         self,
         location: str,
@@ -565,7 +565,7 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_entry_group(
         self,
         location: str,
@@ -613,7 +613,7 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_tag_template(
         self,
         location: str,
@@ -653,7 +653,7 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def list_tags(
         self,
         location: str,
@@ -703,7 +703,7 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_tag_for_template_name(
         self,
         location: str,
@@ -801,7 +801,7 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def rename_tag_template_field(
         self,
         location: str,
@@ -935,7 +935,7 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def update_entry(
         self,
         entry: Union[Dict, Entry],
@@ -1006,7 +1006,7 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def update_tag(  # pylint: disable=too-many-arguments
         self,
         tag: Union[Dict, Tag],
@@ -1079,7 +1079,7 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def update_tag_template(
         self,
         tag_template: Union[Dict, TagTemplate],
@@ -1157,7 +1157,7 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def update_tag_template_field(  # pylint: disable=too-many-arguments
         self,
         tag_template_field: Union[Dict, TagTemplateField],

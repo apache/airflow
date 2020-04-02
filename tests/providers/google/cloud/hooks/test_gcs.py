@@ -33,7 +33,7 @@ from airflow.utils import timezone
 from airflow.version import version
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
-BASE_STRING = 'airflow.providers.google.cloud.hooks.base.{}'
+BASE_STRING = 'airflow.providers.google.common.hooks.base_google.{}'
 GCS_STRING = 'airflow.providers.google.cloud.hooks.gcs.{}'
 
 EMPTY_CONTENT = b''
@@ -67,22 +67,22 @@ class TestGCSHookHelperFunctions(unittest.TestCase):
 class TestGCSHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            GCS_STRING.format('CloudBaseHook.__init__'),
+            GCS_STRING.format('GoogleBaseHook.__init__'),
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.gcs_hook = gcs.GCSHook(
                 gcp_conn_id='test')
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.client_info',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.client_info',
         new_callable=mock.PropertyMock,
         return_value="CLIENT_INFO"
     )
     @mock.patch(
-        BASE_STRING.format("CloudBaseHook._get_credentials_and_project_id"),
+        BASE_STRING.format("GoogleBaseHook._get_credentials_and_project_id"),
         return_value=("CREDENTIALS", "PROJECT_ID")
     )
-    @mock.patch(GCS_STRING.format('CloudBaseHook.get_connection'))
+    @mock.patch(GCS_STRING.format('GoogleBaseHook.get_connection'))
     @mock.patch('google.cloud.storage.Client')
     def test_storage_client_creation(self,
                                      mock_client,
@@ -661,7 +661,7 @@ class TestGCSHook(unittest.TestCase):
 
 class TestGCSHookUpload(unittest.TestCase):
     def setUp(self):
-        with mock.patch(BASE_STRING.format('CloudBaseHook.__init__')):
+        with mock.patch(BASE_STRING.format('GoogleBaseHook.__init__')):
             self.gcs_hook = gcs.GCSHook(
                 gcp_conn_id='test'
             )
@@ -805,7 +805,7 @@ class TestGCSHookUpload(unittest.TestCase):
 class TestSyncGcsHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            GCS_STRING.format("CloudBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            GCS_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
             self.gcs_hook = gcs.GCSHook(gcp_conn_id="test")
 

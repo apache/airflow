@@ -14,11 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import json
 import unittest
 from copy import deepcopy
 from unittest import mock
 
+import httplib2
 from googleapiclient.errors import HttpError
 from mock import PropertyMock
 
@@ -285,6 +286,73 @@ class TestMLEngineHook(unittest.TestCase):
         mock_get_conn.assert_has_calls([
             mock.call().projects().models().create(body=model_with_airflow_version, parent=project_path),
             mock.call().projects().models().create().execute()
+        ])
+
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
+    def test_create_model_idempotency(self, mock_get_conn):
+        project_id = 'test-project'
+        model_name = 'test-model'
+        model = {
+            'name': model_name,
+        }
+        model_with_airflow_version = {
+            'name': model_name,
+            'labels': {'airflow-version': hook._AIRFLOW_VERSION}
+        }
+        project_path = 'projects/{}'.format(project_id)
+
+        (
+            mock_get_conn.return_value.
+            projects.return_value.
+            models.return_value.
+            create.return_value.
+            execute.side_effect
+        ) = [
+            HttpError(
+                resp=httplib2.Response({"status": 409}),
+                content=json.dumps(
+                    {
+                        "error": {
+                            "code": 409,
+                            "message": "Field: model.name Error: A model with the same name already exists.",
+                            "status": "ALREADY_EXISTS",
+                            "details": [
+                                {
+                                    "@type": "type.googleapis.com/google.rpc.BadRequest",
+                                    "fieldViolations": [
+                                        {
+                                            "field": "model.name",
+                                            "description": "A model with the same name already exists."
+                                        }
+                                    ],
+                                }
+                            ],
+                        }
+                    }
+                ).encode(),
+            )
+        ]
+
+        (
+            mock_get_conn.return_value.
+            projects.return_value.
+            models.return_value.
+            get.return_value.
+            execute.return_value
+        ) = deepcopy(model)
+
+        create_model_response = self.hook.create_model(
+            project_id=project_id, model=deepcopy(model)
+        )
+
+        self.assertEqual(create_model_response, model)
+        mock_get_conn.assert_has_calls([
+            mock.call().projects().models().create(body=model_with_airflow_version, parent=project_path),
+            mock.call().projects().models().create().execute(),
+        ])
+        mock_get_conn.assert_has_calls([
+            mock.call().projects().models().get(name='projects/test-project/models/test-model'),
+            mock.call().projects().models().get().execute()
         ])
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
@@ -775,7 +843,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
             self.hook = hook.MLEngineHook()
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -817,7 +885,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         ], any_order=True)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -852,7 +920,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         ], any_order=True)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -895,7 +963,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         ], any_order=True)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -941,7 +1009,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         ], any_order=True)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -970,7 +1038,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         ])
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -997,7 +1065,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         ])
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -1022,7 +1090,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         ])
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -1070,7 +1138,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         ], any_order=True)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -1107,7 +1175,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
             self.hook = hook.MLEngineHook()
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -1124,7 +1192,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
             )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -1140,7 +1208,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
             )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -1153,7 +1221,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
             self.hook.list_versions(model_name=model_name)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -1166,7 +1234,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
             self.hook.delete_version(model_name=model_name, version_name=version_name)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -1181,7 +1249,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
             self.hook.create_model(model=model)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -1192,7 +1260,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
             self.hook.get_model(model_name=model_name)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -1204,7 +1272,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
             self.hook.delete_model(model_name=model_name)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -1221,7 +1289,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
             self.hook.create_job(job=new_job)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )

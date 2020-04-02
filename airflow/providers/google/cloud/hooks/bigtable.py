@@ -27,10 +27,10 @@ from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import ClusterState, Table
 from google.cloud.bigtable_admin_v2 import enums
 
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class BigtableHook(CloudBaseHook):
+class BigtableHook(GoogleBaseHook):
     """
     Hook for Google Cloud Bigtable APIs.
 
@@ -53,7 +53,7 @@ class BigtableHook(CloudBaseHook):
             )
         return self._client
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_instance(self, instance_id: str, project_id: Optional[str] = None) -> Instance:
         """
         Retrieves and returns the specified Cloud Bigtable instance if it exists.
@@ -74,7 +74,7 @@ class BigtableHook(CloudBaseHook):
             return None
         return instance
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_instance(self, instance_id: str, project_id: Optional[str] = None) -> None:
         """
         Deletes the specified Cloud Bigtable instance.
@@ -97,7 +97,7 @@ class BigtableHook(CloudBaseHook):
             self.log.info("The instance '%s' does not exist in project '%s'. Exiting", instance_id,
                           project_id)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_instance(
         self,
         instance_id: str,
@@ -212,7 +212,7 @@ class BigtableHook(CloudBaseHook):
         table = Table(table_id, instance)
         table.create(initial_split_keys, column_families)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_table(self, instance_id: str, table_id: str, project_id: Optional[str] = None) -> None:
         """
         Deletes the specified table in Cloud Bigtable.

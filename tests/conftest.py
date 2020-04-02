@@ -178,10 +178,13 @@ def pytest_configure(config):
         "markers", "system(name): mark test to run with named system"
     )
     config.addinivalue_line(
-        "markers", "long_running(name): mark test that run for a long time (many minutes)"
+        "markers", "long_running: mark test that run for a long time (many minutes)"
     )
     config.addinivalue_line(
         "markers", "credential_file(name): mark tests that require credential file in CREDENTIALS_DIR"
+    )
+    config.addinivalue_line(
+        "markers", "airflow_2: mark tests that works only on Airflow 2.0 / master"
     )
 
 
@@ -292,6 +295,12 @@ def skip_if_credential_file_missing(item):
                         format(path=credential_path, item=item))
 
 
+def skip_if_airflow_2_test(item):
+    for _ in item.iter_markers(name="airflow_2"):
+        if os.environ.get("RUN_AIRFLOW_1_10") == "true":
+            pytest.skip("The test works only with Airflow 2.0 / master branch")
+
+
 def pytest_runtest_setup(item):
     selected_integrations = item.config.getoption("--integrations")
     selected_integrations_list = selected_integrations.split(",") if selected_integrations else []
@@ -319,3 +328,4 @@ def pytest_runtest_setup(item):
     if not include_long_running:
         skip_long_running_test(item)
     skip_if_credential_file_missing(item)
+    skip_if_airflow_2_test(item)

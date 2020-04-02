@@ -65,6 +65,9 @@ class DockerOperator(BaseOperator):
     :type docker_url: str
     :param environment: Environment variables to set in the container. (templated)
     :type environment: dict
+    :param private_environment: Private environment variables to set in the container.
+        These are not templated, and hidden from the website.
+    :type private_environment: dict
     :param force_pull: Pull the docker image on every run. Default is False.
     :type force_pull: bool
     :param mem_limit: Maximum amount of memory the container can use.
@@ -136,6 +139,7 @@ class DockerOperator(BaseOperator):
             cpus: float = 1.0,
             docker_url: str = 'unix://var/run/docker.sock',
             environment: Optional[Dict] = None,
+            private_environment: Optional[Dict] = None,
             force_pull: bool = False,
             mem_limit: Optional[Union[float, str]] = None,
             host_tmp_dir: Optional[str] = None,
@@ -169,6 +173,7 @@ class DockerOperator(BaseOperator):
         self.dns_search = dns_search
         self.docker_url = docker_url
         self.environment = environment or {}
+        self._private_environment = private_environment or {}
         self.force_pull = force_pull
         self.image = image
         self.mem_limit = mem_limit
@@ -218,7 +223,7 @@ class DockerOperator(BaseOperator):
             self.container = self.cli.create_container(
                 command=self.get_command(),
                 name=self.container_name,
-                environment=self.environment,
+                environment={**self.environment, **self._private_environment},
                 host_config=self.cli.create_host_config(
                     auto_remove=self.auto_remove,
                     binds=self.volumes,

@@ -534,7 +534,7 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
                                user_project=self.user_project)
 
 
-class GcsFileTransformOperator(BaseOperator):
+class GCSFileTransformOperator(BaseOperator):
     """
     Copies data from a source GCS location to a temporary location on the
     local filesystem. Runs a transformation on this file as specified by

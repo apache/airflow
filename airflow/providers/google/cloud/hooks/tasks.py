@@ -28,10 +28,10 @@ from google.cloud.tasks_v2 import CloudTasksClient, enums
 from google.cloud.tasks_v2.types import FieldMask, Queue, Task
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class CloudTasksHook(CloudBaseHook):
+class CloudTasksHook(GoogleBaseHook):
     """
     Hook for Google Cloud Tasks APIs. Cloud Tasks allows developers to manage
     the execution of background work in their applications.
@@ -65,7 +65,7 @@ class CloudTasksHook(CloudBaseHook):
             )
         return self._client
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_queue(
         self,
         location: str,
@@ -122,7 +122,7 @@ class CloudTasksHook(CloudBaseHook):
             metadata=metadata,
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def update_queue(
         self,
         task_queue: Queue,
@@ -184,7 +184,7 @@ class CloudTasksHook(CloudBaseHook):
             metadata=metadata,
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_queue(
         self,
         location: str,
@@ -223,7 +223,7 @@ class CloudTasksHook(CloudBaseHook):
             name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def list_queues(
         self,
         location: str,
@@ -272,7 +272,7 @@ class CloudTasksHook(CloudBaseHook):
         )
         return list(queues)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_queue(
         self,
         location: str,
@@ -310,7 +310,7 @@ class CloudTasksHook(CloudBaseHook):
             name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def purge_queue(
         self,
         location: str,
@@ -349,7 +349,7 @@ class CloudTasksHook(CloudBaseHook):
             name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def pause_queue(
         self,
         location: str,
@@ -388,7 +388,7 @@ class CloudTasksHook(CloudBaseHook):
             name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def resume_queue(
         self,
         location: str,
@@ -427,7 +427,7 @@ class CloudTasksHook(CloudBaseHook):
             name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_task(
         self,
         location: str,
@@ -493,7 +493,7 @@ class CloudTasksHook(CloudBaseHook):
             metadata=metadata,
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_task(
         self,
         location: str,
@@ -543,7 +543,7 @@ class CloudTasksHook(CloudBaseHook):
             metadata=metadata,
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def list_tasks(
         self,
         location: str,
@@ -595,7 +595,7 @@ class CloudTasksHook(CloudBaseHook):
         )
         return list(tasks)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_task(
         self,
         location: str,
@@ -636,7 +636,7 @@ class CloudTasksHook(CloudBaseHook):
             name=full_task_name, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def run_task(
         self,
         location: str,

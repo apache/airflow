@@ -16,8 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { generateTooltipDateTime, converAndFormatUTC, secondsToString } from './datetime-utils';
-import { escapeHtml } from './base';
+// global tiTooltip, taskTip
+
 
 // Assigning css classes based on state to nodes
 // Initiating the tooltips
@@ -30,20 +30,8 @@ function update_nodes_states(task_instances) {
       .attr("class", "node enter " + (ti.state ? ti.state : "no_status"))
       .attr("data-toggle", "tooltip")
       .on("mouseover", function (d) {
-        const task = tasks[task_id];
-        let tt = "";
-        if(ti.task_id != undefined) {
-          tt +=  "Task_id: " + escapeHtml(ti.task_id) + "<br>";
-        }
-        tt += "Run: " + converAndFormatUTC(task.execution_date) + "<br>";
-        if(ti.run_id != undefined) {
-          tt += "run_id: <nobr>" + escapeHtml(task.run_id) + "</nobr><br>";
-        }
-        tt += "Operator: " + escapeHtml(task.task_type) + "<br>";
-        tt += "Duration: " + escapeHtml(convertSecsToHumanReadable(ti.duration)) + "<br>";
-        tt += "Started: " + escapeHtml(ti.start_date) + "<br>";
-        tt += generateTooltipDateTime(ti.start_date, ti.end_date, dagTZ); // dagTZ has been defined in dag.html
-        taskTip.show(tt, this); // taskTip is defined in graph.html
+        const tt = tiTooltip(task_instances[task_id]);
+        taskTip.show(tt, this);
       })
       .on('mouseout', taskTip.hide);
   });

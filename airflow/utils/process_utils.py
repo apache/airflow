@@ -22,9 +22,14 @@ Utilities for running or stopping processes
 import errno
 import logging
 import os
+import pty
+import select
 import shlex
 import signal
 import subprocess
+import sys
+import termios
+import tty
 from contextlib import contextmanager
 from typing import Dict, List
 
@@ -142,6 +147,44 @@ def execute_in_subprocess(cmd: List[str]):
     exit_code = proc.wait()
     if exit_code != 0:
         raise subprocess.CalledProcessError(exit_code, cmd)
+
+
+def execute_interactive(cmd: List[str], **kwargs):
+    """
+    Runs the new command as a subprocess and ensures that the terminal's state is restored to its original
+    state after the process is completed e.g. if the subprocess hides the cursor, it will be restored after
+    the process is completed.
+    """
+    log.info("Executing cmd: %s", " ".join([shlex.quote(c) for c in cmd]))
+
+    old_tty = termios.tcgetattr(sys.stdin)
+    tty.setraw(sys.stdin.fileno())
+
+    # open pseudo-terminal to interact with subprocess
+    master_fd, slave_fd = pty.openpty()
+    try:  # pylint: disable=too-many-nested-blocks
+        # use os.setsid() make it run in a new process group, or bash job control will not be enabled
+        proc = subprocess.Popen(
+            cmd,
+            stdin=slave_fd,
+            stdout=slave_fd,
+            stderr=slave_fd,
+            universal_newlines=True,
+            **kwargs
+        )
+
+        while proc.poll() is None:
+            readable_fbs, _, _ = select.select([sys.stdin, master_fd], [], [])
+            if sys.stdin in readable_fbs:
+                input_data = os.read(sys.stdin.fileno(), 10240)
+                os.write(master_fd, input_data)
+            if master_fd in readable_fbs:
+                output_data = os.read(master_fd, 10240)
+                if output_data:
+                    os.write(sys.stdout.fileno(), output_data)
+    finally:
+        # restore tty settings back
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_tty)
 
 
 def kill_child_processes_by_pids(pids_to_kill: List[int], timeout: int = 5) -> None:

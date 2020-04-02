@@ -29,8 +29,8 @@ from google.cloud.container_v1.types import Cluster
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.process_utils import execute_in_subprocess, patch_environ
 
@@ -244,7 +244,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
             )
 
     def execute(self, context):
-        hook = CloudBaseHook(gcp_conn_id=self.gcp_conn_id)
+        hook = GoogleBaseHook(gcp_conn_id=self.gcp_conn_id)
         self.project_id = self.project_id or hook.project_id
 
         if not self.project_id:

@@ -23,14 +23,14 @@ from typing import Any, Dict, Optional
 from googleapiclient.discovery import build, build_from_document
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 5
 
 
 # noinspection PyAbstractClass
-class CloudFirestoreHook(CloudBaseHook):
+class CloudFirestoreHook(GoogleBaseHook):
     """
     Hook for the Google Firestore APIs.
 
@@ -79,7 +79,7 @@ class CloudFirestoreHook(CloudBaseHook):
             )
         return self._conn
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def export_documents(
         self, body: Dict, database_id: str = "(default)", project_id: Optional[str] = None
     ) -> None:

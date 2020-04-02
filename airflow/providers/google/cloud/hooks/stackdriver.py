@@ -30,10 +30,10 @@ from google.protobuf.json_format import MessageToDict, MessageToJson, Parse
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class StackdriverHook(CloudBaseHook):
+class StackdriverHook(GoogleBaseHook):
     """
     Stackdriver Hook for connecting with GCP Stackdriver
     """
@@ -53,7 +53,7 @@ class StackdriverHook(CloudBaseHook):
             self._channel_client = monitoring_v3.NotificationChannelServiceClient()
         return self._channel_client
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def list_alert_policies(
         self,
         project_id: Optional[str] = None,
@@ -120,7 +120,7 @@ class StackdriverHook(CloudBaseHook):
         else:
             return policies_
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def _toggle_policy_status(
         self,
         new_state: bool,
@@ -145,7 +145,7 @@ class StackdriverHook(CloudBaseHook):
                     metadata=metadata
                 )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def enable_alert_policies(
         self,
         project_id: Optional[str] = None,
@@ -183,7 +183,7 @@ class StackdriverHook(CloudBaseHook):
             metadata=metadata
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def disable_alert_policies(
         self,
         project_id: Optional[str] = None,
@@ -221,7 +221,7 @@ class StackdriverHook(CloudBaseHook):
             metadata=metadata
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def upsert_alert(
         self,
         alerts: str,
@@ -362,7 +362,7 @@ class StackdriverHook(CloudBaseHook):
                 'Delete alerting policy failed. Error was {}'.format(err.content)
             )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def list_notification_channels(
         self,
         format_: Optional[str] = None,
@@ -430,7 +430,7 @@ class StackdriverHook(CloudBaseHook):
         else:
             return channels
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def _toggle_channel_status(
         self,
         new_state: str,
@@ -458,7 +458,7 @@ class StackdriverHook(CloudBaseHook):
                     metadata=metadata
                 )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def enable_notification_channels(
         self,
         project_id: Optional[str] = None,
@@ -497,7 +497,7 @@ class StackdriverHook(CloudBaseHook):
             metadata=metadata
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def disable_notification_channels(
         self,
         filter_: Optional[str] = None,
@@ -536,7 +536,7 @@ class StackdriverHook(CloudBaseHook):
             metadata=metadata
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def upsert_channel(
         self,
         channels: str,

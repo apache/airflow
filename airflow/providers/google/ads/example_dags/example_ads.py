@@ -21,13 +21,14 @@ Example Airflow DAG that shows how to use GoogleAdsToGcsOperator.
 import os
 
 from airflow import models
-from airflow.providers.google.ads.operators.ads import GoogleAdsToGcsOperator
+from airflow.providers.google.ads.operators.ads import GoogleAdsListAccountsOperator, GoogleAdsToGcsOperator
 from airflow.utils import dates
 
 # [START howto_google_ads_env_variables]
 CLIENT_IDS = ["1111111111", "2222222222"]
 BUCKET = os.environ.get("GOOGLE_ADS_BUCKET", "gs://test-google-ads-bucket")
 GCS_OBJ_PATH = "folder_name/google-ads-api-results.csv"
+GCS_ACCOUNTS_CSV = "folder_name/accounts.csv"
 QUERY = """
     SELECT
         segments.date,
@@ -79,3 +80,11 @@ with models.DAG(
         task_id="run_operator",
     )
     # [END howto_google_ads_to_gcs_operator]
+
+    # [START howto_ads_list_accounts_operator]
+    list_accounts = GoogleAdsListAccountsOperator(
+        task_id="list_accounts",
+        bucket=BUCKET,
+        object_name=GCS_ACCOUNTS_CSV
+    )
+    # [END howto_ads_list_accounts_operator]

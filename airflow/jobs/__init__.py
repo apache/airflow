@@ -16,3 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import airflow.jobs.backfill_job  # noqa
+import airflow.jobs.base_job  # noqa
+import airflow.jobs.local_task_job  # noqa
+import airflow.jobs.scheduler_job  # noqa
