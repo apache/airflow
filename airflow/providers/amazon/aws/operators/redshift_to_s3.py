@@ -132,6 +132,6 @@ class RedshiftToS3Transfer(BaseOperator):
                                secret_key=credentials.secret_key,
                                unload_options=unload_options)
 
-        self.log.info('Executing UNLOAD command...')
+        self.log.info('Executing UNLOAD command....')
         postgres_hook.run(unload_query, self.autocommit)
         self.log.info("UNLOAD command complete...")
