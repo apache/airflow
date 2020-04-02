@@ -258,13 +258,21 @@ class BaseSQLToGCSOperator(BaseOperator, metaclass=abc.ABCMeta):
             name in GCS, and values are file handles to local files that
             contains the BigQuery schema fields in .json format.
         """
-        schema = self.schema or [self.field_to_bigquery(field) for field in cursor.description]
+        if self.shcema:
+            self.log.info("Using user schema")
+            schema = self.schema
+        else:
+            self.log.info("Starts generating schema")
+            schema = [self.field_to_bigquery(field) for field in cursor.description]
+
+        if isinstance(schema, list):
+            schema = json.dumps(schema, sort_keys=True)
 
         self.log.info('Using schema for %s', self.schema_filename)
         self.log.debug("Current schema: %s", schema)
+
         tmp_schema_file_handle = NamedTemporaryFile(delete=True)
-        schema_json = json.dumps(schema, sort_keys=True) if isinstance(schema, list) else schema
-        tmp_schema_file_handle.write(schema_json.encode('utf-8'))
+        tmp_schema_file_handle.write(schema.encode('utf-8'))
         schema_file_to_upload = {
             'file_name': self.schema_filename,
             'file_handle': tmp_schema_file_handle,
