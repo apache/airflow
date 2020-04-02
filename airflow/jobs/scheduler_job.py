@@ -25,7 +25,7 @@ import sys
 import threading
 import time
 from collections import defaultdict
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout, suppress
 from datetime import timedelta
 from itertools import groupby
 from typing import List, Optional, Tuple
@@ -219,7 +219,8 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
 
         self._process.terminate()
         # Arbitrarily wait 5s for the process to die
-        self._process.join(5)
+        with suppress(TimeoutError):
+            self._process.wait(5)
         if sigkill:
             self._kill_process()
         self._parent_channel.close()
