@@ -20,9 +20,11 @@ import datetime
 import logging
 import socket
 from datetime import timedelta
+from os import path
 from typing import Optional
 from urllib.parse import urlparse
 
+import connexion
 import flask
 import flask_login
 import pendulum
@@ -42,6 +44,8 @@ from airflow.www.static_config import configure_manifest_files
 app: Optional[Flask] = None
 csrf = CSRFProtect()
 
+# airflow/www/app.py => airflow/
+ROOT_APP_DIR = path.abspath(path.join(path.dirname(__file__), path.pardir))
 log = logging.getLogger(__name__)
 
 
@@ -237,9 +241,21 @@ def create_app(config=None, testing=False, app_name="Airflow"):
             app.register_error_handler(500, views.show_traceback)
             app.register_error_handler(404, views.circles)
 
+        def init_api_connexion(app: Flask):
+            spec_dir = path.join(ROOT_APP_DIR, 'api_connexion', 'openapi')
+            connexion_app = connexion.App(__name__, specification_dir=spec_dir, skip_error_handlers=True)
+            connexion_app.app = app
+            connexion_app.add_api(
+                specification='v1.yaml',
+                base_path='/api/v1',
+                validate_responses=True,
+                strict_validation=False
+            )
+
         init_views(appbuilder)
         init_plugin_blueprints(app)
         init_error_handlers(app)
+        init_api_connexion(app)
 
         if conf.getboolean('webserver', 'UPDATE_FAB_PERMS'):
             security_manager = appbuilder.sm

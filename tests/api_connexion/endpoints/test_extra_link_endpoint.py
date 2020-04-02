@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,23 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import unittest
 
-include NOTICE
-include LICENSE
-include CHANGELOG.txt
-include README.md
-graft licenses
-graft airflow/www
-graft airflow/www/static
-graft airflow/www/templates
-graft airflow/_vendor/
-include airflow/alembic.ini
-include airflow/git_version
-include airflow/serialization/schema.json
-graft scripts/systemd
-graft scripts/upstart
-graft airflow/config_templates
-recursive-exclude airflow/www/node_modules *
-global-exclude __pycache__  *.pyc
-include airflow/providers/cncf/kubernetes/example_dags/example_spark_kubernetes_operator_spark_pi.yaml
-include airflow/api_connexion/openapi/v1.yaml
+import pytest
+
+from airflow.www import app
+
+
+class TestGetExtraLinks(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        cls.app = app.create_app(testing=True)  # type:ignore
+
+    def setUp(self) -> None:
+        self.client = self.app.test_client()  # type:ignore
+
+    @pytest.mark.skip(reason="Not implemented yet")
+    def test_should_response_200(self):
+        response = self.client.get(
+            "/dags/TEST_DG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_TASK_ID/links"
+        )
+        assert response.status_code == 200

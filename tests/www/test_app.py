@@ -28,6 +28,10 @@ from tests.test_utils.config import conf_vars
 
 
 class TestApp(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        from airflow import settings
+        settings.configure_orm()
 
     @conf_vars({
         ('webserver', 'enable_proxy_fix'): 'True',

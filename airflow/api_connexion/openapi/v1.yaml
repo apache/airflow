@@ -38,7 +38,7 @@ paths:
   /connections:
     get:
       summary: Get all connection entries
-      operationId: getConnections
+      operationId: airflow.api_connexion.endpoints.connection_endpoint.get_connections
       tags: [Connection]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -59,7 +59,7 @@ paths:
 
     post:
       summary: Create connection entry
-      operationId: createConnection
+      operationId: airflow.api_connexion.endpoints.connection_endpoint.post_connection
       tags: [Connection]
       requestBody:
         required: true
@@ -87,7 +87,7 @@ paths:
 
     get:
       summary: Get a connection entry
-      operationId: getConnection
+      operationId: airflow.api_connexion.endpoints.connection_endpoint.get_connection
       tags: [Connection]
       responses:
         '200':
@@ -105,7 +105,7 @@ paths:
 
     patch:
       summary: Update a connection entry
-      operationId: updateConnection
+      operationId: airflow.api_connexion.endpoints.connection_endpoint.patch_connection
       tags: [Connection]
       parameters:
         - $ref: '#/components/parameters/UpdateMask'
@@ -134,7 +134,7 @@ paths:
 
     delete:
       summary: Delete a connection entry
-      operationId: deleteConnection
+      operationId: airflow.api_connexion.endpoints.connection_endpoint.delete_connection
       tags: [Connection]
       responses:
         '204':
@@ -149,7 +149,7 @@ paths:
   /dags:
     get:
       summary: Get all DAGs
-      operationId: getDags
+      operationId: airflow.api_connexion.endpoints.dag_endpoint.get_dags
       tags: [DAG]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -176,7 +176,7 @@ paths:
         Presents only information available in database (DAGModel).
 
         If you need detailed information, consider using GET /dags/{dag_id}/detail.
-      operationId: getDag
+      operationId: airflow.api_connexion.endpoints.dag_endpoint.get_dag
       tags: [DAG]
       responses:
         '200':
@@ -194,7 +194,7 @@ paths:
 
     patch:
       summary: Update a DAG
-      operationId: updateDag
+      operationId: airflow.api_connexion.endpoints.dag_endpoint.patch_dag
       tags: [DAG]
       requestBody:
         required: true
@@ -222,7 +222,7 @@ paths:
 
     post:
       summary: Clears a set of task instances associated with the DAG for a specified date range.
-      operationId: clearTaskInstance
+      operationId: airflow.api_connexion.endpoints.task_instance_endpoint.post_clear_task_instances
       tags: [DAG]
       requestBody:
         description: Parameters of action
@@ -254,7 +254,7 @@ paths:
       summary: Get all DAG Runs
       description: >
         This endpoint allows specifying `~` as the dag_id to retrieve DAG Runs for all DAGs.
-      operationId: getDagRuns
+      operationId: airflow.api_connexion.endpoints.dag_run_endpoint.get_dag_runs
       tags: [DAGRun]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -283,7 +283,7 @@ paths:
       description: >
         This endpoint is a POST to allow filtering across a large number of DAG IDs, where as a GET it
         would run in to maximum HTTP request URL lengthlimits
-      operationId: getDagRunsBatch
+      operationId: airflow.api_connexion.endpoints.dag_run_endpoint.get_dag_runs_batch
       tags: [DAGRun]
       requestBody:
         required: true
@@ -314,7 +314,7 @@ paths:
 
     get:
       summary: Get a DAG Run
-      operationId: getDagRun
+      operationId: airflow.api_connexion.endpoints.dag_run_endpoint.get_dag_run
       tags: [DAGRun]
       responses:
         '200':
@@ -332,7 +332,7 @@ paths:
 
     post:
       summary: Trigger a DAG Run
-      operationId: createDagRun
+      operationId: airflow.api_connexion.endpoints.dag_run_endpoint.post_dag_run
       tags: [DAGRun]
       requestBody:
         required: true
@@ -358,7 +358,7 @@ paths:
 
     patch:
       summary: Update a DAG Run
-      operationId: updateDagRun
+      operationId: airflow.api_connexion.endpoints.dag_run_endpoint.patch_dag_run
       tags: [DAGRun]
       parameters:
         - $ref: '#/components/parameters/UpdateMask'
@@ -387,7 +387,7 @@ paths:
 
     delete:
       summary: Delete a DAG Run
-      operationId: deleteDagRun
+      operationId: airflow.api_connexion.endpoints.dag_run_endpoint.delete_dag_run
       tags: [DAGRun]
       responses:
         '204':
@@ -402,7 +402,7 @@ paths:
   /eventLogs:
     get:
       summary: Get all log entries from event log
-      operationId: getEventLog
+      operationId: airflow.api_connexion.endpoints.event_log_endpoint.get_event_logs
       tags: [EventLog]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -427,7 +427,7 @@ paths:
 
     get:
       summary: Get a log entry
-      operationId: getEventLogEntry
+      operationId: airflow.api_connexion.endpoints.event_log_endpoint.get_event_log
       tags: [EventLog]
       responses:
         '200':
@@ -446,7 +446,7 @@ paths:
   /importErrors:
     get:
       summary: Get all import errors
-      operationId: getImportErrors
+      operationId: airflow.api_connexion.endpoints.import_errror_endpoint.get_import_errors
       tags: [ImportError]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -471,7 +471,7 @@ paths:
 
     get:
       summary: Get an import error
-      operationId: getImportError
+      operationId: airflow.api_connexion.endpoints.import_errror_endpoint.get_import_error
       tags: [ImportError]
       responses:
         '200':
@@ -489,7 +489,7 @@ paths:
 
     delete:
       summary: Delete an import error
-      operationId: deleteImportError
+      operationId: airflow.api_connexion.endpoints.import_errror_endpoint.delete_import_error
       tags: [ImportError]
       responses:
         '204':
@@ -504,7 +504,7 @@ paths:
   /pools:
     get:
       summary: Get all pools
-      operationId: getPools
+      operationId: airflow.api_connexion.endpoints.pool_endpoint.get_pools
       tags: [Pool]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -525,7 +525,7 @@ paths:
 
     post:
       summary: Create a pool
-      operationId: createPool
+      operationId: airflow.api_connexion.endpoints.pool_endpoint.post_pool
       tags: [Pool]
       requestBody:
         required: true
@@ -553,7 +553,7 @@ paths:
 
     get:
       summary: Get a pool
-      operationId: getPool
+      operationId: airflow.api_connexion.endpoints.pool_endpoint.get_pool
       tags: [Pool]
       responses:
         '200':
@@ -571,7 +571,7 @@ paths:
 
     patch:
       summary: Update a pool
-      operationId: updatePool
+      operationId: airflow.api_connexion.endpoints.pool_endpoint.patch_pool
       tags: [Pool]
       parameters:
         - $ref: '#/components/parameters/UpdateMask'
@@ -600,7 +600,7 @@ paths:
 
     delete:
       summary: Delete a pool
-      operationId: deletePool
+      operationId: airflow.api_connexion.endpoints.pool_endpoint.delete_pool
       tags: [Pool]
       responses:
         '204':
@@ -632,7 +632,7 @@ paths:
       description: >
         This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve DAG Runs for all DAGs
         and DAG Runs.
-      operationId: getTaskInstances
+      operationId: airflow.api_connexion.endpoints.task_instance_endpoint.get_task_instances
       tags: [TaskInstance]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -659,7 +659,7 @@ paths:
 
     get:
       summary: Get a task instance
-      operationId: getTaskInstance
+      operationId: airflow.api_connexion.endpoints.task_instance_endpoint.get_task_instance
       tags: [TaskInstance]
       responses:
         '200':
@@ -681,7 +681,7 @@ paths:
       description: >
         This endpoint is a POST to allow filtering across a large number of DAG IDs, where as a GET it
         would run in to maximum HTTP request URL lengthlimits
-      operationId: getTaskInstancesBatch
+      operationId: airflow.api_connexion.endpoints.task_instance_endpoint.get_task_instances_batch
       tags: [TaskInstance]
       requestBody:
         required: true
@@ -710,7 +710,7 @@ paths:
     get:
       summary: Get all variables
       description: The collection does not contain data. To get data, you must get a single entity.
-      operationId: getVariables
+      operationId: airflow.api_connexion.endpoints.variable_endpoint.get_variables
       tags: [Variable]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -731,7 +731,7 @@ paths:
 
     post:
       summary: Create a variable
-      operationId: createVariable
+      operationId: airflow.api_connexion.endpoints.variable_endpoint.post_variables
       tags: [Variable]
       requestBody:
         required: true
@@ -759,7 +759,7 @@ paths:
 
     get:
       summary: Get a variable by key
-      operationId: getVariable
+      operationId: airflow.api_connexion.endpoints.variable_endpoint.get_variable
       tags: [Variable]
       responses:
         '200':
@@ -777,7 +777,7 @@ paths:
 
     patch:
       summary: Update a variable by key
-      operationId: updateVariable
+      operationId: airflow.api_connexion.endpoints.variable_endpoint.patch_variable
       tags: [Variable]
       parameters:
         - $ref: '#/components/parameters/UpdateMask'
@@ -806,7 +806,7 @@ paths:
 
     delete:
       summary: Delete variable
-      operationId: deleteVariable
+      operationId: airflow.api_connexion.endpoints.variable_endpoint.delete_variable
       tags: [Variable]
       responses:
         '204':
@@ -829,7 +829,7 @@ paths:
       description:
         This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCOM entries for
         for all DAGs, DAG Runs and task instances.
-      operationId: getXComEntry
+      operationId: airflow.api_connexion.endpoints.xcom_endpoint.get_xcom_entries
       tags: [XCom]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -850,7 +850,7 @@ paths:
 
     post:
       summary: Create an XCom entry
-      operationId: updateXComEntry
+      operationId: airflow.api_connexion.endpoints.xcom_endpoint.post_xcom_entries
       tags: [XCom]
       requestBody:
         required: true
@@ -881,7 +881,7 @@ paths:
 
     get:
       summary: Get an XCom entry
-      operationId: getXComValue
+      operationId: airflow.api_connexion.endpoints.xcom_endpoint.get_xcom_entry
       tags: [XCom]
       responses:
         '200':
@@ -899,7 +899,7 @@ paths:
 
     patch:
       summary: Update an XCom entry
-      operationId: updateXComValue
+      operationId: airflow.api_connexion.endpoints.xcom_endpoint.patch_xcom_entry
       tags: [XCom]
       parameters:
         - $ref: '#/components/parameters/UpdateMask'
@@ -928,7 +928,7 @@ paths:
 
     delete:
       summary: Delete an XCom entry
-      operationId: deleteXComValue
+      operationId: airflow.api_connexion.endpoints.xcom_endpoint.delete_xcom_entry
       tags: [XCom]
       responses:
         '204':
@@ -949,7 +949,7 @@ paths:
 
     get:
       summary: Get extra links for task instance
-      operationId: getExtraLinks
+      operationId: airflow.api_connexion.endpoints.extra_link_endpoint.get_extra_links
       tags: [TaskInstance]
       responses:
         '200':
@@ -977,7 +977,7 @@ paths:
     get:
       summary: Get logs for a task instance
       description: Get logs for a specific task instance and its try number
-      operationId: getLogs
+      operationId: airflow.api_connexion.endpoints.log_endpoint.get_log
       tags: [TaskInstance]
       responses:
         '200':
@@ -1009,7 +1009,7 @@ paths:
 
     get:
       summary: Get a simplified representation of DAG.
-      operationId: getDagDetail
+      operationId: airflow.api_connexion.endpoints.dag_endpoint.get_dag_details
       description: >
         The response contains many DAG attributes, so the response can be large.
         If possible, consider using GET /dags/{dag_id}.
@@ -1034,7 +1034,7 @@ paths:
 
     get:
       summary: Get tasks for DAG
-      operationId: getTasks
+      operationId: airflow.api_connexion.endpoints.task_endpoint.get_tasks
       tags: [DAG]
       responses:
         '200':
@@ -1057,7 +1057,7 @@ paths:
 
     get:
       summary: Get simplified representation of a task.
-      operationId: getTask
+      operationId: airflow.api_connexion.endpoints.task_endpoint.get_task
       tags: [DAG]
       responses:
         '200':
@@ -1079,7 +1079,7 @@ paths:
 
     get:
       summary: Get source code using file token
-      operationId: getDagSource
+      operationId: airflow.api_connexion.endpoints.dag_source_endpoint.get_dag_source
       tags: [DAG]
       responses:
         '200':
@@ -1101,7 +1101,7 @@ paths:
   /config:
     get:
       summary: Get current configuration
-      operationId: getConfig
+      operationId: airflow.api_connexion.endpoints.config_endpoint.get_config
       tags: [Config]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -1120,6 +1120,20 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
+
+  /health:
+    get:
+      summary: Checks if the API works
+      operationId: airflow.api_connexion.endpoints.health_endpoint.get_health
+      tags: [Monitoring]
+      responses:
+        '200':
+          description: It should always return "OK"
+          content:
+            text/plain:
+              schema:
+                type: string
+
 
 components:
   # Reusable schemas (data models)
@@ -2401,6 +2415,7 @@ tags:
   - name: DAGRun
   - name: EventLog
   - name: ImportError
+  - name: Monitoring
   - name: Pool
   - name: TaskInstance
   - name: Variable

@@ -684,6 +684,7 @@ INSTALL_REQUIREMENTS = [
     'cached_property~=1.5',
     'cattrs~=1.0',
     'colorlog==4.0.2',
+    'connexion[swagger-ui,flask]>=2.6.0,<3',
     'croniter>=0.3.17, <0.4',
     'cryptography>=0.9.3',
     'dill>=0.2.2, <0.4',
@@ -741,6 +742,7 @@ def do_setup():
         package_data={
             '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb",
                  "airflow/providers/cncf/kubernetes/example_dags/*.yaml"],
+            'airflow.api_connexion.openapi': ['*.yaml'],
             'airflow.serialization': ["*.json"],
         },
         include_package_data=True,

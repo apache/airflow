@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,22 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-include NOTICE
-include LICENSE
-include CHANGELOG.txt
-include README.md
-graft licenses
-graft airflow/www
-graft airflow/www/static
-graft airflow/www/templates
-graft airflow/_vendor/
-include airflow/alembic.ini
-include airflow/git_version
-include airflow/serialization/schema.json
-graft scripts/systemd
-graft scripts/upstart
-graft airflow/config_templates
-recursive-exclude airflow/www/node_modules *
-global-exclude __pycache__  *.pyc
-include airflow/providers/cncf/kubernetes/example_dags/example_spark_kubernetes_operator_spark_pi.yaml
-include airflow/api_connexion/openapi/v1.yaml
+# TODO(mik-laj): We have to implement it.
+#     Do you want to help? Please look at: https://github.com/apache/airflow/issues/8137
+
+
+def get_dag_source():
+    """
+    Get source code using file token
+    """
+    raise NotImplementedError("Not implemented yet.")
