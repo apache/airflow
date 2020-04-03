@@ -28,7 +28,7 @@ library, you should be able to use any database backend supported as a
 SqlAlchemy backend. We recommend using **MySQL** or **Postgres**.
 
 .. note:: We rely on more strict ANSI SQL settings for MySQL in order to have
-   sane defaults. Make sure to have specified ``explicit_defaults_for_timestamp=1``
+   same defaults. Make sure to have specified ``explicit_defaults_for_timestamp=1``
    in your my.cnf under ``[mysqld]``
 
 .. note:: If you decide to use **MySQL**, we recommend using the ``mysqlclient``
