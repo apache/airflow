@@ -23,8 +23,6 @@
 
 {% block head_css %}
 {{ super() }}
-<link rel="stylesheet" type="text/css"
-    href="{{url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.css')}}" >
 <link type="text/css" href="{{ url_for('static', filename='css/gantt.css') }}" rel="stylesheet" />
 <link type="text/css" href="{{ url_for('static', filename='css/tree.css') }}" rel="stylesheet" />
 {% endblock %}
@@ -50,7 +48,6 @@
 
 {% block tail %}
 {{ super() }}
-<script src="{{ url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.js') }}"></script>
 <script src="{{ url_for_asset('d3.min.js') }}"></script>
 <script src="{{ url_for_asset('d3-tip.js') }}"></script>/
 <script src="{{ url_for_asset('ganttChartD3v2.js') }}"></script>

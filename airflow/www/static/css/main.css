@@ -248,6 +248,11 @@ label[for="timezone-other"], #timezone-other {
     overflow-x: hidden;
 }
 
+/* depending on the version of FAB in use, we may have a style conflict */
+.bootstrap-datetimepicker-widget .datepicker>div {
+  display: block;
+}
+
 .hll { background-color: #ffffcc }
 .c { color: #408080; font-style: italic } /* Comment */
 .err { border: 1px solid #FF0000 } /* Error */
