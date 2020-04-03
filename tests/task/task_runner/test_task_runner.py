@@ -18,12 +18,21 @@
 import unittest
 from unittest import mock
 
-from airflow.task.task_runner import get_task_runner
+from parameterized import parameterized
+
+from airflow.task.task_runner import CORE_TASK_RUNNERS, get_task_runner
+from airflow.utils.module_loading import import_string
 
 custom_task_runner = mock.MagicMock()
 
 
 class GetTaskRunner(unittest.TestCase):
+
+    @parameterized.expand([
+        (import_path, ) for import_path in CORE_TASK_RUNNERS.values()
+    ])
+    def test_should_have_valid_imports(self, import_path):
+        self.assertIsNotNone(import_string(import_path))
 
     @mock.patch(
         'airflow.task.task_runner.base_task_runner.subprocess'
@@ -50,3 +59,5 @@ class GetTaskRunner(unittest.TestCase):
         task_runner = get_task_runner(local_task_job)
 
         custom_task_runner.assert_called_once_with(local_task_job)
+
+        self.assertEqual(custom_task_runner.return_value, task_runner)
