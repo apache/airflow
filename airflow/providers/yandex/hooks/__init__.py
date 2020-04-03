@@ -19,11 +19,11 @@ import json
 
 import yandexcloud
 
-from airflow import exceptions
-from airflow.hooks import base_hook
+from airflow.exception import AirflowException
+from airflow.hooks.base_hook import BaseHook
 
 
-class YandexCloudBaseHook(base_hook.BaseHook):
+class YandexCloudBaseHook(BaseHook):
     """
     A base hook for Yandex.Cloud related tasks.
 
@@ -51,7 +51,7 @@ class YandexCloudBaseHook(base_hook.BaseHook):
         service_account_json = self._get_field('service_account_json', False)
         oauth_token = self._get_field('oauth', False)
         if not (service_account_json or oauth_token or service_account_json_path):
-            raise exceptions.AirflowException(
+            raise AirflowException(
                 'No credentials are found in connection. Specify either service account ' +
                 'authentication JSON or user OAuth token in Yandex.Cloud connection'
             )
@@ -73,3 +73,5 @@ class YandexCloudBaseHook(base_hook.BaseHook):
             return self.extras[long_f]
         else:
             return default
+
+__all__ = ["YandexCloudBaseHook"]
