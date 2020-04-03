@@ -3,6 +3,8 @@ Airflow 1.10.10, 2020-04-07
 
 New Features
 """"""""""""
+- [AIRFLOW-7048] Allow user to chose timezone to use in UI (#8046)
+- Add Production Docker image support (#7832)
 - Get Airflow Variables from Environment Variables (#7923)
 - Get Airflow Variables from Hashicorp Vault (#7944)
 - Get Airflow Variables from AWS Systems Manager Parameter Store (#7945)
@@ -50,6 +52,8 @@ Bug Fixes
 - [AIRFLOW-5705] Fix bugs in AWS SSM Secrets Backend (#7745)
 - [AIRFLOW-5705] Fix bug in Secrets Backend (#7742)
 - Fix CloudSecretsManagerBackend invalid connections_prefix (#7861)
+- [AIRFLOW-7045] BugFix: DebugExecutor fails to change task state. (#8073)
+- BugFix: Datetimepicker is stuck on the UI (#8092)
 
 
 Improvements
@@ -95,6 +99,7 @@ Improvements
 - Allow hvac pakage installation using 'hashicorp' extra (#7915)
 - Standardize SecretBackend class names (#7846)
 - [AIRFLOW-5705] Make AwsSsmSecretsBackend consistent with VaultBackend (#7753)
+- [AIRFLOW-7045] Update SQL query to delete RenderedTaskInstanceFields (#8051)
 
 Misc/Internal
 """""""""""""
@@ -144,6 +149,11 @@ Doc only changes
 - Fix broken link in README.md (#7893)
 - Separate supported Postgres versions with comma (#7892)
 - Fix grammar in setup.py (#7877)
+- Add Jiajie Zhong to committers list (#8047)
+- Update Security doc for 1.10.* for auth backends (#8072)
+- Fix Example in config_templates for Secrets Backend (#8074)
+- Add backticks in IMAGES.rst command description (#8075)
+- Change version_added for store_dag_code config (#8076)
 - [AIRFLOW-XXXX] Remove duplicate docs
 - [AIRFLOW-XXXX] Remove the defunct limitation of Dag Serialization (#7716)
 - [AIRFLOW-XXXX] Add prerequisite tasks for all GCP operators guide (#6049)
