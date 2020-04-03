@@ -54,6 +54,7 @@
       description: |
         The executor class that airflow should use. Choices include
         SequentialExecutor, LocalExecutor, CeleryExecutor, DaskExecutor, KubernetesExecutor
+        or the full import path to the class when using a custom executor.
       version_added: ~
       type: string
       example: ~
@@ -237,7 +238,9 @@
       default: "50"
     - name: task_runner
       description: |
-        The class to use for running task instances in a subprocess
+        The class to use for running task instances in a subprocess.
+        Choices include StandardTaskRunner, CgroupTaskRunner or the full import path to the class
+        when using a custom task runner.
       version_added: ~
       type: string
       example: ~
