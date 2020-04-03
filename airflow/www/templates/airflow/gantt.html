@@ -64,6 +64,9 @@
       .selector('.gantt')
       .tickFormat("%H:%M:%S");
     gantt(data.tasks);
+    $('body').on('airflow.timezone-change', (e) => {
+      gantt.redraw(data.tasks);
+    });
   });
 </script>
 

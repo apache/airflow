@@ -22,6 +22,70 @@
  * @modifiedby Maxime Beauchemin
  */
 
+// Taken from
+//https://github.com/benjaminoakes/moment-strftime/blob/1886cabc4b07d13e3046ae075d357e7aad92ea93/lib/moment-strftime.js
+// but I couldn't work out how to make webpack not include moment again.
+// TODO: revisit our webpack config
+//
+// -- Begin moment-strftime
+// Copyright (c) 2012 Benjamin Oakes, MIT Licensed
+const replacements = {
+    'a': 'ddd',
+    'A': 'dddd',
+    'b': 'MMM',
+    'B': 'MMMM',
+    'c': 'lll',
+    'd': 'DD',
+    '-d': 'D',
+    'e': 'D',
+    'F': 'YYYY-MM-DD',
+    'H': 'HH',
+    '-H': 'H',
+    'I': 'hh',
+    '-I': 'h',
+    'j': 'DDDD',
+    '-j': 'DDD',
+    'k': 'H',
+    'l': 'h',
+    'm': 'MM',
+    '-m': 'M',
+    'M': 'mm',
+    '-M': 'm',
+    'p': 'A',
+    'P': 'a',
+    'S': 'ss',
+    '-S': 's',
+    'u': 'E',
+    'w': 'd',
+    'W': 'WW',
+    'x': 'll',
+    'X': 'LTS',
+    'y': 'YY',
+    'Y': 'YYYY',
+    'z': 'ZZ',
+    'Z': 'z',
+    'f': 'SSS',
+    '%': '%'
+};
+
+moment.fn.strftime = function (format) {
+  var momentFormat, tokens;
+
+  // Break up format string based on strftime tokens
+  tokens = format.split(/(%\-?.)/);
+  momentFormat = tokens.map(function (token) {
+    // Replace strftime tokens with moment formats
+    if (token[0] === '%' && replacements.hasOwnProperty(token.substr(1))) {
+      return replacements[token.substr(1)];
+    }
+    // Escape non-token strings to avoid accidental formatting
+    return token.length > 0 ? '[' + token + ']' : token;
+  }).join('');
+
+  return this.format(momentFormat);
+};
+// -- End moment-strftime
+
 d3.gantt = function() {
   var FIT_TIME_DOMAIN_MODE = "fit";
   var FIXED_TIME_DOMAIN_MODE = "fixed";
@@ -68,11 +132,17 @@ d3.gantt = function() {
     return "translate(" + (x(d.startDate) + yAxisLeftOffset) + "," + y(d.taskName) + ")";
   };
 
+  function tickFormater(d) {
+    // We can't use d3.time.format as that uses local time, so instead we use
+    // moment as that handles our "global" timezone.
+    return moment(d).strftime(tickFormat);
+  }
+
   var x = d3.time.scale().domain([ timeDomainStart, timeDomainEnd ]).range([ 0, (width-yAxisLeftOffset) ]).clamp(true);
 
   var y = d3.scale.ordinal().domain(taskTypes).rangeRoundBands([ 0, height - margin.top - margin.bottom ], .1);
 
-  var xAxis = d3.svg.axis().scale(x).orient("bottom").tickFormat(d3.time.format(tickFormat)).tickSubdivide(true)
+  var xAxis = d3.svg.axis().scale(x).orient("bottom").tickFormat(tickFormater).tickSubdivide(true)
   .tickSize(8).tickPadding(8);
 
   var yAxis = d3.svg.axis().scale(y).orient("left").tickSize(0);
@@ -98,7 +168,7 @@ d3.gantt = function() {
   var initAxis = function() {
     x = d3.time.scale().domain([ timeDomainStart, timeDomainEnd ]).range([ 0, width-yAxisLeftOffset ]).clamp(true);
     y = d3.scale.ordinal().domain(taskTypes).rangeRoundBands([ 0, height - margin.top - margin.bottom ], .1);
-    xAxis = d3.svg.axis().scale(x).orient("bottom").tickFormat(d3.time.format(tickFormat)).tickSubdivide(true)
+    xAxis = d3.svg.axis().scale(x).orient("bottom").tickFormat(tickFormater).tickSubdivide(true)
     .tickSize(8).tickPadding(8);
 
     yAxis = d3.svg.axis().scale(y).orient("left").tickSize(0);
@@ -176,15 +246,9 @@ d3.gantt = function() {
     .attr("transform", rectTransform)
     .attr("height", function(d) { return y.rangeBand(); })
     .attr("width", function(d) {
-      return (x(d.endDate) - x(d.startDate));
+      return d3.max([x(d.endDate) - x(d.startDate), 1]);
     });
 
-    rect.transition()
-    .attr("transform", rectTransform)
-    .attr("height", function(d) { return y.rangeBand(); })
-    .attr("width", function(d) {
-      return (x(d.endDate) - x(d.startDate));
-    });
 
     rect.exit().remove();
 
