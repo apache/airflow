@@ -16,6 +16,7 @@
     under the License.
 
 
+.. _executor:CeleryExecutor:
 
 Celery Executor
 ===============

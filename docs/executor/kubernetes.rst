@@ -15,7 +15,10 @@
     specific language governing permissions and limitations
     under the License.
 
-KubernetesExecutor
+
+.. _executor:KubernetesExecutor:
+
+Kubernetes Executor
 ===================
 
 The kubernetes executor is introduced in Apache Airflow 1.10.0. The Kubernetes executor will create a new pod for every task instance.
