@@ -20,7 +20,7 @@
 /* global window, dagTZ, moment, convertSecsToHumanReadable */
 
 // We don't re-import moment again, otherwise webpack will include it twice in the bundle!
-import { defaultFormat, formatDateTime, getCurrentTimezone } from './datetime-utils';
+import { defaultFormat, formatDateTime } from './datetime-utils';
 import { escapeHtml } from './base';
 
 function makeDateTimeHTML(start, end) {
@@ -31,7 +31,7 @@ function makeDateTimeHTML(start, end) {
 
 function generateTooltipDateTimes(startDate, endDate, dagTZ) {
   const tzFormat = 'z (Z)';
-  const localTZ = getCurrentTimezone();
+  const localTZ = moment.defaultZone.name;
   startDate = moment.utc(startDate);
   endDate = moment.utc(endDate);
   dagTZ = dagTZ.toUpperCase();
@@ -46,13 +46,15 @@ function generateTooltipDateTimes(startDate, endDate, dagTZ) {
   tooltipHTML += makeDateTimeHTML(startDate, endDate);
 
   // Generate User's Local Start and End Date
-  tooltipHTML += `<br><strong>Local: ${moment.tz(localTZ).format(tzFormat)}</strong><br>`;
-  tooltipHTML += makeDateTimeHTML(startDate.tz(localTZ), endDate.tz(localTZ));
+  startDate.tz(localTZ);
+  tooltipHTML += `<br><strong>Local: ${startDate.format(tzFormat)}</strong><br>`;
+  tooltipHTML += makeDateTimeHTML(startDate, endDate.tz(localTZ));
 
   // Generate DAG's Start and End Date
   if (dagTZ !== 'UTC' && dagTZ !== localTZ) {
-    tooltipHTML += `<br><strong>DAG's TZ: ${moment.tz(dagTZ).format(tzFormat)}</strong><br>`;
-    tooltipHTML += makeDateTimeHTML(startDate.tz(dagTZ), endDate.tz(dagTZ));
+    startDate.tz(dagTZ);
+    tooltipHTML += `<br><strong>DAG's TZ: ${startDate.format(tzFormat)}</strong><br>`;
+    tooltipHTML += makeDateTimeHTML(startDate, endDate.tz(dagTZ));
   }
 
   return tooltipHTML;
