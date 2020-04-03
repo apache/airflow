@@ -82,6 +82,7 @@ from airflow.www.widgets import AirflowModelListWidget
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 FILTER_TAGS_COOKIE = 'tags_filter'
+FILTER_STATUS_COOKIE = 'status_filter'
 
 if os.environ.get('SKIP_DAGS_PARSING') != 'True':
     dagbag = models.DagBag(settings.DAGS_FOLDER, store_serialized_dags=STORE_SERIALIZED_DAGS)
@@ -225,7 +226,6 @@ class Airflow(AirflowBaseView):
     def index(self):
         hide_paused_dags_by_default = conf.getboolean('webserver',
                                                       'hide_paused_dags_by_default')
-        show_paused_arg = request.args.get('showPaused', 'None')
 
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         num_runs = request.args.get('num_runs')
@@ -240,6 +240,7 @@ class Airflow(AirflowBaseView):
         arg_current_page = request.args.get('page', '0')
         arg_search_query = request.args.get('search', None)
         arg_tags_filter = request.args.getlist('tags', None)
+        arg_status_filter = request.args.get('status', None)
 
         if request.args.get('reset_tags') is not None:
             flask_session[FILTER_TAGS_COOKIE] = None
@@ -251,15 +252,20 @@ class Airflow(AirflowBaseView):
             elif cookie_val:
                 arg_tags_filter = cookie_val.split(',')
 
+        if request.args.get('status') is None:
+            cookie_val = flask_session.get(FILTER_STATUS_COOKIE)
+            if cookie_val:
+                arg_status_filter = cookie_val
+            else:
+                arg_status_filter = 'active' if hide_paused_dags_by_default else 'all'
+                flask_session[FILTER_STATUS_COOKIE] = arg_status_filter
+        else:
+            status = arg_status_filter.strip().lower()
+            flask_session[FILTER_STATUS_COOKIE] = status
+            arg_status_filter = status
+
         dags_per_page = PAGE_SIZE
         current_page = get_int_arg(arg_current_page, default=0)
-
-        if show_paused_arg.strip().lower() == 'false':
-            hide_paused = True
-        elif show_paused_arg.strip().lower() == 'true':
-            hide_paused = False
-        else:
-            hide_paused = hide_paused_dags_by_default
 
         start = current_page * dags_per_page
         end = start + dags_per_page
@@ -273,10 +279,6 @@ class Airflow(AirflowBaseView):
                 ~DagModel.is_subdag, DagModel.is_active
             )
 
-            # optionally filter out "paused" dags
-            if hide_paused:
-                dags_query = dags_query.filter(~DagModel.is_paused)
-
             if arg_search_query:
                 dags_query = dags_query.filter(
                     DagModel.dag_id.ilike('%' + arg_search_query + '%') |
@@ -289,7 +291,18 @@ class Airflow(AirflowBaseView):
             if 'all_dags' not in filter_dag_ids:
                 dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
 
-            dags = dags_query.order_by(DagModel.dag_id).options(
+            all_dags = dags_query
+            active_dags = dags_query.filter(~DagModel.is_paused)
+            paused_dags = dags_query.filter(DagModel.is_paused)
+
+            if arg_status_filter == 'active':
+                current_dags = active_dags
+            elif arg_status_filter == 'paused':
+                current_dags = paused_dags
+            else:
+                current_dags = all_dags
+
+            dags = current_dags.order_by(DagModel.dag_id).options(
                 joinedload(DagModel.tags)).offset(start).limit(dags_per_page).all()
 
             dagtags = session.query(DagTag.name).distinct(DagTag.name).all()
@@ -313,13 +326,16 @@ class Airflow(AirflowBaseView):
                     filename=filename),
                 "error")
 
-        num_of_all_dags = dags_query.count()
+        num_of_all_dags = current_dags.count()
         num_of_pages = int(math.ceil(num_of_all_dags / float(dags_per_page)))
+
+        status_count_all = all_dags.count()
+        status_count_active = active_dags.count()
+        status_count_paused = paused_dags.count()
 
         return self.render_template(
             'airflow/dags.html',
             dags=dags,
-            hide_paused=hide_paused,
             current_page=current_page,
             search_query=arg_search_query if arg_search_query else '',
             page_size=dags_per_page,
@@ -327,11 +343,16 @@ class Airflow(AirflowBaseView):
             num_dag_from=min(start + 1, num_of_all_dags),
             num_dag_to=min(end, num_of_all_dags),
             num_of_all_dags=num_of_all_dags,
-            paging=wwwutils.generate_pages(current_page, num_of_pages,
+            paging=wwwutils.generate_pages(current_page,
+                                           num_of_pages,
                                            search=escape(arg_search_query) if arg_search_query else None,
-                                           showPaused=not hide_paused),
+                                           status=arg_status_filter if arg_status_filter else None),
             num_runs=num_runs,
-            tags=tags)
+            tags=tags,
+            status_filter=arg_status_filter,
+            status_count_all=status_count_all,
+            status_count_active=status_count_active,
+            status_count_paused=status_count_paused)
 
     @expose('/dag_stats', methods=['POST'])
     @has_access
@@ -2783,10 +2804,14 @@ class DagModelView(AirflowModelView):
             ~DagModel.is_subdag, DagModel.is_active,
             DagModel.owners.ilike('%' + query + '%'))
 
-        # Hide paused dags
-        if request.args.get('showPaused', 'True').lower() == 'false':
+        # Hide DAGs if not showing status: "all"
+        status = flask_session.get(FILTER_STATUS_COOKIE)
+        if status == 'active':
             dag_ids_query = dag_ids_query.filter(~DagModel.is_paused)
             owners_query = owners_query.filter(~DagModel.is_paused)
+        elif status == 'paused':
+            dag_ids_query = dag_ids_query.filter(DagModel.is_paused)
+            owners_query = owners_query.filter(DagModel.is_paused)
 
         filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
         if 'all_dags' not in filter_dag_ids:
