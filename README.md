@@ -415,6 +415,7 @@ Currently **officially** using Airflow:
 1. [Qplum](https://qplum.co) [[@manti](https://github.com/manti)]
 1. [Quantopian](https://www.quantopian.com/) [[@eronarn](http://github.com/eronarn)]
 1. [Qubole](https://qubole.com) [[@msumit](https://github.com/msumit)]
+1. [QuintoAndar](https://quintoandar.com.br) [[@quintoandar](https://github.com/quintoandar)]
 1. [Quizlet](https://quizlet.com) [[@quizlet](https://github.com/quizlet)]
 1. [Quora](https://www.quora.com/)
 1. [Rakuten](https://www.rakuten.com)
