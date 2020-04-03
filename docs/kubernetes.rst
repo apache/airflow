@@ -28,7 +28,7 @@ The :doc:`Kubernetes Executor <executor/kubernetes>` allows you to run tasks on 
 Kubernetes Operator
 ^^^^^^^^^^^^^^^^^^^
 
-The :doc:`KubernetesPodOperator <executor/kubernetes>` allows you to create Pods on Kubernetes. It works with
+The :class:`~airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator` allows you to create Pods on Kubernetes. It works with
 any type of executor.
 
 .. code:: python
