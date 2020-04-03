@@ -16,6 +16,8 @@
     under the License.
 
 
+.. _executor:LocalExecutor:
+
 Local Executor
 ==============
 
@@ -31,7 +33,7 @@ The following strategies are implemented:
   | :class:`~airflow.executors.local_executor.LocalExecutor` will be executed in its own process. Once the task is executed and the
   | result stored in the ``result_queue``, the process terminates. There is no need for a
   | ``task_queue`` in this approach, since as soon as a task is received a new process will be
-  | allocated to the task. Processes used in this strategy are of class :class:`~airflow.executors.local_executor.LocalWor`.
+  | allocated to the task. Processes used in this strategy are of class :class:`~airflow.executors.local_executor.LocalWorker`.
 
 - | **Limited Parallelism** (``self.parallelism > 0``): In this strategy, the :class:`~airflow.executors.local_executor.LocalExecutor` spawns
   | the number of processes equal to the value of ``self.parallelism`` at ``start`` time,

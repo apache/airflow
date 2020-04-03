@@ -34,6 +34,6 @@ full path to the module e.g. ``my_acme_company.executors.MyCustomExecutor``.
     sequential
     debug
     local
-    celery
     dask
+    celery
     kubernetes

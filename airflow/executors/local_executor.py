@@ -15,7 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""LocalExecutor"""
+"""
+LocalExecutor
+
+.. seealso::
+    For more information on how the LocalExecutor works, take a look at the guide:
+    :ref:`executor:LocalExecutor`
+"""
 import subprocess
 from multiprocessing import Manager, Process
 from multiprocessing.managers import SyncManager
