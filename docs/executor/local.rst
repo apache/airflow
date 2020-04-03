@@ -15,6 +15,10 @@
     specific language governing permissions and limitations
     under the License.
 
+
+Local Executor
+==============
+
 :class:`~airflow.executors.local_executor.LocalExecutor` runs tasks by spawning processes in a controlled fashion in different modes.
 
 Given that BaseExecutor has the option to receive a ``parallelism`` parameter to limit the number of process spawned,

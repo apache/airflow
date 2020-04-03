@@ -17,6 +17,9 @@
     specific language governing permissions and limitations
     under the License.
 
+Sequential Executor
+===================
+
 The :class:`~airflow.executors.sequential_executor.SequentialExecutor` is the default executor when you first install ``airflow``.
 It is the only executor that can be used with ``sqlite`` since ``sqlite`` doesn't support multiple connections.
 This executor will only run one task instance at a time. For production use case, please use other executors.
