@@ -22,16 +22,9 @@ export const defaultFormat = 'YYYY-MM-DD, HH:mm:ss';
 export const defaultFormatWithTZ = 'YYYY-MM-DD, HH:mm:ss z';
 export const defaultTZFormat = 'z (Z)';
 
-let currentTimezone = 'UTC'
-
 export function setDisplayedTimezone(tz) {
-  currentTimezone = tz;
   moment.tz.setDefault(tz);
   updateAllDateTimes();
-}
-
-export function getCurrentTimezone() {
-  return currentTimezone;
 }
 
 export function formatTimezone(what) {
