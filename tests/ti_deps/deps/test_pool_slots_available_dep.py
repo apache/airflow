@@ -20,8 +20,8 @@ import unittest
 from mock import Mock, patch
 
 from airflow.models import Pool
-from airflow.ti_deps.deps.pool_slots_available_dep import PoolSlotsAvailableDep
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
+from airflow.ti_deps.deps.pool_slots_available_dep import PoolSlotsAvailableDep
 from airflow.utils.session import create_session
 from tests.test_utils import db
 
