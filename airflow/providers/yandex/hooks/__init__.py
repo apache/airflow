@@ -19,7 +19,7 @@ import json
 
 import yandexcloud
 
-from airflow.exception import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 
@@ -74,4 +74,5 @@ class YandexCloudBaseHook(BaseHook):
         else:
             return default
 
-__all__ = ["YandexCloudBaseHook"]
+
+__all__ = ['YandexCloudBaseHook']
