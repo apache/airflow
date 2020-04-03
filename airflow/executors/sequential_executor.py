@@ -17,6 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+SequentialExecutor
+
+.. seealso::
+    For more information on how the SequentialExecutor works, take a look at the guide:
+    :ref:`executor:SequentialExecutor`
+"""
 from builtins import str
 import subprocess
 

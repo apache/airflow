@@ -16,6 +16,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+DaskExecutor
+
+.. seealso::
+    For more information on how the DaskExecutor works, take a look at the guide:
+    :ref:`executor:DaskExecutor`
+"""
 
 import distributed
 import subprocess
