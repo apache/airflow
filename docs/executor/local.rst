@@ -26,22 +26,22 @@ when this parameter is ``0`` the number of processes that LocalExecutor can spaw
 
 The following strategies are implemented:
 
-- **Unlimited Parallelism** (``self.parallelism == 0``): In this strategy, LocalExecutor will
-spawn a process every time ``execute_async`` is called, that is, every task submitted to the
-:class:`~airflow.executors.local_executor.LocalExecutor` will be executed in its own process. Once the task is executed and the
-result stored in the ``result_queue``, the process terminates. There is no need for a
-``task_queue`` in this approach, since as soon as a task is received a new process will be
-allocated to the task. Processes used in this strategy are of class :class:`~airflow.executors.local_executor.LocalWor`.
+- | **Unlimited Parallelism** (``self.parallelism == 0``): In this strategy, LocalExecutor will
+  | spawn a process every time ``execute_async`` is called, that is, every task submitted to the
+  | :class:`~airflow.executors.local_executor.LocalExecutor` will be executed in its own process. Once the task is executed and the
+  | result stored in the ``result_queue``, the process terminates. There is no need for a
+  | ``task_queue`` in this approach, since as soon as a task is received a new process will be
+  | allocated to the task. Processes used in this strategy are of class :class:`~airflow.executors.local_executor.LocalWor`.
 
-- **Limited Parallelism** (``self.parallelism > 0``): In this strategy, the :class:`~airflow.executors.local_executor.LocalExecutor` spawns
-the number of processes equal to the value of ``self.parallelism`` at ``start`` time,
-using a ``task_queue`` to coordinate the ingestion of tasks and the work distribution among
-the workers, which will take a task as soon as they are ready. During the lifecycle of
-the LocalExecutor, the worker processes are running waiting for tasks, once the
-LocalExecutor receives the call to shutdown the executor a poison token is sent to the
-workers to terminate them. Processes used in this strategy are of class :class:`~airflow.executors.local_executor.QueuedLocalWorker`.
+- | **Limited Parallelism** (``self.parallelism > 0``): In this strategy, the :class:`~airflow.executors.local_executor.LocalExecutor` spawns
+  | the number of processes equal to the value of ``self.parallelism`` at ``start`` time,
+  | using a ``task_queue`` to coordinate the ingestion of tasks and the work distribution among
+  | the workers, which will take a task as soon as they are ready. During the lifecycle of
+  | the LocalExecutor, the worker processes are running waiting for tasks, once the
+  | LocalExecutor receives the call to shutdown the executor a poison token is sent to the
+  | workers to terminate them. Processes used in this strategy are of class :class:`~airflow.executors.local_executor.QueuedLocalWorker`.
 
-Arguably, :class:`~airflow.executors.sequential_executor.SequentialExecutor` could be thought as a LocalExecutor with limited
+Arguably, :class:`~airflow.executors.sequential_executor.SequentialExecutor` could be thought as a ``LocalExecutor`` with limited
 parallelism of just 1 worker, i.e. ``self.parallelism = 1``.
 This option could lead to the unification of the executor implementations, running
 locally, into just one :class:`~airflow.executors.local_executor.LocalExecutor` with multiple modes.
