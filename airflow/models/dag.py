@@ -24,8 +24,8 @@ import pickle
 import re
 import sys
 import traceback
-from collections import OrderedDict
 import warnings
+from collections import OrderedDict
 from datetime import datetime, timedelta
 from typing import Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Type, Union
 
