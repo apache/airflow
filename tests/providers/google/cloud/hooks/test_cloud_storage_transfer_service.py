@@ -464,7 +464,8 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection(unittest.TestCase):
         get_method = get_conn.return_value.transferJobs.return_value.get
         execute_method = get_method.return_value.execute
         execute_method.return_value = TEST_TRANSFER_JOB
-        res = self.gct_hook.get_transfer_job(job_name=TEST_TRANSFER_JOB_NAME)
+        res = self.gct_hook.get_transfer_job(  # pylint: disable=no-value-for-parameter
+            job_name=TEST_TRANSFER_JOB_NAME)
         self.assertIsNotNone(res)
         self.assertEqual(TEST_TRANSFER_JOB_NAME, res[NAME])
         get_method.assert_called_once_with(jobName=TEST_TRANSFER_JOB_NAME, projectId='example-project')
@@ -670,7 +671,8 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
         execute_method = get_method.return_value.execute
         execute_method.return_value = TEST_TRANSFER_JOB
         with self.assertRaises(AirflowException) as e:
-            self.gct_hook.get_transfer_job(job_name=TEST_TRANSFER_JOB_NAME)
+            self.gct_hook.get_transfer_job(  # pylint: disable=no-value-for-parameter
+                job_name=TEST_TRANSFER_JOB_NAME)
         self.assertEqual(
             'The project id must be passed either as keyword project_id '
             'parameter or as project_id extra in GCP connection definition. '

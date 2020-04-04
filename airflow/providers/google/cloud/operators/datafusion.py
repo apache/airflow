@@ -221,7 +221,7 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
                 raise
             self.log.info("Instance %s already exists", self.instance_name)
             instance = hook.get_instance(
-                instance_name=self.instance_name, location=self.location
+                instance_name=self.instance_name, location=self.location, project_id=self.project_id
             )
 
         return instance

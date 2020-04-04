@@ -62,6 +62,35 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Added mypy plugin to preserve types of decorated functions
+
+Mypy currently doesn't support precise type information for decorated
+functions; see https://github.com/python/mypy/issues/3157 for details.
+To preserve precise type definitions for decorated functions, we now
+include a mypy plugin to preserve precise type definitions for decorated
+functions. To use the plugin, update your setup.cfg:
+
+```
+[mypy]
+plugins =
+  airflow.mypy.plugin.decorators
+```
+
+### Use project_id argument consistently across GCP hooks and operators
+
+- Changed order of arguments in DataflowHook.start_python_dataflow. Uses
+    with positional arguments may break.
+- Changed order of arguments in DataflowHook.is_job_dataflow_running. Uses
+    with positional arguments may break.
+- Changed order of arguments in DataflowHook.cancel_job. Uses
+    with positional arguments may break.
+- Added optional project_id argument to DataflowCreateJavaJobOperator
+    constructor.
+- Added optional project_id argument to DataflowTemplatedJobStartOperator
+    constructor.
+- Added optional project_id argument to DataflowCreatePythonJobOperator
+    constructor.
+
 ### Rename pool statsd metrics
 
 Used slot has been renamed to running slot to make the name self-explanatory

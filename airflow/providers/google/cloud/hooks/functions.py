@@ -90,7 +90,7 @@ class CloudFunctionsHook(GoogleBaseHook):
             name=name).execute(num_retries=self.num_retries)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_new_function(self, location: str, body: Dict, project_id: Optional[str] = None) -> None:
+    def create_new_function(self, location: str, body: Dict, project_id: str) -> None:
         """
         Creates a new function in Cloud Function in the location specified in the body.
 
@@ -103,8 +103,6 @@ class CloudFunctionsHook(GoogleBaseHook):
         :type project_id: str
         :return: None
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
         response = self.get_conn().projects().locations().functions().create(  # pylint: disable=no-member
             location=self._full_location(project_id, location),
             body=body
@@ -133,7 +131,7 @@ class CloudFunctionsHook(GoogleBaseHook):
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def upload_function_zip(self, location: str, zip_path: str, project_id: Optional[str] = None) -> str:
+    def upload_function_zip(self, location: str, zip_path: str, project_id: str) -> str:
         """
         Uploads zip file with sources.
 
@@ -147,8 +145,6 @@ class CloudFunctionsHook(GoogleBaseHook):
         :return: The upload URL that was returned by generateUploadUrl method.
         :rtype: str
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
         response = \
             self.get_conn().projects().locations().functions().generateUploadUrl(  # pylint: disable=no-member # noqa
             parent=self._full_location(project_id, location)
@@ -188,7 +184,7 @@ class CloudFunctionsHook(GoogleBaseHook):
             function_id: str,
             input_data: Dict,
             location: str,
-            project_id: Optional[str] = None
+            project_id: str,
     ) -> Dict:
         """
         Synchronously invokes a deployed Cloud Function. To be used for testing

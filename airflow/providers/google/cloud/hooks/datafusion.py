@@ -107,7 +107,7 @@ class DataFusionHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def restart_instance(
-        self, instance_name: str, location: str, project_id: Optional[str] = None
+        self, instance_name: str, location: str, project_id: str
     ) -> Operation:
         """
         Restart a single Data Fusion instance.
@@ -120,9 +120,6 @@ class DataFusionHook(GoogleBaseHook):
         :param project_id: The ID of the Google Cloud Platform project that the instance belongs to.
         :type project_id: str
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         operation = (
             self.get_conn()  # pylint: disable=no-member
             .projects()
@@ -135,7 +132,7 @@ class DataFusionHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_instance(
-        self, instance_name: str, location: str, project_id: Optional[str] = None
+        self, instance_name: str, location: str, project_id: str
     ) -> Operation:
         """
         Deletes a single Date Fusion instance.
@@ -147,9 +144,6 @@ class DataFusionHook(GoogleBaseHook):
         :param project_id: The ID of the Google Cloud Platform project that the instance belongs to.
         :type project_id: str
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         operation = (
             self.get_conn()  # pylint: disable=no-member
             .projects()
@@ -166,7 +160,7 @@ class DataFusionHook(GoogleBaseHook):
         instance_name: str,
         instance: Dict[str, Any],
         location: str,
-        project_id: Optional[str] = None,
+        project_id: str,
     ) -> Operation:
         """
         Creates a new Data Fusion instance in the specified project and location.
@@ -181,9 +175,6 @@ class DataFusionHook(GoogleBaseHook):
         :param project_id: The ID of the Google Cloud Platform project that the instance belongs to.
         :type project_id: str
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         operation = (
             self.get_conn()  # pylint: disable=no-member
             .projects()
@@ -200,7 +191,7 @@ class DataFusionHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_instance(
-        self, instance_name: str, location: str, project_id: Optional[str] = None
+        self, instance_name: str, location: str, project_id: str
     ) -> Dict[str, Any]:
         """
         Gets details of a single Data Fusion instance.
@@ -212,9 +203,6 @@ class DataFusionHook(GoogleBaseHook):
         :param project_id: The ID of the Google Cloud Platform project that the instance belongs to.
         :type project_id: str
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         instance = (
             self.get_conn()  # pylint: disable=no-member
             .projects()
@@ -232,7 +220,7 @@ class DataFusionHook(GoogleBaseHook):
         instance: Dict[str, Any],
         update_mask: str,
         location: str,
-        project_id: Optional[str] = None,
+        project_id: str,
     ) -> Operation:
         """
         Updates a single Data Fusion instance.
@@ -254,9 +242,6 @@ class DataFusionHook(GoogleBaseHook):
         :param project_id: The ID of the Google Cloud Platform project that the instance belongs to.
         :type project_id: str
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         operation = (
             self.get_conn()  # pylint: disable=no-member
             .projects()

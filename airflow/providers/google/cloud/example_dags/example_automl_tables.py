@@ -139,7 +139,6 @@ with models.DAG(
         task_id="update_dataset_task",
         dataset=update,
         location=GCP_AUTOML_LOCATION,
-        project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_automl_update_dataset]
 

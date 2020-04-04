@@ -70,7 +70,7 @@ class CloudBuildHook(GoogleBaseHook):
         return self._conn
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_build(self, body: Dict, project_id: Optional[str] = None) -> Dict:
+    def create_build(self, body: Dict, project_id: str) -> Dict:
         """
         Starts a build with the specified configuration.
 
@@ -82,8 +82,6 @@ class CloudBuildHook(GoogleBaseHook):
         :type project_id: str
         :return: Dict
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
         service = self.get_conn()
 
         # Create build

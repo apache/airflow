@@ -116,7 +116,7 @@ class TestGKEHookDelete(unittest.TestCase):
         self.gke_hook._client.delete_cluster.side_effect = AirflowException('400')
 
         with self.assertRaises(AirflowException):
-            self.gke_hook.delete_cluster(name='a-cluster')
+            self.gke_hook.delete_cluster(name='a-cluster')  # pylint: disable=no-value-for-parameter
             wait_mock.assert_not_called()
             convert_mock.assert_not_called()
 
@@ -192,7 +192,7 @@ class TestGKEHookCreate(unittest.TestCase):
         mock_cluster_proto = None
 
         with self.assertRaises(AirflowException):
-            self.gke_hook.create_cluster(mock_cluster_proto)
+            self.gke_hook.create_cluster(mock_cluster_proto)  # pylint: disable=no-value-for-parameter
             wait_mock.assert_not_called()
             convert_mock.assert_not_called()
 

@@ -79,7 +79,7 @@ class CloudDLPHook(GoogleBaseHook):
     def cancel_dlp_job(
         self,
         dlp_job_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -172,7 +172,7 @@ class CloudDLPHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def create_dlp_job(
         self,
-        project_id: Optional[str] = None,
+        project_id: str,
         inspect_job: Optional[Union[dict, InspectJobConfig]] = None,
         risk_job: Optional[Union[dict, RiskAnalysisJobConfig]] = None,
         job_id: Optional[str] = None,
@@ -312,7 +312,7 @@ class CloudDLPHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def create_job_trigger(
         self,
-        project_id: Optional[str] = None,
+        project_id: str,
         job_trigger: Optional[Union[dict, JobTrigger]] = None,
         trigger_id: Optional[str] = None,
         retry: Optional[Retry] = None,
@@ -415,7 +415,7 @@ class CloudDLPHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def deidentify_content(
         self,
-        project_id: Optional[str] = None,
+        project_id: str,
         deidentify_config: Optional[Union[dict, DeidentifyConfig]] = None,
         inspect_config: Optional[Union[dict, InspectConfig]] = None,
         item: Optional[Union[dict, ContentItem]] = None,
@@ -523,7 +523,7 @@ class CloudDLPHook(GoogleBaseHook):
     def delete_dlp_job(
         self,
         dlp_job_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -610,7 +610,7 @@ class CloudDLPHook(GoogleBaseHook):
     def delete_job_trigger(
         self,
         job_trigger_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -746,7 +746,7 @@ class CloudDLPHook(GoogleBaseHook):
     def get_dlp_job(
         self,
         dlp_job_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -834,7 +834,7 @@ class CloudDLPHook(GoogleBaseHook):
     def get_job_trigger(
         self,
         job_trigger_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -921,7 +921,7 @@ class CloudDLPHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def inspect_content(
         self,
-        project_id: Optional[str] = None,
+        project_id: str,
         inspect_config: Optional[Union[dict, InspectConfig]] = None,
         item: Optional[Union[dict, ContentItem]] = None,
         inspect_template_name: Optional[str] = None,
@@ -1034,7 +1034,7 @@ class CloudDLPHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def list_dlp_jobs(
         self,
-        project_id: Optional[str] = None,
+        project_id: str,
         results_filter: Optional[str] = None,
         page_size: Optional[int] = None,
         job_type: Optional[str] = None,
@@ -1189,7 +1189,7 @@ class CloudDLPHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def list_job_triggers(
         self,
-        project_id: Optional[str] = None,
+        project_id: str,
         page_size: Optional[int] = None,
         order_by: Optional[str] = None,
         results_filter: Optional[str] = None,
@@ -1301,7 +1301,7 @@ class CloudDLPHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def redact_image(
         self,
-        project_id: Optional[str] = None,
+        project_id: str,
         inspect_config: Optional[Union[dict, InspectConfig]] = None,
         image_redaction_configs: Optional[
             Union[List[dict], List[RedactImageRequest.ImageRedactionConfig]]
@@ -1361,7 +1361,7 @@ class CloudDLPHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def reidentify_content(
         self,
-        project_id: Optional[str] = None,
+        project_id: str,
         reidentify_config: Optional[Union[dict, DeidentifyConfig]] = None,
         inspect_config: Optional[Union[dict, InspectConfig]] = None,
         item: Optional[Union[dict, ContentItem]] = None,
@@ -1548,7 +1548,7 @@ class CloudDLPHook(GoogleBaseHook):
     def update_job_trigger(
         self,
         job_trigger_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         job_trigger: Optional[Union[dict, JobTrigger]] = None,
         update_mask: Optional[Union[dict, FieldMask]] = None,
         retry: Optional[Retry] = None,

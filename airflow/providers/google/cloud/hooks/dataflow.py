@@ -458,7 +458,7 @@ class DataflowHook(GoogleBaseHook):
         job_name: str,
         variables: Dict,
         jar: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         job_class: Optional[str] = None,
         append_job_name: bool = True,
         multiple_jobs: bool = False,
@@ -484,9 +484,6 @@ class DataflowHook(GoogleBaseHook):
         :param on_new_job_id_callback: Callback called when the job ID is known.
         :type on_new_job_id_callback: callable
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         name = self._build_dataflow_job_name(job_name, append_job_name)
         variables['jobName'] = name
 
@@ -514,7 +511,7 @@ class DataflowHook(GoogleBaseHook):
         variables: Dict,
         parameters: Dict,
         dataflow_template: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         append_job_name: bool = True,
         on_new_job_id_callback: Optional[Callable[[str], None]] = None
     ) -> Dict:
@@ -536,9 +533,6 @@ class DataflowHook(GoogleBaseHook):
         :param on_new_job_id_callback: Callback called when the job ID is known.
         :type on_new_job_id_callback: callable
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         variables = self._set_variables(variables)
         name = self._build_dataflow_job_name(job_name, append_job_name)
         # Builds RuntimeEnvironment from variables dictionary
@@ -585,10 +579,10 @@ class DataflowHook(GoogleBaseHook):
         variables: Dict,
         dataflow: str,
         py_options: List[str],
+        project_id: str,
         py_interpreter: str = "python3",
         py_requirements: Optional[List[str]] = None,
         py_system_site_packages: bool = False,
-        project_id: Optional[str] = None,
         append_job_name: bool = True,
         on_new_job_id_callback: Optional[Callable[[str], None]] = None
     ):
@@ -626,9 +620,6 @@ class DataflowHook(GoogleBaseHook):
         :param on_new_job_id_callback: Callback called when the job ID is known.
         :type on_new_job_id_callback: callable
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         name = self._build_dataflow_job_name(job_name, append_job_name)
         variables['job_name'] = name
 
@@ -701,7 +692,7 @@ class DataflowHook(GoogleBaseHook):
 
     @_fallback_to_project_id_from_variables
     @GoogleBaseHook.fallback_to_default_project_id
-    def is_job_dataflow_running(self, name: str, variables: Dict, project_id: Optional[str] = None) -> bool:
+    def is_job_dataflow_running(self, name: str, variables: Dict, project_id: str) -> bool:
         """
         Helper method to check if jos is still running in dataflow
 
@@ -714,9 +705,6 @@ class DataflowHook(GoogleBaseHook):
         :return: True if job is running.
         :rtype: bool
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         variables = self._set_variables(variables)
         jobs_controller = _DataflowJobsController(
             dataflow=self.get_conn(),
@@ -730,10 +718,10 @@ class DataflowHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def cancel_job(
         self,
+        project_id: str,
         job_name: Optional[str] = None,
         job_id: Optional[str] = None,
         location: Optional[str] = None,
-        project_id: Optional[str] = None
     ) -> None:
         """
         Cancels the job with the specified name prefix or Job ID.
@@ -750,9 +738,6 @@ class DataflowHook(GoogleBaseHook):
             If set to None or missing, the default project_id from the GCP connection is used.
         :type project_id:
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         jobs_controller = _DataflowJobsController(
             dataflow=self.get_conn(),
             project_number=project_id,

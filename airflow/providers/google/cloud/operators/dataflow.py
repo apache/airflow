@@ -172,6 +172,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
             job_name: str = '{{task.task_id}}',
             dataflow_default_options: Optional[dict] = None,
             options: Optional[dict] = None,
+            project_id: Optional[str] = None,
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
             poll_sleep: int = 10,
@@ -186,6 +187,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         options = options or {}
         options.setdefault('labels', {}).update(
             {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')})
+        self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.jar = jar
@@ -211,10 +213,12 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         if self.check_if_running != CheckJobRunning.IgnoreJob:
             is_running = self.hook.is_job_dataflow_running(
                 name=self.job_name,
-                variables=dataflow_options
+                variables=dataflow_options,
+                project_id=self.project_id,
             )
             while is_running and self.check_if_running == CheckJobRunning.WaitForRun:
-                is_running = self.hook.is_job_dataflow_running(name=self.job_name, variables=dataflow_options)
+                is_running = self.hook.is_job_dataflow_running(
+                    name=self.job_name, variables=dataflow_options, project_id=self.project_id)
 
         if not is_running:
             bucket_helper = GoogleCloudBucketHelper(
@@ -231,13 +235,14 @@ class DataflowCreateJavaJobOperator(BaseOperator):
                 job_class=self.job_class,
                 append_job_name=True,
                 multiple_jobs=self.multiple_jobs,
-                on_new_job_id_callback=set_current_job_id
+                on_new_job_id_callback=set_current_job_id,
+                project_id=self.project_id,
             )
 
     def on_kill(self) -> None:
         self.log.info("On kill.")
         if self.job_id:
-            self.hook.cancel_job(job_id=self.job_id)
+            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id)
 
 
 class DataflowTemplatedJobStartOperator(BaseOperator):
@@ -360,7 +365,8 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             variables=self.dataflow_default_options,
             parameters=self.parameters,
             dataflow_template=self.template,
-            on_new_job_id_callback=set_current_job_id
+            on_new_job_id_callback=set_current_job_id,
+            project_id=self.project_id,
         )
 
         return job
@@ -368,7 +374,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
     def on_kill(self) -> None:
         self.log.info("On kill.")
         if self.job_id:
-            self.hook.cancel_job(job_id=self.job_id)
+            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id)
 
 
 class DataflowCreatePythonJobOperator(BaseOperator):
@@ -437,6 +443,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
             py_options: Optional[List[str]] = None,
             py_requirements: Optional[List[str]] = None,
             py_system_site_packages: bool = False,
+            project_id: Optional[str] = None,
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
             poll_sleep: int = 10,
@@ -455,6 +462,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         self.py_interpreter = py_interpreter
         self.py_requirements = py_requirements or []
         self.py_system_site_packages = py_system_site_packages
+        self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.poll_sleep = poll_sleep
@@ -490,13 +498,14 @@ class DataflowCreatePythonJobOperator(BaseOperator):
             py_interpreter=self.py_interpreter,
             py_requirements=self.py_requirements,
             py_system_site_packages=self.py_system_site_packages,
-            on_new_job_id_callback=set_current_job_id
+            on_new_job_id_callback=set_current_job_id,
+            project_id=self.project_id,
         )
 
     def on_kill(self) -> None:
         self.log.info("On kill.")
         if self.job_id:
-            self.hook.cancel_job(job_id=self.job_id)
+            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id)
 
 
 class GoogleCloudBucketHelper:

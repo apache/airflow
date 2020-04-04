@@ -542,9 +542,6 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
     :param update_mask: The update mask applies to the resource.  If a dict is provided, it must
         be of the same form as the protobuf message FieldMask.
     :type update_mask: Union[dict, FieldMask]
-    :param project_id: ID of the Google Cloud project where dataset is located if None then
-        default project_id is used.
-    :type project_id: str
     :param location: The location of the project.
     :type location: str
     :param params: Additional domain-specific parameters for the predictions.
@@ -568,7 +565,6 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
         self,
         dataset: dict,
         location: str,
-        project_id: Optional[str] = None,
         update_mask: Optional[dict] = None,
         metadata: Optional[MetaData] = None,
         timeout: Optional[float] = None,
@@ -582,7 +578,6 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
         self.dataset = dataset
         self.update_mask = update_mask
         self.location = location
-        self.project_id = project_id
         self.metadata = metadata
         self.timeout = timeout
         self.retry = retry
@@ -594,7 +589,6 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
         result = hook.update_dataset(
             dataset=self.dataset,
             update_mask=self.update_mask,
-            project_id=self.project_id,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
