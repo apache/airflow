@@ -615,7 +615,7 @@ class TaskInstance(Base, LoggingMixin):
             DeprecationWarning,
             stacklevel=2,
         )
-        return self.get_latest_execution_date()
+        return self.get_previous_ti()
 
     @property
     def previous_ti_success(self) -> Optional['TaskInstance']:
@@ -631,8 +631,9 @@ class TaskInstance(Base, LoggingMixin):
             DeprecationWarning,
             stacklevel=2,
         )
-        return self._get_previous_ti(state=State.SUCCESS)
+        return self.get_previous_ti(state=State.SUCCESS)
 
+    @provide_session
     def get_previous_execution_date(
         self,
         state: Optional[str] = None,
@@ -647,6 +648,7 @@ class TaskInstance(Base, LoggingMixin):
         prev_ti = self.get_previous_ti(state=state, session=session)
         return prev_ti and prev_ti.execution_date
 
+    @provide_session
     def get_previous_start_date(
         self,
         state: Optional[str] = None,
@@ -784,7 +786,7 @@ class TaskInstance(Base, LoggingMixin):
                 self.next_retry_datetime() < timezone.utcnow())
 
     @provide_session
-    def get_dagrun(self, session):
+    def get_dagrun(self, session=None):
         """
         Returns the DagRun for this TaskInstance
 

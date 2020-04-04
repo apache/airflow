@@ -1328,14 +1328,14 @@ class TestTaskInstance(unittest.TestCase):
 
         ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario)
 
-        self.assertIsNone(ti_list[0].get_previous_start_date_success())
-        self.assertIsNone(ti_list[1].get_previous_start_date_success())
+        self.assertIsNone(ti_list[0].get_previous_start_date(state=State.SUCCESS))
+        self.assertIsNone(ti_list[1].get_previous_start_date(state=State.SUCCESS))
         self.assertEqual(
-            ti_list[3].get_previous_start_date_success(),
+            ti_list[3].get_previous_start_date(state=State.SUCCESS),
             ti_list[1].start_date,
         )
         self.assertNotEqual(
-            ti_list[3].get_previous_start_date_success(),
+            ti_list[3].get_previous_start_date(state=State.SUCCESS),
             ti_list[2].start_date,
         )
 
