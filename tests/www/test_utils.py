@@ -21,10 +21,8 @@ from datetime import datetime
 from urllib.parse import parse_qs
 
 from bs4 import BeautifulSoup
-from parameterized import parameterized
 
 from airflow.www import utils
-from tests.test_utils.config import conf_vars
 
 
 class TestUtils(unittest.TestCase):

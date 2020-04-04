@@ -59,8 +59,10 @@ def should_hide_value_for_key(key_name):
         return config_set and field_comp
     return False
 
+
 def get_params(**kwargs):
-    return urlencode({d: v for d, v in kwargs.items() if v is not None })
+    return urlencode({d: v for d, v in kwargs.items() if v is not None})
+
 
 def generate_pages(current_page,
                    num_of_pages,
