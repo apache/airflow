@@ -186,7 +186,7 @@ repos:
         entry: wework/speccy lint
         files: ^openapi.yaml$
       - id: lint-openapi
-        name: Litn OpenAPI using openapi-spec-validator
+        name: Lint OpenAPI using openapi-spec-validator
         entry: openapi-spec-validator --schema 3.0.0 openapi.yaml
         language: python
         additional_dependencies: ['openapi-spec-validator']
