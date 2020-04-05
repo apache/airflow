@@ -1009,8 +1009,8 @@ class Airflow(AirflowBaseView):
                 conf=''
             )
 
-        dag = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
-        if not dag:
+        dag_orm = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
+        if not dag_orm:
             flash("Cannot find dag {}".format(dag_id))
             return redirect(origin)
 
@@ -1036,6 +1036,7 @@ class Airflow(AirflowBaseView):
                     conf=conf
                 )
 
+        dag = get_dag(dag_orm, STORE_SERIALIZED_DAGS)
         dag.create_dagrun(
             run_id=run_id,
             execution_date=execution_date,
