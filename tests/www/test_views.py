@@ -33,6 +33,7 @@ from unittest import mock
 from urllib.parse import quote_plus
 
 import jinja2
+import pytest
 from flask import Markup, session as flask_session, url_for
 from parameterized import parameterized
 from werkzeug.test import Client
@@ -53,6 +54,7 @@ from airflow.settings import Session
 from airflow.ti_deps.dependencies_states import QUEUEABLE_STATES, RUNNABLE_STATES
 from airflow.utils import dates, timezone
 from airflow.utils.session import create_session
+from airflow.utils.sqlalchemy import using_mysql
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
@@ -2114,6 +2116,7 @@ class TestTriggerDag(TestBase):
         self.assertIn('/trigger?dag_id=example_bash_operator', resp.data.decode('utf-8'))
         self.assertIn("return confirmDeleteDag(this, 'example_bash_operator')", resp.data.decode('utf-8'))
 
+    @pytest.mark.xfail(condition=using_mysql, reason="This test might be flaky on mysql")
     def test_trigger_dag_button(self):
 
         test_dag_id = "example_bash_operator"
@@ -2128,6 +2131,7 @@ class TestTriggerDag(TestBase):
         self.assertIsNotNone(run)
         self.assertIn("manual__", run.run_id)
 
+    @pytest.mark.xfail(condition=using_mysql, reason="This test might be flaky on mysql")
     def test_trigger_dag_conf(self):
 
         test_dag_id = "example_bash_operator"
