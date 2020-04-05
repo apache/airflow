@@ -663,7 +663,7 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
                 metadata=self.metadata,
             )
         except NotFound:
-            self.log.info("Template %s not found.", self.template_id)
+            self.log.error("Template %s not found.", self.template_id)
 
 
 class CloudDLPDeleteDLPJobOperator(BaseOperator):
@@ -723,7 +723,7 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
                 metadata=self.metadata,
             )
         except NotFound:
-            self.log.info("Job %s id not found.", self.dlp_job_id)
+            self.log.error("Job %s id not found.", self.dlp_job_id)
 
 
 class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
@@ -788,7 +788,7 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
                 metadata=self.metadata,
             )
         except NotFound:
-            self.log.info("Template %s not found", self.template_id)
+            self.log.error("Template %s not found", self.template_id)
 
 
 class CloudDLPDeleteJobTriggerOperator(BaseOperator):
@@ -847,7 +847,7 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
                 metadata=self.metadata,
             )
         except NotFound:
-            self.log.info("Trigger %s not found", self.job_trigger_id)
+            self.log.error("Trigger %s not found", self.job_trigger_id)
 
 
 class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
@@ -917,7 +917,7 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
                 metadata=self.metadata,
             )
         except NotFound:
-            self.log.info("Stored info %s not found", self.stored_info_type_id)
+            self.log.error("Stored info %s not found", self.stored_info_type_id)
 
 
 class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
