@@ -472,7 +472,7 @@ class TaskInstance(Base, LoggingMixin):
             self.unixname = ti.unixname
             self.job_id = ti.job_id
             self.pool = ti.pool
-            self.pool_slots = ti.pool_slots
+            self.pool_slots = ti.pool_slots or 1
             self.queue = ti.queue
             self.priority_weight = ti.priority_weight
             self.operator = ti.operator
