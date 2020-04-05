@@ -44,6 +44,7 @@ def connections_list(args):
 alternative_conn_specs = ['conn_type', 'conn_host',
                           'conn_login', 'conn_password', 'conn_schema', 'conn_port']
 
+
 @cli_utils.action_logging
 def connections_add(args):
     """Adds new connection"""
