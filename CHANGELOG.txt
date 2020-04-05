@@ -1,4 +1,4 @@
-Airflow 1.10.10, 2020-04-07
+Airflow 1.10.10, 2020-04-08
 ---------------------------
 
 New Features
@@ -56,6 +56,8 @@ Bug Fixes
 - BugFix: Datetimepicker is stuck on the UI (#8092)
 - [AIRFLOW-5277] Gantt chart respects per-user the Timezone UI setting (#8096)
 - Fix timezones displayed in Task Instance tooltip (#8103)
+- BugFix: Fix writing & deleting Dag Code for Serialized DAGs (#8151)
+- Make the default TI pool slots '1' (#8153)
 
 
 Improvements
