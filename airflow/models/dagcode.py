@@ -148,7 +148,7 @@ class DagCode(Base):
         session.execute(
             session.query(cls).filter(
                 and_(cls.fileloc_hash.notin_(alive_fileloc_hashes),
-                     cls.fileloc.notin_(alive_dag_filelocs))).delete())
+                     cls.fileloc.notin_(alive_dag_filelocs))).delete(synchronize_session='fetch'))
 
     @classmethod
     @provide_session
