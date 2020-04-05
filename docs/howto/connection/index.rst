@@ -72,16 +72,19 @@ Then add connection like so:
 
 .. code-block:: bash
 
-    airflow connections add --conn_id 'my_prod_db' --conn_uri 'my-conn-type://login:password@host:port/schema?param1=val1&param2=val2'
+    airflow connections add 'my_prod_db' --conn-uri 'my-conn-type://login:password@host:port/schema?param1=val1&param2=val2'
 
 Alternatively you may specify each parameter individually:
 
 .. code-block:: bash
 
-    airflow connections add \
-        --conn_id 'my_prod_db' \
-        --login 'login' \
-        --password 'password' \
+    airflow connections add 'my_prod_db' \
+        --conn-type 'my-conn-type'
+        --conn-login 'login' \
+        --conn-password 'password' \
+        --conn-host 'host' \
+        --conn-port 'port' \
+        --conn-schema 'schema' \
         ...
 
 .. _environment_variables_secrets_backend:
