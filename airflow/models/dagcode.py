@@ -128,9 +128,10 @@ class DagCode(Base):
                 os.path.getmtime(correct_maybe_zipped(fileloc)), tz=timezone.utc)
 
             if (file_modified - timedelta(seconds=120)) > old_version.last_updated:
+                orm_dag_code = DagCode(fileloc)
                 orm_dag_code.last_updated = timezone.utcnow()
                 orm_dag_code.source_code = DagCode._read_code(orm_dag_code.fileloc)
-                session.update(orm_dag_code)
+                session.merge(orm_dag_code)
 
     @classmethod
     @provide_session
