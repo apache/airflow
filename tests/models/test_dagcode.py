@@ -25,6 +25,7 @@ from airflow.models.dagcode import DagCode
 # To move it to a shared module.
 from airflow.utils.file import open_maybe_zipped
 from airflow.utils.session import create_session
+from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dag_code
 
 
@@ -51,10 +52,11 @@ class TestDagCode(unittest.TestCase):
         DagCode(xcom_dag.fileloc).sync_to_db()
         return [bash_dag, xcom_dag]
 
+    @conf_vars({('core', 'store_dag_code'): 'True'})
     def _write_example_dags(self):
         example_dags = make_example_dags(example_dags_module)
         for dag in example_dags.values():
-            DagCode(dag.fileloc).sync_to_db()
+            dag.sync_to_db()
         return example_dags
 
     def test_sync_to_db(self):
@@ -98,6 +100,8 @@ class TestDagCode(unittest.TestCase):
     def _compare_example_dags(self, example_dags):
         with create_session() as session:
             for dag in example_dags.values():
+                if dag.is_subdag:
+                    dag.fileloc = dag.parent_dag.fileloc
                 self.assertTrue(DagCode.has_dag(dag.fileloc))
                 dag_fileloc_hash = DagCode.dag_fileloc_hash(dag.fileloc)
                 result = session.query(
