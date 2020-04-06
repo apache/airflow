@@ -34,6 +34,11 @@ TABLE_ID = "bq_table"
 VIEW_ID = 'bq_view'
 JOB_ID = 1234
 LOCATION = 'europe-north1'
+TABLE_REFERENCE = {
+    'tableId': TABLE_ID,
+    'datasetId': DATASET_ID,
+    'projectId': PROJECT_ID,
+}
 
 
 class _BigQueryBaseTestClass(unittest.TestCase):
@@ -879,38 +884,24 @@ class TestBigQueryTableSplitter(unittest.TestCase):
 
 
 class TestTableOperations(_BigQueryBaseTestClass):
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_create_view_fails_on_exception(self, mock_get_service):
-        view = {
-            'incorrect_key': 'SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*`',
-            "useLegacySql": False
-        }
-
-        mock_service = mock_get_service.return_value
-        method = mock_service.tables.return_value.insert
-        resp = type('', (object,), {"status": 500, "reason": "Query is required for views"})()
-        method.return_value.execute.side_effect = HttpError(
-            resp=resp, content=b'Query is required for views')
-        with self.assertRaisesRegex(Exception, "HttpError 500 \"Query is required for views\""):
-            self.hook.create_empty_table(PROJECT_ID, DATASET_ID, TABLE_ID, view=view)
-
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_create_view(self, mock_get_service):
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_create_view(self, mock_bq_client, mock_table):
         view = {
             'query': 'SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*`',
             "useLegacySql": False
         }
 
-        mock_service = mock_get_service.return_value
-        method = mock_service.tables.return_value.insert
-        self.hook.create_empty_table(PROJECT_ID, DATASET_ID, TABLE_ID, view=view)
+        self.hook.create_empty_table(project_id=PROJECT_ID, dataset_id=DATASET_ID, table_id=TABLE_ID, view=view)
         body = {
-            'tableReference': {
-                'tableId': TABLE_ID
-            },
+            'tableReference': TABLE_REFERENCE,
             'view': view
         }
-        method.assert_called_once_with(projectId=PROJECT_ID, datasetId=DATASET_ID, body=body)
+        mock_table.from_api_repr.assert_called_once_with(body)
+        mock_bq_client.return_value.create_table.assert_called_once_with(
+            table=mock_table.from_api_repr.return_value,
+            exists_ok=True
+        )
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_patch_table(self, mock_get_service):
@@ -990,10 +981,9 @@ class TestTableOperations(_BigQueryBaseTestClass):
             body=body
         )
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_create_empty_table_succeed(self, mock_get_service):
-        mock_service = mock_get_service.return_value
-        method = mock_service.tables.return_value.insert
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_create_empty_table_succeed(self, mock_bq_client, mock_table):
         self.hook.create_empty_table(
             project_id=PROJECT_ID,
             dataset_id=DATASET_ID,
@@ -1001,17 +991,20 @@ class TestTableOperations(_BigQueryBaseTestClass):
 
         body = {
             'tableReference': {
-                'tableId': TABLE_ID
+                'tableId': TABLE_ID,
+                'projectId': PROJECT_ID,
+                'datasetId': DATASET_ID,
             }
         }
-        method.assert_called_once_with(
-            projectId=PROJECT_ID,
-            datasetId=DATASET_ID,
-            body=body
+        mock_table.from_api_repr.assert_called_once_with(body)
+        mock_bq_client.return_value.create_table.assert_called_once_with(
+            table=mock_table.from_api_repr.return_value,
+            exists_ok=True
         )
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_create_empty_table_with_extras_succeed(self, mock_get_service):
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_create_empty_table_with_extras_succeed(self, mock_bq_client, mock_table):
         schema_fields = [
             {'name': 'id', 'type': 'STRING', 'mode': 'REQUIRED'},
             {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
@@ -1019,9 +1012,6 @@ class TestTableOperations(_BigQueryBaseTestClass):
         ]
         time_partitioning = {"field": "created", "type": "DAY"}
         cluster_fields = ['name']
-
-        mock_service = mock_get_service.return_value
-        method = mock_service.tables.return_value.insert
 
         self.hook.create_empty_table(
             project_id=PROJECT_ID,
@@ -1034,7 +1024,9 @@ class TestTableOperations(_BigQueryBaseTestClass):
 
         body = {
             'tableReference': {
-                'tableId': TABLE_ID
+                'tableId': TABLE_ID,
+                'projectId': PROJECT_ID,
+                'datasetId': DATASET_ID,
             },
             'schema': {
                 'fields': schema_fields
@@ -1044,21 +1036,11 @@ class TestTableOperations(_BigQueryBaseTestClass):
                 'fields': cluster_fields
             }
         }
-        method.assert_called_once_with(
-            projectId=PROJECT_ID,
-            datasetId=DATASET_ID,
-            body=body
+        mock_table.from_api_repr.assert_called_once_with(body)
+        mock_bq_client.return_value.create_table.assert_called_once_with(
+            table=mock_table.from_api_repr.return_value,
+            exists_ok=True
         )
-
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_create_empty_table_on_exception(self, mock_get_service):
-        mock_service = mock_get_service.return_value
-        method = mock_service.tables.return_value.insert
-        resp = type('', (object,), {"status": 500, "reason": "Bad request"})()
-        method.return_value.execute.side_effect = HttpError(
-            resp=resp, content=b'Bad request')
-        with self.assertRaisesRegex(Exception, "Bad request"):
-            self.hook.create_empty_table(PROJECT_ID, DATASET_ID, TABLE_ID)
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_get_tables_list(self, mock_get_service):
@@ -1819,18 +1801,17 @@ class TestBigQueryHookRunWithConfiguration(_BigQueryBaseTestClass):
         )
 
 
+
 class TestBigQueryWithKMS(_BigQueryBaseTestClass):
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_create_empty_table_with_kms(self, mock_get_service):
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_create_empty_table_with_kms(self, mock_bq_client, mock_table):
         schema_fields = [
             {"name": "id", "type": "STRING", "mode": "REQUIRED"}
         ]
         encryption_configuration = {
             "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
         }
-
-        mock_service = mock_get_service.return_value
-        method = mock_service.tables.return_value.insert
 
         self.hook.create_empty_table(
             project_id=PROJECT_ID,
@@ -1841,12 +1822,14 @@ class TestBigQueryWithKMS(_BigQueryBaseTestClass):
         )
 
         body = {
-            "tableReference": {"tableId": TABLE_ID},
+            "tableReference": {"tableId": TABLE_ID, 'projectId': PROJECT_ID, 'datasetId': DATASET_ID},
             "schema": {"fields": schema_fields},
             "encryptionConfiguration": encryption_configuration,
         }
-        method.assert_called_once_with(
-            projectId=PROJECT_ID, datasetId=DATASET_ID, body=body
+        mock_table.from_api_repr.assert_called_once_with(body)
+        mock_bq_client.return_value.create_table.assert_called_once_with(
+            table=mock_table.from_api_repr.return_value,
+            exists_ok=True
         )
 
     # pylint: disable=too-many-locals
