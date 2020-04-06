@@ -94,7 +94,7 @@ class TestCliAddConnections(unittest.TestCase):
                 {
                     "conn_type": "postgres",
                     "host": "host",
-                    "is_encrypted": False,
+                    "is_encrypted": True,
                     "is_extra_encrypted": False,
                     "login": "airflow",
                     "port": 5432,
@@ -107,7 +107,7 @@ class TestCliAddConnections(unittest.TestCase):
                 {
                     "conn_type": "postgres",
                     "host": "host",
-                    "is_encrypted": False,
+                    "is_encrypted": True,
                     "is_extra_encrypted": False,
                     "login": "airflow",
                     "port": 5432,
@@ -127,8 +127,8 @@ class TestCliAddConnections(unittest.TestCase):
                 {
                     "conn_type": "postgres",
                     "host": "host",
-                    "is_encrypted": False,
-                    "is_extra_encrypted": False,
+                    "is_encrypted": True,
+                    "is_extra_encrypted": True,
                     "login": "airflow",
                     "port": 5432,
                     "schema": "airflow",
@@ -147,8 +147,8 @@ class TestCliAddConnections(unittest.TestCase):
                 {
                     "conn_type": "postgres",
                     "host": "host",
-                    "is_encrypted": False,
-                    "is_extra_encrypted": False,
+                    "is_encrypted": True,
+                    "is_extra_encrypted": True,
                     "login": "airflow",
                     "port": 5432,
                     "schema": "airflow",
@@ -170,7 +170,7 @@ class TestCliAddConnections(unittest.TestCase):
                 {
                     "conn_type": "hive_metastore",
                     "host": "host",
-                    "is_encrypted": False,
+                    "is_encrypted": True,
                     "is_extra_encrypted": False,
                     "login": "airflow",
                     "port": 9083,
@@ -193,7 +193,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "conn_type": "google_cloud_platform",
                     "host": None,
                     "is_encrypted": False,
-                    "is_extra_encrypted": False,
+                    "is_extra_encrypted": True,
                     "login": None,
                     "port": None,
                     "schema": None,
