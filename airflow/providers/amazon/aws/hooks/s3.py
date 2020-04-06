@@ -139,7 +139,7 @@ class S3Hook(AwsBaseHook):
             self.get_conn().head_bucket(Bucket=bucket_name)
             return True
         except ClientError as e:
-            self.log.info(e.response["Error"]["Message"])
+            self.log.error(e.response["Error"]["Message"])
             return False
 
     @provide_bucket_name
@@ -297,7 +297,7 @@ class S3Hook(AwsBaseHook):
             self.get_conn().head_object(Bucket=bucket_name, Key=key)
             return True
         except ClientError as e:
-            self.log.info(e.response["Error"]["Message"])
+            self.log.error(e.response["Error"]["Message"])
             return False
 
     @provide_bucket_name

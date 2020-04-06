@@ -173,7 +173,7 @@ class SalesforceHook(BaseHook):
         try:
             column = pd.to_datetime(column)
         except ValueError:
-            log.warning("Could not convert field to timestamps: %s", column.name)
+            log.error("Could not convert field to timestamps: %s", column.name)
             return column
 
         # now convert the newly created datetimes into timestamps

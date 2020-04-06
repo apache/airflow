@@ -555,7 +555,7 @@ class HiveMetastoreHook(BaseHook):
                 host_socket.close()
                 return conn
             else:
-                self.log.info("Could not connect to %s:%s", conn.host, conn.port)
+                self.log.error("Could not connect to %s:%s", conn.host, conn.port)
         return None
 
     def get_conn(self):

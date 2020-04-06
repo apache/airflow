@@ -199,7 +199,7 @@ class _Stats(type):
                 else:
                     self.__class__.instance = DummyStatsLogger()
             except (socket.gaierror, ImportError) as e:
-                log.warning("Could not configure StatsClient: %s, using DummyStatsLogger instead.", e)
+                log.error("Could not configure StatsClient: %s, using DummyStatsLogger instead.", e)
                 self.__class__.instance = DummyStatsLogger()
 
     def get_statsd_logger(self):

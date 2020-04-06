@@ -76,7 +76,7 @@ class FTPSensor(BaseSensorOperator):
             try:
                 hook.get_mod_time(self.path)
             except ftplib.error_perm as e:
-                self.log.info('Ftp error encountered: %s', str(e))
+                self.log.error('Ftp error encountered: %s', str(e))
                 error_code = self._get_error_code(e)
                 if ((error_code != 550) and
                         (self.fail_on_transient_errors or

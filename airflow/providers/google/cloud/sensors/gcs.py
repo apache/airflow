@@ -308,7 +308,7 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
                     """, current_num_objects, path, self.inactivity_period)
                 return True
 
-            self.log.warning("FAILURE: Inactivity Period passed, not enough objects found in %s", path)
+            self.log.error("FAILURE: Inactivity Period passed, not enough objects found in %s", path)
 
             return False
         return False

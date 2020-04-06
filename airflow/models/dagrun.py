@@ -323,7 +323,7 @@ class DagRun(Base, LoggingMixin):
         if not unfinished_tasks and any(
             leaf_ti.state in {State.FAILED, State.UPSTREAM_FAILED} for leaf_ti in leaf_tis
         ):
-            self.log.info('Marking run %s failed', self)
+            self.log.error('Marking run %s failed', self)
             self.set_state(State.FAILED)
             dag.handle_callback(self, success=False, reason='task_failure',
                                 session=session)
