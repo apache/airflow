@@ -24,7 +24,7 @@ Airflow connection of type `wasb` exists. Authorization can be done by supplying
 login (=Storage account name) and password (=KEY), or login and SAS token in the extra
 field (see connection `wasb_default` for an example).
 """
-from typing import Optional, List
+from typing import Optional, List, Dict, Union
 
 import azure.storage.blob as storage_blob
 from azure.identity import ClientSecretCredential
@@ -37,10 +37,6 @@ from airflow.hooks.base_hook import BaseHook
 class WasbHook(BaseHook):
     """
     Interacts with Azure Blob Storage.
-
-    Additional options passed in the 'extra' field of the connection will be
-    passed to the `BlockBlockService()` constructor. For example, authenticate
-    using a SAS token by adding {"sas_token": "YOUR_TOKEN"}.
 
     :param wasb_conn_id: Reference to the wasb connection.
     :type wasb_conn_id: str
@@ -58,6 +54,7 @@ class WasbHook(BaseHook):
         """Return the BlobServiceClient object."""
         conn = self.get_connection(self.conn_id)
         extra = conn.extra_dejson
+
         def _get_required_param(name):
             """Extract required parameter from extra JSON, raise exception if not found"""
             value = extra.get(name)
@@ -100,31 +97,47 @@ class WasbHook(BaseHook):
         """
         return self.get_conn().get_container_client(container_name)
 
+    def _get_blob_client(self, container_name: str, blob_name: str) -> storage_blob.BlobClient:
+        """
+        Instantiates a blob client
+
+        :param container_name: The name of the blob container
+        :type container_name: str
+
+        :param blob_name: The name of the blob. This needs not be existing
+        :type blob_name: str
+        """
+        container_client = self._get_container_client(container_name)
+        return container_client.get_blob_client(blob_name)
+
     def create_container(self, container_name: str):
         """
         Create container object if not already existing
         :param container_name:
         """
         try:
-            self.log.info('Attempting to create a container: %s', container_name)
+            self.log.info('Attempting to create container: %s', container_name)
             self._get_container_client(container_name).create_container()
             self.log.info("Created container: %s", container_name)
         except ResourceExistsError:
             self.log.info("Container %s already exists", container_name)
 
-
-    def delete_container(self, container_name:str):
+    def delete_container(self, container_name: str):
         """
         Delete a container object
 
         :param container_name: The name of the container
         :type container_name: str
         """
-        # TODO catch exception
-        self._get_container_client(container_name).delete_container()
+        try:
+            self.log.info('Attempting to delete container: %s', container_name)
+            self._get_container_client(container_name).delete_container()
+            self.log.info('Deleted container: %s', container_name)
+        except ResourceNotFoundError:
+            self.log.info('Container %s not found', container_name)
 
-    def list(self, container_name: str, name_starts_with: Optional[str]=None,
-                   include: Optional[List[str]]=None, delimiter: Optional[str]='/', **kwargs):
+    def list(self, container_name: str, name_starts_with: Optional[str] = None,
+             include: Optional[List[str]] = None, delimiter: Optional[str] = '/', **kwargs):
         """
         List blobs in a given container
 
@@ -144,38 +157,18 @@ class WasbHook(BaseHook):
         """
         container = self._get_container_client(container_name)
         blob_list = []
-        while True:
-            blobs = container.walk_blobs(
+        blobs = container.walk_blobs(
                 name_starts_with=name_starts_with,
                 include=include,
                 delimiter=delimiter,
                 **kwargs
             )
-            blob_names = []
-            for blob in blobs:
-                blob_names.append(blob.name)
-            blob_list += blob_names
-            next_ = blobs.next()
-            if next_ is None:
-                # next_ iterator is None
-                break
-        return  blob_list
+        for blob in blobs:
+            blob_list.append(blob.name)
+        return blob_list
 
-    def _get_blobclient(self, container_name: str, blob_name: str) -> storage_blob.BlobClient:
-        """
-        Instantiates a blob client
-
-        :param container_name: The name of the blob container
-        :type container_name: str
-
-        :param blob_name: The name of the blob. This needs not be existing
-        :type blob_name: str
-        """
-        container_client = self._get_container_client(container_name)
-        return container_client.get_blob_client(blob_name)
-
-    def upload(self,container_name, blob_name, data, blob_type: str = 'BlockBlob',
-                    length: Optional[int] = None, **kwargs):
+    def upload(self, container_name, blob_name, data, blob_type: str = 'BlockBlob',
+               length: Optional[int] = None, **kwargs):
         """
         Creates a new blob from a data source with automatic chunking.
 
@@ -195,11 +188,11 @@ class WasbHook(BaseHook):
             but should be supplied for optimal performance.
         :type length: int
         """
-        blob_client = self._get_blobclient(container_name, blob_name)
+        blob_client = self._get_blob_client(container_name, blob_name)
         return blob_client.upload(data, blob_type, length=length, **kwargs)
 
-    def download(self, container_name, blob_name, dest_file: str=None,
-                 offset: Optional[int]=None, length: Optional[int] = None, **kwargs):
+    def download(self, container_name, blob_name, dest_file: str = None,
+                 offset: Optional[int] = None, length: Optional[int] = None, **kwargs):
         """
         Downloads a blob to the StorageStreamDownloader
 
@@ -209,7 +202,7 @@ class WasbHook(BaseHook):
         :param blob_name: The name of the blob to download
         :type blob_name: str
 
-        :param dest_file: The name to use to save the download
+        :param dest_file: The name to use to save the downloaded file
         :type dest_file: str
 
         :param offset: Start of byte range to use for downloading a section of the blob.
@@ -220,17 +213,153 @@ class WasbHook(BaseHook):
         :type length: int
         """
 
-        blob_client = self._get_blobclient(container_name, blob_name)
+        blob_client = self._get_blob_client(container_name, blob_name)
         with open(dest_file, 'wb') as blob:
+            self.log.info('Downloading blob: %s', blob_name)
             download_stream = blob_client.download_blob(offset=offset, length=length, **kwargs)
             blob.write(download_stream.readall())
 
-
-    def upload_page(self, container_name, blob_name, page, offset, length, **kwargs):
+    def copy(self, source_blob, destination_blob,):
         pass
 
-    def append_block(self, container_name, blob_name, data, length=None, **kwargs):
-        pass
+    def create_snapshot(self, container_name, blob_name, metadata=None, **kwargs):
+        """
+        Create a snapshop of the blob object
 
-    def append_block_from_url(self, container_name, blob_name, data, ):
-        pass
+        :param container_name: The name of the container containing the blob
+        :type container_name: str
+
+        :param blob_name: The name of the blob
+        :type blob_name: str
+
+        :param metadata: Name-value pairs associated with the blob as metadata.
+        :type metadata: Optional[Dict(str,str)]
+        """
+        snapshot = self._get_blob_client(container_name, blob_name).\
+            create_snapshot(metadata=metadata, **kwargs)
+        self.log.info("Created a snapshot: %s", snapshot.get('snapshot'))
+        return snapshot
+
+    def get_blob_info(self, container_name, blob_name, **kwargs):
+        """
+        Get blob properties
+
+        :param container_name: The name of the container containing the blob
+        :type container_name: str
+
+        :param blob_name: The name of the blob
+        :type blob_name: str
+        """
+        return self._get_blob_client(container_name, blob_name).get_blob_properties(**kwargs)
+
+    def delete_blob(self, container_name: str, blob_name: str,
+                    delete_snapshots: Optional[bool] = False, **kwargs):
+        """
+        Marks the specified blob for deletion. The blob is deleted completely during garbage
+        collection
+
+        :param container_name: The name of the container containing the blob
+        :type container_name: str
+
+        :param blob_name: The name of the blob
+        :type blob_name: str
+
+        :param delete_snapshots: Required if the blob has associated snapshots. Values include:
+            "only": Deletes only the blobs snapshots.
+            "include": Deletes the blob along with all snapshots.
+        :type delete_snapshots: str
+        """
+        self._get_blob_client(container_name, blob_name).delete_blob(delete_snapshots=delete_snapshots,
+                                                                     **kwargs)
+
+    def delete_blobs(self, container_name: str, *blobs, **kwargs):
+        """
+        Marks the specified blobs or snapshots for deletion.
+
+        :param container_name: The name of the container containing the blobs
+        :type container_name: str
+
+        :param blobs: The blobs to delete. This can be a single blob, or multiple values
+            can be supplied, where each value is either the name of the blob (str) or BlobProperties.
+        :type blobs: Union[str, storage_blob.BlobProperties]
+        """
+        self._get_container_client(container_name).delete_blobs(*blobs, **kwargs)
+        self.log.info("Deleted blobs: %s", blobs)
+
+    def create_page_blob(self, container_name: str, blob_name: str, size: int, **kwargs):
+        """"
+        Creates a new Page Blob of the specified size.
+
+        :param container_name: The name of the container
+        :type container_name: str
+
+        :param blob_name: The name of the page blob
+        :type blob_name: The size of the page blob
+
+        :param size: This specifies the maximum size for the page blob
+        :type size: int
+
+        """
+        return self._get_blob_client(container_name, blob_name).create_page_blob(size, **kwargs)
+
+    def create_append_blob(self, container_name: str, blob_name: str, **kwargs):
+        """
+        Creates a new Append Blob.
+
+        :param container_name: The name of the container
+        :type container_name: str
+
+        :param blob_name: The name of the page blob
+        :type blob_name: The size of the page blob
+        """
+        return self._get_blob_client(container_name, blob_name).create_append_blob(**kwargs)
+
+    def upload_page(self, container_name: str, blob_name: str,
+                    page: bytes, offset: int, length: int, **kwargs):
+        """
+        writes a range of pages to a page blob.
+
+        :param container_name: The name of the container
+        :type container_name: str
+        :param blob_name: The name of the page blob
+        :type blob_name: The size of the page blob
+        :param page: Content of the page
+        :type page: bytes
+        :param offset: Start of byte range to use for writing to a section of the blob.
+        :type offset: int
+        :param length: Number of bytes to use for writing to a section of the blob.
+        :type length: int
+        """
+
+        page = self._get_blob_client(container_name, blob_name).\
+            upload_page(page, offset, length, **kwargs)
+        return page
+
+    def upload_pages_from_url(self, container_name: str, blob_name: str, source_url: str,
+                              offset: int, length: int, source_offset: int, **kwargs):
+        """
+        writes a range of pages to a page blob where the contents are read from a URL
+
+        :param container_name: The name of the container
+        :type container_name: str
+        :param blob_name: The name of the page blob
+        :type blob_name: The size of the page blob
+        :param source_url: The URL of the source data. It can point to any Azure
+            Blob or File, that is either public or has a shared access signature attached.
+        :type source_url: str
+        :param page: Content of the page
+        :type page: bytes
+        :param offset: Start of byte range to use for writing to a section of the blob.
+        :type offset: int
+        :param length: Number of bytes to use for writing to a section of the blob.
+        :type length: int
+        :param source_offset: This indicates the start of the range of bytes(inclusive)
+            that has to be taken from the copy source
+        :type source_offset: int
+        """
+        return self._get_blob_client(container_name, blob_name).upload_pages_from_url(
+            source_url=source_url,
+            offset=offset,
+            length=length,
+            source_offset=source_offset
+        )

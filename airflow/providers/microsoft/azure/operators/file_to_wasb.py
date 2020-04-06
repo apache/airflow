@@ -59,5 +59,6 @@ class FileToWasbOperator(BaseOperator):
             'Uploading %s to wasb://%s as %s',
             self.file_path, self.container_name, self.blob_name,
         )
-        hook.load_file(self.file_path, self.container_name,
-                       self.blob_name, **self.load_options)
+        with open(self.file_path, 'rb') as data:
+            hook.upload(self.container_name, self.blob_name,
+                        data)
