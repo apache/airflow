@@ -49,15 +49,6 @@ log = logging.getLogger(__name__)
 def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     global app, appbuilder
     app = Flask(__name__)
-    if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
-        app.wsgi_app = ProxyFix(
-            app.wsgi_app,
-            x_for=conf.getint("webserver", "PROXY_FIX_X_FOR", fallback=1),
-            x_proto=conf.getint("webserver", "PROXY_FIX_X_PROTO", fallback=1),
-            x_host=conf.getint("webserver", "PROXY_FIX_X_HOST", fallback=1),
-            x_port=conf.getint("webserver", "PROXY_FIX_X_PORT", fallback=1),
-            x_prefix=conf.getint("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
-        )
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
     session_lifetime_days = conf.getint('webserver', 'SESSION_LIFETIME_DAYS', fallback=30)
@@ -306,6 +297,15 @@ def cached_app(config=None, session=None, testing=False):
 
         app, _ = create_app(config, session, testing)
         app = DispatcherMiddleware(root_app, {base_url: app})
+        if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
+            app = ProxyFix(
+                app,
+                x_for=conf.getint("webserver", "PROXY_FIX_X_FOR", fallback=1),
+                x_proto=conf.getint("webserver", "PROXY_FIX_X_PROTO", fallback=1),
+                x_host=conf.getint("webserver", "PROXY_FIX_X_HOST", fallback=1),
+                x_port=conf.getint("webserver", "PROXY_FIX_X_PORT", fallback=1),
+                x_prefix=conf.getint("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
+            )
     return app
 
 
