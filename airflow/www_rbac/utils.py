@@ -450,8 +450,8 @@ class CustomSQLAInterface(SQLAInterface):
     '_' from the key to lookup the column names.
 
     """
-    def __init__(self, obj):
-        super(CustomSQLAInterface, self).__init__(obj)
+    def __init__(self, obj, session=None):
+        super(CustomSQLAInterface, self).__init__(obj, session=session)
 
         def clean_column_names():
             if self.list_properties:
