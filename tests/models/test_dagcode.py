@@ -137,7 +137,7 @@ class TestDagCode(unittest.TestCase):
     @conf_vars({('core', 'store_dag_code'): 'True'})
     def test_db_code_updated_on_dag_file_change(self):
         """
-        Test Source Code is updated in DB when DAG File is changes
+        Test Source Code is updated in DB when DAG File is changed
         """
         example_dag = make_example_dags(example_dags_module).get('example_bash_operator')
         example_dag.sync_to_db()
