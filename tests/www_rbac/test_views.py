@@ -658,7 +658,7 @@ class TestAirflowBaseViews(TestBase):
         ):
             from airflow.models.dagcode import DagCode
             dag = models.DagBag(include_examples=True).get_dag("example_bash_operator")
-            DagCode(dag.fileloc).sync_to_db()
+            DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
             url = 'code?dag_id=example_bash_operator'
             resp = self.client.get(url)
             self.check_content_not_in_response('Failed to load file', resp)
@@ -673,7 +673,7 @@ class TestAirflowBaseViews(TestBase):
             from airflow.models.dagcode import DagCode
             dagbag = models.DagBag(include_examples=True)
             for dag in dagbag.dags.values():
-                DagCode(dag.fileloc).sync_to_db()
+                DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
             url = 'code?dag_id=example_bash_operator'
             resp = self.client.get(url)
             self.check_content_not_in_response('Failed to load file', resp)
