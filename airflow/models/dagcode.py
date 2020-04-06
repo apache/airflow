@@ -85,6 +85,14 @@ class DagCode(Base):
             .with_for_update(of=DagCode)
             .all()
         )
+
+        if existing_orm_dag_codes:
+            existing_orm_dag_codes_map = {
+                orm_dag_code.fileloc: orm_dag_code for orm_dag_code in existing_orm_dag_codes
+            }
+        else:
+            existing_orm_dag_codes_map = dict()
+
         existing_orm_dag_codes_by_fileloc_hashes = {
             orm.fileloc_hash: orm for orm in existing_orm_dag_codes
         }
@@ -122,7 +130,7 @@ class DagCode(Base):
                 os.path.getmtime(correct_maybe_zipped(fileloc)), tz=timezone.utc)
 
             if (file_modified - timedelta(seconds=120)) > old_version.last_updated:
-                orm_dag_code = DagCode(fileloc, cls._get_code_from_db(fileloc))
+                orm_dag_code = existing_orm_dag_codes_map[fileloc]
                 orm_dag_code.last_updated = timezone.utcnow()
                 orm_dag_code.source_code = cls._get_code_from_file(orm_dag_code.fileloc)
                 session.merge(orm_dag_code)
