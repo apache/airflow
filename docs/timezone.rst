@@ -43,7 +43,7 @@ Pendulum is installed when you install Airflow.
 Web UI
 ------
 
-By default the Web UI will show times in UTC. It is possible to change the timezone shown by using the menu in the top right (click on the clock to activate it):
+By default the Web UI (RBAC) will show times in UTC. It is possible to change the timezone shown (only in RBAC UI) by using the menu in the top right (click on the clock to activate it):
 
 .. image:: img/ui-timezone-chooser.png
 

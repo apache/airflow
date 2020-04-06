@@ -631,7 +631,7 @@
       default: "http://localhost:8080"
     - name: default_ui_timezone
       description: |
-        Default timezone to display all dates in the UI, can be UTC, system, or
+        Default timezone to display all dates in the RBAC UI, can be UTC, system, or
         any IANA timezone string (e.g. Europe/Amsterdam). If left empty the
         default value of core/default_timezone will be used
       version_added: 1.10.10

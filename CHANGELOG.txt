@@ -1,4 +1,4 @@
-Airflow 1.10.10, 2020-04-08
+Airflow 1.10.10, 2020-04-09
 ---------------------------
 
 New Features
@@ -58,6 +58,8 @@ Bug Fixes
 - Fix timezones displayed in Task Instance tooltip (#8103)
 - BugFix: Fix writing & deleting Dag Code for Serialized DAGs (#8151)
 - Make the default TI pool slots '1' (#8153)
+- Fix 500 error in Security screens (#8165)
+- Fix Viewing Dag Code for Stateless Webserver (#8159)
 
 
 Improvements
