@@ -549,7 +549,7 @@ visible to anything that you have installed inside the Docker container.
 Currently forwarded credentials are:
   * all credentials stored in ``${HOME}/.config`` (for example, GCP credentials)
   * credentials stored in ``${HOME}/.gsutil`` for ``gsutil`` tool from GCS
-  * credentials stored in ``${HOME}/.boto`` and ``${HOME}/.s3`` (for AWS authentication)
+  * credentials stored in ``${HOME}/.aws``, ``${HOME}/.boto``, and ``${HOME}/.s3`` (for AWS authentication)
   * credentials stored in ``${HOME}/.docker`` for docker
   * credentials stored in ``${HOME}/.kube`` for kubectl
   * credentials stored in ``${HOME}/.ssh`` for SSH
