@@ -18,7 +18,6 @@
 #
 
 import time
-from typing import Optional
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
