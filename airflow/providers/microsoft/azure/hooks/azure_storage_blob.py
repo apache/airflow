@@ -27,9 +27,9 @@ field (see connection `wasb_default` for an example).
 
 from typing import List, Optional
 
-from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient, BlobProperties
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.identity import ClientSecretCredential
+from azure.storage.blob import BlobClient, BlobServiceClient, ContainerClient
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -166,11 +166,11 @@ class AzureStorageBlobHook(BaseHook):
         container = self._get_container_client(container_name)
         blob_list = []
         blobs = container.walk_blobs(
-                name_starts_with=name_starts_with,
-                include=include,
-                delimiter=delimiter,
-                **kwargs
-            )
+            name_starts_with=name_starts_with,
+            include=include,
+            delimiter=delimiter,
+            **kwargs
+        )
         for blob in blobs:
             blob_list.append(blob.name)
         return blob_list
@@ -228,7 +228,12 @@ class AzureStorageBlobHook(BaseHook):
             blob.write(download_stream.readall())
 
     def copy(self, source_blob, destination_blob,):
-        pass
+        """
+        :param source_blob:
+        :param destination_blob:
+        :return:
+        """
+        # TODO Add copy from url
 
     def create_snapshot(self, container_name, blob_name, metadata=None, **kwargs):
         """

@@ -16,16 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import os
 import datetime
+import os
 import tempfile
 import unittest
 
 import mock
 
 from airflow.models.dag import DAG
-from airflow.providers.microsoft.azure.operators.local_to_azure_storage_blob import \
-    LocalFileSystemToAzureStorageBlobOperator
+from airflow.providers.microsoft.azure.operators.local_to_azure_storage_blob import (
+    LocalFileSystemToAzureStorageBlobOperator,
+)
 
 
 class TestLocalFileSystemToAzureStorageblobOperator(unittest.TestCase):

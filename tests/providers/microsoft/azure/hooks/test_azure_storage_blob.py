@@ -19,23 +19,20 @@
 
 
 import json
-import typing
 import unittest
-from collections import namedtuple
-import io
 
 import mock
+from azure.storage.blob import BlobServiceClient
 
-from azure.storage.blob import BlobServiceClient, ContainerClient
-
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.azure_storage_blob import AzureStorageBlobHook
 from airflow.utils import db
 
 # connection_string has a format
-CONN_STRING = 'DefaultEndpointsProtocol=https;AccountName=testname;AccountKey=wK7BOz;EndpointSuffix=core.windows.net'
-ACCESS_KEY_STRING ="AccountName=name;skdkskd"
+CONN_STRING = 'DefaultEndpointsProtocol=https;AccountName=testname;' \
+              'AccountKey=wK7BOz;EndpointSuffix=core.windows.net'
+
+ACCESS_KEY_STRING = "AccountName=name;skdkskd"
 
 
 class TestAzureStorageBlobHook(unittest.TestCase):
@@ -294,19 +291,3 @@ class TestAzureStorageBlobHook(unittest.TestCase):
                 length=2,
                 source_offset=2
             )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
