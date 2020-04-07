@@ -329,9 +329,9 @@ class Airflow(AirflowBaseView):
         num_of_all_dags = current_dags.count()
         num_of_pages = int(math.ceil(num_of_all_dags / float(dags_per_page)))
 
-        status_count_all = all_dags.count()
         status_count_active = active_dags.count()
         status_count_paused = paused_dags.count()
+        status_count_all = status_count_active + status_count_paused
 
         return self.render_template(
             'airflow/dags.html',
