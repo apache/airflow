@@ -319,11 +319,6 @@ class TestMountPoint(unittest.TestCase):
         resp = self.client.get('/', follow_redirects=True)
         self.assertEqual(resp.status_code, 404)
 
-    def test_robots_txt(self):
-        resp = self.client.get('/test/robots.txt', follow_redirects=True)
-        self.assertEqual(resp.status_code, 200)
-        self.assertIn(b"Disallow: /", resp.data)
-
     def test_index(self):
         resp = self.client.get('/test/')
         self.assertEqual(resp.status_code, 302)

@@ -21,10 +21,6 @@
 
 {% block page_title %}{{ dag.dag_id }} - Airflow{% endblock %}
 
-{% block head_meta %}
-  <meta name="robots" content="noindex" />
-{% endblock %}
-
 {% block head_css %}
   {{ super() }}
   <link href="{{ url_for_asset('bootstrap-toggle.min.css') }}" rel="stylesheet" type="text/css">

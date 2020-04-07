@@ -37,7 +37,6 @@ logs
 venv
 files
 airflow.iml
-robots.txt
 
 # Generated doc files
 .*html

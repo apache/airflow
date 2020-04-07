@@ -98,10 +98,6 @@ const config = {
       {
         test: /\.(ttf|eot|svg)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
         loader: 'file-loader',
-      },{
-        test: /\.txt$/,
-        include: STATIC_DIR,
-        loader: 'file-loader',
       },
     ],
   },
