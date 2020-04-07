@@ -82,7 +82,7 @@ from airflow.www.widgets import AirflowModelListWidget
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 FILTER_TAGS_COOKIE = 'tags_filter'
-FILTER_STATUS_COOKIE = 'status_filter'
+FILTER_STATUS_COOKIE = 'dag_status_filter'
 
 if os.environ.get('SKIP_DAGS_PARSING') != 'True':
     dagbag = models.DagBag(settings.DAGS_FOLDER, store_serialized_dags=STORE_SERIALIZED_DAGS)
