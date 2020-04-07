@@ -40,8 +40,8 @@
     <div class="row">
       <div class="col-sm-4">
         <div class="btn-group">
-          <a href="{{ url_for('Airflow.index', status='all', search=request.args.get('search', None), tags=request.args.get('tags', None)) }}" class="btn {{'btn-primary' if status_filter == 'all' else 'btn-default'}}" title="Show enabled and paused DAGS">All <span class="badge">{{ "{:,}".format(status_count_all) }}</span></a>
-          <a href="{{ url_for('Airflow.index', status='enabled', search=request.args.get('search', None), tags=request.args.get('tags', None)) }}" class="btn {{'btn-primary' if status_filter == 'enabled' else 'btn-default'}}" title="Show only enabled DAGS">Unpaused <span class="badge">{{ "{:,}".format(status_count_enabled) }}</span></a>
+          <a href="{{ url_for('Airflow.index', status='all', search=request.args.get('search', None), tags=request.args.get('tags', None)) }}" class="btn {{'btn-primary' if status_filter == 'all' else 'btn-default'}}" title="Show active and paused DAGS">All <span class="badge">{{ "{:,}".format(status_count_all) }}</span></a>
+          <a href="{{ url_for('Airflow.index', status='active', search=request.args.get('search', None), tags=request.args.get('tags', None)) }}" class="btn {{'btn-primary' if status_filter == 'active' else 'btn-default'}}" title="Show only active DAGS">Active <span class="badge">{{ "{:,}".format(status_count_active) }}</span></a>
           <a href="{{ url_for('Airflow.index', status='paused', search=request.args.get('search', None), tags=request.args.get('tags', None)) }}" class="btn {{'btn-primary' if status_filter == 'paused' else 'btn-default'}}" title="Show only paused DAGS">Paused <span class="badge">{{ "{:,}".format(status_count_paused) }}</span></a>
         </div>
       </div>
