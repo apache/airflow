@@ -36,9 +36,11 @@ from airflow.utils import timezone
 from airflow.www_rbac.app import csrf
 from airflow import models
 from airflow.utils.db import create_session
-from .utils import get_cas_base_url
+from .utils import get_cas_base_url, get_result_args
 import json
 from flask import g, Blueprint, jsonify, request, url_for
+from entities.result_storage import ClsResultStorage
+
 
 _log = LoggingMixin().log
 
@@ -213,12 +215,23 @@ def task_info(dag_id, task_id):
     return jsonify(fields)
 
 
+def get_result(entity_id):
+    st = ClsResultStorage(**get_result_args())
+    st.metadata = {'entity_id': entity_id}
+    result = st.query_result()
+    return result
+
+def get_curve():
+
+
+
 def docasInvaild(entity_id):
     cas_base_url = get_cas_base_url()
     url = "{}/cas/invalid-curve".format(cas_base_url)
     data = {'entity_id': entity_id}
+
     try:
-        resp = requests.post(url=url, data=data)
+        resp = requests.post(headers={'Content-Type': 'application/json'}, url=url, json=data)
         if resp.status_code != HTTPStatus.OK:
             raise Exception(resp.content)
     except Exception as e:
