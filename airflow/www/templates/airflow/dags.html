@@ -125,7 +125,7 @@
                 </td>
 
                 <!-- Column 6: Recent Tasks -->
-                <td style="padding:0px; width:200px; height:10px;">
+                <td style="padding:0;width:200px;height:10px;">
                     <svg height="10" width="10" id='task-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
                 </td>
 
@@ -137,9 +137,10 @@
                     <span aria-hidden="true" id="statuses_info" title=" " class="glyphicon glyphicon-info-sign" style="display:none"></span>
                   </div>
                 </td>
+                </td>
 
                 <!-- Column 8: Dag Runs -->
-                <td style="padding:0px; width:120px; height:10px;">
+                <td style="padding:0;width:120px;height:10px;">
                     <svg height="10" width="10" id='dag-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
                 </td>
 
@@ -211,7 +212,7 @@
     </table>
     <div class="row">
       <div class="col-sm-12" style="text-align:right;">
-        <div class="dataTables_info" id="dags_info" role="status" aria-live="polite" style="padding-top: 0px;">Showing {{num_dag_from}} to {{num_dag_to}} of {{num_of_all_dags}} entries</div>
+        <div class="dataTables_info" id="dags_info" role="status" aria-live="polite" style="padding-top:0;">Showing {{num_dag_from}} to {{num_dag_to}} of {{num_of_all_dags}} entries</div>
       </div>
     </div>
     <div class="row">
