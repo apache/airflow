@@ -239,6 +239,7 @@
   <script src="{{ url_for_asset('dataTables.bootstrap.min.js') }}"></script>
   <script src="{{ url_for_asset('bootstrap-toggle.min.js') }}"></script>
   <script>
+
     const DAGS_INDEX = "{{ url_for('Airflow.index') }}";
     const ENTER_KEY_CODE = 13;
 
@@ -284,17 +285,27 @@
     var encoded_dag_ids = new URLSearchParams();
 
     $.each($("[id^=toggle]"), function(i, v) {
-      var dag_id = $(v).attr('dag_id');
+      var $input = $(v);
+      var dag_id = $input.attr('dag_id');
       encoded_dag_ids.append('dag_ids', dag_id);
 
-      $(v).change (function() {
-        if ($(v).prop('checked')) {
+      $input.change(function() {
+        var $buttons = $input.parent('.toggle').find('.btn');
+        $buttons.removeClass('btn-danger');
+        if ($input.prop('checked')) {
           is_paused = 'true'
         } else {
           is_paused = 'false'
         }
-        url = 'paused?is_paused=' + is_paused + '&dag_id=' + dag_id;
-        $.post(url);
+        var url = 'paused?is_paused=' + is_paused + '&dag_id=' + dag_id;
+        $.post(url).fail(function() {
+          if (is_paused === 'true') {
+            $input.data('bs.toggle').off(true);
+          } else {
+            $input.data('bs.toggle').on(true);
+          }
+          $buttons.addClass('btn-danger');
+        });
       });
     });
 
@@ -365,74 +376,74 @@
 
     function dagStatsHandler(error, json) {
       for(var dag_id in json) {
-          states = json[dag_id];
-          g = d3.select('svg#dag-run-' + dag_id.replace(/\./g, '__dot__'))
-            .attr('height', diameter + (stroke_width_hover * 2))
-            .attr('width', '110px')
-            .selectAll("g")
-            .data(states)
-            .enter()
-            .append('g')
-            .attr('transform', function(d, i) {
-              x = (i * (diameter + circle_margin)) + (diameter/2 + circle_margin);
-              y = (diameter/2) + stroke_width_hover;
-              return 'translate(' + x + ',' + y + ')';
-            });
+        states = json[dag_id];
+        g = d3.select('svg#dag-run-' + dag_id.replace(/\./g, '__dot__'))
+          .attr('height', diameter + (stroke_width_hover * 2))
+          .attr('width', '110px')
+          .selectAll("g")
+          .data(states)
+          .enter()
+          .append('g')
+          .attr('transform', function(d, i) {
+            x = (i * (diameter + circle_margin)) + (diameter/2 + circle_margin);
+            y = (diameter/2) + stroke_width_hover;
+            return 'translate(' + x + ',' + y + ')';
+          });
 
-          g.append('text')
-            .attr('fill', 'black')
-            .attr('text-anchor', 'middle')
-            .attr('vertical-align', 'middle')
-            .attr('font-size', 8)
-            .attr('y', 3)
-            .text(function(d){ return d.count > 0 ? d.count : ''; });
+        g.append('text')
+          .attr('fill', 'black')
+          .attr('text-anchor', 'middle')
+          .attr('vertical-align', 'middle')
+          .attr('font-size', 8)
+          .attr('y', 3)
+          .text(function(d){ return d.count > 0 ? d.count : ''; });
 
-          g.append('circle')
-            .attr('stroke-width', function(d) {
-                if (d.count > 0)
-                  return stroke_width;
-                else {
-                  return 1;
-                }
-            })
-            .attr('stroke', function(d) {
-                if (d.count > 0)
-                  return d.color;
-                else {
-                  return 'gainsboro';
-                }
-            })
-            .attr('fill-opacity', 0)
-            .attr('r', diameter/2)
-            .attr('title', function(d) {return d.state})
-            .attr('style', function(d) {
-              if (d.count > 0)
-                  return"cursor:pointer;"
-            })
-            .on('click', function(d, i) {
-                if (d.count > 0)
-                  window.location = "{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id=" + d.dag_id + "&_flt_3_state=" + d.state;
-            })
-            .on('mouseover', function(d, i) {
-              if (d.count > 0) {
-                  d3.select(this).transition().duration(400)
-                    .attr('fill-opacity', 0.3)
-                    .style("stroke-width", stroke_width_hover);
-              }
-            })
-            .on('mouseout', function(d, i) {
-              if (d.count > 0) {
-                  d3.select(this).transition().duration(400)
-                    .attr('fill-opacity', 0)
-                    .style("stroke-width", stroke_width);
-              }
-            })
-            .style("opacity", 0)
-            .transition()
-            .duration(500)
-            .delay(function(d, i){return i*50;})
-            .style("opacity", 1);
-          d3.select(".loading-dag-stats").remove();
+        g.append('circle')
+          .attr('stroke-width', function(d) {
+            if (d.count > 0)
+              return stroke_width;
+            else {
+              return 1;
+            }
+          })
+          .attr('stroke', function(d) {
+            if (d.count > 0)
+              return d.color;
+            else {
+              return 'gainsboro';
+            }
+          })
+          .attr('fill-opacity', 0)
+          .attr('r', diameter/2)
+          .attr('title', function(d) {return d.state})
+          .attr('style', function(d) {
+            if (d.count > 0)
+                return"cursor:pointer;"
+          })
+          .on('click', function(d, i) {
+            if (d.count > 0)
+              window.location = "{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id=" + d.dag_id + "&_flt_3_state=" + d.state;
+          })
+          .on('mouseover', function(d, i) {
+            if (d.count > 0) {
+              d3.select(this).transition().duration(400)
+                .attr('fill-opacity', 0.3)
+                .style("stroke-width", stroke_width_hover);
+            }
+          })
+          .on('mouseout', function(d, i) {
+            if (d.count > 0) {
+              d3.select(this).transition().duration(400)
+                .attr('fill-opacity', 0)
+                .style("stroke-width", stroke_width);
+            }
+          })
+          .style("opacity", 0)
+          .transition()
+          .duration(500)
+          .delay(function(d, i){return i*50;})
+          .style("opacity", 1);
+        d3.select(".loading-dag-stats").remove();
       }
       $("#pause_header").tooltip();
       $("#statuses_info").tooltip();
@@ -445,74 +456,74 @@
 
     function taskStatsHandler(error, json) {
       for(var dag_id in json) {
-          states = json[dag_id];
-          g = d3.select('svg#task-run-' + dag_id.replace(/\./g, '__dot__'))
-            .attr('height', diameter + (stroke_width_hover * 2))
-            .attr('width', '300px')
-            .selectAll("g")
-            .data(states)
-            .enter()
-            .append('g')
-            .attr('transform', function(d, i) {
-              x = (i * (diameter + circle_margin)) + (diameter/2 + circle_margin);
-              y = (diameter/2) + stroke_width_hover;
-              return 'translate(' + x + ',' + y + ')';
-            });
+        states = json[dag_id];
+        g = d3.select('svg#task-run-' + dag_id.replace(/\./g, '__dot__'))
+          .attr('height', diameter + (stroke_width_hover * 2))
+          .attr('width', '300px')
+          .selectAll("g")
+          .data(states)
+          .enter()
+          .append('g')
+          .attr('transform', function(d, i) {
+            x = (i * (diameter + circle_margin)) + (diameter/2 + circle_margin);
+            y = (diameter/2) + stroke_width_hover;
+            return 'translate(' + x + ',' + y + ')';
+          });
 
-          g.append('text')
-            .attr('fill', 'black')
-            .attr('text-anchor', 'middle')
-            .attr('vertical-align', 'middle')
-            .attr('font-size', 8)
-            .attr('y', 3)
-            .text(function(d){ return d.count > 0 ? d.count : ''; });
+        g.append('text')
+          .attr('fill', 'black')
+          .attr('text-anchor', 'middle')
+          .attr('vertical-align', 'middle')
+          .attr('font-size', 8)
+          .attr('y', 3)
+          .text(function(d){ return d.count > 0 ? d.count : ''; });
 
-          g.append('circle')
-            .attr('stroke-width', function(d) {
-                if (d.count > 0)
-                  return stroke_width;
-                else {
-                  return 1;
-                }
-            })
-            .attr('stroke', function(d) {
-                if (d.count > 0)
-                  return d.color;
-                else {
-                  return 'gainsboro';
-                }
-            })
-            .attr('fill-opacity', 0)
-            .attr('r', diameter/2)
-            .attr('title', function(d) {return d.state || 'none'})
-            .attr('style', function(d) {
-              if (d.count > 0)
-                  return"cursor:pointer;"
-            })
-            .on('click', function(d, i) {
-                if (d.count > 0)
-                  window.location = "{{ url_for('TaskInstanceModelView.list') }}?_flt_3_dag_id=" + d.dag_id + "&_flt_3_state=" + d.state;
-            })
-            .on('mouseover', function(d, i) {
-              if (d.count > 0) {
-                  d3.select(this).transition().duration(400)
-                    .attr('fill-opacity', 0.3)
-                    .style("stroke-width", stroke_width_hover);
-              }
-            })
-            .on('mouseout', function(d, i) {
-              if (d.count > 0) {
-                  d3.select(this).transition().duration(400)
-                    .attr('fill-opacity', 0)
-                    .style("stroke-width", stroke_width);
-              }
-            })
-            .style("opacity", 0)
-            .transition()
-            .duration(500)
-            .delay(function(d, i){return i*50;})
-            .style("opacity", 1);
-          d3.select(".loading-task-stats").remove();
+        g.append('circle')
+          .attr('stroke-width', function(d) {
+            if (d.count > 0)
+              return stroke_width;
+            else {
+              return 1;
+            }
+          })
+          .attr('stroke', function(d) {
+            if (d.count > 0)
+              return d.color;
+            else {
+              return 'gainsboro';
+            }
+          })
+          .attr('fill-opacity', 0)
+          .attr('r', diameter/2)
+          .attr('title', function(d) {return d.state || 'none'})
+          .attr('style', function(d) {
+            if (d.count > 0)
+                return"cursor:pointer;"
+          })
+          .on('click', function(d, i) {
+            if (d.count > 0)
+              window.location = "{{ url_for('TaskInstanceModelView.list') }}?_flt_3_dag_id=" + d.dag_id + "&_flt_3_state=" + d.state;
+          })
+          .on('mouseover', function(d, i) {
+            if (d.count > 0) {
+              d3.select(this).transition().duration(400)
+                .attr('fill-opacity', 0.3)
+                .style("stroke-width", stroke_width_hover);
+            }
+          })
+          .on('mouseout', function(d, i) {
+            if (d.count > 0) {
+              d3.select(this).transition().duration(400)
+                .attr('fill-opacity', 0)
+                .style("stroke-width", stroke_width);
+            }
+          })
+          .style("opacity", 0)
+          .transition()
+          .duration(500)
+          .delay(function(d, i){return i*50;})
+          .style("opacity", 1);
+        d3.select(".loading-task-stats").remove();
       }
       $("#pause_header").tooltip();
       $("#statuses_info").tooltip();
