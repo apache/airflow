@@ -102,7 +102,7 @@ def validate_stat(fn):
             stat_name = handle_stat_name_func(stat)
             return fn(_self, stat_name, *args, **kwargs)
         except InvalidStatsNameException:
-            log.warning('Invalid stat name: %s.', stat, exc_info=True)
+            log.error('Invalid stat name: %s.', stat, exc_info=True)
             return
 
     return wrapper
