@@ -86,19 +86,18 @@ class Pool(Base):
                 State.QUEUED: 0,
             })
 
-        state_count = (
+        state_count_by_pool = (
             session.query(TaskInstance.pool, TaskInstance.state, func.count())
             .filter(TaskInstance.state.in_(list(EXECUTION_STATES)))
             .group_by(TaskInstance.pool, TaskInstance.state)
         ).all()
 
-        # calculate queued and used metrics
-        for (pool_name, state, count) in state_count:
+        # calculate queued and running metrics
+        for (pool_name, state, count) in state_count_by_pool:
             pool = pools.get(pool_name)
             if not pool:
                 continue
-            if state == State.QUEUED or state == State.RUNNING:
-                pool[state] = count
+            pool[state] = count
 
         # calculate open metric
         for pool_name, stats in pools.items():
