@@ -94,8 +94,8 @@ class BigtableHook(GoogleBaseHook):
         if instance:
             instance.delete()
         else:
-            self.log.warn("The instance '%s' does not exist in project '%s'. Exiting", instance_id,
-                          project_id)
+            self.log.warning("The instance '%s' does not exist in project '%s'. Exiting",
+                             instance_id, project_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_instance(
