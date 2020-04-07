@@ -18,7 +18,7 @@ import logging
 import os
 import struct
 from datetime import datetime, timedelta
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 
 from sqlalchemy import BigInteger, Column, String, UnicodeText, and_, exists
 
@@ -53,17 +53,11 @@ class DagCode(Base):
     last_updated = Column(UtcDateTime, nullable=False)
     source_code = Column(UnicodeText, nullable=False)
 
-    def __init__(self, full_filepath: str):
+    def __init__(self, full_filepath: str, source_code: Optional[str] = None):
         self.fileloc = full_filepath
         self.fileloc_hash = DagCode.dag_fileloc_hash(self.fileloc)
         self.last_updated = timezone.utcnow()
-        self.source_code = DagCode._read_code(self.fileloc)
-
-    @classmethod
-    def _read_code(cls, fileloc: str):
-        with open_maybe_zipped(fileloc, 'r') as source:
-            source_code = source.read()
-        return source_code
+        self.source_code = source_code or DagCode.code(self.fileloc)
 
     @provide_session
     def sync_to_db(self, session=None):
@@ -92,6 +86,14 @@ class DagCode(Base):
             .with_for_update(of=DagCode)
             .all()
         )
+
+        if existing_orm_dag_codes:
+            existing_orm_dag_codes_map = {
+                orm_dag_code.fileloc: orm_dag_code for orm_dag_code in existing_orm_dag_codes
+            }
+        else:
+            existing_orm_dag_codes_map = dict()
+
         existing_orm_dag_codes_by_fileloc_hashes = {
             orm.fileloc_hash: orm for orm in existing_orm_dag_codes
         }
@@ -118,7 +120,7 @@ class DagCode(Base):
         missing_filelocs = filelocs.difference(existing_filelocs)
 
         for fileloc in missing_filelocs:
-            orm_dag_code = DagCode(fileloc)
+            orm_dag_code = DagCode(fileloc, cls._get_code_from_file(fileloc))
             session.add(orm_dag_code)
 
         for fileloc in existing_filelocs:
@@ -129,9 +131,9 @@ class DagCode(Base):
                 os.path.getmtime(correct_maybe_zipped(fileloc)), tz=timezone.utc)
 
             if (file_modified - timedelta(seconds=120)) > old_version.last_updated:
-                orm_dag_code = DagCode(fileloc)
+                orm_dag_code = existing_orm_dag_codes_map[fileloc]
                 orm_dag_code.last_updated = timezone.utcnow()
-                orm_dag_code.source_code = DagCode._read_code(orm_dag_code.fileloc)
+                orm_dag_code.source_code = cls._get_code_from_file(orm_dag_code.fileloc)
                 session.merge(orm_dag_code)
 
     @classmethod
@@ -170,27 +172,30 @@ class DagCode(Base):
         :param fileloc: file path of a DAG
         :return: source code as string
         """
-        return DagCode(fileloc).code()
+        return cls.code(fileloc)
 
-    def code(self) -> str:
+    @classmethod
+    def code(cls, fileloc) -> str:
         """Returns source code for this DagCode object.
 
         :return: source code as string
         """
         if conf.getboolean('core', 'store_dag_code', fallback=False):
-            return self._get_code_from_db()
+            return cls._get_code_from_db(fileloc)
         else:
-            return self._get_code_from_file()
+            return cls._get_code_from_file(fileloc)
 
-    def _get_code_from_file(self):
-        with open_maybe_zipped(self.fileloc, 'r') as f:
+    @staticmethod
+    def _get_code_from_file(fileloc):
+        with open_maybe_zipped(fileloc, 'r') as f:
             code = f.read()
         return code
 
+    @classmethod
     @provide_session
-    def _get_code_from_db(self, session=None):
-        dag_code = session.query(DagCode) \
-            .filter(DagCode.fileloc_hash == self.fileloc_hash) \
+    def _get_code_from_db(cls, fileloc, session=None):
+        dag_code = session.query(cls) \
+            .filter(cls.fileloc_hash == cls.dag_fileloc_hash(fileloc)) \
             .first()
         if not dag_code:
             raise DagCodeNotFound()
