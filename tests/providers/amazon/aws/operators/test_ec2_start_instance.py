@@ -45,7 +45,7 @@ class TestEC2Operator(unittest.TestCase):
     def test_start_instance(self):
         # create instance
         ec2_hook = EC2Hook()
-        instances = ec2_hook.get_conn().create_instances(
+        instances = ec2_hook.conn.create_instances(
             MaxCount=1,
             MinCount=1,
         )

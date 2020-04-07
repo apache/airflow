@@ -56,7 +56,7 @@ class TestEC2InstanceStateSensor(unittest.TestCase):
     def test_running(self):
         # create instance
         ec2_hook = EC2Hook()
-        instances = ec2_hook.get_conn().create_instances(
+        instances = ec2_hook.conn.create_instances(
             MaxCount=1,
             MinCount=1,
         )
@@ -81,7 +81,7 @@ class TestEC2InstanceStateSensor(unittest.TestCase):
     def test_stopped(self):
         # create instance
         ec2_hook = EC2Hook()
-        instances = ec2_hook.get_conn().create_instances(
+        instances = ec2_hook.conn.create_instances(
             MaxCount=1,
             MinCount=1,
         )
@@ -106,7 +106,7 @@ class TestEC2InstanceStateSensor(unittest.TestCase):
     def test_terminated(self):
         # create instance
         ec2_hook = EC2Hook()
-        instances = ec2_hook.get_conn().create_instances(
+        instances = ec2_hook.conn.create_instances(
             MaxCount=1,
             MinCount=1,
         )

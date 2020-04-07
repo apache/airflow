@@ -26,27 +26,18 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class EC2Hook(AwsBaseHook):
     """
     Interact with AWS EC2 Service.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     def __init__(self,
-                 region_name: Optional[str] = None,
                  *args,
                  **kwargs):
-        self.region_name = region_name
-        self.conn = None
-        super().__init__(*args, **kwargs)
-
-    def get_conn(self):
-        """
-        Return self.conn, if it is None initialize ec2 resource object.
-
-        :return: ec2 resource
-        :rtype: boto3.resource
-        """
-        # set self.conn in first call
-        if not self.conn:
-            self.conn = self.get_resource_type("ec2", self.region_name)
-        return self.conn
+        super().__init__(resource_type="ec2", *args, **kwargs)
 
     def get_instance(self, instance_id: str):
         """
