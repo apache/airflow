@@ -1216,7 +1216,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
     def emit_metrics(self):
         """
-        Emmit metrics about dag parsing summary
+        Emit metrics about dag parsing summary
 
         This is called once every time around the parsing "loop" - i.e. after
         all files have been parsed.
