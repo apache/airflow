@@ -85,7 +85,7 @@ class WebHDFSHook(BaseHook):
                 host_socket.close()
             except HdfsError as hdfs_error:
                 self.log.error('Read operation on namenode %s failed with error: %s',
-                              connection.host, hdfs_error)
+                               connection.host, hdfs_error)
         return None
 
     def _get_client(self, connection):

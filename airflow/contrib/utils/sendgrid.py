@@ -123,4 +123,4 @@ def _post_sendgrid_mail(mail_data):
                  mail_data['subject'], mail_data['personalizations'])
     else:
         log.error('Failed to send out email with subject %s, status code: %s',
-                 mail_data['subject'], response.status_code)
+                  mail_data['subject'], response.status_code)
