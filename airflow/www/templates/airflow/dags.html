@@ -297,7 +297,7 @@
         } else {
           is_paused = 'false'
         }
-        var url = 'paused?is_paused=' + is_paused + '&dag_id=' + dag_id;
+        var url = 'paused?is_paused=' + is_paused + '&dag_id=' + encodeURIComponent(dag_id);
         $.post(url).fail(function() {
           if (is_paused === 'true') {
             $input.data('bs.toggle').off(true);
