@@ -75,7 +75,7 @@ class AzureStorageBlobHook(BaseHook):
         if extra.get('shared_access_key'):
             # using shared access key
             return BlobServiceClient(account_url=conn.host,
-                                                  credential=extra.get('shared_access_key'))
+                                     credential=extra.get('shared_access_key'))
         if extra.get('tenant_id'):
             # use Active Directory auth
             app_id = _get_required_param('application_id')
@@ -199,7 +199,7 @@ class AzureStorageBlobHook(BaseHook):
         blob_client = self._get_blob_client(container_name, blob_name)
         return blob_client.upload_blob(data, blob_type, length=length, **kwargs)
 
-    def download(self, container_name, blob_name, dest_file: str = None,
+    def download(self, container_name, blob_name, dest_file: str,
                  offset: Optional[int] = None, length: Optional[int] = None, **kwargs):
         """
         Downloads a blob to the StorageStreamDownloader

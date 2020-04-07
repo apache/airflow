@@ -20,7 +20,7 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.microsoft.azure.operators.wasb_delete_blob import WasbDeleteBlobOperator  # noqa
+from airflow.providers.microsoft.azure.operators.azure_storage_delete_blob import WasbDeleteBlobOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.wasb_delete_blob`.",

@@ -189,12 +189,14 @@ azure = [
     'azure-batch>=8.0.0',
     'azure-cosmos>=3.0.1',
     'azure-datalake-store>=0.0.45',
+    'azure-identity>=1.3.1',
     'azure-kusto-data>=0.0.43',
     'azure-mgmt-containerinstance>=1.5.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
-    'azure-storage>=0.34.0',
     'azure-storage-blob>=12.0',
+    'azure-storage-file-share>=12.0',
+
 ]
 cassandra = [
     'cassandra-driver>=3.13.0,<3.21.0',

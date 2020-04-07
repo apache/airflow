@@ -34,7 +34,6 @@ class LocalFileSystemToAzureStorageBlobOperator(BaseOperator):
     :type source_path: str
     :param destination_path: The destination to save the file in container (templated)
     :type destination_path: Optional[str]
-    :type blob_name: Optional[str]
     :param azure_blob_conn_id: Reference to the wasb connection.
     :type azure_blob_conn_id: str
     :param blob_type: The type of the blob. This can be either BlockBlob,

@@ -23,17 +23,14 @@ import unittest
 import mock
 
 from airflow.models.dag import DAG
-from airflow.providers.microsoft.azure.operators.local_to_azure_storage_blob import FileToWasbOperator
+from airflow.providers.microsoft.azure.operators.azure_storage_delete_blob import AzureDeleteBlobOperator
 
 
-class TestFileToWasbOperator(unittest.TestCase):
+class TestAzureDeleteBlobOperator(unittest.TestCase):
 
     _config = {
-        'file_path': 'file',
         'container_name': 'container',
         'blob_name': 'blob',
-        'wasb_conn_id': 'wasb_default',
-        'retries': 3,
     }
 
     def setUp(self):
@@ -44,40 +41,53 @@ class TestFileToWasbOperator(unittest.TestCase):
         self.dag = DAG('test_dag_id', default_args=args)
 
     def test_init(self):
-        operator = FileToWasbOperator(
-            task_id='wasb_operator',
+        operator = AzureDeleteBlobOperator(
+            task_id='azure_operator',
             dag=self.dag,
             **self._config
         )
-        self.assertEqual(operator.file_path, self._config['file_path'])
         self.assertEqual(operator.container_name,
                          self._config['container_name'])
         self.assertEqual(operator.blob_name, self._config['blob_name'])
-        self.assertEqual(operator.wasb_conn_id, self._config['wasb_conn_id'])
-        self.assertEqual(operator.load_options, {})
-        self.assertEqual(operator.retries, self._config['retries'])
+        self.assertEqual(operator.is_prefix, False)
 
-        operator = FileToWasbOperator(
-            task_id='wasb_operator',
+        operator = AzureDeleteBlobOperator(
+            task_id='azure_operator',
             dag=self.dag,
-            load_options={'timeout': 2},
+            is_prefix=True,
             **self._config
         )
-        self.assertEqual(operator.load_options, {'timeout': 2})
+        self.assertEqual(operator.is_prefix, True)
 
-    @mock.patch('airflow.providers.microsoft.azure.operators.file_to_wasb.WasbHook',
+    @mock.patch('airflow.providers.microsoft.azure.operators.azure_storage_delete_blob.AzureStorageBlobHook',
                 autospec=True)
     def test_execute(self, mock_hook):
         mock_instance = mock_hook.return_value
-        operator = FileToWasbOperator(
-            task_id='wasb_sensor',
+        operator = AzureDeleteBlobOperator(
+            task_id='azure_operator',
             dag=self.dag,
-            load_options={'timeout': 2},
+            is_prefix=False,
             **self._config
         )
         operator.execute(None)
-        mock_instance.load_file.assert_called_once_with(
-            'file', 'container', 'blob', timeout=2
+        mock_instance.delete_blob.assert_called_once_with(
+            'container', 'blob'
+        )
+
+    @mock.patch('airflow.providers.microsoft.azure.operators.azure_storage_delete_blob.AzureStorageBlobHook',
+                autospec=True)
+    def test_execute_with_is_prefix_true(self, mock_hook):
+        mock_instance = mock_hook.return_value
+        operator = AzureDeleteBlobOperator(
+            task_id='azure_operator',
+            dag=self.dag,
+            is_prefix=True,
+            **self._config
+        )
+        operator.execute(None)
+        mock_instance.list.return_value = ['blob']
+        mock_instance.delete_blobs.assert_called_once_with(
+            'container'
         )
 
 
