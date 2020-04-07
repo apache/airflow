@@ -62,8 +62,7 @@ class ClsResultStorage(ClsEntity):
     def _query(self, query_str) -> Point:
         if not self.query_api:
             raise BaseException(u'请先进行连接')
-        result = self.query_api.query(query_str)
-        return result
+        return self.query_api.query(query_str)
 
     def package_result_point(self, data: Dict) -> Optional[Point]:
         sn = data.pop('tool_sn') if data.get('tool_sn', None) else None
@@ -104,11 +103,18 @@ class ClsResultStorage(ClsEntity):
             raise BaseException(u'entity_id未指定')
         if not self._bucket:
             raise BaseException(u'_bucket未指定')
-        query_str = 'from(bucket:"{}")' \
-                    ' |> range(start: 0, stop: now())' \
-                    ' |> filter(fn: (r) => r.entity_id == "{}")'.format(self._bucket, self.entity_id)
-        result = self._query(query_str)
-        for table in result:
+        query_str = '''from(bucket: "{}")
+          |> range(start: 0, stop: now())
+          |> filter(fn: (r) => r._measurement == "results")
+          |> filter(fn: (r) => r.entity_id == "{}")
+          |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")''' \
+            .format(self._bucket, self.entity_id)
+        unused_keys = ['_time', 'table', 'result', '_start', '_stop', '_measurement']
+        data = self._query(query_str)
+        for table in data:
             for record in table.records:
-                print(record.values)
-        return result
+                ret = record.values
+                for key in unused_keys:
+                    ret.pop(key)
+                return record.values  # 返回第一条记录
+        return None

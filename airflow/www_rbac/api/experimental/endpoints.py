@@ -36,11 +36,10 @@ from airflow.utils import timezone
 from airflow.www_rbac.app import csrf
 from airflow import models
 from airflow.utils.db import create_session
-from .utils import get_cas_base_url, get_result_args
+from .utils import get_cas_base_url, get_result_args, get_task_params
 import json
 from flask import g, Blueprint, jsonify, request, url_for
-from entities.result_storage import ClsResultStorage
-
+from airflow.entities.result_storage import ClsResultStorage
 
 _log = LoggingMixin().log
 
@@ -218,18 +217,26 @@ def task_info(dag_id, task_id):
 def get_result(entity_id):
     st = ClsResultStorage(**get_result_args())
     st.metadata = {'entity_id': entity_id}
-    result = st.query_result()
-    return result
-
-def get_curve():
+    return st.query_result()
 
 
+def get_curve(entity_id):
+    return None
 
-def docasInvaild(entity_id):
+
+def docasInvaild(task_instance, entity_id):
+    """二次确认结果不同"""
     cas_base_url = get_cas_base_url()
     url = "{}/cas/invalid-curve".format(cas_base_url)
-    data = {'entity_id': entity_id}
-
+    result = get_result(entity_id)
+    curve = get_curve(entity_id)
+    task = get_task_params(task_instance, entity_id)
+    data = {
+        'entity_id': entity_id,
+        'result': result,
+        'curve': curve
+    }
+    data.update(task)
     try:
         resp = requests.post(headers={'Content-Type': 'application/json'}, url=url, json=data)
         if resp.status_code != HTTPStatus.OK:
@@ -265,7 +272,7 @@ def double_confirm_task(dag_id, task_id, execution_date):
             raise AirflowException("二次确认参数未定义或数值不正确!")
         if task.result != final_state:
             # 分析结果与二次确认结果不同
-            docasInvaild(task.entity_id)
+            docasInvaild(task, task.entity_id)
 
     except AirflowException as err:
         _log.info(err)
