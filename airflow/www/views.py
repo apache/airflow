@@ -252,7 +252,7 @@ class Airflow(AirflowBaseView):
             elif cookie_val:
                 arg_tags_filter = cookie_val.split(',')
 
-        if request.args.get('status') is None:
+        if arg_status_filter is None:
             cookie_val = flask_session.get(FILTER_STATUS_COOKIE)
             if cookie_val:
                 arg_status_filter = cookie_val
