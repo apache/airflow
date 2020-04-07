@@ -443,6 +443,30 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get('home', follow_redirects=True)
         self.check_content_in_response('DAGs', resp)
 
+    def test_users_list(self):
+        resp = self.client.get('users/list', follow_redirects=True)
+        self.check_content_in_response('List Users', resp)
+
+    def test_roles_list(self):
+        resp = self.client.get('roles/list', follow_redirects=True)
+        self.check_content_in_response('List Roles', resp)
+
+    def test_userstatschart_view(self):
+        resp = self.client.get('userstatschartview/chart/', follow_redirects=True)
+        self.check_content_in_response('User Statistics', resp)
+
+    def test_permissions_list(self):
+        resp = self.client.get('permissions/list/', follow_redirects=True)
+        self.check_content_in_response('List Base Permissions', resp)
+
+    def test_viewmenus_list(self):
+        resp = self.client.get('viewmenus/list/', follow_redirects=True)
+        self.check_content_in_response('List View Menus', resp)
+
+    def test_permissionsviews_list(self):
+        resp = self.client.get('permissionviews/list/', follow_redirects=True)
+        self.check_content_in_response('List Permissions on Views/Menus', resp)
+
     def test_home_filter_tags(self):
         from airflow.www.views import FILTER_TAGS_COOKIE
         with self.client:
