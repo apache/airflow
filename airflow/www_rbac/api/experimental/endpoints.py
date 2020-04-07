@@ -36,10 +36,12 @@ from airflow.utils import timezone
 from airflow.www_rbac.app import csrf
 from airflow import models
 from airflow.utils.db import create_session
-from .utils import get_cas_base_url, get_result_args, get_task_params
+from .utils import get_cas_base_url, get_result_args, get_task_params, get_curve_args, get_craft_type, \
+    generate_bolt_number, get_curve_params
 import json
 from flask import g, Blueprint, jsonify, request, url_for
 from airflow.entities.result_storage import ClsResultStorage
+from airflow.entities.curve_storage import ClsCurveStorage
 
 _log = LoggingMixin().log
 
@@ -221,7 +223,9 @@ def get_result(entity_id):
 
 
 def get_curve(entity_id):
-    return None
+    st = ClsCurveStorage(**get_curve_args())
+    st.metadata = {'entity_id': entity_id}
+    return st.query_curve()
 
 
 def docasInvaild(task_instance, entity_id):
@@ -231,12 +235,20 @@ def docasInvaild(task_instance, entity_id):
     result = get_result(entity_id)
     curve = get_curve(entity_id)
     task = get_task_params(task_instance, entity_id)
+    measure_result = result.get('measure_result', None)
+    controller_name = result.get('controller_name', None)
+    job = result.get('job', None)
+    batch_count = result.get('batch_count', None)
+    bolt_number = generate_bolt_number(controller_name, job, batch_count)
+    curve_params = get_curve_params(bolt_number, measure_result)
     data = {
         'entity_id': entity_id,
         'result': result,
-        'curve': curve
+        'curve': curve,
+        'craft_type': get_craft_type()
     }
     data.update(task)
+    data.update(curve_params)
     try:
         resp = requests.post(headers={'Content-Type': 'application/json'}, url=url, json=data)
         if resp.status_code != HTTPStatus.OK:

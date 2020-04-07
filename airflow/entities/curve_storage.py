@@ -96,3 +96,27 @@ class ClsCurveStorage(ClsEntity):
         except Exception as err:
             _logger.error(u"写入曲线 失败: {}".format(err))
 
+    def csv_data_to_dict(self, data):
+        data_set = Dataset()
+        f = io.StringIO(data)
+        data_set.headers = self._headersMap.values()
+        headers = f.readline()
+        ret = {
+            'cur_w': [],
+            'cur_m': [],
+            'cur_t': []
+        }
+        for row in f.readlines():
+            row_data = row.split('\r\n')[0].split(',')
+            ret['cur_w'].append(row_data[0])
+            ret['cur_m'].append(row_data[1])
+            ret['cur_t'].append(row_data[2])
+        return ret
+
+    def query_curve(self):
+        self.ensure_bucket(self._bucket)
+        resp = self._client.get_object(self._bucket, self.ObjectName)
+        csv_data = resp.data.decode('utf-8')
+
+        dict_data = self.csv_data_to_dict(csv_data)
+        return dict_data
