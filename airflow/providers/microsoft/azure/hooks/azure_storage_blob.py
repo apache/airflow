@@ -19,10 +19,6 @@
 """
 This module contains integration with Azure Blob Storage.
 
-It communicate via the Window Azure Storage Blob protocol. Make sure that a
-Airflow connection of type `wasb` exists. Authorization can be done by supplying a
-login (=Storage account name) and password (=KEY), or login and SAS token in the extra
-field (see connection `wasb_default` for an example).
 """
 
 from typing import List, Optional
