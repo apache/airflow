@@ -482,8 +482,8 @@ class TestAirflowBaseViews(TestBase):
             self.client.get('home', follow_redirects=True)
             self.assertEqual('all', flask_session[FILTER_STATUS_COOKIE])
 
-            self.client.get('home?status=active', follow_redirects=True)
-            self.assertEqual('active', flask_session[FILTER_STATUS_COOKIE])
+            self.client.get('home?status=enabled', follow_redirects=True)
+            self.assertEqual('enabled', flask_session[FILTER_STATUS_COOKIE])
 
             self.client.get('home?status=paused', follow_redirects=True)
             self.assertEqual('paused', flask_session[FILTER_STATUS_COOKIE])

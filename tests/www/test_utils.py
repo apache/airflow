@@ -108,11 +108,11 @@ class TestUtils(unittest.TestCase):
         self.assertListEqual(['a=0', 'c=true'], pairs)
 
     def test_params_all(self):
-        query = utils.get_params(status='active', page=3, search='bash_')
+        query = utils.get_params(status='enabled', page=3, search='bash_')
         self.assertEqual(
             {'page': ['3'],
              'search': ['bash_'],
-             'status': ['active']},
+             'status': ['enabled']},
             parse_qs(query)
         )
 

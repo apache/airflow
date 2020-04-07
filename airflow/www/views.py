@@ -257,7 +257,7 @@ class Airflow(AirflowBaseView):
             if cookie_val:
                 arg_status_filter = cookie_val
             else:
-                arg_status_filter = 'active' if hide_paused_dags_by_default else 'all'
+                arg_status_filter = 'enabled' if hide_paused_dags_by_default else 'all'
                 flask_session[FILTER_STATUS_COOKIE] = arg_status_filter
         else:
             status = arg_status_filter.strip().lower()
@@ -292,11 +292,11 @@ class Airflow(AirflowBaseView):
                 dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
 
             all_dags = dags_query
-            active_dags = dags_query.filter(~DagModel.is_paused)
+            enabled_dags = dags_query.filter(~DagModel.is_paused)
             paused_dags = dags_query.filter(DagModel.is_paused)
 
-            if arg_status_filter == 'active':
-                current_dags = active_dags
+            if arg_status_filter == 'enabled':
+                current_dags = enabled_dags
             elif arg_status_filter == 'paused':
                 current_dags = paused_dags
             else:
@@ -330,7 +330,7 @@ class Airflow(AirflowBaseView):
         num_of_pages = int(math.ceil(num_of_all_dags / float(dags_per_page)))
 
         status_count_all = all_dags.count()
-        status_count_active = active_dags.count()
+        status_count_enabled = enabled_dags.count()
         status_count_paused = paused_dags.count()
 
         return self.render_template(
@@ -351,7 +351,7 @@ class Airflow(AirflowBaseView):
             tags=tags,
             status_filter=arg_status_filter,
             status_count_all=status_count_all,
-            status_count_active=status_count_active,
+            status_count_enabled=status_count_enabled,
             status_count_paused=status_count_paused)
 
     @expose('/dag_stats', methods=['POST'])
@@ -2806,7 +2806,7 @@ class DagModelView(AirflowModelView):
 
         # Hide DAGs if not showing status: "all"
         status = flask_session.get(FILTER_STATUS_COOKIE)
-        if status == 'active':
+        if status == 'enabled':
             dag_ids_query = dag_ids_query.filter(~DagModel.is_paused)
             owners_query = owners_query.filter(~DagModel.is_paused)
         elif status == 'paused':

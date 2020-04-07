@@ -84,7 +84,7 @@ def generate_pages(current_page,
     :param current_page: the current page number, 0-indexed
     :param num_of_pages: the total number of pages
     :param search: the search query string, if any
-    :param status: 'all', 'active', or 'paused'
+    :param status: 'all', 'enabled', or 'paused'
     :param window: the number of pages to be shown in the paging component (7 default)
     :return: the HTML string of the paging component
     """
