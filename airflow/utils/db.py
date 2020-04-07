@@ -499,9 +499,9 @@ def create_default_connections(session=None):
     )
     merge_conn(
         Connection(
-            conn_id="wasb_default",
-            conn_type="wasb",
-            extra='{"sas_token": null}',
+            conn_id="azure_blob_default",
+            conn_type="azure_storage_blob",
+            extra='{"connection_string":"<CONNECTION_STRING>"}',
         ),
         session
     )

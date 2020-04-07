@@ -45,6 +45,10 @@ CONN_TYPE_TO_HOOK = {
         "airflow.providers.microsoft.azure.hooks.azure_data_lake.AzureDataLakeHook",
         "azure_data_lake_conn_id",
     ),
+    "azure_storage_blob": (
+        "airflow.providers.microsoft.azure.hooks.azure_storage_blob.AzureStorageBlobHook",
+        "azure_blob_conn_id"
+    ),
     "cassandra": ("airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook", "cassandra_conn_id"),
     "cloudant": ("airflow.providers.cloudant.hooks.cloudant.CloudantHook", "cloudant_conn_id"),
     "docker": ("airflow.providers.docker.hooks.docker.DockerHook", "docker_conn_id"),
@@ -79,7 +83,6 @@ CONN_TYPE_TO_HOOK = {
     "sqlite": ("airflow.providers.sqlite.hooks.sqlite.SqliteHook", "sqlite_conn_id"),
     "tableau": ("airflow.providers.salesforce.hooks.tableau.TableauHook", "tableau_conn_id"),
     "vertica": ("airflow.providers.vertica.hooks.vertica.VerticaHook", "vertica_conn_id"),
-    "wasb": ("airflow.providers.microsoft.azure.hooks.wasb.WasbHook", "wasb_conn_id"),
 }
 # PLEASE KEEP ABOVE LIST IN ALPHABETICAL ORDER.
 
@@ -149,7 +152,6 @@ class Connection(Base, LoggingMixin):
         ('mesos_framework-id', 'Mesos Framework ID'),
         ('jira', 'JIRA'),
         ('redis', 'Redis'),
-        ('wasb', 'Azure Blob Storage'),
         ('databricks', 'Databricks'),
         ('aws', 'Amazon Web Services'),
         ('emr', 'Elastic MapReduce'),
@@ -157,6 +159,7 @@ class Connection(Base, LoggingMixin):
         ('segment', 'Segment'),
         ('sqoop', 'Sqoop'),
         ('azure_batch', 'Azure Batch Service'),
+        ('azure_storage_blob', "Azure Storage Blob"),
         ('azure_data_lake', 'Azure Data Lake'),
         ('azure_container_instances', 'Azure Container Instances'),
         ('azure_cosmos', 'Azure CosmosDB'),

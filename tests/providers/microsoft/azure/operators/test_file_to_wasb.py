@@ -23,7 +23,7 @@ import unittest
 import mock
 
 from airflow.models.dag import DAG
-from airflow.providers.microsoft.azure.operators.file_to_wasb import FileToWasbOperator
+from airflow.providers.microsoft.azure.operators.local_to_azure_storage_blob import FileToWasbOperator
 
 
 class TestFileToWasbOperator(unittest.TestCase):

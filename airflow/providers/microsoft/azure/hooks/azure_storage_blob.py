@@ -24,30 +24,31 @@ Airflow connection of type `wasb` exists. Authorization can be done by supplying
 login (=Storage account name) and password (=KEY), or login and SAS token in the extra
 field (see connection `wasb_default` for an example).
 """
-from typing import Optional, List, Dict, Union
 
-import azure.storage.blob as storage_blob
-from azure.identity import ClientSecretCredential
+from typing import List, Optional
+
+from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient, BlobProperties
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
+from azure.identity import ClientSecretCredential
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 
-class WasbHook(BaseHook):
+class AzureStorageBlobHook(BaseHook):
     """
     Interacts with Azure Blob Storage.
 
-    :param wasb_conn_id: Reference to the wasb connection.
-    :type wasb_conn_id: str
+    :param azure_blob_conn_id: Reference to the wasb connection.
+    :type azure_blob_conn_id: str
     :param public_read: Whether an anonymous public read access should be used.
         default is False
     :type public_read: bool
     """
 
-    def __init__(self, wasb_conn_id='wasb_default', public_read=False):
+    def __init__(self, azure_blob_conn_id='azure_blob_default', public_read=False):
         super().__init__()
-        self.conn_id = wasb_conn_id
+        self.conn_id = azure_blob_conn_id
         self.public_read = public_read
 
     def get_conn(self):
@@ -67,14 +68,14 @@ class WasbHook(BaseHook):
             # Here we use anonymous public read
             # more info
             # https://docs.microsoft.com/en-us/azure/storage/blobs/storage-manage-access-to-resources
-            return storage_blob.BlobServiceClient(account_url=conn.host)
+            return BlobServiceClient(account_url=conn.host)
         if extra.get('connection_string'):
             # connection_string auth takes priority
-            return storage_blob.BlobServiceClient.from_connection_string(extra.get('connection_string'))
+            return BlobServiceClient.from_connection_string(extra.get('connection_string'))
         if extra.get('shared_access_key'):
             # using shared access key
-            return storage_blob.BlobServiceClient(account_url=conn.host,
-                                     credential=extra.get('shared_access_key'))
+            return BlobServiceClient(account_url=conn.host,
+                                                  credential=extra.get('shared_access_key'))
         if extra.get('tenant_id'):
             # use Active Directory auth
             app_id = _get_required_param('application_id')
@@ -84,9 +85,13 @@ class WasbHook(BaseHook):
                 app_id,
                 app_secret
             )
-            return storage_blob.BlobServiceClient(account_url=conn.host, credential=token_credential)
+            return BlobServiceClient(account_url=conn.host, credential=token_credential)
+        if extra.get('sas_token'):
+            return BlobServiceClient(account_url=extra.get('sas_token'))
+        else:
+            raise AirflowException('Unknown connection type')
 
-    def _get_container_client(self, container_name: str) -> storage_blob.ContainerClient:
+    def _get_container_client(self, container_name: str) -> ContainerClient:
         """
 
         Instantiates a container client
@@ -97,7 +102,7 @@ class WasbHook(BaseHook):
         """
         return self.get_conn().get_container_client(container_name)
 
-    def _get_blob_client(self, container_name: str, blob_name: str) -> storage_blob.BlobClient:
+    def _get_blob_client(self, container_name: str, blob_name: str) -> BlobClient:
         """
         Instantiates a blob client
 
@@ -107,7 +112,7 @@ class WasbHook(BaseHook):
         :param blob_name: The name of the blob. This needs not be existing
         :type blob_name: str
         """
-        container_client = self._get_container_client(container_name)
+        container_client = self.create_container(container_name)
         return container_client.get_blob_client(blob_name)
 
     def create_container(self, container_name: str):
@@ -115,12 +120,15 @@ class WasbHook(BaseHook):
         Create container object if not already existing
         :param container_name:
         """
+        container_client = self._get_container_client(container_name)
         try:
             self.log.info('Attempting to create container: %s', container_name)
-            self._get_container_client(container_name).create_container()
+            container_client.create_container()
             self.log.info("Created container: %s", container_name)
+            return container_client
         except ResourceExistsError:
             self.log.info("Container %s already exists", container_name)
+            return container_client
 
     def delete_container(self, container_name: str):
         """
@@ -189,7 +197,7 @@ class WasbHook(BaseHook):
         :type length: int
         """
         blob_client = self._get_blob_client(container_name, blob_name)
-        return blob_client.upload(data, blob_type, length=length, **kwargs)
+        return blob_client.upload_blob(data, blob_type, length=length, **kwargs)
 
     def download(self, container_name, blob_name, dest_file: str = None,
                  offset: Optional[int] = None, length: Optional[int] = None, **kwargs):
@@ -281,7 +289,7 @@ class WasbHook(BaseHook):
 
         :param blobs: The blobs to delete. This can be a single blob, or multiple values
             can be supplied, where each value is either the name of the blob (str) or BlobProperties.
-        :type blobs: Union[str, storage_blob.BlobProperties]
+        :type blobs: Union[str, BlobProperties]
         """
         self._get_container_client(container_name).delete_blobs(*blobs, **kwargs)
         self.log.info("Deleted blobs: %s", blobs)

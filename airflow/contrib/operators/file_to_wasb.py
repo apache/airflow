@@ -20,7 +20,7 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.microsoft.azure.operators.file_to_wasb import FileToWasbOperator  # noqa
+from airflow.providers.microsoft.azure.operators.local_to_azure_storage_blob import FileToWasbOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.file_to_wasb`.",
