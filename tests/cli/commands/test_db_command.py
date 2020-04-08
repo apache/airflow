@@ -42,6 +42,13 @@ class TestCliDb(unittest.TestCase):
 
         mock_resetdb.assert_called_once_with()
 
+    @mock.patch("airflow.cli.commands.db_command.db.wait_for_migrations")
+    def test_cli_wait_for_migrations(self, mock_wait_for_migrations):
+        a =self.parser.parse_args(['db', 'wait-for-migrations',])
+        db_command.wait_for_migrations(self.parser.parse_args(['db', 'wait-for-migrations']))
+
+        mock_wait_for_migrations.assert_called_once_with(timeout=0)
+
     @mock.patch("airflow.cli.commands.db_command.db.upgradedb")
     def test_cli_upgradedb(self, mock_upgradedb):
         db_command.upgradedb(self.parser.parse_args(['db', 'upgrade']))

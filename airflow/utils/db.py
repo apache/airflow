@@ -20,6 +20,20 @@ import os
 
 from sqlalchemy import Table
 
+import textwrap
+from tempfile import NamedTemporaryFile
+
+from airflow.exceptions import AirflowException
+from airflow.utils import cli as cli_utils, db
+from airflow.utils.process_utils import execute_interactive
+import importlib
+import logging
+import os
+import time
+
+from alembic.config import Config
+from alembic.runtime.migration import MigrationContext
+from alembic.script import ScriptDirectory
 from airflow import settings
 from airflow.configuration import conf
 # noinspection PyUnresolvedReferences
@@ -543,6 +557,34 @@ def initdb():
     from flask_appbuilder.models.sqla import Base
     Base.metadata.create_all(settings.engine)  # pylint: disable=no-member
 
+def wait_for_migrations(timeout):
+    """
+    Function to wait for all airflow migrations to complete. Used for launching airflow in k8s
+    @param timeout:
+    @return:
+    """
+    package_dir = os.path.dirname(importlib.util.find_spec('airflow').origin)
+    directory = os.path.join(package_dir, 'migrations')
+    config = Config(os.path.join(package_dir, 'alembic.ini'))
+    config.set_main_option('script_location', directory)
+    config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN)
+    script_ = ScriptDirectory.from_config(config)
+    with settings.engine.connect() as connection:
+        context = MigrationContext.configure(connection)
+        ticker = 0
+        while True:
+            source_heads = set(script_.get_heads())
+            db_heads = set(context.get_current_heads())
+            if source_heads == db_heads:
+                logging.info('Airflow version: %s', version.version)
+                logging.info('Current heads: %s', db_heads)
+                break
+            if ticker >= timeout:
+                raise TimeoutError("There are still unapplied migrations after {} "
+                                   "seconds".format(ticker, timeout))
+            ticker += 1
+            time.sleep(1)
+            logging.info('Waiting for migrations... %s second(s)', ticker)
 
 def upgradedb():
     """

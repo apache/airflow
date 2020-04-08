@@ -328,5 +328,6 @@ WORKDIR ${AIRFLOW_HOME}
 
 ENV AIRFLOW__CORE__LOAD_EXAMPLES="false"
 
+COPY scripts/include/clean-logs.sh /usr/local/bin/clean-airflow-logs
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
 CMD ["airflow", "--help"]

@@ -623,6 +623,7 @@ def do_setup():
         entry_points={
             "console_scripts": [
                 "airflow = airflow.__main__:main",
+                "airflow-migration-spinner = airflow.include.airflow_migration_spinner:main",
             ],
         },
         install_requires=INSTALL_REQUIREMENTS,

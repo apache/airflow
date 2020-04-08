@@ -15,14 +15,22 @@
 # specific language governing permissions and limitations
 # under the License.
 """Database sub-commands"""
-import os
 import textwrap
 from tempfile import NamedTemporaryFile
 
-from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.process_utils import execute_interactive
+import importlib
+import logging
+import os
+import time
+
+from alembic.config import Config
+from alembic.runtime.migration import MigrationContext
+from alembic.script import ScriptDirectory
+
+from airflow import settings, version
 
 
 def initdb(args):
@@ -49,6 +57,14 @@ def upgradedb(args):
     print("DB: " + repr(settings.engine.url))
     db.upgradedb()
 
+@cli_utils.action_logging
+def wait_for_migrations(args):
+    # """
+    # Function to wait for all airflow migrations to complete. Used for launching airflow in k8s
+    # @param timeout:
+    # @return:
+    # """
+    db.wait_for_migrations(timeout=args.migration_wait_timeout)
 
 @cli_utils.action_logging
 def shell(args):

@@ -76,7 +76,7 @@ class DefaultHelpParser(argparse.ArgumentParser):
 class Arg:
     """Class to keep information about command line argument"""
     # pylint: disable=redefined-builtin
-    def __init__(self, flags=None, help=None, action=None, default=None, nargs=None,
+    def __init__(self, flags=None, help=None, action=None, default=argparse.SUPPRESS, nargs=None,
                  type=None, choices=None, required=None, metavar=None):
         self.flags = flags
         self.help = help
@@ -434,6 +434,12 @@ ARG_JOB_ID = Arg(
 ARG_CFG_PATH = Arg(
     ("--cfg-path",),
     help="Path to config file to use instead of airflow.cfg")
+ARG_MIGRATION_TIMEOUT = Arg(
+    ("-t", "--migration-wait-timeout"),
+    help="timeout to wait for db to migrate ",
+    type=int,
+    default=0,
+    )
 
 # webserver
 ARG_PORT = Arg(
@@ -953,6 +959,12 @@ DB_COMMANDS = (
         args=(),
     ),
     ActionCommand(
+        name="wait-for-migrations",
+        help="wait until migration has finished (or until timeout",
+        func=lazy_load_command('airflow.cli.commands.db_command.wait_for_migrations'),
+        args=(ARG_MIGRATION_TIMEOUT,),
+    ),
+    ActionCommand(
         name='reset',
         help="Burn down and rebuild the metadata database",
         func=lazy_load_command('airflow.cli.commands.db_command.resetdb'),
@@ -1242,7 +1254,7 @@ def _add_command(
 def _add_action_command(sub: ActionCommand, sub_proc: argparse.ArgumentParser) -> None:
     for arg in _sort_args(sub.args):
         kwargs = {
-            k: v for k, v in vars(arg).items() if k != 'flags' and v
+            k: v for k, v in vars(arg).items() if k != 'flags'
         }
         sub_proc.add_argument(*arg.flags, **kwargs)
     sub_proc.set_defaults(func=sub.func)
