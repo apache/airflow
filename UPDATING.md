@@ -75,7 +75,7 @@ Example:
 
 The above code returned `None` previously, now it will return `''`.
 
-### Rename slot name
+### Rename pool statsd metrics
 
 Used slot has been renamed to running slot to make the name self-explanatory
 and the code more maintainable.
