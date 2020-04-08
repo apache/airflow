@@ -51,6 +51,7 @@
 <script src="{{ url_for_asset('d3.min.js') }}"></script>
 <script src="{{ url_for_asset('d3-tip.js') }}"></script>/
 <script src="{{ url_for_asset('ganttChartD3v2.js') }}"></script>
+<script src="{{ url_for_asset('task-instances.js') }}"></script>
 <script>
   $( document ).ready(function() {
     var dag_id = '{{ dag.dag_id }}';
@@ -59,7 +60,6 @@
     data = {{ data |tojson|safe }};
     var gantt = d3.gantt()
       .taskTypes(data.taskNames)
-      .taskStatus(data.taskStatus)
       .height(data.height)
       .selector('.gantt')
       .tickFormat("%H:%M:%S");

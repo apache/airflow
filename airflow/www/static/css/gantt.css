@@ -28,26 +28,15 @@ rect {
   stroke: #000;
   cursor: pointer;
 }
-
-.d3-tip {
-  line-height: 1;
-  font-weight: bold;
-  padding: 5px;
-  background: rgba(0, 0, 0, 0.8);
-  color: #fff;
-  border-radius: 2px;
-  font-size: 12px;
-}
-
 /* Creates a small triangle extender for the tooltip */
 .d3-tip::after {
   box-sizing: border-box;
   display: inline;
-  font-size: 8px;
   width: 100%;
   line-height: 1;
   color: rgba(0, 0, 0, 0.8);
   content: "\25BC";
+  pointer-events: none;
   position: absolute;
   text-align: center;
 }

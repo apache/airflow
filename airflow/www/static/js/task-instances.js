@@ -60,21 +60,29 @@ function generateTooltipDateTimes(startDate, endDate, dagTZ) {
   return tooltipHTML;
 }
 
-export default function tiTooltip(ti) {
+export default function tiTooltip(ti, {includeTryNumber = false} = {}) {
   let tt = '';
-  if(ti.task_id !== undefined) {
+  if (ti.task_id !== undefined) {
     tt += `Task_id: ${escapeHtml(ti.task_id)}<br>`;
   }
   tt += `Run: ${formatDateTime(ti.execution_date)}<br>`;
-  if(ti.run_id !== undefined) {
+  if (ti.run_id !== undefined) {
     tt += `Run Id: <nobr>${escapeHtml(ti.run_id)}</nobr><br>`;
   }
-  if(ti.operator !== undefined) {
+  if (ti.operator !== undefined) {
     tt += `Operator: ${escapeHtml(ti.operator)}<br>`;
   }
   // Don't translate/format this, keep it as the full ISO8601 date
-  tt += `Started: ${escapeHtml(ti.start_date)}<br>`;
+  if (ti.start_date instanceof moment) {
+    tt += `Started: ${escapeHtml(ti.start_date.toISOString())}<br>`;
+  } else {
+    tt += `Started: ${escapeHtml(ti.start_date)}<br>`;
+  }
   tt += `Duration: ${escapeHtml(convertSecsToHumanReadable(ti.duration))}<br>`;
+
+  if (includeTryNumber) {
+    tt += `Try Number: ${escapeHtml(ti.try_number)}<br>`;
+  }
   tt += generateTooltipDateTimes(ti.start_date, ti.end_date, dagTZ); // dagTZ has been defined in dag.html
   return tt;
 }
