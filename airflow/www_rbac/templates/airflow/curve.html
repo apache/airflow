@@ -15,8 +15,8 @@
 
 {% block body %}
 <div id="root">
-  <div id="base-info-container" class="card flex">
-    <fieldset class="base-info-item card flex-column justify-center">
+  <div id="base-info-container" class="card flex justify-stretch align-stretch">
+    <fieldset class="base-info-item card flex-column">
       <legend class="base-info-title">二次确认</legend>
       <div class="base-info-content" style="--content-height:40px">
         <button class="button-double-check btn btn-primary margin">
@@ -30,11 +30,20 @@
       </div>
     </fieldset>
   </div>
-  <div style="flex:1" class="flex">
+  <div style="height:80%" class="flex">
     <div id="result-container" class="card">
-      {% for k,v in result.items() %}
-      <div>{{ k }}:{{ v }}</div>
-      {% endfor %}
+      <table style="width:100%;">
+        <tr class="result-content-row">
+          <th>Key</th>
+          <th>Value</th>
+        </tr>
+        {% for k,v in result.items() %}
+        <tr class="result-content-row">
+          <td class="result-content-item">{{k}}</td>
+          <td class="result-content-item">{{v}}</td>
+        </tr>
+        {% endfor %}
+      </table>
     </div>
     <div id="echarts-container" style="flex:1" class="card flex-column">
       <div class="flex" id="actions-container">
