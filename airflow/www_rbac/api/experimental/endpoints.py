@@ -39,7 +39,7 @@ from airflow.utils.db import create_session
 from .utils import get_cas_base_url, get_result_args, get_task_params, get_curve_args, get_craft_type, \
     generate_bolt_number, get_curve_params
 import json
-from flask import g, Blueprint, jsonify, request, url_for
+from flask import g, Blueprint, jsonify, request, url_for, render_template
 from airflow.entities.result_storage import ClsResultStorage
 from airflow.entities.curve_storage import ClsCurveStorage
 
@@ -90,6 +90,14 @@ def put_anaylysis_result():
     resp = jsonify({'response': 'ok'})
     resp.status_code = 200
     return resp
+
+
+@csrf.exempt
+@api_experimental.route('/view_curve/<string:dag_id>/dag_runs/<string:execution_date>/tasks/<string:task_id>',
+                        methods=['GET'])
+@requires_authentication
+def view_curve_page(dag_id, execution_date, task_id):
+    return render_template('airflow/curve.html')
 
 
 @csrf.exempt
@@ -249,8 +257,11 @@ def docasInvaild(task_instance, entity_id):
     }
     data.update(task)
     data.update(curve_params)
+    json_data = {
+        'conf': data
+    }
     try:
-        resp = requests.post(headers={'Content-Type': 'application/json'}, url=url, json=data)
+        resp = requests.post(headers={'Content-Type': 'application/json'}, url=url, json=json_data)
         if resp.status_code != HTTPStatus.OK:
             raise Exception(resp.content)
     except Exception as e:

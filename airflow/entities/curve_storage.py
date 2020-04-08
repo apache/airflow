@@ -108,9 +108,9 @@ class ClsCurveStorage(ClsEntity):
         }
         for row in f.readlines():
             row_data = row.split('\r\n')[0].split(',')
-            ret['cur_w'].append(row_data[0])
-            ret['cur_m'].append(row_data[1])
-            ret['cur_t'].append(row_data[2])
+            ret['cur_w'].append(float(row_data[0]))
+            ret['cur_m'].append(float(row_data[1]))
+            ret['cur_t'].append(float(row_data[2]))
         return ret
 
     def query_curve(self):

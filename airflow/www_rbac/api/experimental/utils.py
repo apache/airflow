@@ -1,5 +1,6 @@
 from airflow import models
 from airflow.utils.db import create_session
+from airflow.utils.logger import generate_logger
 import os
 from airflow.models.variable import Variable
 from influxdb_client.client.write_api import SYNCHRONOUS, ASYNCHRONOUS
@@ -27,6 +28,7 @@ else:
     schedule_interval = None
     write_options = ASYNCHRONOUS
 
+_logger = generate_logger(__name__)
 
 def get_cas_base_url():
     connection_model = models.connection.Connection
@@ -69,10 +71,14 @@ def generate_curve_name(nut_no, measure_result):
 
 def get_curve_params(bolt_number, measure_result):
     curve_name = generate_curve_name(bolt_number, measure_result)
-    return Variable.get(
-        curve_name,
-        deserialize_json=True,
-        fun_filter=(lambda cls, key: cls.key.like('%{}%'.format(key))))
+    try:
+        return Variable.get_fuzzy_active(
+            curve_name,
+            deserialize_json=True,
+        )[1]
+    except Exception as e:
+        _logger.error("cannot get curve params :{0} ".format(str(e)))
+        return {}
 
 
 def get_task_params(task_instance, entity_id):
