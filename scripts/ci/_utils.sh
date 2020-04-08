@@ -1396,14 +1396,14 @@ function prepare_prod_build() {
         )
     else
         if [[ "${INSTALL_AIRFLOW_REFERENCE:=}" != "" ]]; then
-            # When --install-airflow-version is used then the image is build from github tag
-            export EXTRA_DOCKER_PROD_BUILD_FLAGS=(
+            # When --install-airflow-reference is used then the image is build from github tag
+            EXTRA_DOCKER_PROD_BUILD_FLAGS=(
                 "--build-arg" "AIRFLOW_INSTALL_SOURCES=https://github.com/apache/airflow/archive/${INSTALL_AIRFLOW_REFERENCE}.tar.gz#egg=apache-airflow"
             )
             export AIRFLOW_VERSION="${INSTALL_AIRFLOW_REFERENCE}"
         else
-            # When --install-airflow-version is used then the image is build from github tag
-            export EXTRA_DOCKER_PROD_BUILD_FLAGS=(
+            # When --install-airflow-version is used then the image is build from pypi
+            EXTRA_DOCKER_PROD_BUILD_FLAGS=(
                 "--build-arg" "AIRFLOW_INSTALL_SOURCES=apache-airflow"
                 "--build-arg" "AIRFLOW_INSTALL_VERSION===${INSTALL_AIRFLOW_VERSION}"
             )
