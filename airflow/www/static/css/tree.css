@@ -17,6 +17,12 @@
  * under the License.
  */
 
+circle {
+  stroke: blue;
+  fill: #fff;
+  stroke-width: 1.5px;
+}
+
 .node text {
   font: 11px sans-serif;
   pointer-events: none;
@@ -27,10 +33,6 @@ path.link {
   stroke: #3182bd;
   stroke-width: 1.5px;
   opacity: 0.5;
-}
-
-g.tick line {
-  shape-rendering: crispEdges;
 }
 
 rect.state {
@@ -105,12 +107,10 @@ g.node.collapsed circle {
   stroke-width: 4px;
 }
 
-circle {
-  stroke: blue;
-  fill: #fff;
-  stroke-width: 1.5px;
+g.axis path {
+  shape-rendering: crispEdges;
 }
 
-g.axis path {
+g.tick line {
   shape-rendering: crispEdges;
 }
