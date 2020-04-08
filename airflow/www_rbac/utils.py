@@ -138,7 +138,7 @@ def generate_pages(current_page, num_of_pages,
     <a href="{href_link}" aria-controls="dags" data-dt-idx="2" tabindex="0">{page_num}</a>
 </li>""")
 
-    output = [Markup('<ul class="pagination" style="margin-top:0px;">')]
+    output = [Markup('<ul class="pagination" style="margin-top:0;">')]
 
     is_disabled = 'disabled' if current_page <= 0 else ''
     output.append(first_node.format(href_link="?{}"
@@ -243,7 +243,7 @@ def task_instance_link(attr):
         <span style="white-space: nowrap;">
         <a href="{url}">{task_id}</a>
         <a href="{url_root}" title="Filter on this task and upstream">
-        <span class="glyphicon glyphicon-filter" style="margin-left: 0px;"
+        <span class="glyphicon glyphicon-filter" style="margin-left:0;"
             aria-hidden="true"></span>
         </a>
         </span>
