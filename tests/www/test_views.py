@@ -1574,7 +1574,7 @@ class TestDagACLView(TestBase):
         self.login(username='all_dag_user',
                    password='all_dag_user')
         resp = self.client.get(
-            'dagmodel/autocomplete?query=example_bash&status=all',
+            'dagmodel/autocomplete?query=example_bash',
             follow_redirects=False)
         self.check_content_in_response('example_bash_operator', resp)
         self.check_content_not_in_response('example_subdag_operator', resp)
