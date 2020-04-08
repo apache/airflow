@@ -101,15 +101,8 @@ Here is a sample configuration:
     backend = airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
     backend_kwargs = {"connections_prefix": "airflow/connections", "variables_prefix": "airflow/variables", "profile_name": "default"}
 
-To authenticate you can either supply a profile name to reference aws profile, e.g. defined in ``~/.aws/config``, set
-environment variables like ``AWS_ACCESS_KEY_ID``, ``AWS_SECRET_ACCESS_KEY`` or pass those to the client as follows:
-
-.. code-block:: ini
-
-    [secrets]
-    backend = airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
-    backend_kwargs = {"connections_prefix":"airflow/connections","aws_access_key_id": "AKI4Z78ADFSAFOZ3R",
-        "aws_secret_access_key": "USERACCESSKEY"}
+To authenticate you can either supply a profile name to reference aws profile, e.g. defined in ``~/.aws/config`` or set
+environment variables like ``AWS_ACCESS_KEY_ID``, ``AWS_SECRET_ACCESS_KEY``.
 
 
 Storing and Retrieving Connections
