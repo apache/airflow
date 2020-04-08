@@ -180,18 +180,6 @@ repos:
         entry: koalaman/shellcheck:stable -x -a
         files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$|\.bats$
         exclude: ^airflow/_vendor/.*$
-      - id: lint-openapi
-        name: Lint OpenAPI using speccy
-        language: docker_image
-        entry: wework/speccy lint
-        files: ^openapi.yaml$
-      - id: lint-openapi
-        name: Lint OpenAPI using openapi-spec-validator
-        entry: openapi-spec-validator --schema 3.0.0 openapi.yaml
-        language: python
-        additional_dependencies: ['openapi-spec-validator']
-        pass_filenames: false
-        files: ^openapi.yaml$
       - id: lint-dockerfile
         name: Lint dockerfile
         language: system
