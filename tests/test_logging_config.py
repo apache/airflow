@@ -171,7 +171,7 @@ class TestLoggingSettings(unittest.TestCase):
     def test_loading_invalid_local_settings(self):
         from airflow.logging_config import configure_logging, log
         with settings_context(SETTINGS_FILE_INVALID):
-            with patch.object(log, 'warning') as mock_info:
+            with patch.object(log, 'error') as mock_info:
                 # Load config
                 with self.assertRaises(ValueError):
                     configure_logging()
