@@ -2,11 +2,19 @@
   --margin-width: 3px;
   --padding-width: 5px;
   --border-color: #e5e5e5;
-  --box-shadow: 2px 2px 2px 1px rgba(0, 0, 0, 0.2)
+  --box-shadow: 2px 2px 2px 1px rgba(0, 0, 0, 0.2);
+  --font-size: 1.5rem;
 }
 
 body {
   margin: 0;
+  padding: 0 !important;
+}
+
+legend {
+  width: auto !important;
+  border-bottom: none !important;
+  margin-bottom: 0 !important;
 }
 
 .card {
@@ -42,16 +50,21 @@ body {
   --height: 50%;
   --width: auto;
 }
+.button-double-check{
+  --height:auto;
+}
 
 .base-info-title {
-  font-size: 1rem;
+  font-size: var(--font-size);
 }
 
 .base-info-content {
+  --content-height: var(--font-size);
   text-align: center;
-  line-height: 1rem;
+  line-height: var(--content-height);
+  height: var(--content-height);
   position: relative;
-  top: calc(1rem - var(--padding-width));
+  top: calc(50% - var(--content-height)/2 - var(--font-size)/2 - var(--padding-width));
 }
 
 #actions-container {
@@ -92,8 +105,8 @@ body {
   justify-content: center;
 }
 
-button {
-  margin: var(--margin-width);
-  width: calc(var(--width) - var(--margin-width) * 2 - 2px);
-  height: calc(var(--height) - var(--margin-width) * 2 - 2px);
+button.margin {
+  margin: var(--margin-width) !important;
+  width: calc(var(--width) - var(--margin-width) * 2 - 2px) !important;
+  height: calc(var(--height) - var(--margin-width) * 2 - 2px) !important;
 }
