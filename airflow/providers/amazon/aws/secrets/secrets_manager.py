@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Objects relating to sourcing secrests from AWS Secrets Manager
+Objects relating to sourcing secrets from AWS Secrets Manager
 """
 
 from typing import Optional
@@ -115,13 +115,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             response = self.client.get_secret_value(
                 SecretId=secrets_path,
             )
-            if 'SecretString' in response:
-                secret_value = response['SecretString']
-            else:
-                secret_value = None
-            return secret_value
+            return response.get('SecretString')
         except self.client.exceptions.ResourceNotFoundException:
-            self.log.info(
+            self.log.debug(
                 "An error occurred (ResourceNotFoundException) when calling the "
                 "get_secret_value operation: "
                 "Secret %s not found.", secrets_path
