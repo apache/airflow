@@ -75,6 +75,8 @@ from airflow.www_rbac.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                     DagRunForm, ConnectionForm)
 from airflow.www_rbac.widgets import AirflowModelListWidget
 from flask_wtf.csrf import CSRFProtect
+from airflow.www_rbac.api.experimental.endpoints import get_curve, get_result
+from airflow.api.common.experimental.get_task_instance import get_task_instance
 
 csrf = CSRFProtect()
 
@@ -382,6 +384,19 @@ class Airflow(AirflowBaseView):
                 })
 
         return wwwutils.json_response(payload)
+
+    # api/experimental/view_curve/curve_anay/dag_runs/2020-04-07 10:04:48.786247 +00:00/tasks/trigger_anay_task
+    @expose('/view_curve/<string:dag_id>/dag_runs/<string:execution_date>/tasks/<string:task_id>')
+    @has_access
+    def view_curve_page(self, dag_id, execution_date, task_id):
+        execution_date = timezone.parse(execution_date)
+        ti = get_task_instance(dag_id, task_id, execution_date)
+        if not ti.entity_id:
+            return self.render_template('airflow/curve.html', task_instance=ti)
+        result = get_result(ti.entity_id)
+        curve = get_curve(ti.entity_id)
+        return self.render_template('airflow/curve.html', task_instance=ti, result=result,
+                                    curve=curve)
 
     @expose('/task_stats')
     @has_access
@@ -2729,7 +2744,6 @@ class TaskInstanceModelView(AirflowModelView):
         self.set_task_instance_state(tis, State.UP_FOR_RETRY)
         self.update_redirect()
         return redirect(self.get_redirect())
-
 
     def get_one(self, id):
         """

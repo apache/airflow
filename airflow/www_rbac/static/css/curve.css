@@ -1,0 +1,99 @@
+:root {
+  --margin-width: 3px;
+  --padding-width: 5px;
+  --border-color: #e5e5e5;
+  --box-shadow: 2px 2px 2px 1px rgba(0, 0, 0, 0.2)
+}
+
+body {
+  margin: 0;
+}
+
+.card {
+  width: calc(var(--width) - var(--margin-width) * 2 - 2px);
+  height: calc(var(--height) - var(--margin-width) * 2 - 2px);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  margin: var(--margin-width);
+  padding: var(--padding-width);
+  box-shadow: var(--box-shadow);
+  box-sizing: border-box;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#base-info-container {
+  --width: 100%;
+  --height: 20%;
+}
+
+#result-container {
+  --width: 20%;
+  --height: 100%;
+}
+
+.base-info-item {
+  --height: 50%;
+  --width: auto;
+}
+
+.base-info-title {
+  font-size: 1rem;
+}
+
+.base-info-content {
+  text-align: center;
+  line-height: 1rem;
+  position: relative;
+  top: calc(1rem - var(--padding-width));
+}
+
+#actions-container {
+  width: 100%;
+  height: 40px;
+}
+
+.action-content {
+  height: 100%;
+}
+
+#echarts-container {
+  --width: auto;
+  --height: auto;
+}
+
+#echarts-main {
+  flex: 1
+}
+
+.flex {
+  display: flex;
+  flex-direction: row;
+}
+
+.flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.center {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+button {
+  margin: var(--margin-width);
+  width: calc(var(--width) - var(--margin-width) * 2 - 2px);
+  height: calc(var(--height) - var(--margin-width) * 2 - 2px);
+}

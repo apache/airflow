@@ -1,10 +1,174 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
+{% extends 'appbuilder/init.html' %}
+{% import 'appbuilder/baselib.html' as baselib %}
 
-</body>
-</html>
+
+{% block head_css %}
+<link rel="stylesheet" type="text/css"
+      href="{{ url_for('static', filename='css/curve.css') }}">
+<script src="{{ url_for('static', filename='js/echarts.js') }}" type="text/javascript"></script>
+{% endblock %}
+
+{% block body %}
+<div id="root">
+  <div id="base-info-container" class="card flex">
+    <button class="base-info-item">二次确认</button>
+  </div>
+  <div style="flex:1" class="flex">
+    <div id="result-container" class="card">
+      {% for k,v in result.items() %}
+      <div>{{ k }}:{{ v }}</div>
+      {% endfor %}
+    </div>
+    <div id="echarts-container" style="flex:1" class="card flex-column">
+      <div class="flex" id="actions-container">
+        <button id="update-chart-w-m">角度/扭矩</button>
+        <button id="update-chart-t-m">时间/扭矩</button>
+        <button id="update-chart-t-w">时间/角度</button>
+      </div>
+      <div style="flex:1">
+        <div id="echarts-main" style="width: 100%;height:100%;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+
+{% block tail_js %}
+{{ super() }}
+<script type="text/javascript">
+  let curveChart = null;
+  const result = JSON.parse('{{ result|tojson|safe }}');
+  const curve = JSON.parse('{{ curve|tojson|safe }}');
+
+
+  function genData(xKey, yKey) {
+    const data = [];
+    const xData = curve[xKey];
+    const yData = curve[yKey];
+    for (const x in xData) {
+      data.push([xData[x], yData[x]]);
+    }
+    return data;
+  }
+
+  function updateChart(xKey, yKey, xName, yName) {
+    const option = {
+      title: {
+        text: `${xName}-${yName}图`,
+      },
+      legend: {
+        type: 'scroll',
+        data: [yName],
+      },
+      xAxis: {type: 'value'},
+      yAxis: {type: 'value'},
+      series: [{
+        name: yName,
+        type: 'line',
+        data: genData(xKey, yKey),
+        symbol: 'none',
+        markLine: {
+          data: [
+            {type: 'min', name: '最小值'},
+            {type: 'max', name: '最大值'},
+          ],
+        },
+      }],
+      dataZoom: [
+        {
+          type: 'slider',
+          xAxisIndex: 0,
+          filterMode: 'empty',
+        },
+        {
+          type: 'slider',
+          yAxisIndex: 0,
+          filterMode: 'empty',
+        },
+        {
+          type: 'inside',
+          xAxisIndex: 0,
+          filterMode: 'empty',
+        },
+        {
+          type: 'inside',
+          yAxisIndex: 0,
+          filterMode: 'empty',
+        },
+      ],
+      tooltip: {
+        trigger: 'axis',
+      },
+    };
+    curveChart.setOption(option);
+  }
+
+  function chartInit() {
+    curveChart = echarts.init(document.getElementById('echarts-main'));
+
+    // 指定图表的配置项和数据
+    const option = {};
+
+    // 使用刚指定的配置项和数据显示图表。
+    curveChart.setOption(option);
+    updateChart('cur_w', 'cur_m', '角度', '扭矩');
+  }
+
+  $(document).ready(() => {
+    chartInit();
+  });
+
+  $(window).resize(() => {
+    if (!curveChart) {
+      return;
+    }
+    curveChart.resize();
+  });
+
+  const info = [
+    {
+      title: '拧紧结果',
+      content: '{{result.measure_result}}',
+    },
+    {
+      title: '螺栓编号',
+      content: '{{result.nut_no}}',
+    },
+    {
+      title: '工具序列号',
+      content: '{{result.tool_sn}}',
+    },
+    {
+      title: '拧紧时间',
+      content: '{{result.update_time}}',
+    },
+  ];
+
+  info.reverse().forEach((i) => {
+    const content = $('<fieldset class="base-info-item card flex-column justify-center">'
+      + '      <legend class="base-info-title">'
+      + i.title
+      + '      </legend>'
+      + '      <span class="base-info-content">'
+      + i.content
+      + '      </span>'
+      + '    </fieldset>');
+
+    $('#base-info-container').prepend(content);
+  });
+
+
+  $('#update-chart-w-m').click(() => {
+    updateChart('cur_w', 'cur_m', '角度', '扭矩');
+  });
+
+  $('#update-chart-t-m').click(() => {
+    updateChart('cur_t', 'cur_m', '时间', '扭矩');
+  });
+
+  $('#update-chart-t-w').click(() => {
+    updateChart('cur_t', 'cur_w', '时间', '角度');
+  });
+</script>
+{% endblock %}

@@ -93,14 +93,6 @@ def put_anaylysis_result():
 
 
 @csrf.exempt
-@api_experimental.route('/view_curve/<string:dag_id>/dag_runs/<string:execution_date>/tasks/<string:task_id>',
-                        methods=['GET'])
-@requires_authentication
-def view_curve_page(dag_id, execution_date, task_id):
-    return render_template('airflow/curve.html')
-
-
-@csrf.exempt
 @api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['POST'])
 @requires_authentication
 def trigger_dag(dag_id):
