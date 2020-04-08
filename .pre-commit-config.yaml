@@ -353,3 +353,4 @@ repos:
         entry: "stylelint"
         language: node
         files: ^airflow/www/.*\.(css|scss|sass)$
+        additional_dependencies: ["stylelint@13.3.0"]
