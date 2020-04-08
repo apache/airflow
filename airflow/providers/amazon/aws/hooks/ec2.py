@@ -47,7 +47,7 @@ class EC2Hook(AwsBaseHook):
         :return: Instance object
         :rtype: ec2.Instance
         """
-        return self.get_conn().Instance(id=instance_id)
+        return self.conn.Instance(id=instance_id)
 
     def get_instance_state(self, instance_id: str) -> str:
         """
