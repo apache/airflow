@@ -27,6 +27,7 @@ from airflow.models import DAG, SkipMixin, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
@@ -45,7 +46,8 @@ class TestSkipMixin(unittest.TestCase):
         with dag:
             tasks = [DummyOperator(task_id='task')]
         dag_run = dag.create_dagrun(
-            run_id='manual__' + now.isoformat(),
+            run_type=DagRunType.MANUAL,
+            execution_date=now,
             state=State.FAILED,
         )
         SkipMixin().skip(

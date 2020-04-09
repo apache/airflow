@@ -1101,8 +1101,7 @@ class TestDag(unittest.TestCase):
             start_date=DEFAULT_DATE))
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        run_id = f"{DagRunType.SCHEDULED.value}__{DEFAULT_DATE.isoformat()}"
-        dag.create_dagrun(run_id=run_id,
+        dag.create_dagrun(run_type=DagRunType.SCHEDULED,
                           execution_date=DEFAULT_DATE,
                           state=State.SUCCESS,
                           external_trigger=True)
@@ -1345,6 +1344,19 @@ class TestDag(unittest.TestCase):
 
         assert len(drs) == 3
         assert all(dr.state == State.NONE for dr in drs)
+
+    def test_create_dagrun_run_id_is_generated(self):
+        dag = DAG(dag_id="run_id_is_generated")
+        dr = dag.create_dagrun(run_type=DagRunType.MANUAL, execution_date=DEFAULT_DATE, state=State.NONE)
+        assert dr.run_id == f"{DagRunType.MANUAL.value}__{DEFAULT_DATE.isoformat()}"
+
+    def test_create_dagrun_run_type_is_obtained_from_run_id(self):
+        dag = DAG(dag_id="run_type_is_obtained_from_run_id")
+        dr = dag.create_dagrun(run_id=f"{DagRunType.SCHEDULED.value}__", state=State.NONE)
+        assert dr.run_type == DagRunType.SCHEDULED.value
+
+        dr = dag.create_dagrun(run_id="custom_is_set_to_manual", state=State.NONE)
+        assert dr.run_type == DagRunType.MANUAL.value
 
 
 class TestQueries(unittest.TestCase):

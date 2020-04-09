@@ -62,6 +62,42 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### DAG.create_dagrun accepts run_type and does not require run_id
+This change is caused by adding `run_type` column to `DagRun`.
+
+Previous signature:
+```python
+def create_dagrun(self,
+                  run_id,
+                  state,
+                  execution_date=None,
+                  start_date=None,
+                  external_trigger=False,
+                  conf=None,
+                  session=None):
+```
+current:
+```python
+def create_dagrun(self,
+                  state,
+                  execution_date=None,
+                  run_id=None,
+                  start_date=None,
+                  external_trigger=False,
+                  conf=None,
+                  run_type=None,
+                  session=None):
+```
+If user provides `run_id` then the `run_type` will be derived from it by checking prefix, allowed types
+: `manual`, `scheduled`, `backfill` (defined by `airflow.utils.types.DagRunType`).
+
+If user provides `run_type` and `execution_date` then `run_id` is constructed as
+`{run_type}__{execution_data.isoformat()}`.
+
+Airflow should construct dagruns using `run_type` and `execution_date`, creation using
+`run_id` is preserved for user actions.
+
+
 ### Standardised "extra" requirements
 
 We standardised the Extras names and synchronized providers package names with the main airflow extras.
@@ -89,7 +125,6 @@ For example instead of `pip install apache-airflow[atlas]` you should use
 `pip install apache-airflow[apache.atlas]` .
 
 The deprecated extras will be removed in 2.1:
-
 
 ### Skipped tasks can satisfy wait_for_downstream
 

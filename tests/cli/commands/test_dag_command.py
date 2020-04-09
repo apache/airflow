@@ -274,7 +274,7 @@ class TestCliDags(unittest.TestCase):
             dag = self.dagbag.dags[dag_id]
             # Create a DagRun for each DAG, to prepare for next step
             dag.create_dagrun(
-                run_id=DagRunType.MANUAL.value,
+                run_type=DagRunType.MANUAL,
                 execution_date=now,
                 start_date=now,
                 state=State.FAILED

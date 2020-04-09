@@ -29,6 +29,7 @@ from airflow.models import DAG, DagBag, DagModel, Pool
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_pools
 
 EXECDATE = timezone.utcnow()
@@ -64,7 +65,8 @@ class TestLocalClient(unittest.TestCase):
         with freeze_time(EXECDATE):
             # no execution date, execution date should be set automatically
             self.client.trigger_dag(dag_id=test_dag_id)
-            mock.assert_called_once_with(run_id="manual__{0}".format(EXECDATE_ISO),
+            mock.assert_called_once_with(run_type=DagRunType.MANUAL,
+                                         run_id=None,
                                          execution_date=EXECDATE_NOFRACTIONS,
                                          state=State.RUNNING,
                                          conf=None,
@@ -73,7 +75,8 @@ class TestLocalClient(unittest.TestCase):
 
             # execution date with microseconds cutoff
             self.client.trigger_dag(dag_id=test_dag_id, execution_date=EXECDATE)
-            mock.assert_called_once_with(run_id="manual__{0}".format(EXECDATE_ISO),
+            mock.assert_called_once_with(run_type=DagRunType.MANUAL,
+                                         run_id=None,
                                          execution_date=EXECDATE_NOFRACTIONS,
                                          state=State.RUNNING,
                                          conf=None,
@@ -84,6 +87,7 @@ class TestLocalClient(unittest.TestCase):
             run_id = "my_run_id"
             self.client.trigger_dag(dag_id=test_dag_id, run_id=run_id)
             mock.assert_called_once_with(run_id=run_id,
+                                         run_type=None,
                                          execution_date=EXECDATE_NOFRACTIONS,
                                          state=State.RUNNING,
                                          conf=None,
@@ -93,7 +97,8 @@ class TestLocalClient(unittest.TestCase):
             # test conf
             conf = '{"name": "John"}'
             self.client.trigger_dag(dag_id=test_dag_id, conf=conf)
-            mock.assert_called_once_with(run_id="manual__{0}".format(EXECDATE_ISO),
+            mock.assert_called_once_with(run_type=DagRunType.MANUAL,
+                                         run_id=None,
                                          execution_date=EXECDATE_NOFRACTIONS,
                                          state=State.RUNNING,
                                          conf=json.loads(conf),

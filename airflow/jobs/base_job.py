@@ -282,7 +282,7 @@ class BaseJob(Base, LoggingMixin):
                 .filter(
                     # pylint: disable=comparison-with-callable
                     DR.state == State.RUNNING,
-                    DR.run_id.notlike(f"{DagRunType.BACKFILL_JOB.value}__%"),
+                    DR.run_type != DagRunType.BACKFILL_JOB.value,
                     TI.state.in_(resettable_states))).all()
         else:
             resettable_tis = filter_by_dag_run.get_task_instances(state=resettable_states,
