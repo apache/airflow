@@ -626,7 +626,7 @@ class DAG(BaseDag, LoggingMixin):
         Returns Normalized Schedule Interval. This is used internally by the Scheduler to
         schedule DAGs.
 
-        1. Converts Cron Preset to a Cron Expression (e.g "@monthly" to "0 0 1 * *")
+        1. Converts Cron Preset to a Cron Expression (e.g ``@monthly`` to ``0 0 1 * *``)
         2. If Schedule Interval is "@once" return "None"
         3. If not (1) or (2) returns schedule_interval
         """
