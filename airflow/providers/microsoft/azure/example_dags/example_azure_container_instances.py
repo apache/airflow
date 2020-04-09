@@ -40,7 +40,7 @@ with DAG(
     dag_id='aci_example',
     default_args=default_args,
     schedule_interval=timedelta(1),
-    tags=['example'],
+    tags={'example'},
 ) as dag:
 
     t1 = AzureContainerInstancesOperator(

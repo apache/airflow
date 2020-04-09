@@ -63,7 +63,7 @@ with models.DAG(
     "example_gcp_speech",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
-    tags=['example'],
+    tags={'example'},
 ) as dag:
 
     # [START howto_operator_text_to_speech_synthesize]

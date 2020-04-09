@@ -188,8 +188,8 @@ class DAG(BaseDag, LoggingMixin):
         <https://jinja.palletsprojects.com/en/master/api/#jinja2.Environment>`_
 
     :type jinja_environment_kwargs: dict
-    :param tags: List of tags to help filtering DAGS in the UI.
-    :type tags: List[str]
+    :param tags: Set of tags to help filtering DAGS in the UI.
+    :type tags: Set[str]
     """
     _comps = {
         'dag_id',
@@ -231,7 +231,7 @@ class DAG(BaseDag, LoggingMixin):
         access_control: Optional[Dict] = None,
         is_paused_upon_creation: Optional[bool] = None,
         jinja_environment_kwargs: Optional[Dict] = None,
-        tags: Optional[List[str]] = None
+        tags: Optional[Set[str]] = None
     ):
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
@@ -328,7 +328,7 @@ class DAG(BaseDag, LoggingMixin):
         self.is_paused_upon_creation = is_paused_upon_creation
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
-        self.tags = tags
+        self.tags = tags or {}
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)

@@ -75,7 +75,7 @@ with models.DAG(
     "example_gcp_cloud_build",
     default_args=dict(start_date=dates.days_ago(1)),
     schedule_interval=None,
-    tags=['example'],
+    tags={'example'},
 ) as dag:
     # [START howto_operator_create_build_from_storage]
     create_build_from_storage = CloudBuildCreateOperator(

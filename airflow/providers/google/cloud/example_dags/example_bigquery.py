@@ -88,7 +88,7 @@ with models.DAG(
     "example_bigquery",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
-    tags=['example'],
+    tags={'example'},
 ) as dag:
 
     execute_query = BigQueryExecuteQueryOperator(

@@ -36,7 +36,7 @@ dag = DAG(
     dag_id=DAG_NAME,
     default_args=args,
     schedule_interval="@once",
-    tags=['example']
+    tags={'example'}
 )
 
 start = DummyOperator(

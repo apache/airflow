@@ -56,7 +56,7 @@ with models.DAG(
     "example_gcp_dlp",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
-    tags=['example'],
+    tags={'example'},
 ) as dag:
     create_template = CloudDLPCreateInspectTemplateOperator(
         project_id=GCP_PROJECT,

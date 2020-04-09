@@ -88,7 +88,7 @@ with models.DAG(
     "example_gcp_transfer",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
-    tags=["example"],
+    tags={"example"},
 ) as dag:
 
     create_transfer = CloudDataTransferServiceCreateJobOperator(

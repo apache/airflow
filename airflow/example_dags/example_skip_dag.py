@@ -57,6 +57,6 @@ def create_test_pipeline(suffix, trigger_rule, dag_):
     join >> final
 
 
-dag = DAG(dag_id='example_skip_dag', default_args=args, tags=['example'])
+dag = DAG(dag_id='example_skip_dag', default_args=args, tags={'example'})
 create_test_pipeline('1', 'all_success', dag)
 create_test_pipeline('2', 'one_success', dag)

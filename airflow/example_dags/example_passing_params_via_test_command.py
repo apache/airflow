@@ -34,7 +34,7 @@ dag = DAG(
     },
     schedule_interval='*/1 * * * *',
     dagrun_timeout=timedelta(minutes=4),
-    tags=['example']
+    tags={'example'}
 )
 
 

@@ -32,7 +32,7 @@ with models.DAG(
     dag_id="example_complex",
     default_args=default_args,
     schedule_interval=None,
-    tags=['example'],
+    tags={'example'},
 ) as dag:
 
     # Create
