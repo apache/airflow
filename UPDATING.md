@@ -61,6 +61,11 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Change dag tags type from list to set 
+
+Each DAG tags store in database without duplicate name but now we use list could contain duplicate elements,
+So we change type from list to set
+
 ### Setting Empty string to a Airflow Variable will return an empty string
 
 Previously when you set an Airflow Variable with an empty string (`''`), the value you used to get
