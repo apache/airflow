@@ -1339,6 +1339,20 @@ class TestDag(unittest.TestCase):
         self.assertEqual(dag.normalized_schedule_interval, expected_n_schedule_interval)
         self.assertEqual(dag.schedule_interval, schedule_interval)
 
+    def test_set_dag_runs_state(self):
+        clear_db_runs()
+        dag_id = "test_set_dag_runs_state"
+        dag = DAG(dag_id=dag_id)
+
+        for i in range(3):
+            dag.create_dagrun(run_id=f"test{i}", state=State.RUNNING)
+
+        dag.set_dag_runs_state(state=State.NONE)
+        drs = DagRun.find(dag_id=dag_id)
+
+        assert len(drs) == 3
+        assert all(dr.state == State.NONE for dr in drs)
+
 
 class TestQueries(unittest.TestCase):
 
