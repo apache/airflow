@@ -1136,6 +1136,7 @@ class TestDag(unittest.TestCase):
         dag_id = "test_schedule_dag_once"
         dag = DAG(dag_id=dag_id)
         dag.schedule_interval = '@once'
+        self.assertEqual(dag.normalized_schedule_interval, None)
         dag.add_task(BaseOperator(
             task_id="faketastic",
             owner='Also fake',
@@ -1319,6 +1320,24 @@ class TestDag(unittest.TestCase):
             session.query(DagModel).filter(
                 DagModel.dag_id == dag_id).delete(
                 synchronize_session=False)
+
+    @parameterized.expand([
+        (None, None),
+        ("@daily", "0 0 * * *"),
+        ("@weekly", "0 0 * * 0"),
+        ("@monthly", "0 0 1 * *"),
+        ("@quarterly", "0 0 1 */3 *"),
+        ("@yearly", "0 0 1 1 *"),
+        ("@once", None),
+        (datetime.timedelta(days=1), datetime.timedelta(days=1)),
+    ])
+    def test_normalized_schedule_interval(
+        self, schedule_interval, expected_n_schedule_interval
+    ):
+        dag = DAG("test_schedule_interval", schedule_interval=schedule_interval)
+
+        self.assertEqual(dag.normalized_schedule_interval, expected_n_schedule_interval)
+        self.assertEqual(dag.schedule_interval, schedule_interval)
 
 
 class TestQueries(unittest.TestCase):
