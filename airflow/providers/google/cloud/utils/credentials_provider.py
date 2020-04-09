@@ -244,10 +244,10 @@ def get_credentials_and_project_id(
         if hasattr(credentials, 'with_subject'):
             credentials = credentials.with_subject(delegate_to)
         else:
-            log.warning(
-                "The `delegate_to` parameter has been ignored as the current "
-                "authentication method does not support account impersonate"
-                ". Please use service-account for authorization."
+            raise AirflowException(
+                "The `delegate_to` parameter cannot be used here as the current "
+                "authentication method does not support account impersonate. "
+                "Please use service-account for authorization."
             )
 
     return credentials, project_id
