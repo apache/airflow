@@ -1468,3 +1468,8 @@ function run_generate_requirements() {
             "--" "/opt/airflow/scripts/ci/in_container/run_generate_requirements.sh" \
             | tee -a "${OUTPUT_LOG}"
 }
+
+
+function get_airflow_version_from_production_image() {
+     docker run --entrypoint /bin/bash ${AIRFLOW_PROD_IMAGE} -c 'echo "${AIRFLOW_VERSION}"'
+}
