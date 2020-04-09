@@ -467,6 +467,7 @@ function prepare_command_files() {
     MAIN_PROD_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/base.yml
     BACKEND_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml
     LOCAL_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/local.yml
+    LOCAL_PROD_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/local-prod.yml
     KUBERNETES_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/runtime-kubernetes.yml
     REMOVE_SOURCES_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/remove-sources.yml
     FORWARD_CREDENTIALS_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/forward-credentials.yml
@@ -476,6 +477,7 @@ function prepare_command_files() {
 
     if [[ "${MOUNT_LOCAL_SOURCES}" != "false" ]]; then
         COMPOSE_CI_FILE=${COMPOSE_CI_FILE}:${LOCAL_DOCKER_COMPOSE_FILE}
+        COMPOSE_PROD_FILE=${COMPOSE_PROD_FILE}:${LOCAL_PROD_DOCKER_COMPOSE_FILE}
     fi
 
     if [[ ${FORWARD_CREDENTIALS} == "true" ]]; then
