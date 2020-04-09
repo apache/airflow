@@ -26,6 +26,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Airflow Master](#airflow-master)
+- [Airflow 1.10.10](#airflow-11010)
 - [Airflow 1.10.9](#airflow-1109)
 - [Airflow 1.10.8](#airflow-1108)
 - [Airflow 1.10.7](#airflow-1107)
@@ -60,20 +61,6 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
-
-### Setting Empty string to a Airflow Variable will return an empty string
-
-Previously when you set an Airflow Variable with an empty string (`''`), the value you used to get
-back was ``None``. This will now return an empty string (`'''`)
-
-Example:
-
-```python
->> Variable.set('test_key', '')
->> Variable.get('test_key')
-```
-
-The above code returned `None` previously, now it will return `''`.
 
 ### Rename pool statsd metrics
 
@@ -175,10 +162,6 @@ replaced with its corresponding new path.
 | ``airflow.conf``             | ``airflow.configuration.conf``                   |
 | ``airflow.AirflowException`` | ``airflow.exceptions.AirflowException``          |
 
-### Success Callback will be called when a task in marked as success from UI
-
-When a task is marked as success by a user from Airflow UI - `on_success_callback` will be called
-
 ### Added `airflow dags test` CLI command
 
 A new command was added to the CLI for executing one full run of a DAG for a given execution date, similar to
@@ -243,15 +226,6 @@ The following methods were moved:
 | airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_table_upsert              | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_table_upsert              |
 | airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_with_configuration        | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration        |
 | airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.update_dataset                | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_dataset                |
-
-### Make behavior of `none_failed` trigger rule consistent with documentation
-The behavior of the `none_failed` trigger rule is documented as "all parents have not failed (`failed` or
-    `upstream_failed`) i.e. all parents have succeeded or been skipped." As previously implemented, the actual behavior
-    would skip if all parents of a task had also skipped.
-
-### Add new trigger rule `none_failed_or_skipped`
-The fix to `none_failed` trigger rule breaks workflows that depend on the previous behavior.
-    If you need the old behavior, you should change the tasks with `none_failed` trigger rule to `none_failed_or_skipped`.
 
 ### Standardize handling http exception in BigQuery
 
@@ -1129,6 +1103,35 @@ No change is needed if only the default trigger rule `all_success` is being used
 If the DAG relies on tasks with other trigger rules (i.e. `all_done`) being skipped by the `LatestOnlyOperator`, adjustments to the DAG need to be made to commodate the change in behaviour, i.e. with additional edges from the `LatestOnlyOperator`.
 
 The goal of this change is to achieve a more consistent and configurale cascading behaviour based on the `BaseBranchOperator` (see [AIRFLOW-2923](https://jira.apache.org/jira/browse/AIRFLOW-2923) and [AIRFLOW-1784](https://jira.apache.org/jira/browse/AIRFLOW-1784)).
+
+## Airflow 1.10.10
+
+### Setting Empty string to a Airflow Variable will return an empty string
+
+Previously when you set an Airflow Variable with an empty string (`''`), the value you used to get
+back was ``None``. This will now return an empty string (`'''`)
+
+Example:
+
+```python
+>> Variable.set('test_key', '')
+>> Variable.get('test_key')
+```
+
+The above code returned `None` previously, now it will return `''`.
+
+### Make behavior of `none_failed` trigger rule consistent with documentation
+The behavior of the `none_failed` trigger rule is documented as "all parents have not failed (`failed` or
+    `upstream_failed`) i.e. all parents have succeeded or been skipped." As previously implemented, the actual behavior
+    would skip if all parents of a task had also skipped.
+
+### Add new trigger rule `none_failed_or_skipped`
+The fix to `none_failed` trigger rule breaks workflows that depend on the previous behavior.
+    If you need the old behavior, you should change the tasks with `none_failed` trigger rule to `none_failed_or_skipped`.
+
+### Success Callback will be called when a task in marked as success from UI
+
+When a task is marked as success by a user from Airflow UI - `on_success_callback` will be called
 
 ## Airflow 1.10.9
 
