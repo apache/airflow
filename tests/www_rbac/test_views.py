@@ -502,6 +502,21 @@ class TestAirflowBaseViews(TestBase):
             self.client.get('home?reset_tags', follow_redirects=True)
             self.assertEqual(None, flask_session[FILTER_TAGS_COOKIE])
 
+    def test_home_status_filter_cookie(self):
+        from airflow.www_rbac.views import FILTER_STATUS_COOKIE
+        with self.client:
+            self.client.get('home', follow_redirects=True)
+            self.assertEqual('all', flask_session[FILTER_STATUS_COOKIE])
+
+            self.client.get('home?status=active', follow_redirects=True)
+            self.assertEqual('active', flask_session[FILTER_STATUS_COOKIE])
+
+            self.client.get('home?status=paused', follow_redirects=True)
+            self.assertEqual('paused', flask_session[FILTER_STATUS_COOKIE])
+
+            self.client.get('home?status=all', follow_redirects=True)
+            self.assertEqual('all', flask_session[FILTER_STATUS_COOKIE])
+
     def test_task(self):
         url = ('task?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
                .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
@@ -1493,7 +1508,7 @@ class TestDagACLView(TestBase):
         self.login(username='all_dag_user',
                    password='all_dag_user')
         resp = self.client.get(
-            'dagmodel/autocomplete?query=example_bash&showPaused=True',
+            'dagmodel/autocomplete?query=example_bash',
             follow_redirects=False)
         self.check_content_in_response('example_bash_operator', resp)
         self.check_content_not_in_response('example_subdag_operator', resp)
