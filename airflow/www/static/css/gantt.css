@@ -28,6 +28,7 @@ rect {
   stroke: #000;
   cursor: pointer;
 }
+
 /* Creates a small triangle extender for the tooltip */
 .d3-tip::after {
   box-sizing: border-box;
