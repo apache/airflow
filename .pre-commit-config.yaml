@@ -354,4 +354,4 @@ repos:
         language: node
         files: ^airflow/www/.*\.(css|scss|sass)$
         # Keep dependency versions in sync w/ airflow/www/package.json
-        additional_dependencies: ['stylelint@13.3.0', 'stylelint-config-standard@20.0.0']
+        additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0']
