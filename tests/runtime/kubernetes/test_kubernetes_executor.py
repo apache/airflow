@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
 import re
 import time
 import unittest
@@ -26,7 +25,7 @@ import requests.exceptions
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-KUBERNETES_HOST = (os.environ.get('CLUSTER_NAME') or "docker") + "-worker:30809"
+KUBERNETES_HOST = "localhost:8080"
 
 
 @pytest.mark.runtime("kubernetes")

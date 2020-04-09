@@ -55,26 +55,6 @@ jobs:
         PYTHON_MAJOR_MINOR_VERSION=3.6
       stage: test
       script: ./scripts/ci/ci_docs.sh
-    - name: "Tests [Py3.6][Kubernetes][persistent]"
-      env: >-
-        BACKEND=postgres
-        PYTHON_MAJOR_MINOR_VERSION=3.6
-        RUNTIME=kubernetes
-        ENABLE_KIND_CLUSTER=true
-        KUBERNETES_MODE=persistent_mode
-        KUBERNETES_VERSION=v1.15.3
-      python: "3.6"
-      stage: test
-    - name: "Tests [Py3.7][Kubernetes][git]"
-      env: >-
-        BACKEND=postgres
-        PYTHON_MAJOR_MINOR_VERSION=3.7
-        RUNTIME=kubernetes
-        ENABLE_KIND_CLUSTER=true
-        KUBERNETES_MODE=git_mode
-        KUBERNETES_VERSION=v1.15.3
-      python: "3.6"
-      stage: test
     - name: "Tests [Postgres9.6][Py3.6][integrations]"
       env: >-
         BACKEND=postgres

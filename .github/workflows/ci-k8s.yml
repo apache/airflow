@@ -1,0 +1,70 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: "k8s tests"
+on: [pull_request, push]
+
+jobs:
+  create-airflow-dockerfile:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        k8s-version: [v1.15.7, v1.16.4, v1.17.2, v1.18.0]
+    steps:
+      - uses: actions/checkout@v2
+        name: checkout
+      - name: create k8s Kind Cluster
+        uses: helm/kind-action@v1.0.0-rc.1
+        with:
+          cluster_name: kind
+          node_image: kindest/node:${{ matrix.k8s-version }}
+          config: ./kind-cluster-conf.yaml
+      - name: test cluster running
+        run: |
+          kubectl cluster-info
+          kubectl get pods -n kube-system
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.7'
+      - name: download helm
+        run: |
+         curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+         chmod 700 get_helm.sh
+         ./get_helm.sh
+      - name: create namespace
+        run: kubectl create namespace airflow
+      - name: pull astronomer helm chart
+        run: |
+         helm repo add astronomer https://helm.astronomer.io
+         helm install airflow --namespace airflow astronomer/airflow \
+          --set env[0].name=AIRFLOW__CORE__LOAD_EXAMPLES \
+          --set env[0].value=True
+         kubectl get pods --namespace airflow
+         kubectl get svc --namespace airflow
+         kubectl port-forward --namespace airflow svc/airflow-webserver 8080:8080 &
+      - name: pip install airflow
+        run: pip install -e .[devel]
+      - name: run k8sexecutor tests
+        run: |
+         pytest tests/runtime/kubernetes/test_kubernetes_executor.py
+        env:
+          RUNTIME: kubernetes
+      - name: run k8sPodOperator tests
+        run: pytest tests/runtime/kubernetes/test_kubernetes_pod_operator.py
+        env:
+          RUNTIME: kubernetes
