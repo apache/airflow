@@ -924,12 +924,7 @@ class DAG(BaseDag, LoggingMixin):
             query = query.filter(DagRun.execution_date >= start_date)
         if end_date:
             query = query.filter(DagRun.execution_date <= end_date)
-        drs = query.all()
-
-        dirty_ids = []
-        for dr in drs:
-            dr.state = state
-            dirty_ids.append(dr.dag_id)
+        query.update({DagRun.state: state})
 
     @provide_session
     def clear(
