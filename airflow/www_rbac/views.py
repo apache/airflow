@@ -1977,6 +1977,8 @@ class Airflow(AirflowBaseView):
         # determine bars to show in the gantt chart
         # all reschedules of one attempt are combinded into one bar
         gantt_bar_items = []
+
+        tasks = []
         for ti in tis:
             end_date = ti.end_date or timezone.utcnow()
             # prev_attempted_tries will reflect the currently running try_number
@@ -1984,6 +1986,7 @@ class Airflow(AirflowBaseView):
             # https://issues.apache.org/jira/browse/AIRFLOW-2143
             try_count = ti.prev_attempted_tries
             gantt_bar_items.append((ti.task_id, ti.start_date, end_date, ti.state, try_count))
+            tasks.append(alchemy_to_dict(ti))
 
         tf_count = 0
         try_count = 1
@@ -1998,6 +2001,11 @@ class Airflow(AirflowBaseView):
             prev_task_id = tf.task_id
             gantt_bar_items.append((tf.task_id, start_date, end_date, State.FAILED, try_count))
             tf_count = tf_count + 1
+            d = alchemy_to_dict(tf)
+            d['state'] = State.FAILED
+            d['operator'] = dag.get_task(tf.task_id).task_type
+            d['try_number'] = try_count
+            tasks.append(d)
 
         task_types = {}
         extra_links = {}
@@ -2005,32 +2013,9 @@ class Airflow(AirflowBaseView):
             task_types[t.task_id] = t.task_type
             extra_links[t.task_id] = t.extra_links
 
-        tasks = []
-        for gantt_bar_item in gantt_bar_items:
-            task_id = gantt_bar_item[0]
-            start_date = gantt_bar_item[1]
-            end_date = gantt_bar_item[2]
-            state = gantt_bar_item[3]
-            try_count = gantt_bar_item[4]
-            tasks.append({
-                'startDate': wwwutils.epoch(start_date),
-                'endDate': wwwutils.epoch(end_date),
-                'isoStart': start_date.isoformat()[:-4],
-                'isoEnd': end_date.isoformat()[:-4],
-                'taskName': task_id,
-                'taskType': task_types[ti.task_id],
-                'duration': (end_date - start_date).total_seconds(),
-                'status': state,
-                'executionDate': dttm.isoformat(),
-                'try_number': try_count,
-                'extraLinks': extra_links[ti.task_id],
-            })
-
-        states = {task['status']: task['status'] for task in tasks}
         data = {
             'taskNames': [ti.task_id for ti in tis],
             'tasks': tasks,
-            'taskStatus': states,
             'height': len(tis) * 25 + 25,
         }
 
