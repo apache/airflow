@@ -70,7 +70,7 @@ with models.DAG(
     "example_google_firestore",
     default_args=dict(start_date=dates.days_ago(1)),
     schedule_interval=None,
-    tags=["example"],
+    tags={"example"},
 ) as dag:
     # [START howto_operator_export_database_to_gcs]
     export_database_to_gcs = CloudFirestoreExportDatabaseOperator(

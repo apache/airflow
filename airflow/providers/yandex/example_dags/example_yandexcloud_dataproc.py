@@ -44,7 +44,7 @@ with DAG(
     'example_yandexcloud_dataproc_operator',
     default_args=default_args,
     schedule_interval=None,
-    tags=['example'],
+    tags={'example'},
 ) as dag:
     create_cluster = DataprocCreateClusterOperator(
         task_id='create_cluster',

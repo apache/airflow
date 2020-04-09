@@ -103,7 +103,7 @@ with models.DAG(
     'example_gcp_function',
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
-    tags=['example'],
+    tags={'example'},
 ) as dag:
     # [START howto_operator_gcf_deploy]
     deploy_task = CloudFunctionDeployFunctionOperator(

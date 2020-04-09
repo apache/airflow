@@ -97,7 +97,7 @@ with models.DAG(
     'example_gcp_compute_igm',
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
-    tags=['example'],
+    tags={'example'},
 ) as dag:
     # [START howto_operator_gce_igm_copy_template]
     gce_instance_template_copy = ComputeEngineCopyInstanceTemplateOperator(

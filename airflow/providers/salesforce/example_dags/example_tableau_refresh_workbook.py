@@ -41,7 +41,7 @@ with DAG(
     default_args=DEFAULT_ARGS,
     dagrun_timeout=timedelta(hours=2),
     schedule_interval=None,
-    tags=['example'],
+    tags={'example'},
 ) as dag:
     # Refreshes a workbook and waits until it succeeds.
     task_refresh_workbook_blocking = TableauRefreshWorkbookOperator(

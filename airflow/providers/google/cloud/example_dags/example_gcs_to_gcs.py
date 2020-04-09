@@ -37,7 +37,7 @@ BUCKET_3_SRC = os.environ.get("GCP_GCS_BUCKET_3_SRC", "test-gcs-sync-3-src")
 BUCKET_3_DST = os.environ.get("GCP_GCS_BUCKET_3_DST", "test-gcs-sync-3-dst")
 
 with models.DAG(
-    "example_gcs_to_gcs", default_args=default_args, schedule_interval=None, tags=['example']
+    "example_gcs_to_gcs", default_args=default_args, schedule_interval=None, tags={'example'}
 ) as dag:
     sync_full_bucket = GCSSynchronizeBuckets(
         task_id="sync-full-bucket",

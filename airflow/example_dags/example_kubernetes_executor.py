@@ -34,7 +34,7 @@ with DAG(
     dag_id='example_kubernetes_executor',
     default_args=args,
     schedule_interval=None,
-    tags=['example'],
+    tags={'example'},
 ) as dag:
 
     affinity = {

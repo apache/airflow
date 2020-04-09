@@ -60,7 +60,7 @@ with models.DAG(
     'example_gcp_spanner',
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
-    tags=['example'],
+    tags={'example'},
 ) as dag:
     # Create
     # [START howto_operator_spanner_deploy]

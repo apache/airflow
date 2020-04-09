@@ -31,7 +31,7 @@ dag = DAG(
     dag_id='example_pig_operator',
     default_args=args,
     schedule_interval=None,
-    tags=['example']
+    tags={'example'}
 )
 
 run_this = PigOperator(

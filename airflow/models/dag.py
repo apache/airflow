@@ -189,7 +189,7 @@ class DAG(BaseDag, LoggingMixin):
 
     :type jinja_environment_kwargs: dict
     :param tags: Set of tags to help filtering DAGS in the UI.
-    :type tags: Set[str]
+    :type tags: Optional[Set[str]]
     """
     _comps = {
         'dag_id',
@@ -328,7 +328,7 @@ class DAG(BaseDag, LoggingMixin):
         self.is_paused_upon_creation = is_paused_upon_creation
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
-        self.tags = tags or {}
+        self.tags = tags or {}  # type: ignore
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
@@ -1522,7 +1522,7 @@ class DAG(BaseDag, LoggingMixin):
                 orm_dag.tags.remove(orm_tag)
             if dag.tags:
                 orm_tag_names = [t.name for t in orm_dag.tags]
-                for dag_tag in list(dag.tags):
+                for dag_tag in dag.tags:
                     if dag_tag not in orm_tag_names:
                         dag_tag_orm = DagTag(name=dag_tag, dag_id=dag.dag_id)
                         orm_dag.tags.append(dag_tag_orm)

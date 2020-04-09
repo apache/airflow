@@ -50,7 +50,7 @@ with models.DAG(
     dag_id=f"example_presto_to_gcs",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
-    tags=["example"],
+    tags={"example"},
 ) as dag:
 
     create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create-dataset", dataset_id=DATASET_NAME)

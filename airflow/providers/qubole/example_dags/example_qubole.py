@@ -40,7 +40,7 @@ with DAG(
     dag_id='example_qubole_operator',
     default_args=default_args,
     schedule_interval=None,
-    tags=['example'],
+    tags={'example'},
 ) as dag:
     dag.doc_md = textwrap.dedent(
         """
@@ -237,7 +237,7 @@ with DAG(
     default_args=default_args,
     schedule_interval=None,
     doc_md=__doc__,
-    tags=['example'],
+    tags={'example'},
 ) as dag2:
     dag2.doc_md = textwrap.dedent(
         """

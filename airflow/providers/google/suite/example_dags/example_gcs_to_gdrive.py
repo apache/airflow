@@ -32,7 +32,7 @@ with models.DAG(
     "example_gcs_to_gdrive",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
-    tags=['example'],
+    tags={'example'},
 ) as dag:
     # [START howto_operator_gcs_to_gdrive_copy_single_file]
     copy_single_file = GCSToGoogleDriveOperator(

@@ -61,7 +61,7 @@ with models.DAG(
     "example_automl_text_cls",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
-    tags=['example'],
+    tags={'example'},
 ) as example_dag:
     create_dataset_task = AutoMLCreateDatasetOperator(
         task_id="create_dataset_task", dataset=DATASET, location=GCP_AUTOML_LOCATION
