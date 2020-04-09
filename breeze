@@ -339,6 +339,7 @@ EOF
 
                                Branch name:            ${BRANCH_NAME}
                                Docker image:           ${AIRFLOW_PROD_IMAGE}
+                               Airflow source version: $(get_airflow_version_from_production_image)
 EOF
         else
             cat <<EOF
@@ -347,10 +348,10 @@ EOF
 
                                Branch name:            ${BRANCH_NAME}
                                Docker image:           ${AIRFLOW_CI_IMAGE}
+                               Airflow source version: ${AIRFLOW_VERSION}
 EOF
         fi
         cat <<EOF
-                               Airflow source version: ${AIRFLOW_VERSION}
                                Python version:         ${PYTHON_MAJOR_MINOR_VERSION}
                                DockerHub user:         ${DOCKERHUB_USER}
                                DockerHub repo:         ${DOCKERHUB_REPO}

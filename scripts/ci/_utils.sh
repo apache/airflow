@@ -165,7 +165,7 @@ function initialize_common_environment {
 
     # upgrade while generating requirements should only happen in localy run
     # pre-commits or in cron job
-    if [[ ${LOCAL_RUN} == "true" || "${TRAVIS_EVENT_TYPE:=}" != "cron" ]]; then
+    if [[ ${LOCAL_RUN} == "true" || "${TRAVIS_EVENT_TYPE:=}" == "cron" ]]; then
         export UPGRADE_WHILE_GENERATING_REQUIREMENTS="true"
     else
         export UPGRADE_WHILE_GENERATING_REQUIREMENTS="false"
@@ -959,7 +959,8 @@ function build_ci_image_on_ci() {
         fi
     elif [[ ${TRAVIS_JOB_NAME} == "Static"* ]]; then
         rebuild_ci_image_if_needed
-    elif [[ ${TRAVIS_JOB_NAME} == *"documentation"* ]]; then
+    elif [[ ${TRAVIS_JOB_NAME} == *"documentation"* || \
+            ${TRAVIS_JOB_NAME} == *"Generate requirements"* ]]; then
         rebuild_ci_image_if_needed
     else
         echo
@@ -1453,4 +1454,9 @@ function set_mysql_encoding() {
         # to utf8 (which is an alias to utf8mb3)
         export MYSQL_ENCODING=utf8
     fi
+}
+
+
+function get_airflow_version_from_production_image() {
+     docker run --entrypoint /bin/bash ${AIRFLOW_PROD_IMAGE} -c 'echo "${AIRFLOW_VERSION}"'
 }
