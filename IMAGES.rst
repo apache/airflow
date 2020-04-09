@@ -254,10 +254,6 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | downloaded for constraints (when         |
 |                                          |                                          | installed from repo).                    |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``WWW_FOLDER``                           | ``www``                                  | folder where www pages are generated -   |
-|                                          |                                          | should be set to www_rbac in case of     |
-|                                          |                                          | 1.10 image builds.                       |
-+------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | (see Dockerfile)                         | Default extras with which airflow is     |
 |                                          |                                          | installed                                |
 +------------------------------------------+------------------------------------------+------------------------------------------+
@@ -316,15 +312,15 @@ production image. There are three types of build:
 |                                   | series it should be "www_rbac".   |
 |                                   | See examples below                |
 +-----------------------------------+-----------------------------------+
-| ``AIRFLOW_SOURCES_FROM``          | Sources of Airflow. Should be set |
-|                                   | to "Dockerfile" to avoid costly   |
+| ``AIRFLOW_SOURCES_FROM``          | Sources of Airflow. Set it to     |
+|                                   | "entrypoint.sh" to avoid costly   |
 |                                   | Docker context copying            |
 |                                   | in case of installation from      |
 |                                   | the package or from GitHub URL.   |
 |                                   | See examples below                |
 +-----------------------------------+-----------------------------------+
 | ``AIRFLOW_SOURCES_TO``            | Target for Airflow sources. Set   |
-|                                   | to "/Dockerfile" to avoid costly  |
+|                                   | to "/entrypoint" to avoid costly  |
 |                                   | Docker context copying            |
 |                                   | in case of installation from      |
 |                                   | the package or from GitHub URL.   |
@@ -341,9 +337,7 @@ This builds production image in version 3.6 with default extras from the local s
 This builds the production image in version 3.7 with default extras from 1.10.9 tag and
 requirements taken from v1-10-test branch in Github.
 Note that versions 1.10.9 and below have no requirements so requirements should be taken from head of
-the v1-10-test branch. Once we release 1.10.10 we can take them from the 1.10.10 tag. Also
-Note that in case of Airflow 1.10 we need to specify "www_rbac" instead of "wwww" for
-WWW_FOLDER argument.
+the 1.10.10 tag.
 
 .. code-block::
 
@@ -353,9 +347,8 @@ WWW_FOLDER argument.
     --build-arg AIRFLOW_INSTALL_SOURCES="https://github.com/apache/airflow/archive/1.10.10.tar.gz#egg=apache-airflow" \
     --build-arg CONSTRAINT_REQUIREMENTS="https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt" \
     --build-arg ENTRYPOINT_FILE="https://raw.githubusercontent.com/apache/airflow/1.10.10/entrypoint.sh" \
-    --build-arg SOURCES_FROM="Dockerfile" \
-    --build-arg SOURCES_TO="/Dockerfile" \
-    --build-arg WWW_FOLDER="www_rbac"
+    --build-arg AIRFLOW_SOURCES_FROM="entrypoint.sh" \
+    --build-arg AIRFLOW_SOURCES_TO="/entrypoint"
 
 This builds the production image in version 3.6 with default extras from current sources.
 
@@ -370,9 +363,8 @@ This builds the production image in version 3.6 with default extras from current
     --build-arg AIRFLOW_INSTALL_VERSION="==1.10.10" \
     --build-arg CONSTRAINT_REQUIREMENTS="https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt"
     --build-arg ENTRYPOINT_FILE="https://raw.githubusercontent.com/apache/airflow/1.10.10/entrypoint.sh" \
-    --build-arg SOURCES_FROM="Dockerfile" \
-    --build-arg SOURCES_TO="/Dockerfile" \
-    --build-arg WWW_FOLDER="www_rbac"
+    --build-arg AIRFLOW_SOURCES_FROM="entrypoint.sh" \
+    --build-arg AIRFLOW_SOURCES_TO="/entrypoint"
 
 Image manifests
 ---------------

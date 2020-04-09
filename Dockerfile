@@ -34,8 +34,6 @@
 #                        much smaller.
 #
 ARG AIRFLOW_VERSION="2.0.0.dev0"
-ARG WWW_FOLDER="www"
-
 ARG AIRFLOW_EXTRAS="async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,ssh,statsd,virtualenv"
 
 ARG AIRFLOW_HOME=/opt/airflow
@@ -154,6 +152,9 @@ ENV PIP_VERSION=${PIP_VERSION}
 
 RUN pip install --upgrade pip==${PIP_VERSION}
 
+ARG AIRFLOW_SOURCES_FROM="."
+ENV AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM}
+
 ARG AIRFLOW_SOURCES_TO="/opt/airflow"
 ENV AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO}
 
@@ -177,9 +178,6 @@ ENV AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION}
 ARG CONSTRAINT_REQUIREMENTS="requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
 ENV CONSTRAINT_REQUIREMENTS=${CONSTRAINT_REQUIREMENTS}
 
-ARG AIRFLOW_SOURCES_FROM="."
-ENV AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM}
-
 WORKDIR /opt/airflow
 
 # hadolint ignore=DL3020
@@ -192,16 +190,17 @@ RUN pip install --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]${AIRFLOW_I
     find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r && \
     find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r
 
-
-ARG WWW_FOLDER
-ENV WWW_FOLDER=${WWW_FOLDER}
-
-ENV AIRFLOW_WWW=/root/.local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow/${WWW_FOLDER}
-
-RUN if [[ -f "${AIRFLOW_WWW}/package.json" ]]; then \
-        yarn --cwd ${AIRFLOW_WWW} install --frozen-lockfile --no-cache; \
-        yarn --cwd ${AIRFLOW_WWW} run prod; \
-        rm -rf ${AIRFLOW_WWW}/node_modules; \
+RUN WWW_DIR=""; \
+    AIRFLOW_SITE_PACKAGE=/root/.local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow; \
+    if [[ -f "${AIRFLOW_SITE_PACKAGE}/www_rbac/package.json" ]]; then \
+        WWW_DIR=$"${AIRFLOW_SITE_PACKAGE}/www_rbac"; \
+    elif [[ -f "${AIRFLOW_SITE_PACKAGE}/www/package.json" ]]; then \
+        WWW_DIR=$"${AIRFLOW_SITE_PACKAGE}/www"; \
+    fi; \
+    if [[ ${WWW_DIR} != "" ]]; then \
+        yarn --cwd ${WWW_DIR} install --frozen-lockfile --no-cache; \
+        yarn --cwd ${WWW_DIR} run prod; \
+        rm -rf ${WWW_DIR}/node_modules; \
     fi
 
 ARG ENTRYPOINT_FILE="entrypoint.sh"
@@ -209,6 +208,7 @@ ENV ENTRYPOINT_FILE="${ENTRYPOINT_FILE}"
 
 # hadolint ignore=DL3020
 ADD ${ENTRYPOINT_FILE} /entrypoint
+RUN chmod a+x /entrypoint
 
 ##############################################################################################
 # This is the actual Airflow image - much smaller than the build one. We copy

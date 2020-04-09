@@ -21,6 +21,8 @@
 
 declare -a EXTRA_DOCKER_FLAGS
 declare -a EXTRA_DOCKER_PROD_BUILD_FLAGS
+export EXTRA_DOCKER_FLAGS
+export EXTRA_DOCKER_PROD_BUILD_FLAGS
 
 function check_verbose_setup {
     if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
@@ -132,11 +134,7 @@ function initialize_common_environment {
             "--env" "PYTHONDONTWRITEBYTECODE" \
         )
     fi
-
-    export EXTRA_DOCKER_FLAGS
-
     EXTRA_DOCKER_PROD_BUILD_FLAGS=()
-    export EXTRA_DOCKER_PROD_BUILD_FLAGS
 
     # We use pulled docker image cache by default to speed up the builds
     export DOCKER_CACHE=${DOCKER_CACHE:="pulled"}
@@ -1374,6 +1372,40 @@ function prepare_ci_build() {
     fix_group_permissions
 }
 
+function add_build_args_for_remote_install() {
+    # entrypoint is used as AIRFLOW_SOURCES_FROM/TO in order to avoid costly copying of all sources of
+    # Airflow - those are not needed for remote install at all. Entrypoint is later overwritten by
+    # ENTRYPOINT_FILE - downloaded entrypoint.sh so this is only for the purpose of iteration on Dockerfile
+    EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+        "--build-arg" "AIRFLOW_SOURCES_FROM=entrypoint.sh"
+        "--build-arg" "AIRFLOW_SOURCES_TO=/entrypoint"
+    )
+    if [[ ${AIRFLOW_VERSION} =~ [^0-9]*1[^0-9]*10[^0-9]([0-9]*) ]]; then
+        # All types of references/versions match this regexp for 1.10 series
+        # for example v1_10_test, 1.10.10, 1.10.9 etc. ${BASH_REMATCH[1]} is the () group matches last
+        # minor digit of version and it's length is 0 for v1_10_test, 1 for 1.10.9 and 2 for 1.10.10+
+        if [[ ${#BASH_REMATCH[1]} == "1" ]]; then
+            # This is only for 1.10.0 - 1.10.9
+            EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+                "--build-arg" "CONSTRAINT_REQUIREMENTS=https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
+                "--build-arg" "ENTRYPOINT_FILE=https://raw.githubusercontent.com/apache/airflow/1.10.10/entrypoint.sh"
+            )
+        else
+            EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+                # For 1.10.10+ and v1-10-test it's ok to use AIRFLOW_VERSION as reference
+                "--build-arg" "CONSTRAINT_REQUIREMENTS=https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_VERSION}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
+                "--build-arg" "ENTRYPOINT_FILE=https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_VERSION}/entrypoint.sh"
+            )
+        fi
+    else
+        # For all other (master, 2.0+) we just match ${AIRFLOW_VERSION}
+        EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+            "--build-arg" "CONSTRAINT_REQUIREMENTS=https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_VERSION}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
+            "--build-arg" "ENTRYPOINT_FILE=https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_VERSION}/entrypoint.sh"
+        )
+    fi
+}
+
 function prepare_prod_build() {
     export AIRFLOW_PROD_BASE_TAG="${DEFAULT_BRANCH}-python${PYTHON_MAJOR_MINOR_VERSION}"
     export AIRFLOW_PROD_BUILD_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}-build"
@@ -1390,47 +1422,25 @@ function prepare_prod_build() {
     export AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS:="${DEFAULT_PROD_EXTRAS}"}"
     export AIRFLOW_IMAGE="${AIRFLOW_PROD_IMAGE}"
 
-    if [[ "${INSTALL_AIRFLOW_VERSION:=}" == "" && "${INSTALL_AIRFLOW_REFERENCE:=}" == "" ]]; then
-        # When no airflow version/reference is specified, production image is built from local sources
-        export EXTRA_DOCKER_PROD_BUILD_FLAGS=(
+    if [[ "${INSTALL_AIRFLOW_REFERENCE:=}" != "" ]]; then
+        # When --install-airflow-reference is used then the image is build from github tag
+        EXTRA_DOCKER_PROD_BUILD_FLAGS=(
+            "--build-arg" "AIRFLOW_INSTALL_SOURCES=https://github.com/apache/airflow/archive/${INSTALL_AIRFLOW_REFERENCE}.tar.gz#egg=apache-airflow"
         )
+        export AIRFLOW_VERSION="${INSTALL_AIRFLOW_REFERENCE}"
+        add_build_args_for_remote_install
+    elif [[ "${INSTALL_AIRFLOW_VERSION:=}" != "" ]]; then
+        # When --install-airflow-version is used then the image is build from PIP package
+        EXTRA_DOCKER_PROD_BUILD_FLAGS=(
+            "--build-arg" "AIRFLOW_INSTALL_SOURCES=apache-airflow"
+            "--build-arg" "AIRFLOW_INSTALL_VERSION===${INSTALL_AIRFLOW_VERSION}"
+        )
+        export AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
+        add_build_args_for_remote_install
     else
-        if [[ "${INSTALL_AIRFLOW_REFERENCE:=}" != "" ]]; then
-            # When --install-airflow-version is used then the image is build from github tag
-            export EXTRA_DOCKER_PROD_BUILD_FLAGS=(
-                "--build-arg" "AIRFLOW_INSTALL_SOURCES=https://github.com/apache/airflow/archive/${INSTALL_AIRFLOW_REFERENCE}.tar.gz#egg=apache-airflow"
-            )
-            export AIRFLOW_VERSION="${INSTALL_AIRFLOW_REFERENCE}"
-        else
-            # When --install-airflow-version is used then the image is build from github tag
-            export EXTRA_DOCKER_PROD_BUILD_FLAGS=(
-                "--build-arg" "AIRFLOW_INSTALL_SOURCES=apache-airflow"
-                "--build-arg" "AIRFLOW_INSTALL_VERSION===${INSTALL_AIRFLOW_VERSION}"
-            )
-            export AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
-        fi
-        if [[ ${AIRFLOW_VERSION} =~ [^0-9]*1[^0-9]*10[^0-9]* ]]; then
-            # We need to set special arguments to build 1.10 version of image
-            EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-                "--build-arg" "AIRFLOW_SOURCES_FROM=Dockerfile"
-                "--build-arg" "AIRFLOW_SOURCES_TO=/Dockerfile"
-                "--build-arg" "WWW_FOLDER=www_rbac"
-                # TODO We should change it to 1.10.10 after release to make the image build repeatable
-                "--build-arg" "CONSTRAINT_REQUIREMENTS=https://raw.githubusercontent.com/apache/airflow/v1-10-test/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
-                # TODO We should uncomment it just before we merge this change to master/v1_10_test
-                #"--build-arg" "ENTRYPOINT_FILE=https://raw.githubusercontent.com/apache/airflow/v1-10-test/entrypoint.sh"
-            )
-        else
-            EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-                "--build-arg" "AIRFLOW_SOURCES_FROM=Dockerfile"
-                "--build-arg" "AIRFLOW_SOURCES_TO=/Dockerfile"
-                # TODO We should change it to 1.10.10 after release to make the image build repeatable
-                "--build-arg" "CONSTRAINT_REQUIREMENTS=https://raw.githubusercontent.com/apache/airflow/v1-10-test/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
-                # TODO We should uncomment it just before we merge this change to master/v1_10_test
-                #"--build-arg" "ENTRYPOINT_FILE=https://raw.githubusercontent.com/apache/airflow/v1-10-test/entrypoint.sh"
-            )
-        fi
-
+        # When no airflow version/reference is specified, production image is built from local sources
+        EXTRA_DOCKER_PROD_BUILD_FLAGS=(
+        )
     fi
     go_to_airflow_sources
 }
