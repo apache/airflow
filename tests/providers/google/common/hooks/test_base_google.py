@@ -425,7 +425,7 @@ class TestGoogleBaseHook(unittest.TestCase):
     def test_get_credentials_and_project_id_with_default_auth_and_unsupported_delegate(
         self, mock_auth_default
     ):
-        mock_credentials = mock.MagicMock(spec=compute_engine.Credentials)
+        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
         mock_auth_default.return_value = (mock_credentials, self.test_project_id)
 
         with self.assertRaisesRegex(AirflowException, re.escape(
