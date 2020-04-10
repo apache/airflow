@@ -328,7 +328,7 @@ class DAG(BaseDag, LoggingMixin):
         self.is_paused_upon_creation = is_paused_upon_creation
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
-        self.tags = tags or {}  # type: ignore
+        self.tags = tags or set()
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
