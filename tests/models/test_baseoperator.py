@@ -156,6 +156,39 @@ class TestBaseOperator(unittest.TestCase):
 
     @parameterized.expand(
         [
+            (
+                "{{ foo }}",
+                "{{ params.bar }}",
+                {"foo": "footemplated", "params": {"bar": "{{ foo }}"}},
+                "footemplated",
+                "footemplated",
+            ),
+            (
+                # check nested fields can be templated
+                "{{ foo }}",
+                "{{ params.bar.foo }}",
+                {"foo": "footemplated", "params": {"bar": {"foo": "{{ foo }}"}}},
+                "footemplated",
+                "footemplated",
+            ),
+        ]
+    )
+    def test_render_template_fields_with_params(self, arg1, arg2, context, rendered_arg1, rendered_arg2):
+        """Verify if operator attributes are correctly templated when params is also templated."""
+        with DAG("test-dag", start_date=DEFAULT_DATE):
+            task = MockOperator(task_id="op1", arg1=arg1, arg2=arg2)
+
+        # Assert nothing is templated yet
+        self.assertEqual(task.arg1, arg1)
+        self.assertEqual(task.arg2, arg2)
+
+        # Trigger templating and verify if attributes are templated correctly
+        task.render_template_fields(context=context)
+        self.assertEqual(task.arg1, rendered_arg1)
+        self.assertEqual(task.arg2, rendered_arg2)
+
+    @parameterized.expand(
+        [
             ({"user_defined_macros": {"foo": "bar"}}, "{{ foo }}", {}, "bar"),
             ({"user_defined_macros": {"foo": "bar"}}, 1, {}, 1),
             (
