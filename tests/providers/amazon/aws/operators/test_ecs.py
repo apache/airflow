@@ -97,6 +97,7 @@ class TestECSOperator(unittest.TestCase):
         ['EC2', None],
         ['FARGATE', None],
         ['EC2', {'testTagKey': 'testTagValue'}],
+        ['', {'testTagKey': 'testTagValue'}],
     ])
     @mock.patch.object(ECSOperator, '_wait_for_task_ended')
     @mock.patch.object(ECSOperator, '_check_success_task')
@@ -111,6 +112,8 @@ class TestECSOperator(unittest.TestCase):
 
         self.aws_hook_mock.return_value.get_conn.assert_called_once()
         extend_args = {}
+        if launch_type:
+            extend_args['launchType'] = launch_type
         if launch_type == 'FARGATE':
             extend_args['platformVersion'] = 'LATEST'
         if tags:
@@ -118,7 +121,6 @@ class TestECSOperator(unittest.TestCase):
 
         client_mock.run_task.assert_called_once_with(
             cluster='c',
-            launchType=launch_type,
             overrides={},
             startedBy=mock.ANY,  # Can by 'airflow' or 'Airflow'
             taskDefinition='t',
