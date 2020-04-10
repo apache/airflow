@@ -102,12 +102,16 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
     def convert_type(self, value, schema_type):
         """
         Takes a value from MySQLdb, and converts it to a value that's safe for
-        JSON/Google Cloud Storage/BigQuery. Datetimes are converted to UTC seconds.
-        Decimals are converted to floats. Dates are converted to ISO formatted string
-        if given schema_type is DATE, or UTC seconds otherwise. Binary type fields
-        are converted to integer if given schema_type is INTEGER, or encoded with
-        base64 otherwise as imported BYTES data must be base64-encoded according to
-        BigQuery documentation: https://cloud.google.com/bigquery/data-types
+        JSON/Google Cloud Storage/BigQuery.
+
+        * Datetimes are converted to UTC seconds.
+        * Decimals are converted to floats.
+        * Dates are converted to ISO formatted string if given schema_type is
+          DATE, or UTC seconds otherwise.
+        * Binary type fields are converted to integer if given schema_type is
+          INTEGER, or encoded with base64 otherwise. Imported BYTES data must
+          be base64-encoded according to BigQuery documentation:
+          https://cloud.google.com/bigquery/data-types
 
         :param value: MySQLdb column value
         :type value: Any
