@@ -121,17 +121,19 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
         if value is None:
             return value
         if isinstance(value, datetime):
-            return calendar.timegm(value.timetuple())
-        if isinstance(value, timedelta):
-            return value.total_seconds()
-        if isinstance(value, Decimal):
-            return float(value)
-        if isinstance(value, date):
+            value = calendar.timegm(value.timetuple())
+        elif isinstance(value, timedelta):
+            value = value.total_seconds()
+        elif isinstance(value, Decimal):
+            value = float(value)
+        elif isinstance(value, date):
             if schema_type == "DATE":
-                return value.isoformat()
-            return calendar.timegm(value.timetuple())
-        if isinstance(value, bytes):
+                value = value.isoformat()
+            else:
+                value = calendar.timegm(value.timetuple())
+        elif isinstance(value, bytes):
             if schema_type == "INTEGER":
-                return int.from_bytes(value, "big")
-            return base64.standard_b64encode(value).decode('ascii')
+                value = int.from_bytes(value, "big")
+            else:
+                value = base64.standard_b64encode(value).decode('ascii')
         return value
