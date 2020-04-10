@@ -420,6 +420,20 @@ class TestGoogleBaseHook(unittest.TestCase):
             delegate_to="USER"
         )
         self.assertEqual((mock_credentials, "PROJECT_ID"), result)
+    
+    @mock.patch('google.auth.default')
+    def test_get_credentials_and_project_id_with_default_auth_and_unsupported_delegate(
+        self, mock_auth_default
+    ):
+        mock_credentials = mock.MagicMock(spec=compute_engine.Credentials)
+        mock_auth_default.return_value = (mock_credentials, self.test_project_id)
+
+        with self.assertRaisesRegex(AirflowException, re.escape(
+            "The `delegate_to` parameter cannot be used here as the current authentication method does not "
+            "support account impersonate. Please use service-account for authorization."
+        )):
+            get_credentials_and_project_id(delegate_to="USER")
+    
 
     @mock.patch(  # type: ignore
         MODULE_NAME + '.get_credentials_and_project_id',
