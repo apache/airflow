@@ -141,6 +141,10 @@ class BaseOperator(Operator, LoggingMixin):
     :type wait_for_downstream: bool
     :param dag: a reference to the dag the task is attached to (if any)
     :type dag: airflow.models.DAG
+    :param params: used to render templated fields in addition to macros. It's
+        values could be templated themselves but without referring to params
+        itself or any of its keys.
+    :type params: dict
     :param priority_weight: priority weight of this task against other task.
         This allows the executor to trigger higher priority tasks before
         others when things get backed up. Set priority_weight as a higher
@@ -256,7 +260,7 @@ class BaseOperator(Operator, LoggingMixin):
 
     # base list which includes all the attrs that don't need deep copy.
     _base_operator_shallow_copy_attrs: Tuple[str, ...] = \
-        ('user_defined_macros', 'user_defined_filters', 'params', '_log',)
+        ('user_defined_macros', 'user_defined_filters', '_log',)
 
     # each operator should override this class attr for shallow copy attrs.
     shallow_copy_attrs: Tuple[str, ...] = ()
@@ -768,6 +772,10 @@ class BaseOperator(Operator, LoggingMixin):
 
         if not jinja_env:
             jinja_env = self.get_template_env()
+
+        # render params
+        if 'params' in context:
+            context['params'] = self.render_template(context['params'], context, jinja_env)
 
         self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
 
