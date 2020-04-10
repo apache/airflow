@@ -23,7 +23,7 @@ from subprocess import PIPE, STDOUT, Popen
 from tempfile import TemporaryDirectory, gettempdir
 from typing import Dict, Optional
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import context_to_airflow_vars
@@ -50,6 +50,10 @@ class BashOperator(BaseOperator):
     :type env: dict
     :param output_encoding: Output encoding of bash command
     :type output_encoding: str
+    :param skip_on_code: If skip_on_code is not None, and the bash command
+        exits with the given exit code task will be marked as SKIPPED
+        instead of FAILED.
+    :type skip_on_code: int
 
     On execution of this operator the task will be up for retry
     when exception is raised. However, if a sub-command exits with non-zero
@@ -72,12 +76,14 @@ class BashOperator(BaseOperator):
             bash_command: str,
             env: Optional[Dict[str, str]] = None,
             output_encoding: str = 'utf-8',
+            skip_on_code: int = None,
             *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self.bash_command = bash_command
         self.env = env
         self.output_encoding = output_encoding
+        self.skip_on_code = skip_on_code
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
         self.sub_process = None
@@ -128,6 +134,9 @@ class BashOperator(BaseOperator):
             self.sub_process.wait()
 
             self.log.info('Command exited with return code %s', self.sub_process.returncode)
+
+            if self.sub_process.returncode == self.skip_on_code:
+                raise AirflowSkipException('Bash command failed. The command returned the skip_on_code exit code.')
 
             if self.sub_process.returncode != 0:
                 raise AirflowException('Bash command failed. The command returned a non-zero exit code.')

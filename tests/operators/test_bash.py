@@ -24,7 +24,7 @@ from tempfile import NamedTemporaryFile
 
 import mock
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
@@ -110,6 +110,19 @@ class TestBashOperator(unittest.TestCase):
         with self.assertRaisesRegex(
             AirflowException,
             "Bash command failed\\. The command returned a non-zero exit code\\."
+        ):
+            bash_operator.execute(context={})
+
+    def test_raise_skip_exception_on_skip_exit_code(self):
+        bash_operator = BashOperator(
+            bash_command='exit 86',
+            skip_on_code=86,
+            task_id='test_return_value',
+            dag=None
+        )
+        with self.assertRaisesRegex(
+            AirflowSkipException,
+            "Bash command failed\\. The command returned the skip_on_code exit code\\."
         ):
             bash_operator.execute(context={})
 
