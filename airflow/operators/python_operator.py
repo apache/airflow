@@ -330,13 +330,28 @@ class PythonVirtualenvOperator(PythonOperator):
 
     def _write_args(self, input_filename):
         # serialize args to file
+        if self.use_dill:
+            serializer = dill
+        else:
+            serializer = pickle
+        # some args from context can't be loaded in virtual env
+        invalid_args = set(['dag', 'task', 'ti'])
         if self._pass_op_args():
+            kwargs = {}
+            for key, value in self.op_kwargs.items():
+                try:
+                    serializer.loads(serializer.dumps(value))
+                    if key not in invalid_args:
+                        kwargs[key] = value
+                except Exception as e:
+                    msg = """
+                    "Exception %s found while serializing argument
+                    object: %s on op_kwargs key %s ...skipping..."
+                    """ % (e, value, key)
+                    self.log.warning(msg)
             with open(input_filename, 'wb') as f:
-                arg_dict = ({'args': self.op_args, 'kwargs': self.op_kwargs})
-                if self.use_dill:
-                    dill.dump(arg_dict, f)
-                else:
-                    pickle.dump(arg_dict, f)
+                arg_dict = ({'args': self.op_args, 'kwargs': kwargs})
+                serializer.dump(arg_dict, f)
 
     def _read_result(self, output_filename):
         if os.stat(output_filename).st_size == 0:
