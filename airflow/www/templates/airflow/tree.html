@@ -89,7 +89,7 @@ function ts_to_dtstr(ts) {
 }
 
 function is_dag_run(d) {
-  return d.operator === undefined;
+  return d.run_id != undefined;
 }
 
 var now_ts = Date.now()/1000;
