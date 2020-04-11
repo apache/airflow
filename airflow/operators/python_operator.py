@@ -344,7 +344,11 @@ class PythonVirtualenvOperator(PythonOperator):
                     if key not in invalid_args:
                         kwargs[key] = value
                 except Exception as e:
-                    self.log.warning(f"Exception {e} found while serializing argument object: {value} on op_kwargs key {key} ...skipping...")
+                    msg = """
+                    "Exception %s found while serializing argument
+                    object: %s on op_kwargs key %s ...skipping..."
+                    """ % (e, value, key)
+                    self.log.warning(msg)
             with open(input_filename, 'wb') as f:
                 arg_dict = ({'args': self.op_args, 'kwargs': kwargs})
                 serializer.dump(arg_dict, f)
