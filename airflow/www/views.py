@@ -1698,10 +1698,10 @@ class Airflow(AirflowBaseView):
         # update the y Axis on both charts to have the correct time units
         chart.create_y_axis('yAxis', format='.02f', custom_format=False,
                             label='Duration ({})'.format(y_unit))
-        chart.axislist['yAxis']['axisLabelDistance'] = '40'
+        chart.axislist['yAxis']['axisLabelDistance'] = '-15'
         cum_chart.create_y_axis('yAxis', format='.02f', custom_format=False,
                                 label='Duration ({})'.format(cum_y_unit))
-        cum_chart.axislist['yAxis']['axisLabelDistance'] = '40'
+        cum_chart.axislist['yAxis']['axisLabelDistance'] = '-15'
 
         for task in dag.tasks:
             if x[task.task_id]:
@@ -1853,7 +1853,7 @@ class Airflow(AirflowBaseView):
         # update the y Axis to have the correct time units
         chart.create_y_axis('yAxis', format='.02f', custom_format=False,
                             label='Landing Time ({})'.format(y_unit))
-        chart.axislist['yAxis']['axisLabelDistance'] = '40'
+        chart.axislist['yAxis']['axisLabelDistance'] = '-15'
         for task in dag.tasks:
             if x[task.task_id]:
                 chart.add_serie(name=task.task_id, x=x[task.task_id],
