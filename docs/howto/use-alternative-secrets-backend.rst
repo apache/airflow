@@ -19,6 +19,8 @@
 Alternative secrets backend
 ---------------------------
 
+.. versionadded:: 1.10.10
+
 In addition to retrieving connections & variables from environment variables or the metastore database, you can enable
 an alternative secrets backend to retrieve Airflow connections or Airflow variables,
 such as :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>`,
