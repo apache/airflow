@@ -314,7 +314,7 @@ A secrets backend is a subclass of :py:class:`airflow.secrets.BaseSecretsBackend
 After writing your backend class, provide the fully qualified class name in the ``backend`` key in the ``[secrets]``
 section of ``airflow.cfg``.
 
-You can you can also pass kwargs to ``__init__`` by supplying json to the ``backend_kwargs`` config param.
+Additional arguments to your SecretsBackend can be configured in ``airflow.cfg`` by supplying a JSON to ``backend_kwargs``, which will be passed to the ``__init__`` of your SecretsBackend.
 See :ref:`Configuration <secrets_backend_configuration>` for more details, and :ref:`SSM Parameter Store <ssm_parameter_store_secrets>` for an example.
 
 .. note::
