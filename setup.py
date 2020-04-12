@@ -238,6 +238,8 @@ def do_setup():
             'tabulate>=0.7.5, <0.8.0',
             'thrift>=0.9.2',
             'zope.deprecation>=4.0, <5.0',
+            'redlock==1.2.0',
+            'lupa==1.8',
         ],
         extras_require={
             'all': devel_all,

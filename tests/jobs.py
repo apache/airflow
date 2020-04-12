@@ -2964,3 +2964,18 @@ class SchedulerJobTest(unittest.TestCase):
             self.assertEqual(state, ti.state)
 
         session.close()
+
+    def test_check_new_dag_files(self):
+        """Check dag file whether been triggered
+        :return:
+        """
+        file1, file2, file3 = new_dag_files = ['test_file1', 'test-file2', 'test-file3']
+        # Assume that file2 has been triggered
+        patcher = patch('airflow.jobs.SchedulerJob.has_triggered',
+                        side_effect=lambda file_name: file_name.endswith('2'))
+        patcher.start()
+        scheduler = SchedulerJob(**self.default_scheduler_args)
+        triggered, not_triggered = scheduler.check_new_dag_files(new_dag_files)
+        self.assertEqual(triggered, [file2])
+        self.assertEqual(not_triggered, [file1, file3])
+        patcher.stop()

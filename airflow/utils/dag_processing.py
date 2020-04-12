@@ -207,7 +207,33 @@ def list_py_file_paths(directory, safe_mode=True):
                 except Exception:
                     log = LoggingMixin().log
                     log.exception("Error while examining %s", f)
-    return file_paths
+
+    return sort_files_by_mtime(file_paths)
+
+
+def sort_files_by_mtime(file_paths):
+    """
+    sort file by mtime
+    :param file_paths: not sorted file list
+    :return sorted_files: sorted file list
+    :rtype: list[unicode]
+    """
+    log = LoggingMixin().log
+    log.debug("Before sort, file list:\n\t%s", "\n\t".join(file_paths))
+
+    file_mtime_mappings = {}
+    for f in file_paths:
+        try:
+            file_mtime = os.path.getmtime(f)
+            file_mtime_mappings[f] = file_mtime
+        except Exception as e:
+            log = LoggingMixin().log
+            log.exception("Error on get %s mtime, %s", f, e)
+    sorted_file_paths = sorted(file_mtime_mappings,
+                               key=lambda f: file_mtime_mappings[f])
+    log.debug("After sort, file list:\n\t%s", "\n\t".join(sorted_file_paths))
+
+    return sorted_file_paths
 
 
 class AbstractDagFileProcessor(object):
@@ -327,7 +353,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         """
         self._file_paths = file_paths
-        self._file_path_queue = []
+        self._file_path_queue = file_paths
         self._parallelism = parallelism
         self._dag_directory = dag_directory
         self._max_runs = max_runs
@@ -343,6 +369,14 @@ class DagFileProcessorManager(LoggingMixin):
         self._run_count = defaultdict(int)
         # Scheduler heartbeat key.
         self._heart_beat_key = 'heart-beat'
+
+    @property
+    def file_path_queue(self):
+        """
+        Get processor_manager file queue
+        :return:
+        """
+        return self._file_path_queue
 
     @property
     def file_paths(self):
@@ -433,6 +467,19 @@ class DagFileProcessorManager(LoggingMixin):
                 processor.terminate()
         self._processors = filtered_processors
 
+    def add_files_to_queue_header(self, file_paths):
+        """
+        Add files to the header of scheduler queue
+        :param new_file_paths: list of paths to DAG definition files
+        :type new_file_paths: list[unicode]
+        :return: None
+        """
+        file_path_set = set(file_paths)
+        queue_tail = [f for f in self._file_path_queue if f not in file_path_set]
+        self._file_path_queue = file_paths + queue_tail
+        self.log.info("After add files there are %s files in queue: \n\t%s",
+                      len(self._file_path_queue), "\n\t".join(self._file_path_queue))
+
     def processing_count(self):
         """
         :return: the number of files currently being processed
@@ -488,42 +535,40 @@ class DagFileProcessorManager(LoggingMixin):
                 for simple_dag in processor.result:
                     simple_dags.append(simple_dag)
 
-        # Generate more file paths to process if we processed all the files
-        # already.
-        if len(self._file_path_queue) == 0:
-            # If the file path is already being processed, or if a file was
-            # processed recently, wait until the next batch
-            file_paths_in_progress = self._processors.keys()
-            now = datetime.utcnow()
-            file_paths_recently_processed = []
-            for file_path in self._file_paths:
-                last_finish_time = self.get_last_finish_time(file_path)
-                if (last_finish_time is not None and
-                            (now - last_finish_time).total_seconds() <
-                            self._process_file_interval):
-                    file_paths_recently_processed.append(file_path)
+        # If the file path is already being processed, or if a file was
+        # processed recently, wait until the next batch
+        file_paths_in_progress = self._processors.keys()
+        now = datetime.utcnow()
+        file_paths_recently_processed = []
+        for file_path in self._file_paths:
+            last_finish_time = self.get_last_finish_time(file_path)
+            if (last_finish_time is not None and
+                        (now - last_finish_time).total_seconds() <
+                        self._process_file_interval):
+                file_paths_recently_processed.append(file_path)
 
-            files_paths_at_run_limit = [file_path
-                                        for file_path, num_runs in self._run_count.items()
-                                        if num_runs == self._max_runs]
+        files_paths_at_run_limit = [file_path
+                                    for file_path, num_runs in self._run_count.items()
+                                    if num_runs == self._max_runs]
 
-            files_paths_to_queue = list(set(self._file_paths) -
-                                        set(file_paths_in_progress) -
-                                        set(file_paths_recently_processed) -
-                                        set(files_paths_at_run_limit))
-
-            for file_path, processor in self._processors.items():
-                self.log.debug(
-                    "File path %s is still being processed (started: %s)",
-                    processor.file_path, processor.start_time.isoformat()
-                )
-
+        for file_path, processor in self._processors.items():
             self.log.debug(
-                "Queuing the following files for processing:\n\t%s",
-                "\n\t".join(files_paths_to_queue)
+                "File path %s is still being processed (started: %s)",
+                processor.file_path, processor.start_time.isoformat()
             )
 
-            self._file_path_queue.extend(files_paths_to_queue)
+        not_need_enqueue_files = set(file_paths_in_progress) | \
+                                 set(file_paths_recently_processed) | \
+                                 set(files_paths_at_run_limit)
+        self.log.debug("There are %s files not need enqueue: \n\t%s",
+                      len(not_need_enqueue_files), "\n\t".join(not_need_enqueue_files))
+        self._file_path_queue = [f for f in self._file_path_queue
+                                 if f not in not_need_enqueue_files]
+        self.log.debug("There are %s files in queue: \n\t%s",
+                      len(self._file_path_queue), "\n\t".join(self._file_path_queue))
+        self.log.info("There are %s/%s empty slots and %s queue files in processor_manager",
+                      self._parallelism - len(self._processors), self._parallelism,
+                      len(self._file_path_queue))
 
         # Start more processors if we have enough slots and files to process
         while (self._parallelism - len(self._processors) > 0 and

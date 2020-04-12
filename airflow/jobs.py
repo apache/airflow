@@ -56,6 +56,7 @@ from airflow.utils.db import provide_session, pessimistic_connection_handling
 from airflow.utils.email import send_email
 from airflow.utils.log.logging_mixin import LoggingMixin, set_context, StreamLogWriter
 from airflow.utils.state import State
+from airflow.utils.lock import Lock as RedLock
 
 Base = models.Base
 ID_LEN = models.ID_LEN
@@ -553,6 +554,18 @@ class SchedulerJob(BaseJob):
         self.heartrate = conf.getint('scheduler', 'SCHEDULER_HEARTBEAT_SEC')
         self.max_threads = conf.getint('scheduler', 'max_threads')
 
+        self.known_file_paths = []
+
+        # Collect the execution results of the dag files in the execution container to
+        # schedule the dag files that have completed the task earlier
+        self.executor_events = {}
+
+        # All simple_dags: dag_id -> simple_dag
+        self.full_simple_dags = {}
+
+        # New dag files in dag directory
+        self.new_dag_files = []
+
         if log:
             self._log = log
 
@@ -566,6 +579,11 @@ class SchedulerJob(BaseJob):
         # How often to scan the DAGs directory for new files. Default to 5 minutes.
         self.dag_dir_list_interval = conf.getint('scheduler',
                                                  'dag_dir_list_interval')
+
+        # How often to run a scheduler loop. Default to 1 second.
+        if conf.has_option('scheduler', 'processor_poll_interval'):
+            self._processor_poll_interval = conf.getint('scheduler',
+                                                        'processor_poll_interval')
         # How often to print out DAG file processing stats to the log. Default to
         # 30 seconds.
         self.print_stats_interval = conf.getint('scheduler',
@@ -578,6 +596,42 @@ class SchedulerJob(BaseJob):
         if run_duration is None:
             self.run_duration = conf.getint('scheduler',
                                             'run_duration')
+        self._lock = None
+        self.use_stand_by = False
+        try:
+            stand_by = conf.get('scheduler', 'stand_by')
+        except Exception as e:
+            self.log.warning("Get scheduler's `stand_by` config failed, error: {}".format(e))
+        else:
+            if stand_by == 'on':
+                self.lock_nodes = conf.get('scheduler', 'lock_nodes')
+                self.lock_key = conf.get('scheduler', 'lock_key')
+                self.lock_ttl = conf.getint('scheduler', 'lock_ttl')
+                self.lock_timeout = conf.getint('scheduler', 'lock_timeout')
+                self.lock_retry = conf.getint('scheduler', 'lock_retry')
+                self.use_stand_by = True
+
+    def lock(self):
+        """Lock key by red-lock
+        :return result: Result of lock, type: bool
+        """
+        if self._lock is None:
+            nodes = []
+            for node in self.lock_nodes.strip().split(','):
+                nodes.append({'url': node, 'socket_timeout': self.lock_timeout})
+            try:
+                self._lock = RedLock(self.lock_key,
+                                     connection_details=nodes,
+                                     retry_times=self.lock_retry,
+                                     ttl=self.lock_ttl * 1000)
+            except Exception as e:
+                self.log.error("Generate red-lock failed, error: {}".format(e))
+                raise e
+        try:
+            return self._lock.acquire()
+        except Exception as e:
+            self.log.error("Lock {} failed, error: {}".format(self.lock_key, e))
+            return False
 
     @provide_session
     def manage_slas(self, dag, session=None):
@@ -964,8 +1018,10 @@ class SchedulerJob(BaseJob):
         :param simple_dag_bag: TaskInstances associated with DAGs in the
         simple_dag_bag and with states in the old_state will be examined
         :type simple_dag_bag: SimpleDagBag
+        :return update_result: Result of task_instance state update
+        :rtype: bool
         """
-        tis_changed = 0
+        tis_changed, update_result = 0, True
         if self.using_sqlite:
             tis_to_change = (
                 session
@@ -983,25 +1039,36 @@ class SchedulerJob(BaseJob):
                 ti.set_state(new_state, session=session)
                 tis_changed += 1
         else:
-            tis_changed = (
-                session
-                    .query(models.TaskInstance)
-                    .filter(models.TaskInstance.dag_id.in_(simple_dag_bag.dag_ids))
-                    .filter(models.TaskInstance.state.in_(old_states))
-                    .filter(and_(
-                        models.DagRun.dag_id == models.TaskInstance.dag_id,
-                        models.DagRun.execution_date == models.TaskInstance.execution_date,
-                        models.DagRun.state != State.RUNNING))
-                    .update({models.TaskInstance.state: new_state},
-                            synchronize_session=False)
-            )
-            session.commit()
+            # Magic number again
+            for i in range(3):
+                try:
+                    tis_changed = (
+                        session
+                            .query(models.TaskInstance)
+                            .filter(models.TaskInstance.dag_id.in_(simple_dag_bag.dag_ids))
+                            .filter(models.TaskInstance.state.in_(old_states))
+                            .filter(and_(
+                                models.DagRun.dag_id == models.TaskInstance.dag_id,
+                                models.DagRun.execution_date == models.TaskInstance.execution_date,
+                                models.DagRun.state != State.RUNNING))
+                            .update({models.TaskInstance.state: new_state},
+                                    synchronize_session=False)
+                    )
+                    session.commit()
+                    break
+                except OperationalError as e:
+                    self.log.error(
+                        "Update state of task_instances that without dag_run failed, error: %s", e)
+                    session.rollback()
+            else:
+                update_result = False
 
         if tis_changed > 0:
             self.log.warning(
                 "Set %s task instances to state=%s as their associated DagRun was not in RUNNING state",
                 tis_changed, new_state
             )
+        return update_result
 
     @provide_session
     def __get_task_concurrency_map(self, states, session=None):
@@ -1397,9 +1464,11 @@ class SchedulerJob(BaseJob):
     def _process_executor_events(self, simple_dag_bag, session=None):
         """
         Respond to executor events.
+        :return executor_events:
+        :rtype: dict[str]list, example: {'success': ['file1'], 'failed': ['file2']}
         """
         # TODO: this shares quite a lot of code with _manage_executor_state
-
+        dags_state = defaultdict(set)
         TI = models.TaskInstance
         for key, state in list(self.executor.get_event_buffer(simple_dag_bag.dag_ids)
                                    .items()):
@@ -1417,6 +1486,7 @@ class SchedulerJob(BaseJob):
                     self.log.warning("TaskInstance %s went missing from the database", ti)
                     continue
 
+                dags_state[state].add(dag_id)
                 # TODO: should we fail RUNNING as well, as we do in Backfills?
                 if ti.state == State.QUEUED:
                     msg = ("Executor reports task instance %s finished (%s) "
@@ -1436,6 +1506,18 @@ class SchedulerJob(BaseJob):
                         ti.state = State.FAILED
                         session.merge(ti)
                         session.commit()
+        executor_events = {}
+        for state, dag_ids in dags_state.iteritems():
+            executor_events[state] = set()
+            for dag_id in dag_ids:
+                try:
+                    dag_file = simple_dag_bag.get_dag(dag_id).full_filepath
+                    executor_events[state].add(dag_file)
+                except Exception:
+                    self.log.error("Cannot load the dag_file by dag_id %s "
+                                   "from simple_dag_bag", dag_id)
+            executor_events[state] = list(executor_events[state])
+        return executor_events
 
     def _log_file_processing_stats(self,
                                    known_file_paths,
@@ -1526,6 +1608,7 @@ class SchedulerJob(BaseJob):
         # Build up a list of Python files that could contain DAGs
         self.log.info("Searching for files in %s", self.subdir)
         known_file_paths = list_py_file_paths(self.subdir)
+        self.known_file_paths = known_file_paths
         self.log.info("There are %s files in %s", len(known_file_paths), self.subdir)
 
         def processor_factory(file_path):
@@ -1545,6 +1628,11 @@ class SchedulerJob(BaseJob):
         finally:
             self.log.info("Exited execute loop")
 
+            if self.use_stand_by:
+                try:
+                    self._lock.release()
+                except:
+                    pass
             # Kill all child processes on exit since we don't want to leave
             # them as orphaned.
             pids_to_kill = processor_manager.get_all_pids()
@@ -1596,7 +1684,7 @@ class SchedulerJob(BaseJob):
         # Last time that self.heartbeat() was called.
         last_self_heartbeat_time = datetime.utcnow()
         # Last time that the DAG dir was traversed to look for files
-        last_dag_dir_refresh_time = datetime.utcnow()
+        self.last_dag_dir_refresh_time = datetime.utcnow()
 
         # Use this value initially
         known_file_paths = processor_manager.file_paths
@@ -1607,25 +1695,31 @@ class SchedulerJob(BaseJob):
             self.log.debug("Starting Loop...")
             loop_start_time = time.time()
 
+            # Stand-By scheduler
+            if self.use_stand_by and not self.lock():
+                self.log.info("Lock acquire failed, not schedule dags")
+                time.sleep(self._processor_poll_interval)
+                continue
+            if self.use_stand_by:
+                self.log.debug("Lock acquire success")
+
             # Traverse the DAG directory for Python files containing DAGs
             # periodically
             elapsed_time_since_refresh = (datetime.utcnow() -
-                                          last_dag_dir_refresh_time).total_seconds()
-
+                                          self.last_dag_dir_refresh_time).total_seconds()
             if elapsed_time_since_refresh > self.dag_dir_list_interval:
-                # Build up a list of Python files that could contain DAGs
-                self.log.info("Searching for files in %s", self.subdir)
-                known_file_paths = list_py_file_paths(self.subdir)
-                last_dag_dir_refresh_time = datetime.utcnow()
-                self.log.info("There are %s files in %s", len(known_file_paths), self.subdir)
-                processor_manager.set_file_paths(known_file_paths)
-
-                self.log.debug("Removing old import errors")
-                self.clear_nonexistent_import_errors(known_file_paths=known_file_paths)
+                known_file_paths = self._scan_dag_dir_for_processor_manager(processor_manager)
 
             # Kick of new processes and collect results from finished ones
             self.log.info("Heartbeating the process manager")
             simple_dags = processor_manager.heartbeat()
+
+            # update full simple_dags by new simple_dags
+            self.full_simple_dags.update(
+                dict([simple_dag.dag_id, simple_dag] for simple_dag in simple_dags)
+            )
+            logging.debug('After update new dags, full simple_dags[%s]: %s',
+                         len(self.full_simple_dags), self.full_simple_dags.keys())
 
             if self.using_sqlite:
                 # For the sqlite case w/ 1 thread, wait until the processor
@@ -1644,17 +1738,20 @@ class SchedulerJob(BaseJob):
                 # If a task instance is up for retry but the corresponding DAG run
                 # isn't running, mark the task instance as FAILED so we don't try
                 # to re-run it.
-                self._change_state_for_tis_without_dagrun(simple_dag_bag,
-                                                          [State.UP_FOR_RETRY],
-                                                          State.FAILED)
+                ret = self._change_state_for_tis_without_dagrun(simple_dag_bag,
+                                                                [State.UP_FOR_RETRY],
+                                                                State.FAILED)
+                if not ret:
+                    continue
                 # If a task instance is scheduled or queued, but the corresponding
                 # DAG run isn't running, set the state to NONE so we don't try to
                 # re-run it.
-                self._change_state_for_tis_without_dagrun(simple_dag_bag,
-                                                          [State.QUEUED,
-                                                           State.SCHEDULED],
-                                                          State.NONE)
-
+                ret = self._change_state_for_tis_without_dagrun(simple_dag_bag,
+                                                                [State.QUEUED,
+                                                                 State.SCHEDULED],
+                                                                State.NONE)
+                if not ret:
+                    continue
                 self._execute_task_instances(simple_dag_bag,
                                              (State.SCHEDULED,))
 
@@ -1662,8 +1759,10 @@ class SchedulerJob(BaseJob):
             self.log.info("Heartbeating the executor")
             self.executor.heartbeat()
 
-            # Process events from the executor
-            self._process_executor_events(simple_dag_bag)
+            # Process all events from the executor
+            full_simple_dag_bag = SimpleDagBag(self.full_simple_dags.values())
+            self.executor_events = self._process_executor_events(full_simple_dag_bag)
+            self._send_executor_events_to_processor_manager(processor_manager)
 
             # Heartbeat the scheduler periodically
             time_since_last_heartbeat = (datetime.utcnow() -
@@ -1682,9 +1781,12 @@ class SchedulerJob(BaseJob):
                 last_stat_print_time = datetime.utcnow()
 
             loop_end_time = time.time()
-            self.log.debug("Ran scheduling loop in %.2f seconds", loop_end_time - loop_start_time)
-            self.log.debug("Sleeping for %.2f seconds", self._processor_poll_interval)
-            time.sleep(self._processor_poll_interval)
+            loop_spend = loop_end_time - loop_start_time
+            self.log.debug("Ran scheduling loop in %.2f seconds", loop_spend)
+            if loop_spend < self._processor_poll_interval:
+                self.log.debug("Sleeping for %.2f seconds",
+                               self._processor_poll_interval - loop_spend)
+                time.sleep(self._processor_poll_interval - loop_spend)
 
             # Exit early for a test mode
             if processor_manager.max_runs_reached():
@@ -1712,6 +1814,112 @@ class SchedulerJob(BaseJob):
         self.executor.end()
 
         settings.Session.remove()
+
+    def _send_executor_events_to_processor_manager(self, processor_manager):
+        """
+        Parse executor events, add DAG files to processor_manager.file_path_queue
+        :param processor_manager:
+        :return:
+        """
+        need_trigger_files = set()
+        for state, files in self.executor_events.iteritems():
+            self.log.info("There are %s %s files in executor_events:\n\t%s",
+                          len(files), state, "\n\t".join(files))
+            need_trigger_files |= set(files)
+        if need_trigger_files:
+            self.log.info("There are %s files that might need to trigger downstream",
+                          len(need_trigger_files))
+            processor_manager.add_files_to_queue_header(list(need_trigger_files))
+
+    def _scan_dag_dir_for_processor_manager(self, processor_manager):
+        """
+        1. list all DAG files in subdir and find new DAG files
+        2. update self.full_simple_dags by all DAG files
+        3. add new DAG files to processor_manager.file_path_queue
+        4. set processor_manager.file_paths
+        5. clear DAG files nonexistent import errors
+        :param processor_manager:
+        :return:
+        """
+        # Build up a list of Python files that could contain DAGs
+        self.log.info("Searching for files in %s", self.subdir)
+        known_file_paths = list_py_file_paths(self.subdir)
+        self.last_dag_dir_refresh_time = datetime.utcnow()
+        self.new_dag_files = list(set(known_file_paths) - set(self.known_file_paths)) + \
+                        self.new_dag_files
+        self.known_file_paths = known_file_paths
+
+        # Delete dag that is no longer in use
+        self.full_simple_dags = dict([k, v] for k, v in self.full_simple_dags.iteritems()
+                                if v.full_filepath in known_file_paths)
+        logging.debug("After delete dags that is no longer in use, "
+                      "full simple_dags[%s]: %s",
+                      len(self.full_simple_dags), self.full_simple_dags.keys())
+
+        if self.new_dag_files:
+            self.log.info("There are %s new files add to %s: \n\t%s",
+                          len(self.new_dag_files), self.subdir, "\n\t".join(self.new_dag_files))
+
+            triggered_files, self.new_dag_files = self.check_new_dag_files(self.new_dag_files)
+            processor_manager.add_files_to_queue_header(triggered_files)
+        if not processor_manager.file_path_queue:
+            logging.info("Processor_manager queue is empty, add all files[%s] to queue:\n\t%s",
+                         len(known_file_paths), "\n\t".join(known_file_paths))
+            processor_manager.add_files_to_queue_header(known_file_paths[::-1])
+
+        self.log.info("There are %s files in %s", len(known_file_paths), self.subdir)
+        processor_manager.set_file_paths(known_file_paths)
+
+        self.log.debug("Removing old import errors")
+        self.clear_nonexistent_import_errors(known_file_paths=known_file_paths)
+
+        return known_file_paths
+
+    def check_new_dag_files(self, new_dag_files):
+        """
+        Check new file whether has been triggered,
+        if true then add to queue, else wait for next time
+        :param new_dag_files: list of new DAG files
+        :return triggered_files: has triggered by command
+        :return not_triggered_files: only added to directory, but not triggered
+        :type: list[unicode], list[unicode]
+        """
+        triggered_files, not_triggered_files = [], []
+        for dag_file in new_dag_files:
+            if self.has_triggered(dag_file):
+                triggered_files.append(dag_file)
+            else:
+                not_triggered_files.append(dag_file)
+        self.log.info("Check new dag files result, triggered[%s]: %s, not triggered[%s]: %s",
+                      len(triggered_files), triggered_files,
+                      len(not_triggered_files), not_triggered_files)
+        return triggered_files, not_triggered_files
+
+    def has_triggered(self, dag_file):
+        """
+        Find if the Dag file has a running dag_run,
+        return True if so, or False if not
+        :param dag_file: Dag file
+        :return result:
+        :rtype: bool
+        """
+        result = False
+        try:
+            session = settings.Session()
+            dagbag = models.DagBag(dag_file)
+            DR = models.DagRun
+            dr_query = (
+                session
+                    .query(DR)
+                    .filter(and_(DR.dag_id.in_(dagbag.dags.keys()),
+                                 DR.state == State.RUNNING))
+            )
+            result = len(dr_query.all()) > 0
+        except Exception:
+            self.log.exception("Failed at reloading the DAG file %s", dag_file)
+            Stats.incr('dag_file_refresh_error', 1, 1)
+
+        return result
 
     @provide_session
     def process_file(self, file_path, pickle_dags=False, session=None):

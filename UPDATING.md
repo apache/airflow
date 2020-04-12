@@ -3,6 +3,29 @@
 This file documents any backwards-incompatible changes in Airflow and
 assists people when migrating to a new version.
 
+
+## Airflow 1.9.0.4
+
+### Add Stand-by function
+
+Use hot stand-by function to improve the availability of the scheduler
+
+## Airflow 1.9.0.3
+
+### Solving deadlock
+
+Solving the scheduler to exit unexpectedly with the database deadlock that caused by update state of task instance
+
+## Airflow 1.9.0.2
+
+### Scheduler optimization
+
+The scheduler was optimized to use event mechanism to trigger scheduling, and the scheduling speed of newly added DAG files was accelerated.
+  - By collecting the execution result of the task in the executor, the DAG file that has collected the result should be scheduled first, because only the task that has collected the result is most likely to need to trigger the downstream.
+  - Ensure that the newly added DAG file will be scheduled in the first time, provided that it has been triggered.
+
+Test records show that the optimized scheduler has a stable scheduling time of 3s for newly added DAG files and downstream tasks that need to be triggered
+
 ## Airflow 1.9
 
 ### SSH Hook updates, along with new SSH Operator & SFTP Operator
@@ -50,7 +73,7 @@ The main benefit is easier configuration of the logging by setting a single cent
 logging_config_class = my.path.default_local_settings.LOGGING_CONFIG
 ```
 
-The logging configuration file needs to be on the `PYTHONPATH`, for example `$AIRFLOW_HOME/config`. This directory is loaded by default. Of course you are free to add any directory to the `PYTHONPATH`, this might be handy when you have the config in another directory or you mount a volume in case of Docker. 
+The logging configuration file needs to be on the `PYTHONPATH`, for example `$AIRFLOW_HOME/config`. This directory is loaded by default. Of course you are free to add any directory to the `PYTHONPATH`, this might be handy when you have the config in another directory or you mount a volume in case of Docker.
 
 You can take the config from `airflow/config_templates/airflow_local_settings.py` as a starting point. Copy the contents to `${AIRFLOW_HOME}/config/airflow_local_settings.py`,  and alter the config as you like.
 
