@@ -693,6 +693,8 @@ or if you need to deserialize a json object from the variable :
 Storing Variables in Environment Variables
 ------------------------------------------
 
+.. versionadded:: 1.10.10
+
 Airflow Variables can also be created and managed using Environment Variables. The environment variable
 naming convention is ``AIRFLOW_VAR_<variable_name>``, all uppercase.
 So if your variable key is ``FOO`` then the variable name should be ``AIRFLOW_VAR_FOO``.
