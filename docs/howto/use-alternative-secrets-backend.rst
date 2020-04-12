@@ -311,19 +311,14 @@ of the connection object.
 Roll your own secrets backend
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A secrets backend is a subclass of :py:class:`airflow.secrets.BaseSecretsBackend`, and just has to implement the
-:py:meth:`~airflow.secrets.BaseSecretsBackend.get_connections` method.
+A secrets backend is a subclass of :py:class:`airflow.secrets.BaseSecretsBackend` and must implement either
+:py:meth:`~airflow.secrets.BaseSecretsBackend.get_connections` or :py:meth:`~airflow.secrets.BaseSecretsBackend.get_conn_uri`.
 
-There are two options:
+After writing your backend class, provide the fully qualified class name in the ``backend`` key in the ``[secrets]``
+section of ``airflow.cfg``.
 
-* Option 1: a base implmentation of the :py:meth:`~airflow.secrets.BaseSecretsBackend.get_connections` is provided, you just need to implement the
-  :py:meth:`~airflow.secrets.BaseSecretsBackend.get_conn_uri` method to make it functional.
-* Option 2: simply override the :py:meth:`~airflow.secrets.BaseSecretsBackend.get_connections` method.
-
-Just create your class, and put the fully qualified class name in ``backend`` key in the ``[secrets]``
-section of ``airflow.cfg``.  You can you can also pass kwargs to ``__init__`` by supplying json to the
-``backend_kwargs`` config param.  See :ref:`Configuration <secrets_backend_configuration>` for more details,
-and :ref:`SSM Parameter Store <ssm_parameter_store_secrets>` for an example.
+Additional arguments to your SecretsBackend can be configured in ``airflow.cfg`` by supplying a JSON string to ``backend_kwargs``, which will be passed to the ``__init__`` of your SecretsBackend.
+See :ref:`Configuration <secrets_backend_configuration>` for more details, and :ref:`SSM Parameter Store <ssm_parameter_store_secrets>` for an example.
 
 .. note::
 
