@@ -124,15 +124,14 @@ class DagCode(Base):
             session.add(orm_dag_code)
 
         for fileloc in existing_filelocs:
-            old_version = existing_orm_dag_codes_by_fileloc_hashes[
-                filelocs_to_hashes[fileloc]
-            ]
-            file_modified = datetime.fromtimestamp(
-                os.path.getmtime(correct_maybe_zipped(fileloc)), tz=timezone.utc)
+            current_version = existing_orm_dag_codes_by_fileloc_hashes[filelocs_to_hashes[fileloc]]
+            file_mod_time = datetime.fromtimestamp(
+                os.path.getmtime(correct_maybe_zipped(fileloc)), tz=timezone.utc
+            )
 
-            if (file_modified - timedelta(seconds=120)) > old_version.last_updated:
+            if file_mod_time > current_version.last_updated:
                 orm_dag_code = existing_orm_dag_codes_map[fileloc]
-                orm_dag_code.last_updated = timezone.utcnow()
+                orm_dag_code.last_updated = file_mod_time
                 orm_dag_code.source_code = cls._get_code_from_file(orm_dag_code.fileloc)
                 session.merge(orm_dag_code)
 
