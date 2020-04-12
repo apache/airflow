@@ -687,7 +687,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
         This is default subcommand if no subcommand is used.
 
-        Enters interactive shell where you can run all tests, start airflow webserver, scheduler,
+        Enters interactive shell where you can run all tests, start Airflow webserver, scheduler,
         workers, interact with the database, run DAGs etc. It is the default command if no command
         is selected. The shell is executed in the container and in case integrations are chosen,
         the integrations will be started as separated docker containers - under the docker-compose
@@ -702,7 +702,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Flags:
 
-  Run 'breeze flags' to see all  available applicable flags.
+  Run 'breeze flags' to see all applicable flags.
 
 
   ####################################################################################################
@@ -712,7 +712,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   breeze [FLAGS] build-docs -- <EXTRA_ARGS>
 
-        Builds airflow documentation. The documentation is build inside docker container - to
+        Builds Airflow documentation. The documentation is build inside docker container - to
         maintain the same build environment for everyone. Appropriate sources are mapped from
         the host to the container so that latest sources are used. The folders where documentation
         is generated ('docs/build') are also mounted to the container - this way results of
@@ -740,13 +740,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  3.6 3.7
 
   -a, --install-airflow-version <INSTALL_AIRFLOW_VERSION>
-          If specified, installs airflow directly from PIP released version. This happens at
+          If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
                  1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2 master v1-10-test
 
   -t, --install-airflow-reference <INSTALL_AIRFLOW_REFERENCE>
-          If specified, installs airflow directly from reference in GitHub. This happens at
+          If specified, installs Airflow directly from reference in GitHub. This happens at
           image building time in production image and at container entering time for CI image.
 
   -I, --production-image
@@ -793,7 +793,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -v, --verbose
           Show verbose information about executed commands (enabled by default for running test).
-          }
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
 
@@ -822,7 +821,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -v, --verbose
           Show verbose information about executed commands (enabled by default for running test).
-          }
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
 
@@ -850,7 +848,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
         Generates pinned requirements from setup.py. Those requirements are generated in requirements
         directory - separately for different python version. Those requirements are used to run
         CI builds as well as run repeatable production image builds. You can use those requirements
-        to predictably install released airflow versions. You should run it always after you update
+        to predictably install released Airflow versions. You should run it always after you update
         setup.py.
 
   Flags:
@@ -863,7 +861,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -v, --verbose
           Show verbose information about executed commands (enabled by default for running test).
-          }
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
 
@@ -923,11 +920,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
         Restarts running docker compose environment. When you restart the environment, the docker
         containers will be restarted. That includes cleaning up the databases. This is
-        especially useful if you switch between different versions of airflow.
+        especially useful if you switch between different versions of Airflow.
 
   Flags:
 
-  Run 'breeze flags' to see all  available applicable flags.
+  Run 'breeze flags' to see all applicable flags.
 
 
   ####################################################################################################
@@ -991,7 +988,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -v, --verbose
           Show verbose information about executed commands (enabled by default for running test).
-          }
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
 
@@ -1039,7 +1035,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -v, --verbose
           Show verbose information about executed commands (enabled by default for running test).
-          }
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
 
@@ -1111,7 +1106,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Flags:
 
-  Run 'breeze flags' to see all  available applicable flags.
+  Run 'breeze flags' to see all applicable flags.
 
 
   ####################################################################################################
@@ -1161,7 +1156,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  3.6 3.7
 
   ****************************************************************************************************
-   Choose backend to run for airflow
+   Choose backend to run for Airflow
 
   -b, --backend <BACKEND>
           Backend to use for tests - it determines which database is used.
@@ -1182,19 +1177,19 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  5.7 8
 
   ****************************************************************************************************
-    Enable production image
+   Enable production image
 
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
 
   ****************************************************************************************************
-    Additional actions executed while entering breeze
+   Additional actions executed while entering breeze
 
   -d, --db-reset
           Resets the database at entry to the environment. It will drop all the tables
           and data and recreate the DB from scratch even if 'restart' command was not used.
           Combined with 'restart' command it enters the environment in the state that is
-          ready to start airflow webserver/scheduler/worker. Without the switch, the database
+          ready to start Airflow webserver/scheduler/worker. Without the switch, the database
           does not have any tables and you need to run reset db manually.
 
   -i, --integration <INTEGRATION>
@@ -1212,19 +1207,19 @@ This is the current syntax for  `./breeze <./breeze>`_:
   Action for the cluster : only one of the --kind-cluster-* flags can be used at a time:
 
   -s, --kind-cluster-start
-          Starts kind Kubernetes cluster after entering the environment. The cluster is started using
+          Starts KinD Kubernetes cluster after entering the environment. The cluster is started using
           Kubernetes Mode selected and Kubernetes version specified via --kubernetes-mode and
           --kubernetes-version flags.
 
   -x, --kind-cluster-stop
-          Stops kind Kubernetes cluster if one has already been created. By default, if you do not
+          Stops KinD Kubernetes cluster if one has already been created. By default, if you do not
           stop environment, the Kubernetes cluster created for testing is continuously running and
           when you start Kubernetes testing again it will be reused. You can force deletion and
           recreation of such cluster with this flag.
 
   -r, --kind-cluster-recreate
 
-          Recreates kind Kubernetes cluster if one has already been created. By default, if you do
+          Recreates KinD Kubernetes cluster if one has already been created. By default, if you do
           not stop environment, the Kubernetes cluster created for testing is continuously running
           and when you start Kubernetes testing again it will be reused. You can force deletion and
           recreation of such cluster with this flag.
@@ -1252,7 +1247,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -l, --skip-mounting-local-sources
           Skips mounting local volume with sources - you get exactly what is in the
-          docker image rather than your current local sources of airflow.
+          docker image rather than your current local sources of Airflow.
 
   ****************************************************************************************************
    Assume answers to questions
@@ -1267,16 +1262,16 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Assume 'quit' answer to all questions.
 
   ****************************************************************************************************
-   Choose different airflow version to install or run
+   Choose different Airflow version to install or run
 
   -a, --install-airflow-version <INSTALL_AIRFLOW_VERSION>
-          If specified, installs airflow directly from PIP released version. This happens at
+          If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
                  1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2 master v1-10-test
 
   -t, --install-airflow-reference <INSTALL_AIRFLOW_REFERENCE>
-          If specified, installs airflow directly from reference in GitHub. This happens at
+          If specified, installs Airflow directly from reference in GitHub. This happens at
           image building time in production image and at container entering time for CI image.
 
   ****************************************************************************************************
@@ -1336,7 +1331,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -v, --verbose
           Show verbose information about executed commands (enabled by default for running test).
-          }
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
 

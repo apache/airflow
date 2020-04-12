@@ -123,12 +123,12 @@ function setup_default_breeze_variables() {
     # Reset DB at entry
     export DB_RESET="false"
 
-    # If install released airflow is set to specified version, then the source version of airflow
-    # is removed and the specified version of airflow is installed from PyPi
+    # If it set is set to specified version, then the source version of Airflow
+    # is removed and the specified version of Airflow is installed from PyPi
     export INSTALL_AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION:=""}
 
-    # If install released airflow is set to specified reference (tag/branch), then the source version
-    # of airflow is removed and the specified version of airflow is installed from GitHub
+    # If it is set to specified reference (tag/branch), then the source version
+    # of Airflow is removed and the specified version of Airflow is installed from GitHub
     export INSTALL_AIRFLOW_REFERENCE=${INSTALL_AIRFLOW_REFERENCE:=""}
 
     # Determine version of the Airflow from version.py
@@ -373,7 +373,7 @@ EOF
                                Kubernetes mode:    ${KUBERNETES_MODE}
                                Kubernetes version: ${KUBERNETES_VERSION}
 
-                               Enable kind:        ${ENABLE_KIND_CLUSTER}
+                               Enable KinD:        ${ENABLE_KIND_CLUSTER}
                                Cluster operation:  ${KIND_CLUSTER_OPERATION}
 EOF
         fi
@@ -419,7 +419,7 @@ EOF
    Kubernetes mode:    ${KUBERNETES_MODE}
    Kubernetes version: ${KUBERNETES_VERSION}
 
-   Enable kind:        ${ENABLE_KIND_CLUSTER}
+   Enable KinD:        ${ENABLE_KIND_CLUSTER}
    Cluster operation:  ${KIND_CLUSTER_OPERATION}
 EOF
         fi
@@ -696,21 +696,21 @@ function parse_arguments() {
           export RUNTIME=kubernetes
           export ENABLE_KIND_CLUSTER="true"
           export KIND_CLUSTER_OPERATION="start"
-          echo "Starting kubernetes cluster"
+          echo "Starting kubernetes KinD cluster"
           echo
           shift ;;
         -r|--kind-cluster-recreate)
           export RUNTIME=kubernetes
           export ENABLE_KIND_CLUSTER="true"
           export KIND_CLUSTER_OPERATION="recreate"
-          echo "Recreating kind cluster"
+          echo "Recreating KinD cluster"
           echo
           shift ;;
         -x|--kind-cluster-stop)
           export RUNTIME=kubernetes
           export ENABLE_KIND_CLUSTER="true"
           export KIND_CLUSTER_OPERATION="stop"
-          echo "Stop kind cluster"
+          echo "Stop KinD cluster"
           echo
           shift ;;
         -L|--use-local-cache)
@@ -995,7 +995,7 @@ function prepare_usage() {
     DETAILED_USAGE_SHELL="
       This is default subcommand if no subcommand is used.
 
-      Enters interactive shell where you can run all tests, start airflow webserver, scheduler,
+      Enters interactive shell where you can run all tests, start Airflow webserver, scheduler,
       workers, interact with the database, run DAGs etc. It is the default command if no command
       is selected. The shell is executed in the container and in case integrations are chosen,
       the integrations will be started as separated docker containers - under the docker-compose
@@ -1020,7 +1020,7 @@ $(flag_footer)
       webserver, workers, database console and interactive terminal.
 "
     export DETAILED_USAGE_BUILD_DOCS="
-      Builds airflow documentation. The documentation is build inside docker container - to
+      Builds Airflow documentation. The documentation is build inside docker container - to
       maintain the same build environment for everyone. Appropriate sources are mapped from
       the host to the container so that latest sources are used. The folders where documentation
       is generated ('docs/build') are also mounted to the container - this way results of
@@ -1095,7 +1095,7 @@ $(flag_verbosity)
       Generates pinned requirements from setup.py. Those requirements are generated in requirements
       directory - separately for different python version. Those requirements are used to run
       CI builds as well as run repeatable production image builds. You can use those requirements
-      to predictably install released airflow versions. You should run it always after you update
+      to predictably install released Airflow versions. You should run it always after you update
       setup.py.
 
 Flags:
@@ -1129,7 +1129,7 @@ $(flag_airflow_variants)
     DETAILED_USAGE_RESTART="
       Restarts running docker compose environment. When you restart the environment, the docker
       containers will be restarted. That includes cleaning up the databases. This is
-      especially useful if you switch between different versions of airflow.
+      especially useful if you switch between different versions of Airflow.
 
 Flags:
 $(flag_footer)
@@ -1256,7 +1256,7 @@ $(get_detailed_usage "${SUBCOMMAND}")
 
 function flag_footer() {
      echo "
-Run '${CMDNAME} flags' to see all  available applicable flags.
+Run '${CMDNAME} flags' to see all applicable flags.
 "
 }
 
@@ -1305,7 +1305,7 @@ function flag_breeze_actions() {
         Resets the database at entry to the environment. It will drop all the tables
         and data and recreate the DB from scratch even if 'restart' command was not used.
         Combined with 'restart' command it enters the environment in the state that is
-        ready to start airflow webserver/scheduler/worker. Without the switch, the database
+        ready to start Airflow webserver/scheduler/worker. Without the switch, the database
         does not have any tables and you need to run reset db manually.
 
 -i, --integration <INTEGRATION>
@@ -1324,19 +1324,19 @@ function flag_kubernetes_actions() {
 Action for the cluster : only one of the --kind-cluster-* flags can be used at a time:
 
 -s, --kind-cluster-start
-        Starts kind Kubernetes cluster after entering the environment. The cluster is started using
+        Starts KinD Kubernetes cluster after entering the environment. The cluster is started using
         Kubernetes Mode selected and Kubernetes version specified via --kubernetes-mode and
         --kubernetes-version flags.
 
 -x, --kind-cluster-stop
-        Stops kind Kubernetes cluster if one has already been created. By default, if you do not
+        Stops KinD Kubernetes cluster if one has already been created. By default, if you do not
         stop environment, the Kubernetes cluster created for testing is continuously running and
         when you start Kubernetes testing again it will be reused. You can force deletion and
         recreation of such cluster with this flag.
 
 -r, --kind-cluster-recreate
 
-        Recreates kind Kubernetes cluster if one has already been created. By default, if you do
+        Recreates KinD Kubernetes cluster if one has already been created. By default, if you do
         not stop environment, the Kubernetes cluster created for testing is continuously running
         and when you start Kubernetes testing again it will be reused. You can force deletion and
         recreation of such cluster with this flag.
@@ -1365,20 +1365,20 @@ function flag_local_file_mounting() {
       echo "
 -l, --skip-mounting-local-sources
         Skips mounting local volume with sources - you get exactly what is in the
-        docker image rather than your current local sources of airflow.
+        docker image rather than your current local sources of Airflow.
 "
 }
 
 function flag_choose_different_airflow_version() {
       echo "
 -a, --install-airflow-version <INSTALL_AIRFLOW_VERSION>
-        If specified, installs airflow directly from PIP released version. This happens at
+        If specified, installs Airflow directly from PIP released version. This happens at
         image building time in production image and at container entering time for CI image. One of:
 
 ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
 
 -t, --install-airflow-reference <INSTALL_AIRFLOW_REFERENCE>
-        If specified, installs airflow directly from reference in GitHub. This happens at
+        If specified, installs Airflow directly from reference in GitHub. This happens at
         image building time in production image and at container entering time for CI image.
 "
 }
@@ -1408,7 +1408,6 @@ function flag_verbosity() {
       echo "
 -v, --verbose
         Show verbose information about executed commands (enabled by default for running test).
-        }
         Note that you can further increase verbosity and see all the commands executed by breeze
         by running 'export VERBOSE_COMMANDS=\"true\"' before running breeze.
 "
@@ -1471,15 +1470,15 @@ $(print_star_line)
 $(flag_airflow_variants)
 
 $(print_star_line)
- Choose backend to run for airflow
+ Choose backend to run for Airflow
 $(flag_backend_variants)
 
 $(print_star_line)
-  Enable production image
+ Enable production image
 $(flag_production_image)
 
 $(print_star_line)
-  Additional actions executed while entering breeze
+ Additional actions executed while entering breeze
 $(flag_breeze_actions)
 
 $(print_star_line)
@@ -1495,7 +1494,7 @@ $(print_star_line)
 $(flag_assume_answers_to_questions)
 
 $(print_star_line)
- Choose different airflow version to install or run
+ Choose different Airflow version to install or run
 $(flag_choose_different_airflow_version)
 
 $(print_star_line)
@@ -1590,7 +1589,7 @@ function touch_local_files {
     fix_local_file ".bash_history"
     fix_local_file ".bash_aliases"
     fix_local_file ".inputrc"
-    # When kind cluster is created, the folder keeps authentication information
+    # When KinD cluster is created, the folder keeps authentication information
     # across sessions
     mkdir -pv "${MY_DIR}/.kube"
 }
@@ -1627,7 +1626,7 @@ function print_cheatsheet() {
             print_line
             echo
             echo " Adding breeze to your path:"
-            echo "    When you exit the environment, you can add sources of airflow to the path - you can"
+            echo "    When you exit the environment, you can add sources of Airflow to the path - you can"
             echo "    run breeze or the scripts above from any directory by calling 'breeze' commands directly"
             echo
             echo "     export PATH=\${PATH}:\"${MY_DIR}\""
@@ -1640,9 +1639,9 @@ function print_cheatsheet() {
         echo " Port forwarding:"
         echo
         echo "   Ports are forwarded to the running docker containers for webserver and database"
-        echo "     * ${WEBSERVER_HOST_PORT} -> forwarded to airflow webserver -> airflow:8080"
-        echo "     * ${POSTGRES_HOST_PORT} -> forwarded to postgres database -> postgres:5432"
-        echo "     * ${MYSQL_HOST_PORT} -> forwarded to mysql database  -> mysql:3306"
+        echo "     * ${WEBSERVER_HOST_PORT} -> forwarded to Airflow webserver -> airflow:8080"
+        echo "     * ${POSTGRES_HOST_PORT} -> forwarded to Postgres database -> postgres:5432"
+        echo "     * ${MYSQL_HOST_PORT} -> forwarded to MySQL database  -> mysql:3306"
         echo
         echo "   Here are links to those services that you can use on host:"
         echo "     * Webserver: http://127.0.0.1:28080"
