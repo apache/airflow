@@ -27,7 +27,7 @@ Pygments==2.6.1
 SQLAlchemy-JSONField==0.9.0
 SQLAlchemy-Utils==0.36.3
 SQLAlchemy==1.3.16
-Sphinx==3.0.0
+Sphinx==3.0.1
 Unidecode==1.1.1
 WTForms==2.2.1
 Werkzeug==0.16.1
@@ -78,7 +78,7 @@ celery==4.4.2
 certifi==2020.4.5.1
 cffi==1.14.0
 cfgv==3.1.0
-cfn-lint==0.29.4
+cfn-lint==0.29.5
 cgroupspy==0.1.6
 chardet==3.0.4
 click==6.7
@@ -142,7 +142,7 @@ google-cloud-monitoring==0.34.0
 google-cloud-pubsub==1.4.2
 google-cloud-redis==0.4.0
 google-cloud-secret-manager==0.2.0
-google-cloud-spanner==1.15.0
+google-cloud-spanner==1.15.1
 google-cloud-speech==1.3.2
 google-cloud-storage==1.27.0
 google-cloud-tasks==1.5.0
@@ -159,7 +159,7 @@ grpcio==1.28.1
 gunicorn==19.10.0
 hdfs==2.5.8
 hmsclient==0.1.1
-httplib2==0.17.1
+httplib2==0.17.2
 humanize==0.5.1
 hvac==0.10.1
 identify==1.4.14
@@ -296,7 +296,7 @@ simple-salesforce==1.0.0
 six==1.14.0
 slackclient==1.3.2
 snowballstemmer==2.0.0
-snowflake-connector-python==2.2.3
+snowflake-connector-python==2.2.4
 snowflake-sqlalchemy==1.2.3
 sortedcontainers==2.1.0
 soupsieve==2.0
