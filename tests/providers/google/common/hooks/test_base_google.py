@@ -433,7 +433,6 @@ class TestGoogleBaseHook(unittest.TestCase):
             "support account impersonate. Please use service-account for authorization."
         )):
             get_credentials_and_project_id(delegate_to="USER")
-    
 
     @mock.patch(  # type: ignore
         MODULE_NAME + '.get_credentials_and_project_id',
