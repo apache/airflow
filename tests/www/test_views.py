@@ -1741,6 +1741,11 @@ class TestDagACLView(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('Rendered Template', resp)
 
+    def test_rendered_failure_non_existing_dag_id(self):
+        url = 'rendered?dag_id=example'
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_in_response('seems to be missing', resp)
+
     def test_task_success(self):
         self.logout()
         self.login()

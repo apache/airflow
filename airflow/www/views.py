@@ -606,6 +606,11 @@ class Airflow(AirflowBaseView):
     @provide_session
     def rendered(self, session=None):
         dag_id = request.args.get('dag_id')
+        dag = dagbag.get_dag(dag_id)
+        if dag is None:
+            flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
+            return redirect(url_for('Airflow.index'))
+
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
         dttm = timezone.parse(execution_date)
@@ -613,7 +618,6 @@ class Airflow(AirflowBaseView):
         root = request.args.get('root', '')
 
         logging.info("Retrieving rendered templates.")
-        dag = dagbag.get_dag(dag_id)
 
         task = copy.copy(dag.get_task(task_id))
         ti = models.TaskInstance(task=task, execution_date=dttm)
