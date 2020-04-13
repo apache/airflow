@@ -17,7 +17,7 @@
 import logging
 import os
 import struct
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Iterable, List, Optional
 
 from sqlalchemy import BigInteger, Column, String, UnicodeText, and_, exists
