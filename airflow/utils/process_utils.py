@@ -140,9 +140,10 @@ def execute_in_subprocess(cmd: List[str]):
         close_fds=True
     )
     log.info("Output:")
-    with proc.stdout:
-        for line in iter(proc.stdout.readline, b''):
-            log.info("%s", line.decode().rstrip())
+    if proc.stdout:
+        with proc.stdout:
+            for line in iter(proc.stdout.readline, b''):
+                log.info("%s", line.decode().rstrip())
 
     exit_code = proc.wait()
     if exit_code != 0:

@@ -561,7 +561,8 @@ class CloudSqlProxyRunner(LoggingMixin):
                                            stdin=PIPE, stdout=PIPE, stderr=PIPE)
             self.log.info("The pid of cloud_sql_proxy: %s", self.sql_proxy_process.pid)
             while True:
-                line = self.sql_proxy_process.stderr.readline().decode('utf-8')
+                line = self.sql_proxy_process.stderr.readline().decode('utf-8') \
+                    if self.sql_proxy_process.stderr else ""
                 return_code = self.sql_proxy_process.poll()
                 if line == '' and return_code is not None:
                     self.sql_proxy_process = None

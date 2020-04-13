@@ -360,7 +360,8 @@ class _DataflowRunner(LoggingMixin):
         :return: Job id
         :rtype: Optional[str]
         """
-        reads = [self._proc.stderr.fileno(), self._proc.stdout.fileno()]
+        reads = [self._proc.stderr.fileno() if self._proc.stderr else 0,
+                 self._proc.stdout.fileno() if self._proc.stdout else 0]
         self.log.info("Start waiting for DataFlow process to complete.")
         job_id = None
         # Make sure logs are processed regardless whether the subprocess is

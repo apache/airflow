@@ -254,7 +254,8 @@ class DAG(BaseDag, LoggingMixin):
 
         self._description = description
         # set file location to caller source path
-        self.fileloc = sys._getframe().f_back.f_code.co_filename
+        back = sys._getframe().f_back
+        self.fileloc = back.f_code.co_filename if back else ""
         self.task_dict: Dict[str, BaseOperator] = dict()
 
         # set timezone from start_date
