@@ -316,11 +316,11 @@ This is the full list of those extras:
   .. START EXTRAS HERE
 
 all, all_dbs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant, dask, databricks,
-datadog, devel, devel_ci, devel_hadoop, doc, docker, druid, elasticsearch, exasol, gcp, gcp_api,
-github_enterprise, google_auth, grpc, hashicorp, hdfs, hive, jdbc, jira, kerberos, kubernetes, ldap,
-mongo, mssql, mysql, odbc, oracle, pagerduty, papermill, password, pinot, postgres, presto, qds,
-rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry, singularity, slack, snowflake, ssh,
-statsd, tableau, vertica, virtualenv, webhdfs, winrm, yandexcloud
+datadog, devel, devel_ci, devel_hadoop, doc, docker, druid, elasticsearch, exasol, facebook, gcp,
+gcp_api, github_enterprise, google_auth, grpc, hashicorp, hdfs, hive, jdbc, jira, kerberos,
+kubernetes, ldap, mongo, mssql, mysql, odbc, oracle, pagerduty, papermill, password, pinot,
+postgres, presto, qds, rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry, singularity,
+slack, snowflake, ssh, statsd, tableau, vertica, virtualenv, webhdfs, winrm, yandexcloud
 
   .. END EXTRAS HERE
 
@@ -457,7 +457,7 @@ apache.hive                amazon,microsoft.mssql,mysql,presto,samba,vertica
 apache.livy                http
 dingding                   http
 discord                    http
-google                     amazon,apache.cassandra,cncf.kubernetes,microsoft.azure,microsoft.mssql,mysql,postgres,presto,sftp
+google                     amazon,apache.cassandra,cncf.kubernetes,facebook,microsoft.azure,microsoft.mssql,mysql,postgres,presto,sftp
 hashicorp                  google
 microsoft.azure            oracle
 microsoft.mssql            odbc

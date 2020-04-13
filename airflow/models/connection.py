@@ -123,6 +123,7 @@ class Connection(Base, LoggingMixin):
         ('docker', 'Docker Registry'),
         ('elasticsearch', 'Elasticsearch'),
         ('exasol', 'Exasol'),
+        ('facebook_social', 'Facebook Social'),
         ('fs', 'File (path)'),
         ('ftp', 'FTP'),
         ('google_cloud_platform', 'Google Cloud Platform'),

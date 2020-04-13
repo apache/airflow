@@ -794,6 +794,11 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      -
      - :mod:`airflow.providers.google.cloud.operators.adls_to_gcs`
 
+   * - `Facebook Ads <http://business.facebook.com>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.providers.google.facebook_ads_to_gcs.operators.ads`
+
    * - `Google BigQuery <https://cloud.google.com/bigquery/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
@@ -1012,6 +1017,12 @@ These integrations allow you to perform various operations within various servic
      -
      - :mod:`airflow.providers.discord.hooks.discord_webhook`
      - :mod:`airflow.providers.discord.operators.discord_webhook`
+     -
+
+   * - `Facebook Ads <http://business.facebook.com>`__
+     -
+     - :mod:`airflow.providers.facebook.ads.hooks.ads`
+     -
      -
 
    * - `Google Ads <https://ads.google.com/home/>`__

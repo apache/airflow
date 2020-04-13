@@ -242,6 +242,23 @@ def create_default_connections(session=None):
     )
     merge_conn(
         Connection(
+            conn_id="facebook_default",
+            conn_type="facebook_social",
+            schema="""
+            {
+                "facebook_ads_client": {
+                    "account_id": "act_123456789",
+                    "app_id": "1234567890",
+                    "app_secret": "1f45tghxxxx12345",
+                    "access_token": "ABcdEfghiJKlmnoxxyz"
+                }
+            }
+            """,
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
             conn_id="fs_default",
             conn_type="fs",
             extra='{"path": "/"}',

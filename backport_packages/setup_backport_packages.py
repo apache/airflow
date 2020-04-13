@@ -100,6 +100,7 @@ PROVIDERS_DEPENDENCIES: Dict[str, List[str]] = {
     "email": [],
     "elasticsearch": [],
     "exasol": setup.exasol,
+    "facebook": setup.facebook,
     "ftp": [],
     "google": setup.gcp,
     "grpc": setup.grpc,
