@@ -2445,6 +2445,7 @@ class BigQueryCursor(BigQueryBaseCursor):
             query_results = (self.service.jobs().getQueryResults(
                 projectId=self.project_id,
                 jobId=self.job_id,
+                location=self.location,
                 pageToken=self.page_token).execute(num_retries=self.num_retries))
 
             if 'rows' in query_results and query_results['rows']:

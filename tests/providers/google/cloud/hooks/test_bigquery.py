@@ -34,6 +34,7 @@ DATASET_ID = "bq_dataset"
 TABLE_ID = "bq_table"
 VIEW_ID = 'bq_view'
 JOB_ID = 1234
+LOCATION = 'europe-north1'
 
 
 class TestBigQueryHookMethods(unittest.TestCase):
@@ -1612,6 +1613,7 @@ class TestBigQueryCursor(unittest.TestCase):
         bq_hook = hook.BigQueryHook()
         bq_cursor = bq_hook.get_cursor()
         bq_cursor.job_id = JOB_ID
+        bq_cursor.location = LOCATION
 
         result = bq_cursor.next()
         self.assertEqual(['one', 1], result)
@@ -1619,7 +1621,8 @@ class TestBigQueryCursor(unittest.TestCase):
         result = bq_cursor.next()
         self.assertEqual(['two', 2], result)
 
-        mock_get_query_results.assert_called_once_with(jobId=JOB_ID, pageToken=None, projectId='bq-project')
+        mock_get_query_results.assert_called_once_with(jobId=JOB_ID, location=LOCATION, pageToken=None,
+                                                       projectId='bq-project')
         mock_execute.assert_called_once_with(num_retries=bq_cursor.num_retries)
 
     @mock.patch(
@@ -1640,7 +1643,8 @@ class TestBigQueryCursor(unittest.TestCase):
         result = bq_cursor.next()
 
         self.assertIsNone(result)
-        mock_get_query_results.assert_called_once_with(jobId=JOB_ID, pageToken=None, projectId='bq-project')
+        mock_get_query_results.assert_called_once_with(jobId=JOB_ID, location=None, pageToken=None,
+                                                       projectId='bq-project')
         mock_execute.assert_called_once_with(num_retries=bq_cursor.num_retries)
         assert mock_flush_results.call_count == 1
 
