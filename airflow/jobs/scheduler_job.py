@@ -716,10 +716,9 @@ class SchedulerJob(BaseJob):
 
             # this structure is necessary to avoid a TypeError from concatenating
             # NoneType
+            period_end = None
             if dag.schedule_interval == '@once':
                 period_end = next_run_date
-            elif next_run_date:
-                period_end = dag.following_schedule(next_run_date)
 
             # Don't schedule a dag beyond its end_date (as specified by the dag param)
             if next_run_date and dag.end_date and next_run_date > dag.end_date:
@@ -734,7 +733,8 @@ class SchedulerJob(BaseJob):
             if next_run_date and min_task_end_date and next_run_date > min_task_end_date:
                 return
 
-            if next_run_date and period_end and period_end <= timezone.utcnow():
+            if next_run_date or \
+               (next_run_date and period_end and period_end <= timezone.utcnow()):
                 next_run = dag.create_dagrun(
                     run_id=DagRun.ID_PREFIX + next_run_date.isoformat(),
                     execution_date=next_run_date,
