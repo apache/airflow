@@ -341,7 +341,7 @@ function update_all_md5_files() {
     do
         move_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"
     done
-    mkdir -pv "${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}"
+    mkdir -pv "${BUILD_CACHE_DIR}/${BRANCH_NAME}"
     touch "${BUILT_IMAGE_FLAG_FILE}"
 }
 

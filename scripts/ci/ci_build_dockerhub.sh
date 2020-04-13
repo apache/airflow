@@ -67,10 +67,24 @@ echo
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-prepare_ci_build
-rm -rf "${BUILD_CACHE_DIR}"
-
-if [[ ${DOCKER_TAG} == *-ci ]]; then
+if [[ ${DOCKER_TAG} == *python*-ci ]]; then
+    echo
+    echo "Building CI image"
+    echo
+    rm -rf "${BUILD_CACHE_DIR}"
+    prepare_ci_build
     rebuild_ci_image_if_needed
     push_ci_image
+elif [[ ${DOCKER_TAG} == *python* ]]; then
+    echo
+    echo "Building prod image"
+    echo
+    rm -rf "${BUILD_CACHE_DIR}"
+    prepare_prod_build
+    build_prod_image
+    push_prod_images
+else
+    echo
+    echo "Skipping the build in Dockerhub. The tag is not good: ${DOCKER_TAG}"
+    echo
 fi
