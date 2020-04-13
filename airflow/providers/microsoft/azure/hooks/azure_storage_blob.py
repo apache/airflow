@@ -219,17 +219,42 @@ class AzureStorageBlobHook(BaseHook):
 
         blob_client = self._get_blob_client(container_name, blob_name)
         with open(dest_file, 'wb') as blob:
-            self.log.info('Downloading blob: %s', blob_name)
+            self.log.info('Downloading blob: %s to %s', blob_name, dest_file)
             download_stream = blob_client.download_blob(offset=offset, length=length, **kwargs)
             blob.write(download_stream.readall())
 
-    def copy(self, source_blob, destination_blob,):
+    def copy(self, container_name: str, blob_name: str, source_url: str, **kwargs):
         """
-        :param source_blob:
-        :param destination_blob:
-        :return:
+        Copies a blob asynchronously.
+
+        :param container_name: The name of the container
+        :type container_name: str
+        :param blob_name: The name of the blob to copy
+        :type blob_name: str
+        :param source_url: The url of the blob to copy. If the source is in another
+            account, the source must either be public or must be authenticated
+            via a shared access signature.
+        :type source_url: str
+
         """
-        # TODO Add copy from url
+        blob_client = self._get_blob_client(container_name, blob_name)
+
+        return blob_client.start_copy_from_url(source_url, **kwargs)
+
+    def check_copy_status(self, container_name, blob_name, **kwargs):
+        """
+        Check the copy status of a blob
+
+        :param container_name: The name of the container
+        :type container_name: str
+        :param blob_name: The name of the blob to check
+        :type blob_name: str
+        """
+        blob_client = self._get_blob_client(container_name, blob_name)
+        prop = blob_client.get_blob_properties(**kwargs)
+        status = prop.copy.status
+        self.log.info("%s copy status: %s", blob_name, status)
+        return status
 
     def create_snapshot(self, container_name, blob_name, metadata=None, **kwargs):
         """

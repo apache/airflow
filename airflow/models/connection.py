@@ -49,6 +49,10 @@ CONN_TYPE_TO_HOOK = {
         "airflow.providers.microsoft.azure.hooks.azure_storage_blob.AzureStorageBlobHook",
         "azure_blob_conn_id"
     ),
+    "azure_storage_fileshare": (
+        "airflow.providers.microsoft.azure.hooks.azure_storage_fileshare.AzureStorageFileShareHook",
+        "azure_fileshare_conn_id"
+    ),
     "cassandra": ("airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook", "cassandra_conn_id"),
     "cloudant": ("airflow.providers.cloudant.hooks.cloudant.CloudantHook", "cloudant_conn_id"),
     "docker": ("airflow.providers.docker.hooks.docker.DockerHook", "docker_conn_id"),
@@ -160,6 +164,7 @@ class Connection(Base, LoggingMixin):
         ('sqoop', 'Sqoop'),
         ('azure_batch', 'Azure Batch Service'),
         ('azure_storage_blob', "Azure Storage Blob"),
+        ('azure_storage_fileshare', 'Azure Storage Fileshare'),
         ('azure_data_lake', 'Azure Data Lake'),
         ('azure_container_instances', 'Azure Container Instances'),
         ('azure_cosmos', 'Azure CosmosDB'),

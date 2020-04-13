@@ -17,76 +17,91 @@
 # under the License.
 #
 import datetime
+import json
 import os
 import tempfile
 import unittest
 
 import mock
 
+from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.providers.microsoft.azure.operators.local_to_azure_storage_blob import (
     LocalFileSystemToAzureStorageBlobOperator,
 )
+from airflow.utils import db
 
 
 class TestLocalFileSystemToAzureStorageblobOperator(unittest.TestCase):
-
-    def setUp(self):
+    # set up the test environment
+    @mock.patch("airflow.providers.microsoft.azure.hooks.azure_storage_blob.AzureStorageBlobHook")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.azure_storage_blob.BlobServiceClient")
+    def setUp(self, mock_service, mock_hook):
+        db.merge_conn(
+            Connection(
+                conn_id='test-key-id', conn_type='azure_storage_blob',
+                host='https://accountname.blob.core.windows.net',
+                extra=json.dumps({'shared_access_key': 'token'})
+            )
+        )
+        self.test_dir = tempfile.TemporaryDirectory()
+        self.test_dir_name = tempfile.gettempdir()
+        self.testfile = tempfile.NamedTemporaryFile(delete=False)
+        self.testfile.write(b"some test content")
+        self.testfile.flush()
         args = {
             'owner': 'airflow',
             'start_date': datetime.datetime(2017, 1, 1)
         }
         self.dag = DAG('test_dag_id', default_args=args)
-        self.testfile = tempfile.NamedTemporaryFile(delete=False)
-        self.testfile.write(b"x" * 393216)
-        self.testfile.flush()
+
         self._config = {
-            'source_path': self.testfile,
+            'source_path': self.testfile.name,
             'container_name': 'container',
             'destination_path': 'blob',
-            'azure_blob_conn_id': 'azure_blob_default',
+            'azure_blob_conn_id': 'test-key-id',
             'length': 3
         }
+
+        self.operator = LocalFileSystemToAzureStorageBlobOperator(
+            task_id='localtoblob_operator',
+            dag=self.dag,
+            **self._config
+        )
+        self.assertEqual(self.operator.source_path, self._config['source_path'])
+        self.assertEqual(self.operator.container_name,
+                         self._config['container_name'])
+        self.assertEqual(self.operator.destination_path, self._config['destination_path'])
+        self.assertEqual(self.operator.azure_blob_conn_id, self._config['azure_blob_conn_id'])
+        self.assertEqual(self.operator.upload_options, {})
+        self.assertEqual(self.operator.length, self._config['length'])
+        self.blob_client = mock_service.return_value
+        self.hook = mock_hook.return_value
+        self.assertEqual(self.blob_client, self.operator.hook.get_conn())
 
     def tearDown(self):
         os.unlink(self.testfile.name)
 
-    def test_init(self):
-        operator = LocalFileSystemToAzureStorageBlobOperator(
-            task_id='localtoblob_operator',
-            dag=self.dag,
-            **self._config
-        )
-        self.assertEqual(operator.source_path, self._config['source_path'])
-        self.assertEqual(operator.container_name,
-                         self._config['container_name'])
-        self.assertEqual(operator.destination_path, self._config['destination_path'])
-        self.assertEqual(operator.azure_blob_conn_id, self._config['azure_blob_conn_id'])
-        self.assertEqual(operator.load_options, {})
-        self.assertEqual(operator.length, self._config['length'])
+    @mock.patch("airflow.providers.microsoft.azure.operators."
+                "local_to_azure_storage_blob.AzureStorageBlobHook")
+    @mock.patch("airflow.providers.microsoft.azure.hooks."
+                "azure_storage_blob.BlobServiceClient")
+    def test_execute_with_file_without_failures(self, mock_client, mock_azhook):
+        self.operator.execute(None)
+        self.assertIsNotNone(self.operator)
+        mock_client.return_value.get_container_client.\
+            assert_called_once_with(self._config['container_name'])
+        mock_client.return_value.get_container_client.return_value.get_blob_client. \
+            return_value.upload_blob.assert_called()
 
-        operator = LocalFileSystemToAzureStorageBlobOperator(
-            task_id='localtoblob_operator',
-            dag=self.dag,
-            load_options={'timeout': 2},
-            **self._config
-        )
-        self.assertEqual(operator.load_options, {'timeout': 2})
-
-    @mock.patch('airflow.providers.microsoft.azure.operators.'
-                'local_to_azure_storage_blob.AzureStorageBlobHook',
-                autospec=True)
-    def test_execute(self, mock_hook):
-        mock_instance = mock_hook.return_value
-        operator = LocalFileSystemToAzureStorageBlobOperator(
-            task_id='blob_sensor',
-            dag=self.dag,
-            load_options={'timeout': 2},
-            **self._config
-        )
-        operator.execute(None)
-        mock_instance.upload.assert_called()
-
-
-if __name__ == '__main__':
-    unittest.main()
+    @mock.patch("airflow.providers.microsoft.azure.operators."
+                "local_to_azure_storage_blob.AzureStorageBlobHook")
+    @mock.patch("airflow.providers.microsoft.azure.hooks."
+                "azure_storage_blob.BlobServiceClient")
+    def test_execute_with_dir_without_failures(self, mock_client, mock_azhook):
+        self.operator.source_path = self.test_dir_name
+        self.operator.execute(None)
+        self.assertIsNotNone(self.operator)
+        mock_client.return_value.get_container_client.assert_called_with(self._config['container_name'])
+        mock_client.return_value.get_container_client.return_value.get_blob_client. \
+            return_value.upload_blob.assert_called()

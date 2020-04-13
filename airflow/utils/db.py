@@ -135,6 +135,22 @@ def create_default_connections(session=None):
     )
     merge_conn(
         Connection(
+            conn_id="azure_blob_default",
+            conn_type="azure_storage_blob",
+            extra='{"shared_access_key":"<SHARED_ACCESS_KEY>"}',
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="azure_fileshare_default",
+            conn_type="azure_storage_fileshare",
+            extra='{"shared_access_key":"<SHARED_ACCESS_KEY>"}',
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
             conn_id="cassandra_default",
             conn_type="cassandra",
             host="cassandra",
@@ -494,14 +510,6 @@ def create_default_connections(session=None):
             conn_type="vertica",
             host="localhost",
             port=5433,
-        ),
-        session
-    )
-    merge_conn(
-        Connection(
-            conn_id="azure_blob_default",
-            conn_type="azure_storage_blob",
-            extra='{"connection_string":"<CONNECTION_STRING>"}',
         ),
         session
     )

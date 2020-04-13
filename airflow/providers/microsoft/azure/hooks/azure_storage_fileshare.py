@@ -1,0 +1,270 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+from typing import Optional
+
+from azure.identity import ClientSecretCredential
+from azure.storage.fileshare import ShareServiceClient
+
+from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
+
+
+class AzureStorageFileShareHook(BaseHook):
+    """
+    Interacts with Azure Storage Fileshare.
+
+    :param azure_fileshare_conn_id: Reference to the azure storage file share connection.
+    :type azure_fileshare_conn_id: str
+    """
+
+    def __init__(self, azure_fileshare_conn_id='azure_fileshare_default'):
+        super().__init__()
+        self.conn_id = azure_fileshare_conn_id
+
+    def get_conn(self):
+        """Return the ShareServiceClient object."""
+        conn = self.get_connection(self.conn_id)
+        extra = conn.extra_dejson
+
+        def _get_required_param(name):
+            """Extract required parameter from extra JSON, raise exception if not found"""
+            value = extra.get(name)
+            if not value:
+                raise AirflowException(
+                    'Extra connection option is missing required parameter: `{}`'.
+                    format(name))
+            return value
+        if extra.get('connection_string'):
+            # connection_string auth takes priority
+            return ShareServiceClient.from_connection_string(extra.get('connection_string'))
+        if extra.get('shared_access_key'):
+            # using shared access key
+            return ShareServiceClient(account_url=conn.host,
+                                      credential=extra.get('shared_access_key'))
+        if extra.get('tenant_id'):
+            # use Active Directory auth
+            app_id = _get_required_param('application_id')
+            app_secret = _get_required_param("application_secret")
+            token_credential = ClientSecretCredential(
+                extra.get('tenant_id'),
+                app_id,
+                app_secret
+            )
+            return ShareServiceClient(account_url=conn.host, credential=token_credential)
+        else:
+            raise AirflowException('Unknown connection type')
+
+    def _get_share_client(self, share_name, snapshot: Optional[str] = None, **kwargs):
+        """
+        A client to interact with a specific share, although that share may not yet exist.
+
+        :param share_name: The name of the share with which to interact.
+        :type share_name: Union[str, ShareProperties]
+        :param snapshot: An optional share snapshot on which to operate.
+        :type snapshot: str
+        """
+        share = self.get_conn().get_share_client(share_name=share_name,
+                                                 snapshot=snapshot, **kwargs)
+        return share
+
+    def _get_directory_client(self, share_name: str, snapshot: Optional[str] = None,
+                              directory_path=None):
+        """
+        Get a client to interact with the specified directory. The directory need not already exist.
+
+        :param share_name: The name of the share with which to interact.
+        :type share_name: str
+        :param snapshot: An optional share snapshot on which to operate.
+        :type snapshot: str
+        :param directory_path: Path to the specified directory.
+        :type directory_path: str
+        """
+        share_client = self._get_share_client(share_name=share_name,
+                                              snapshot=snapshot)
+        return share_client.get_directory_client(directory_path=directory_path)
+
+    def _get_file_client(self, share_name: str, snapshot: Optional[str] = None,
+                         file_path=None):
+        """
+        Get a client to interact with the specified file. The file need not already exist.
+
+        :param share_name: The name of the share with which to interact.
+        :type share_name: str
+        :param snapshot: An optional share snapshot on which to operate.
+        :type snapshot: str
+        :param file_path: Path to the specified file.
+        :type file_path: str
+        """
+        share_client = self._get_share_client(share_name=share_name,
+                                              snapshot=snapshot)
+        return share_client.get_file_client(file_path=file_path)
+
+    def upload_file(self):
+        """
+
+        :return:
+        """
+
+    def download_file(self):
+        """
+
+        :return:
+        """
+
+    def create_file(self):
+        """
+
+        :return:
+        """
+
+    def start_copy_from_url(self):
+        """
+
+        :return:
+        """
+
+    def abort_copy(self):
+        """
+
+        :return:
+        """
+
+    def copy_status(self):
+        """
+
+        :return:
+        """
+
+    def create_share(self, share_name: str, snapshot: Optional[str] = None, **kwargs):
+        """
+        Creates a new Share under the account.
+
+        :param share_name: The name of the share with which to interact.
+        :type share_name: str
+        :param snapshot: An optional share snapshot on which to operate.
+        :type snapshot: str
+        """
+
+        share_client = self._get_share_client(share_name=share_name,
+                                              snapshot=snapshot)
+        return share_client.create_share(**kwargs)
+
+    def delete_share(self, share_name: str, snapshot: Optional[str] = None,
+                     delete_snapshot: Optional[bool] = False, **kwargs):
+        """
+        Marks the specified share for deletion. The share is later deleted
+        during garbage collection.
+
+        :param share_name: The name of the share with which to interact.
+        :type share_name: str
+        :param snapshot: An optional share snapshot on which to operate.
+        :type snapshot: str
+        :param delete_snapshot: Indicates if snapshots are to be deleted.
+        :type delete_snapshot: bool
+        """
+        share_client = self._get_share_client(share_name=share_name,
+                                              snapshot=snapshot)
+        return share_client.delete_share(delete_snapshot=delete_snapshot, **kwargs)
+
+    def create_snapshot(self, share_name: str, snapshot: Optional[str] = None, **kwargs):
+        """
+        Creates a snapshot of the share.
+
+        :param share_name: The name of the share with which to interact.
+        :type share_name: str
+        :param snapshot: An optional share snapshot on which to operate.
+        :type snapshot: str
+        """
+        share_client = self._get_share_client(share_name=share_name,
+                                              snapshot=snapshot)
+        return share_client.create_snapshot(**kwargs)
+
+    def create_directory(self, directory_name, share_name: str,
+                         snapshot: Optional[str] = None, **kwargs):
+        """
+        Creates a directory in the share and returns a client to interact with the directory.
+
+        :param directory_name: The name of the directory
+        :type directory_name: str
+        :param share_name: The name of the share with which to interact.
+        :type share_name: str
+        :param snapshot: An optional share snapshot on which to operate.
+        :type snapshot: str
+        """
+        share_client = self._get_share_client(share_name=share_name,
+                                              snapshot=snapshot)
+        return share_client.create_directory(directory_name, **kwargs)
+
+    def delete_directory(self, directory_name, share_name: str,
+                         snapshot: Optional[str] = None, **kwargs):
+        """
+        Marks the directory for deletion. The directory is later deleted during garbage collection.
+
+        :param directory_name: The name of the directory
+        :type directory_name: str
+        :param share_name: The name of the share with which to interact.
+        :type share_name: str
+        :param snapshot: An optional share snapshot on which to operate.
+        :type snapshot: str
+
+        """
+        share_client = self._get_share_client(share_name=share_name,
+                                              snapshot=snapshot)
+        return share_client.delete_directory(directory_name, **kwargs)
+
+    def list_directories_and_files(self, share_name: str, snapshot: Optional[str] = None,
+                                   directory_name: Optional[str] = None, **kwargs):
+        """
+         Lists the directories and files under the share.
+
+        :param share_name: The name of the share with which to interact.
+        :type share_name: str
+        :param snapshot: An optional share snapshot on which to operate.
+        :type snapshot: str
+        :param directory_name:
+        :param kwargs:
+        :return:
+        """
+
+        share_client = self._get_share_client(share_name=share_name,
+                                              snapshot=snapshot)
+        return share_client.list_directories_and_files(
+            directory_name=directory_name, **kwargs)
+
+    def list_shares(self, name_starts_with=None, include_metadata=False,
+                    include_snapshots=False, **kwargs):
+        """
+        List all shares in the account
+
+        :param name_starts_with: Filters the results to return only
+            shares whose names begin with the specified name_starts_with.
+        :type name_starts_with: str
+
+        :param include_metadata: Specifies that share metadata be returned in the response.
+        :type include_metadata: Optional[bool]
+
+        :param include_snapshots: Specifies that share snapshot be returned in the response.
+        type include_snapshots: Optional[bool]
+
+        """
+
+        return self.get_conn().list_shares(name_starts_with=name_starts_with,
+                                           include_metadata=include_metadata,
+                                           include_snapshots=include_snapshots,
+                                           **kwargs)

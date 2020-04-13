@@ -16,66 +16,45 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.azure_storage_blob import AzureStorageBlobHook
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class AzureDeleteBlobOperator(BaseOperator):
+class AzureStorageBlobSensor(BaseSensorOperator):
     """
-    Deletes blob(s) on Azure Blob Storage.
+    Waits for a blob to arrive on Azure Blob Storage.
 
-    :param container_name: Name of the container. (templated)
+    :param container_name: Name of the container.
     :type container_name: str
-    :param blob_name: Name of the blob. (templated)
+    :param blob_name: Name of the blob.
     :type blob_name: str
-    :param azure_blob_conn_id: Reference to the blob connection.
+    :param azure_blob_conn_id: Reference to the wasb connection.
     :type azure_blob_conn_id: str
     :param check_options: Optional keyword arguments that
-        `AzureStorageBlobHook.list` takes.
+        `AzureStorageBlobHook.check_copy_status()` takes.
     :type check_options: dict
-    :param delete_options: Optional keyword arguments that
-        `AzureStorageBlobHook.delete_blob` takes.
-    :type delete_options: dict
-    :param is_prefix: If blob_name is a prefix, delete all files matching prefix.
-    :type is_prefix: bool
-
     """
 
     template_fields = ('container_name', 'blob_name')
-    ui_color = "#f5c1cf"
 
     @apply_defaults
-    def __init__(self, container_name,
-                 blob_name,
+    def __init__(self, container_name, blob_name,
                  azure_blob_conn_id='azure_blob_default',
-                 check_options=None,
-                 delete_options=None,
-                 is_prefix=False,
-                 *args,
+                 check_options=None, *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
         if check_options is None:
             check_options = {}
-        if delete_options is None:
-            delete_options = {}
         self.azure_blob_conn_id = azure_blob_conn_id
         self.container_name = container_name
         self.blob_name = blob_name
         self.check_options = check_options
-        self.delete_options = delete_options
-        self.is_prefix = is_prefix
 
-    def execute(self, context):
-        """ Delete blobs from Azure Storage Blob container"""
+    def poke(self, context):
         self.log.info(
-            'Deleting blob %s from %s container', self.blob_name, self.container_name
+            'Poking for blob: %s\nin %s', self.blob_name, self.container_name
         )
         hook = AzureStorageBlobHook(azure_blob_conn_id=self.azure_blob_conn_id)
-        if self.is_prefix:
-            blobs = hook.list(self.container_name, name_starts_with=self.blob_name,
-                              **self.check_options)
-            hook.delete_blobs(self.container_name, *blobs, **self.delete_options)
-        else:
-            hook.delete_blob(self.container_name, self.blob_name,
-                             **self.delete_options)
+        return hook.check_copy_status(self.container_name, self.blob_name,
+                                      **self.check_options)
