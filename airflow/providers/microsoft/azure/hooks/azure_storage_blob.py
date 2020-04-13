@@ -286,6 +286,22 @@ class AzureStorageBlobHook(BaseHook):
         """
         return self._get_blob_client(container_name, blob_name).get_blob_properties(**kwargs)
 
+    def check_for_blob(self, container_name, blob_name, **kwargs):
+        """
+        Check if blob exists
+
+        :param container_name: The name of the container containing the blob
+        :type container_name: str
+
+        :param blob_name: The name of the blob
+        :type blob_name: str
+        """
+        try:
+            self._get_blob_client(container_name, blob_name).get_blob_properties(**kwargs)
+        except ResourceNotFoundError:
+            return False
+        return True
+
     def delete_blob(self, container_name: str, blob_name: str,
                     delete_snapshots: Optional[bool] = False, **kwargs):
         """

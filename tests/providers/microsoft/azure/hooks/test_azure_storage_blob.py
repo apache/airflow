@@ -207,6 +207,17 @@ class TestAzureStorageBlobHook(unittest.TestCase):
             return_value.get_blob_properties.assert_called()
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.azure_storage_blob.BlobServiceClient")
+    def test_check_for_blob(self, mock_service):
+        hook = AzureStorageBlobHook(azure_blob_conn_id=self.shared_key_conn_id)
+        hook.check_for_blob(container_name='mycontainer',
+                            blob_name='myblob')
+        mock_service.return_value.get_container_client.assert_called_once_with('mycontainer')
+        mock_service.return_value.get_container_client.return_value.get_blob_client. \
+            assert_called_once_with('myblob')
+        mock_service.return_value.get_container_client.return_value.get_blob_client. \
+            return_value.get_blob_properties.assert_called()
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.azure_storage_blob.BlobServiceClient")
     def test_create_snapshot(self, mock_service):
         hook = AzureStorageBlobHook(azure_blob_conn_id=self.shared_key_conn_id)
         hook.create_snapshot(container_name='mycontainer',

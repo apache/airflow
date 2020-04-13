@@ -23,7 +23,10 @@ Cloud variant of a SMB file share. Make sure that a Airflow connection of
 type `azure_storage_fileshare` exists.
 """
 
+import io
 import json
+import os
+import tempfile
 import unittest
 
 import mock
@@ -44,6 +47,9 @@ class TestAzureFileshareHook(unittest.TestCase):
         self.connection_string_id = 'azure_file_test_connection_string'
         self.shared_key_conn_id = 'azure_file_shared_key_test'
         self.ad_conn_id = 'azure_AD_test'
+        self.testfile = tempfile.NamedTemporaryFile(delete=False)
+        self.testfile.write(b"x" * 393216)
+        self.testfile.flush()
 
         db.merge_conn(
             Connection(
@@ -65,6 +71,9 @@ class TestAzureFileshareHook(unittest.TestCase):
                                   'application_secret': "appsecret"})
             )
         )
+
+    def tearDown(self):
+        os.unlink(self.testfile.name)
 
     def test_connection_string(self):
         from azure.storage.fileshare import ShareServiceClient
@@ -103,6 +112,63 @@ class TestAzureFileshareHook(unittest.TestCase):
                                                                            snapshot=None)
         mock_service.return_value.get_share_client.return_value.get_file_client. \
             assert_called_once_with(file_path='/mypath')
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.azure_storage_fileshare.ShareServiceClient")
+    def test_upload_file(self, mock_service):
+        hook = AzureStorageFileShareHook(azure_fileshare_conn_id=self.shared_key_conn_id)
+        hook.upload_file(source_file=self.testfile.name,
+                         share_name='myshare')
+        share_client = mock_service.return_value.get_share_client
+        file_client = share_client.return_value.get_file_client
+        share_client.assert_called()
+        file_client.assert_called()
+        file_client.return_value.upload_file.assert_called()
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.azure_storage_fileshare.ShareServiceClient")
+    def test_download_file(self, mock_service):
+        share_client = mock_service.return_value.get_share_client
+        file_client = share_client.return_value.get_file_client
+        file_client.return_value.download_file.return_value = io.FileIO(self.testfile.name)
+        hook = AzureStorageFileShareHook(azure_fileshare_conn_id=self.shared_key_conn_id)
+        hook.download_file(dest_file=self.testfile.name,
+                           share_name='myshare')
+
+        share_client.assert_called()
+        file_client.assert_called()
+        file_client.return_value.download_file.assert_called()
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.azure_storage_fileshare.ShareServiceClient")
+    def test_create_file(self, mock_service):
+        hook = AzureStorageFileShareHook(azure_fileshare_conn_id=self.shared_key_conn_id)
+        hook.create_file(size=100,
+                         share_name='myshare')
+        share_client = mock_service.return_value.get_share_client
+        file_client = share_client.return_value.get_file_client
+        share_client.assert_called()
+        file_client.assert_called()
+        file_client.return_value.create_file.assert_called_once_with(size=100)
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.azure_storage_fileshare.ShareServiceClient")
+    def test_start_copy_from_url(self, mock_service):
+        hook = AzureStorageFileShareHook(azure_fileshare_conn_id=self.shared_key_conn_id)
+        hook.start_copy_from_url(source_url='https://test-url.com',
+                                 share_name='myshare')
+        share_client = mock_service.return_value.get_share_client
+        file_client = share_client.return_value.get_file_client
+        share_client.assert_called()
+        file_client.assert_called()
+        file_client.return_value.start_copy_from_url.\
+            assert_called_once_with('https://test-url.com')
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.azure_storage_fileshare.ShareServiceClient")
+    def test_delete_file(self, mock_service):
+        hook = AzureStorageFileShareHook(azure_fileshare_conn_id=self.shared_key_conn_id)
+        hook.delete_file(share_name='myshare')
+        share_client = mock_service.return_value.get_share_client
+        file_client = share_client.return_value.get_file_client
+        share_client.assert_called()
+        file_client.assert_called()
+        file_client.return_value.delete_file.assert_called()
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.azure_storage_fileshare.ShareServiceClient")
     def test_create_share(self, mock_service):

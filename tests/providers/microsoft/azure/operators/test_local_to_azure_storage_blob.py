@@ -19,6 +19,7 @@
 import datetime
 import json
 import os
+import shutil
 import tempfile
 import unittest
 
@@ -45,10 +46,10 @@ class TestLocalFileSystemToAzureStorageblobOperator(unittest.TestCase):
             )
         )
         self.test_dir = tempfile.TemporaryDirectory()
-        self.test_dir_name = tempfile.gettempdir()
         self.testfile = tempfile.NamedTemporaryFile(delete=False)
         self.testfile.write(b"some test content")
         self.testfile.flush()
+        shutil.copy(self.testfile.name, self.test_dir.name)
         args = {
             'owner': 'airflow',
             'start_date': datetime.datetime(2017, 1, 1)
@@ -81,6 +82,7 @@ class TestLocalFileSystemToAzureStorageblobOperator(unittest.TestCase):
 
     def tearDown(self):
         os.unlink(self.testfile.name)
+        shutil.rmtree(self.test_dir.name)
 
     @mock.patch("airflow.providers.microsoft.azure.operators."
                 "local_to_azure_storage_blob.AzureStorageBlobHook")
@@ -99,7 +101,7 @@ class TestLocalFileSystemToAzureStorageblobOperator(unittest.TestCase):
     @mock.patch("airflow.providers.microsoft.azure.hooks."
                 "azure_storage_blob.BlobServiceClient")
     def test_execute_with_dir_without_failures(self, mock_client, mock_azhook):
-        self.operator.source_path = self.test_dir_name
+        self.operator.source_path = self.test_dir.name
         self.operator.execute(None)
         self.assertIsNotNone(self.operator)
         mock_client.return_value.get_container_client.assert_called_with(self._config['container_name'])

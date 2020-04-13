@@ -72,7 +72,7 @@ class TestAzureStorageBlobSensor(unittest.TestCase):
             **self._config
         )
         sensor.poke(None)
-        mock_instance.check_copy_status.assert_called_once_with(
+        mock_instance.check_for_blob.assert_called_once_with(
             'container', 'blob', timeout=2
         )
 

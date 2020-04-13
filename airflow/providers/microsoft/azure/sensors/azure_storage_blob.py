@@ -56,5 +56,5 @@ class AzureStorageBlobSensor(BaseSensorOperator):
             'Poking for blob: %s\nin %s', self.blob_name, self.container_name
         )
         hook = AzureStorageBlobHook(azure_blob_conn_id=self.azure_blob_conn_id)
-        return hook.check_copy_status(self.container_name, self.blob_name,
-                                      **self.check_options)
+        return hook.check_for_blob(self.container_name, self.blob_name,
+                                   **self.check_options)

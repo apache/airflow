@@ -115,41 +115,102 @@ class AzureStorageFileShareHook(BaseHook):
                                               snapshot=snapshot)
         return share_client.get_file_client(file_path=file_path)
 
-    def upload_file(self):
+    def upload_file(self, source_file: str, share_name: str, snapshot: Optional[str] = None,
+                    file_path: Optional[str] = None, **kwargs):
         """
+        Upload a file
 
-        :return:
+        :param source_file: The file to upload
+        :type source_file: str
+        :param share_name: The name of the share with which to interact.
+        :type share_name: str
+        :param snapshot: An optional share snapshot on which to operate.
+        :type snapshot: str
+        :param file_path: Path to the specified file to upload to.
+        :type file_path: str
         """
+        file_client = self._get_file_client(share_name, snapshot, file_path=file_path)
+        with open(source_file, 'rb') as data:
+            file_client.upload_file(data)
 
-    def download_file(self):
+    def download_file(self, dest_file: str, share_name: str, snapshot: Optional[str] = None,
+                      file_path: Optional[str] = None, offset=None,
+                      length=None, **kwargs):
         """
+        Download a file to a specified destination
 
-        :return:
+        :param dest_file: The destination to download the file to.
+        :type dest_file: str
+        :param share_name: The name of the share with which to interact.
+        :type share_name: str
+        :param snapshot: An optional share snapshot on which to operate.
+        :type snapshot: str
+        :param file_path: Path to the specified file.
+        :type file_path: str
+        :param offset: Start of byte range to use for downloading a section
+            of the file. Must be set if length is provided.
+        :type offset: int
+        :param length: Number of bytes to read from the stream.
+        :type length: int
         """
+        if length and not offset:
+            raise AirflowException('The offset is required if length is set')
 
-    def create_file(self):
-        """
+        file_client = self._get_file_client(share_name, snapshot, file_path=file_path)
 
-        :return:
-        """
+        with open(dest_file, 'wb') as data:
+            stream = file_client.download_file(offset=offset, length=length, **kwargs)
+            data.write(stream.readall())
 
-    def start_copy_from_url(self):
+    def create_file(self, size: int, share_name: str, snapshot: Optional[str] = None,
+                    file_path: Optional[str] = None, **kwargs):
         """
+        Creates a new file
 
-        :return:
+        :param size: Specifies the maximum size for the file, up to 1 TB.
+        :type size: int
+        :param share_name: The name of the share with which to interact.
+        :type share_name: str
+        :param snapshot: An optional share snapshot on which to operate.
+        :type snapshot: str
+        :param file_path: Path to the specified file.
+        :type file_path: str
         """
+        file_client = self._get_file_client(share_name, snapshot, file_path=file_path)
 
-    def abort_copy(self):
-        """
+        return file_client.create_file(size=size, **kwargs)
 
-        :return:
+    def delete_file(self, share_name: str, snapshot: Optional[str] = None,
+                    file_path: Optional[str] = None, **kwargs):
         """
+        Mark specified file for deletion
 
-    def copy_status(self):
+        :param share_name: The name of the share with which to interact.
+        :type share_name: str
+        :param snapshot: An optional share snapshot on which to operate.
+        :type snapshot: str
+        :param file_path: Path to the specified file.
+        :type file_path: str
         """
+        file_client = self._get_file_client(share_name, snapshot, file_path=file_path)
+        file_client.delete_file(**kwargs)
 
-        :return:
+    def start_copy_from_url(self, source_url, share_name: str, snapshot: Optional[str] = None,
+                            file_path: Optional[str] = None, **kwargs):
         """
+        Initiates the copying of data from a source URL into the file referenced by the client.
+
+        :param source_url: Specifies the URL of the source file.
+        :type source_url : str
+        :param share_name: The name of the share with which to interact.
+        :type share_name: str
+        :param snapshot: An optional share snapshot on which to operate.
+        :type snapshot: str
+        :param file_path: Path to the specified file.
+        :type file_path: str
+        """
+        file_client = self._get_file_client(share_name, snapshot, file_path=file_path)
+        return file_client.start_copy_from_url(source_url, **kwargs)
 
     def create_share(self, share_name: str, snapshot: Optional[str] = None, **kwargs):
         """
