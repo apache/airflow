@@ -163,7 +163,7 @@ function initialize_common_environment {
 
     # upgrade while generating requirements should only happen in localy run
     # pre-commits or in cron job
-    if [[ ${LOCAL_RUN} == "true" || "${TRAVIS_EVENT_TYPE:=}" == "cron" ]]; then
+    if [[ ${LOCAL_RUN} == "true" ]]; then
         export UPGRADE_WHILE_GENERATING_REQUIREMENTS="true"
     else
         export UPGRADE_WHILE_GENERATING_REQUIREMENTS="false"
