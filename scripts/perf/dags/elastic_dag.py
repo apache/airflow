@@ -22,7 +22,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 
 from airflow import DAG
-from airflow.models.baseoperator import chain
+from airflow.models.baseoperator import chain, chain_as_binary_tree, chain_as_star
 from airflow.operators.bash import BashOperator
 
 # DAG File used in performance tests. Its shape can be configured by environment variables.
@@ -74,7 +74,6 @@ def safe_dag_id(s: str) -> str:
     return re.sub('[^0-9a-zA-Z_]+', '_', s)
 
 
-# TODO: We should add more shape types e.g. binary tree
 @enum.unique
 class DagShape(Enum):
     '''
@@ -82,6 +81,8 @@ class DagShape(Enum):
     '''
     NO_STRUCTURE = "no_structure"
     LINEAR = "linear"
+    BINARY_TREE = "binary_tree"
+    STAR = "star"
 
 
 DAG_PREFIX = os.environ.get("PERF_DAG_PREFIX", "perf_scheduler")
@@ -123,5 +124,9 @@ for dag_no in range(1, DAG_COUNT + 1):
         pass
     elif SHAPE == DagShape.LINEAR:
         chain(*tasks)
+    elif SHAPE == DagShape.BINARY_TREE:
+        chain_as_binary_tree(*tasks)
+    elif SHAPE == DagShape.STAR:
+        chain_as_star(*tasks)
 
     globals()[f"dag_{dag_no}"] = dag
