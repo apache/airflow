@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -33,17 +35,12 @@ DAG_NAME = 'test_dag_v1'
 default_args = {
     'owner': 'airflow',
     'depends_on_past': True,
-    'start_date': datetime(year=2020, day=11, month=4, hour=0, minute=0),
+    'start_date': utils.dates.days_ago(2),
 }
-dag = DAG(DAG_NAME, schedule_interval='52 11 * * 0', default_args=default_args)
+dag = DAG(DAG_NAME, schedule_interval='*/10 * * * *', default_args=default_args)
 
 run_this_1 = DummyOperator(task_id='run_this_1', dag=dag)
 run_this_2 = DummyOperator(task_id='run_this_2', dag=dag)
 run_this_2.set_upstream(run_this_1)
 run_this_3 = DummyOperator(task_id='run_this_3', dag=dag)
 run_this_3.set_upstream(run_this_2)
-
-
-if __name__ == "__main__":
-    dag.clear()
-    dag.run()
