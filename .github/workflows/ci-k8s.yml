@@ -24,7 +24,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         name: checkout
-      - name: build docker image
+      - name: pip install airflow
+        run: pip install -e .[devel]
+      - name: build docker 1image
         run: ./breeze build-image --production-image
   launch-airflow-on-k8s:
     runs-on: ubuntu-latest
