@@ -253,6 +253,14 @@ class TestAwsS3Hook:
         assert ((response['Grants'][1]['Permission'] == 'READ') and
                 (response['Grants'][0]['Permission'] == 'FULL_CONTROL'))
 
+    def test_load_bytes_extra_args(self, s3_bucket):
+        hook = S3Hook()
+        metadata = {'Metadata': {'mykey': 'myvalue'}}
+        hook.load_bytes(b"Content", "my_key", s3_bucket,
+                        extra_args=metadata)
+        response = boto3.client('s3').head_object(Bucket=s3_bucket, Key="my_key")
+        assert response["Metadata"] == metadata["Metadata"]
+
     def test_load_fileobj(self, s3_bucket):
         hook = S3Hook()
         with tempfile.TemporaryFile() as temp_file:
@@ -274,6 +282,16 @@ class TestAwsS3Hook:
                                                          RequestPayer='requester')  # pylint: disable=no-member # noqa: E501 # pylint: disable=C0301
             assert ((response['Grants'][1]['Permission'] == 'READ') and
                     (response['Grants'][0]['Permission'] == 'FULL_CONTROL'))
+
+    def test_load_fileobj_extra_args(self, s3_bucket):
+        hook = S3Hook()
+        metadata = {'Metadata': {'mykey': 'myvalue'}}
+        with tempfile.TemporaryFile() as temp_file:
+            temp_file.write(b"Content")
+            temp_file.seek(0)
+            hook.load_file_obj(temp_file, "my_key", s3_bucket, extra_args=metadata)
+            response = boto3.client('s3').head_object(Bucket=s3_bucket, Key="my_key")
+            assert response["Metadata"] == metadata["Metadata"]
 
     def test_load_file_gzip(self, s3_bucket):
         hook = S3Hook()
