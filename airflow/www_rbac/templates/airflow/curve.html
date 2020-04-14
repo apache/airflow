@@ -18,15 +18,19 @@
   <div id="base-info-container" class="card flex justify-stretch align-stretch">
     <fieldset class="base-info-item card flex-column">
       <legend class="base-info-title">二次确认</legend>
-      <div class="base-info-content" style="--content-height:40px">
-        <button class="button-double-check btn btn-primary margin">
-          <span class="glyphicon glyphicon-ok" style="color:red" aria-hidden="true"></span>
+      <div class="base-info-content" id="double-check-result" style="--content-height:40px">
+        {% if task_instance.final_state %}
+        {{task_instance.final_state}}
+        {% else %}
+        <button id="btn_double_check_success" class="button-double-check btn btn-primary margin">
+          <span class="glyphicon glyphicon-ok" style="color:red" aria-hidden="true" onclick=""></span>
           成功
         </button>
-        <button class="button-double-check btn btn-primary margin">
+        <button id="btn_double_check_failed" class="button-double-check btn btn-primary margin">
           <span class="glyphicon glyphicon-remove" style="color:red" aria-hidden="true"></span>
           失败
         </button>
+        {% endif %}
       </div>
     </fieldset>
   </div>
@@ -216,6 +220,34 @@
   $('#update-chart-t-w').change(() => {
     console.log($('#update-chart-t-w')[0].checked);
     updateChart('cur_t', 'cur_w', '时间', '角度');
+  });
+
+  function submitDoubleCheck(finalState) {
+    $.ajax({
+      type: 'POST',
+      url: "{{ url_for('api_experimental.double_confirm_task',dag_id=task_instance.dag_id, task_id=task_instance.task_id, execution_date=task_instance.execution_date ) }}",
+      data: JSON.stringify({
+        csrf_token: '{{ csrf_token() }}',
+        final_state: finalState,
+        execution_date: '{{task_instance.execution_date}}',
+      }),
+      headers: {'X-CSRFToken': '{{ csrf_token() }}'},
+      dataType: 'json',
+      contentType: 'application/json',
+    }).then(function (resp) {
+      $('#double-check-result').html(finalState);
+      $('#doubleCheckModal').modal('hide');
+      if (resp && resp.response === 'ok') {
+        $('#double_check_result').html('二次确认为' + finalState);
+      }
+    });
+  }
+
+  $('#btn_double_check_failed').click(function (e) {
+    submitDoubleCheck('NOK');
+  });
+  $('#btn_double_check_success').click(function (e) {
+    submitDoubleCheck('OK');
   });
 </script>
 {% endblock %}

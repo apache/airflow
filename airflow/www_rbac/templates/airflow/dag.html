@@ -608,8 +608,7 @@
     function submitDoubleCheck(finalState) {
       $.ajax({
         type: "POST",
-        url: "{{ url_for('api_experimental.double_confirm_task',
-        dag_id=dag.dag_id, task_id='__TASK_ID__', execution_date='__EXECUTE_DATE__' ) }}".replace('__TASK_ID__', task_id).replace('__EXECUTE_DATE__', execution_date),
+        url: "{{ url_for('api_experimental.double_confirm_task',dag_id=dag.dag_id, task_id='__TASK_ID__', execution_date='__EXECUTE_DATE__' ) }}".replace('__TASK_ID__', task_id).replace('__EXECUTE_DATE__', execution_date),
         data: JSON.stringify({
           csrf_token: "{{ csrf_token() }}",
           final_state: finalState,
