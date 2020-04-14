@@ -1982,12 +1982,6 @@ class Airflow(AirflowBaseView):
             d['try_number'] = try_count
             tasks.append(d)
 
-        task_types = {}
-        extra_links = {}
-        for t in dag.tasks:
-            task_types[t.task_id] = t.task_type
-            extra_links[t.task_id] = t.extra_links
-
         data = {
             'taskNames': [ti.task_id for ti in tis],
             'tasks': tasks,
