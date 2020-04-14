@@ -567,7 +567,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `BigQuery <https://cloud.google.com/bigquery/>`__
-     -
+     - :doc:`How to use <howto/operator/gcp/bigquery>`
      - :mod:`airflow.providers.google.cloud.hooks.bigquery`
      - :mod:`airflow.providers.google.cloud.operators.bigquery`
      - :mod:`airflow.providers.google.cloud.sensors.bigquery`
