@@ -260,14 +260,6 @@
       type: string
       example: ~
       default: ""
-    - name: secure_mode
-      description: |
-        If set to False enables some unsecure features like Charts and Ad Hoc Queries.
-        In 2.0 will default to True.
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
     - name: unit_test_mode
       description: |
         Turn unit test mode on (overwrites many configuration options with test
