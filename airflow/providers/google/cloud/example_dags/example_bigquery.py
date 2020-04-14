@@ -26,11 +26,11 @@ from urllib.parse import urlparse
 from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator,
-    BigQueryDeleteDatasetOperator, BigQueryDeleteTableOperator, BigQueryExecuteQueryOperator,
-    BigQueryGetDataOperator, BigQueryGetDatasetOperator, BigQueryGetDatasetTablesOperator,
-    BigQueryPatchDatasetOperator, BigQueryUpdateDatasetOperator, BigQueryUpsertTableOperator,
-    BigQueryCheckOperator, BigQueryValueCheckOperator, BigQueryIntervalCheckOperator
+    BigQueryCheckOperator, BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator,
+    BigQueryCreateExternalTableOperator, BigQueryDeleteDatasetOperator, BigQueryDeleteTableOperator,
+    BigQueryExecuteQueryOperator, BigQueryGetDataOperator, BigQueryGetDatasetOperator,
+    BigQueryGetDatasetTablesOperator, BigQueryIntervalCheckOperator, BigQueryPatchDatasetOperator,
+    BigQueryUpdateDatasetOperator, BigQueryUpsertTableOperator, BigQueryValueCheckOperator,
 )
 from airflow.providers.google.cloud.operators.bigquery_to_bigquery import BigQueryToBigQueryOperator
 from airflow.providers.google.cloud.operators.bigquery_to_gcs import BigQueryToGCSOperator
@@ -255,7 +255,7 @@ with models.DAG(
     # [START howto_operator_bigquery_get_dataset]
     get_dataset = BigQueryGetDatasetOperator(task_id="get-dataset", dataset_id=DATASET_NAME)
     # [END howto_operator_bigquery_get_dataset]
-    
+
     get_dataset_result = BashOperator(
         task_id="get_dataset_result",
         bash_command="echo \"{{ task_instance.xcom_pull('get-dataset')['id'] }}\"",
