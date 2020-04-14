@@ -16,28 +16,21 @@
     under the License.
 
 
+Apache Spark Operators
+======================
 
-Using Operators
-===============
+.. contents::
+  :depth: 1
+  :local:
 
-An operator represents a single, ideally idempotent, task. Operators
-determine what actually executes when your DAG runs.
+SparkJDBCOperator
+-----------------
 
-.. note::
-    See the :ref:`Operators Concepts <concepts:operators>` documentation and the
-    :doc:`Operators API Reference <../../_api/index>` for more
-    information.
 
-.. toctree::
-    :maxdepth: 2
+SparkSqlOperator
+----------------
 
-    bash
-    amazon/aws/index
-    apache/index
-    dingding
-    gcp/index
-    kubernetes
-    papermill
-    python
-    external
-    yandexcloud
+
+SparkSubmitOperator
+-------------------
+
