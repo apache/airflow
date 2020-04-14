@@ -62,6 +62,32 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Upgraded Azure Storage Blob and FileShare
+
+- `WasbHook` was renamed `AzureStorageBlobHook`. Its methods and attributes was
+modified to support the upgrade to the latest version of `azure-storage-blob`.
+ The renaming was necessary to avoid confusion. The hook's module was renamed
+ to `azure_storage_blob`
+- `AzureFileShareHook` was renamed `AzureStorageFileShareHook` and its methods/attributes
+ modified in line with the upgrade. The module was renamed `azure_storage_fileshare`
+- References to `WasbHook` and `AzureFileShareHook` in `airflow.contrib` package
+ has been removed.
+- The connection type of `WasbHook` was changed from `wasb` to `azure_storage_blob`
+ in line with the renaming of the hook.
+- A new connection type `azure_storage_fileshare` was added for connection with
+ `AzureStorageFileShareHook`.
+- The `WasbBlobSensor` was renamed `AzureStorageBlobSensor` and modified to work
+ with the new hook. `WasbPrefixSensor` was removed. The module was renamed
+ `azure_storage_blob`. References to `WasbBlobSensor` and `WasbPrefixSensor` in the
+ `airflow.contrib` package was removed
+- the `WasbTaskHandler` was renamed `AzureStorageBlobTaskHandler` and modified to
+ work with the new hook.
+- The operator `FileToWasbOperator` was renamed `LocalFileSystemToAzureStorageBlobOperator`.
+ Its methods and attributes was modified and module renamed `loca_to_azure_storage_blob`.
+- The `WasbDeleteOperator` was renamed `AzureStorageBlobOperator`. The parameters were
+ also modified and module renamed to `azure_storage_delete_blob`
+
+
 ### Added mypy plugin to preserve types of decorated functions
 
 Mypy currently doesn't support precise type information for decorated
