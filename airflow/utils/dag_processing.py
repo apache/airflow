@@ -270,7 +270,7 @@ class DagFileStat(NamedTuple):
 
 class DagParsingSignal(enum.Enum):
     """All signals sent to parser."""
-    AGENT_HEARTBEAT = 'agent_heartbeat'
+    AGENT_RUN_ONCE = 'agent_run_once'
     TERMINATE_MANAGER = 'terminate_manager'
     END_MANAGER = 'end_manager'
 
@@ -350,7 +350,7 @@ class DagFileProcessorAgent(LoggingMixin):
 
         self.log.info("Launched DagFileProcessorManager with pid: %s", self._process.pid)
 
-    def heartbeat(self):
+    def run_single_parsing_loop(self):
         """
         Should only be used when launched DAG file processor manager in sync mode.
         Send agent heartbeat signal to the manager, requesting that it runs one
@@ -363,7 +363,7 @@ class DagFileProcessorAgent(LoggingMixin):
             return
 
         try:
-            self._parent_signal_conn.send(DagParsingSignal.AGENT_HEARTBEAT)
+            self._parent_signal_conn.send(DagParsingSignal.AGENT_RUN_ONCE)
         except ConnectionError:
             # If this died cos of an error then we will noticed and restarted
             # when harvest_simple_dags calls _heartbeat_manager.
@@ -675,7 +675,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 elif agent_signal == DagParsingSignal.END_MANAGER:
                     self.end()
                     sys.exit(os.EX_OK)
-                elif agent_signal == DagParsingSignal.AGENT_HEARTBEAT:
+                elif agent_signal == DagParsingSignal.AGENT_RUN_ONCE:
                     # continue the loop to parse dags
                     pass
                 elif isinstance(agent_signal, FailureCallbackRequest):

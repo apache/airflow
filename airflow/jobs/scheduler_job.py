@@ -1609,7 +1609,7 @@ class SchedulerJob(BaseJob):
             loop_start_time = time.time()
 
             if self.using_sqlite:
-                self.processor_agent.heartbeat()
+                self.processor_agent.run_single_parsing_loop()
                 # For the sqlite case w/ 1 thread, wait until the processor
                 # is finished to avoid concurrent access to the DB.
                 self.log.debug("Waiting for processors to finish since we're using sqlite")
