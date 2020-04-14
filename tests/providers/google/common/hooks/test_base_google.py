@@ -433,7 +433,7 @@ class TestGoogleBaseHook(unittest.TestCase):
             "The `delegate_to` parameter cannot be used here as the current authentication method does not "
             "support account impersonate. Please use service-account for authorization."
         )):
-            self.instance._get_credentials_and_project_id(delegate_to="USER")
+            self.instance._get_credentials_and_project_id()
 
     @mock.patch(  # type: ignore
         MODULE_NAME + '.get_credentials_and_project_id',
