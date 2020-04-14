@@ -678,6 +678,15 @@ ARG_SKIP_SERVE_LOGS = Arg(
     help="Don't start the serve logs process along with the workers",
     action="store_true")
 
+# info
+ARG_ANONYMIZE = Arg(
+    ('--anonymize',),
+    help=(
+        'Minimize any personal identifiable information. '
+        'Use it when sharing output with others.'
+    ),
+    action='store_true'
+)
 
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE, ARG_CONN_HOST, ARG_CONN_LOGIN, ARG_CONN_PASSWORD, ARG_CONN_SCHEMA, ARG_CONN_PORT
@@ -1058,6 +1067,35 @@ ROLES_COMMANDS = (
         args=(ARG_ROLES,),
     ),
 )
+
+CELERY_COMMANDS = (
+    ActionCommand(
+        name='worker',
+        help="Start a Celery worker node",
+        func=lazy_load_command('airflow.cli.commands.celery_command.worker'),
+        args=(
+            ARG_DO_PICKLE, ARG_QUEUES, ARG_CONCURRENCY, ARG_CELERY_HOSTNAME, ARG_PID, ARG_DAEMON,
+            ARG_STDOUT, ARG_STDERR, ARG_LOG_FILE, ARG_AUTOSCALE, ARG_SKIP_SERVE_LOGS
+        ),
+    ),
+    ActionCommand(
+        name='flower',
+        help="Start a Celery Flower",
+        func=lazy_load_command('airflow.cli.commands.celery_command.flower'),
+        args=(
+            ARG_FLOWER_HOSTNAME, ARG_FLOWER_PORT, ARG_FLOWER_CONF, ARG_FLOWER_URL_PREFIX,
+            ARG_FLOWER_BASIC_AUTH, ARG_BROKER_API, ARG_PID, ARG_DAEMON, ARG_STDOUT, ARG_STDERR,
+            ARG_LOG_FILE
+        ),
+    ),
+    ActionCommand(
+        name='stop',
+        help="Stop the Celery worker gracefully",
+        func=lazy_load_command('airflow.cli.commands.celery_command.stop_worker'),
+        args=(),
+    )
+)
+
 airflow_commands: List[CLICommand] = [
     GroupCommand(
         name='dags',
@@ -1152,39 +1190,19 @@ airflow_commands: List[CLICommand] = [
         func=lazy_load_command('airflow.cli.commands.config_command.show_config'),
         args=(),
     ),
+    ActionCommand(
+        name='info',
+        help='Show information about current Airflow and environment',
+        func=lazy_load_command('airflow.cli.commands.info_command.show_info'),
+        args=(ARG_ANONYMIZE, ),
+    ),
     GroupCommand(
         name="celery",
         help=(
             'Start celery components. Works only when using CeleryExecutor. For more information, see '
             'https://airflow.readthedocs.io/en/stable/executor/celery.html'
         ),
-        subcommands=(
-            ActionCommand(
-                name='worker',
-                help="Start a Celery worker node",
-                func=lazy_load_command('airflow.cli.commands.celery_command.worker'),
-                args=(
-                    ARG_DO_PICKLE, ARG_QUEUES, ARG_CONCURRENCY, ARG_CELERY_HOSTNAME, ARG_PID, ARG_DAEMON,
-                    ARG_STDOUT, ARG_STDERR, ARG_LOG_FILE, ARG_AUTOSCALE, ARG_SKIP_SERVE_LOGS
-                ),
-            ),
-            ActionCommand(
-                name='flower',
-                help="Start a Celery Flower",
-                func=lazy_load_command('airflow.cli.commands.celery_command.flower'),
-                args=(
-                    ARG_FLOWER_HOSTNAME, ARG_FLOWER_PORT, ARG_FLOWER_CONF, ARG_FLOWER_URL_PREFIX,
-                    ARG_FLOWER_BASIC_AUTH, ARG_BROKER_API, ARG_PID, ARG_DAEMON, ARG_STDOUT, ARG_STDERR,
-                    ARG_LOG_FILE
-                ),
-            ),
-            ActionCommand(
-                name='stop',
-                help="Stop the Celery worker gracefully",
-                func=lazy_load_command('airflow.cli.commands.celery_command.stop_worker'),
-                args=(),
-            )
-        )
+        subcommands=CELERY_COMMANDS
     )
 ]
 ALL_COMMANDS_DICT: Dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
