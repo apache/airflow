@@ -147,7 +147,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
 
     MISSING_DOC_GUIDES = {
         'adls_to_gcs',
-        'bigquery',
         'bigquery_to_bigquery',
         'bigquery_to_gcs',
         'bigquery_to_mysql',
