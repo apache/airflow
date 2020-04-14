@@ -420,7 +420,7 @@ class TestGoogleBaseHook(unittest.TestCase):
             delegate_to="USER"
         )
         self.assertEqual((mock_credentials, "PROJECT_ID"), result)
-    
+
     @mock.patch('google.auth.default')
     def test_get_credentials_and_project_id_with_default_auth_and_unsupported_delegate(
         self, mock_auth_default
