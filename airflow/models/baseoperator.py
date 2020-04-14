@@ -787,6 +787,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         This hook is triggered right before self.execute() is called.
         """
 
+    @abstractmethod
     def execute(self, context: Any):
         """
         This is the main method to derive when creating an operator.
@@ -804,6 +805,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         operator.
         """
 
+    @abstractmethod
     def on_kill(self) -> None:
         """
         Override this method to cleanup subprocesses when a task instance
