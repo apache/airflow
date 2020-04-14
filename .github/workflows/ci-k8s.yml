@@ -19,7 +19,14 @@ name: "k8s tests"
 on: [pull_request, push]
 
 jobs:
-  create-airflow-dockerfile:
+  create-airflow-docker-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        name: checkout
+      - name: build docker image
+        run: ./breeze build-image --production-image
+  launch-airflow-on-k8s:
     runs-on: ubuntu-latest
     strategy:
       matrix:
