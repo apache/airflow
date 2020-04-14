@@ -1754,7 +1754,9 @@
       default: "True"
     - name: delete_worker_pods_on_success
       description: |
-        If True (default), worker pods will be deleted only on task success
+        If True (default), worker pods will be deleted only on task success.
+        Note that this feature overrides `delete_worker_pods`, so failed pods
+        will not be deleted if both are set to true.
       version_added: ~
       type: string
       example: ~
