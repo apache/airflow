@@ -385,7 +385,7 @@ class Airflow(AirflowBaseView):
 
         return wwwutils.json_response(payload)
 
-    # api/experimental/view_curve/curve_anay/dag_runs/2020-04-07 10:04:48.786247 +00:00/tasks/trigger_anay_task
+    # /view_curve/curve_anay/dag_runs/2020-04-07 10:04:48.786247 +00:00/tasks/trigger_anay_task
     @expose('/view_curve/<string:dag_id>/dag_runs/<string:execution_date>/tasks/<string:task_id>')
     @has_access
     def view_curve_page(self, dag_id, execution_date, task_id):
@@ -393,8 +393,16 @@ class Airflow(AirflowBaseView):
         ti = get_task_instance(dag_id, task_id, execution_date)
         if not ti.entity_id:
             return self.render_template('airflow/curve.html', task_instance=ti)
-        result = get_result(ti.entity_id)
-        curve = get_curve(ti.entity_id)
+        try:
+            result = get_result(ti.entity_id)
+        except Exception as e:
+            logging.error(e)
+            result = {}
+        try:
+            curve = get_curve(ti.entity_id)
+        except Exception as e:
+            logging.error(e)
+            curve = {}
         return self.render_template('airflow/curve.html', task_instance=ti, result=result,
                                     curve=curve)
 

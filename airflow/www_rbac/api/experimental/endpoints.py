@@ -219,7 +219,8 @@ def task_info(dag_id, task_id):
 def get_result(entity_id):
     st = ClsResultStorage(**get_result_args())
     st.metadata = {'entity_id': entity_id}
-    return st.query_result()
+    result = st.query_result()
+    return result if result else {}
 
 
 def get_curve(entity_id):
