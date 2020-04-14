@@ -45,6 +45,9 @@ Prerequisite Tasks
 Manage datasets
 ^^^^^^^^^^^^^^^
 
+Create dataset
+""""""""""""""
+
 To create an empty dataset in a BigQuery database you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCreateEmptyDatasetOperator`.
 
@@ -53,6 +56,9 @@ To create an empty dataset in a BigQuery database you can use
     :dedent: 4
     :start-after: [START howto_operator_bigquery_create_dataset]
     :end-before: [END howto_operator_bigquery_create_dataset]
+
+Get dataset details
+"""""""""""""""""""
 
 To get the details of an existing dataset you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryGetDatasetOperator`.
@@ -65,6 +71,9 @@ This operator returns a `Dataset Resource <https://cloud.google.com/bigquery/doc
     :start-after: [START howto_operator_bigquery_get_dataset]
     :end-before: [END howto_operator_bigquery_get_dataset]
 
+List tables in dataset
+""""""""""""""""""""""
+
 To retrieve the list of tables in a given dataset use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryGetDatasetTablesOperator`.
 
@@ -73,6 +82,9 @@ To retrieve the list of tables in a given dataset use
     :dedent: 4
     :start-after: [START howto_operator_bigquery_get_dataset_tables]
     :end-before: [END howto_operator_bigquery_get_dataset_tables]
+
+Patch dataset
+"""""""""""""
 
 To patch a dataset in BigQuery you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryPatchDatasetOperator`.
@@ -86,6 +98,9 @@ resource.
     :start-after: [START howto_operator_bigquery_patch_dataset]
     :end-before: [END howto_operator_bigquery_patch_dataset]
 
+Update dataset
+""""""""""""""
+
 To update a dataset in BigQuery you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryUpdateDatasetOperator`.
 
@@ -97,6 +112,9 @@ method only replaces fields that are provided in the submitted dataset resource.
     :dedent: 4
     :start-after: [START howto_operator_bigquery_update_dataset]
     :end-before: [END howto_operator_bigquery_update_dataset]
+
+Delete dataset
+""""""""""""""
 
 To delete an existing dataset from a BigQuery database you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteDatasetOperator`.
@@ -115,6 +133,9 @@ To delete an existing dataset from a BigQuery database you can use
 
 Manage tables
 ^^^^^^^^^^^^^
+
+Create native table
+"""""""""""""""""""
 
 To create a new, empty table in the given BigQuery dataset, optionally with
 schema you can use
@@ -139,6 +160,9 @@ You can use this operator to create a view on top of an existing table.
     :start-after: [START howto_operator_bigquery_create_view]
     :end-before: [END howto_operator_bigquery_create_view]
 
+Create external table
+"""""""""""""""""""""
+
 To create a new external table in a dataset with the data in Google Cloud Storage
 you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCreateExternalTableOperator`.
@@ -153,6 +177,9 @@ to a Google Cloud Storage object name.
     :dedent: 4
     :start-after: [START howto_operator_bigquery_create_external_table]
     :end-before: [END howto_operator_bigquery_create_external_table]
+
+Fetch data from table
+"""""""""""""""""""""
 
 To fetch data from a BigQuery table you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryGetDataOperator`.
@@ -170,6 +197,9 @@ that row.
     :start-after: [START howto_operator_bigquery_get_data]
     :end-before: [END howto_operator_bigquery_get_data]
 
+Upsert table
+""""""""""""
+
 To upsert a table you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryUpsertTableOperator`.
 
@@ -181,6 +211,9 @@ in the given dataset.
     :dedent: 4
     :start-after: [START howto_operator_bigquery_upsert_table]
     :end-before: [END howto_operator_bigquery_upsert_table]
+
+Delete table
+""""""""""""
 
 To delete an existing table you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteTableOperator`.
@@ -247,6 +280,9 @@ You can store the results of the query in a table by specifying
 Validate data
 ^^^^^^^^^^^^^
 
+Check if query result has data
+""""""""""""""""""""""""""""""
+
 To perform checks against BigQuery you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator`.
 
@@ -260,6 +296,9 @@ return ``False`` the check is failed and errors out.
     :start-after: [START howto_operator_bigquery_check]
     :end-before: [END howto_operator_bigquery_check]
 
+Compare query result to pass value
+""""""""""""""""""""""""""""""""""
+
 To perform a simple value check using sql code you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryValueCheckOperator`.
 
@@ -272,6 +311,9 @@ or numeric value. If numeric, you can also specify ``tolerance``.
     :dedent: 4
     :start-after: [START howto_operator_bigquery_value_check]
     :end-before: [END howto_operator_bigquery_value_check]
+
+Compare metrics over time
+"""""""""""""""""""""""""
 
 To check that the values of metrics given as SQL expressions are within a certain
 tolerance of the ones from ``days_back`` before you can use
