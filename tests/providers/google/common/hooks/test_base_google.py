@@ -426,7 +426,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         self, mock_auth_default
     ):
         mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
-        mock_auth_default.return_value = (mock_credentials, self.test_project_id)
+        mock_auth_default.return_value = (mock_credentials, "PROJECT_ID")
 
         with self.assertRaisesRegex(AirflowException, re.escape(
             "The `delegate_to` parameter cannot be used here as the current authentication method does not "
