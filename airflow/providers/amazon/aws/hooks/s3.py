@@ -522,7 +522,8 @@ class S3Hook(AwsBaseHook):
                    bucket_name=None,
                    replace=False,
                    encrypt=False,
-                   acl_policy=None):
+                   acl_policy=None,
+                   extra_args=None):
         """
         Loads bytes to S3
 
@@ -546,7 +547,7 @@ class S3Hook(AwsBaseHook):
         :type acl_policy: str
         """
         file_obj = io.BytesIO(bytes_data)
-        self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl_policy)
+        self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl_policy, extra_args)
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -556,7 +557,8 @@ class S3Hook(AwsBaseHook):
                       bucket_name=None,
                       replace=False,
                       encrypt=False,
-                      acl_policy=None):
+                      acl_policy=None,
+                      extra_args=None):
         """
         Loads a file object to S3
 
@@ -576,7 +578,7 @@ class S3Hook(AwsBaseHook):
             object to be uploaded
         :type acl_policy: str
         """
-        self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl_policy)
+        self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl_policy, extra_args)
 
     def _upload_file_obj(self,
                          file_obj,
@@ -584,11 +586,13 @@ class S3Hook(AwsBaseHook):
                          bucket_name=None,
                          replace=False,
                          encrypt=False,
-                         acl_policy=None):
+                         acl_policy=None,
+                         extra_args=None):
         if not replace and self.check_for_key(key, bucket_name):
             raise ValueError("The key {key} already exists.".format(key=key))
 
-        extra_args = {}
+        if not extra_args:
+            extra_args = {}
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
         if acl_policy:
