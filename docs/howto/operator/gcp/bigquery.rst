@@ -18,12 +18,12 @@
 Google Cloud BigQuery Operators
 ===============================
 
-`BigQuery <https://cloud.google.com/bigquery/>`__ is Google's fully managed, petabyte 
-scale, low cost analytics data warehouse. It is a serverless Software as a Service 
-(SaaS) that doesn't need a database administrator. It allows users to focus on 
+`BigQuery <https://cloud.google.com/bigquery/>`__ is Google's fully managed, petabyte
+scale, low cost analytics data warehouse. It is a serverless Software as a Service
+(SaaS) that doesn't need a database administrator. It allows users to focus on
 analyzing data to find meaningful insights using familiar SQL.
 
-Airflow provides operators to manage datasets and tables, run queries and validate 
+Airflow provides operators to manage datasets and tables, run queries and validate
 data.
 
 .. contents::
@@ -77,7 +77,7 @@ To retrieve the list of tables in a given dataset use
 To patch a dataset in BigQuery you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryPatchDatasetOperator`.
 
-Note, this operator only replaces fields that are provided in the submitted dataset 
+Note, this operator only replaces fields that are provided in the submitted dataset
 resource.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery.py
@@ -116,13 +116,13 @@ To delete an existing dataset from a BigQuery database you can use
 Manage tables
 ^^^^^^^^^^^^^
 
-To create a new, empty table in the given BigQuery dataset, optionally with 
+To create a new, empty table in the given BigQuery dataset, optionally with
 schema you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCreateEmptyTableOperator`.
 
-The schema to be used for the BigQuery table may be specified in one of two 
-ways. You may either directly pass the schema fields in, or you may point the 
-operator to a Google Cloud Storage object name. The object in Google Cloud 
+The schema to be used for the BigQuery table may be specified in one of two
+ways. You may either directly pass the schema fields in, or you may point the
+operator to a Google Cloud Storage object name. The object in Google Cloud
 Storage must be a JSON file with the schema fields in it.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery.py
@@ -139,13 +139,13 @@ You can use this operator to create a view on top of an existing table.
     :start-after: [START howto_operator_bigquery_create_view]
     :end-before: [END howto_operator_bigquery_create_view]
 
-To create a new external table in a dataset with the data in Google Cloud Storage 
+To create a new external table in a dataset with the data in Google Cloud Storage
 you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCreateExternalTableOperator`.
 
 Similarly to
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCreateEmptyTableOperator`
-you may either directly pass the schema fields in, or you may point the operator 
+you may either directly pass the schema fields in, or you may point the operator
 to a Google Cloud Storage object name.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery.py
@@ -156,12 +156,12 @@ to a Google Cloud Storage object name.
 
 To fetch data from a BigQuery table you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryGetDataOperator`.
-Alternatively you can fetch data for selected columns if you pass fields to 
+Alternatively you can fetch data for selected columns if you pass fields to
 ``selected_fields``.
 
-This operator returns data in a Python list where the number of elements in the 
-returned list will be equal to the number of rows fetched. Each element in the 
-list will again be a list where elements would represent the column values for 
+This operator returns data in a Python list where the number of elements in the
+returned list will be equal to the number of rows fetched. Each element in the
+list will again be a list where elements would represent the column values for
 that row.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery.py
@@ -173,7 +173,7 @@ that row.
 To upsert a table you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryUpsertTableOperator`.
 
-This operator either updates the existing table or creates a new, empty table 
+This operator either updates the existing table or creates a new, empty table
 in the given dataset.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery.py
@@ -221,8 +221,8 @@ To execute the SQL query in a specific BigQuery database you can use
     :start-after: [START howto_operator_bigquery_execute_query]
     :end-before: [END howto_operator_bigquery_execute_query]
 
-``sql`` argument can receive a str representing a sql statement, a list of str 
-(sql statements), or reference to a template file. Template reference are recognized 
+``sql`` argument can receive a str representing a sql statement, a list of str
+(sql statements), or reference to a template file. Template reference are recognized
 by str ending in '.sql'.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery.py
@@ -231,7 +231,7 @@ by str ending in '.sql'.
     :start-after: [START howto_operator_bigquery_execute_query_list]
     :end-before: [END howto_operator_bigquery_execute_query_list]
 
-You can store the results of the query in a table by specifying 
+You can store the results of the query in a table by specifying
 ``destination_dataset_table``.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery.py
@@ -250,8 +250,8 @@ Validate data
 To perform checks against BigQuery you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator`.
 
-This operator expects a sql query that will return a single row. Each value on 
-that first row is evaluated using python ``bool`` casting. If any of the values 
+This operator expects a sql query that will return a single row. Each value on
+that first row is evaluated using python ``bool`` casting. If any of the values
 return ``False`` the check is failed and errors out.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery.py
@@ -263,7 +263,7 @@ return ``False`` the check is failed and errors out.
 To perform a simple value check using sql code you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryValueCheckOperator`.
 
-This operator expects a sql query that will return a single row. Each value on 
+This operator expects a sql query that will return a single row. Each value on
 that first row is evaluated against ``pass_value`` which can be either a string
 or numeric value. If numeric, you can also specify ``tolerance``.
 
@@ -273,8 +273,8 @@ or numeric value. If numeric, you can also specify ``tolerance``.
     :start-after: [START howto_operator_bigquery_value_check]
     :end-before: [END howto_operator_bigquery_value_check]
 
-To check that the values of metrics given as SQL expressions are within a certain 
-tolerance of the ones from ``days_back`` before you can use 
+To check that the values of metrics given as SQL expressions are within a certain
+tolerance of the ones from ``days_back`` before you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryIntervalCheckOperator`.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery.py
