@@ -21,12 +21,12 @@ from contextlib import contextmanager
 import psutil
 
 
-def get_process_memory():
+def _get_process_memory():
     process = psutil.Process(os.getpid())
     return process.memory_info().rss
 
 
-def human_readable_size(size, decimal_places=3):
+def _human_readable_size(size, decimal_places=3):
     for unit in ["B", "KiB", "MiB", "GiB", "TiB"]:
         if size < 1024.0:
             break
@@ -43,12 +43,20 @@ class TraceMemoryResult:
 
 @contextmanager
 def trace_memory(human_readable=True):
-    before = get_process_memory()
+    """
+    Calculates the amount of difference in free memory before and after script execution.
+
+    In other words, how much data the code snippet has used up memory.
+
+    :param human_readable: If yes, the result will be displayed in human readable units.
+        If no, the result will be displayed as bytes.
+    """
+    before = _get_process_memory()
     result = TraceMemoryResult()
     try:
         yield result
     finally:
-        after = get_process_memory()
+        after = _get_process_memory()
         diff = after - before
 
         result.before = before
@@ -56,7 +64,7 @@ def trace_memory(human_readable=True):
         result.value = diff
 
         if human_readable:
-            human_diff = human_readable_size(diff)
+            human_diff = _human_readable_size(diff)
             print(f"Memory: {human_diff}")
         else:
             print(f"Memory: {diff} bytes")

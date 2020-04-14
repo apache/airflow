@@ -30,16 +30,20 @@ class TimingResult:
 
 
 @contextlib.contextmanager
-def timing(repeat_count=1):
-    start_time = time.monotonic()
+def timing(repeat_count: int = 1):
+    """
+    Measures code execution time.
+
+    :param repeat_count: If passed, the result will be divided by the value.
+    """
     result = TimingResult()
+    result.start_time = time.monotonic()
     try:
         yield result
     finally:
         end_time = time.monotonic()
-        diff = (end_time - start_time) * 1000.0
+        diff = (end_time - result.start_time) * 1000.0
 
-        result.start = start_time
         result.end_time = end_time
         if repeat_count == 1:
             result.value = diff
@@ -51,6 +55,12 @@ def timing(repeat_count=1):
 
 
 def repeat(repeat_count=5):
+    """
+    Function decorators that repeat function many times.
+
+    :param repeat_count: The repeat count
+    """
+
     def repeat_decorator(f):
         @functools.wraps(f)
         def wrap(*args, **kwargs):
@@ -70,6 +80,11 @@ class TimeoutException(Exception):
 
 @contextlib.contextmanager
 def timeout(seconds=1):
+    """
+    Executes code only  limited seconds. If the code does not end during this time, it will be interrupted.
+
+    :param seconds: Number of seconds
+    """
     def handle_timeout(signum, frame):
         raise TimeoutException("Process timed out.")
 

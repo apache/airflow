@@ -24,8 +24,16 @@ from sqlalchemy import event
 
 
 @contextlib.contextmanager
-def trace_queries(display_sql=False):
+def trace_queries(display_time=True, display_trace=True, display_sql=False, displaay_parameters=True):
+    """
+    Tracking SQL queries in a code block. The result is displayed directly on the screen - ``print``
 
+    :param display_time: If True, displays the query execution time.
+    :param display_trace: If True, displays the simplified (one-line) stack trace
+    :param display_sql: If True, displays the SQL statements
+    :param displaay_parameters: If True, display SQL statement parameters
+    :return:
+    """
     import airflow.settings
 
     def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
@@ -42,11 +50,22 @@ def trace_queries(display_sql=False):
         stack = [f for f in traceback.extract_stack() if "sqlalchemy" not in f.filename]
         stack_info = " > ".join([f"{f.filename.rpartition('/')[-1]}:{f.name}:{f.lineno}" for f in stack][-7:])
         conn.info.setdefault("query_start_time", []).append(time.monotonic())
+
+        output_parts = []
+        if display_time:
+            output_parts.append(f"{total:.5f}")
+
+        if display_trace:
+            output_parts.extend([f"{file_name}", f"{stack_info}"])
+
         if display_sql:
             sql_oneline = statement.replace("\n", " ")
-            print(f"{total:.5f} | {file_name} | {stack_info} | {sql_oneline}")
-        else:
-            print(f"{total:.5f} | {file_name} | {stack_info}")
+            output_parts.append(f"{sql_oneline}")
+
+        if displaay_parameters:
+            output_parts.append(f"{parameters}")
+
+        print(" | ".join(output_parts))
 
     event.listen(airflow.settings.engine, "before_cursor_execute", before_cursor_execute)
     event.listen(airflow.settings.engine, "after_cursor_execute", after_cursor_execute)
