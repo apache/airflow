@@ -687,6 +687,13 @@ ARG_ANONYMIZE = Arg(
     ),
     action='store_true'
 )
+ARG_FILE_IO = Arg(
+    ('--file-io',),
+    help=(
+        'Send output to file.io service and returns link.'
+    ),
+    action='store_true'
+)
 
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE, ARG_CONN_HOST, ARG_CONN_LOGIN, ARG_CONN_PASSWORD, ARG_CONN_SCHEMA, ARG_CONN_PORT
@@ -1194,7 +1201,7 @@ airflow_commands: List[CLICommand] = [
         name='info',
         help='Show information about current Airflow and environment',
         func=lazy_load_command('airflow.cli.commands.info_command.show_info'),
-        args=(ARG_ANONYMIZE, ),
+        args=(ARG_ANONYMIZE, ARG_FILE_IO, ),
     ),
     GroupCommand(
         name="celery",

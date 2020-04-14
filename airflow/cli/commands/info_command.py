@@ -17,17 +17,23 @@
 """Config sub-commands"""
 import getpass
 import locale
+import logging
 import os
 import platform
 import subprocess
 import sys
 import textwrap
 from typing import Optional
+from urllib.parse import urlsplit, urlunsplit
 
+import requests
+import tenacity
 from typing_extensions import Protocol
 
 from airflow import configuration
 from airflow.version import version as airflow_version
+
+log = logging.getLogger(__name__)
 
 
 class Anonymizer(Protocol):
@@ -36,11 +42,17 @@ class Anonymizer(Protocol):
     def process_path(self, value):
         """Remove pii from paths"""
 
+    def process_url(self, value):
+        """Remove pii from URL"""
+
 
 class NullAnonymizer(Anonymizer):
     """Do nothing."""
 
     def process_path(self, value):
+        return value
+
+    def process_url(self, value):
         return value
 
 
@@ -58,6 +70,52 @@ class PiiAnonymizer(Anonymizer):
         for src, target in self._path_replacements.items():
             value = value.replace(src, target)
         return value
+
+    def process_username(self, value):
+        if not value:
+            return value
+        return value[0] + "..." + value[-1]
+
+    def process_url(self, value):
+        if not value:
+            return value
+
+        url_parts = urlsplit(value)
+        netloc = None
+        if url_parts.netloc:
+            # unpack
+            userinfo = None
+            host = None
+            username = None
+            password = None
+
+            if "@" in url_parts.netloc:
+                userinfo, _, host = url_parts.netloc.partition("@")
+            else:
+                host = url_parts.netloc
+            if userinfo:
+                if ":" in userinfo:
+                    username, _, password = userinfo.partition(":")
+                else:
+                    username = userinfo
+
+            # anonimize
+            username = self.process_username(username) if username else None
+            password = "PASSWORD" if password else None
+
+            # pack
+            if username and password and host:
+                netloc = username + ":" + password + "@" + host
+            elif username and host:
+                netloc = username + "@" + host
+            elif password and host:
+                netloc = ":" + password + "@" + host
+            elif host:
+                netloc = host
+            else:
+                netloc = ""
+
+        return urlunsplit((url_parts.scheme, netloc, url_parts.path, url_parts.query, url_parts.fragment))
 
 
 class OperatingSystem:
@@ -142,7 +200,7 @@ class AirflowInfo:
             )
             .strip()
             .format(
-                version=airflow_version,
+                version=self.airflow_version,
                 system=self.system,
                 tools=self.tools,
                 paths=self.paths,
@@ -174,7 +232,6 @@ class SystemInfo:
             )
             .strip()
             .format(
-                version=airflow_version,
                 os=self.operating_system or "NOT AVAILABLE",
                 arch=self.arch or "NOT AVAILABLE",
                 uname=self.uname,
@@ -205,7 +262,7 @@ class PathsInfo:
                 Airflow Home: [{airflow_home}]
                 System PATH: [{system_path}]
                 Python PATH: [{python_path}]
-                airflow on PATH: {airflow_on_path}
+                airflow on PATH: [{airflow_on_path}]
                 """
             )
             .strip()
@@ -222,6 +279,7 @@ class ConfigInfo:
     """"Most critical config properties"""
 
     def __init__(self, anonymizer: Anonymizer):
+        self.executor = configuration.conf.get("core", "executor")
         self.dags_folder = anonymizer.process_path(
             configuration.conf.get("core", "dags_folder", fallback="NOT AVAILABLE")
         )
@@ -231,24 +289,31 @@ class ConfigInfo:
         self.base_log_folder = anonymizer.process_path(
             configuration.conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
         )
-        self.executor = configuration.conf.get("core", "executor")
+        self.base_log_folder = anonymizer.process_path(
+            configuration.conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
+        )
+        self.sql_alchemy_conn = anonymizer.process_url(
+            configuration.conf.get("core", "SQL_ALCHEMY_CONN", fallback="NOT AVAILABLE")
+        )
 
     def __str__(self):
         return (
             textwrap.dedent(
                 """\
+                Executor: [{executor}]
+                SQL Alchemy Conn: [{sql_alchemy_conn}]
                 DAGS Folder: [{dags_folder}]
                 Plugins Folder: [{plugins_folder}]
                 Base Log Folder: [{base_log_folder}]
-                Executor: [{executor}]
                 """
             )
             .strip()
             .format(
+                executor=self.executor,
+                sql_alchemy_conn=self.sql_alchemy_conn,
                 dags_folder=self.dags_folder,
                 plugins_folder=self.plugins_folder,
                 base_log_folder=self.base_log_folder,
-                executor=self.executor,
             )
         )
 
@@ -310,9 +375,50 @@ class ToolsInfo:
         )
 
 
+class FileIoException(Exception):
+    """Raises when error happens in FileIo.io integration"""
+
+    pass
+
+
+@tenacity.retry(
+    stop=tenacity.stop_after_attempt(5),
+    wait=tenacity.wait_exponential(multiplier=1, max=10),
+    retry=tenacity.retry_if_exception_type(FileIoException),
+    before=tenacity.before_log(log, logging.DEBUG),
+    after=tenacity.after_log(log, logging.DEBUG),
+)
+def upload_text_to_fileio(content):
+    """Uload text file to File.io service and return lnk"""
+    resp = requests.post("https://file.io", files={"file": ("airflow-report.txt", content)})
+    if not resp.ok:
+        raise FileIoException("Failed to send report to file.io service.")
+    try:
+        return resp.json()["link"]
+    except ValueError as e:
+        log.debug(e)
+        raise FileIoException("Failed to send report to file.io service.")
+
+
+def send_report_to_fileio(info):
+    print("Uploading report to file.io service.")
+    try:
+        link = upload_text_to_fileio(str(info))
+        print("Report uploaded.")
+        print()
+        print("Link:\t", link)
+        print()
+    except FileIoException as ex:
+        print(str(ex))
+
+
 def show_info(args):
     """
     Show information related to Airflow, system and other.
     """
     anonymizer = PiiAnonymizer() if args.anonymize else NullAnonymizer()
-    print(AirflowInfo(anonymizer))
+    info = AirflowInfo(anonymizer)
+    if args.file_io:
+        send_report_to_fileio(info)
+    else:
+        print(info)
