@@ -46,7 +46,7 @@ async-generator==1.10
 atlasclient==1.0.0
 attrs==19.3.0
 aws-sam-translator==1.22.0
-aws-xray-sdk==2.4.3
+aws-xray-sdk==2.5.0
 azure-batch==9.0.0
 azure-common==1.1.25
 azure-core==1.4.0
@@ -188,7 +188,7 @@ jsonpatch==1.25
 jsonpickle==1.4
 jsonpointer==2.0
 jsonschema==3.2.0
-jupyter-client==6.1.2
+jupyter-client==6.1.3
 jupyter-core==4.6.3
 kombu==4.6.8
 kubernetes==11.0.0
@@ -229,7 +229,7 @@ pandas==1.0.3
 papermill==2.1.0
 parameterized==0.7.3
 paramiko==2.7.1
-parso==0.6.2
+parso==0.7.0
 pathspec==0.8.0
 pbr==5.4.5
 pendulum==1.4.4
@@ -354,7 +354,7 @@ wcwidth==0.1.9
 websocket-client==0.57.0
 wrapt==1.12.1
 xmltodict==0.12.0
-yamllint==1.21.0
+yamllint==1.22.0
 yandexcloud==0.32.0
 zdesk==2.7.1
 zict==2.0.0

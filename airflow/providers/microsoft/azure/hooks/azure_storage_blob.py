@@ -154,7 +154,7 @@ class AzureStorageBlobHook(BaseHook):
 
         :param include: Specifies one or more additional datasets to include in the
             response. Options include: 'snapshots', 'metadata', 'uncommittedblobs',
-             'copy', 'deleted'.
+            'copy', 'deleted'.
         :type include: List[str]
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         :type delimiter: str

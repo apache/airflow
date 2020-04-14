@@ -133,8 +133,7 @@ class AzureStorageFileShareHook(BaseHook):
         return file_client.upload_file(data, **kwargs)
 
     def download_file(self, share_name: str, snapshot: Optional[str] = None,
-                      file_path: Optional[str] = None, offset=None,
-                      length=None, **kwargs):
+                      file_path: Optional[str] = None, offset=None, length=None, **kwargs):
         """
         Download a specified file
 
@@ -195,8 +194,8 @@ class AzureStorageFileShareHook(BaseHook):
         """
         Initiates the copying of data from a source URL into the file referenced by the client.
 
-        :param source_url: Specifies the URL of the source file.
-        :type source_url : str
+        :param source_url: Specifies the URL of the source file
+        :type source_url: str
         :param share_name: The name of the share with which to interact.
         :type share_name: str
         :param snapshot: An optional share snapshot on which to operate.
@@ -294,8 +293,7 @@ class AzureStorageFileShareHook(BaseHook):
         :param snapshot: An optional share snapshot on which to operate.
         :type snapshot: str
         :param directory_name:
-        :param kwargs:
-        :return:
+        :type directory_name: str
         """
 
         share_client = self._get_share_client(share_name=share_name,
@@ -316,7 +314,7 @@ class AzureStorageFileShareHook(BaseHook):
         :type include_metadata: Optional[bool]
 
         :param include_snapshots: Specifies that share snapshot be returned in the response.
-        type include_snapshots: Optional[bool]
+        :type include_snapshots: Optional[bool]
 
         """
 
