@@ -1492,12 +1492,6 @@
       type: string
       example: ~
       default: "2"
-    - name: authenticate
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
     - name: use_job_schedule
       description: |
         Turn off scheduler use of cron intervals by setting this to False.
