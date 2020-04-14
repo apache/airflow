@@ -1,3 +1,20 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 import contextlib
 import io
 import os
@@ -59,13 +76,16 @@ class TestPathsInfo(unittest.TestCase):
 
 
 class TestConfigInfo(unittest.TestCase):
+    @mock.patch.dict(
+        "os.environ",
+        {"AIRFLOW__CORE__SQL_ALCHEMY_CONN": "postgresql+psycopg2://postgres:airflow@postgres/airflow"},
+    )
     @conf_vars(
         {
             ("core", "executor"): "TEST_EXECUTOR",
             ("core", "dags_folder"): "TEST_DAGS_FOLDER",
             ("core", "plugins_folder"): "TEST_PLUGINS_FOLDER",
             ("logging", "base_log_folder"): "TEST_LOG_FOLDER",
-            ("core", "SQL_ALCHEMY_CONN"): "postgresql+psycopg2://postgres:airflow@postgres/airflow",
         }
     )
     def test_should_read_config(self):
@@ -88,21 +108,37 @@ class TestShowInfo(unittest.TestCase):
     def setUpClass(cls):
         cls.parser = cli_parser.get_parser()
 
+    @mock.patch.dict(
+        "os.environ",
+        {"AIRFLOW__CORE__SQL_ALCHEMY_CONN": "postgresql+psycopg2://postgres:airflow@postgres/airflow"},
+    )
     def test_show_info(self):
         with contextlib.redirect_stdout(io.StringIO()) as stdout:
             info_command.show_info(self.parser.parse_args(["info"]))
 
-        self.assertIn("Apache Airflow [{}]".format(airflow_version), stdout.getvalue())
+        output = stdout.getvalue()
+        self.assertIn("Apache Airflow [{}]".format(airflow_version), output)
+        self.assertIn("postgresql+psycopg2://postgres:airflow@postgres/airflow", output)
 
+    @mock.patch.dict(
+        "os.environ",
+        {"AIRFLOW__CORE__SQL_ALCHEMY_CONN": "postgresql+psycopg2://postgres:airflow@postgres/airflow"},
+    )
     def test_show_info_anonymize(self):
         with contextlib.redirect_stdout(io.StringIO()) as stdout:
             info_command.show_info(self.parser.parse_args(["info", "--anonymize"]))
 
-        self.assertIn("Apache Airflow [{}]".format(airflow_version), stdout.getvalue())
+        output = stdout.getvalue()
+        self.assertIn("Apache Airflow [{}]".format(airflow_version), output)
+        self.assertIn("postgresql+psycopg2://p...s:PASSWORD@postgres/airflow", output)
 
+    @mock.patch.dict(
+        "os.environ",
+        {"AIRFLOW__CORE__SQL_ALCHEMY_CONN": "postgresql+psycopg2://postgres:airflow@postgres/airflow"},
+    )
     @mock.patch(
         "airflow.cli.commands.info_command.requests",
-        **{
+        **{  # type: ignore
             "post.return_value.ok": True,
             "post.return_value.json.return_value": {
                 "success": True,
@@ -114,6 +150,8 @@ class TestShowInfo(unittest.TestCase):
     )
     def test_show_info_anonymize_fileio(self, mock_requests):
         with contextlib.redirect_stdout(io.StringIO()) as stdout:
-            info_command.show_info(self.parser.parse_args(["info", "--anonymize", "--file-io"]))
+            info_command.show_info(self.parser.parse_args(["info", "--file-io"]))
 
         self.assertIn("https://file.io/TEST", stdout.getvalue())
+        content = mock_requests.post.call_args[1]["files"]["file"][1]
+        self.assertIn("postgresql+psycopg2://p...s:PASSWORD@postgres/airflow", content)

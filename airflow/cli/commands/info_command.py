@@ -42,6 +42,9 @@ class Anonymizer(Protocol):
     def process_path(self, value):
         """Remove pii from paths"""
 
+    def process_username(self, value):
+        """Remove pii from ussername"""
+
     def process_url(self, value):
         """Remove pii from URL"""
 
@@ -49,11 +52,12 @@ class Anonymizer(Protocol):
 class NullAnonymizer(Anonymizer):
     """Do nothing."""
 
-    def process_path(self, value):
+    def _identity(self, value):
         return value
 
-    def process_url(self, value):
-        return value
+    process_path = process_username = process_url = _identity
+
+    del _identity
 
 
 class PiiAnonymizer(Anonymizer):
@@ -99,7 +103,7 @@ class PiiAnonymizer(Anonymizer):
                 else:
                     username = userinfo
 
-            # anonimize
+            # anonymize
             username = self.process_username(username) if username else None
             password = "PASSWORD" if password else None
 
@@ -378,8 +382,6 @@ class ToolsInfo:
 class FileIoException(Exception):
     """Raises when error happens in FileIo.io integration"""
 
-    pass
-
 
 @tenacity.retry(
     stop=tenacity.stop_after_attempt(5),
@@ -388,7 +390,7 @@ class FileIoException(Exception):
     before=tenacity.before_log(log, logging.DEBUG),
     after=tenacity.after_log(log, logging.DEBUG),
 )
-def upload_text_to_fileio(content):
+def _upload_text_to_fileio(content):
     """Uload text file to File.io service and return lnk"""
     resp = requests.post("https://file.io", files={"file": ("airflow-report.txt", content)})
     if not resp.ok:
@@ -400,10 +402,10 @@ def upload_text_to_fileio(content):
         raise FileIoException("Failed to send report to file.io service.")
 
 
-def send_report_to_fileio(info):
+def _send_report_to_fileio(info):
     print("Uploading report to file.io service.")
     try:
-        link = upload_text_to_fileio(str(info))
+        link = _upload_text_to_fileio(str(info))
         print("Report uploaded.")
         print()
         print("Link:\t", link)
@@ -416,9 +418,10 @@ def show_info(args):
     """
     Show information related to Airflow, system and other.
     """
-    anonymizer = PiiAnonymizer() if args.anonymize else NullAnonymizer()
+    # Enforce anonymization, when file_io upload is tuned on.
+    anonymizer = PiiAnonymizer() if args.anonymize or args.file_io else NullAnonymizer()
     info = AirflowInfo(anonymizer)
     if args.file_io:
-        send_report_to_fileio(info)
+        _send_report_to_fileio(info)
     else:
         print(info)
