@@ -237,9 +237,11 @@ These integrations allow you to perform various operations within the Microsoft 
      -
 
    * - `Azure Blob Storage <https://azure.microsoft.com/en-us/services/storage/blobs/>`__
-     - :mod:`airflow.providers.microsoft.azure.hooks.wasb`
-     - :mod:`airflow.providers.microsoft.azure.operators.wasb_delete_blob`
-     - :mod:`airflow.providers.microsoft.azure.sensors.wasb`
+     - :mod:`airflow.providers.microsoft.azure.hooks.azure_storage_blob`
+     - :mod:`airflow.providers.microsoft.azure.operators.local_to_azure_storage_blob`,
+       :mod:`airflow.providers.microsoft.azure.operators.azure_storage_blob_download`,
+       :mod:`airflow.providers.microsoft.azure.operators.azure_storage_delete_blob`
+     - :mod:`airflow.providers.microsoft.azure.sensors.azure_storage_blob`
 
    * - `Azure Container Instances <https://azure.microsoft.com/en-us/services/container-instances/>`__
      - :mod:`airflow.providers.microsoft.azure.hooks.azure_container_instance`,
@@ -264,7 +266,7 @@ These integrations allow you to perform various operations within the Microsoft 
      -
 
    * - `Azure Files <https://azure.microsoft.com/en-us/services/storage/files/>`__
-     - :mod:`airflow.providers.microsoft.azure.hooks.azure_fileshare`
+     - :mod:`airflow.providers.microsoft.azure.hooks.azure_storage_fileshare`
      -
      -
 

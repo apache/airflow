@@ -195,8 +195,8 @@ class AzureStorageBlobHook(BaseHook):
         blob_client = self._get_blob_client(container_name, blob_name)
         return blob_client.upload_blob(data, blob_type, length=length, **kwargs)
 
-    def download(self, container_name, blob_name, dest_file: str,
-                 offset: Optional[int] = None, length: Optional[int] = None, **kwargs):
+    def download(self, container_name, blob_name, offset: Optional[int] = None,
+                 length: Optional[int] = None, **kwargs):
         """
         Downloads a blob to the StorageStreamDownloader
 
@@ -205,9 +205,6 @@ class AzureStorageBlobHook(BaseHook):
 
         :param blob_name: The name of the blob to download
         :type blob_name: str
-
-        :param dest_file: The name to use to save the downloaded file
-        :type dest_file: str
 
         :param offset: Start of byte range to use for downloading a section of the blob.
             Must be set if length is provided.
@@ -218,10 +215,7 @@ class AzureStorageBlobHook(BaseHook):
         """
 
         blob_client = self._get_blob_client(container_name, blob_name)
-        with open(dest_file, 'wb') as blob:
-            self.log.info('Downloading blob: %s to %s', blob_name, dest_file)
-            download_stream = blob_client.download_blob(offset=offset, length=length, **kwargs)
-            blob.write(download_stream.readall())
+        return blob_client.download_blob(offset=offset, length=length, **kwargs)
 
     def copy(self, container_name: str, blob_name: str, source_url: str, **kwargs):
         """

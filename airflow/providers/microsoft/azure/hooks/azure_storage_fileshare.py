@@ -115,13 +115,13 @@ class AzureStorageFileShareHook(BaseHook):
                                               snapshot=snapshot)
         return share_client.get_file_client(file_path=file_path)
 
-    def upload_file(self, source_file: str, share_name: str, snapshot: Optional[str] = None,
+    def upload_file(self, data: str, share_name: str, snapshot: Optional[str] = None,
                     file_path: Optional[str] = None, **kwargs):
         """
         Upload a file
 
-        :param source_file: The file to upload
-        :type source_file: str
+        :param data: content of the file
+        :type data: str
         :param share_name: The name of the share with which to interact.
         :type share_name: str
         :param snapshot: An optional share snapshot on which to operate.
@@ -130,17 +130,14 @@ class AzureStorageFileShareHook(BaseHook):
         :type file_path: str
         """
         file_client = self._get_file_client(share_name, snapshot, file_path=file_path)
-        with open(source_file, 'rb') as data:
-            file_client.upload_file(data)
+        return file_client.upload_file(data, **kwargs)
 
-    def download_file(self, dest_file: str, share_name: str, snapshot: Optional[str] = None,
+    def download_file(self, share_name: str, snapshot: Optional[str] = None,
                       file_path: Optional[str] = None, offset=None,
                       length=None, **kwargs):
         """
-        Download a file to a specified destination
+        Download a specified file
 
-        :param dest_file: The destination to download the file to.
-        :type dest_file: str
         :param share_name: The name of the share with which to interact.
         :type share_name: str
         :param snapshot: An optional share snapshot on which to operate.
@@ -158,9 +155,7 @@ class AzureStorageFileShareHook(BaseHook):
 
         file_client = self._get_file_client(share_name, snapshot, file_path=file_path)
 
-        with open(dest_file, 'wb') as data:
-            stream = file_client.download_file(offset=offset, length=length, **kwargs)
-            data.write(stream.readall())
+        return file_client.download_file(offset=offset, length=length, **kwargs)
 
     def create_file(self, size: int, share_name: str, snapshot: Optional[str] = None,
                     file_path: Optional[str] = None, **kwargs):

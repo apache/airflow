@@ -246,18 +246,18 @@ class TestLoggingSettings(unittest.TestCase):
         import logging
         from airflow.config_templates import airflow_local_settings
         from airflow.logging_config import configure_logging
-        from airflow.utils.log.wasb_task_handler import WasbTaskHandler
+        from airflow.utils.log.azure_storage_blob_task_handler import AzureStorageBlobTaskHandler
 
         with conf_vars({
             ('logging', 'remote_logging'): 'True',
-            ('logging', 'remote_log_conn_id'): 'some_wasb',
-            ('logging', 'remote_base_log_folder'): 'wasb://some-folder',
+            ('logging', 'remote_log_conn_id'): 'some_conn_id',
+            ('logging', 'remote_base_log_folder'): 'some-folder',
         }):
             importlib.reload(airflow_local_settings)
             configure_logging()
 
         logger = logging.getLogger('airflow.task')
-        self.assertIsInstance(logger.handlers[0], WasbTaskHandler)
+        self.assertIsInstance(logger.handlers[0], AzureStorageBlobTaskHandler)
 
 
 if __name__ == '__main__':

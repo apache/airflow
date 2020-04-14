@@ -16,10 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import io
+
 import json
-import os
-import tempfile
 import unittest
 
 import mock
@@ -45,9 +43,6 @@ class TestAzureStorageBlobHook(unittest.TestCase):
         self.ad_conn_id = 'azure_AD_test'
         self.sas_conn_id = 'sas_token_id'
         self.public_read_conn_id = 'pub_read_id'
-        self.testfile = tempfile.NamedTemporaryFile(delete=False)
-        self.testfile.write(b"x" * 393216)
-        self.testfile.flush()
 
         db.merge_conn(
             Connection(
@@ -82,9 +77,6 @@ class TestAzureStorageBlobHook(unittest.TestCase):
                 extra=json.dumps({'sas_token': 'token'})
             )
         )
-
-    def tearDown(self):
-        os.unlink(self.testfile.name)
 
     def test_public_read(self):
         hook = AzureStorageBlobHook(azure_blob_conn_id=self.public_read_conn_id, public_read=True)
@@ -168,20 +160,16 @@ class TestAzureStorageBlobHook(unittest.TestCase):
     @mock.patch("airflow.providers.microsoft.azure.hooks.azure_storage_blob.BlobServiceClient")
     def test_download(self, mock_service):
         hook = AzureStorageBlobHook(azure_blob_conn_id=self.shared_key_conn_id)
-        container_client = mock_service.return_value.get_container_client.return_value
-        blob_client = container_client.get_blob_client.return_value
-        blob_client.download_blob.return_value = io.FileIO(self.testfile.name)
+        container_client = mock_service.return_value.get_container_client
+        blob_client = container_client.return_value.get_blob_client
         hook.download(container_name='mycontainer',
                       blob_name='myblob',
-                      dest_file='dest',
                       offset=2,
                       length=4)
-        mock_service.return_value.get_container_client.assert_called_once_with('mycontainer')
-        mock_service.return_value.get_container_client.return_value.get_blob_client. \
-            assert_called_once_with('myblob')
-        mock_service.return_value.get_container_client.return_value.get_blob_client. \
-            return_value.download_blob.assert_called_once_with(offset=2,
-                                                               length=4)
+        container_client.assert_called_once_with('mycontainer')
+        blob_client.assert_called_once_with('myblob')
+        blob_client.return_value.download_blob.\
+            assert_called_once_with(offset=2, length=4)
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.azure_storage_blob.BlobServiceClient")
     def test_copy(self, mock_service):

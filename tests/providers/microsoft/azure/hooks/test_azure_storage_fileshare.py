@@ -23,10 +23,7 @@ Cloud variant of a SMB file share. Make sure that a Airflow connection of
 type `azure_storage_fileshare` exists.
 """
 
-import io
 import json
-import os
-import tempfile
 import unittest
 
 import mock
@@ -47,9 +44,6 @@ class TestAzureFileshareHook(unittest.TestCase):
         self.connection_string_id = 'azure_file_test_connection_string'
         self.shared_key_conn_id = 'azure_file_shared_key_test'
         self.ad_conn_id = 'azure_AD_test'
-        self.testfile = tempfile.NamedTemporaryFile(delete=False)
-        self.testfile.write(b"x" * 393216)
-        self.testfile.flush()
 
         db.merge_conn(
             Connection(
@@ -71,9 +65,6 @@ class TestAzureFileshareHook(unittest.TestCase):
                                   'application_secret': "appsecret"})
             )
         )
-
-    def tearDown(self):
-        os.unlink(self.testfile.name)
 
     def test_connection_string(self):
         from azure.storage.fileshare import ShareServiceClient
@@ -116,7 +107,7 @@ class TestAzureFileshareHook(unittest.TestCase):
     @mock.patch("airflow.providers.microsoft.azure.hooks.azure_storage_fileshare.ShareServiceClient")
     def test_upload_file(self, mock_service):
         hook = AzureStorageFileShareHook(azure_fileshare_conn_id=self.shared_key_conn_id)
-        hook.upload_file(source_file=self.testfile.name,
+        hook.upload_file(data='some data',
                          share_name='myshare')
         share_client = mock_service.return_value.get_share_client
         file_client = share_client.return_value.get_file_client
@@ -128,11 +119,8 @@ class TestAzureFileshareHook(unittest.TestCase):
     def test_download_file(self, mock_service):
         share_client = mock_service.return_value.get_share_client
         file_client = share_client.return_value.get_file_client
-        file_client.return_value.download_file.return_value = io.FileIO(self.testfile.name)
         hook = AzureStorageFileShareHook(azure_fileshare_conn_id=self.shared_key_conn_id)
-        hook.download_file(dest_file=self.testfile.name,
-                           share_name='myshare')
-
+        hook.download_file(share_name='myshare')
         share_client.assert_called()
         file_client.assert_called()
         file_client.return_value.download_file.assert_called()
