@@ -35,15 +35,10 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
-.. _howto/operator:BigQueryCreateEmptyDatasetOperator:
-.. _howto/operator:BigQueryGetDatasetOperator:
-.. _howto/operator:BigQueryGetDatasetTablesOperator:
-.. _howto/operator:BigQueryPatchDatasetOperator:
-.. _howto/operator:BigQueryUpdateDatasetOperator:
-.. _howto/operator:BigQueryDeleteDatasetOperator:
-
 Manage datasets
 ^^^^^^^^^^^^^^^
+
+.. _howto/operator:BigQueryCreateEmptyDatasetOperator:
 
 Create dataset
 """"""""""""""
@@ -56,6 +51,8 @@ To create an empty dataset in a BigQuery database you can use
     :dedent: 4
     :start-after: [START howto_operator_bigquery_create_dataset]
     :end-before: [END howto_operator_bigquery_create_dataset]
+
+.. _howto/operator:BigQueryGetDatasetOperator:
 
 Get dataset details
 """""""""""""""""""
@@ -71,6 +68,8 @@ This operator returns a `Dataset Resource <https://cloud.google.com/bigquery/doc
     :start-after: [START howto_operator_bigquery_get_dataset]
     :end-before: [END howto_operator_bigquery_get_dataset]
 
+.. _howto/operator:BigQueryGetDatasetTablesOperator:
+
 List tables in dataset
 """"""""""""""""""""""
 
@@ -82,6 +81,8 @@ To retrieve the list of tables in a given dataset use
     :dedent: 4
     :start-after: [START howto_operator_bigquery_get_dataset_tables]
     :end-before: [END howto_operator_bigquery_get_dataset_tables]
+
+.. _howto/operator:BigQueryPatchDatasetOperator:
 
 Patch dataset
 """""""""""""
@@ -98,6 +99,8 @@ resource.
     :start-after: [START howto_operator_bigquery_patch_dataset]
     :end-before: [END howto_operator_bigquery_patch_dataset]
 
+.. _howto/operator:BigQueryUpdateDatasetOperator:
+
 Update dataset
 """"""""""""""
 
@@ -113,6 +116,8 @@ method only replaces fields that are provided in the submitted dataset resource.
     :start-after: [START howto_operator_bigquery_update_dataset]
     :end-before: [END howto_operator_bigquery_update_dataset]
 
+.. _howto/operator:BigQueryDeleteDatasetOperator:
+
 Delete dataset
 """"""""""""""
 
@@ -125,14 +130,10 @@ To delete an existing dataset from a BigQuery database you can use
     :start-after: [START howto_operator_bigquery_delete_dataset]
     :end-before: [END howto_operator_bigquery_delete_dataset]
 
-.. _howto/operator:BigQueryCreateEmptyTableOperator:
-.. _howto/operator:BigQueryCreateExternalTableOperator:
-.. _howto/operator:BigQueryGetDataOperator:
-.. _howto/operator:BigQueryUpsertTableOperator:
-.. _howto/operator:BigQueryDeleteTableOperator:
-
 Manage tables
 ^^^^^^^^^^^^^
+
+.. _howto/operator:BigQueryCreateEmptyTableOperator:
 
 Create native table
 """""""""""""""""""
@@ -160,6 +161,8 @@ You can use this operator to create a view on top of an existing table.
     :start-after: [START howto_operator_bigquery_create_view]
     :end-before: [END howto_operator_bigquery_create_view]
 
+.. _howto/operator:BigQueryCreateExternalTableOperator:
+
 Create external table
 """""""""""""""""""""
 
@@ -177,6 +180,8 @@ to a Google Cloud Storage object name.
     :dedent: 4
     :start-after: [START howto_operator_bigquery_create_external_table]
     :end-before: [END howto_operator_bigquery_create_external_table]
+
+.. _howto/operator:BigQueryGetDataOperator:
 
 Fetch data from table
 """""""""""""""""""""
@@ -197,6 +202,8 @@ that row.
     :start-after: [START howto_operator_bigquery_get_data]
     :end-before: [END howto_operator_bigquery_get_data]
 
+.. _howto/operator:BigQueryUpsertTableOperator:
+
 Upsert table
 """"""""""""
 
@@ -211,6 +218,8 @@ in the given dataset.
     :dedent: 4
     :start-after: [START howto_operator_bigquery_upsert_table]
     :end-before: [END howto_operator_bigquery_upsert_table]
+
+.. _howto/operator:BigQueryDeleteTableOperator:
 
 Delete table
 """"""""""""
@@ -273,12 +282,10 @@ You can store the results of the query in a table by specifying
     :start-after: [START howto_operator_bigquery_execute_query_save]
     :end-before: [END howto_operator_bigquery_execute_query_save]
 
-.. _howto/operator:BigQueryCheckOperator:
-.. _howto/operator:BigQueryValueCheckOperator:
-.. _howto/operator:BigQueryIntervalCheckOperator:
-
 Validate data
 ^^^^^^^^^^^^^
+
+.. _howto/operator:BigQueryCheckOperator:
 
 Check if query result has data
 """"""""""""""""""""""""""""""
@@ -296,6 +303,8 @@ return ``False`` the check is failed and errors out.
     :start-after: [START howto_operator_bigquery_check]
     :end-before: [END howto_operator_bigquery_check]
 
+.. _howto/operator:BigQueryValueCheckOperator:
+
 Compare query result to pass value
 """"""""""""""""""""""""""""""""""
 
@@ -311,6 +320,8 @@ or numeric value. If numeric, you can also specify ``tolerance``.
     :dedent: 4
     :start-after: [START howto_operator_bigquery_value_check]
     :end-before: [END howto_operator_bigquery_value_check]
+
+.. _howto/operator:BigQueryIntervalCheckOperator:
 
 Compare metrics over time
 """""""""""""""""""""""""
