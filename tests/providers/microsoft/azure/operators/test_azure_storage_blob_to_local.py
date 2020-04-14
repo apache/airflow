@@ -28,7 +28,7 @@ import mock
 
 from airflow.models import Connection
 from airflow.models.dag import DAG
-from airflow.providers.microsoft.azure.operators.azure_storage_blob_download import (
+from airflow.providers.microsoft.azure.operators.azure_storage_blob_to_local import (
     AzureStorageBlobDownloadOperator,
 )
 from airflow.utils import db
