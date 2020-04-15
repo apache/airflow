@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: "Static and dependency tests"
+name: "static and dependency tests"
 on: [pull_request, push]
 
 jobs:
@@ -32,7 +32,7 @@ jobs:
         with:
           python-version: '3.7'
       - name: install airflow
-        run: pip install -e .[devel]
+        run: python setup.py install
       - name: build docker image
         run: ./breeze build-image --production-image
         env:
@@ -50,7 +50,7 @@ jobs:
         with:
           python-version: '3.7'
       - name: install airflow
-        run: pip install -e .[devel]
+        run: python setup.py install
       - name: generate requirements
         run: ./scripts/ci/ci_generate_requirements.sh
         env:
@@ -66,7 +66,7 @@ jobs:
         with:
           python-version: '3.7'
       - name: install airflow
-        run: pip install -e .[devel]
+        run: python setup.py install
       - name: Prepare & test backport packages 1.10.9
         run: ./scripts/ci/ci_prepare_and_test_backport_packages.sh
         env:
