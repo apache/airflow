@@ -23,7 +23,7 @@ import mock
 
 from airflow.providers.google.cloud.operators.dataflow import (
     CheckJobRunning, DataflowCreateJavaJobOperator, DataflowCreatePythonJobOperator,
-    DataflowTemplatedJobStartOperator, GoogleCloudBucketHelper,
+    DataflowTemplatedJobStartOperator,
 )
 from airflow.version import version
 
@@ -88,14 +88,14 @@ class TestDataflowPythonOperator(unittest.TestCase):
                          EXPECTED_ADDITIONAL_OPTIONS)
 
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
-    @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
+    @mock.patch('airflow.providers.google.cloud.operators.dataflow.GCSHook')
     def test_exec(self, gcs_hook, dataflow_mock):
         """Test DataflowHook is created and the right args are passed to
         start_python_workflow.
 
         """
         start_python_hook = dataflow_mock.return_value.start_python_dataflow
-        gcs_download_hook = gcs_hook.return_value.google_cloud_to_local
+        gcs_provide_file = gcs_hook.return_value.provide_file
         self.dataflow.execute(None)
         self.assertTrue(dataflow_mock.called)
         expected_options = {
@@ -104,7 +104,7 @@ class TestDataflowPythonOperator(unittest.TestCase):
             'output': 'gs://test/output',
             'labels': {'foo': 'bar', 'airflow-version': TEST_VERSION}
         }
-        gcs_download_hook.assert_called_once_with(PY_FILE)
+        gcs_provide_file.assert_called_once_with(object_url=PY_FILE)
         start_python_hook.assert_called_once_with(
             job_name=JOB_NAME,
             variables=expected_options,
@@ -145,7 +145,6 @@ class TestDataflowJavaOperator(unittest.TestCase):
         self.assertEqual(self.dataflow.check_if_running, CheckJobRunning.WaitForRun)
 
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
-    @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
     def test_exec(self, gcs_hook, dataflow_mock):
         """Test DataflowHook is created and the right args are passed to
         start_java_workflow.
@@ -169,7 +168,6 @@ class TestDataflowJavaOperator(unittest.TestCase):
         )
 
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
-    @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
     def test_check_job_running_exec(self, gcs_hook, dataflow_mock):
         """Test DataflowHook is created and the right args are passed to
         start_java_workflow.
@@ -188,7 +186,6 @@ class TestDataflowJavaOperator(unittest.TestCase):
             name=JOB_NAME, variables=mock.ANY, project_id=None)
 
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
-    @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
     def test_check_job_not_running_exec(self, gcs_hook, dataflow_mock):
         """Test DataflowHook is created and the right args are passed to
         start_java_workflow with option to check if job is running
@@ -216,7 +213,6 @@ class TestDataflowJavaOperator(unittest.TestCase):
             name=JOB_NAME, variables=mock.ANY, project_id=None)
 
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
-    @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
     def test_check_multiple_job_exec(self, gcs_hook, dataflow_mock):
         """Test DataflowHook is created and the right args are passed to
         start_java_workflow with option to check multiple jobs
@@ -289,72 +285,3 @@ class TestDataflowTemplateOperator(unittest.TestCase):
             on_new_job_id_callback=mock.ANY,
             project_id=None,
         )
-
-
-class TestGoogleCloudBucketHelper(unittest.TestCase):
-
-    @mock.patch(
-        'airflow.providers.google.cloud.operators.dataflow.GoogleCloudBucketHelper.__init__'
-    )
-    def test_invalid_object_path(self, mock_parent_init):
-        # This is just the path of a bucket hence invalid filename
-        file_name = 'gs://test-bucket'
-        mock_parent_init.return_value = None
-
-        gcs_bucket_helper = GoogleCloudBucketHelper()
-        gcs_bucket_helper._gcs_hook = mock.Mock()
-
-        with self.assertRaises(Exception) as context:
-            gcs_bucket_helper.google_cloud_to_local(file_name)
-
-        self.assertEqual(
-            'Invalid Google Cloud Storage (GCS) object path: {}'.format(file_name),
-            str(context.exception))
-
-    @mock.patch(
-        'airflow.providers.google.cloud.operators.dataflow.GoogleCloudBucketHelper.__init__'
-    )
-    def test_valid_object(self, mock_parent_init):
-        file_name = 'gs://test-bucket/path/to/obj.jar'
-        mock_parent_init.return_value = None
-
-        gcs_bucket_helper = GoogleCloudBucketHelper()
-        gcs_bucket_helper._gcs_hook = mock.Mock()
-
-        # pylint: disable=redefined-builtin,unused-argument
-        def _mock_download(bucket, object, filename=None):
-            text_file_contents = 'text file contents'
-            with open(filename, 'w') as text_file:
-                text_file.write(text_file_contents)
-            return text_file_contents
-
-        gcs_bucket_helper._gcs_hook.download.side_effect = _mock_download
-
-        local_file = gcs_bucket_helper.google_cloud_to_local(file_name)
-        self.assertIn('obj.jar', local_file)
-
-    @mock.patch(
-        'airflow.providers.google.cloud.operators.dataflow.GoogleCloudBucketHelper.__init__'
-    )
-    def test_empty_object(self, mock_parent_init):
-        file_name = 'gs://test-bucket/path/to/obj.jar'
-        mock_parent_init.return_value = None
-
-        gcs_bucket_helper = GoogleCloudBucketHelper()
-        gcs_bucket_helper._gcs_hook = mock.Mock()
-
-        # pylint: disable=redefined-builtin,unused-argument
-        def _mock_download(bucket, object, filename=None):
-            text_file_contents = ''
-            with open(filename, 'w') as text_file:
-                text_file.write(text_file_contents)
-            return text_file_contents
-
-        gcs_bucket_helper._gcs_hook.download.side_effect = _mock_download
-
-        with self.assertRaises(Exception) as context:
-            gcs_bucket_helper.google_cloud_to_local(file_name)
-
-        self.assertEqual(
-            'Failed to download Google Cloud Storage (GCS) object: {}'.format(file_name),
-            str(context.exception))

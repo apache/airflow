@@ -20,12 +20,14 @@
 Example Airflow DAG for Google Cloud Dataflow service
 """
 import os
+from urllib.parse import urlparse
 
 from airflow import models
 from airflow.providers.google.cloud.operators.dataflow import (
     CheckJobRunning, DataflowCreateJavaJobOperator, DataflowCreatePythonJobOperator,
     DataflowTemplatedJobStartOperator,
 )
+from airflow.providers.google.cloud.operators.gcs import GCSToLocalOperator
 from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
@@ -33,6 +35,11 @@ GCS_TMP = os.environ.get('GCP_DATAFLOW_GCS_TMP', 'gs://test-dataflow-example/tem
 GCS_STAGING = os.environ.get('GCP_DATAFLOW_GCS_STAGING', 'gs://test-dataflow-example/staging/')
 GCS_OUTPUT = os.environ.get('GCP_DATAFLOW_GCS_OUTPUT', 'gs://test-dataflow-example/output')
 GCS_JAR = os.environ.get('GCP_DATAFLOW_JAR', 'gs://test-dataflow-example/word-count-beam-bundled-0.1.jar')
+GCS_PYTHON = os.environ.get('GCP_DATAFLOW_PYTHON', 'gs://test-dataflow-example/wordcount_debugging.py')
+
+GCS_JAR_PARTS = urlparse(GCS_JAR)
+GCS_JAR_BUCKET_NAME = GCS_JAR_PARTS.netloc
+GCS_JAR_OBJECT_NAME = GCS_JAR_PARTS.path[1:]
 
 default_args = {
     "start_date": days_ago(1),
@@ -60,13 +67,49 @@ with models.DAG(
         },
         poll_sleep=10,
         job_class='org.apache.beam.examples.WordCount',
-        check_if_running=CheckJobRunning.WaitForRun,
+        check_if_running=CheckJobRunning.IgnoreJob,
     )
     # [END howto_operator_start_java_job]
+
+    jar_to_local = GCSToLocalOperator(
+        task_id="jar-to-local",
+        bucket=GCS_JAR_BUCKET_NAME,
+        object_name=GCS_JAR_OBJECT_NAME,
+        filename="/tmp/dataflow-{{ ds_nodash }}.jar",
+    )
+
+    start_java_job_local = DataflowCreateJavaJobOperator(
+        task_id="start-java-job-local",
+        jar="/tmp/dataflow-{{ ds_nodash }}.jar",
+        job_name='{{task.task_id}}',
+        options={
+            'output': GCS_OUTPUT,
+        },
+        poll_sleep=10,
+        job_class='org.apache.beam.examples.WordCount',
+        check_if_running=CheckJobRunning.WaitForRun,
+    )
+    jar_to_local >> start_java_job_local
 
     # [START howto_operator_start_python_job]
     start_python_job = DataflowCreatePythonJobOperator(
         task_id="start-python-job",
+        py_file=GCS_PYTHON,
+        py_options=[],
+        job_name='{{task.task_id}}',
+        options={
+            'output': GCS_OUTPUT,
+        },
+        py_requirements=[
+            'apache-beam[gcp]>=2.14.0'
+        ],
+        py_interpreter='python3',
+        py_system_site_packages=False
+    )
+    # [END howto_operator_start_python_job]
+
+    start_python_job_local = DataflowCreatePythonJobOperator(
+        task_id="start-python-job-local",
         py_file='apache_beam.examples.wordcount',
         py_options=['-m'],
         job_name='{{task.task_id}}',
@@ -79,7 +122,6 @@ with models.DAG(
         py_interpreter='python3',
         py_system_site_packages=False
     )
-    # [END howto_operator_start_python_job]
 
     start_template_job = DataflowTemplatedJobStartOperator(
         task_id="start-template-job",
