@@ -55,7 +55,7 @@ def _fallback_object_url_to_object_name_and_bucket_name(
         :return: result of the function call
         """
         @functools.wraps(func)
-        def inner_wrapper(*args, **kwargs) -> RT:
+        def inner_wrapper(self: "GCSHook", * args, **kwargs) -> RT:
             if args:
                 raise AirflowException(
                     "You must use keyword arguments in this methods rather than positional")
@@ -95,7 +95,7 @@ def _fallback_object_url_to_object_name_and_bucket_name(
                     )
                 )
 
-            return func(*args, **kwargs)
+            return func(self, *args, **kwargs)
         return inner_wrapper
     return wrapper
 

@@ -74,6 +74,7 @@ class TestFallbackObjectUrlToObjectNameAndBucketName(unittest.TestCase):
 
         @_fallback_object_url_to_object_name_and_bucket_name()
         def test_method(
+            _,
             bucket_name=None,
             object_name=None,
             object_url=None
@@ -85,11 +86,11 @@ class TestFallbackObjectUrlToObjectNameAndBucketName(unittest.TestCase):
         self.test_method = test_method
 
     def test_should_url(self):
-        self.test_method(object_url="gs://BUCKET_NAME/OBJECT_NAME")
+        self.test_method(None, object_url="gs://BUCKET_NAME/OBJECT_NAME")
         self.assertion_on_body.assert_called_once()
 
     def test_should_support_bucket_and_object(self):
-        self.test_method(bucket_name="BUCKET_NAME", object_name="OBJECT_NAME")
+        self.test_method(None, bucket_name="BUCKET_NAME", object_name="OBJECT_NAME")
         self.assertion_on_body.assert_called_once()
 
     def test_should_raise_exception_on_missing(self):
@@ -98,7 +99,7 @@ class TestFallbackObjectUrlToObjectNameAndBucketName(unittest.TestCase):
                 re.escape(
                     "test_method() missing 2 required positional arguments: 'bucket_name' and 'object_name'"
                 )):
-            self.test_method()
+            self.test_method(None)
         self.assertion_on_body.assert_not_called()
 
     def test_should_raise_exception_on_mutually_exclusive(self):
@@ -107,6 +108,7 @@ class TestFallbackObjectUrlToObjectNameAndBucketName(unittest.TestCase):
             re.escape("The mutually exclusive parameters.")
         ):
             self.test_method(
+                None,
                 bucket_name="BUCKET_NAME",
                 object_name="OBJECT_NAME",
                 object_url="gs://BUCKET_NAME/OBJECT_NAME"
