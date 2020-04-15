@@ -1060,7 +1060,7 @@ class TestKubernetesExecutor(unittest.TestCase):
                                              mock_kubernetes_job_watcher):
         executor = KubernetesExecutor()
         executor.kube_config.delete_worker_pods = False
-        executor.kube_config.delete_worker_pods_on_success = True
+        executor.kube_config.delete_worker_pods_on_failure = False
         executor.start()
         test_time = timezone.utcnow()
         key = ('dag_id', 'task_id', test_time, 'try_number3')
@@ -1076,7 +1076,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         test_time = timezone.utcnow()
         executor = KubernetesExecutor()
         executor.kube_config.delete_worker_pods = False
-        executor.kube_config.delete_worker_pods_on_success = False
+        executor.kube_config.delete_worker_pods_on_failure = False
         executor.start()
         key = ('dag_id', 'task_id', test_time, 'try_number2')
         executor._change_state(key, State.SUCCESS, 'pod_id', 'default')
@@ -1089,7 +1089,7 @@ class TestKubernetesExecutor(unittest.TestCase):
     def test_change_state_failed_pod_deletion(self, mock_delete_pod, mock_get_kube_client,
                                               mock_kubernetes_job_watcher):
         executor = KubernetesExecutor()
-        executor.kube_config.delete_worker_pods_on_success = True
+        executor.kube_config.delete_worker_pods_on_failure = True
 
         executor.start()
         key = ('dag_id', 'task_id', 'ex_time', 'try_number2')
