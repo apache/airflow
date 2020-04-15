@@ -59,12 +59,21 @@ jobs:
           SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS: true
 
   statics-tests:
-    name: Pylint for tests
+    name: Static tests
     runs-on: ubuntu-latest
     env:
       PYTHON_VERSION: 3.6
       AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS: "true"
       TRAVIS_JOB_NAME: "Static"
+    matrix:
+      scripts: [ci_run_static_checks_pylint_tests.sh,
+                ci_mypy.sh,
+                ci_fix_ownership.sh,
+                ci_check_license.sh,
+                pre_commit_flake8.sh,
+                pre_commit_bat_tests.sh,
+                pre_commit_pylint_main.sh,
+                ]
     steps:
       - uses: actions/checkout@v2
         name: checkout
@@ -77,7 +86,8 @@ jobs:
         if: success()
         env:
           PYTHON_VERSION: 3.6
-        run: ./scripts/ci/ci_run_static_checks_pylint_tests.sh
+        run: ./scripts/ci/${{ matrix.scripts }}
+
 
   docs:
     name: Build docs
@@ -90,22 +100,3 @@ jobs:
       - name: "Build documentation"
         run: ./scripts/ci/ci_docs.sh
 
-  static-tests:
-    name: Static checks
-    runs-on: ubuntu-latest
-    env:
-      PYTHON_VERSION: 3.6
-      AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS: "true"
-      TRAVIS_JOB_NAME: "Static"
-    steps:
-      - uses: actions/checkout@master
-      - uses: actions/setup-python@v1
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: "Before install"
-        run: ./scripts/ci/ci_before_install.sh
-      - name: "Static checks"
-        if: success()
-        env:
-          PYTHON_VERSION: ${{ env.PYTHON_VERSION }}
-        run: ./scripts/ci/ci_run_all_static_checks.sh
