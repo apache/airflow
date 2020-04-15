@@ -1738,13 +1738,14 @@
       type: string
       example: ~
       default: "True"
-    - name: delete_worker_pods_on_success
+    - name: delete_worker_pods_on_failure
       description: |
-        If True (default), worker pods will be deleted only on task success
+        If False (and delete_worker_pods is True),
+        failed worker pods will not be deleted so users can investigate them.
       version_added: ~
       type: string
       example: ~
-      default: "True"
+      default: "False"
     - name: worker_pods_creation_batch_size
       description: |
         Number of Kubernetes Worker Pod creation calls per scheduler loop.
