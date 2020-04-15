@@ -27,6 +27,7 @@ from datetime import timedelta
 from typing import Dict, List, Optional, Set, Union
 
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -62,6 +63,7 @@ AWS_ACCESS_KEY = "awsAccessKey"
 AWS_S3_DATA_SOURCE = 'awsS3DataSource'
 BODY = 'body'
 BUCKET_NAME = 'bucketName'
+JOB_NAME = 'name'
 DAY = 'day'
 DESCRIPTION = "description"
 FILTER = 'filter'
@@ -143,8 +145,24 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         :rtype: dict
         """
         body = self._inject_project_id(body, BODY, PROJECT_ID)
-        return self.get_conn().transferJobs().create(body=body).execute(  # pylint: disable=no-member
-            num_retries=self.num_retries)
+
+        try:
+            transfer_job = self.get_conn().transferJobs().create(body=body).execute(  # pylint: disable=no-member
+                num_retries=self.num_retries)
+        except HttpError as e:
+            # If status code "Conflict"
+            # https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferOperations#Code.ENUM_VALUES.ALREADY_EXISTS
+            # we should try to find this job
+            if 409 == int(e.resp.status):
+                job_name = body.get("name", "")
+                if not job_name:
+                    raise e
+                transfer_job = self.get_transfer_job(
+                    job_name=job_name, project_id=body.get(PROJECT_ID))
+            else:
+                raise e
+
+        return transfer_job
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_transfer_job(self, job_name: str, project_id: str) -> Dict:

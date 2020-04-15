@@ -47,7 +47,7 @@ class TransferJobPreprocessor:
 
     def _inject_aws_credentials(self):
         if TRANSFER_SPEC in self.body and AWS_S3_DATA_SOURCE in self.body[TRANSFER_SPEC]:
-            aws_hook = AwsBaseHook(self.aws_conn_id)
+            aws_hook = AwsBaseHook(self.aws_conn_id, client_type='s3')
             aws_credentials = aws_hook.get_credentials()
             aws_access_key_id = aws_credentials.access_key
             aws_secret_access_key = aws_credentials.secret_key
