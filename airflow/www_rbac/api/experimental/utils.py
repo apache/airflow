@@ -65,8 +65,7 @@ def generate_bolt_number(controller_name, program, batch_count=None):
 
 
 def generate_curve_name(nut_no, measure_result):
-    return '/'.join([nut_no, str(get_craft_type()),
-                     str(get_curve_mode(measure_result))])
+    return '/'.join([nut_no, measure_result, str(get_craft_type())])
 
 
 def get_curve_params(bolt_number, measure_result):
