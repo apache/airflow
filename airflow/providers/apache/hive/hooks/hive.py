@@ -975,7 +975,7 @@ class HiveServer2Hook(DbApiHook):
         """
         return self.get_results(hql, schema=schema, hive_conf=hive_conf)['data']
 
-    def get_pandas_df(self, hql, schema='default'):
+    def get_pandas_df(self, hql, schema='default', hive_conf=None):
         """
         Get a pandas dataframe from a Hive query
 
@@ -983,7 +983,9 @@ class HiveServer2Hook(DbApiHook):
         :type hql: str or list
         :param schema: target schema, default to 'default'.
         :type schema: str
-        :return: result of hql execution
+        :param hive_conf: hive_conf to execute alone with the hql.
+        :type hive_conf: dict
+        :return: result of hive execution
         :rtype: DataFrame
 
         >>> hh = HiveServer2Hook()
@@ -995,7 +997,7 @@ class HiveServer2Hook(DbApiHook):
         :return: pandas.DateFrame
         """
         import pandas as pd
-        res = self.get_results(hql, schema=schema)
+        res = self.get_results(hql, schema=schema, hive_conf=hive_conf)
         df = pd.DataFrame(res['data'])
         df.columns = [c[0] for c in res['header']]
         return df
