@@ -23,7 +23,7 @@ declare -a EXTRA_DOCKER_FLAGS
 declare -a EXTRA_DOCKER_PROD_BUILD_FLAGS
 export EXTRA_DOCKER_FLAGS
 export EXTRA_DOCKER_PROD_BUILD_FLAGS
-
+export TRAVIS_BRANCH=${TRAVIS_BRANCH:="None"}
 function check_verbose_setup {
     if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
         set -x

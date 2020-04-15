@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: "k8s tests"
+name: "Static and dependency tests"
 on: [pull_request, push]
 
 jobs:
