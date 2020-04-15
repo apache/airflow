@@ -36,6 +36,8 @@ jobs:
         run: pip install -e .[devel]
       - name: build docker image
         run: ./scripts/ci/ci_build_production_image.sh
+        env:
+          PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
   generate-requirements:
     runs-on: ubuntu-latest
     strategy:
@@ -55,21 +57,55 @@ jobs:
         env:
           PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
           SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS: true
-  prepare-and-test-backport-packages:
+
+  statics-tests:
+    name: Pylint for tests
     runs-on: ubuntu-latest
+    env:
+      PYTHON_VERSION: 3.6
+      AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS: "true"
+      TRAVIS_JOB_NAME: "Static"
     steps:
       - uses: actions/checkout@v2
         name: checkout
-      - name: Set up Python 3.7
-        uses: actions/setup-python@v1
+      - uses: actions/setup-python@v1
         with:
-          python-version: '3.7'
-      - name: install airflow
-        run: python setup.py install
-      - name: install bowler
-        run: pip install bowler
-      - name: Prepare & test backport packages 1.10.9
-        run: ./scripts/ci/ci_prepare_and_test_backport_packages.sh
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: "Before install"
+        run: ./scripts/ci/ci_before_install.sh
+      - name: "Static checks tests"
+        if: success()
         env:
-         INSTALL_AIRFLOW_VERSION: 1.10.9
+          PYTHON_VERSION: 3.6
+        run: ./scripts/ci/ci_run_static_checks_pylint_tests.sh
 
+  docs:
+    name: Build docs
+    runs-on: ubuntu-latest
+    env:
+      TRAVIS_JOB_NAME: "Build documentation"
+      PYTHON_VERSION: 3.6
+    steps:
+      - uses: actions/checkout@master
+      - name: "Build documentation"
+        run: ./scripts/ci/ci_docs.sh
+
+  static-tests:
+    name: Static checks
+    runs-on: ubuntu-latest
+    env:
+      PYTHON_VERSION: 3.6
+      AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS: "true"
+      TRAVIS_JOB_NAME: "Static"
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-python@v1
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: "Before install"
+        run: ./scripts/ci/ci_before_install.sh
+      - name: "Static checks"
+        if: success()
+        env:
+          PYTHON_VERSION: ${{ env.PYTHON_VERSION }}
+        run: ./scripts/ci/ci_run_all_static_checks.sh
