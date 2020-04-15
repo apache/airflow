@@ -39,6 +39,8 @@ jobs:
       matrix:
         python-version: [3.6,3.7]
     steps:
+      - uses: actions/checkout@v2
+        name: checkout
       - name: before install
         run: ./scripts/ci/ci_before_install.sh
       - name: generate requirements
@@ -49,6 +51,8 @@ jobs:
   prepare-and-test-backport-packages:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
+        name: checkout
       - name: before install
         run: ./scripts/ci/ci_before_install.sh
       - name: Prepare & test backport packages 1.10.9
