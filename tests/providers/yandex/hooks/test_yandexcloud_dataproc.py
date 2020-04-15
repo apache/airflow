@@ -63,7 +63,7 @@ SSH_PUBLIC_KEYS = [
 HAS_CREDENTIALS = OAUTH_TOKEN != 'my_oauth_token'
 
 
-@unittest.skipIf(yandexcloud is None, 'Skipping Yadnex.Cloud hook test: no yandexcloud module')
+@unittest.skipIf(yandexcloud is None, 'Skipping Yandex.Cloud hook test: no yandexcloud module')
 class TestYandexCloudDataprocHook(unittest.TestCase):
 
     def _init_hook(self):

@@ -944,7 +944,7 @@ These integrations allow you to perform various operations within the Yandex.Clo
 
    * - `Base Classes <https://cloud.yandex.com>`__
      - :doc:`How to use <howto/operator/yandexcloud>`
-     - :mod:`airflow.providers.yandex.hooks.yandexcloud_base_hook`
+     - :mod:`airflow.providers.yandex.hooks.yandex`
      - :mod:`airflow.providers.yandex.operators.yandexcloud_base_operator`
      -
 
