@@ -1961,7 +1961,6 @@ class Airflow(AirflowBaseView):
             # https://issues.apache.org/jira/browse/AIRFLOW-2143
             try_count = ti.prev_attempted_tries
             gantt_bar_items.append((ti.task_id, ti.start_date, end_date, ti.state, try_count))
-            gantt_bar_items.append((ti.task_id, ti.start_date, end_date, ti.state, try_count))
             d = alchemy_to_dict(ti)
             d['extraLinks'] = dag.get_task(ti.task_id).extra_links
             tasks.append(d)
