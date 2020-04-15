@@ -27,8 +27,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         name: checkout
-      - name: before install
-        run: ./scripts/ci/ci_before_install.sh
+      - name: install airflow
+        run: pip install -e .
       - name: build docker 1image
         run: ./breeze build-image --production-image
         env:
@@ -42,8 +42,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         name: checkout
-      - name: before install
-        run: ./scripts/ci/ci_before_install.sh
+      - name: install airflow
+        run: pip install -e .
       - name: generate requirements
         run: ./scripts/ci/ci_generate_requirements.sh
         env:
@@ -55,8 +55,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         name: checkout
-      - name: before install
-        run: ./scripts/ci/ci_before_install.sh
+      - name: install airflow
+        run: pip install -e .
       - name: Prepare & test backport packages 1.10.9
         run: ./scripts/ci/ci_prepare_and_test_backport_packages.sh
         env:
