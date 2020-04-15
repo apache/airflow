@@ -23,6 +23,11 @@ Apache Spark Operators
   :depth: 1
   :local:
 
+Prerequisite
+------------
+
+To use ``SparkJDBCOperator`` and ``SparkSubmitOperator``, you must configure a :doc:`Spark Connection <../../connection/spark>`.
+
 SparkJDBCOperator
 -----------------
 
