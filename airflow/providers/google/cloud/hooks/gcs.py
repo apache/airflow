@@ -46,16 +46,22 @@ def _fallback_object_url_to_object_name_and_bucket_name(
     bucket_name_keyword_arg_name='bucket_name',
     object_name_keyword_arg_name='object_name',
 ):
+    """
+    Decorator factory that convert object URL parameter to object name and bucket name parameter.
 
-    def wrapper(func):
-        """
-        Decorator that provides fallback for Google Cloud Platform project id.
+    :param object_url_keyword_arg_name: Name of the object URL parameter
+    :type object_url_keyword_arg_name: str
+    :param bucket_name_keyword_arg_name: Name of the bucket name parameter
+    :type bucket_name_keyword_arg_name:str
+    :param object_name_keyword_arg_name: Name of the object name parameter
+    :type object_name_keyword_arg_name: str
+    :return: decorator
 
-        :param func: function to wrap
-        :return: result of the function call
-        """
+    """
+    def _wrapper(func):
+
         @functools.wraps(func)
-        def inner_wrapper(self: "GCSHook", * args, **kwargs) -> RT:
+        def _inner_wrapper(self: "GCSHook", * args, **kwargs) -> RT:
             if args:
                 raise AirflowException(
                     "You must use keyword arguments in this methods rather than positional")
@@ -96,8 +102,8 @@ def _fallback_object_url_to_object_name_and_bucket_name(
                 )
 
             return func(self, *args, **kwargs)
-        return inner_wrapper
-    return wrapper
+        return _inner_wrapper
+    return _wrapper
 
 
 class GCSHook(GoogleBaseHook):
