@@ -108,7 +108,7 @@ PYSPARK_JOB = {
 SPARKR_JOB = {
     "reference": {"project_id": PROJECT_ID},
     "placement": {"cluster_name": CLUSTER_NAME},
-    "sparkRJob": {"mainRFileUri": SPARKR_URI},
+    "spark_r_job": {"main_r_file_uri": SPARKR_URI},
 }
 
 HIVE_JOB = {
