@@ -14,7 +14,7 @@ jobs:
       matrix:
         scripts: [ci_run_static_checks_pylint_tests.sh,
                   ci_mypy.sh,
-                  ci_fix_ownership.sh,
+                  run_fix_ownership.sh,
                   ci_check_license.sh,
                   pre_commit_flake8.sh,
                   pre_commit_bat_tests.sh,
