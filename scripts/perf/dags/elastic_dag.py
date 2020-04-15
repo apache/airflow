@@ -22,7 +22,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 
 from airflow import DAG
-from airflow.models.baseoperator import chain, chain_as_binary_tree, chain_as_star
+from airflow.models.baseoperator import chain
 from airflow.operators.bash import BashOperator
 
 # DAG File used in performance tests. Its shape can be configured by environment variables.
@@ -72,6 +72,36 @@ def safe_dag_id(s: str) -> str:
     Remove invalid characters for dag_id
     """
     return re.sub('[^0-9a-zA-Z_]+', '_', s)
+
+
+def chain_as_binary_tree(*tasks: BashOperator):
+    r'''
+    Chain tasks as a binary tree where task i is child of task (i - 1) // 2 :
+
+        t0 -> t1 -> t3 -> t7
+          |    \
+          |      -> t4 -> t8
+          |
+           -> t2 -> t5 -> t9
+               \
+                 -> t6
+    '''
+    for i in range(1, len(tasks)):
+        tasks[i].set_downstream(tasks[(i - 1) // 2])
+
+
+def chain_as_star(*tasks: BashOperator):
+    '''
+    Chain tasks as a star (all tasks are children of task 0)
+
+     t0 -> t1
+      | -> t2
+      | -> t3
+      | -> t4
+      | -> t5
+    '''
+    for i in range(1, len(tasks)):
+        tasks[i].set_downstream(tasks[0])
 
 
 @enum.unique

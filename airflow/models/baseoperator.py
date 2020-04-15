@@ -1190,7 +1190,7 @@ class BaseOperator(Operator, LoggingMixin):
 
 def chain(*tasks: Union[BaseOperator, List[BaseOperator]]):
     r"""
-    Given a number of tasks, builds a linear dependency chain.
+    Given a number of tasks, builds a dependency chain.
     Support mix airflow.models.BaseOperator and List[airflow.models.BaseOperator].
     If you want to chain between two List[airflow.models.BaseOperator], have to
     make sure they have same length.
@@ -1237,36 +1237,6 @@ def chain(*tasks: Union[BaseOperator, List[BaseOperator]]):
                 f'but get {len(up_task_list)} and {len(down_task_list)}')
         for up_t, down_t in zip(up_task_list, down_task_list):
             up_t.set_downstream(down_t)
-
-
-def chain_as_binary_tree(*tasks: BaseOperator):
-    r'''
-    Chain tasks as a binary tree where task i is child of task (i - 1) // 2 :
-
-        t0 -> t1 -> t3 -> t7
-          |    \
-          |      -> t4 -> t8
-          |
-           -> t2 -> t5 -> t9
-               \
-                 -> t6
-    '''
-    for i in range(1, len(tasks)):
-        tasks[i].set_downstream(tasks[(i - 1) // 2])
-
-
-def chain_as_star(*tasks: BaseOperator):
-    '''
-    Chain tasks as a star (all tasks are children of task 0)
-
-     t0 -> t1
-      | -> t2
-      | -> t3
-      | -> t4
-      | -> t5
-    '''
-    for i in range(1, len(tasks)):
-        tasks[i].set_downstream(tasks[0])
 
 
 def cross_downstream(from_tasks: List[BaseOperator],
