@@ -26,7 +26,7 @@ from enum import Enum
 from typing import List, Optional
 
 from airflow.models import BaseOperator
-from airflow.providers.google.cloud.hooks.dataflow import DataflowHook
+from airflow.providers.google.cloud.hooks.dataflow import DEFAULT_DATAFLOW_LOCATION, DataflowHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils.decorators import apply_defaults
 from airflow.version import version
@@ -143,7 +143,6 @@ class DataflowCreateJavaJobOperator(BaseOperator):
 
        default_args = {
            'dataflow_default_options': {
-               'project': 'my-gcp-project',
                'zone': 'europe-west1-d',
                'stagingLocation': 'gs://my-staging-bucket/staging/'
            }
@@ -182,6 +181,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
             dataflow_default_options: Optional[dict] = None,
             options: Optional[dict] = None,
             project_id: Optional[str] = None,
+            location: str = DEFAULT_DATAFLOW_LOCATION,
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
             poll_sleep: int = 10,
@@ -197,6 +197,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         options.setdefault('labels', {}).update(
             {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')})
         self.project_id = project_id
+        self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.jar = jar
@@ -224,10 +225,13 @@ class DataflowCreateJavaJobOperator(BaseOperator):
                 name=self.job_name,
                 variables=dataflow_options,
                 project_id=self.project_id,
+                location=self.location
             )
             while is_running and self.check_if_running == CheckJobRunning.WaitForRun:
                 is_running = self.hook.is_job_dataflow_running(
-                    name=self.job_name, variables=dataflow_options, project_id=self.project_id)
+                    name=self.job_name, variables=dataflow_options, project_id=self.project_id,
+                    location=self.location
+                )
 
         if not is_running:
             with ExitStack() as exit_stack:
@@ -250,6 +254,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
                     multiple_jobs=self.multiple_jobs,
                     on_new_job_id_callback=set_current_job_id,
                     project_id=self.project_id,
+                    location=self.location
                 )
 
     def on_kill(self) -> None:
@@ -294,8 +299,6 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
 
        default_args = {
            'dataflow_default_options': {
-               'project': 'my-gcp-project',
-               'region': 'europe-west1',
                'zone': 'europe-west1-d',
                'tempLocation': 'gs://my-staging-bucket/staging/',
                }
@@ -342,6 +345,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             dataflow_default_options: Optional[dict] = None,
             parameters: Optional[dict] = None,
             project_id: Optional[str] = None,
+            location: str = DEFAULT_DATAFLOW_LOCATION,
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
             poll_sleep: int = 10,
@@ -357,6 +361,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         self.dataflow_default_options = dataflow_default_options
         self.parameters = parameters
         self.project_id = project_id
+        self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.poll_sleep = poll_sleep
@@ -380,6 +385,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             dataflow_template=self.template,
             on_new_job_id_callback=set_current_job_id,
             project_id=self.project_id,
+            location=self.location
         )
 
         return job
@@ -468,6 +474,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
             py_requirements: Optional[List[str]] = None,
             py_system_site_packages: bool = False,
             project_id: Optional[str] = None,
+            location: str = DEFAULT_DATAFLOW_LOCATION,
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
             poll_sleep: int = 10,
@@ -487,6 +494,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         self.py_requirements = py_requirements or []
         self.py_system_site_packages = py_system_site_packages
         self.project_id = project_id
+        self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.poll_sleep = poll_sleep
@@ -528,6 +536,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
                 py_system_site_packages=self.py_system_site_packages,
                 on_new_job_id_callback=set_current_job_id,
                 project_id=self.project_id,
+                location=self.location,
             )
 
     def on_kill(self) -> None:
