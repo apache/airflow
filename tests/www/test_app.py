@@ -87,7 +87,7 @@ class TestApp(unittest.TestCase):
         def debug_view():
             from flask import request
 
-            # Should respect HTTP_X_FORWARDED_FOR
+            # Should ignore HTTP_X_FORWARDED_FOR
             self.assertEqual(request.remote_addr, '192.168.0.2')
             # Should ignore HTTP_X_FORWARDED_PROTO, HTTP_X_FORWARDED_HOST, HTTP_X_FORWARDED_PORT,
             # HTTP_X_FORWARDED_PREFIX
