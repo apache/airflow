@@ -27,6 +27,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         name: checkout
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.7'
       - name: install airflow
         run: pip install -e .[devel]
       - name: build docker 1image
@@ -42,6 +46,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         name: checkout
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.7'
       - name: install airflow
         run: pip install -e .[devel]
       - name: generate requirements
@@ -55,6 +63,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         name: checkout
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.7'
       - name: install airflow
         run: pip install -e .[devel]
       - name: Prepare & test backport packages 1.10.9
