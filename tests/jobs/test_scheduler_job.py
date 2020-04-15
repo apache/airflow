@@ -1157,6 +1157,7 @@ class TestDagFileProcessorQueriesCount(unittest.TestCase):
             ( 9,  1,  1, "1d",   "30m",        "linear"),  # noqa
             ( 9,  1,  1, "1d",   "30m",   "binary_tree"),  # noqa
             ( 9,  1,  1, "1d",   "30m",          "star"),  # noqa
+            ( 9,  1,  1, "1d",   "30m",          "grid"),  # noqa
             # One DAG with five tasks per DAG  file
             ( 1,  1,  5, "1d",  "None",  "no_structure"),  # noqa
             ( 1,  1,  5, "1d",  "None",        "linear"),  # noqa
@@ -1166,6 +1167,7 @@ class TestDagFileProcessorQueriesCount(unittest.TestCase):
             (10,  1,  5, "1d",   "30m",        "linear"),  # noqa
             (10,  1,  5, "1d",   "30m",   "binary_tree"),  # noqa
             (10,  1,  5, "1d",   "30m",          "star"),  # noqa
+            (10,  1,  5, "1d",   "30m",          "grid"),  # noqa
             # 10 DAGs with 10 tasks per DAG file
             ( 1, 10, 10, "1d",  "None",  "no_structure"),  # noqa
             ( 1, 10, 10, "1d",  "None",        "linear"),  # noqa
@@ -1175,6 +1177,7 @@ class TestDagFileProcessorQueriesCount(unittest.TestCase):
             (91, 10, 10, "1d",   "30m",        "linear"),  # noqa
             (91, 10, 10, "1d",   "30m",   "binary_tree"),  # noqa
             (91, 10, 10, "1d",   "30m",          "star"),  # noqa
+            (91, 10, 10, "1d",   "30m",          "grid"),  # noqa
             # pylint: enable=bad-whitespace
         ]
     )

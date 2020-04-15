@@ -90,6 +90,39 @@ def chain_as_binary_tree(*tasks: BashOperator):
         tasks[i].set_downstream(tasks[(i - 1) // 2])
 
 
+def chain_as_grid(*tasks: BashOperator):
+    '''
+    Chain tasks as a grid:
+
+     t0 -> t1 -> t2 -> t3
+      |     |     |
+      v     v     v
+     t4 -> t5 -> t6
+      |     |
+      v     v
+     t7 -> t8
+      |
+      v
+     t9
+    '''
+    if len(tasks) > 100 * 99 / 2:
+        raise ValueError('Cannot generate grid DAGs with lateral size larger than 100 tasks.')
+    grid_size = min([n for n in range(100) if n * (n + 1) / 2 >= len(tasks)])
+
+    def index(i, j):
+        '''
+        Return the index of node (i, j) on the grid.
+        '''
+        return int(grid_size * i - i * (i - 1) / 2 + j)
+
+    for i in range(grid_size - 1):
+        for j in range(grid_size - i - 1):
+            if index(i + 1, j) < len(tasks):
+                tasks[index(i + 1, j)].set_downstream(tasks[index(i, j)])
+            if index(i, j + 1) < len(tasks):
+                tasks[index(i, j + 1)].set_downstream(tasks[index(i, j)])
+
+
 def chain_as_star(*tasks: BashOperator):
     '''
     Chain tasks as a star (all tasks are children of task 0)
@@ -100,8 +133,7 @@ def chain_as_star(*tasks: BashOperator):
       | -> t4
       | -> t5
     '''
-    for i in range(1, len(tasks)):
-        tasks[i].set_downstream(tasks[0])
+    tasks[0].set_upstream(list(tasks[1:]))
 
 
 @enum.unique
@@ -113,6 +145,7 @@ class DagShape(Enum):
     LINEAR = "linear"
     BINARY_TREE = "binary_tree"
     STAR = "star"
+    GRID = "grid"
 
 
 DAG_PREFIX = os.environ.get("PERF_DAG_PREFIX", "perf_scheduler")
@@ -143,20 +176,20 @@ for dag_no in range(1, DAG_COUNT + 1):
         schedule_interval=SCHEDULE_INTERVAL,
     )
 
-    tasks = [
+    elastic_dag_tasks = [
         BashOperator(
             task_id="__".join(["tasks", f"{i}_of_{TASKS_COUNT}"]), bash_command='echo test"', dag=dag
         )
         for i in range(1, TASKS_COUNT + 1)
     ]
-    if SHAPE == DagShape.NO_STRUCTURE:
-        # Do nothing
-        pass
-    elif SHAPE == DagShape.LINEAR:
-        chain(*tasks)
-    elif SHAPE == DagShape.BINARY_TREE:
-        chain_as_binary_tree(*tasks)
-    elif SHAPE == DagShape.STAR:
-        chain_as_star(*tasks)
+
+    shape_function_map = {
+        DagShape.LINEAR: chain,
+        DagShape.BINARY_TREE: chain_as_binary_tree,
+        DagShape.STAR: chain_as_star,
+        DagShape.GRID: chain_as_grid,
+    }
+    if SHAPE != DagShape.NO_STRUCTURE:
+        shape_function_map[SHAPE](*elastic_dag_tasks)
 
     globals()[f"dag_{dag_no}"] = dag
