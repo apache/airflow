@@ -328,5 +328,7 @@ WORKDIR ${AIRFLOW_HOME}
 
 ENV AIRFLOW__CORE__LOAD_EXAMPLES="false"
 
+EXPOSE 8080
+
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
 CMD ["airflow", "--help"]

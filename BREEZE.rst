@@ -263,6 +263,8 @@ Set up local development environment:
 Note that the below environment interaction is by default with the CI image. If you want to use production
 image for those commands you need to add ``--production-image`` flag.
 
+Note that you also should not run both (CI and production) environments simultaneously, as they are using
+the same docker-compose configuration which for example contain the link to the database, port mapping, etc.
 
 Entering Breeze CI environment
 ------------------------------
