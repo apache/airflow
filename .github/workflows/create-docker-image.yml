@@ -33,6 +33,7 @@ jobs:
         run: ./breeze build-image --production-image
         env:
          PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+         TRAVIS_PULL_REQUEST: true
   generate-requirements:
     runs-on: ubuntu-latest
     strategy:
@@ -47,7 +48,8 @@ jobs:
         run: ./scripts/ci/ci_generate_requirements.sh
         env:
           PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-          SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS: truea
+          SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS: true
+          TRAVIS_PULL_REQUEST: true
   prepare-and-test-backport-packages:
     runs-on: ubuntu-latest
     steps:
@@ -59,3 +61,5 @@ jobs:
         run: ./scripts/ci/ci_prepare_and_test_backport_packages.sh
         env:
          INSTALL_AIRFLOW_VERSION: 1.10.9
+         TRAVIS_PULL_REQUEST: true
+
