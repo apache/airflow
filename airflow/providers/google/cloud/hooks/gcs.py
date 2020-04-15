@@ -52,11 +52,10 @@ def _fallback_object_url_to_object_name_and_bucket_name(
     :param object_url_keyword_arg_name: Name of the object URL parameter
     :type object_url_keyword_arg_name: str
     :param bucket_name_keyword_arg_name: Name of the bucket name parameter
-    :type bucket_name_keyword_arg_name:str
+    :type bucket_name_keyword_arg_name: str
     :param object_name_keyword_arg_name: Name of the object name parameter
     :type object_name_keyword_arg_name: str
-    :return: decorator
-
+    :return: Decorator
     """
     def _wrapper(func):
 
