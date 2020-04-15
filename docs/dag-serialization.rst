@@ -27,7 +27,7 @@ DAG Serialization and DB Persistence.
 .. image:: img/dag_serialization.png
 
 Without DAG Serialization & persistence in DB, the Webserver and the Scheduler both
-needs access to the DAG files. Both the scheduler and webserver parses the DAG files.
+need access to the DAG files. Both the scheduler and webserver parse the DAG files.
 
 With **DAG Serialization** we aim to decouple the webserver from DAG parsing
 which would make the Webserver very light-weight.
