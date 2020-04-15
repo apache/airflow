@@ -27,16 +27,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         name: checkout
-      - name: Set up Python 3.7
-        uses: actions/setup-python@v1
-        with:
-          python-version: '3.7'
-      - name: install airflow
-        run: python setup.py install
-      - name: build docker image
+      - name: pip install airflow
+        run: pip install -e .[devel]
+      - name: build docker 1image
         run: ./breeze build-image --production-image
-        env:
-         PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
   generate-requirements:
     runs-on: ubuntu-latest
     strategy:
