@@ -65,6 +65,8 @@ jobs:
           python-version: '3.7'
       - name: install airflow
         run: python setup.py install
+      - name: install bowler
+        run: pip install bowler
       - name: Prepare & test backport packages 1.10.9
         run: ./scripts/ci/ci_prepare_and_test_backport_packages.sh
         env:
