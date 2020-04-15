@@ -206,18 +206,6 @@ jobs:
       - name: "Tests [MySQL5.7][Py3.7][core][kerberos]"
         run: ./scripts/ci/ci_run_airflow_testing.sh --ignore=tests/providers
 
-  build-backport-packages:
-    name: "Prepare backport packages"
-    runs-on: ubuntu-latest
-    needs: [statics, statics-tests]
-    steps:
-      - uses: actions/checkout@master
-      - uses: actions/setup-python@v1
-      - name: "Before install"
-        run: pip install bowler
-      - name: "Prepare backport packages"
-        run: ./scripts/ci/ci_prepare_backport_packages.sh
-
   requirements:
     name: "Generate requirements"
     runs-on: ubuntu-latest
