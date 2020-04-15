@@ -31,30 +31,11 @@ env:
     - CI="true"
 python: "3.6"
 stages:
-  - pre-test
   - test
 services:
   - docker
 jobs:
   include:
-    - name: "Static checks"
-      stage: pre-test
-      script: ./scripts/ci/ci_run_all_static_checks.sh
-      env: >-
-        PYTHON_MAJOR_MINOR_VERSION=3.6
-        AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
-        SKIP=pylint-tests
-    - name: "Static checks - pylint tests only"
-      stage: pre-test
-      script: ./scripts/ci/ci_run_static_checks_pylint_tests.sh
-      env: >-
-        PYTHON_MAJOR_MINOR_VERSION=3.6
-        AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
-    - name: "Build documentation"
-      env: >-
-        PYTHON_MAJOR_MINOR_VERSION=3.6
-      stage: test
-      script: ./scripts/ci/ci_docs.sh
     - name: "Tests [Py3.6][Kubernetes][persistent]"
       env: >-
         BACKEND=postgres
@@ -75,95 +56,11 @@ jobs:
         KUBERNETES_VERSION=v1.15.3
       python: "3.6"
       stage: test
-    - name: "Tests [Postgres9.6][Py3.6][integrations]"
-      env: >-
-        BACKEND=postgres
-        PYTHON_MAJOR_MINOR_VERSION=3.6
-        POSTGRES_VERSION=9.6
-        ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
-        RUN_INTEGRATION_TESTS=all
-      stage: test
-    - name: "Tests [Postgres10][Py3.6][providers]"
-      env: >-
-        BACKEND=postgres
-        POSTGRES_VERSION=10
-        PYTHON_MAJOR_MINOR_VERSION=3.6
-      script: "./scripts/ci/ci_run_airflow_testing.sh tests/providers"
-      stage: test
-    - name: "Tests [Postgres9.6][Py3.6][core]"
-      env: >-
-        BACKEND=postgres
-        POSTGRES_VERSION=9.6
-        PYTHON_MAJOR_MINOR_VERSION=3.6
-      script: "./scripts/ci/ci_run_airflow_testing.sh --ignore=tests/providers"
-      stage: test
-    - name: "Tests [Sqlite][Py3.7][integrations]"
-      env: >-
-        BACKEND=sqlite
-        PYTHON_MAJOR_MINOR_VERSION=3.7
-        ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
-        RUN_INTEGRATION_TESTS=all
-      stage: test
-    - name: "Tests [Sqlite][Py3.6]"
-      env: >-
-        BACKEND=sqlite
-        PYTHON_MAJOR_MINOR_VERSION=3.6
-      stage: test
-    - name: "Tests [MySQL5.7][Py3.6][integrations]"
-      env: >-
-        BACKEND=mysql
-        PYTHON_MAJOR_MINOR_VERSION=3.6
-        MYSQL_VERSION=5.7
-        ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
-        RUN_INTEGRATION_TESTS=all
-      stage: test
-    - name: "Tests [MySQL5.7][Py3.7][providers][kerberos]"
-      env: >-
-        BACKEND=mysql
-        PYTHON_MAJOR_MINOR_VERSION=3.7
-        MYSQL_VERSION=5.7
-        ENABLED_INTEGRATIONS="kerberos"
-      script: "./scripts/ci/ci_run_airflow_testing.sh tests/providers"
-      stage: test
-    - name: "Tests [MySQL5.7][Py3.7][core][kerberos]"
-      env: >-
-        BACKEND=mysql
-        PYTHON_MAJOR_MINOR_VERSION=3.7
-        MYSQL_VERSION=5.7
-        ENABLED_INTEGRATIONS="kerberos"
-      script: "./scripts/ci/ci_run_airflow_testing.sh --ignore=tests/providers"
-      stage: test
-    - name: "Generate requirements Py3.6"
-      env: >-
-        PYTHON_MAJOR_MINOR_VERSION=3.6
-        SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS="true"
-      stage: test
-      script: ./scripts/ci/ci_generate_requirements.sh
-    - name: "Generate requirements Py3.7"
-      env: >-
-        PYTHON_MAJOR_MINOR_VERSION=3.7
-        SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS="true"
-      stage: test
-      script: ./scripts/ci/ci_generate_requirements.sh
     - name: "Prepare & test backport packages 1.10.9"
       env: >-
         INSTALL_AIRFLOW_VERSION="1.10.9"
       stage: test
       script: ./scripts/ci/ci_prepare_and_test_backport_packages.sh
-    - name: "Build production image Py3.6"
-      env: >-
-        PYTHON_MAJOR_MINOR_VERSION="3.6"
-      stage: test
-      script: ./scripts/ci/ci_build_production_image.sh
-      before_install:
-        - echo
-    - name: "Build production image Py3.7"
-      env: >-
-        PYTHON_MAJOR_MINOR_VERSION="3.7"
-      stage: test
-      script: ./scripts/ci/ci_build_production_image.sh
-      before_install:
-        - echo
 install: skip
 before_install:
   - ./scripts/ci/ci_before_install.sh

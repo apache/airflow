@@ -1,0 +1,238 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+---
+name: Airflow
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+env:
+  BUILD_ID: ${{github.sha }}
+  MOUNT_LOCAL_SOURCES: "false"
+  MOUNT_HOST_AIRFLOW_VOLUME: "true"
+  FORCE_ANSWER_TO_QUESTIONS: "yes"
+  SKIP_CHECK_REMOTE_IMAGE: "true"
+  DB_RESET: "true"
+  VERBOSE: "true"
+  CI: "true"
+  # Should be a target branch
+  TRAVIS_BRANCH: "master"
+  TRAVIS: "true"
+jobs:
+  statics:
+    name: Static checks
+    runs-on: ubuntu-latest
+    env:
+      PYTHON_VERSION: 3.6
+      AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS: "true"
+      TRAVIS_JOB_NAME: "Static"
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-python@v1
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: "Before install"
+        run: ./scripts/ci/ci_before_install.sh
+      - name: "Static checks"
+        if: success()
+        env:
+          PYTHON_VERSION: 3.6
+        run: ./scripts/ci/ci_run_all_static_checks.sh
+
+  statics-tests:
+    name: Pylint for tests
+    runs-on: ubuntu-latest
+    env:
+      PYTHON_VERSION: 3.6
+      AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS: "true"
+      TRAVIS_JOB_NAME: "Static"
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-python@v1
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: "Before install"
+        run: ./scripts/ci/ci_before_install.sh
+      - name: "Static checks tests"
+        if: success()
+        env:
+          PYTHON_VERSION: 3.6
+        run: ./scripts/ci/ci_run_static_checks_pylint_tests.sh
+
+  docs:
+    name: Build docs
+    runs-on: ubuntu-latest
+    env:
+      TRAVIS_JOB_NAME: "Build documentation"
+      PYTHON_VERSION: 3.6
+    steps:
+      - uses: actions/checkout@master
+      - name: "Build documentation"
+        run: ./scripts/ci/ci_docs.sh
+
+  tests-p36-postgres-integrations:
+    name: "Tests [Postgres9.6][Py3.6][integrations]"
+    runs-on: ubuntu-latest
+    needs: [statics, statics-tests]
+    env:
+      TRAVIS_JOB_NAME: "Tests [Postgres9.6][Py3.6][integrations]"
+      BACKEND: postgres
+      PYTHON_VERSION: 3.6
+      POSTGRES_VERSION: 9.6
+      ENABLED_INTEGRATIONS: "cassandra kerberos mongo openldap rabbitmq redis"
+      RUN_INTEGRATION_TESTS: all
+    steps:
+      - uses: actions/checkout@master
+      - name: "Tests [Postgres9.6][Py3.6][integrations]"
+        run: ./scripts/ci/ci_run_airflow_testing.sh
+
+  tests-p36-postgres-providers:
+    name: "Tests [Postgres10][Py3.6][providers]"
+    runs-on: ubuntu-latest
+    needs: [statics, statics-tests]
+    env:
+      TRAVIS_JOB_NAME: "Tests [Postgres10][Py3.6][providers]"
+      BACKEND: postgres
+      POSTGRES_VERSION: 10
+      PYTHON_VERSION: 3.6
+    steps:
+      - uses: actions/checkout@master
+      - name: "Tests [Postgres10][Py3.6][providers]"
+        run: ./scripts/ci/ci_run_airflow_testing.sh tests/providers
+
+  tests-p36-postgres-core:
+    name: "Tests [Postgres9.6][Py3.6][core]"
+    runs-on: ubuntu-latest
+    needs: [statics, statics-tests]
+    env:
+      TRAVIS_JOB_NAME: "Tests [Postgres9.6][Py3.6][core]"
+      BACKEND: postgres
+      POSTGRES_VERSION: 9.6
+      PYTHON_VERSION: 3.6
+    steps:
+      - uses: actions/checkout@master
+      - name: "Tests [Postgres9.6][Py3.6][core]"
+        run: ./scripts/ci/ci_run_airflow_testing.sh --ignore=tests/providers
+
+
+  tests-p37-sqlite-integrations:
+    name: "Tests [Sqlite][3.7][integrations]"
+    runs-on: ubuntu-latest
+    needs: [statics, statics-tests]
+    env:
+      TRAVIS_JOB_NAME: "Tests [Sqlite][3.7][integrations]"
+      BACKEND: sqlite
+      PYTHON_VERSION: 3.7
+      ENABLED_INTEGRATIONS: "cassandra kerberos mongo openldap rabbitmq redis"
+      RUN_INTEGRATION_TESTS: all
+    steps:
+      - uses: actions/checkout@master
+      - name: "Tests [Sqlite][3.7][integrations]"
+        run: ./scripts/ci/ci_run_airflow_testing.sh
+
+  tests-p36-sqlite:
+    name: "Tests [Sqlite][Py3.6]"
+    runs-on: ubuntu-latest
+    needs: [statics, statics-tests]
+    env:
+      TRAVIS_JOB_NAME: "Tests [Sqlite][Py3.6]"
+      BACKEND: sqlite
+      PYTHON_VERSION: 3.6
+    steps:
+      - uses: actions/checkout@master
+      - name: "Tests [Sqlite][Py3.6]"
+        run: ./scripts/ci/ci_run_airflow_testing.sh
+
+  tests-p36-mysql-integrations:
+    name: "Tests [MySQL][Py3.6][integrations]"
+    runs-on: ubuntu-latest
+    needs: [statics, statics-tests]
+    env:
+      TRAVIS_JOB_NAME: "Tests [MySQL][Py3.6][integrations]"
+      BACKEND: sqlite
+      PYTHON_VERSION: 3.6
+      MYSQL_VERSION: 5.7
+      ENABLED_INTEGRATIONS: "cassandra kerberos mongo openldap rabbitmq redis"
+      RUN_INTEGRATION_TESTS: all
+    steps:
+      - uses: actions/checkout@master
+      - name: "Tests [MySQL][Py3.6][integrations]"
+        run: ./scripts/ci/ci_run_airflow_testing.sh
+
+  tests-p36-mysql-providers:
+    name: "Tests [MySQL5.7][Py3.7][providers][kerberos]"
+    runs-on: ubuntu-latest
+    needs: [statics, statics-tests]
+    env:
+      TRAVIS_JOB_NAME: "Tests [MySQL5.7][Py3.7][providers][kerberos]"
+      BACKEND: mysql
+      PYTHON_VERSION: 3.7
+      MYSQL_VERSION: 5.7
+      ENABLED_INTEGRATIONS: "kerberos"
+    steps:
+      - uses: actions/checkout@master
+      - name: "Tests [MySQL5.7][Py3.7][providers][kerberos]"
+        run: ./scripts/ci/ci_run_airflow_testing.sh tests/providers
+
+  tests-p37-mysql-kerberos:
+    name: "Tests [MySQL5.7][Py3.7][core][kerberos]"
+    runs-on: ubuntu-latest
+    needs: [statics, statics-tests]
+    env:
+      TRAVIS_JOB_NAME: "Tests [MySQL5.7][Py3.7][core][kerberos]"
+      BACKEND: mysql
+      PYTHON_VERSION: 3.7
+      MYSQL_VERSION: 5.7
+      ENABLED_INTEGRATIONS: "kerberos"
+    steps:
+      - uses: actions/checkout@master
+      - name: "Tests [MySQL5.7][Py3.7][core][kerberos]"
+        run: ./scripts/ci/ci_run_airflow_testing.sh --ignore=tests/providers
+
+  requirements:
+    name: "Generate requirements"
+    runs-on: ubuntu-latest
+    needs: [statics, statics-tests]
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7]
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-python@v1
+      - name: "Generate requirements"
+        env:
+          PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+          SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS: true
+        run: ./scripts/ci/ci_generate_requirements.sh
+
+  build-image:
+    name: "Build production image"
+    runs-on: ubuntu-latest
+    needs: [statics, statics-tests]
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7]
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-python@v1
+      - name: "Build image"
+        env:
+          PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+        run: ./scripts/ci/ci_build_production_image.sh
