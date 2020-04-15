@@ -32,7 +32,6 @@ jobs:
         with:
           python-version: '3.7'
       - name: install airflow
-        run: python setup.py install
         run: pip install -e .[devel]
       - name: build docker image
         run: ./breeze build-image --production-image
