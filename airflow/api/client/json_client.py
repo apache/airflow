@@ -54,7 +54,7 @@ class Client(api_client.Client):
                              json={
                                  "run_id": run_id,
                                  "conf": conf,
-                                 "execution_date":  execution_date,
+                                 "execution_date": execution_date.isoformat(),
                              })
         return data['message']
 
