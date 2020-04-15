@@ -2294,6 +2294,31 @@ class TestExtraLinks(TestBase):
         })
 
     @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_extra_link_in_gantt_view(self, get_dag_function):
+        get_dag_function.return_value = self.dag
+
+        exec_date = dates.days_ago(2)
+        start_date = datetime(2020, 4, 10, 2, 0, 0)
+        end_date = exec_date + timedelta(seconds=30)
+
+        with create_session() as session:
+            for task in self.dag.tasks:
+                ti = TaskInstance(task=task, execution_date=exec_date, state="success")
+                ti.start_date = start_date
+                ti.end_date = end_date
+                session.add(ti)
+
+        url = 'gantt?dag_id={}&execution_date={}'.format(self.dag.dag_id, exec_date)
+        resp = self.client.get(url, follow_redirects=True)
+
+        self.check_content_in_response('"extraLinks":', resp)
+
+        extra_links_grps = re.search(r'extraLinks\": \[(\".*?\")\]', resp.get_data(as_text=True))
+        extra_links = extra_links_grps.group(0)
+        self.assertIn('airflow', extra_links)
+        self.assertIn('github', extra_links)
+
+    @mock.patch('airflow.www.views.dagbag.get_dag')
     def test_operator_extra_link_override_global_extra_link(self, get_dag_function):
         get_dag_function.return_value = self.dag
 
