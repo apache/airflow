@@ -29,12 +29,14 @@ from airflow.executors import SequentialExecutor
 from airflow.jobs import LocalTaskJob
 from airflow.models import DAG, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.python_operator import PythonOperator
 from airflow.utils import timezone
 from airflow.utils.db import create_session
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
 from tests.compat import patch
 from tests.test_core import TEST_DAG_FOLDER
+from airflow.utils.timeout import timeout
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.mock_executor import MockExecutor
 
@@ -251,18 +253,27 @@ class LocalTaskJobTest(unittest.TestCase):
         data = {'called': False}
 
         def check_failure(context):
-            self.assertEqual(context['dag_run'].dag_id,
-                             'test_mark_failure')
+            self.assertEqual(context['dag_run'].dag_id, 'test_mark_failure')
             data['called'] = True
 
-        dag = DAG(dag_id='test_mark_failure',
-                  start_date=DEFAULT_DATE,
-                  default_args={'owner': 'owner1'})
+        def task_function(ti, **context):
+            with create_session() as session:
+                self.assertEqual(State.RUNNING, ti.state)
+                ti.log.info("Marking TI as failed 'externally'")
+                ti.state = State.FAILED
+                session.merge(ti)
+                session.commit()
 
-        task = DummyOperator(
-            task_id='test_state_succeeded1',
-            dag=dag,
-            on_failure_callback=check_failure)
+            time.sleep(60)
+            # This should not happen -- the state change should be noticed and the task should get killed
+            data['reached_end_of_sleep'] = True
+
+        with DAG(dag_id='test_mark_failure', start_date=DEFAULT_DATE) as dag:
+            task = PythonOperator(
+                task_id='test_state_succeeded1',
+                python_callable=task_function,
+                provide_context=True,
+                on_failure_callback=check_failure)
 
         session = settings.Session()
 
@@ -274,28 +285,20 @@ class LocalTaskJobTest(unittest.TestCase):
                           session=session)
         ti = TI(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
+
         job1 = LocalTaskJob(task_instance=ti,
                             ignore_ti_state=True,
                             executor=SequentialExecutor())
-        from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
-        job1.task_runner = StandardTaskRunner(job1)
-        process = multiprocessing.Process(target=job1.run)
-        process.start()
-        ti.refresh_from_db()
-        for _ in range(0, 50):
-            if ti.state == State.RUNNING:
-                break
-            time.sleep(0.1)
-            ti.refresh_from_db()
-        self.assertEqual(State.RUNNING, ti.state)
-        ti.state = State.FAILED
-        session.merge(ti)
-        session.commit()
+        with timeout(30):
+            # This should be _much_ shorter to run.
+            # If you change this limit, make the timeout in the callbable above bigger
+            job1.run()
 
-        job1.heartbeat_callback(session=None)
+        ti.refresh_from_db()
+        self.assertEqual(ti.state, State.FAILED)
         self.assertTrue(data['called'])
-        process.join(timeout=10)
-        self.assertFalse(process.is_alive())
+        self.assertNotIn('reached_end_of_sleep', data,
+                         'Task should not have been allowed to run to completion')
 
     @pytest.mark.quarantined
     def test_mark_success_on_success_callback(self):
