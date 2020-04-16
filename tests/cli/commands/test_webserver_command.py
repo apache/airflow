@@ -23,6 +23,7 @@ from time import sleep
 from unittest import mock
 
 import psutil
+import pytest
 
 from airflow import settings
 from airflow.cli import cli_parser
@@ -86,6 +87,7 @@ class TestCLIGetNumReadyWorkersRunning(unittest.TestCase):
         proc.wait()
 
 
+@pytest.mark.quarantined
 class TestCliWebServer(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -121,7 +123,8 @@ class TestCliWebServer(unittest.TestCase):
             try:
                 with open(pidfile) as file:
                     return int(file.read())
-            except Exception:  # pylint: disable=broad-except
+            except Exception as e:  # pylint: disable=broad-except
+                print(e)
                 sleep(1)
 
     def test_cli_webserver_foreground(self):
@@ -130,8 +133,6 @@ class TestCliWebServer(unittest.TestCase):
         proc.terminate()
         proc.wait()
 
-    @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
-                     "Skipping test due to lack of required file permission")
     def test_cli_webserver_foreground_with_pid(self):
         # Run webserver in foreground with --pid option
         pidfile = tempfile.mkstemp()[1]
@@ -144,8 +145,6 @@ class TestCliWebServer(unittest.TestCase):
         proc.terminate()
         proc.wait()
 
-    @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
-                     "Skipping test due to lack of required file permission")
     def test_cli_webserver_background(self):
         pidfile_webserver = setup_locations("webserver")[0]
         pidfile_monitor = setup_locations("webserver-monitor")[0]

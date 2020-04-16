@@ -15,15 +15,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
+set -euo pipefail
+
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+cd "${MY_DIR}/../../" || exit;
 
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-get_ci_environment
+. breeze-complete
 
-prepare_ci_build
-
-rebuild_ci_image_if_needed
-
-run_generate_requirements
+if [[ ${AVAILABLE_INTEGRATIONS} != "${_BREEZE_ALLOWED_INTEGRATIONS}" ]]; then
+  echo
+  echo "Error: Allowed integrations do not match!"
+  echo
+  echo "The ./common/_common_values.sh integrations (AVAILABLE_INTEGRATIONS):"
+  echo "${AVAILABLE_INTEGRATIONS}"
+  echo
+  echo "The ./breeze-complete integrations (_BREEZE_ALLOWED_INTEGRATIONS):"
+  echo "${_BREEZE_ALLOWED_INTEGRATIONS}"
+  echo
+  echo "Please align the two!"
+  echo
+  exit 1
+fi
