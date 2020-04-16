@@ -30,7 +30,7 @@ function run_docs() {
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
             "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/docs/build.sh" \
+            "--" "/opt/airflow/docs/build" \
             | tee -a "${OUTPUT_LOG}"
 }
 

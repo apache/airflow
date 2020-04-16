@@ -106,12 +106,11 @@ To generate a local version:
 .. code-block:: bash
 
     cd docs
-    ./build.sh
+    ./build
     ./start_doc_server.sh
 
 .. note::
-    The docs build script ``build.sh`` requires bash 4.0 or greater.
-    If you are building on Mac OS, you can install latest version of bash with homebrew.
+    The docs build script ``build`` requires Python 3.6 or greater.
 
 **Known issues:**
 
