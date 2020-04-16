@@ -56,11 +56,6 @@ jobs:
         KUBERNETES_VERSION=v1.15.3
       python: "3.6"
       stage: test
-    - name: "Prepare & test backport packages 1.10.9"
-      env: >-
-        INSTALL_AIRFLOW_VERSION="1.10.9"
-      stage: test
-      script: ./scripts/ci/ci_prepare_and_test_backport_packages.sh
 install: skip
 before_install:
   - ./scripts/ci/ci_before_install.sh
