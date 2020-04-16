@@ -108,12 +108,13 @@ To generate a local version:
 .. code-block:: bash
 
     cd docs
-    ./build.sh
+    ./build
     ./start_doc_server.sh
 
 .. note::
-    The docs build script ``build.sh`` requires bash 4.0 or greater.
-    If you are building on mac, you can install latest version of bash with homebrew.
+    The docs build script ``build`` requires Python 3.6 or greater.
+
+**Known issues:**
 
 
 If you are creating ``example_dags`` directory, you need to create ``example_dags/__init__.py`` with Apache license or copy another ``__init__.py`` file that contains the necessary license.

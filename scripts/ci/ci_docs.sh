@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.5}
+export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
@@ -30,7 +30,7 @@ function run_docs() {
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
             "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/docs/build.sh" \
+            "--" "/opt/airflow/docs/build" \
             | tee -a "${OUTPUT_LOG}"
 }
 
