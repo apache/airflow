@@ -51,12 +51,12 @@ else
    echo "DOCKER_TAG=${DOCKER_TAG}"
 fi
 
-[[ ${DOCKER_TAG:=} =~ ${DEFAULT_BRANCH}-python([0-9.]*)(.*) ]] && export PYTHON_MAJOR_MINOR_VERSION=${BASH_REMATCH[1]}
+[[ ${DOCKER_TAG:=} =~ .*-python([0-9.]*)(.*) ]] && export PYTHON_MAJOR_MINOR_VERSION=${BASH_REMATCH[1]}
 
 if [[ -z ${PYTHON_MAJOR_MINOR_VERSION:=} ]]; then
     echo
     echo "Error! Wrong DOCKER_TAG"
-    echo "The tag '${DOCKER_TAG}' should follow the pattern ${DEFAULT_BRANCH}-pythonX.Y[-ci]"
+    echo "The tag '${DOCKER_TAG}' should follow the pattern .*-pythonX.Y[-ci]"
     echo
     exit 1
 fi
@@ -66,6 +66,41 @@ echo
 
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
+
+DOCKER_IMAGE_SPEC="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DOCKER_TAG}"
+
+IMAGE_CREATED_AT=$(docker image ls "${DOCKER_IMAGE_SPEC}" --format '{{ .CreatedAt }}' | tr -d "[:upper:]")
+
+if [[ -z ${IMAGE_CREATED_AT} ]]; then
+    echo
+    echo "Image never built. Rebuilding it."
+    echo
+else
+    echo "Image created at ${IMAGE_CREATED_AT}"
+
+    EPOCH_SECONDS_WHEN_IMAGE_CREATED=$(date --date "${IMAGE_CREATED_AT}" +"%s")
+
+    echo "EPOCH seconds for when image created = ${EPOCH_SECONDS_WHEN_IMAGE_CREATED}"
+    EPOCH_SECONDS_NOW=$(date +"%s")
+    echo "EPOCH seconds now = ${EPOCH_SECONDS_NOW}"
+
+    SECONDS_SINCE_CREATED=$((EPOCH_SECONDS_NOW - EPOCH_SECONDS_WHEN_IMAGE_CREATED))
+    echo "Seconds since created = ${SECONDS_SINCE_CREATED}"
+    echo "Hours since created = $((SECONDS_SINCE_CREATED / 3600 ))"
+
+    if (( SECONDS_SINCE_CREATED > 3600 * 10 )) ; then
+        echo
+        echo "The image ${DOCKER_IMAGE_SPEC} is older than 10 hours (Created at ${IMAGE_CREATED_AT})."
+        echo "Rebuilding the image."
+        echo
+    else
+        echo
+        echo "The image ${DOCKER_IMAGE_SPEC} is created recently (Created ${IMAGE_CREATED_AT})."
+        echo "Skipping rebuilding the image."
+        echo
+        exit
+    fi
+fi
 
 if [[ ${DOCKER_TAG} == *python*-ci ]]; then
     echo
