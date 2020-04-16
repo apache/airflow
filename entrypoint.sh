@@ -81,7 +81,7 @@ function verify_db_connection {
             fi
         done
         if [[ ${RES} != 0 ]]; then
-            echo "        ERROR: ${BACKEND} db could not be reached!"
+            echo "        ERROR: ${DB_URL} db could not be reached!"
             echo
             echo "${LAST_CHECK_RESULT}"
             echo
