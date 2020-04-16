@@ -983,7 +983,7 @@ DB_COMMANDS = (
     ActionCommand(
         name="check-migrations",
         help="Check if migration have finished (or continually check until timeout)",
-        func=lazy_load_command('airflow.cli.commands.db_command.wait_for_migrations'),
+        func=lazy_load_command('airflow.cli.commands.db_command.check_migrations'),
         args=(ARG_MIGRATION_TIMEOUT,),
     ),
     ActionCommand(
