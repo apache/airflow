@@ -37,11 +37,11 @@ from airflow.www_rbac.app import csrf
 from airflow import models
 from airflow.utils.db import create_session
 from .utils import get_cas_base_url, get_result_args, get_task_params, get_curve_args, get_craft_type, \
-    generate_bolt_number, get_curve_params
-import json
-from flask import g, Blueprint, jsonify, request, url_for, render_template
+    generate_bolt_number, get_curve_params, get_result_mq_args, format_result_message
+from flask import g, Blueprint, jsonify, request, url_for
 from airflow.entities.result_storage import ClsResultStorage
 from airflow.entities.curve_storage import ClsCurveStorage
+from airflow.entities.result_mq import ClsResultMQ
 
 _log = LoggingMixin().log
 
@@ -49,6 +49,11 @@ requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 
 api_experimental = Blueprint('api_experimental', __name__)
 
+
+def send_result_to_mq(training_result):
+    result_mq_args = get_result_mq_args()
+    result_mq = ClsResultMQ(**result_mq_args)
+    result_mq.send_message(format_result_message(training_result))
 
 @csrf.exempt
 @api_experimental.route('/taskinstance/analysis_result', methods=['PUT'])

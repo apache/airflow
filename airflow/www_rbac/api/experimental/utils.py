@@ -4,6 +4,7 @@ from airflow.utils.logger import generate_logger
 import os
 from airflow.models.variable import Variable
 from influxdb_client.client.write_api import SYNCHRONOUS, ASYNCHRONOUS
+import json
 
 CAS_BASE_URL = os.environ.get("CAS_BASE_URL", "http://localhost:9095")
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
@@ -29,6 +30,7 @@ else:
     write_options = ASYNCHRONOUS
 
 _logger = generate_logger(__name__)
+
 
 def get_cas_base_url():
     connection_model = models.connection.Connection
@@ -110,3 +112,16 @@ def get_curve_args():
         "secret_key": Variable.get('oss_secret', 'minio123'),
         "secure": False
     }
+
+
+def get_result_mq_args():
+    return {
+        "host": Variable.get('result_mq_host', 'localhost'),
+        "queue": Variable.get('result_mq_queue', 'result'),
+        "routing_key": Variable.get('result_mq_routing_key', 'result'),
+        "exchange": Variable.get('result_mq_exchange', '')
+    }
+
+
+def format_result_message(training_result):
+    return json.dumps(training_result)
