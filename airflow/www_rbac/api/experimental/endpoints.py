@@ -42,6 +42,7 @@ from flask import g, Blueprint, jsonify, request, url_for
 from airflow.entities.result_storage import ClsResultStorage
 from airflow.entities.curve_storage import ClsCurveStorage
 from airflow.entities.result_mq import ClsResultMQ
+import os
 
 _log = LoggingMixin().log
 
@@ -49,52 +50,66 @@ requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 
 api_experimental = Blueprint('api_experimental', __name__)
 
+PUSH_TRAINING_NOK = os.environ.get('PUSH_TRAINING_NOK', 'False')
+
 
 def send_result_to_mq(training_result):
     result_mq_args = get_result_mq_args()
     result_mq = ClsResultMQ(**result_mq_args)
     result_mq.send_message(format_result_message(training_result))
 
+
 @csrf.exempt
 @api_experimental.route('/taskinstance/analysis_result', methods=['PUT'])
 @requires_authentication
 def put_anaylysis_result():
-    TiModel = models.TaskInstance
-    data = request.get_json(force=True)
-    dag_id = data.get('dag_id')
-    task_id = data.get('task_id')
-    real_task_id = data.get('real_task_id')
-    execution_date = data.get('exec_date')
-    entity_id = data.get('entity_id')
-    result = data.get('result')  # OK, NOK
-    if result:
-        rresult = 'OK'
-    else:
-        rresult = 'NOK'
-    with create_session() as session:
-        ti = session.query(TiModel).filter(
-            TiModel.entity_id == real_task_id).first()
-        if not ti:
+    try:
+        TiModel = models.TaskInstance
+        data = request.get_json(force=True)
+        dag_id = data.get('dag_id')
+        task_id = data.get('task_id')
+        real_task_id = data.get('real_task_id')
+        execution_date = data.get('exec_date')
+        entity_id = data.get('entity_id')
+        result = data.get('result')  # OK, NOK
+        if result:
+            rresult = 'OK'
+        else:
+            rresult = 'NOK'
+        with create_session() as session:
             ti = session.query(TiModel).filter(
-                TiModel.dag_id == dag_id,
-                TiModel.task_id == task_id,
-                TiModel.execution_date == execution_date).first()
-        if not ti:
-            response = jsonify(
-                {'url': None,
-                 'error': "can't find dag {dag} or task_id {task_id}".format(
-                     dag=dag_id,
-                     task_id=task_id
-                 )}
-            )
-            response.status_code = 404
-            return response
-        ti.result = rresult
-        ti.entity_id = entity_id
-        session.commit()
-    resp = jsonify({'response': 'ok'})
-    resp.status_code = 200
-    return resp
+                TiModel.entity_id == real_task_id).first()
+            if not ti:
+                ti = session.query(TiModel).filter(
+                    TiModel.dag_id == dag_id,
+                    TiModel.task_id == task_id,
+                    TiModel.execution_date == execution_date).first()
+            if not ti:
+                response = jsonify(
+                    {'url': None,
+                     'error': "can't find dag {dag} or task_id {task_id}".format(
+                         dag=dag_id,
+                         task_id=task_id
+                     )}
+                )
+                response.status_code = 404
+                return response
+            ti.result = rresult
+            ti.entity_id = entity_id
+            session.commit()
+        if PUSH_TRAINING_NOK == 'True' and rresult == 'NOK':
+            training_result = {
+                'result': rresult,
+                'entity_id': entity_id
+            }
+            send_result_to_mq(training_result)
+        resp = jsonify({'response': 'ok'})
+        resp.status_code = 200
+        return resp
+    except Exception as e:
+        resp = jsonify({'error': str(e)})
+        resp.status_code = 500
+        return resp
 
 
 @csrf.exempt
