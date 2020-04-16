@@ -73,7 +73,7 @@ def _fallback_object_url_to_object_name_and_bucket_name(
                 raise AirflowException(
                     "The mutually exclusive parameters. `object_url`, `bucket_name` together "
                     "with `object_name` parameters are present. "
-                    "Please provide `object_url` or ``bucket_name` and `object_name`. "
+                    "Please provide `object_url` or `bucket_name` and `object_name`."
                 )
             if object_url:
                 bucket_name, object_name = _parse_gcs_url(object_url)
@@ -83,21 +83,19 @@ def _fallback_object_url_to_object_name_and_bucket_name(
 
             if not object_name or not bucket_name:
                 raise TypeError(
-                    "{}() missing 2 required positional arguments: '{}' and '{}'".format(
-                        func.__name__, bucket_name_keyword_arg_name, object_name_keyword_arg_name
-                    )
+                    f"{func.__name__}() missing 2 required positional arguments: "
+                    f"'{bucket_name_keyword_arg_name}' and '{object_name_keyword_arg_name}' "
+                    f"or {object_url_keyword_arg_name}"
                 )
             if not object_name:
                 raise TypeError(
-                    "{}() missing 1 required positional argument: '{}'".format(
-                        func.__name__, object_name_keyword_arg_name
-                    )
+                    f"{func.__name__}() missing 1 required positional argument: "
+                    f"'{object_name_keyword_arg_name}'"
                 )
             if not bucket_name:
                 raise TypeError(
-                    "{}() missing 1 required positional argument: '{}'".format(
-                        func.__name__, bucket_name_keyword_arg_name
-                    )
+                    f"{func.__name__}() missing 1 required positional argument: "
+                    f"'{bucket_name_keyword_arg_name}'"
                 )
 
             return func(self, *args, **kwargs)
