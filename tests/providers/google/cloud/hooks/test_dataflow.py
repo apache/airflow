@@ -19,6 +19,7 @@
 
 import copy
 import unittest
+from typing import Any, Dict
 
 import mock
 from mock import MagicMock
@@ -41,17 +42,17 @@ PY_FILE = 'apache_beam.examples.wordcount'
 JAR_FILE = 'unitest.jar'
 JOB_CLASS = 'com.example.UnitTest'
 PY_OPTIONS = ['-m']
-DATAFLOW_OPTIONS_PY = {
+DATAFLOW_VARIABLES_PY = {
     'project': 'test',
     'staging_location': 'gs://test/staging',
     'labels': {'foo': 'bar'}
 }
-DATAFLOW_OPTIONS_JAVA = {
+DATAFLOW_VARIABLES_JAVA = {
     'project': 'test',
     'stagingLocation': 'gs://test/staging',
     'labels': {'foo': 'bar'}
 }
-DATAFLOW_OPTIONS_TEMPLATE = {
+DATAFLOW_VARIABLES_TEMPLATE = {
     'project': 'test',
     'tempLocation': 'gs://test/temp',
     'zone': 'us-central1-f'
@@ -172,7 +173,7 @@ class TestDataflowHook(unittest.TestCase):
         dataflowjob_instance = mock_dataflowjob.return_value
         dataflowjob_instance.wait_for_done.return_value = None
         self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_PY,
+            job_name=JOB_NAME, variables=DATAFLOW_VARIABLES_PY,
             dataflow=PY_FILE, py_options=PY_OPTIONS,
         )
         expected_cmd = ["python3", '-m', PY_FILE,
@@ -183,6 +184,36 @@ class TestDataflowHook(unittest.TestCase):
                         '--job_name={}-{}'.format(JOB_NAME, MOCK_UUID)]
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]),
                              sorted(expected_cmd))
+
+    @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
+    @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    def test_start_python_dataflow_with_multiple_extra_packages(
+        self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid
+    ):
+        mock_uuid.return_value = MOCK_UUID
+        mock_conn.return_value = None
+        dataflow_instance = mock_dataflow.return_value
+        dataflow_instance.wait_for_done.return_value = None
+        dataflowjob_instance = mock_dataflowjob.return_value
+        dataflowjob_instance.wait_for_done.return_value = None
+        variables: Dict[str, Any] = copy.deepcopy(DATAFLOW_VARIABLES_PY)
+        variables['extra-package'] = ['a.whl', 'b.whl']
+
+        self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
+            job_name=JOB_NAME, variables=variables,
+            dataflow=PY_FILE, py_options=PY_OPTIONS,
+        )
+        expected_cmd = ["python3", '-m', PY_FILE,
+                        '--extra-package=a.whl',
+                        '--extra-package=b.whl',
+                        '--region=us-central1',
+                        '--runner=DataflowRunner', '--project=test',
+                        '--labels=foo=bar',
+                        '--staging_location=gs://test/staging',
+                        '--job_name={}-{}'.format(JOB_NAME, MOCK_UUID)]
+        self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
 
     @parameterized.expand([
         ('default_to_python3', 'python3'),
@@ -205,7 +236,7 @@ class TestDataflowHook(unittest.TestCase):
         dataflowjob_instance = mock_dataflowjob.return_value
         dataflowjob_instance.wait_for_done.return_value = None
         self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_PY,
+            job_name=JOB_NAME, variables=DATAFLOW_VARIABLES_PY,
             dataflow=PY_FILE, py_options=PY_OPTIONS,
             py_interpreter=py_interpreter,
         )
@@ -231,9 +262,39 @@ class TestDataflowHook(unittest.TestCase):
         dataflowjob_instance = mock_dataflowjob.return_value
         dataflowjob_instance.wait_for_done.return_value = None
         self.dataflow_hook.start_java_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_JAVA,
+            job_name=JOB_NAME, variables=DATAFLOW_VARIABLES_JAVA,
             jar=JAR_FILE)
         expected_cmd = ['java', '-jar', JAR_FILE,
+                        '--region=us-central1',
+                        '--runner=DataflowRunner', '--project=test',
+                        '--stagingLocation=gs://test/staging',
+                        '--labels={"foo":"bar"}',
+                        '--jobName={}-{}'.format(JOB_NAME, MOCK_UUID)]
+        self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]),
+                             sorted(expected_cmd))
+
+    @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
+    @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    def test_start_java_dataflow_with_multiple_values_in_variables(
+        self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid
+    ):
+        mock_uuid.return_value = MOCK_UUID
+        mock_conn.return_value = None
+        dataflow_instance = mock_dataflow.return_value
+        dataflow_instance.wait_for_done.return_value = None
+        dataflowjob_instance = mock_dataflowjob.return_value
+        dataflowjob_instance.wait_for_done.return_value = None
+        variables: Dict[str, Any] = copy.deepcopy(DATAFLOW_VARIABLES_JAVA)
+        variables['mock-option'] = ['a.whl', 'b.whl']
+
+        self.dataflow_hook.start_java_dataflow(  # pylint: disable=no-value-for-parameter
+            job_name=JOB_NAME, variables=variables,
+            jar=JAR_FILE)
+        expected_cmd = ['java', '-jar', JAR_FILE,
+                        '--mock-option=a.whl',
+                        '--mock-option=b.whl',
                         '--region=us-central1',
                         '--runner=DataflowRunner', '--project=test',
                         '--stagingLocation=gs://test/staging',
@@ -255,7 +316,7 @@ class TestDataflowHook(unittest.TestCase):
         dataflowjob_instance = mock_dataflowjob.return_value
         dataflowjob_instance.wait_for_done.return_value = None
         self.dataflow_hook.start_java_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_JAVA,
+            job_name=JOB_NAME, variables=DATAFLOW_VARIABLES_JAVA,
             jar=JAR_FILE, job_class=JOB_CLASS)
         expected_cmd = ['java', '-cp', JAR_FILE, JOB_CLASS,
                         '--region=us-central1',
@@ -318,11 +379,11 @@ class TestDataflowTemplateHook(unittest.TestCase):
         )
         launch_method.return_value.execute.return_value = {"job": {"id": TEST_JOB_ID}}
         self.dataflow_hook.start_template_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_TEMPLATE, parameters=PARAMETERS,
+            job_name=JOB_NAME, variables=DATAFLOW_VARIABLES_TEMPLATE, parameters=PARAMETERS,
             dataflow_template=TEMPLATE,
         )
         options_with_region = {'region': 'us-central1'}
-        options_with_region.update(DATAFLOW_OPTIONS_TEMPLATE)
+        options_with_region.update(DATAFLOW_VARIABLES_TEMPLATE)
         options_with_region_without_project = copy.deepcopy(options_with_region)
         del options_with_region_without_project['project']
 
@@ -355,7 +416,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
     @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
     def test_start_template_dataflow_with_runtime_env(self, mock_conn, mock_dataflowjob, mock_uuid):
-        dataflow_options_template = copy.deepcopy(DATAFLOW_OPTIONS_TEMPLATE)
+        dataflow_options_template = copy.deepcopy(DATAFLOW_VARIABLES_TEMPLATE)
         options_with_runtime_env = copy.deepcopy(RUNTIME_ENV)
         options_with_runtime_env.update(dataflow_options_template)
 

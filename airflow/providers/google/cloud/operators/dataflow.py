@@ -97,7 +97,18 @@ class DataflowCreateJavaJobOperator(BaseOperator):
     :type job_name: str
     :param dataflow_default_options: Map of default job options.
     :type dataflow_default_options: dict
-    :param options: Map of job specific options.
+    :param options: Map of job specific options.The key must be a dictionary.
+        The value can contain different types:
+
+        * If the value is None, the single option - ``--key`` (without value) will be added.
+        * If the value is False, this option will be skipped
+        * If the value is True, the single option - ``--key`` (without value) will be added.
+        * If the value is list, the many options will be added for each key.
+          If the value is ``['A', 'B']`` and the key is ``key`` then the ``--key=A --key-B`` options
+          will be left
+        * Other value types will be replaced with the Python textual representation.
+
+        When defining labels (``labels`` option), you can also provide a dictionary.
     :type options: dict
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud
         Platform.
@@ -400,7 +411,18 @@ class DataflowCreatePythonJobOperator(BaseOperator):
     :type py_options: list[str]
     :param dataflow_default_options: Map of default job options.
     :type dataflow_default_options: dict
-    :param options: Map of job specific options.
+    :param options: Map of job specific options.The key must be a dictionary.
+        The value can contain different types:
+
+        * If the value is None, the single option - ``--key`` (without value) will be added.
+        * If the value is False, this option will be skipped
+        * If the value is True, the single option - ``--key`` (without value) will be added.
+        * If the value is list, the many options will be added for each key.
+          If the value is ``['A', 'B']`` and the key is ``key`` then the ``--key=A --key-B`` options
+          will be left
+        * Other value types will be replaced with the Python textual representation.
+
+        When defining labels (``labels`` option), you can also provide a dictionary.
     :type options: dict
     :param py_interpreter: Python version of the beam pipeline.
         If None, this defaults to the python3.
