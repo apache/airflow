@@ -19,6 +19,8 @@
 import datetime
 import unittest
 
+from parameterized import parameterized
+
 from airflow import models, settings
 from airflow.models import DAG, DagBag, TaskInstance as TI, clear_task_instances
 from airflow.models.dagrun import DagRun
@@ -562,7 +564,14 @@ class TestDagRun(unittest.TestCase):
         flaky_ti.refresh_from_db()
         self.assertEqual(State.NONE, flaky_ti.state)
 
-    def test_depends_on_past(self):
+    @parameterized.expand([
+        (State.SUCCESS, True),
+        (State.SKIPPED, True),
+        (State.RUNNING, False),
+        (State.FAILED, False),
+        (State.NONE, False),
+    ])
+    def test_depends_on_past(self, prev_ti_state, is_ti_success):
         # dag_id = 'test_depends_on_past'
         # dag = self.dagbag.get_dag(dag_id)
         # task = dag.tasks[0]
@@ -612,16 +621,19 @@ class TestDagRun(unittest.TestCase):
         prev_ti = TI(task, timezone.datetime(2016, 1, 1, 0, 0, 0))
         ti = TI(task, timezone.datetime(2016, 1, 2, 0, 0, 0))
 
-        for state in State.task_states:
-            prev_ti.set_state(state)
-            ti.set_state(State.QUEUED)
-            ti.run()
-            if state in (State.SUCCESS, State.SKIPPED):
-                self.assertEqual(ti.state, State.SUCCESS)
-            else:
-                self.assertNotEqual(ti.state, State.SUCCESS)
+        prev_ti.set_state(prev_ti_state)
+        ti.set_state(State.QUEUED)
+        ti.run()
+        self.assertEqual(ti.state == State.SUCCESS, is_ti_success)
 
-    def test_wait_for_downstream(self):
+    @parameterized.expand([
+        (State.SUCCESS, True),
+        (State.SKIPPED, True),
+        (State.RUNNING, False),
+        (State.FAILED, False),
+        (State.NONE, False),
+    ])
+    def test_wait_for_downstream(self, prev_ti_state, is_ti_success):
         # dag_id = 'test_wait_for_downstream'
         # dag = models.DagBag().get_dag(dag_id)
         #
@@ -682,11 +694,7 @@ class TestDagRun(unittest.TestCase):
         prev_ti.set_state(State.SUCCESS)
         self.assertEqual(prev_ti.state, State.SUCCESS)
 
-        for state in State.task_states:
-            prev_ti_downstream.set_state(state)
-            ti.set_state(State.QUEUED)
-            ti.run()
-            if state in (State.SUCCESS, State.SKIPPED):
-                self.assertEqual(ti.state, State.SUCCESS)
-            else:
-                self.assertNotEqual(ti.state, State.SUCCESS)
+        prev_ti_downstream.set_state(prev_ti_state)
+        ti.set_state(State.QUEUED)
+        ti.run()
+        self.assertEqual(ti.state == State.SUCCESS, is_ti_success)

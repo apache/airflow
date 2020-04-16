@@ -855,19 +855,24 @@ class TestTaskInstance(unittest.TestCase):
         self.assertEqual(completed, expect_completed)
         self.assertEqual(ti.state, expect_state)
 
-    def test_are_dependents_done(self):
-        dag = DAG(dag_id='test_dag')
-        upstream_task = DummyOperator(dag=dag, task_id='upstream_task', start_date=DEFAULT_DATE)
-        downstream_task = DummyOperator(dag=dag, task_id='downstream_task', start_date=DEFAULT_DATE)
-        upstream_task >> downstream_task
-        uti = TI(upstream_task, DEFAULT_DATE)
-        dti = TI(downstream_task, DEFAULT_DATE)
-        for state in State.task_states:
-            dti.set_state(state)
-            if state in (State.SUCCESS, State.SKIPPED):
-                self.assertTrue(uti.are_dependents_done())
-            else:
-                self.assertFalse(uti.are_dependents_done())
+    @parameterized.expand([
+        (State.SUCCESS, True),
+        (State.SKIPPED, True),
+        (State.RUNNING, False),
+        (State.FAILED, False),
+        (State.NONE, False),
+    ])
+    def test_are_dependents_done(self, downstream_ti_state, expected_are_dependents_done):
+        with DAG(dag_id='test_dag'):
+            task = DummyOperator(task_id='task', start_date=DEFAULT_DATE)
+            downstream_task = DummyOperator(task_id='downstream_task', start_date=DEFAULT_DATE)
+            task >> downstream_task
+
+        ti = TI(task, DEFAULT_DATE)
+        downstream_ti = TI(downstream_task, DEFAULT_DATE)
+
+        downstream_ti.set_state(downstream_ti_state)
+        self.assertEqual(ti.are_dependents_done(), expected_are_dependents_done)
 
     def test_xcom_pull(self):
         """
