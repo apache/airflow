@@ -25,11 +25,13 @@ DEFAULT_DATE = datetime(2016, 1, 1)
 default_args = dict(start_date=DEFAULT_DATE, owner="airflow")
 
 # DAG tests depends_on_past dependencies
-with DAG(dag_id="test_depends_on_past", default_args=default_args):
+dag_dop = DAG(dag_id="test_depends_on_past", default_args=default_args)
+with dag_dop:
     dag_dop_task = DummyOperator(task_id="test_dop_task", depends_on_past=True,)
 
 # DAG tests wait_for_downstream dependencies
-with DAG(dag_id="test_wait_for_downstream", default_args=default_args):
+dag_wfd = DAG(dag_id="test_wait_for_downstream", default_args=default_args)
+with dag_wfd:
     dag_wfd_upstream = DummyOperator(task_id="upstream_task", wait_for_downstream=True,)
     dag_wfd_downstream = DummyOperator(task_id="downstream_task",)
     dag_wfd_upstream >> dag_wfd_downstream
