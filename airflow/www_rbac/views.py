@@ -1986,7 +1986,9 @@ class Airflow(AirflowBaseView):
             # https://issues.apache.org/jira/browse/AIRFLOW-2143
             try_count = ti.prev_attempted_tries
             gantt_bar_items.append((ti.task_id, ti.start_date, end_date, ti.state, try_count))
-            tasks.append(alchemy_to_dict(ti))
+            d = alchemy_to_dict(ti)
+            d['extraLinks'] = dag.get_task(ti.task_id).extra_links
+            tasks.append(d)
 
         tf_count = 0
         try_count = 1
@@ -2001,10 +2003,12 @@ class Airflow(AirflowBaseView):
             prev_task_id = tf.task_id
             gantt_bar_items.append((tf.task_id, start_date, end_date, State.FAILED, try_count))
             tf_count = tf_count + 1
+            task = dag.get_task(tf.task_id)
             d = alchemy_to_dict(tf)
             d['state'] = State.FAILED
-            d['operator'] = dag.get_task(tf.task_id).task_type
+            d['operator'] = task.task_type
             d['try_number'] = try_count
+            d['extraLinks'] = task.extra_links
             tasks.append(d)
 
         data = {
