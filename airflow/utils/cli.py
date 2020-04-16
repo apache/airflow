@@ -254,19 +254,21 @@ def is_terminal_support_colors() -> bool:
     return False
 
 
+class ColorMode:
+    """
+    Coloring modes. If `auto` is then automatically detected.
+    """
+    ON = "on"
+    OFF = "off"
+    AUTO = "auto"
+
+
 def should_use_colors(args) -> bool:
     """
     Processes arguments and decides whether to enable color in output
     """
-    if args.color and args.no_color:
-        print(
-            "Option --color and --no-color are mutually exclusive. "
-            "Please remove one option to execute the command.",
-            file=sys.stderr
-        )
-        sys.exit(1)
-    if args.color:
+    if args.color == ColorMode.ON:
         return True
-    if args.no_color:
+    if args.color == ColorMode.OFF:
         return False
     return is_terminal_support_colors()

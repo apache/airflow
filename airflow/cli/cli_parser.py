@@ -31,6 +31,7 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.utils.cli import ColorMode
 from airflow.utils.helpers import partition
 from airflow.utils.module_loading import import_string
 from airflow.utils.timezone import parse as parsedate
@@ -155,10 +156,9 @@ ARG_OUTPUT = Arg(
     default="fancy_grid")
 ARG_COLOR = Arg(
     ('--color',),
-    help="do emit colored output (default: auto-detect)")
-ARG_NO_COLOR = Arg(
-    ('--no-color',),
-    help="do not emit colored output (default: auto-detect)")
+    help="Do emit colored output (default: auto)",
+    choices={ColorMode.ON, ColorMode.OFF, ColorMode.AUTO},
+    default=ColorMode.AUTO)
 
 # list_dag_runs
 ARG_NO_BACKFILL = Arg(
@@ -1213,7 +1213,7 @@ airflow_commands: List[CLICommand] = [
         name='config',
         help='Show current application configuration',
         func=lazy_load_command('airflow.cli.commands.config_command.show_config'),
-        args=(ARG_COLOR, ARG_NO_COLOR),
+        args=(ARG_COLOR, ),
     ),
     ActionCommand(
         name='info',
