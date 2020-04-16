@@ -161,7 +161,7 @@ ARG_OUTPUT = Arg(
         "the tabulate module (https://pypi.org/project/tabulate/). "
     ),
     choices=tabulate_formats,
-    default="fancy_grid")
+    default="plain")
 ARG_COLOR = Arg(
     ('--color',),
     help="Do emit colored output (default: auto)",
