@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import argparse
 import re
 from collections import Counter
 from unittest import TestCase
@@ -132,3 +133,14 @@ class TestCli(TestCase):
                 self.assertEqual([], conflict_short_option,
                                  f"Command group {group} function {com.name} have conflict "
                                  f"short option flags {conflict_short_option}")
+
+    def test_falsy_default_value(self):
+        arg = cli_parser.Arg(("--test",), default=0, type=int)
+        parser = argparse.ArgumentParser()
+        arg.add_to_parser(parser)
+
+        args = parser.parse_args(['--test', '10'])
+        self.assertEqual(args.test, 10)
+
+        args = parser.parse_args([])
+        self.assertEqual(args.test, 0)

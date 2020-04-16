@@ -74,21 +74,29 @@ class DefaultHelpParser(argparse.ArgumentParser):
         self.exit(2, f'\n{self.prog} command error: {message}, see help above.\n')
 
 
+# Used in Arg to enable `None' as a distinct value from "not passed"
+_UNSET = object()
+
+
 class Arg:
     """Class to keep information about command line argument"""
-    # pylint: disable=redefined-builtin
-    def __init__(self, flags=None, help=None, action=None, default=None, nargs=None,
-                 type=None, choices=None, required=None, metavar=None):
+    # pylint: disable=redefined-builtin,unused-argument
+    def __init__(self, flags=_UNSET, help=_UNSET, action=_UNSET, default=_UNSET, nargs=_UNSET, type=_UNSET,
+                 choices=_UNSET, required=_UNSET, metavar=_UNSET):
         self.flags = flags
-        self.help = help
-        self.action = action
-        self.default = default
-        self.nargs = nargs
-        self.type = type
-        self.choices = choices
-        self.required = required
-        self.metavar = metavar
-    # pylint: enable=redefined-builtin
+        self.kwargs = {}
+        for k, v in locals().items():
+            if v is _UNSET:
+                continue
+            if k in ("self", "flags"):
+                continue
+
+            self.kwargs[k] = v
+    # pylint: enable=redefined-builtin,unused-argument
+
+    def add_to_parser(self, parser: argparse.ArgumentParser):
+        """Add this argument to an ArgumentParser"""
+        parser.add_argument(*self.flags, **self.kwargs)
 
 
 # Shared
@@ -444,7 +452,7 @@ ARG_MIGRATION_TIMEOUT = Arg(
     ("-t", "--migration-wait-timeout"),
     help="timeout to wait for db to migrate ",
     type=int,
-    default="0",
+    default=0,
 )
 
 # webserver
@@ -1284,10 +1292,7 @@ def _add_command(
 
 def _add_action_command(sub: ActionCommand, sub_proc: argparse.ArgumentParser) -> None:
     for arg in _sort_args(sub.args):
-        kwargs = {
-            k: v for k, v in vars(arg).items() if k != 'flags' and v
-        }
-        sub_proc.add_argument(*arg.flags, **kwargs)
+        arg.add_to_parser(sub_proc)
     sub_proc.set_defaults(func=sub.func)
 
 
