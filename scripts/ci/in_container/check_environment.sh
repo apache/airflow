@@ -19,8 +19,10 @@
 # shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-export EXIT_CODE=0
-export DISABLED_INTEGRATIONS=""
+EXIT_CODE=0
+DB_EXIT_CODE=0
+
+DISABLED_INTEGRATIONS=""
 
 function check_integration {
     INTEGRATION_NAME=$1
@@ -65,7 +67,7 @@ function check_integration {
         echo
         echo "${LAST_CHECK_RESULT}"
         echo
-        export EXIT_CODE=${RES}
+        EXIT_CODE=${RES}
     fi
     echo "-----------------------------------------------------------------------------------------------"
 }
@@ -114,7 +116,7 @@ function check_db_connection {
         echo
         echo "${LAST_CHECK_RESULT}"
         echo
-        export EXIT_CODE=${RES}
+        DB_EXIT_CODE=${RES}
     fi
     echo "-----------------------------------------------------------------------------------------------"
 }
@@ -182,6 +184,7 @@ function resetdb() {
                 airflow db reset -y
         fi
     fi
+    return $?
 }
 
 if [[ -n ${BACKEND:=} ]]; then
@@ -217,8 +220,6 @@ check_integration rabbitmq "nc -zvv rabbitmq 5672" 20
 check_integration cassandra "nc -zvv cassandra 9042" 20
 check_integration openldap "nc -zvv openldap 389" 20
 
-resetdb
-
 if [[ ${EXIT_CODE} != 0 ]]; then
     echo
     echo "Error: some of the CI environment failed to initialize!"
@@ -226,6 +227,14 @@ if [[ ${EXIT_CODE} != 0 ]]; then
     exit ${EXIT_CODE}
 fi
 
+# Try to reset the database regardless of DB_EXIT_CODE. If this fails, the whole script will fail
+resetdb
+
+if [[ ${DB_EXIT_CODE} != "0" ]]; then
+    echo
+    echo "Test of DB connectivity failed, but then managed to connect and reset the DB. Proceeding.".
+    echo
+fi
 
 if [[ ${DISABLED_INTEGRATIONS} != "" ]]; then
     echo
