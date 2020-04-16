@@ -609,17 +609,17 @@ class TestDagRun(unittest.TestCase):
         self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
         self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0))
 
-        uti1 = TI(task, timezone.datetime(2016, 1, 1, 0, 0, 0))
-        uti2 = TI(task, timezone.datetime(2016, 1, 2, 0, 0, 0))
+        prev_ti = TI(task, timezone.datetime(2016, 1, 1, 0, 0, 0))
+        ti = TI(task, timezone.datetime(2016, 1, 2, 0, 0, 0))
 
         for state in State.task_states:
-            uti1.set_state(state)
-            uti2.set_state(State.QUEUED)
-            uti2.run()
+            prev_ti.set_state(state)
+            ti.set_state(State.QUEUED)
+            ti.run()
             if state in (State.SUCCESS, State.SKIPPED):
-                self.assertEqual(uti2.state, State.SUCCESS)
+                self.assertEqual(ti.state, State.SUCCESS)
             else:
-                self.assertNotEqual(uti2.state, State.SUCCESS)
+                self.assertNotEqual(ti.state, State.SUCCESS)
 
     def test_wait_for_downstream(self):
         # dag_id = 'test_wait_for_downstream'
@@ -676,16 +676,17 @@ class TestDagRun(unittest.TestCase):
         self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
         self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0))
 
-        dti1 = TI(task=downstream, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
-        uti2 = TI(task=upstream, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0))
-        uti2.previous_ti.set_state(State.SUCCESS)
-        self.assertEqual(uti2.previous_ti.state, State.SUCCESS)
+        prev_ti_downstream = TI(task=downstream, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
+        ti = TI(task=upstream, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0))
+        prev_ti = ti.get_previous_ti()
+        prev_ti.set_state(State.SUCCESS)
+        self.assertEqual(prev_ti.state, State.SUCCESS)
 
         for state in State.task_states:
-            dti1.set_state(state)
-            uti2.set_state(State.QUEUED)
-            uti2.run()
+            prev_ti_downstream.set_state(state)
+            ti.set_state(State.QUEUED)
+            ti.run()
             if state in (State.SUCCESS, State.SKIPPED):
-                self.assertEqual(uti2.state, State.SUCCESS)
+                self.assertEqual(ti.state, State.SUCCESS)
             else:
-                self.assertNotEqual(uti2.state, State.SUCCESS)
+                self.assertNotEqual(ti.state, State.SUCCESS)
