@@ -28,14 +28,35 @@ Prerequisite
 
 To use ``SparkJDBCOperator`` and ``SparkSubmitOperator``, you must configure a :doc:`Spark Connection <../../connection/spark>`.
 
+.. _howto/operator:SparkJDBCOperator:
+
 SparkJDBCOperator
 -----------------
 
+.. _howto/operator:SparkSqlOperator:
 
 SparkSqlOperator
 ----------------
 
+.. _howto/operator:SparkSubmitOperator:
 
 SparkSubmitOperator
 -------------------
 
+Launches applications on a Spark cluster, it uses the ``spark-submit`` script that takes care of setting up the classpath with Spark and its dependencies, and can support different cluster managers and deploy modes that Spark supports.
+
+For parameter definition take a look at :class:`~airflow.providers.apache.spark.operators.spark_submit.SparkSubmitOperator`.
+
+Using the operator
+""""""""""""""""""
+
+.. exampleinclude:: ../../../../airflow/providers/apache/spark/example_dags/example_spark_dag.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_spark_submit]
+    :end-before: [END howto_operator_spark_submit]
+
+Reference
+---------
+
+For further information, look at `Apache Spark submitting applications <https://spark.apache.org/docs/latest/submitting-applications.html>`_.
