@@ -1750,6 +1750,8 @@ function run_build_command {
             else
                 prepare_ci_build
                 build_ci_image
+                update_all_md5_files
+                build_ci_image_manifest
             fi
             ;;
         cleanup_image|run_exec)
