@@ -37,11 +37,11 @@ from airflow.www_rbac.app import csrf
 from airflow import models
 from airflow.utils.db import create_session
 from .utils import get_cas_base_url, get_result_args, get_task_params, get_curve_args, get_craft_type, \
-    generate_bolt_number, get_curve_params, get_result_mq_args, format_result_message
+    generate_bolt_number, get_curve_params
 from flask import g, Blueprint, jsonify, request, url_for
 from airflow.entities.result_storage import ClsResultStorage
 from airflow.entities.curve_storage import ClsCurveStorage
-from airflow.entities.result_mq import ClsResultMQ
+import airflow.entities as entities
 import os
 
 _log = LoggingMixin().log
@@ -51,12 +51,6 @@ requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 api_experimental = Blueprint('api_experimental', __name__)
 
 PUSH_TRAINING_NOK = os.environ.get('PUSH_TRAINING_NOK', 'False')
-
-
-def send_result_to_mq(training_result):
-    result_mq_args = get_result_mq_args()
-    result_mq = ClsResultMQ(**result_mq_args)
-    result_mq.send_message(format_result_message(training_result))
 
 
 @csrf.exempt
@@ -100,9 +94,12 @@ def put_anaylysis_result():
         if PUSH_TRAINING_NOK == 'True' and rresult == 'NOK':
             training_result = {
                 'result': rresult,
-                'entity_id': entity_id
+                'entity_id': entity_id,
+                'execution_date': execution_date,
+                'task_id': task_id,
+                'dag_id': dag_id
             }
-            send_result_to_mq(training_result)
+            entities.result_hook(training_result)
         resp = jsonify({'response': 'ok'})
         resp.status_code = 200
         return resp

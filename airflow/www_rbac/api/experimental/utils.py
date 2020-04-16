@@ -114,14 +114,3 @@ def get_curve_args():
     }
 
 
-def get_result_mq_args():
-    return {
-        "host": Variable.get('result_mq_host', 'localhost'),
-        "queue": Variable.get('result_mq_queue', 'result'),
-        "routing_key": Variable.get('result_mq_routing_key', 'result'),
-        "exchange": Variable.get('result_mq_exchange', '')
-    }
-
-
-def format_result_message(training_result):
-    return json.dumps(training_result)
