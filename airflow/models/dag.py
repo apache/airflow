@@ -49,6 +49,7 @@ from airflow.exceptions import (
     AirflowDagCycleException, AirflowException, DagNotFound, TaskNotFound,
 )
 from airflow.models.dagbag import DagBag
+from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
@@ -551,6 +552,18 @@ class DAG(BaseDag, LoggingMixin):
         return self._description
 
     @property
+    def description_unicode(self):
+        if six.PY2:
+            try:
+                # in Py2 when you parse python code which is UTF-8 encoded you get byte str
+                # description here - but it is actually UTF-8 encoded, so you need to decode
+                # it in order to be correctly converted to
+                return self._description.decode("utf-8")
+            except UnicodeDecodeError:
+                pass
+        return self._description
+
+    @property
     def pickle_id(self):
         return self._pickle_id
 
@@ -977,7 +990,7 @@ class DAG(BaseDag, LoggingMixin):
             conditions = []
             for dag in self.subdags + [self]:
                 conditions.append(
-                    TI.dag_id.like(dag.dag_id) &
+                    (TI.dag_id == dag.dag_id) &
                     TI.task_id.in_(dag.task_ids)
                 )
             tis = tis.filter(or_(*conditions))
@@ -1073,12 +1086,15 @@ class DAG(BaseDag, LoggingMixin):
         if get_tis:
             return tis
 
+        tis = tis.all()
+
         if dry_run:
-            tis = tis.all()
             session.expunge_all()
             return tis
 
-        count = tis.count()
+        # Do not use count() here, it's actually much slower than just retrieving all the rows when
+        # tis has multiple UNION statements.
+        count = len(tis)
         do_it = True
         if count == 0:
             return 0
@@ -1091,7 +1107,7 @@ class DAG(BaseDag, LoggingMixin):
             do_it = utils.helpers.ask_yesno(question)
 
         if do_it:
-            clear_task_instances(tis.all(),
+            clear_task_instances(tis,
                                  session,
                                  dag=self,
                                  )
@@ -1498,6 +1514,9 @@ class DAG(BaseDag, LoggingMixin):
         orm_dag.description = self.description
         orm_dag.schedule_interval = self.schedule_interval
         orm_dag.tags = self.get_dagtags(session=session)
+
+        if conf.getboolean('core', 'store_dag_code', fallback=False):
+            DagCode.bulk_sync_to_db([orm_dag.fileloc])
 
         session.commit()
 

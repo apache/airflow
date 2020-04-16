@@ -94,22 +94,32 @@ class TestApiExperimental(unittest.TestCase):
         )
         self.assertEqual(404, response.status_code)
 
-    def test_task_paused(self):
-        url_template = '/api/experimental/dags/{}/paused/{}'
+    def test_dag_paused(self):
+        pause_url_template = '/api/experimental/dags/{}/paused/{}'
+        paused_url_template = '/api/experimental/dags/{}/paused'
+        paused_url = paused_url_template.format('example_bash_operator')
 
         response = self.app.get(
-            url_template.format('example_bash_operator', 'true')
+            pause_url_template.format('example_bash_operator', 'true')
         )
         self.assertIn('ok', response.data.decode('utf-8'))
         self.assertEqual(200, response.status_code)
 
-        url_template = '/api/experimental/dags/{}/paused/{}'
+        paused_response = self.app.get(paused_url)
+
+        self.assertEqual(200, paused_response.status_code)
+        self.assertEqual({"is_paused": True}, paused_response.json)
 
         response = self.app.get(
-            url_template.format('example_bash_operator', 'false')
+            pause_url_template.format('example_bash_operator', 'false')
         )
         self.assertIn('ok', response.data.decode('utf-8'))
         self.assertEqual(200, response.status_code)
+
+        paused_response = self.app.get(paused_url)
+
+        self.assertEqual(200, paused_response.status_code)
+        self.assertEqual({"is_paused": False}, paused_response.json)
 
     def test_trigger_dag(self):
         url_template = '/api/experimental/dags/{}/dag_runs'

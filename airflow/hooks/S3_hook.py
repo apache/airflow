@@ -16,15 +16,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# pylint: disable=invalid-name
+"""
+Interact with AWS S3, using the boto3 library.
+"""
+import fnmatch
+import gzip as gz
+import re
+import shutil
+from urllib.parse import urlparse
+
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
 
 from six import BytesIO
-from urllib.parse import urlparse
-import re
-import fnmatch
 
 
 class S3Hook(AwsHook):
@@ -318,7 +326,9 @@ class S3Hook(AwsHook):
                   key,
                   bucket_name=None,
                   replace=False,
-                  encrypt=False):
+                  encrypt=False,
+                  gzip=False,
+                  acl_policy=None):
         """
         Loads a local file to S3
 
@@ -335,6 +345,11 @@ class S3Hook(AwsHook):
         :param encrypt: If True, the file will be encrypted on the server-side
             by S3 and will be stored in an encrypted form while at rest in S3.
         :type encrypt: bool
+        :param gzip: If True, the file will be compressed locally
+        :type gzip: bool
+        :param acl_policy: String specifying the canned ACL policy for the file being
+            uploaded to the S3 bucket.
+        :type acl_policy: str
         """
         if not bucket_name:
             (bucket_name, key) = self.parse_s3_url(key)
@@ -345,6 +360,14 @@ class S3Hook(AwsHook):
         extra_args = {}
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
+        if gzip:
+            filename_gz = filename.name + '.gz'
+            with open(filename.name, 'rb') as f_in:
+                with gz.open(filename_gz, 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+                    filename = filename_gz
+        if acl_policy:
+            extra_args['ACL'] = acl_policy
 
         client = self.get_conn()
         client.upload_file(filename, bucket_name, key, ExtraArgs=extra_args)
@@ -355,7 +378,8 @@ class S3Hook(AwsHook):
                     bucket_name=None,
                     replace=False,
                     encrypt=False,
-                    encoding='utf-8'):
+                    encoding='utf-8',
+                    acl_policy=None):
         """
         Loads a string to S3
 
@@ -374,17 +398,23 @@ class S3Hook(AwsHook):
         :param encrypt: If True, the file will be encrypted on the server-side
             by S3 and will be stored in an encrypted form while at rest in S3.
         :type encrypt: bool
+        :param encoding: The string to byte encoding
+        :type encoding: str
+        :param acl_policy: The string to specify the canned ACL policy for the
+            object to be uploaded
+        :type acl_policy: str
         """
         bytes_data = string_data.encode(encoding)
         file_obj = BytesIO(bytes_data)
-        self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt)
+        self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl_policy)
 
     def load_bytes(self,
                    bytes_data,
                    key,
                    bucket_name=None,
                    replace=False,
-                   encrypt=False):
+                   encrypt=False,
+                   acl_policy=None):
         """
         Loads bytes to S3
 
@@ -403,16 +433,20 @@ class S3Hook(AwsHook):
         :param encrypt: If True, the file will be encrypted on the server-side
             by S3 and will be stored in an encrypted form while at rest in S3.
         :type encrypt: bool
+        :param acl_policy: The string to specify the canned ACL policy for the
+            object to be uploaded
+        :type acl_policy: str
         """
         file_obj = BytesIO(bytes_data)
-        self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt)
+        self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl_policy)
 
     def load_file_obj(self,
                       file_obj,
                       key,
                       bucket_name=None,
                       replace=False,
-                      encrypt=False):
+                      encrypt=False,
+                      acl_policy=None):
         """
         Loads a file object to S3
 
@@ -428,15 +462,19 @@ class S3Hook(AwsHook):
         :param encrypt: If True, S3 encrypts the file on the server,
             and the file is stored in encrypted form at rest in S3.
         :type encrypt: bool
+        :param acl_policy: The string to specify the canned ACL policy for the
+            object to be uploaded
+        :type acl_policy: str
         """
-        self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt)
+        self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl_policy)
 
     def _upload_file_obj(self,
                          file_obj,
                          key,
                          bucket_name=None,
                          replace=False,
-                         encrypt=False):
+                         encrypt=False,
+                         acl_policy=None):
         if not bucket_name:
             (bucket_name, key) = self.parse_s3_url(key)
 
@@ -446,6 +484,8 @@ class S3Hook(AwsHook):
         extra_args = {}
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
+        if acl_policy:
+            extra_args['ACL'] = acl_policy
 
         client = self.get_conn()
         client.upload_fileobj(file_obj, bucket_name, key, ExtraArgs=extra_args)
@@ -455,7 +495,8 @@ class S3Hook(AwsHook):
                     dest_bucket_key,
                     source_bucket_name=None,
                     dest_bucket_name=None,
-                    source_version_id=None):
+                    source_version_id=None,
+                    acl_policy='private'):
         """
         Creates a copy of an object that is already stored in S3.
 
@@ -483,6 +524,9 @@ class S3Hook(AwsHook):
         :type dest_bucket_name: str
         :param source_version_id: Version ID of the source object (OPTIONAL)
         :type source_version_id: str
+        :param acl_policy: The string to specify the canned ACL policy for the
+            object to be copied which is private by default.
+        :type acl_policy: str
         """
 
         if dest_bucket_name is None:
@@ -508,7 +552,8 @@ class S3Hook(AwsHook):
                       'VersionId': source_version_id}
         response = self.get_conn().copy_object(Bucket=dest_bucket_name,
                                                Key=dest_bucket_key,
-                                               CopySource=CopySource)
+                                               CopySource=CopySource,
+                                               ACL=acl_policy)
         return response
 
     def delete_objects(self,

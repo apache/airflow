@@ -33,6 +33,7 @@ from airflow import DAG, AirflowException, LoggingMixin
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
+from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import Validator, load_dag_schema
 from airflow.settings import json
 from airflow.www.utils import get_python_source
@@ -329,6 +330,15 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         if op.operator_extra_links:
             serialize_op['_operator_extra_links'] = \
                 cls._serialize_operator_extra_links(op.operator_extra_links)
+
+        # Store all template_fields as they are if there are JSON Serializable
+        # If not, store them as strings
+        if op.template_fields:
+            for template_field in op.template_fields:
+                value = getattr(op, template_field, None)
+                if not cls._is_excluded(value, template_field, op):
+                    serialize_op[template_field] = serialize_template_field(value)
+
         return serialize_op
 
     @classmethod
@@ -364,6 +374,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = SerializedDAG.deserialize_dag(v)
             elif k in {"retry_delay", "execution_timeout"}:
                 v = cls._deserialize_timedelta(v)
+            elif k in encoded_op["template_fields"]:
+                pass
             elif k.endswith("_date"):
                 v = cls._deserialize_datetime(v)
             elif k == "_operator_extra_links":
@@ -383,6 +395,11 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         for k in op.get_serialized_fields() - set(encoded_op.keys()) - set(
                 cls._CONSTRUCTOR_PARAMS.keys()):
             setattr(op, k, None)
+
+        # Set all the template_field to None that were not present in Serialized JSON
+        for field in op.template_fields:
+            if not hasattr(op, field):
+                setattr(op, field, None)
 
         return op
 
@@ -483,7 +500,7 @@ class SerializedDAG(DAG, BaseSerialization):
     not pickle-able. SerializedDAG works for all DAGs.
     """
 
-    _decorated_fields = {'schedule_interval', 'default_args'}
+    _decorated_fields = {'schedule_interval', 'default_args', '_access_control'}
 
     @staticmethod
     def __get_constructor_defaults():  # pylint: disable=no-method-argument

@@ -249,40 +249,6 @@ class UtilsTest(unittest.TestCase):
                 self.assertEqual(anonymous_username, kwargs['owner'])
                 mocked_session_instance.add.assert_called_once()
 
-    def test_open_maybe_zipped_normal_file(self):
-        with mock.patch(
-                'io.open', mock.mock_open(read_data="data")) as mock_file:
-            utils.open_maybe_zipped('/path/to/some/file.txt')
-            mock_file.assert_called_with('/path/to/some/file.txt', mode='r')
-
-    def test_open_maybe_zipped_normal_file_with_zip_in_name(self):
-        path = '/path/to/fakearchive.zip.other/file.txt'
-        with mock.patch(
-                'io.open', mock.mock_open(read_data="data")) as mock_file:
-            utils.open_maybe_zipped(path)
-            mock_file.assert_called_with(path, mode='r')
-
-    @mock.patch("zipfile.is_zipfile")
-    @mock.patch("zipfile.ZipFile")
-    def test_open_maybe_zipped_archive(self, mocked_ZipFile, mocked_is_zipfile):
-        mocked_is_zipfile.return_value = True
-        instance = mocked_ZipFile.return_value
-        instance.open.return_value = mock.mock_open(read_data="data")
-
-        utils.open_maybe_zipped('/path/to/archive.zip/deep/path/to/file.txt')
-
-        assert mocked_is_zipfile.call_count == 1
-        (args, kwargs) = mocked_is_zipfile.call_args_list[0]
-        self.assertEqual('/path/to/archive.zip', args[0])
-
-        assert mocked_ZipFile.call_count == 1
-        (args, kwargs) = mocked_ZipFile.call_args_list[0]
-        self.assertEqual('/path/to/archive.zip', args[0])
-
-        assert instance.open.call_count == 1
-        (args, kwargs) = instance.open.call_args_list[0]
-        self.assertEqual('deep/path/to/file.txt', args[0])
-
     def test_get_python_source_from_method(self):
         class AMockClass(object):
             def a_method(self):

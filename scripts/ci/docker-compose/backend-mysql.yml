@@ -17,15 +17,16 @@
 ---
 version: "2.2"
 services:
-  airflow-testing:
+  airflow:
     environment:
       - BACKEND=mysql
-      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=mysql://root@mysql/airflow
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=mysql://root@mysql/airflow?charset=${MYSQL_ENCODING}
       - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://root@mysql/airflow
     depends_on:
       - mysql
   mysql:
-    image: mysql:5.6
+    image: mysql:${MYSQL_VERSION}
+    command: --character-set-server=${MYSQL_ENCODING} --collation-server=${MYSQL_ENCODING}_unicode_ci
     environment:
       - MYSQL_ALLOW_EMPTY_PASSWORD=true
       - MYSQL_ROOT_HOST=%

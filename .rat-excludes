@@ -13,6 +13,7 @@
 .eslintignore
 .flake8
 .rat-excludes
+requirements
 requirements.txt
 .*log
 .travis.yml
@@ -33,6 +34,9 @@ CHANGELOG.txt
 unittests.cfg
 logs
 .bash_aliases
+venv
+files
+airflow.iml
 
 # Generated doc files
 .*html

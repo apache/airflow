@@ -16,44 +16,93 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-export const moment = require('moment-timezone');
+
+/* global moment, $, document */
 export const defaultFormat = 'YYYY-MM-DD, HH:mm:ss';
 export const defaultFormatWithTZ = 'YYYY-MM-DD, HH:mm:ss z';
+export const defaultTZFormat = 'z (Z)';
 
+export function setDisplayedTimezone(tz) {
+  moment.tz.setDefault(tz);
+  updateAllDateTimes();
+}
 
-const makeDateTimeHTML = (start, end) => {
-  return (
-    `Started: ${start.format(defaultFormat)} <br> Ended: ${end.format(defaultFormat)} <br>`
-  )
-};
-
-export const generateTooltipDateTime = (startDate, endDate, dagTZ) => {
-  const tzFormat = 'z (Z)';
-  const localTZ = moment.tz.guess();
-  startDate = moment.utc(startDate);
-  endDate = moment.utc(endDate);
-  dagTZ = dagTZ.toUpperCase();
-
-  // Generate UTC Start and End Date
-  let tooltipHTML = '<br><strong>UTC</strong><br>';
-  tooltipHTML += makeDateTimeHTML(startDate, endDate);
-
-  // Generate User's Local Start and End Date
-  tooltipHTML += `<br><strong>Local: ${moment.tz(localTZ).format(tzFormat)}</strong><br>`;
-  tooltipHTML += makeDateTimeHTML(startDate.local(), endDate.local());
-
-  // Generate DAG's Start and End Date
-  if (dagTZ !== 'UTC' && dagTZ !== localTZ) {
-    tooltipHTML += `<br><strong>DAG's TZ: ${moment.tz(dagTZ).format(tzFormat)}</strong><br>`;
-    tooltipHTML += makeDateTimeHTML(startDate.tz(dagTZ), endDate.tz(dagTZ));
+export function formatTimezone(what) {
+  if (what instanceof moment) {
+    return what.isUTC() ? 'UTC' : what.format(defaultTZFormat);
   }
 
-  return tooltipHTML
-};
+  if (what === 'UTC') {
+    return what;
+  }
 
+  return moment().tz(what).format(defaultTZFormat);
+}
 
-export const converAndFormatUTC = (datetime, tz) => {
+export function isoDateToTimeEl(datetime, options) {
+  const dateTimeObj = moment(datetime);
+
+  const addTitle = $.extend({title: true}, options).title;
+
+  const el = document.createElement('time');
+  el.setAttribute('datetime', dateTimeObj.format())
+  if (addTitle) {
+    el.setAttribute('title',dateTimeObj.isUTC() ? '' : `UTC: ${dateTimeObj.clone().utc().format()}`);
+  }
+  el.innerText = dateTimeObj.format(defaultFormat);
+  return el;
+}
+
+export const formatDateTime = (datetime) => {
+  return moment(datetime).format(defaultFormatWithTZ)
+}
+
+export const convertAndFormatUTC = (datetime, tz) => {
   let dateTimeObj = moment.utc(datetime);
   if (tz) dateTimeObj = dateTimeObj.tz(tz);
   return dateTimeObj.format(defaultFormatWithTZ)
+}
+
+export const secondsToString = (seconds) => {
+  let numdays    = Math.floor((seconds % 31536000) / 86400);
+  let numhours   = Math.floor(((seconds % 31536000) % 86400) / 3600);
+  let numminutes = Math.floor((((seconds % 31536000) % 86400) % 3600) / 60);
+  let numseconds = Math.floor((((seconds % 31536000) % 86400) % 3600) % 60);
+  return (numdays > 0    ? numdays    + (numdays    === 1 ? " day "    : " days ")    : "") +
+         (numhours > 0   ? numhours   + (numhours   === 1 ? " hour "   : " hours ")   : "") +
+         (numminutes > 0 ? numminutes + (numminutes === 1 ? " minute " : " minutes ") : "") +
+         (numseconds > 0 ? numseconds + (numseconds === 1 ? " second"  : " seconds")  : "");
+}
+
+export function updateAllDateTimes() {
+  // Called after `moment.tz.setDefault` has changed the default TZ to display.
+
+  $('time[data-datetime-convert!="false"]').each((_, el) => {
+    const $el = $(el);
+    const dt = moment($el.attr('datetime'));
+    $el.text(dt.format(defaultFormat));
+    if ($el.attr('title') !== undefined) {
+      // If displayed date is not UTC, have the UTC date in a title attriubte
+      $el.attr('title', dt.isUTC() ? "" : `UTC: ${dt.clone().utc().format()}`);
+    }
+  });
+
+  // A simple sprintf-like function
+  function sprintf(value, args) {
+    let i = 0;
+
+    while (value.indexOf('%') > 0) {
+      value = value.replace('%', args[i]);
+      i++;
+    }
+
+    return value;
+  }
+  // Update any date-time inputs.
+  //
+  // Since we have set the default timezone for moment, it will automatically
+  // convert it to the new target for us
+  $('.datetime input').each((_, el) => {
+    el.value = moment(el.value).format();
+  })
 }

@@ -31,10 +31,13 @@ from dateutil import relativedelta
 from sqlalchemy import event, exc
 from sqlalchemy.types import Text, DateTime, TypeDecorator
 
+from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
 utc = pendulum.timezone('UTC')
+
+using_mysql = conf.get('core', 'sql_alchemy_conn').lower().startswith('mysql')
 
 
 def setup_event_handlers(engine):
@@ -93,7 +96,14 @@ class UtcDateTime(TypeDecorator):
                                 repr(value))
             elif value.tzinfo is None:
                 raise ValueError('naive datetime is disallowed')
-
+            # For mysql we should store timestamps as naive values
+            # Timestamp in MYSQL is not timezone aware. In MySQL 5.6
+            # timezone added at the end is ignored but in MySQL 5.7
+            # inserting timezone value fails with 'invalid-date'
+            # See https://issues.apache.org/jira/browse/AIRFLOW-7001
+            if using_mysql:
+                from airflow.utils.timezone import make_naive
+                return make_naive(value, timezone=utc)
             return value.astimezone(utc)
 
     def process_result_value(self, value, dialect):

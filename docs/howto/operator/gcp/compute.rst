@@ -24,6 +24,11 @@ Google Compute Engine Operators
   :depth: 1
   :local:
 
+Prerequisite Tasks
+^^^^^^^^^^^^^^^^^^
+
+.. include:: _partials/prerequisite_tasks.rst
+
 .. _howto/operator:GceInstanceStartOperator:
 
 GceInstanceStartOperator
@@ -325,3 +330,11 @@ More information
 
 See Google Compute Engine API documentation to `manage a group instance
 <https://cloud.google.com/compute/docs/reference/rest/v1/instanceGroupManagers>`_.
+
+Reference
+---------
+
+For further information, look at:
+
+* `Google Cloud API Documentation <https://cloud.google.com/compute/docs/reference/rest/v1/>`__
+* `Product Documentation <https://cloud.google.com/bigtable/docs/>`__

@@ -25,10 +25,11 @@ from sqlalchemy import Column, Integer, String, Text, Boolean
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 
-from airflow.models.base import Base, ID_LEN
+from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet, InvalidFernetToken
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.secrets import get_variable
 
 
 class Variable(Base, LoggingMixin):
@@ -48,7 +49,7 @@ class Variable(Base, LoggingMixin):
 
     def get_val(self):
         log = LoggingMixin().log
-        if self._val and self.is_encrypted:
+        if self._val is not None and self.is_encrypted:
             try:
                 fernet = get_fernet()
                 return fernet.decrypt(bytes(self._val, 'utf-8')).decode()
@@ -64,7 +65,7 @@ class Variable(Base, LoggingMixin):
             return self._val
 
     def set_val(self, value):
-        if value:
+        if value is not None:
             fernet = get_fernet()
             self._val = fernet.encrypt(bytes(value, 'utf-8')).decode()
             self.is_encrypted = fernet.is_encrypted
@@ -104,7 +105,6 @@ class Variable(Base, LoggingMixin):
             return obj
 
     @classmethod
-    @provide_session
     def get(
         cls,
         key,  # type: str

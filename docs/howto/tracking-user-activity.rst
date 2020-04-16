@@ -22,7 +22,7 @@ You can configure Airflow to route anonymous data to
 `Google Analytics <https://analytics.google.com/>`_,
 `Segment <https://segment.com/>`_, or `Metarouter <https://www.metarouter.io/>`_.
 
-Edit ``airflow.cfg`` and set the ``analytics`` block to have a ``tool`` and ``id``:
+Edit ``airflow.cfg`` and set the ``webserver`` block to have an ``analytics_tool`` and ``analytics_id``:
 
 .. code-block:: python
 

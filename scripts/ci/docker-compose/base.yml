@@ -17,8 +17,8 @@
 ---
 version: "2.2"
 services:
-  airflow-testing:
-    image: ${AIRFLOW_CI_IMAGE}
+  airflow:
+    image: ${AIRFLOW_IMAGE}
     init: true
     entrypoint: ["/bin/bash", "-c"]
     environment:
@@ -36,22 +36,30 @@ services:
       - TRAVIS
       - TRAVIS_BRANCH
       - TRAVIS_BUILD_DIR
+      - TRAVIS_BUILD_ID
       - TRAVIS_JOB_ID
       - TRAVIS_JOB_NUMBER
       - TRAVIS_PULL_REQUEST
       - TRAVIS_COMMIT
       - TRAVIS_REPO_SLUG
+      - TRAVIS_PULL_REQUEST_BRANCH
+      - TRAVIS_PULL_REQUEST_SLUG
       - TRAVIS_OS_NAME
       - TRAVIS_TAG
       - RUN_TESTS
-      - AIRFLOW_CI_VERBOSE
-      - AIRFLOW_CI_SILENT
+      - VERBOSE
+      - VEROSE_COMMANDS
       - AIRFLOW_CI_IMAGE
       - RUNTIME
       - ENABLE_KIND_CLUSTER
       - ENABLED_INTEGRATIONS
       - RUN_INTEGRATION_TESTS
       - BREEZE
+      - INSTALL_AIRFLOW_VERSION
+      - DB_RESET
+      - ENABLED_SYSTEMS
+      - RUN_SYSTEM_TESTS
+      - PYTHON_MAJOR_MINOR_VERSION
     volumes:
       # Pass docker to inside of the container so that Kind and Moto tests can use it.
       - /var/run/docker.sock:/var/run/docker.sock

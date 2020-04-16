@@ -84,6 +84,12 @@ attack. Creating a new user has to be done via a Python REPL on the same machine
 LDAP
 ''''
 
+.. note::
+
+   This is for flask-admin based web UI only. If you are using FAB-based web UI with RBAC feature,
+   check the `Security section of FAB docs <https://flask-appbuilder.readthedocs.io/en/latest/security.html>`_
+   for how to configure in ``webserver_config.py`` file.
+
 To turn on LDAP authentication configure your ``airflow.cfg`` as follows. Please note that the example uses
 an encrypted connection to the ldap server as we do not want passwords be readable on the network level.
 
@@ -149,6 +155,43 @@ only the dags which it is owner of, unless it is a superuser.
 
     [webserver]
     filter_by_owner = True
+
+
+API Authentication
+------------------
+
+Authentication for the API is handled separately to the Web Authentication. The default is to not
+require any authentication on the API i.e. wide open by default. This is not recommended if your
+Airflow webserver is publicly accessible, and you should probably use the ``deny all`` backend:
+
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.api.auth.backend.deny_all
+
+Two "real" methods for authentication are currently supported for the API.
+
+To enabled Password authentication, set the following in the configuration:
+
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.contrib.auth.backends.password_auth
+
+It's usage is similar to the Password Authentication used for the Web interface.
+
+To enable Kerberos authentication, set the following in the configuration:
+
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.api.auth.backend.kerberos_auth
+
+    [kerberos]
+    keytab = <KEYTAB>
+
+The Kerberos service is configured as ``airflow/fully.qualified.domainname@REALM``. Make sure this
+principal exists in the keytab file.
 
 
 Kerberos
@@ -269,6 +312,12 @@ To use kerberos authentication, you must install Airflow with the ``kerberos`` e
 OAuth Authentication
 --------------------
 
+.. note::
+
+   This is for flask-admin based web UI only. If you are using FAB-based web UI with RBAC feature,
+   check the `Security section of FAB docs <https://flask-appbuilder.readthedocs.io/en/latest/security.html>`_
+   for how to configure in ``webserver_config.py`` file.
+
 GitHub Enterprise (GHE) Authentication
 ''''''''''''''''''''''''''''''''''''''
 
@@ -339,7 +388,7 @@ login, separated with a comma, to only members of those domains.
     client_id = google_client_id
     client_secret = google_client_secret
     oauth_callback_route = /oauth2callback
-    domain = "example1.com,example2.com"
+    domain = example1.com,example2.com
 
 To use Google authentication, you must install Airflow with the ``google_auth`` extras group:
 

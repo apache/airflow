@@ -155,7 +155,9 @@ def trigger_dag(dag_id):
 
     response = jsonify(
         message="Created {}".format(dr),
-        execution_date=dr.execution_date.isoformat())
+        execution_date=dr.execution_date.isoformat(),
+        run_id=dr.run_id
+    )
     return response
 
 
@@ -331,6 +333,16 @@ def dag_paused(dag_id, paused):
         session.commit()
 
     return jsonify({'response': 'ok'})
+
+
+@api_experimental.route('/dags/<string:dag_id>/paused', methods=['GET'])
+@requires_authentication
+def dag_is_paused(dag_id):
+    """Get paused state of a dag"""
+
+    is_paused = models.DagModel.get_dagmodel(dag_id).is_paused
+
+    return jsonify({'is_paused': is_paused})
 
 
 @api_experimental.route(

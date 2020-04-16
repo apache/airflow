@@ -240,8 +240,10 @@ The text of each license is also included at licenses/LICENSE-[project].txt.
     (MIT License) normalize.css v3.0.2 (http://necolas.github.io/normalize.css/)
     (MIT License) ElasticMock v1.3.2 (https://github.com/vrcmarcos/elasticmock)
     (MIT License) MomentJS v2.22.2 (http://momentjs.com/)
+    (MIT License) moment-strftime v0.5.0 (https://github.com/benjaminoakes/moment-strftime)
     (MIT License) python-slugify v2.0.1 (https://github.com/un33k/python-slugify)
     (MIT License) python-nvd3 v0.15.0 (https://github.com/areski/python-nvd3)
+    (MIT License) eonasdan-bootstrap-datetimepicker v4.17.37 (https://github.com/eonasdan/bootstrap-datetimepicker/)
 
 ========================================================================
 BSD 2-Clause licenses

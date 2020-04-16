@@ -138,6 +138,8 @@ class ConfTest(unittest.TestCase):
         self.assertEqual(
             cfg_dict['core']['load_examples'][1], 'airflow.cfg')
         self.assertEqual(
+            cfg_dict['core']['load_default_connections'][1], 'airflow.cfg')
+        self.assertEqual(
             cfg_dict['testsection']['testkey'], ('< hidden >', 'env var'))
 
     def test_conf_as_dict_sensitive(self):

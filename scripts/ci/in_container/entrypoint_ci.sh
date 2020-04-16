@@ -15,33 +15,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-#
-# Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
-set -euo pipefail
-
-MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
-
-if [[ ${AIRFLOW_CI_VERBOSE:="false"} == "true" ]]; then
+if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
     set -x
 fi
 
-# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
-. "${MY_DIR}/_in_container_utils.sh"
-
-in_container_basic_sanity_check
-
-in_container_script_start
+# shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
 TRAVIS=${TRAVIS:=}
 
 AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../.." || exit 1; pwd)
 
-PYTHON_VERSION=${PYTHON_VERSION:=3.6}
+PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.6}
 BACKEND=${BACKEND:=sqlite}
 KUBERNETES_MODE=${KUBERNETES_MODE:=""}
 KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
-RECREATE_KIND_CLUSTER=${RECREATE_KIND_CLUSTER:="true"}
 ENABLE_KIND_CLUSTER=${ENABLE_KIND_CLUSTER:="false"}
 RUNTIME=${RUNTIME:=""}
 
@@ -63,46 +51,62 @@ echo
 ARGS=( "$@" )
 
 RUN_TESTS=${RUN_TESTS:="true"}
+INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION:=""}"
 
-if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www_rbac/node_modules" ]]; then
-    echo
-    echo "Installing node modules as they are not yet installed (Sources mounted from Host)"
-    echo
-    pushd "${AIRFLOW_SOURCES}/airflow/www_rbac/" &>/dev/null || exit 1
-    yarn install --frozen-lockfile
-    echo
-    popd &>/dev/null || exit 1
+if [[ ${AIRFLOW_VERSION} == *1.10* || ${INSTALL_AIRFLOW_VERSION} == *1.10* ]]; then
+    export RUN_AIRFLOW_1_10="true"
+else
+    export RUN_AIRFLOW_1_10="false"
 fi
-if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www_rbac/static/dist" ]]; then
-    pushd "${AIRFLOW_SOURCES}/airflow/www_rbac/" &>/dev/null || exit 1
-    echo
-    echo "Building production version of javascript files (Sources mounted from Host)"
-    echo
-    echo
-    yarn run prod
-    echo
-    echo
-    popd &>/dev/null || exit 1
+
+if [[ ${INSTALL_AIRFLOW_VERSION} == "" ]]; then
+    if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www_rbac/node_modules" ]]; then
+        echo
+        echo "Installing node modules as they are not yet installed (Sources mounted from Host)"
+        echo
+        pushd "${AIRFLOW_SOURCES}/airflow/www_rbac/" &>/dev/null || exit 1
+        yarn install --frozen-lockfile
+        echo
+        popd &>/dev/null || exit 1
+    fi
+    if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www_rbac/static/dist" ]]; then
+        pushd "${AIRFLOW_SOURCES}/airflow/www_rbac/" &>/dev/null || exit 1
+        echo
+        echo "Building production version of javascript files (Sources mounted from Host)"
+        echo
+        echo
+        yarn run prod
+        echo
+        echo
+        popd &>/dev/null || exit 1
+    fi
+    # Cleanup the logs, tmp when entering the environment
+    sudo rm -rf "${AIRFLOW_SOURCES}"/logs/*
+    sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
+    mkdir -p "${AIRFLOW_SOURCES}"/logs/
+    mkdir -p "${AIRFLOW_SOURCES}"/tmp/
+    export PYTHONPATH=${AIRFLOW_SOURCES}
+else
+    install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}"
 fi
+
+
+export RUN_AIRFLOW_1_10=${RUN_AIRFLOW_1_10:="false"}
 
 export HADOOP_DISTRO="${HADOOP_DISTRO:="cdh"}"
 export HADOOP_HOME="${HADOOP_HOME:="/opt/hadoop-cdh"}"
 
-if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
+if [[ ${VERBOSE} == "true" ]]; then
     echo
     echo "Using ${HADOOP_DISTRO} distribution of Hadoop from ${HADOOP_HOME}"
     echo
 fi
 
-export AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_SOURCES}/tests/dags"
-
 # Added to have run-tests on path
 export PATH=${PATH}:${AIRFLOW_SOURCES}
 
-export AIRFLOW__CORE__UNIT_TEST_MODE=True
-
-# Make sure all AWS API calls default to the us-east-1 region
-export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:='us-east-1'}
+# This is now set in conftest.py - only for pytest tests
+unset AIRFLOW__CORE__UNIT_TEST_MODE
 
 # Fix codecov build path
 # TODO: Check this - this should be made travis-independent
@@ -111,16 +115,9 @@ if [[ ! -h /home/travis/build/apache/airflow ]]; then
   sudo ln -s "${AIRFLOW_SOURCES}" /home/travis/build/apache/airflow
 fi
 
-# Cleanup the logs, tmp when entering the environment
-sudo rm -rf "${AIRFLOW_SOURCES}"/logs/*
-sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
-mkdir -p "${AIRFLOW_SOURCES}"/logs/
-mkdir -p "${AIRFLOW_SOURCES}"/tmp/
-
 mkdir -pv "${AIRFLOW_HOME}/logs/"
 cp -f "${MY_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
 
-export PYTHONPATH=${AIRFLOW_SOURCES}
 
 "${MY_DIR}/check_environment.sh"
 
@@ -134,9 +131,8 @@ if [[ ${INTEGRATION_KERBEROS:="false"} == "true" ]]; then
         echo
         echo "ERROR !!!!Kerberos initialisation requested, but failed"
         echo
-        echo "I will exit now, and you need to run 'breeze --stop-environment' to kill kerberos."
-        echo
-        echo "Then you can again run 'breeze --integration kerberos' to start it again"
+        echo "I will exit now, and you need to run 'breeze --integration kerberos restart'"
+        echo "to re-enter breeze and restart kerberos."
         echo
         exit 1
     fi
@@ -158,6 +154,14 @@ if [[ "${RUNTIME}" == "" ]]; then
 
     # SSH Service
     sudo service ssh restart >/dev/null 2>&1
+
+    # Sometimes the server is not quick enough to load the keys!
+    while [[ $(ssh-keyscan -H localhost 2>/dev/null | wc -l) != "3" ]] ; do
+        echo "Not all keys yet loaded by the server"
+        sleep 0.05
+    done
+
+    ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
 fi
 
 
@@ -176,11 +180,23 @@ fi
 
 
 if [[ "${ENABLE_KIND_CLUSTER}" == "true" ]]; then
-    export CLUSTER_NAME="airflow-python-${PYTHON_VERSION}-${KUBERNETES_VERSION}"
+    export CLUSTER_NAME="airflow-python-${PYTHON_MAJOR_MINOR_VERSION}-${KUBERNETES_VERSION}"
     "${MY_DIR}/kubernetes/setup_kind_cluster.sh"
     if [[ ${KIND_CLUSTER_OPERATION} == "stop" ]]; then
         exit 1
     fi
+fi
+
+# shellcheck source=scripts/ci/in_container/configure_environment.sh
+. "${MY_DIR}/configure_environment.sh"
+
+if [[ ${CI:=} == "true" && ${RUN_TESTS} == "true" ]] ; then
+    echo
+    echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo "  Setting default parallellism to 4 because we can run out of memory during tests on CI"
+    echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo
+    export AIRFLOW__CORE__PARALELLISM=4
 fi
 
 set +u
@@ -216,18 +232,26 @@ if [[ -n ${RUN_INTEGRATION_TESTS:=""} ]]; then
     CI_ARGS+=("--integrations" "${RUN_INTEGRATION_TESTS}" "-rpfExX")
 fi
 
-TEST_DIR="tests/"
+TESTS_TO_RUN="tests/"
+
+if [[ ${#@} -gt 0 && -n "$1" ]]; then
+    TESTS_TO_RUN="$1"
+fi
 
 if [[ -n ${RUNTIME} ]]; then
     CI_ARGS+=("--runtime" "${RUNTIME}" "-rpfExX")
-    TEST_DIR="tests/runtime"
+    TESTS_TO_RUN="tests/runtime"
     if [[ ${RUNTIME} == "kubernetes" ]]; then
         export SKIP_INIT_DB=true
         "${MY_DIR}/deploy_airflow_to_kubernetes.sh"
     fi
 fi
 
-ARGS=("${CI_ARGS[@]}" "${TEST_DIR}")
-"${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
 
-in_container_script_end
+ARGS=("${CI_ARGS[@]}" "${TESTS_TO_RUN}")
+
+if [[ ${RUN_SYSTEM_TESTS:="false"} == "true" ]]; then
+    "${MY_DIR}/run_system_tests.sh" "${ARGS[@]}"
+else
+    "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
+fi

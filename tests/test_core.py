@@ -77,7 +77,7 @@ if six.PY2:
 else:
     import unittest
 
-NUM_EXAMPLE_DAGS = 22
+NUM_EXAMPLE_DAGS = 23
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
@@ -650,7 +650,7 @@ class CoreTest(unittest.TestCase):
         test_key = 'test_key'
         Variable.set(test_key, test_value)
         Variable.set(test_key, '')
-        self.assertEqual(None, Variable.get('test_key'))
+        self.assertEqual('', Variable.get('test_key'))
 
     def test_variable_set_get_round_trip_json(self):
         value = {"a": 17, "b": 47}

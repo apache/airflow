@@ -173,18 +173,7 @@ regarding custom filters have a look at the
 `Jinja Documentation <http://jinja.pocoo.org/docs/dev/api/#writing-filters>`_
 
 For more information on the variables and macros that can be referenced
-in templates, make sure to read through the :doc:`macros`
-
-Adding DAG and Tasks documentation
-----------------------------------
-We can add documentation for DAG or each single task. DAG documentation only support
-markdown so far and task documentation support plain text, markdown, reStructuredText,
-json, yaml
-
-.. exampleinclude:: ../airflow/example_dags/tutorial.py
-    :language: python
-    :start-after: [START documentation]
-    :end-before: [END documentation]
+in templates, make sure to read through the :doc:`macros-ref`
 
 Adding DAG and Tasks documentation
 ----------------------------------

@@ -23,6 +23,7 @@ import unittest
 import urllib
 from typing import Union, List
 import pendulum
+import pytest
 from freezegun import freeze_time
 from mock import patch, mock_open
 from parameterized import parameterized, param
@@ -31,7 +32,9 @@ from airflow import models, settings
 from airflow.configuration import conf
 from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.models import DAG, DagRun, Pool, TaskFail, TaskInstance as TI, TaskReschedule, Variable
+from airflow.models import (
+    DAG, DagRun, Pool, RenderedTaskInstanceFields, TaskFail, TaskInstance as TI, TaskReschedule, Variable,
+)
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
@@ -343,6 +346,19 @@ class TaskInstanceTest(unittest.TestCase):
 
         db.clear_db_pools()
         self.assertEqual(ti.state, State.SUCCESS)
+
+    def test_pool_slots_property(self):
+        """
+        test that try to create a task with pool_slots less than 1
+        """
+        def create_task_instance():
+            dag = models.DAG(dag_id='test_run_pooling_task')
+            task = DummyOperator(task_id='test_run_pooling_task_op', dag=dag,
+                                 pool='test_pool', pool_slots=0, owner='airflow',
+                                 start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+            return TI(task=task, execution_date=timezone.utcnow())
+
+        self.assertRaises(AirflowException, create_task_instance)
 
     @provide_session
     def test_ti_updates_with_task(self, session=None):
@@ -1449,3 +1465,56 @@ class TaskInstanceTest(unittest.TestCase):
         context = ti.get_template_context()
         with self.assertRaises(KeyError):
             task.render_template('{{ var.json.get("missing_variable") }}', context)
+
+    @parameterized.expand([
+        (True, ),
+        (False, )
+    ])
+    def test_get_rendered_template_fields(self, store_serialized_dag):
+        # SetUp
+        settings.STORE_SERIALIZED_DAGS = store_serialized_dag
+
+        with DAG('test-dag', start_date=DEFAULT_DATE):
+            task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
+
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
+
+        with create_session() as session:
+            session.add(RenderedTaskInstanceFields(ti))
+
+        # Create new TI for the same Task
+        with DAG('test-dag', start_date=DEFAULT_DATE):
+            new_task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
+
+        new_ti = TI(task=new_task, execution_date=DEFAULT_DATE)
+        new_ti.get_rendered_template_fields()
+
+        self.assertEqual(settings.STORE_SERIALIZED_DAGS, store_serialized_dag)
+        self.assertEqual("op1", ti.task.bash_command)
+
+        # CleanUp
+        with create_session() as session:
+            session.query(RenderedTaskInstanceFields).delete()
+
+
+@pytest.mark.parametrize("pool_override", [None, "test_pool2"])
+def test_refresh_from_task(pool_override):
+    task = DummyOperator(task_id="dummy", queue="test_queue", pool="test_pool1", pool_slots=3,
+                         priority_weight=10, run_as_user="test", retries=30,
+                         executor_config={"KubernetesExecutor": {"image": "myCustomDockerImage"}})
+    ti = TI(task, execution_date=pendulum.datetime(2020, 1, 1))
+    ti.refresh_from_task(task, pool_override=pool_override)
+
+    assert ti.queue == task.queue
+
+    if pool_override:
+        assert ti.pool == pool_override
+    else:
+        assert ti.pool == task.pool
+
+    assert ti.pool_slots == task.pool_slots
+    assert ti.priority_weight == task.priority_weight_total
+    assert ti.run_as_user == task.run_as_user
+    assert ti.max_tries == task.retries
+    assert ti.executor_config == task.executor_config
+    assert ti.operator == DummyOperator.__name__

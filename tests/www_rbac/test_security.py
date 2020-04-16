@@ -24,16 +24,15 @@ import logging
 import mock
 
 from flask import Flask
-from flask_appbuilder import AppBuilder, SQLA, Model, has_access, expose
-from flask_appbuilder.models.sqla.interface import SQLAInterface
+from flask_appbuilder import SQLA, AppBuilder, Model, expose, has_access
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.views import ModelView, BaseView
 from sqlalchemy import Column, Integer, String, Float, Date
 
-from tests.test_utils.mock_security_manager import MockSecurityManager
-
 from airflow.exceptions import AirflowException
 from airflow.www_rbac.security import AirflowSecurityManager
+from airflow.www_rbac.utils import CustomSQLAInterface
+from tests.test_utils.mock_security_manager import MockSecurityManager
 
 
 logging.basicConfig(format='%(asctime)s:%(levelname)s:%(name)s:%(message)s')
@@ -53,7 +52,7 @@ class SomeModel(Model):
 
 
 class SomeModelView(ModelView):
-    datamodel = SQLAInterface(SomeModel)
+    datamodel = CustomSQLAInterface(SomeModel)
     base_permissions = ['can_list', 'can_show', 'can_add', 'can_edit', 'can_delete']
     list_columns = ['field_string', 'field_integer', 'field_float', 'field_date']
 
