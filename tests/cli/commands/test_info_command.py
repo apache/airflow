@@ -76,16 +76,13 @@ class TestPathsInfo(unittest.TestCase):
 
 
 class TestConfigInfo(unittest.TestCase):
-    @mock.patch.dict(
-        "os.environ",
-        {"AIRFLOW__CORE__SQL_ALCHEMY_CONN": "postgresql+psycopg2://postgres:airflow@postgres/airflow"},
-    )
     @conf_vars(
         {
             ("core", "executor"): "TEST_EXECUTOR",
             ("core", "dags_folder"): "TEST_DAGS_FOLDER",
             ("core", "plugins_folder"): "TEST_PLUGINS_FOLDER",
             ("logging", "base_log_folder"): "TEST_LOG_FOLDER",
+            ('core', 'sql_alchemy_conn'): 'postgresql+psycopg2://postgres:airflow@postgres/airflow',
         }
     )
     def test_should_read_config(self):
@@ -108,9 +105,10 @@ class TestShowInfo(unittest.TestCase):
     def setUpClass(cls):
         cls.parser = cli_parser.get_parser()
 
-    @mock.patch.dict(
-        "os.environ",
-        {"AIRFLOW__CORE__SQL_ALCHEMY_CONN": "postgresql+psycopg2://postgres:airflow@postgres/airflow"},
+    @conf_vars(
+        {
+            ('core', 'sql_alchemy_conn'): 'postgresql+psycopg2://postgres:airflow@postgres/airflow',
+        }
     )
     def test_show_info(self):
         with contextlib.redirect_stdout(io.StringIO()) as stdout:
@@ -120,9 +118,10 @@ class TestShowInfo(unittest.TestCase):
         self.assertIn("Apache Airflow [{}]".format(airflow_version), output)
         self.assertIn("postgresql+psycopg2://postgres:airflow@postgres/airflow", output)
 
-    @mock.patch.dict(
-        "os.environ",
-        {"AIRFLOW__CORE__SQL_ALCHEMY_CONN": "postgresql+psycopg2://postgres:airflow@postgres/airflow"},
+    @conf_vars(
+        {
+            ('core', 'sql_alchemy_conn'): 'postgresql+psycopg2://postgres:airflow@postgres/airflow',
+        }
     )
     def test_show_info_anonymize(self):
         with contextlib.redirect_stdout(io.StringIO()) as stdout:
@@ -132,9 +131,10 @@ class TestShowInfo(unittest.TestCase):
         self.assertIn("Apache Airflow [{}]".format(airflow_version), output)
         self.assertIn("postgresql+psycopg2://p...s:PASSWORD@postgres/airflow", output)
 
-    @mock.patch.dict(
-        "os.environ",
-        {"AIRFLOW__CORE__SQL_ALCHEMY_CONN": "postgresql+psycopg2://postgres:airflow@postgres/airflow"},
+    @conf_vars(
+        {
+            ('core', 'sql_alchemy_conn'): 'postgresql+psycopg2://postgres:airflow@postgres/airflow',
+        }
     )
     @mock.patch(
         "airflow.cli.commands.info_command.requests",
