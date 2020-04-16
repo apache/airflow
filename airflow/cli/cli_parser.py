@@ -153,6 +153,12 @@ ARG_OUTPUT = Arg(
     ),
     choices=tabulate_formats,
     default="fancy_grid")
+ARG_COLOR = Arg(
+    ('--color',),
+    help="do emit colored output (default: auto-detect)")
+ARG_NO_COLOR = Arg(
+    ('--no-color',),
+    help="do not emit colored output (default: auto-detect)")
 
 # list_dag_runs
 ARG_NO_BACKFILL = Arg(
@@ -1207,7 +1213,7 @@ airflow_commands: List[CLICommand] = [
         name='config',
         help='Show current application configuration',
         func=lazy_load_command('airflow.cli.commands.config_command.show_config'),
-        args=(),
+        args=(ARG_COLOR, ARG_NO_COLOR),
     ),
     ActionCommand(
         name='info',

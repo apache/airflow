@@ -17,11 +17,21 @@
 """Config sub-commands"""
 import io
 
+import pygments
+from pygments.formatters.terminal import TerminalFormatter
+from pygments.lexers.configs import IniLexer
+
 from airflow.configuration import conf
+from airflow.utils.cli import should_use_colors
 
 
 def show_config(args):
     """Show current application configuration"""
     with io.StringIO() as output:
         conf.write(output)
-        print(output.getvalue())
+        code = output.getvalue()
+        if should_use_colors(args):
+            code = pygments.highlight(
+                code=code, formatter=TerminalFormatter(), lexer=IniLexer()
+            )
+        print(code)
