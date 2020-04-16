@@ -15,24 +15,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+set -x
 
-set -xeuo pipefail
+# shellcheck source=scripts/ci/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export UPGRADE_TO_LATEST_REQUIREMENTS="false"
 
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
+# In case of CRON jobs on Travis we run builds without cache
+if [[ "${TRAVIS_EVENT_TYPE:=}" == "cron" ]]; then
+    echo
+    echo "Disabling cache for CRON jobs"
+    echo
+    export DOCKER_CACHE="no-cache"
+    export PULL_BASE_IMAGES="true"
+    export UPGRADE_TO_LATEST_REQUIREMENTS="true"
+fi
 
-basic_sanity_checks
+build_ci_image_on_ci
 
-script_start
-
-build_image_on_ci
-
-KUBERNETES_MODE=${KUBERNETES_MODE:=""}
-
-mkdir -p "${AIRFLOW_SOURCES}/files"
-
-sudo pip install pre-commit
-
-script_end
+# We need newer version of six for Travis as they bundle 1.11.0 version
+sudo pip install pre-commit 'six~=1.14'

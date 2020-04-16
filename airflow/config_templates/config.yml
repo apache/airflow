@@ -286,11 +286,20 @@
       default: "16"
     - name: load_examples
       description: |
-        Whether to load the examples that ship with Airflow. It's good to
+        Whether to load the DAG examples that ship with Airflow. It's good to
         get started, but you probably want to set this to False in a production
         environment
       version_added: ~
       type: string
+      example: ~
+      default: "True"
+    - name: load_default_connections
+      description: |
+        Whether to load the default connections that ship with Airflow. It's good to
+        get started, but you probably want to set this to False in a production
+        environment
+      version_added: 1.10.10
+      type: boolean
       example: ~
       default: "True"
     - name: plugins_folder
@@ -414,7 +423,7 @@
       default: "0"
     - name: store_serialized_dags
       description: |
-        Whether to serialises DAGs and persist them in DB.
+        Whether to serialise DAGs and persist them in DB.
         If set to True, Webserver reads from DB instead of parsing DAG files
         More details: https://airflow.apache.org/docs/stable/dag-serialization.html
       version_added: 1.10.7
@@ -428,6 +437,28 @@
       type: string
       example: ~
       default: "30"
+    - name: store_dag_code
+      description: |
+        Whether to persist DAG files code in DB.
+        If set to True, Webserver reads file contents from DB instead of
+        trying to access files in a DAG folder. Defaults to same as the
+        ``store_serialized_dags`` setting.
+      version_added: 1.10.10
+      type: string
+      example: ~
+      default: "%(store_serialized_dags)s"
+    - name: max_num_rendered_ti_fields_per_task
+      description: |
+        Maximum number of Rendered Task Instance Fields (Template Fields) per task to store
+        in the Database.
+        When Dag Serialization is enabled (``store_serialized_dags=True``), all the template_fields
+        for each of Task Instance are stored in the Database.
+        Keeping this number small may cause an error when you try to view ``Rendered`` tab in
+        TaskInstance view for older tasks.
+      version_added: 1.10.10
+      type: integer
+      example: ~
+      default: "30"
     - name: check_slas
       description: |
         On each dagrun check against defined SLAs
@@ -435,6 +466,27 @@
       type: string
       example: ~
       default: "True"
+
+- name: secrets
+  description: ~
+  options:
+    - name: backend
+      description: |
+        Full class name of secrets backend to enable (will precede env vars and metastore in search path)
+      version_added: 1.10.10
+      type: string
+      example: "airflow.contrib.secrets.aws_systems_manager.SystemsManagerParameterStoreBackend"
+      default: ""
+    - name: backend_kwargs
+      description: |
+        The backend_kwargs param is loaded into a dictionary and passed to __init__ of secrets backend class.
+        See documentation for the secrets backend you are using. JSON is expected.
+        Example for AWS Systems Manager ParameterStore:
+        ``{{"connections_prefix": "/airflow/connections", "profile_name": "default"}}``
+      version_added: 1.10.10
+      type: string
+      example: ~
+      default: ""
 - name: cli
   description: ~
   options:
@@ -577,6 +629,16 @@
       type: string
       example: ~
       default: "http://localhost:8080"
+    - name: default_ui_timezone
+      description: |
+        Default timezone to display all dates in the RBAC UI, can be UTC, system, or
+        any IANA timezone string (e.g. Europe/Amsterdam). If left empty the
+        default value of core/default_timezone will be used
+      version_added: 1.10.10
+      type: string
+      example: "America/New_York"
+      # Default is left as UTC for now so the date's don't "suddenly" change on upgrade
+      default: "UTC"
     - name: web_server_host
       description: |
         The ip specified when starting the web server
@@ -900,7 +962,7 @@
       description: |
         Update FAB permissions and sync security manager roles
         on webserver startup
-      version_added: 1.10.7
+      version_added: 1.10.10
       type: string
       example: ~
       default: "True"
@@ -1020,7 +1082,7 @@
       version_added: ~
       type: string
       example: 16,12
-      default: 16,12
+      default: ~
     - name: worker_log_server_port
       description: |
         When you start an airflow worker, airflow starts a tiny web server
@@ -2043,8 +2105,7 @@
       version_added: 1.10.4
       type: string
       example: ~
-      default: >-
-        {{"_request_timeout" : [60,60] }}
+      default: ""
     - name: run_as_user
       description: |
         Specifies the uid to run the first process of the worker pods containers as

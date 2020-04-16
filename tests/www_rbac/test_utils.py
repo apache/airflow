@@ -20,7 +20,6 @@
 from datetime import datetime
 
 from bs4 import BeautifulSoup
-import mock
 import six
 from six.moves.urllib.parse import parse_qs
 
@@ -163,40 +162,6 @@ class UtilsTest(unittest.TestCase):
     def test_params_escape(self):
         self.assertEqual('search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E',
                          utils.get_params(search="'>\"/><img src=x onerror=alert(1)>"))
-
-    def test_open_maybe_zipped_normal_file(self):
-        with mock.patch(
-                'io.open', mock.mock_open(read_data="data")) as mock_file:
-            utils.open_maybe_zipped('/path/to/some/file.txt')
-            mock_file.assert_called_with('/path/to/some/file.txt', mode='r')
-
-    def test_open_maybe_zipped_normal_file_with_zip_in_name(self):
-        path = '/path/to/fakearchive.zip.other/file.txt'
-        with mock.patch(
-                'io.open', mock.mock_open(read_data="data")) as mock_file:
-            utils.open_maybe_zipped(path)
-            mock_file.assert_called_with(path, mode='r')
-
-    @mock.patch("zipfile.is_zipfile")
-    @mock.patch("zipfile.ZipFile")
-    def test_open_maybe_zipped_archive(self, mocked_ZipFile, mocked_is_zipfile):
-        mocked_is_zipfile.return_value = True
-        instance = mocked_ZipFile.return_value
-        instance.open.return_value = mock.mock_open(read_data="data")
-
-        utils.open_maybe_zipped('/path/to/archive.zip/deep/path/to/file.txt')
-
-        mocked_is_zipfile.assert_called_once()
-        (args, kwargs) = mocked_is_zipfile.call_args_list[0]
-        self.assertEqual('/path/to/archive.zip', args[0])
-
-        mocked_ZipFile.assert_called_once()
-        (args, kwargs) = mocked_ZipFile.call_args_list[0]
-        self.assertEqual('/path/to/archive.zip', args[0])
-
-        instance.open.assert_called_once()
-        (args, kwargs) = instance.open.call_args_list[0]
-        self.assertEqual('deep/path/to/file.txt', args[0])
 
     def test_state_token(self):
         # It's shouldn't possible to set these odd values anymore, but lets

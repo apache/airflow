@@ -15,20 +15,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# shellcheck source=scripts/ci/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-set -euo pipefail
-
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
-
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
-
-basic_sanity_checks
-
-script_start
+function run_docker_lint() {
+    FILES=("$@")
+    if [[ "${#FILES[@]}" == "0" ]]; then
+        echo
+        echo "Running docker lint for all Dockerfiles"
+        echo
+        docker run \
+            -v "$(pwd):/root" \
+            -w /root \
+            --rm \
+            hadolint/hadolint /bin/hadolint Dockerfile*
+        echo
+        echo "Docker pylint completed with no errors"
+        echo
+    else
+        echo
+        echo "Running docker lint for $*"
+        echo
+        docker run \
+            -v "$(pwd):/root" \
+            -w /root \
+            --rm \
+            hadolint/hadolint /bin/hadolint "$@"
+        echo
+        echo "Docker pylint completed with no errors"
+        echo
+    fi
+}
 
 run_docker_lint "$@"
-
-script_end

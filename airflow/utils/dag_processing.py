@@ -923,6 +923,10 @@ class DagFileProcessorManager(LoggingMixin):
                 SerializedDagModel.remove_deleted_dags(self._file_paths)
                 DagModel.deactivate_deleted_dags(self._file_paths)
 
+            if conf.getboolean('core', 'store_dag_code', fallback=False):
+                from airflow.models.dagcode import DagCode
+                DagCode.remove_deleted_code(self._file_paths)
+
     def _print_stat(self):
         """
         Occasionally print out stats about how fast the files are getting processed

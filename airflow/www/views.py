@@ -72,6 +72,7 @@ from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_run
                                                         set_dag_run_state_to_failed)
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, Connection, DagRun, errors, XCom
+from airflow.models.dagcode import DagCode
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
@@ -689,19 +690,24 @@ class Airflow(AirflowViewMixin, BaseView):
     @login_required
     @provide_session
     def code(self, session=None):
-        dag_id = request.args.get('dag_id')
-        dm = models.DagModel
-        dag = session.query(dm).filter(dm.dag_id == dag_id).first()
+        all_errors = ""
         try:
-            with wwwutils.open_maybe_zipped(dag.fileloc, 'r') as f:
-                code = f.read()
+            dag_id = request.args.get('dag_id')
+            dag_orm = models.DagModel.get_dagmodel(dag_id, session=session)
+            code = DagCode.get_code_by_fileloc(dag_orm.fileloc)
             html_code = highlight(
                 code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
-        except IOError as e:
-            html_code = str(e)
+
+        except Exception as e:
+            all_errors += (
+                "Exception encountered during " +
+                "dag_id retrieval/dag retrieval fallback/code highlighting:\n\n{}\n".format(e)
+            )
+            html_code = '<p>Failed to load file.</p><p>Details: {}</p>'.format(
+                escape(all_errors))
 
         return self.render(
-            'airflow/dag_code.html', html_code=html_code, dag=dag, title=dag_id,
+            'airflow/dag_code.html', html_code=html_code, dag=dag_orm, title=dag_id,
             root=request.args.get('root'),
             demo_mode=conf.getboolean('webserver', 'demo_mode'),
             wrapped=conf.getboolean('webserver', 'default_wrap'))
@@ -785,25 +791,31 @@ class Airflow(AirflowViewMixin, BaseView):
     @expose('/rendered')
     @login_required
     @wwwutils.action_logging
-    def rendered(self):
+    @provide_session
+    def rendered(self, session=None):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
         dttm = pendulum.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
-        # Loads dag from file
-        logging.info("Processing DAG file to render template.")
-        dag = dagbag.get_dag(dag_id, from_file_only=True)
+
+        logging.info("Retrieving rendered templates.")
+        dag = dagbag.get_dag(dag_id)
+
         task = copy.copy(dag.get_task(task_id))
         ti = models.TaskInstance(task=task, execution_date=dttm)
         try:
-            ti.render_templates()
+            ti.get_rendered_template_fields()
         except Exception as e:
-            flash("Error rendering template: " + str(e), "error")
+            msg = "Error rendering template: " + escape(e)
+            if six.PY3:
+                if e.__cause__:
+                    msg += Markup("<br/><br/>OriginalError: ") + escape(e.__cause__)
+            flash(msg, "error")
         title = "Rendered Template"
         html_dict = {}
-        for template_field in task.__class__.template_fields:
+        for template_field in task.template_fields:
             content = getattr(task, template_field)
             if template_field in attr_renderer:
                 html_dict[template_field] = attr_renderer[template_field](content)
@@ -1191,7 +1203,7 @@ class Airflow(AirflowViewMixin, BaseView):
         # Upon successful delete return to origin
         return redirect(origin)
 
-    @expose('/trigger', methods=['POST'])
+    @expose('/trigger', methods=['POST', 'GET'])
     @login_required
     @wwwutils.action_logging
     @wwwutils.notify_owner
@@ -1199,6 +1211,15 @@ class Airflow(AirflowViewMixin, BaseView):
     def trigger(self, session=None):
         dag_id = request.values.get('dag_id')
         origin = request.values.get('origin') or "/admin/"
+
+        if request.method == 'GET':
+            return self.render(
+                'airflow/trigger.html',
+                dag_id=dag_id,
+                origin=origin,
+                conf=''
+            )
+
         dag = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
         if not dag:
             flash("Cannot find dag {}".format(dag_id))
@@ -1213,6 +1234,18 @@ class Airflow(AirflowViewMixin, BaseView):
             return redirect(origin)
 
         run_conf = {}
+        conf = request.values.get('conf')
+        if conf:
+            try:
+                run_conf = json.loads(conf)
+            except ValueError:
+                flash("Invalid JSON configuration", "error")
+                return self.render(
+                    'airflow/trigger.html',
+                    dag_id=dag_id,
+                    origin=origin,
+                    conf=conf,
+                )
 
         dag.create_dagrun(
             run_id=run_id,
@@ -2071,12 +2104,13 @@ class Airflow(AirflowViewMixin, BaseView):
         prev_task_id = ""
         for tf in ti_fails:
             end_date = tf.end_date or timezone.utcnow()
+            start_date = tf.start_date or end_date
             if tf_count != 0 and tf.task_id == prev_task_id:
                 try_count = try_count + 1
             else:
                 try_count = 1
             prev_task_id = tf.task_id
-            gantt_bar_items.append((tf.task_id, tf.start_date, end_date, State.FAILED, try_count))
+            gantt_bar_items.append((tf.task_id, start_date, end_date, State.FAILED, try_count))
             tf_count = tf_count + 1
 
         tasks = []

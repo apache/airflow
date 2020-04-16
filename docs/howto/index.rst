@@ -44,4 +44,4 @@ configuring an Airflow environment.
     define_extra_link
     email-config
     tracking-user-activity
-    cli-completion
+    use-alternative-secrets-backend

@@ -1202,7 +1202,7 @@ def checkdb(args):  # noqa
 
 def version(args):  # noqa
     py2_deprecation_waring()
-    print(settings.HEADER + "  v" + airflow.__version__)
+    print(airflow.__version__)
 
 
 alternative_conn_specs = ['conn_type', 'conn_host',

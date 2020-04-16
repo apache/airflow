@@ -15,20 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+export PYTHON_MAJOR_MINOR_VERSION="${1}"
+export REMEMBER_LAST_ANSWER="${2}"
 
-set -uo pipefail
+# shellcheck source=scripts/ci/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-export REMEMBER_LAST_ANSWER="false"
-export PYTHON_VERSION=3.5
+forget_last_answer
 
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
+prepare_ci_build
 
-basic_sanity_checks
-
-script_start
-
-rebuild_all_images_if_needed_and_confirmed
-
-script_end
+rebuild_ci_image_if_needed_and_confirmed

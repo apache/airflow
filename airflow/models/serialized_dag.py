@@ -19,16 +19,16 @@
 
 """Serialzed DAG table in database."""
 
-import hashlib
 from datetime import timedelta
 from typing import Any, Optional
 
 import sqlalchemy_jsonfield
-from sqlalchemy import Column, Index, Integer, String, and_
+from sqlalchemy import BigInteger, Column, Index, String, and_
 from sqlalchemy.sql import exists
 
-from airflow import DAG
 from airflow.models.base import ID_LEN, Base
+from airflow.models.dag import DAG
+from airflow.models.dagcode import DagCode
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import json
 from airflow.utils import db, timezone
@@ -62,7 +62,7 @@ class SerializedDagModel(Base):
     dag_id = Column(String(ID_LEN), primary_key=True)
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
-    fileloc_hash = Column(Integer, nullable=False)
+    fileloc_hash = Column(BigInteger, nullable=False)
     data = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
     last_updated = Column(UtcDateTime, nullable=False)
 
@@ -73,23 +73,9 @@ class SerializedDagModel(Base):
     def __init__(self, dag):
         self.dag_id = dag.dag_id
         self.fileloc = dag.full_filepath
-        self.fileloc_hash = self.dag_fileloc_hash(self.fileloc)
+        self.fileloc_hash = DagCode.dag_fileloc_hash(self.fileloc)
         self.data = SerializedDAG.to_dict(dag)
         self.last_updated = timezone.utcnow()
-
-    @staticmethod
-    def dag_fileloc_hash(full_filepath):
-        # type: (str) -> int
-        """"Hashing file location for indexing.
-
-        :param full_filepath: full filepath of DAG file
-        :return: hashed full_filepath
-        """
-        # hashing is needed because the length of fileloc is 2000 as an Airflow convention,
-        # which is over the limit of indexing. If we can reduce the length of fileloc, then
-        # hashing is not needed.
-        return int(0xFFFF & int(
-            hashlib.sha1(full_filepath.encode('utf-8')).hexdigest(), 16))
 
     @classmethod
     @db.provide_session
@@ -173,7 +159,7 @@ class SerializedDagModel(Base):
         :param session: ORM Session
         """
         alive_fileloc_hashes = [
-            cls.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
+            DagCode.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
 
         log.debug("Deleting Serialized DAGs (for which DAG files are deleted) "
                   "from %s table ", cls.__tablename__)

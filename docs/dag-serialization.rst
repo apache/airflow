@@ -21,7 +21,7 @@
 DAG Serialization
 =================
 
-In order to make Airflow Webserver stateless (almost!), Airflow >=1.10.7 supports
+In order to make Airflow Webserver stateless, Airflow >=1.10.7 supports
 DAG Serialization and DB Persistence.
 
 .. image:: img/dag_serialization.png
@@ -59,23 +59,29 @@ Add the following settings in ``airflow.cfg``:
     store_serialized_dags = True
     min_serialized_dag_update_interval = 30
 
-*   ``store_serialized_dags``: This flag decides whether to serialises DAGs and persist them in DB.
+*   ``store_serialized_dags``: This flag decides whether to serialise DAGs and persist them in DB.
     If set to True, Webserver reads from DB instead of parsing DAG files
 *   ``min_serialized_dag_update_interval``: This flag sets the minimum interval (in seconds) after which
     the serialized DAG in DB should be updated. This helps in reducing database write rate.
+*   ``store_dag_code``: This flag decides whether to persist DAG files code in DB.
+    If set to True, Webserver reads file contents from DB instead of trying to access files in a DAG folder.
 
 If you are updating Airflow from <1.10.7, please do not forget to run ``airflow db upgrade``.
 
 
 Limitations
 -----------
-The Webserver will still need access to DAG files in the following cases,
-which is why we said "almost" stateless.
 
-*   **Rendered Template** tab will still have to parse Python file as it needs all the details like
-    the execution date and even the data passed by the upstream task using Xcom.
-*   **Code View** will read the DAG File & show it using Pygments.
-    However, it does not need to Parse the Python file so it is still a small operation.
+*   When using user-defined filters and macros, the Rendered View in the Webserver might show incorrect results
+    for TIs that have not yet executed as it might be using external modules that Webserver wont have access to.
+    Use ``airflow tasks render`` cli command in such situation to debug or test rendering of you template_fields.
+    Once the tasks execution starts the Rendered Template Fields will be stored in the DB in a separate table and
+    after which the correct values would be showed in the Webserver (Rendered View tab).
+
+.. note::
+    You need Airflow >= 1.10.10 for completely stateless Webserver.
+    Airflow 1.10.7 to 1.10.9 needed access to Dag files in some cases.
+    More Information: https://airflow.apache.org/docs/1.10.9/dag-serialization.html#limitations
 
 Using a different JSON Library
 ------------------------------

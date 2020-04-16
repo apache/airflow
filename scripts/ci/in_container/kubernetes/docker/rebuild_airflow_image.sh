@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -euo pipefail
 MY_DIR=$(cd "$(dirname "$0")" && pwd)
 AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../../../../" || exit 1 ; pwd)
 export AIRFLOW_SOURCES
 
+# We keep _utils here because we are not in the in_container directory
 # shellcheck source=scripts/ci/in_container/_in_container_utils.sh
 . "${MY_DIR}/../../_in_container_utils.sh"
 
@@ -29,7 +29,7 @@ assert_in_container
 
 in_container_script_start
 
-cd "${AIRFLOW_SOURCES}"
+cd "${AIRFLOW_SOURCES}" || exit 1
 
 # Required to rebuild images from inside container
 mkdir -pv scripts/docker/
@@ -41,15 +41,17 @@ echo
 start_output_heartbeat "Rebuilding Kubernetes image" 3
 docker build \
     --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
+    --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
     --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH}" \
     --build-arg AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" \
+    --build-arg UPGRADE_TO_LATEST_REQUIREMENTS="${UPGRADE_TO_LATEST_REQUIREMENTS}" \
     --build-arg HOME="${HOME}" \
     --cache-from "${AIRFLOW_CI_IMAGE}" \
     --tag="${AIRFLOW_CI_IMAGE}" \
     --target="main" \
-    -f Dockerfile . >> "${OUTPUT_LOG}"
+    -f Dockerfile.ci . >> "${OUTPUT_LOG}"
 echo
 echo "Adding kubernetes-specific scripts to basic CI image."
 echo "Building ${AIRFLOW_KUBERNETES_IMAGE} from ${AIRFLOW_CI_IMAGE}"

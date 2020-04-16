@@ -15,7 +15,8 @@
   limitations under the License.
 
 #}
-{% extends "airflow/master.html" %}
+
+{% extends base_template %}
 
 {% block title %}Airflow - DAGs{% endblock %}
 
@@ -91,13 +92,13 @@
                 <!-- Column 3: Name -->
                 <td>
                     <span>
-                      <a href="{{ url_for('Airflow.'+ dag.get_default_view(), dag_id=dag.dag_id) }}" title="{{ dag.description }}">
+                      <a href="{{ url_for('Airflow.'+ dag.get_default_view(), dag_id=dag.dag_id) }}" title="{{ dag.description[0:80] + '...' if dag.description|length > 80 else dag.description }}">
                           {{ dag.dag_id }}
                       </a>
                     </span>
 
                     <div style="float: right; max-width: 70%; text-align: right; line-height: 160%;">
-                    {% for tag in dag.tags %}
+                    {% for tag in dag.tags | sort(attribute='name') %}
                       <span class="label label-success" style="margin: 3px;">{{ tag.name }}</span>
                     {% endfor %}
                     </div>
@@ -139,8 +140,7 @@
                 {% if dag %}
 
                 <!-- Trigger Dag -->
-                <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id) }}&origin={{ request.base_url }}"
-                   onclick="return confirmTriggerDag(this, '{{ dag.safe_dag_id }}')">
+                <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id) }}&origin={{ request.base_url }}">
                     <span class="glyphicon glyphicon-play-circle" aria-hidden="true" data-original-title="Trigger Dag"></span>
                 </a>
 
@@ -228,7 +228,6 @@
   <script src="{{ url_for_asset('jquery.dataTables.min.js') }}"></script>
   <script src="{{ url_for_asset('dataTables.bootstrap.min.js') }}"></script>
   <script src="{{ url_for_asset('bootstrap-toggle.min.js') }}"></script>
-  <script src="{{ url_for_asset('bootstrap3-typeahead.min.js') }}"></script>
   <script>
 
       const DAGS_INDEX = "{{ url_for('Airflow.index') }}";
@@ -273,11 +272,11 @@
         return false;
       }
 
-      var encoded_dag_ids = [];
+      var encoded_dag_ids = new URLSearchParams();
 
       $.each($("[id^=toggle]"), function(i, v) {
-        var dag_id = encodeURIComponent($(v).attr('dag_id'));
-        encoded_dag_ids.push(dag_id);
+        var dag_id = $(v).attr('dag_id');
+        encoded_dag_ids.append('dag_ids', dag_id);
 
         $(v).change (function() {
           var dag_id =  $(v).attr('dag_id');
@@ -291,26 +290,26 @@
         });
       });
 
-      var $input = $(".typeahead");
-      unique_options_search = new Set([
-        {% for token in auto_complete_data %}"{{token}}", {% endfor %}
-      ]);
-
-      $input.typeahead({
-        source: [...unique_options_search],
+      $(".typeahead").typeahead({
+        source: function (query, callback) {
+          return $.ajax("{{ url_for('DagModelView.autocomplete') }}",
+            {
+              data: {
+                "query": encodeURIComponent(query),
+                "showPaused": "{{ not hide_paused }}"
+              },
+              success: callback
+            });
+        },
         autoSelect: false,
         afterSelect: function(value) {
-          search_query = value.trim()
+          var search_query = value.trim();
           if (search_query) {
             var query = new URLSearchParams(window.location.search);
-            query.set("search", search_query)
+            query.set("search", search_query);
             window.location = DAGS_INDEX + "?" + query;
           }
         }
-      });
-
-      $input.change(function() {
-        var current = $input.typeahead("getActive");
       });
 
       $('#dags').dataTable({
@@ -346,8 +345,9 @@
           g = d3.select('div#last-run-' + safe_dag_id)
           g.selectAll('a')
             .attr("href", "{{ url_for('Airflow.graph') }}?dag_id=" + encodeURIComponent(dag_id) + "&execution_date=" + last_run)
-            .text(last_run);
+            .insert(isoDateToTimeEl.bind(null, last_run, {title: false}));
           g.selectAll('span')
+            // We don't translate the timezone in the tooltip, that stays in UTC.
             .attr("data-original-title", "Start Date: " + last_run)
             .style('display', null);
           g.selectAll(".loading-last-run").remove();
@@ -515,12 +515,20 @@
         });
       }
 
-      if (encoded_dag_ids.length > 0) {
+      if (encoded_dag_ids.has('dag_ids')) {
         // dags on page fetch stats
-        d3.json("{{ url_for('Airflow.blocked') }}?dag_ids="  + (encoded_dag_ids.join(',')), blockedHandler);
-        d3.json("{{ url_for('Airflow.last_dagruns') }}?dag_ids=" + (encoded_dag_ids.join(',')), lastDagRunsHandler);
-        d3.json("{{ url_for('Airflow.dag_stats') }}?dag_ids=" + (encoded_dag_ids.join(',')), dagStatsHandler);
-        d3.json("{{ url_for('Airflow.task_stats') }}?dag_ids=" + (encoded_dag_ids.join(',')), taskStatsHandler);
+        d3.json("{{ url_for('Airflow.blocked') }}")
+          .header("X-CSRFToken", "{{ csrf_token() }}")
+          .post(encoded_dag_ids, blockedHandler);
+        d3.json("{{ url_for('Airflow.last_dagruns') }}")
+          .header("X-CSRFToken", "{{ csrf_token() }}")
+          .post(encoded_dag_ids, lastDagRunsHandler);
+        d3.json("{{ url_for('Airflow.dag_stats') }}")
+          .header("X-CSRFToken", "{{ csrf_token() }}")
+          .post(encoded_dag_ids, dagStatsHandler);
+        d3.json("{{ url_for('Airflow.task_stats') }}")
+          .header("X-CSRFToken", "{{ csrf_token() }}")
+          .post(encoded_dag_ids, taskStatsHandler);
       }
       else {
         // no dags, hide the loading gifs

@@ -19,7 +19,6 @@
 
 import re
 import unittest
-from typing import FrozenSet, Optional
 
 import attr
 
@@ -108,8 +107,7 @@ class CustomOpLink(BaseOperatorLink):
 
 class CustomOperator(BaseOperator):
 
-    # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
-    __serialized_fields = None  # type: Optional[FrozenSet[str]]
+    template_fields = ['bash_command']
 
     @property
     def operator_extra_links(self):
@@ -132,13 +130,6 @@ class CustomOperator(BaseOperator):
     def execute(self, context):
         self.log.info("Hello World!")
         context['task_instance'].xcom_push(key='search_query', value="dummy_value")
-
-    @classmethod
-    def get_serialized_fields(cls):
-        """Stringified CustomOperator contain exactly these fields."""
-        if not cls.__serialized_fields:
-            cls.__serialized_fields = frozenset(BaseOperator.get_serialized_fields() | {"bash_command"})
-        return cls.__serialized_fields
 
 
 class GoogleLink(BaseOperatorLink):

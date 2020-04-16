@@ -22,12 +22,13 @@ Using the Command Line Interface
 This document is meant to give an overview of all common tasks while using the CLI.
 
 .. note::
-    For more information on CLI commands, see :doc:`../cli`
+    For more information on CLI commands, see :doc:`cli-ref`
 
 Set Up connection to a remote Airflow instance
 ----------------------------------------------
 
-For some functions the CLI can use the REST API. To configure the CLI to use the API
+
+For some functions the CLI can use :doc:`the REST API <rest-api-ref>`. To configure the CLI to use the API
 when available configure as follows:
 
 .. code-block:: ini
@@ -61,7 +62,7 @@ For one-time activation of argcomplete for airflow only, use:
 
   eval "$(register-python-argcomplete airflow)"
 
-.. image:: ../img/cli_completion.gif
+.. image:: img/cli_completion.gif
 
 If you’re using ``zsh``, add the following to your ``.zshrc``:
 
@@ -87,7 +88,7 @@ For example, if you want to export ``example_complex`` DAG then you can use the 
 
 .. code-block:: bash
 
-  airflow dag show example_complex
+  airflow show_dag example_complex
 
 After passing the ``dag_id`` parameter itself, the command will print rendered DAG structure (similar to :ref:`Graph View <ui:graph-view>`)
 to the screen in the DOT format.
@@ -97,11 +98,11 @@ If you want to save files as PNG, you can use the following command:
 
 .. code-block:: bash
 
-  airflow dags show example_complex --save example_complex.png
+  airflow show_dag example_complex --save example_complex.png
 
 An example image file may look as follow:
 
-.. image:: ../img/usage_cli_export.png
+.. image:: img/usage_cli_export.png
 
 The following file formats are supported:
 
@@ -164,8 +165,8 @@ want to display ``example_bash_operator`` DAG  then you can use the following co
 
 .. code-block:: bash
 
-  airflow dag show example_bash_operator --imgcat
+  airflow show_dag example_bash_operator --imgcat
 
 You will see a similar result as in the screenshot below.
 
-.. image:: ../img/usage_cli_imgcat.png
+.. image:: img/usage_cli_imgcat.png

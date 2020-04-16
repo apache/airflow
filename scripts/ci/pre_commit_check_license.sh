@@ -15,13 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+set -euo pipefail
 
-set -uo pipefail
-
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
 export REMEMBER_LAST_ANSWER="true"
 
 # Hide lines between ****/**** (detailed list of files)
-"${MY_DIR}/ci_check_license.sh" 2>&1 | \
-    sed "/Files with Apache License headers will be marked AL.*$/,/^\**$/d"
+"$( dirname "${BASH_SOURCE[0]}" )/ci_check_license.sh" 2>&1 | \
+    (sed "/Files with Apache License headers will be marked AL.*$/,/^\**$/d" || true)

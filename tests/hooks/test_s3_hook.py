@@ -18,6 +18,8 @@
 # under the License.
 #
 
+import gzip as gz
+import io
 import mock
 import tempfile
 import unittest
@@ -268,6 +270,20 @@ class TestS3Hook(unittest.TestCase):
         self.assertEqual(body, b'Cont\xC3\xA9nt')
 
     @mock_s3
+    def test_load_string_acl(self):
+        hook = S3Hook()
+        conn = hook.get_conn()
+        # We need to create the bucket since this is all in Moto's 'virtual'
+        # AWS account
+        conn.create_bucket(Bucket="mybucket")
+        hook.load_string(u"Contént", "my_key", "mybucket",
+                         acl_policy='public-read')
+        response = boto3.client('s3').get_object_acl(Bucket="mybucket",
+                                                     Key="my_key", RequestPayer='requester')
+        assert ((response['Grants'][1]['Permission'] == 'READ') and
+                (response['Grants'][0]['Permission'] == 'FULL_CONTROL'))
+
+    @mock_s3
     def test_load_bytes(self):
         hook = S3Hook(aws_conn_id=None)
         conn = hook.get_conn()
@@ -296,6 +312,57 @@ class TestS3Hook(unittest.TestCase):
             body = resource.get()['Body'].read()
 
             self.assertEqual(body, b'Content')
+
+    @mock_s3
+    def test_load_file_gzip(self):
+        hook = S3Hook()
+        conn = hook.get_conn()
+        # We need to create the bucket since this is all in Moto's 'virtual'
+        # AWS account
+        conn.create_bucket(Bucket="mybucket")
+        with tempfile.NamedTemporaryFile() as temp_file:
+            temp_file.write(b"Content")
+            temp_file.seek(0)
+            hook.load_file(temp_file, "my_key", 'mybucket', gzip=True)
+            resource = boto3.resource('s3').Object('mybucket', 'my_key')  # pylint: disable=no-member
+            with gz.GzipFile(fileobj=io.BytesIO(resource.get()['Body'].read())) as gzfile:
+                assert gzfile.read() == b'Content'
+
+    @mock_s3
+    def test_load_file_acl(self):
+        hook = S3Hook()
+        conn = hook.get_conn()
+        # We need to create the bucket since this is all in Moto's 'virtual'
+        # AWS account
+        conn.create_bucket(Bucket="mybucket")
+        with tempfile.NamedTemporaryFile() as temp_file:
+            temp_file.write(b"Content")
+            temp_file.seek(0)
+            hook.load_file(temp_file, "my_key", 'mybucket', gzip=True,
+                           acl_policy='public-read')
+            response = boto3.client('s3').get_object_acl(Bucket='mybucket',
+                                                         Key="my_key",
+                                                         RequestPayer='requester')  # pylint: disable=no-member # noqa: E501 # pylint: disable=C0301
+            assert ((response['Grants'][1]['Permission'] == 'READ') and
+                    (response['Grants'][0]['Permission'] == 'FULL_CONTROL'))
+
+    @mock_s3
+    def test_copy_object_acl(self):
+        hook = S3Hook()
+        conn = hook.get_conn()
+        # We need to create the bucket since this is all in Moto's 'virtual'
+        # AWS account
+        conn.create_bucket(Bucket="mybucket")
+        with tempfile.NamedTemporaryFile() as temp_file:
+            temp_file.write(b"Content")
+            temp_file.seek(0)
+            hook.load_file_obj(temp_file, "my_key", 'mybucket')
+            hook.copy_object("my_key", "my_key", 'mybucket', 'mybucket')
+            response = boto3.client('s3').get_object_acl(Bucket='mybucket',
+                                                         Key="my_key",
+                                                         RequestPayer='requester')  # pylint: disable=no-member # noqa: E501 # pylint: disable=C0301
+            assert ((response['Grants'][0]['Permission'] == 'FULL_CONTROL') and
+                    (len(response['Grants']) == 1))
 
 
 if __name__ == '__main__':

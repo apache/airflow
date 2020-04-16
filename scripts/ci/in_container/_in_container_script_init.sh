@@ -16,10 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Script to check licences for all code. Can be started from any working directory
-set -uo pipefail
+set -euo pipefail
 
-MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
+# This should only be sourced from in_container directory!
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # shellcheck source=scripts/ci/in_container/_in_container_utils.sh
 . "${MY_DIR}/_in_container_utils.sh"
@@ -28,35 +28,4 @@ in_container_basic_sanity_check
 
 in_container_script_start
 
-echo
-echo "Running Licence check"
-echo
-
-# This is the target of a symlink in airflow/www_rbac/static/docs -
-# and rat exclude doesn't cope with the symlink target doesn't exist
-sudo mkdir -p docs/_build/html/
-
-echo "Running license checks. This can take a while."
-
-if ! java -jar "/opt/apache-rat.jar" -E "${AIRFLOW_SOURCES}"/.rat-excludes \
-    -d "${AIRFLOW_SOURCES}" | tee "${AIRFLOW_SOURCES}/logs/rat-results.txt" ; then
-   echo >&2 "RAT exited abnormally"
-   exit 1
-fi
-
-ERRORS=$(grep -e "??" "${AIRFLOW_SOURCES}/logs/rat-results.txt")
-
-in_container_script_end
-
-in_container_fix_ownership
-
-if test ! -z "${ERRORS}"; then
-    echo >&2
-    echo >&2 "Could not find Apache license headers in the following files:"
-    echo >&2 "${ERRORS}"
-    exit 1
-    echo >&2
-else
-    echo "RAT checks passed."
-    echo
-fi
+trap in_container_script_end EXIT

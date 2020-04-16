@@ -20,22 +20,17 @@
 #}
 {% extends "airflow/dag.html" %}
 
-{% block head_css %}
-{{ super() }}
-<link rel="stylesheet" type="text/css"
-    href="{{ url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.css')}}" >
-{% endblock %}
-
 {% block content %}
   {{ super() }}
   <h4>
-<form method="get" id="daform">
-    <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+<form method="get" id="daform" action="#">
+    <input type="hidden" name="dag_id" value="{{ dag.dag_id }}" >
+
     <div class="form-inline">
             <span style='color:#AAA;'>Task Instance: </span>
             <span>
               {{ task_id }}
-              <input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
+              <input type="hidden" value="{{ task_id }}" name="task_id">
             </span>
         {{ form.execution_date(class_="form-control") | safe }}
 
@@ -60,21 +55,17 @@
 {% endblock %}
 {% block tail %}
   {{ super() }}
-  <script src="{{ url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.js')}}"></script>
   <script>
     $( document ).ready(function() {
-      function date_change(){
-          execution_date = $("input#execution_date").val().replace(' ', 'T');
-          loc = decodeURIComponent(window.location.href);
-          loc = loc.replace('{{ execution_date }}', execution_date);
-          window.location = loc;
+      function date_change(e) {
+          // We don't want to navigate away if the datetimepicker is still visible
+          if ($(".datetimepicker bootstrap-datetimepicker-widget :visible").length > 0)
+            return
+
+          $("input#execution_date").parents("form").submit();
       }
-      $("input#execution_date").on("change.daterangepicker", function(){
-          date_change();
-      });
-      $("input#execution_date").on("apply.daterangepicker", function(){
-          date_change();
-      });
+      $("input#execution_date").parents(".datetimepicker").on("dp.change", date_change);
+      $("input#execution_date").parents(".datetimepicker").on("dp.hide", date_change);
     });
   </script>
 {% endblock %}

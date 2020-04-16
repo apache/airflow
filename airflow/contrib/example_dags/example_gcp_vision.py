@@ -110,7 +110,7 @@ reference_image = ReferenceImage(uri=GCP_VISION_REFERENCE_IMAGE_URL)
 # [START howto_operator_vision_annotate_image_request]
 annotate_image_request = {
     'image': {'source': {'image_uri': GCP_VISION_ANNOTATE_IMAGE_URL}},
-    'features': [{'type': enums.Feature.Type.LOGO_DETECTION}],
+    'features': [{'type': enums.Feature.Type.LOGO_DETECTION.value}],
 }
 # [END howto_operator_vision_annotate_image_request]
 

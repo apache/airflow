@@ -78,7 +78,8 @@ def render_template(template_file: str, **kwargs) -> str:
     :kwargs: Named parameters to use when rendering the template
     :return: Rendered template
     """
-    template = jinja2.Template(open(template_file).read())
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    template = jinja2.Template(open(os.path.join(dir_path, template_file)).read())
     return template.render(kwargs)
 
 

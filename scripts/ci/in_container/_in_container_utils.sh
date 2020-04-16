@@ -16,10 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-#
-# Asserts that you are actually in container
-#
 function assert_in_container() {
+    export VERBOSE=${VERBOSE:="false"}
     if [[ ! -f /.dockerenv ]]; then
         echo >&2
         echo >&2 "You are not inside the Airflow docker container!"
@@ -32,20 +30,22 @@ function assert_in_container() {
 }
 
 function in_container_script_start() {
-    if [[ ${AIRFLOW_CI_VERBOSE:="false"} == "true" ]]; then
+    if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
         set -x
     fi
 }
 
 function in_container_script_end() {
-    if [[ ${AIRFLOW_CI_VERBOSE:="false"} == "true" ]]; then
-        set +x
-    fi
-}
+    #shellcheck disable=2181
+    EXIT_CODE=$?
+    if [[ ${EXIT_CODE} != 0 ]]; then
+        echo "###########################################################################################"
+        echo "                   EXITING ${0} WITH STATUS CODE ${EXIT_CODE}"
+        echo "###########################################################################################"
 
-function print_in_container_info() {
-    if [[ ${AIRFLOW_CI_SILENT:="false"} != "true" ]]; then
-        echo "$@"
+    fi
+    if [[ ${VERBOSE_COMMANDS} == "true" ]]; then
+        set +x
     fi
 }
 
@@ -53,42 +53,30 @@ function print_in_container_info() {
 # Cleans up PYC files (in case they come in mounted folders)
 #
 function in_container_cleanup_pyc() {
-    print_in_container_info
-    print_in_container_info "Cleaning up .pyc files"
-    print_in_container_info
     set +o pipefail
-    NUM_FILES=$(sudo find . \
+    sudo find . \
         -path "./airflow/www/node_modules" -prune -o \
         -path "./airflow/www_rbac/node_modules" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
-        -name "*.pyc" | grep ".pyc$" | sudo xargs rm -vf | wc -l)
-    print_in_container_info "Number of deleted .pyc files: ${NUM_FILES}"
+        -name "*.pyc" | grep ".pyc$" | sudo xargs rm -f
     set -o pipefail
-    print_in_container_info
-    print_in_container_info
 }
 
 #
 # Cleans up __pycache__ directories (in case they come in mounted folders)
 #
 function in_container_cleanup_pycache() {
-    print_in_container_info
-    print_in_container_info "Cleaning up __pycache__ directories"
-    print_in_container_info
     set +o pipefail
-    NUM_FILES=$(find . \
+    find . \
         -path "./airflow/www/node_modules" -prune -o \
         -path "./airflow/www_rbac/node_modules" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
-        -name "__pycache__" | grep "__pycache__" | sudo xargs rm -rvf | wc -l)
-    print_in_container_info "Number of deleted __pycache__ dirs (and files): ${NUM_FILES}"
+        -name "__pycache__" | grep "__pycache__" | sudo xargs rm -rvf
     set -o pipefail
-    print_in_container_info
-    print_in_container_info
 }
 
 #
@@ -96,22 +84,14 @@ function in_container_cleanup_pycache() {
 # The host user.
 #
 function in_container_fix_ownership() {
-    print_in_container_info
-    print_in_container_info "Changing ownership of root-owned files to ${HOST_USER_ID}.${HOST_GROUP_ID}"
-    print_in_container_info
     set +o pipefail
-    sudo find . -user root | sudo xargs chown -v "${HOST_USER_ID}.${HOST_GROUP_ID}" | wc -l | \
-        xargs -n 1 echo "Number of files with changed ownership:"
+    sudo find . -user root \
+    | sudo xargs chown -v "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference >/dev/null 2>&1
     set -o pipefail
-    print_in_container_info
-    print_in_container_info
 }
 
 function in_container_go_to_airflow_sources() {
     pushd "${AIRFLOW_SOURCES}"  &>/dev/null || exit 1
-    print_in_container_info
-    print_in_container_info "Running in $(pwd)"
-    print_in_container_info
 }
 
 function in_container_basic_sanity_check() {
@@ -124,7 +104,7 @@ function in_container_basic_sanity_check() {
 export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access"
 
 function start_output_heartbeat() {
-    MESSAGE=${1:="Still working!"}
+    MESSAGE=${1:-"Still working!"}
     INTERVAL=${2:=10}
     echo
     echo "Starting output heartbeat"
@@ -173,4 +153,112 @@ function setup_kerberos() {
         echo
         sudo chmod 0644 "${KRB5_KTNAME}"
     fi
+}
+
+
+function dump_container_logs() {
+    echo "###########################################################################################"
+    echo "                   Dumping logs from all the containers"
+    echo "###########################################################################################"
+    echo "  Docker processes:"
+    echo "###########################################################################################"
+    docker ps --no-trunc
+    echo "###########################################################################################"
+    for CONTAINER in $(docker ps -qa)
+    do
+        CONTAINER_NAME=$(docker inspect --format "{{.Name}}" "${CONTAINER}")
+        echo "-------------------------------------------------------------------------------------------"
+        echo " Docker inspect: ${CONTAINER_NAME}"
+        echo "-------------------------------------------------------------------------------------------"
+        echo
+        docker inspect "${CONTAINER}"
+        echo
+        echo "-------------------------------------------------------------------------------------------"
+        echo " Docker logs: ${CONTAINER_NAME}"
+        echo "-------------------------------------------------------------------------------------------"
+        echo
+        docker logs "${CONTAINER}"
+        echo
+        echo "###########################################################################################"
+    done
+}
+
+function dump_airflow_logs() {
+    echo "###########################################################################################"
+    echo "                   Dumping logs from all the airflow tasks"
+    echo "###########################################################################################"
+    pushd /root/airflow/ || exit 1
+    tar -czf "${1}" logs
+    popd || exit 1
+    echo "###########################################################################################"
+}
+
+
+function send_docker_logs_to_file_io() {
+    echo "##############################################################################"
+    echo
+    echo "   DUMPING LOG FILES FROM CONTAINERS AND SENDING THEM TO file.io"
+    echo
+    echo "##############################################################################"
+    DUMP_FILE=/tmp/$(date "+%Y-%m-%d")_docker_${TRAVIS_BUILD_ID:="default"}_${TRAVIS_JOB_ID:="default"}.log.gz
+    dump_container_logs 2>&1 | gzip >"${DUMP_FILE}"
+    echo
+    echo "   Logs saved to ${DUMP_FILE}"
+    echo
+    echo "##############################################################################"
+    curl -F "file=@${DUMP_FILE}" https://file.io
+}
+
+function send_airflow_logs_to_file_io() {
+    echo "##############################################################################"
+    echo
+    echo "   DUMPING LOG FILES FROM AIRFLOW AND SENDING THEM TO file.io"
+    echo
+    echo "##############################################################################"
+    DUMP_FILE=/tmp/$(date "+%Y-%m-%d")_airflow_${TRAVIS_BUILD_ID:="default"}_${TRAVIS_JOB_ID:="default"}.log.tar.gz
+    dump_airflow_logs "${DUMP_FILE}"
+    echo
+    echo "   Logs saved to ${DUMP_FILE}"
+    echo
+    echo "##############################################################################"
+    curl -F "file=@${DUMP_FILE}" https://file.io
+}
+
+
+function dump_kind_logs() {
+    echo "###########################################################################################"
+    echo "                   Dumping logs from KIND"
+    echo "###########################################################################################"
+
+    FILE_NAME="${1}"
+    kind --name "${CLUSTER_NAME}" export logs "${FILE_NAME}"
+}
+
+
+function send_kubernetes_logs_to_file_io() {
+    echo "##############################################################################"
+    echo
+    echo "   DUMPING LOG FILES FROM KIND AND SENDING THEM TO file.io"
+    echo
+    echo "##############################################################################"
+    DUMP_DIR_NAME=$(date "+%Y-%m-%d")_kind_${TRAVIS_BUILD_ID:="default"}_${TRAVIS_JOB_ID:="default"}
+    DUMP_DIR=/tmp/${DUMP_DIR_NAME}
+    dump_kind_logs "${DUMP_DIR}"
+    tar -cvzf "${DUMP_DIR}.tar.gz" -C /tmp "${DUMP_DIR_NAME}"
+    echo
+    echo "   Logs saved to ${DUMP_DIR}.tar.gz"
+    echo
+    echo "##############################################################################"
+    curl -F "file=@${DUMP_DIR}.tar.gz" https://file.io
+}
+
+function install_released_airflow_version() {
+    pip uninstall -y apache-airflow || true
+    find /root/airflow/ -type f -print0 | xargs rm -f --
+    if [[ ${1} == "1.10.2" || ${1} == "1.10.1" ]]; then
+        export SLUGIFY_USES_TEXT_UNIDECODE=yes
+    fi
+    rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
+    INSTALLS=("apache-airflow==${1}" "werkzeug<1.0.0")
+    pip install --upgrade "${INSTALLS[@]}"
 }

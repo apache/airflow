@@ -24,6 +24,15 @@ Google Cloud Bigtable Operators
   :depth: 1
   :local:
 
+Prerequisite Tasks
+------------------
+
+.. include:: _partials/prerequisite_tasks.rst
+
+
+Environment variables
+---------------------
+
 All examples below rely on the following variables, which can be passed via environment variables.
 
 .. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_bigtable_operators.py
@@ -170,3 +179,11 @@ Using the operator
     :dedent: 4
     :start-after: [START howto_operator_gcp_bigtable_table_wait_for_replication]
     :end-before: [END howto_operator_gcp_bigtable_table_wait_for_replication]
+
+Reference
+---------
+
+For further information, look at:
+
+* `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/bigtable/index.html>`__
+* `Product Documentation <https://cloud.google.com/bigtable/docs/>`__
