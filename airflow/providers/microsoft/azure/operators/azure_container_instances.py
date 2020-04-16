@@ -296,11 +296,11 @@ class AzureContainerInstancesOperator(BaseOperator):
                                            "container instance, retrying...")
 
                 if state == "Terminated":
-                    self.log.info("Container exited with detail_status %s", detail_status)
+                    self.log.error("Container exited with detail_status %s", detail_status)
                     return exit_code
 
                 if state == "Failed":
-                    self.log.info("Azure provision failure")
+                    self.log.error("Azure provision failure")
                     return 1
 
             except AirflowTaskTimeout:

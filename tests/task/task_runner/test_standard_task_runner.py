@@ -27,7 +27,7 @@ import psutil
 from airflow import models, settings
 from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models import TaskInstance as TI
-from airflow.task.task_runner import StandardTaskRunner
+from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.state import State
 from tests.test_utils.db import clear_db_runs

@@ -116,6 +116,8 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | datadog             | ``pip install 'apache-airflow[datadog]'``           | Datadog hooks and sensors                                            |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| facebook            | ``pip install 'apache-airflow[facebook]'``          | Facebook Social                                                      |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | gcp                 | ``pip install 'apache-airflow[gcp]'``               | Google Cloud Platform                                                |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | github_enterprise   | ``pip install 'apache-airflow[github_enterprise]'`` | GitHub Enterprise auth backend                                       |

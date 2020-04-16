@@ -604,8 +604,9 @@ class GCSFileTransformOperator(BaseOperator):
                 close_fds=True
             )
             self.log.info("Process output:")
-            for line in iter(process.stdout.readline, b''):
-                self.log.info(line.decode(self.output_encoding).rstrip())
+            if process.stdout:
+                for line in iter(process.stdout.readline, b''):
+                    self.log.info(line.decode(self.output_encoding).rstrip())
 
             process.wait()
             if process.returncode > 0:

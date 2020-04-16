@@ -111,7 +111,7 @@ class LocalTaskJob(BaseJob):
                 time_since_last_heartbeat = (timezone.utcnow() - self.latest_heartbeat).total_seconds()
                 if time_since_last_heartbeat > heartbeat_time_limit:
                     Stats.incr('local_task_job_prolonged_heartbeat_failure', 1, 1)
-                    self.log.error("Heartbeat time limited exceeded!")
+                    self.log.error("Heartbeat time limit exceeded!")
                     raise AirflowException("Time since last heartbeat({:.2f}s) "
                                            "exceeded limit ({}s)."
                                            .format(time_since_last_heartbeat,

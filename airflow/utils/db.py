@@ -17,6 +17,7 @@
 # under the License.
 import logging
 import os
+import time
 
 from sqlalchemy import Table
 
@@ -88,6 +89,16 @@ def create_default_connections(session=None):
             conn_type="aws",
         ),
         session
+    )
+    merge_conn(
+        Connection(
+            conn_id="azure_batch_default",
+            conn_type="azure_batch",
+            extra='''{"account_name": "<ACCOUNT_NAME>", "account_key": "<ACCOUNT_KEY>",
+                      "account_url": "<ACCOUNT_URL>", "vm_publisher": "<VM_PUBLISHER>",
+                      "vm_offer": "<VM_OFFER>", "vm_sku": "<VM_SKU>",
+                      "vm_version": "<VM_VERSION>", "node_agent_sku_id": "<NODE_AGENT_SKU_ID>"}'''
+        )
     )
     merge_conn(
         Connection(
@@ -226,6 +237,23 @@ def create_default_connections(session=None):
                         }
                     ]
                 }
+            """,
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="facebook_default",
+            conn_type="facebook_social",
+            schema="""
+            {
+                "facebook_ads_client": {
+                    "account_id": "act_123456789",
+                    "app_id": "1234567890",
+                    "app_secret": "1f45tghxxxx12345",
+                    "access_token": "ABcdEfghiJKlmnoxxyz"
+                }
+            }
             """,
         ),
         session
@@ -534,12 +562,7 @@ def initdb():
     Base.metadata.create_all(settings.engine)  # pylint: disable=no-member
 
 
-def upgradedb():
-    """
-    Upgrade the database.
-    """
-    # alembic adds significant import time, so we import it lazily
-    from alembic import command
+def _get_alembic_config():
     from alembic.config import Config
 
     log.info("Creating tables")
@@ -549,6 +572,47 @@ def upgradedb():
     directory = os.path.join(package_dir, 'migrations')
     config = Config(os.path.join(package_dir, 'alembic.ini'))
     config.set_main_option('script_location', directory.replace('%', '%%'))
+    config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
+    return config
+
+
+def check_migrations(timeout):
+    """
+    Function to wait for all airflow migrations to complete.
+    @param timeout:
+    @return:
+    """
+    from alembic.runtime.migration import MigrationContext
+    from alembic.script import ScriptDirectory
+
+    config = _get_alembic_config()
+    script_ = ScriptDirectory.from_config(config)
+    with settings.engine.connect() as connection:
+        context = MigrationContext.configure(connection)
+        ticker = 0
+        while True:
+            source_heads = set(script_.get_heads())
+            db_heads = set(context.get_current_heads())
+            if source_heads == db_heads:
+                break
+            if ticker >= timeout:
+                raise TimeoutError("There are still unapplied migrations after {} "
+                                   "seconds.".format(ticker))
+            ticker += 1
+            time.sleep(1)
+            log.info('Waiting for migrations... %s second(s)', ticker)
+
+
+def upgradedb():
+    """
+    Upgrade the database.
+    """
+    # alembic adds significant import time, so we import it lazily
+    from alembic import command
+
+    log.info("Creating tables")
+    config = _get_alembic_config()
+
     config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
     command.upgrade(config, 'heads')
     add_default_pool_if_not_exists()

@@ -183,10 +183,6 @@ def get_dag_by_pickle(pickle_id, session=None):
     return pickle_dag
 
 
-alternative_conn_specs = ['conn_type', 'conn_host',
-                          'conn_login', 'conn_password', 'conn_schema', 'conn_port']
-
-
 def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
     """Creates logging paths"""
     if not stderr:

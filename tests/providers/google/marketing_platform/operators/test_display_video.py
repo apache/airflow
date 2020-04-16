@@ -21,10 +21,12 @@ from unittest import TestCase, mock
 from airflow.providers.google.marketing_platform.operators.display_video import (
     GoogleDisplayVideo360CreateReportOperator, GoogleDisplayVideo360DeleteReportOperator,
     GoogleDisplayVideo360DownloadReportOperator, GoogleDisplayVideo360RunReportOperator,
+    GoogleDisplayVideo360UploadLineItemsOperator,
 )
 
 API_VERSION = "api_version"
 GCP_CONN_ID = "google_cloud_default"
+DELEGATE_TO = None
 
 
 class TestGoogleDisplayVideo360CreateReportOperator(TestCase):
@@ -179,3 +181,52 @@ class TestGoogleDisplayVideo360RunReportOperator(TestCase):
         hook_mock.return_value.run_query.assert_called_once_with(
             query_id=report_id, params=params
         )
+
+
+class TestGoogleDisplayVideo360UploadLineItemsOperator(TestCase):
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators."
+        "display_video.tempfile"
+    )
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators."
+        "display_video.GoogleDisplayVideo360Hook"
+    )
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators."
+        "display_video.GCSHook"
+    )
+    def test_execute(self, gcs_hook_mock, hook_mock, mock_tempfile):
+        filename = "filename"
+        object_name = "object_name"
+        bucket_name = "bucket_name"
+        line_items = "holy_hand_grenade"
+        gcs_hook_mock.return_value.download.return_value = line_items
+        mock_tempfile.NamedTemporaryFile.return_value.__enter__.return_value.name = filename
+
+        op = GoogleDisplayVideo360UploadLineItemsOperator(
+            bucket_name=bucket_name,
+            object_name=object_name,
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            task_id="test_task",
+        )
+        op.execute(context=None)
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            api_version=API_VERSION,
+            delegate_to=DELEGATE_TO
+        )
+
+        gcs_hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+        )
+
+        gcs_hook_mock.return_value.download.assert_called_once_with(
+            bucket_name=bucket_name,
+            object_name=object_name,
+            filename=filename,
+        )
+        hook_mock.return_value.upload_line_items.assert_called_once()
+        hook_mock.return_value.upload_line_items.assert_called_once_with(line_items=line_items)

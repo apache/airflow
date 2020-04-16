@@ -188,14 +188,12 @@ class TestAutoMLUpdateDatasetOperator(unittest.TestCase):
             dataset=dataset,
             update_mask=MASK,
             location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
             task_id=TASK_ID,
         )
         op.execute(context=None)
         mock_hook.return_value.update_dataset.assert_called_once_with(
             dataset=dataset,
             metadata=None,
-            project_id=GCP_PROJECT_ID,
             retry=None,
             timeout=None,
             update_mask=MASK,

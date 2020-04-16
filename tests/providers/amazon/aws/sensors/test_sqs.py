@@ -18,7 +18,7 @@
 
 
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest import mock
 
 from moto import mock_sqs
 
@@ -47,7 +47,7 @@ class TestSQSSensor(unittest.TestCase):
             aws_conn_id='aws_default'
         )
 
-        self.mock_context = MagicMock()
+        self.mock_context = mock.MagicMock()
         self.sqs_hook = SQSHook()
 
     @mock_sqs
@@ -72,8 +72,8 @@ class TestSQSSensor(unittest.TestCase):
 
         self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context call  should be same")
 
-    @patch('airflow.providers.amazon.aws.sensors.sqs.SQSHook')
-    def test_poke_delete_raise_airflow_exception(self, mock_sqs_hook):
+    @mock.patch.object(SQSHook, 'get_conn')
+    def test_poke_delete_raise_airflow_exception(self, mock_conn):
         message = {'Messages': [{'MessageId': 'c585e508-2ea0-44c7-bf3e-d1ba0cb87834',
                                  'ReceiptHandle': 'mockHandle',
                                  'MD5OfBody': 'e5a9d8684a8edfed460b8d42fd28842f',
@@ -85,8 +85,8 @@ class TestSQSSensor(unittest.TestCase):
                                             'date': 'Mon, 18 Feb 2019 18:41:52 GMT',
                                             'content-type': 'text/xml', 'mock_sqs_hook-length': '830'},
                                         'RetryAttempts': 0}}
-        mock_sqs_hook().get_conn().receive_message.return_value = message
-        mock_sqs_hook().get_conn().delete_message_batch.return_value = \
+        mock_conn.return_value.receive_message.return_value = message
+        mock_conn.return_value.delete_message_batch.return_value = \
             {'Failed': [{'Id': '22f67273-4dbc-4c19-83b5-aee71bfeb832'}]}
 
         with self.assertRaises(AirflowException) as context:
@@ -94,9 +94,9 @@ class TestSQSSensor(unittest.TestCase):
 
         self.assertTrue('Delete SQS Messages failed' in context.exception.args[0])
 
-    @patch('airflow.providers.amazon.aws.sensors.sqs.SQSHook')
-    def test_poke_receive_raise_exception(self, mock_sqs_hook):
-        mock_sqs_hook().get_conn().receive_message.side_effect = Exception('test exception')
+    @mock.patch.object(SQSHook, 'get_conn')
+    def test_poke_receive_raise_exception(self, mock_conn):
+        mock_conn.return_value.receive_message.side_effect = Exception('test exception')
         with self.assertRaises(Exception) as context:
             self.sensor.poke(self.mock_context)
 

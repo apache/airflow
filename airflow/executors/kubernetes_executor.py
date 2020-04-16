@@ -14,7 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Kubernetes executor"""
+"""
+KubernetesExecutor
+
+.. seealso::
+    For more information on how the KubernetesExecutor works, take a look at the guide:
+    :ref:`executor:KubernetesExecutor`
+"""
 import base64
 import datetime
 import hashlib
@@ -98,8 +104,8 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
         self.kube_labels = configuration_dict.get('kubernetes_labels', {})
         self.delete_worker_pods = conf.getboolean(
             self.kubernetes_section, 'delete_worker_pods')
-        self.delete_worker_pods_on_success = conf.getboolean(
-            self.kubernetes_section, 'delete_worker_pods_on_success')
+        self.delete_worker_pods_on_failure = conf.getboolean(
+            self.kubernetes_section, 'delete_worker_pods_on_failure')
         self.worker_pods_creation_batch_size = conf.getint(
             self.kubernetes_section, 'worker_pods_creation_batch_size')
         self.worker_service_account_name = conf.get(
@@ -113,6 +119,12 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
         # Run as user for pod security context
         self.worker_run_as_user = self._get_security_context_val('run_as_user')
         self.worker_fs_group = self._get_security_context_val('fs_group')
+
+        kube_worker_resources = conf.get(self.kubernetes_section, 'worker_resources')
+        if kube_worker_resources:
+            self.worker_resources = json.loads(kube_worker_resources)
+        else:
+            self.worker_resources = None
 
         # NOTE: `git_repo` and `git_branch` must be specified together as a pair
         # The http URL of the git repository to clone from
@@ -145,6 +157,8 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
         # NOTE: The user may optionally use a volume claim to mount a PV containing
         # DAGs directly
         self.dags_volume_claim = conf.get(self.kubernetes_section, 'dags_volume_claim')
+
+        self.dags_volume_mount_point = conf.get(self.kubernetes_section, 'dags_volume_mount_point')
 
         # This prop may optionally be set for PV Claims and is used to write logs
         self.logs_volume_claim = conf.get(self.kubernetes_section, 'logs_volume_claim')
@@ -377,7 +391,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             else:
                 self.log.info('Event: %s Pending', pod_id)
         elif status == 'Failed':
-            self.log.info('Event: %s Failed', pod_id)
+            self.log.error('Event: %s Failed', pod_id)
             self.watcher_queue.put((pod_id, namespace, State.FAILED, labels, resource_version))
         elif status == 'Succeeded':
             self.log.info('Event: %s Succeeded', pod_id)
@@ -881,15 +895,12 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                       pod_id: str,
                       namespace: str) -> None:
         if state != State.RUNNING:
-            if self.kube_config.delete_worker_pods_on_success and state is State.SUCCESS:
+            if self.kube_config.delete_worker_pods:
                 if not self.kube_scheduler:
                     raise AirflowException(NOT_STARTED_MESSAGE)
-                self.kube_scheduler.delete_pod(pod_id, namespace)
-            elif self.kube_config.delete_worker_pods:
-                if not self.kube_scheduler:
-                    raise AirflowException(NOT_STARTED_MESSAGE)
-                self.kube_scheduler.delete_pod(pod_id, namespace)
-                self.log.info('Deleted pod: %s in namespace %s', str(key), str(namespace))
+                if state is not State.FAILED or self.kube_config.delete_worker_pods_on_failure:
+                    self.kube_scheduler.delete_pod(pod_id, namespace)
+                    self.log.info('Deleted pod: %s in namespace %s', str(key), str(namespace))
             try:
                 self.running.remove(key)
             except KeyError:

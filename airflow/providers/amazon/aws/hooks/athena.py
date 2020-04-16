@@ -28,8 +28,12 @@ class AWSAthenaHook(AwsBaseHook):
     """
     Interact with AWS Athena to run, poll queries and return query results
 
-    :param aws_conn_id: aws connection to use.
-    :type aws_conn_id: str
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+
     :param sleep_time: Time to wait between two consecutive call to check query status on athena
     :type sleep_time: int
     """
@@ -38,20 +42,9 @@ class AWSAthenaHook(AwsBaseHook):
     FAILURE_STATES = ('FAILED', 'CANCELLED',)
     SUCCESS_STATES = ('SUCCEEDED',)
 
-    def __init__(self, aws_conn_id='aws_default', sleep_time=30, *args, **kwargs):
-        super().__init__(aws_conn_id, *args, **kwargs)
+    def __init__(self, *args, sleep_time=30, **kwargs):
+        super().__init__(client_type='athena', *args, **kwargs)
         self.sleep_time = sleep_time
-        self.conn = None
-
-    def get_conn(self):
-        """
-        check if aws conn exists already or create one and return it
-
-        :return: boto3 session
-        """
-        if not self.conn:
-            self.conn = self.get_client_type('athena')
-        return self.conn
 
     def run_query(self, query, query_context, result_configuration, client_request_token=None,
                   workgroup='primary'):

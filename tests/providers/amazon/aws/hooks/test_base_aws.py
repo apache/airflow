@@ -41,7 +41,7 @@ class TestAwsBaseHook(unittest.TestCase):
         if client.list_clusters()['Clusters']:
             raise ValueError('AWS not properly mocked')
 
-        hook = AwsBaseHook(aws_conn_id='aws_default')
+        hook = AwsBaseHook(aws_conn_id='aws_default', client_type='emr')
         client_from_hook = hook.get_client_type('emr')
 
         self.assertEqual(client_from_hook.list_clusters()['Clusters'], [])
@@ -49,7 +49,7 @@ class TestAwsBaseHook(unittest.TestCase):
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
     @mock_dynamodb2
     def test_get_resource_type_returns_a_boto3_resource_of_the_requested_type(self):
-        hook = AwsBaseHook(aws_conn_id='aws_default')
+        hook = AwsBaseHook(aws_conn_id='aws_default', resource_type='dynamodb')
         resource_from_hook = hook.get_resource_type('dynamodb')
 
         # this table needs to be created in production
@@ -81,7 +81,7 @@ class TestAwsBaseHook(unittest.TestCase):
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
     @mock_dynamodb2
     def test_get_session_returns_a_boto3_session(self):
-        hook = AwsBaseHook(aws_conn_id='aws_default')
+        hook = AwsBaseHook(aws_conn_id='aws_default', resource_type='dynamodb')
         session_from_hook = hook.get_session()
         resource_from_session = session_from_hook.resource('dynamodb')
         table = resource_from_session.create_table(  # pylint: disable=no-member
@@ -116,7 +116,7 @@ class TestAwsBaseHook(unittest.TestCase):
                                      extra='{"aws_session_token": "test_token"}'
                                      )
         mock_get_connection.return_value = mock_connection
-        hook = AwsBaseHook()
+        hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
         credentials_from_hook = hook.get_credentials()
         self.assertEqual(credentials_from_hook.access_key, 'aws_access_key_id')
         self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
@@ -129,7 +129,7 @@ class TestAwsBaseHook(unittest.TestCase):
                                      )
 
         mock_get_connection.return_value = mock_connection
-        hook = AwsBaseHook()
+        hook = AwsBaseHook(aws_conn_id='aws_default', client_type='spam')
         credentials_from_hook = hook.get_credentials()
         self.assertEqual(credentials_from_hook.access_key, 'aws_access_key_id')
         self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
@@ -143,7 +143,7 @@ class TestAwsBaseHook(unittest.TestCase):
                   ' "aws_session_token": "session_token"}'
         )
         mock_get_connection.return_value = mock_connection
-        hook = AwsBaseHook()
+        hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
         credentials_from_hook = hook.get_credentials()
         self.assertEqual(credentials_from_hook.access_key, 'aws_access_key_id')
         self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
@@ -156,7 +156,7 @@ class TestAwsBaseHook(unittest.TestCase):
                   '"aws_secret_access_key": "aws_secret_access_key"}'
         )
         mock_get_connection.return_value = mock_connection
-        hook = AwsBaseHook()
+        hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
         credentials_from_hook = hook.get_credentials()
         self.assertEqual(credentials_from_hook.access_key, 'aws_access_key_id')
         self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
@@ -174,7 +174,7 @@ class TestAwsBaseHook(unittest.TestCase):
                   '"s3_config_file": "aws-credentials", '
                   '"region_name": "us-east-1"}')
         mock_get_connection.return_value = mock_connection
-        hook = AwsBaseHook()
+        hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
         hook._get_credentials(region_name=None)
         mock_parse_s3_config.assert_called_once_with(
             'aws-credentials',
@@ -189,7 +189,7 @@ class TestAwsBaseHook(unittest.TestCase):
         mock_connection = Connection(
             extra='{"role_arn":"arn:aws:iam::123456:role/role_arn"}')
         mock_get_connection.return_value = mock_connection
-        hook = AwsBaseHook()
+        hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
         credentials_from_hook = hook.get_credentials()
         self.assertIn("ASIA", credentials_from_hook.access_key)
 
@@ -204,7 +204,7 @@ class TestAwsBaseHook(unittest.TestCase):
     def test_expand_role(self):
         conn = boto3.client('iam', region_name='us-east-1')
         conn.create_role(RoleName='test-role', AssumeRolePolicyDocument='some policy')
-        hook = AwsBaseHook()
+        hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
         arn = hook.expand_role('test-role')
         expect_arn = conn.get_role(RoleName='test-role').get('Role').get('Arn')
         self.assertEqual(arn, expect_arn)

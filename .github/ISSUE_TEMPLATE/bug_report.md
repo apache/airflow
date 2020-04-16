@@ -41,6 +41,7 @@ This questions are the first thing we need to know to understand the context.
 - **Kernel** (e.g. `uname -a`):
 - **Install tools**:
 - **Others**:
+
 **What happened**:
 
 <!-- (please include exact error messages if you can) -->

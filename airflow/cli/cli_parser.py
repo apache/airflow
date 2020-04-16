@@ -232,6 +232,36 @@ ARG_RUN_BACKWARDS = Arg(
         "recent day first.  if there are tasks that depend_on_past "
         "this option will throw an exception"),
     action="store_true")
+# test_dag
+ARG_SHOW_DAGRUN = Arg(
+    ("--show-dagrun", ),
+    help=(
+        "After completing the backfill, shows the diagram for current DAG Run.\n"
+        "\n"
+        "The diagram is in DOT language\n"),
+    action='store_true')
+ARG_IMGCAT_DAGRUN = Arg(
+    ("--imgcat-dagrun", ),
+    help=(
+        "After completing the backfill, prints a diagram on the screen for the "
+        "current DAG Run using the imgcat tool.\n"
+        "\n"
+        "For more information, see: https://www.iterm2.com/documentation-images.html",
+    ),
+    action='store_true')
+ARG_SAVE_DAGRUN = Arg(
+    ("--save-dagrun", ),
+    help=(
+        "After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n"
+        "\n"
+        "The file format is determined by the file extension. For more information about supported "
+        "format, see: https://www.graphviz.org/doc/info/output.html\n"
+        "\n"
+        "If you want to create a PNG file then you should execute the following command:\n"
+        "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.png\n"
+        "\n"
+        "If you want to create a DOT file then you should execute the following command:\n"
+        "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.dot\n"))
 
 # list_tasks
 ARG_TREE = Arg(
@@ -404,6 +434,12 @@ ARG_JOB_ID = Arg(
 ARG_CFG_PATH = Arg(
     ("--cfg-path",),
     help="Path to config file to use instead of airflow.cfg")
+ARG_MIGRATION_TIMEOUT = Arg(
+    ("-t", "--migration-wait-timeout"),
+    help="timeout to wait for db to migrate ",
+    type=int,
+    default="0",
+)
 
 # webserver
 ARG_PORT = Arg(
@@ -648,6 +684,22 @@ ARG_SKIP_SERVE_LOGS = Arg(
     help="Don't start the serve logs process along with the workers",
     action="store_true")
 
+# info
+ARG_ANONYMIZE = Arg(
+    ('--anonymize',),
+    help=(
+        'Minimize any personal identifiable information. '
+        'Use it when sharing output with others.'
+    ),
+    action='store_true'
+)
+ARG_FILE_IO = Arg(
+    ('--file-io',),
+    help=(
+        'Send output to file.io service and returns link.'
+    ),
+    action='store_true'
+)
 
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE, ARG_CONN_HOST, ARG_CONN_LOGIN, ARG_CONN_PASSWORD, ARG_CONN_SCHEMA, ARG_CONN_PORT
@@ -765,7 +817,9 @@ DAGS_COMMANDS = (
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_test'),
         name='test',
         help="Execute one run of a DAG",
-        args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR),
+        args=(
+            ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_SHOW_DAGRUN, ARG_IMGCAT_DAGRUN, ARG_SAVE_DAGRUN
+        ),
     ),
 )
 TASKS_COMMANDS = (
@@ -921,6 +975,12 @@ DB_COMMANDS = (
         args=(),
     ),
     ActionCommand(
+        name="check-migrations",
+        help="Check if migration have finished (or continually check until timeout)",
+        func=lazy_load_command('airflow.cli.commands.db_command.wait_for_migrations'),
+        args=(ARG_MIGRATION_TIMEOUT,),
+    ),
+    ActionCommand(
         name='reset',
         help="Burn down and rebuild the metadata database",
         func=lazy_load_command('airflow.cli.commands.db_command.resetdb'),
@@ -1026,6 +1086,35 @@ ROLES_COMMANDS = (
         args=(ARG_ROLES,),
     ),
 )
+
+CELERY_COMMANDS = (
+    ActionCommand(
+        name='worker',
+        help="Start a Celery worker node",
+        func=lazy_load_command('airflow.cli.commands.celery_command.worker'),
+        args=(
+            ARG_DO_PICKLE, ARG_QUEUES, ARG_CONCURRENCY, ARG_CELERY_HOSTNAME, ARG_PID, ARG_DAEMON,
+            ARG_STDOUT, ARG_STDERR, ARG_LOG_FILE, ARG_AUTOSCALE, ARG_SKIP_SERVE_LOGS
+        ),
+    ),
+    ActionCommand(
+        name='flower',
+        help="Start a Celery Flower",
+        func=lazy_load_command('airflow.cli.commands.celery_command.flower'),
+        args=(
+            ARG_FLOWER_HOSTNAME, ARG_FLOWER_PORT, ARG_FLOWER_CONF, ARG_FLOWER_URL_PREFIX,
+            ARG_FLOWER_BASIC_AUTH, ARG_BROKER_API, ARG_PID, ARG_DAEMON, ARG_STDOUT, ARG_STDERR,
+            ARG_LOG_FILE
+        ),
+    ),
+    ActionCommand(
+        name='stop',
+        help="Stop the Celery worker gracefully",
+        func=lazy_load_command('airflow.cli.commands.celery_command.stop_worker'),
+        args=(),
+    )
+)
+
 airflow_commands: List[CLICommand] = [
     GroupCommand(
         name='dags',
@@ -1120,39 +1209,19 @@ airflow_commands: List[CLICommand] = [
         func=lazy_load_command('airflow.cli.commands.config_command.show_config'),
         args=(),
     ),
+    ActionCommand(
+        name='info',
+        help='Show information about current Airflow and environment',
+        func=lazy_load_command('airflow.cli.commands.info_command.show_info'),
+        args=(ARG_ANONYMIZE, ARG_FILE_IO, ),
+    ),
     GroupCommand(
         name="celery",
         help=(
             'Start celery components. Works only when using CeleryExecutor. For more information, see '
             'https://airflow.readthedocs.io/en/stable/executor/celery.html'
         ),
-        subcommands=(
-            ActionCommand(
-                name='worker',
-                help="Start a Celery worker node",
-                func=lazy_load_command('airflow.cli.commands.celery_command.worker'),
-                args=(
-                    ARG_DO_PICKLE, ARG_QUEUES, ARG_CONCURRENCY, ARG_CELERY_HOSTNAME, ARG_PID, ARG_DAEMON,
-                    ARG_STDOUT, ARG_STDERR, ARG_LOG_FILE, ARG_AUTOSCALE, ARG_SKIP_SERVE_LOGS
-                ),
-            ),
-            ActionCommand(
-                name='flower',
-                help="Start a Celery Flower",
-                func=lazy_load_command('airflow.cli.commands.celery_command.flower'),
-                args=(
-                    ARG_FLOWER_HOSTNAME, ARG_FLOWER_PORT, ARG_FLOWER_CONF, ARG_FLOWER_URL_PREFIX,
-                    ARG_FLOWER_BASIC_AUTH, ARG_BROKER_API, ARG_PID, ARG_DAEMON, ARG_STDOUT, ARG_STDERR,
-                    ARG_LOG_FILE
-                ),
-            ),
-            ActionCommand(
-                name='stop',
-                help="Stop the Celery worker gracefully",
-                func=lazy_load_command('airflow.cli.commands.celery_command.stop_worker'),
-                args=(),
-            )
-        )
+        subcommands=CELERY_COMMANDS
     )
 ]
 ALL_COMMANDS_DICT: Dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}

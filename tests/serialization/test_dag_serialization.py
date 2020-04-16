@@ -376,11 +376,14 @@ class TestStringifiedDAGs(unittest.TestCase):
         self.assertEqual(simple_task.end_date, expected_task_end_date)
 
     @parameterized.expand([
-        (None, None),
-        ("@weekly", "@weekly"),
-        ({"__type": "timedelta", "__var": 86400.0}, timedelta(days=1)),
+        (None, None, None),
+        ("@weekly", "@weekly", "0 0 * * 0"),
+        ("@once", "@once", None),
+        ({"__type": "timedelta", "__var": 86400.0}, timedelta(days=1), timedelta(days=1)),
     ])
-    def test_deserialization_schedule_interval(self, serialized_schedule_interval, expected):
+    def test_deserialization_schedule_interval(
+        self, serialized_schedule_interval, expected_schedule_interval, expected_n_schedule_interval
+    ):
         serialized = {
             "__version": 1,
             "dag": {
@@ -397,7 +400,8 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         dag = SerializedDAG.from_dict(serialized)
 
-        self.assertEqual(dag.schedule_interval, expected)
+        self.assertEqual(dag.schedule_interval, expected_schedule_interval)
+        self.assertEqual(dag.normalized_schedule_interval, expected_n_schedule_interval)
 
     @parameterized.expand([
         (relativedelta(days=-1), {"__type": "relativedelta", "__var": {"days": -1}}),

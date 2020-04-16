@@ -122,10 +122,17 @@ function check_db_connection {
 function check_mysql_logs {
     MAX_CHECK=${1:=60}
     # Wait until mysql is ready!
-    MYSQL_CONTAINER=$(docker ps -qf "name=mysql")
+    MYSQL_CONTAINER=$(docker ps -q -f "name=mysql" -f "volume=/dev/urandom")
     if [[ -z ${MYSQL_CONTAINER} ]]; then
         echo
         echo "ERROR! MYSQL container is not started. Exiting!"
+        echo
+        exit 1
+    elif [[ "${MYSQL_CONTAINER}" = *$'\n'* ]]; then
+        echo
+        echo "ERROR! pattern match multiple MYSQL containers. Exiting! Container ids as below:"
+        echo
+        echo "${MYSQL_CONTAINER}"
         echo
         exit 1
     fi

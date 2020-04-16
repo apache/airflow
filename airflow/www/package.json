@@ -51,6 +51,8 @@
     "mini-css-extract-plugin": "^0.4.1",
     "moment-locales-webpack-plugin": "^1.2.0",
     "style-loader": "^0.21.0",
+    "stylelint": "^13.3.1",
+    "stylelint-config-standard": "^20.0.0",
     "url-loader": "^1.0.1",
     "webpack": "^4.16.3",
     "webpack-cli": "^3.1.0",

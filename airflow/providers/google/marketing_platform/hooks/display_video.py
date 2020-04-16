@@ -127,3 +127,27 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
             .runquery(queryId=query_id, body=params)
             .execute(num_retries=self.num_retries)
         )
+
+    def upload_line_items(self, line_items: Any) -> List[Dict[str, Any]]:
+        """
+        Uploads line items in CSV format.
+
+        :param line_items: downloaded data from GCS and passed to the body request
+        :type line_items: Any
+        :return: response body.
+        :rtype: List[Dict[str, Any]]
+        """
+
+        request_body = {
+            "lineItems": line_items,
+            "dryRun": False,
+            "format": "CSV",
+        }
+
+        response = (
+            self.get_conn()  # pylint: disable=no-member
+            .lineitems()
+            .uploadlineitems(body=request_body)
+            .execute(num_retries=self.num_retries)
+        )
+        return response

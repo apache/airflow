@@ -47,7 +47,6 @@ MISSING_TEST_FILES = {
     'tests/providers/oracle/operators/test_oracle.py',
     'tests/providers/qubole/hooks/test_qubole.py',
     'tests/providers/samba/hooks/test_samba.py',
-    'tests/providers/sqlite/operators/test_sqlite.py',
     'tests/providers/yandex/hooks/test_yandex.py'
 }
 
@@ -150,7 +149,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
 
     MISSING_DOC_GUIDES = {
         'adls_to_gcs',
-        'bigquery',
         'bigquery_to_bigquery',
         'bigquery_to_gcs',
         'bigquery_to_mysql',

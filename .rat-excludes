@@ -13,6 +13,8 @@
 .eslintignore
 .flake8
 .rat-excludes
+.stylelintignore
+.stylelintrc
 requirements
 requirements.txt
 .*log

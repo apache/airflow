@@ -796,7 +796,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 raise AirflowException(
                     'BigQuery job failed. Error was: {}'.format(error_msg)
                 )
-            self.log.info(error_msg)
+            self.log.error(error_msg)
 
     def update_dataset(self, dataset_id: str,
                        dataset_resource: Dict, project_id: Optional[str] = None) -> Dict:

@@ -385,7 +385,7 @@ COPY requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt \
 # But in cron job we will install latest versions matching setup.py to see if there is no breaking change
 RUN \
     if [[ "${UPGRADE_TO_LATEST_REQUIREMENTS}" == "true" ]]; then \
-        pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade; \
+        pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy eager; \
     else \
         pip install -e ".[${AIRFLOW_EXTRAS}]" \
             --constraint  ${AIRFLOW_SOURCES}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt ; \

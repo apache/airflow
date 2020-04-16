@@ -37,7 +37,6 @@ import botocore.waiter
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.typing_compat import Protocol, runtime_checkable
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 # Add exceptions to pylint for the boto3 protocol only; ideally the boto3 library could provide
 # protocols for all their dynamically generated classes (try to migrate this to a PR on botocore).
@@ -154,7 +153,7 @@ class AwsBatchProtocol(Protocol):
 # pylint: enable=invalid-name, unused-argument
 
 
-class AwsBatchClient(LoggingMixin):
+class AwsBatchClient(AwsBaseHook):
     """
     A client for AWS batch services.
 
@@ -165,15 +164,6 @@ class AwsBatchClient(LoggingMixin):
     :param status_retries: number of HTTP retries to get job status, 10;
         polling is only used when waiters is None
     :type status_retries: Optional[int]
-
-    :param aws_conn_id: connection id of AWS credentials / region name. If None,
-        credential boto3 strategy will be used
-        (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
-    :type aws_conn_id: Optional[str]
-
-    :param region_name: region name to use in AWS client.
-        Override the region_name in connection (if provided)
-    :type region_name: Optional[str]
 
     .. note::
         Several methods use a default random delay to check or poll for job status, i.e.
@@ -209,30 +199,15 @@ class AwsBatchClient(LoggingMixin):
 
     def __init__(
         self,
+        *args,
         max_retries: Optional[int] = None,
         status_retries: Optional[int] = None,
-        aws_conn_id: Optional[str] = None,
-        region_name: Optional[str] = None,
+        **kwargs
     ):
-        super().__init__()
+        # https://github.com/python/mypy/issues/6799 hence type: ignore
+        super().__init__(client_type='batch', *args, **kwargs)  # type: ignore
         self.max_retries = max_retries or self.MAX_RETRIES
         self.status_retries = status_retries or self.STATUS_RETRIES
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
-        self._hook = None  # type: Union[AwsBaseHook, None]
-        self._client = None  # type: Union[AwsBatchProtocol, botocore.client.BaseClient, None]
-
-    @property
-    def hook(self) -> AwsBaseHook:
-        """
-        An AWS API connection manager (wraps boto3)
-
-        :return: the connected hook to AWS
-        :rtype: AwsBaseHook
-        """
-        if self._hook is None:
-            self._hook = AwsBaseHook(aws_conn_id=self.aws_conn_id)
-        return self._hook
 
     @property
     def client(self) -> Union[AwsBatchProtocol, botocore.client.BaseClient]:
@@ -242,9 +217,7 @@ class AwsBatchClient(LoggingMixin):
         :return: a boto3 'batch' client for the ``.region_name``
         :rtype: Union[AwsBatchProtocol, botocore.client.BaseClient]
         """
-        if self._client is None:
-            self._client = self.hook.get_client_type("batch", region_name=self.region_name)
-        return self._client
+        return self.conn
 
     def terminate_job(self, job_id: str, reason: str) -> Dict:
         """
@@ -259,7 +232,7 @@ class AwsBatchClient(LoggingMixin):
         :return: an API response
         :rtype: Dict
         """
-        response = self.client.terminate_job(jobId=job_id, reason=reason)
+        response = self.get_conn().terminate_job(jobId=job_id, reason=reason)
         self.log.info(response)
         return response
 
@@ -409,7 +382,7 @@ class AwsBatchClient(LoggingMixin):
         retries = 0
         while True:
             try:
-                response = self.client.describe_jobs(jobs=[job_id])
+                response = self.get_conn().describe_jobs(jobs=[job_id])
                 return self.parse_job_description(job_id, response)
 
             except botocore.exceptions.ClientError as err:

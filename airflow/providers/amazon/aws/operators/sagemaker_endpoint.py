@@ -101,7 +101,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
     def expand_role(self):
         if 'Model' not in self.config:
             return
-        hook = AwsBaseHook(self.aws_conn_id)
+        hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
         config = self.config['Model']
         if 'ExecutionRoleArn' in config:
             config['ExecutionRoleArn'] = hook.expand_role(config['ExecutionRoleArn'])

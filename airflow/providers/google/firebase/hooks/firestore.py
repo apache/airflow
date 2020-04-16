@@ -96,8 +96,6 @@ class CloudFirestoreHook(GoogleBaseHook):
             If set to None or missing, the default project_id from the GCP connection is used.
         :type project_id: str
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
         service = self.get_conn()
 
         name = f"projects/{project_id}/databases/{database_id}"

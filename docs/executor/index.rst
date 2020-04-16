@@ -30,6 +30,10 @@ full path to the module e.g. ``my_acme_company.executors.MyCustomExecutor``.
 
 .. toctree::
     :maxdepth: 1
-    :glob:
 
-    *
+    sequential
+    debug
+    local
+    dask
+    celery
+    kubernetes

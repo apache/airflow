@@ -348,3 +348,10 @@ repos:
         entry: "./scripts/ci/pre_commit_bat_tests.sh"
         files: ^breeze$|^breeze-complete$|\.sh$|\.bash$
         pass_filenames: false
+      - id: stylelint
+        name: stylelint
+        entry: "stylelint"
+        language: node
+        files: ^airflow/www/.*\.(css|scss|sass)$
+        # Keep dependency versions in sync w/ airflow/www/package.json
+        additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0']

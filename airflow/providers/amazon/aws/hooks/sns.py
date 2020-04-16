@@ -40,18 +40,16 @@ def _get_message_attribute(o):
 class AwsSnsHook(AwsBaseHook):
     """
     Interact with Amazon Simple Notification Service.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     def __init__(self, *args, **kwargs):
-        self.conn = None
-        super().__init__(*args, **kwargs)
-
-    def get_conn(self):
-        """
-        Get an SNS connection
-        """
-        self.conn = self.get_client_type('sns')
-        return self.conn
+        super().__init__(client_type='sns', *args, **kwargs)
 
     def publish_to_target(self, target_arn, message, subject=None, message_attributes=None):
         """
@@ -73,9 +71,6 @@ class AwsSnsHook(AwsBaseHook):
 
         :type message_attributes: dict
         """
-
-        conn = self.get_conn()
-
         publish_kwargs = {
             'TargetArn': target_arn,
             'MessageStructure': 'json',
@@ -92,4 +87,4 @@ class AwsSnsHook(AwsBaseHook):
                 key: _get_message_attribute(val) for key, val in message_attributes.items()
             }
 
-        return conn.publish(**publish_kwargs)
+        return self.get_conn().publish(**publish_kwargs)

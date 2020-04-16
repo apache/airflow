@@ -26,9 +26,11 @@ This module contains Base AWS Hook.
 
 import configparser
 import logging
+from typing import Optional, Union
 
 import boto3
 from botocore.config import Config
+from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -46,14 +48,41 @@ class AwsBaseHook(BaseHook):
     :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates.
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
-    :type verify: str or bool
+    :type verify: Union[bool, str, None]
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :type region_name: Optional[str]
+    :param client_type: boto3.client client_type. Eg 's3', 'emr' etc
+    :type client_type: Optional[str]
+    :param resource_type: boto3.resource resource_type. Eg 'dynamodb' etc
+    :type resource_type: Optional[str]
+    :param config: Configuration for botocore client.
+        (https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html)
+    :type config: Optional[botocore.client.Config]
     """
 
-    def __init__(self, aws_conn_id="aws_default", verify=None):
+    def __init__(
+            self,
+            aws_conn_id="aws_default",
+            verify: Union[bool, str, None] = None,
+            region_name: Optional[str] = None,
+            client_type: Optional[str] = None,
+            resource_type: Optional[str] = None,
+            config: Optional[Config] = None
+    ):
         super().__init__()
+        if not aws_conn_id:
+            raise AirflowException('aws_conn_id must be provided')
         self.aws_conn_id = aws_conn_id
         self.verify = verify
-        self.config = None
+        self.client_type = client_type
+        self.resource_type = resource_type
+        self.region_name = region_name
+        self.config = config
+
+        if not (self.client_type or self.resource_type):
+            raise AirflowException(
+                'Either client_type or resource_type'
+                ' must be provided.')
 
     # pylint: disable=too-many-statements
     def _get_credentials(self, region_name):
@@ -316,7 +345,7 @@ class AwsBaseHook(BaseHook):
         )
 
     def get_client_type(self, client_type, region_name=None, config=None):
-        """ Get the underlying boto3 client using boto3 session"""
+        """Get the underlying boto3 client using boto3 session"""
         session, endpoint_url = self._get_credentials(region_name)
 
         # No AWS Operators use the config argument to this method.
@@ -329,7 +358,7 @@ class AwsBaseHook(BaseHook):
         )
 
     def get_resource_type(self, resource_type, region_name=None, config=None):
-        """ Get the underlying boto3 resource using boto3 session"""
+        """Get the underlying boto3 resource using boto3 session"""
         session, endpoint_url = self._get_credentials(region_name)
 
         # No AWS Operators use the config argument to this method.
@@ -341,13 +370,43 @@ class AwsBaseHook(BaseHook):
             resource_type, endpoint_url=endpoint_url, config=config, verify=self.verify
         )
 
+    @cached_property
+    def conn(self):
+        """
+        Get the underlying boto3 client/resource (cached)
+
+        :return: boto3.client or boto3.resource
+        :rtype: Union[boto3.client, boto3.resource]
+        """
+        if self.client_type:
+            return self.get_client_type(self.client_type, region_name=self.region_name)
+        elif self.resource_type:
+            return self.get_resource_type(self.resource_type, region_name=self.region_name)
+        else:
+            # Rare possibility - subclasses have not specified a client_type or resource_type
+            raise NotImplementedError('Could not get boto3 connection!')
+
+    def get_conn(self):
+        """
+        Get the underlying boto3 client/resource (cached)
+
+        Implemented so that caching works as intended. It exists for compatibility
+        with subclasses that rely on a super().get_conn() method.
+
+        :return: boto3.client or boto3.resource
+        :rtype: Union[boto3.client, boto3.resource]
+        """
+        # Compat shim
+        return self.conn
+
     def get_session(self, region_name=None):
         """Get the underlying boto3.session."""
         session, _ = self._get_credentials(region_name)
         return session
 
     def get_credentials(self, region_name=None):
-        """Get the underlying `botocore.Credentials` object.
+        """
+        Get the underlying `botocore.Credentials` object.
 
         This contains the following authentication attributes: access_key, secret_key and token.
         """

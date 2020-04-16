@@ -189,7 +189,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
                 response = self.client.secrets.kv.v2.read_secret_version(
                     path=secret_path, mount_point=self.mount_point)
         except InvalidPath:
-            self.log.info("Secret %s not found in Path: %s", secret_id, secret_path)
+            self.log.debug("Secret %s not found in Path: %s", secret_id, secret_path)
             return None
 
         return_data = response["data"] if self.kv_engine_version == 1 else response["data"]["data"]

@@ -250,7 +250,7 @@ class PodLauncher(LoggingMixin):
         if status == PodStatus.PENDING:
             return State.QUEUED
         elif status == PodStatus.FAILED:
-            self.log.info('Event with job id %s Failed', job_id)
+            self.log.error('Event with job id %s Failed', job_id)
             return State.FAILED
         elif status == PodStatus.SUCCEEDED:
             self.log.info('Event with job id %s Succeeded', job_id)
@@ -258,5 +258,5 @@ class PodLauncher(LoggingMixin):
         elif status == PodStatus.RUNNING:
             return State.RUNNING
         else:
-            self.log.info('Event: Invalid state %s on job %s', status, job_id)
+            self.log.error('Event: Invalid state %s on job %s', status, job_id)
             return State.FAILED

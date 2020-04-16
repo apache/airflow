@@ -89,10 +89,9 @@ class TestCliAddConnections(unittest.TestCase):
     @parameterized.expand(
         [
             (
-                ["connections", "add", "new1", "--conn-uri=%s" % TEST_URL],
-                "\tSuccessfully added `conn_id`=new1 : postgresql://airflow:airflow@host:5432/airflow",
+                ["connections", "add", "new0", "--conn-uri=%s" % TEST_URL],
+                "\tSuccessfully added `conn_id`=new0 : postgresql://airflow:airflow@host:5432/airflow",
                 {
-                    "conn_id": "new1",
                     "conn_type": "postgres",
                     "host": "host",
                     "is_encrypted": True,
@@ -103,14 +102,33 @@ class TestCliAddConnections(unittest.TestCase):
                 },
             ),
             (
-                ["connections", "add", "new2", "--conn-uri=%s" % TEST_URL],
-                "\tSuccessfully added `conn_id`=new2 : postgresql://airflow:airflow@host:5432/airflow",
+                ["connections", "add", "new1", "--conn-uri=%s" % TEST_URL],
+                "\tSuccessfully added `conn_id`=new1 : postgresql://airflow:airflow@host:5432/airflow",
                 {
-                    "conn_id": "new2",
                     "conn_type": "postgres",
                     "host": "host",
                     "is_encrypted": True,
                     "is_extra_encrypted": False,
+                    "login": "airflow",
+                    "port": 5432,
+                    "schema": "airflow",
+                },
+            ),
+            (
+                [
+                    "connections",
+                    "add",
+                    "new2",
+                    "--conn-uri=%s" % TEST_URL,
+                    "--conn-extra",
+                    "{'extra': 'yes'}",
+                ],
+                "\tSuccessfully added `conn_id`=new2 : postgresql://airflow:airflow@host:5432/airflow",
+                {
+                    "conn_type": "postgres",
+                    "host": "host",
+                    "is_encrypted": True,
+                    "is_extra_encrypted": True,
                     "login": "airflow",
                     "port": 5432,
                     "schema": "airflow",
@@ -127,7 +145,6 @@ class TestCliAddConnections(unittest.TestCase):
                 ],
                 "\tSuccessfully added `conn_id`=new3 : postgresql://airflow:airflow@host:5432/airflow",
                 {
-                    "conn_id": "new3",
                     "conn_type": "postgres",
                     "host": "host",
                     "is_encrypted": True,
@@ -142,27 +159,6 @@ class TestCliAddConnections(unittest.TestCase):
                     "connections",
                     "add",
                     "new4",
-                    "--conn-uri=%s" % TEST_URL,
-                    "--conn-extra",
-                    "{'extra': 'yes'}",
-                ],
-                "\tSuccessfully added `conn_id`=new4 : postgresql://airflow:airflow@host:5432/airflow",
-                {
-                    "conn_id": "new4",
-                    "conn_type": "postgres",
-                    "host": "host",
-                    "is_encrypted": True,
-                    "is_extra_encrypted": True,
-                    "login": "airflow",
-                    "port": 5432,
-                    "schema": "airflow",
-                },
-            ),
-            (
-                [
-                    "connections",
-                    "add",
-                    "new5",
                     "--conn-type=hive_metastore",
                     "--conn-login=airflow",
                     "--conn-password=airflow",
@@ -170,9 +166,8 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-port=9083",
                     "--conn-schema=airflow",
                 ],
-                "\tSuccessfully added `conn_id`=new5 : hive_metastore://airflow:******@host:9083/airflow",
+                "\tSuccessfully added `conn_id`=new4 : hive_metastore://airflow:******@host:9083/airflow",
                 {
-                    "conn_id": "new5",
                     "conn_type": "hive_metastore",
                     "host": "host",
                     "is_encrypted": True,
@@ -186,16 +181,15 @@ class TestCliAddConnections(unittest.TestCase):
                 [
                     "connections",
                     "add",
-                    "new6",
+                    "new5",
                     "--conn-uri",
                     "",
                     "--conn-type=google_cloud_platform",
                     "--conn-extra",
                     "{'extra': 'yes'}",
                 ],
-                "\tSuccessfully added `conn_id`=new6 : google_cloud_platform://:@:",
+                "\tSuccessfully added `conn_id`=new5 : google_cloud_platform://:@:",
                 {
-                    "conn_id": "new6",
                     "conn_type": "google_cloud_platform",
                     "host": None,
                     "is_encrypted": False,
@@ -217,7 +211,6 @@ class TestCliAddConnections(unittest.TestCase):
         conn_id = cmd[2]
         with create_session() as session:
             comparable_attrs = [
-                "conn_id",
                 "conn_type",
                 "host",
                 "is_encrypted",
@@ -246,7 +239,7 @@ class TestCliAddConnections(unittest.TestCase):
     def test_cli_connections_add_delete_with_missing_parameters(self):
         # Attempt to add without providing conn_uri
         with self.assertRaisesRegex(
-            SystemExit, r"The following args are required to add a connection: \['conn_uri or conn_type'\]"
+            SystemExit, r"The following args are required to add a connection: \['conn-uri or conn-type'\]"
         ):
             connection_command.connections_add(self.parser.parse_args(["connections", "add", "new1"]))
 

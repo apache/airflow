@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.log.s3_task_handler import S3TaskHandler
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
+from tests.test_utils.config import conf_vars
 
 try:
     import boto3
@@ -40,6 +41,7 @@ except ImportError:
 @mock_s3
 class TestS3TaskHandler(unittest.TestCase):
 
+    @conf_vars({('logging', 'remote_log_conn_id'): 'aws_default'})
     def setUp(self):
         super().setUp()
         self.remote_log_base = 's3://bucket/remote/log/location'
@@ -52,6 +54,8 @@ class TestS3TaskHandler(unittest.TestCase):
             self.remote_log_base,
             self.filename_template
         )
+        # Vivfy the hook now with the config override
+        assert self.s3_task_handler.hook is not None
 
         date = datetime(2016, 1, 1)
         self.dag = DAG('dag_for_testing_file_task_handler', start_date=date)
@@ -77,8 +81,13 @@ class TestS3TaskHandler(unittest.TestCase):
     def test_hook(self):
         self.assertIsInstance(self.s3_task_handler.hook, S3Hook)
 
+    @conf_vars({('logging', 'remote_log_conn_id'): 'aws_default'})
     def test_hook_raises(self):
-        handler = self.s3_task_handler
+        handler = S3TaskHandler(
+            self.local_log_location,
+            self.remote_log_base,
+            self.filename_template
+        )
         with mock.patch.object(handler.log, 'error') as mock_error:
             with mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook") as mock_hook:
                 mock_hook.side_effect = Exception('Failed to connect')
@@ -88,7 +97,7 @@ class TestS3TaskHandler(unittest.TestCase):
             mock_error.assert_called_once_with(
                 'Could not create an S3Hook with connection id "%s". Please make '
                 'sure that airflow[aws] is installed and the S3 connection exists.',
-                ''
+                'aws_default'
             )
 
     def test_log_exists(self):

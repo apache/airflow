@@ -244,7 +244,7 @@ def find_task_relatives(tasks, downstream, upstream):
 
 def get_execution_dates(dag, execution_date, future, past):
     """Returns dates of DAG execution"""
-    latest_execution_date = dag.latest_execution_date
+    latest_execution_date = dag.get_latest_execution_date()
     if latest_execution_date is None:
         raise ValueError("Received non-localized date {}".format(execution_date))
     # determine date range of dag runs and tasks to consider

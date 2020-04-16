@@ -94,10 +94,16 @@ def unify_bucket_name_and_key(func):
 class S3Hook(AwsBaseHook):
     """
     Interact with AWS S3, using the boto3 library.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    def get_conn(self):
-        return self.get_client_type('s3')
+    def __init__(self, *args, **kwargs):
+        super().__init__(client_type='s3', *args, **kwargs)
 
     @staticmethod
     def parse_s3_url(s3url):
@@ -133,7 +139,7 @@ class S3Hook(AwsBaseHook):
             self.get_conn().head_bucket(Bucket=bucket_name)
             return True
         except ClientError as e:
-            self.log.info(e.response["Error"]["Message"])
+            self.log.error(e.response["Error"]["Message"])
             return False
 
     @provide_bucket_name
@@ -159,9 +165,8 @@ class S3Hook(AwsBaseHook):
         :param region_name: The name of the aws region in which to create the bucket.
         :type region_name: str
         """
-        s3_conn = self.get_conn()
         if not region_name:
-            region_name = s3_conn.meta.region_name
+            region_name = self.get_conn().meta.region_name
         if region_name == 'us-east-1':
             self.get_conn().create_bucket(Bucket=bucket_name)
         else:
@@ -292,7 +297,7 @@ class S3Hook(AwsBaseHook):
             self.get_conn().head_object(Bucket=bucket_name, Key=key)
             return True
         except ClientError as e:
-            self.log.info(e.response["Error"]["Message"])
+            self.log.error(e.response["Error"]["Message"])
             return False
 
     @provide_bucket_name

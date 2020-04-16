@@ -229,10 +229,11 @@ class PinotAdminHook(BaseHook):
             env=env)
 
         stdout = ""
-        for line in iter(sub_process.stdout.readline, b''):
-            stdout += line.decode("utf-8")
-            if verbose:
-                self.log.info(line.decode("utf-8").strip())
+        if sub_process.stdout:
+            for line in iter(sub_process.stdout.readline, b''):
+                stdout += line.decode("utf-8")
+                if verbose:
+                    self.log.info(line.decode("utf-8").strip())
 
         sub_process.wait()
 

@@ -23,7 +23,6 @@ from tabulate import tabulate
 
 from airflow.models import Connection
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import alternative_conn_specs
 from airflow.utils.session import create_session
 
 
@@ -42,6 +41,10 @@ def connections_list(args):
         print(msg)
 
 
+alternative_conn_specs = ['conn_type', 'conn_host',
+                          'conn_login', 'conn_password', 'conn_schema', 'conn_port']
+
+
 @cli_utils.action_logging
 def connections_add(args):
     """Adds new connection"""
@@ -53,14 +56,14 @@ def connections_add(args):
             if getattr(args, arg) is not None:
                 invalid_args.append(arg)
     elif not args.conn_type:
-        missing_args.append('conn_uri or conn_type')
+        missing_args.append('conn-uri or conn-type')
     if missing_args:
         msg = ('The following args are required to add a connection:' +
                ' {missing!r}'.format(missing=missing_args))
         raise SystemExit(msg)
     if invalid_args:
         msg = ('The following args are not compatible with the ' +
-               '--add flag and --conn-uri flag: {invalid!r}')
+               'add flag and --conn-uri flag: {invalid!r}')
         msg = msg.format(invalid=invalid_args)
         raise SystemExit(msg)
 

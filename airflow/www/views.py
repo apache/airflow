@@ -65,7 +65,7 @@ from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.ti_deps.dep_context import DepContext
-from airflow.ti_deps.dependencies import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
+from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.helpers import alchemy_to_dict, render_log_filename
@@ -82,6 +82,7 @@ from airflow.www.widgets import AirflowModelListWidget
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 FILTER_TAGS_COOKIE = 'tags_filter'
+FILTER_STATUS_COOKIE = 'dag_status_filter'
 
 if os.environ.get('SKIP_DAGS_PARSING') != 'True':
     dagbag = models.DagBag(settings.DAGS_FOLDER, store_serialized_dags=STORE_SERIALIZED_DAGS)
@@ -94,7 +95,7 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
     if dttm:
         dttm = timezone.parse(dttm)
     else:
-        dttm = dag.latest_execution_date or timezone.utcnow()
+        dttm = dag.get_latest_execution_date(session=session) or timezone.utcnow()
 
     base_date = request.args.get('base_date')
     if base_date:
@@ -225,7 +226,6 @@ class Airflow(AirflowBaseView):
     def index(self):
         hide_paused_dags_by_default = conf.getboolean('webserver',
                                                       'hide_paused_dags_by_default')
-        show_paused_arg = request.args.get('showPaused', 'None')
 
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         num_runs = request.args.get('num_runs')
@@ -240,6 +240,7 @@ class Airflow(AirflowBaseView):
         arg_current_page = request.args.get('page', '0')
         arg_search_query = request.args.get('search', None)
         arg_tags_filter = request.args.getlist('tags', None)
+        arg_status_filter = request.args.get('status', None)
 
         if request.args.get('reset_tags') is not None:
             flask_session[FILTER_TAGS_COOKIE] = None
@@ -251,15 +252,20 @@ class Airflow(AirflowBaseView):
             elif cookie_val:
                 arg_tags_filter = cookie_val.split(',')
 
+        if arg_status_filter is None:
+            cookie_val = flask_session.get(FILTER_STATUS_COOKIE)
+            if cookie_val:
+                arg_status_filter = cookie_val
+            else:
+                arg_status_filter = 'active' if hide_paused_dags_by_default else 'all'
+                flask_session[FILTER_STATUS_COOKIE] = arg_status_filter
+        else:
+            status = arg_status_filter.strip().lower()
+            flask_session[FILTER_STATUS_COOKIE] = status
+            arg_status_filter = status
+
         dags_per_page = PAGE_SIZE
         current_page = get_int_arg(arg_current_page, default=0)
-
-        if show_paused_arg.strip().lower() == 'false':
-            hide_paused = True
-        elif show_paused_arg.strip().lower() == 'true':
-            hide_paused = False
-        else:
-            hide_paused = hide_paused_dags_by_default
 
         start = current_page * dags_per_page
         end = start + dags_per_page
@@ -273,10 +279,6 @@ class Airflow(AirflowBaseView):
                 ~DagModel.is_subdag, DagModel.is_active
             )
 
-            # optionally filter out "paused" dags
-            if hide_paused:
-                dags_query = dags_query.filter(~DagModel.is_paused)
-
             if arg_search_query:
                 dags_query = dags_query.filter(
                     DagModel.dag_id.ilike('%' + arg_search_query + '%') |
@@ -289,7 +291,18 @@ class Airflow(AirflowBaseView):
             if 'all_dags' not in filter_dag_ids:
                 dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
 
-            dags = dags_query.order_by(DagModel.dag_id).options(
+            all_dags = dags_query
+            active_dags = dags_query.filter(~DagModel.is_paused)
+            paused_dags = dags_query.filter(DagModel.is_paused)
+
+            if arg_status_filter == 'active':
+                current_dags = active_dags
+            elif arg_status_filter == 'paused':
+                current_dags = paused_dags
+            else:
+                current_dags = all_dags
+
+            dags = current_dags.order_by(DagModel.dag_id).options(
                 joinedload(DagModel.tags)).offset(start).limit(dags_per_page).all()
 
             dagtags = session.query(DagTag.name).distinct(DagTag.name).all()
@@ -313,13 +326,16 @@ class Airflow(AirflowBaseView):
                     filename=filename),
                 "error")
 
-        num_of_all_dags = dags_query.count()
+        num_of_all_dags = current_dags.count()
         num_of_pages = int(math.ceil(num_of_all_dags / float(dags_per_page)))
+
+        status_count_active = active_dags.count()
+        status_count_paused = paused_dags.count()
+        status_count_all = status_count_active + status_count_paused
 
         return self.render_template(
             'airflow/dags.html',
             dags=dags,
-            hide_paused=hide_paused,
             current_page=current_page,
             search_query=arg_search_query if arg_search_query else '',
             page_size=dags_per_page,
@@ -327,11 +343,16 @@ class Airflow(AirflowBaseView):
             num_dag_from=min(start + 1, num_of_all_dags),
             num_dag_to=min(end, num_of_all_dags),
             num_of_all_dags=num_of_all_dags,
-            paging=wwwutils.generate_pages(current_page, num_of_pages,
+            paging=wwwutils.generate_pages(current_page,
+                                           num_of_pages,
                                            search=escape(arg_search_query) if arg_search_query else None,
-                                           showPaused=not hide_paused),
+                                           status=arg_status_filter if arg_status_filter else None),
             num_runs=num_runs,
-            tags=tags)
+            tags=tags,
+            status_filter=arg_status_filter,
+            status_count_all=status_count_all,
+            status_count_active=status_count_active,
+            status_count_paused=status_count_paused)
 
     @expose('/dag_stats', methods=['POST'])
     @has_access
@@ -1009,8 +1030,8 @@ class Airflow(AirflowBaseView):
                 conf=''
             )
 
-        dag = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
-        if not dag:
+        dag_orm = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
+        if not dag_orm:
             flash("Cannot find dag {}".format(dag_id))
             return redirect(origin)
 
@@ -1036,6 +1057,7 @@ class Airflow(AirflowBaseView):
                     conf=conf
                 )
 
+        dag = get_dag(dag_orm, STORE_SERIALIZED_DAGS)
         dag.create_dagrun(
             run_id=run_id,
             execution_date=execution_date,
@@ -1274,7 +1296,7 @@ class Airflow(AirflowBaseView):
         task = dag.get_task(task_id)
         task.dag = dag
 
-        latest_execution_date = dag.latest_execution_date
+        latest_execution_date = dag.get_latest_execution_date()
         if not latest_execution_date:
             flash(f"Cannot make {state}, seem that dag {dag_id} has never run", "error")
             return redirect(origin)
@@ -1376,7 +1398,7 @@ class Airflow(AirflowBaseView):
         if base_date:
             base_date = timezone.parse(base_date)
         else:
-            base_date = dag.latest_execution_date or timezone.utcnow()
+            base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
         with create_session() as session:
             dag_runs = (
@@ -1621,7 +1643,7 @@ class Airflow(AirflowBaseView):
         if base_date:
             base_date = timezone.parse(base_date)
         else:
-            base_date = dag.latest_execution_date or timezone.utcnow()
+            base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
         dates = dag.date_range(base_date, num=-abs(num_runs))
         min_date = dates[0] if dates else timezone.utc_epoch()
@@ -1676,10 +1698,10 @@ class Airflow(AirflowBaseView):
         # update the y Axis on both charts to have the correct time units
         chart.create_y_axis('yAxis', format='.02f', custom_format=False,
                             label='Duration ({})'.format(y_unit))
-        chart.axislist['yAxis']['axisLabelDistance'] = '40'
+        chart.axislist['yAxis']['axisLabelDistance'] = '-15'
         cum_chart.create_y_axis('yAxis', format='.02f', custom_format=False,
                                 label='Duration ({})'.format(cum_y_unit))
-        cum_chart.axislist['yAxis']['axisLabelDistance'] = '40'
+        cum_chart.axislist['yAxis']['axisLabelDistance'] = '-15'
 
         for task in dag.tasks:
             if x[task.task_id]:
@@ -1729,7 +1751,7 @@ class Airflow(AirflowBaseView):
         if base_date:
             base_date = timezone.parse(base_date)
         else:
-            base_date = dag.latest_execution_date or timezone.utcnow()
+            base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
         dates = dag.date_range(base_date, num=-abs(num_runs))
         min_date = dates[0] if dates else timezone.utc_epoch()
@@ -1794,7 +1816,7 @@ class Airflow(AirflowBaseView):
         if base_date:
             base_date = timezone.parse(base_date)
         else:
-            base_date = dag.latest_execution_date or timezone.utcnow()
+            base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
         dates = dag.date_range(base_date, num=-abs(num_runs))
         min_date = dates[0] if dates else timezone.utc_epoch()
@@ -1831,7 +1853,7 @@ class Airflow(AirflowBaseView):
         # update the y Axis to have the correct time units
         chart.create_y_axis('yAxis', format='.02f', custom_format=False,
                             label='Landing Time ({})'.format(y_unit))
-        chart.axislist['yAxis']['axisLabelDistance'] = '40'
+        chart.axislist['yAxis']['axisLabelDistance'] = '-15'
         for task in dag.tasks:
             if x[task.task_id]:
                 chart.add_serie(name=task.task_id, x=x[task.task_id],
@@ -1930,6 +1952,8 @@ class Airflow(AirflowBaseView):
 
         # determine bars to show in the gantt chart
         gantt_bar_items = []
+
+        tasks = []
         for ti in tis:
             end_date = ti.end_date or timezone.utcnow()
             # prev_attempted_tries will reflect the currently running try_number
@@ -1937,6 +1961,9 @@ class Airflow(AirflowBaseView):
             # https://issues.apache.org/jira/browse/AIRFLOW-2143
             try_count = ti.prev_attempted_tries
             gantt_bar_items.append((ti.task_id, ti.start_date, end_date, ti.state, try_count))
+            d = alchemy_to_dict(ti)
+            d['extraLinks'] = dag.get_task(ti.task_id).extra_links
+            tasks.append(d)
 
         tf_count = 0
         try_count = 1
@@ -1951,40 +1978,17 @@ class Airflow(AirflowBaseView):
             prev_task_id = tf.task_id
             gantt_bar_items.append((tf.task_id, start_date, end_date, State.FAILED, try_count))
             tf_count = tf_count + 1
-
-        task_types = {}
-        extra_links = {}
-        for t in dag.tasks:
-            task_types[t.task_id] = t.task_type
-            extra_links[t.task_id] = t.extra_links
-
-        tasks = []
-        for gantt_bar_item in gantt_bar_items:
-            task_id = gantt_bar_item[0]
-            start_date = gantt_bar_item[1]
-            end_date = gantt_bar_item[2]
-            state = gantt_bar_item[3]
-            try_count = gantt_bar_item[4]
-            tasks.append({
-                'startDate': wwwutils.epoch(start_date),
-                'endDate': wwwutils.epoch(end_date),
-                'isoStart': start_date.isoformat()[:-4],
-                'isoEnd': end_date.isoformat()[:-4],
-                'taskName': task_id,
-                'taskType': task_types[ti.task_id],
-                'duration': (end_date - start_date).total_seconds(),
-                'status': state,
-                'executionDate': dttm.isoformat(),
-                'try_number': try_count,
-                'extraLinks': extra_links[ti.task_id],
-            })
-
-        states = {task['status']: task['status'] for task in tasks}
+            task = dag.get_task(tf.task_id)
+            d = alchemy_to_dict(tf)
+            d['state'] = State.FAILED
+            d['operator'] = task.task_type
+            d['try_number'] = try_count
+            d['extraLinks'] = task.extra_links
+            tasks.append(d)
 
         data = {
             'taskNames': [ti.task_id for ti in tis],
             'tasks': tasks,
-            'taskStatus': states,
             'height': len(tis) * 25 + 25,
         }
 
@@ -2304,7 +2308,7 @@ class PoolModelView(AirflowModelView):
 
     base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete']
 
-    list_columns = ['pool', 'slots', 'used_slots', 'queued_slots']
+    list_columns = ['pool', 'slots', 'running_slots', 'queued_slots']
     add_columns = ['pool', 'slots', 'description']
     edit_columns = ['pool', 'slots', 'description']
 
@@ -2329,12 +2333,12 @@ class PoolModelView(AirflowModelView):
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
-    def fused_slots(attr):
+    def frunning_slots(attr):
         pool_id = attr.get('pool')
-        used_slots = attr.get('used_slots')
-        if pool_id is not None and used_slots is not None:
+        running_slots = attr.get('running_slots')
+        if pool_id is not None and running_slots is not None:
             url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id, _flt_3_state='running')
-            return Markup("<a href='{url}'>{used_slots}</a>").format(url=url, used_slots=used_slots)
+            return Markup("<a href='{url}'>{running_slots}</a>").format(url=url, running_slots=running_slots)
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
@@ -2349,7 +2353,7 @@ class PoolModelView(AirflowModelView):
 
     formatters_columns = {
         'pool': pool_link,
-        'used_slots': fused_slots,
+        'running_slots': frunning_slots,
         'queued_slots': fqueued_slots
     }
 
@@ -2782,10 +2786,14 @@ class DagModelView(AirflowModelView):
             ~DagModel.is_subdag, DagModel.is_active,
             DagModel.owners.ilike('%' + query + '%'))
 
-        # Hide paused dags
-        if request.args.get('showPaused', 'True').lower() == 'false':
+        # Hide DAGs if not showing status: "all"
+        status = flask_session.get(FILTER_STATUS_COOKIE)
+        if status == 'active':
             dag_ids_query = dag_ids_query.filter(~DagModel.is_paused)
             owners_query = owners_query.filter(~DagModel.is_paused)
+        elif status == 'paused':
+            dag_ids_query = dag_ids_query.filter(DagModel.is_paused)
+            owners_query = owners_query.filter(DagModel.is_paused)
 
         filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
         if 'all_dags' not in filter_dag_ids:

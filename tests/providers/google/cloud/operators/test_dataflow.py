@@ -113,7 +113,8 @@ class TestDataflowPythonOperator(unittest.TestCase):
             py_interpreter=PY_INTERPRETER,
             py_requirements=[],
             py_system_site_packages=False,
-            on_new_job_id_callback=mock.ANY
+            on_new_job_id_callback=mock.ANY,
+            project_id=None,
         )
         self.assertTrue(self.dataflow.py_file.startswith('/tmp/dataflow'))
 
@@ -163,7 +164,8 @@ class TestDataflowJavaOperator(unittest.TestCase):
             job_class=JOB_CLASS,
             append_job_name=True,
             multiple_jobs=None,
-            on_new_job_id_callback=mock.ANY
+            on_new_job_id_callback=mock.ANY,
+            project_id=None,
         )
 
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
@@ -182,7 +184,8 @@ class TestDataflowJavaOperator(unittest.TestCase):
         self.assertTrue(dataflow_mock.called)
         gcs_download_hook.assert_not_called()
         start_java_hook.assert_not_called()
-        dataflow_running.assert_called_once_with(name=JOB_NAME, variables=mock.ANY)
+        dataflow_running.assert_called_once_with(
+            name=JOB_NAME, variables=mock.ANY, project_id=None)
 
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
     @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
@@ -206,9 +209,11 @@ class TestDataflowJavaOperator(unittest.TestCase):
             job_class=JOB_CLASS,
             append_job_name=True,
             multiple_jobs=None,
-            on_new_job_id_callback=mock.ANY
+            on_new_job_id_callback=mock.ANY,
+            project_id=None,
         )
-        dataflow_running.assert_called_once_with(name=JOB_NAME, variables=mock.ANY)
+        dataflow_running.assert_called_once_with(
+            name=JOB_NAME, variables=mock.ANY, project_id=None)
 
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
     @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
@@ -233,9 +238,11 @@ class TestDataflowJavaOperator(unittest.TestCase):
             job_class=JOB_CLASS,
             append_job_name=True,
             multiple_jobs=True,
-            on_new_job_id_callback=mock.ANY
+            on_new_job_id_callback=mock.ANY,
+            project_id=None,
         )
-        dataflow_running.assert_called_once_with(name=JOB_NAME, variables=mock.ANY)
+        dataflow_running.assert_called_once_with(
+            name=JOB_NAME, variables=mock.ANY, project_id=None)
 
 
 class TestDataflowTemplateOperator(unittest.TestCase):
@@ -279,7 +286,8 @@ class TestDataflowTemplateOperator(unittest.TestCase):
             variables=expected_options,
             parameters=PARAMETERS,
             dataflow_template=TEMPLATE,
-            on_new_job_id_callback=mock.ANY
+            on_new_job_id_callback=mock.ANY,
+            project_id=None,
         )
 
 

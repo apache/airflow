@@ -17,12 +17,23 @@
 # under the License.
 
 # pylint: disable=missing-docstring
+import logging
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
-from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
+from airflow.utils.module_loading import import_string
 
-_TASK_RUNNER = conf.get('core', 'TASK_RUNNER')
+log = logging.getLogger(__name__)
+
+_TASK_RUNNER_NAME = conf.get('core', 'TASK_RUNNER')
+
+STANDARD_TASK_RUNNER = "StandardTaskRunner"
+
+CGROUP_TASK_RUNNER = "CgroupTaskRunner"
+
+CORE_TASK_RUNNERS = {
+    STANDARD_TASK_RUNNER: "airflow.task.task_runner.standard_task_runner.StandardTaskRunner",
+    CGROUP_TASK_RUNNER: "airflow.task.task_runner.cgroup_task_runner.CgroupTaskRunner",
+}
 
 
 def get_task_runner(local_task_job):
@@ -35,10 +46,13 @@ def get_task_runner(local_task_job):
     :return: The task runner to use to run the task.
     :rtype: airflow.task.task_runner.base_task_runner.BaseTaskRunner
     """
-    if _TASK_RUNNER == "StandardTaskRunner":
-        return StandardTaskRunner(local_task_job)
-    elif _TASK_RUNNER == "CgroupTaskRunner":
-        from airflow.task.task_runner.cgroup_task_runner import CgroupTaskRunner
-        return CgroupTaskRunner(local_task_job)
+    if _TASK_RUNNER_NAME in CORE_TASK_RUNNERS:
+        log.debug("Loading core task runner: %s", _TASK_RUNNER_NAME)
+        task_runner_class_name = CORE_TASK_RUNNERS[_TASK_RUNNER_NAME]
     else:
-        raise AirflowException("Unknown task runner type {}".format(_TASK_RUNNER))
+        log.debug("Loading task runner from custom path: %s", _TASK_RUNNER_NAME)
+        task_runner_class_name = _TASK_RUNNER_NAME
+
+    task_runner_class = import_string(task_runner_class_name)
+    task_runner = task_runner_class(local_task_job)
+    return task_runner

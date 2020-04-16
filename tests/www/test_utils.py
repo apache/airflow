@@ -21,10 +21,8 @@ from datetime import datetime
 from urllib.parse import parse_qs
 
 from bs4 import BeautifulSoup
-from parameterized import parameterized
 
 from airflow.www import utils
-from tests.test_utils.config import conf_vars
 
 
 class TestUtils(unittest.TestCase):
@@ -103,51 +101,18 @@ class TestUtils(unittest.TestCase):
         self.assertEqual('search=bash_',
                          utils.get_params(search='bash_'))
 
-    @parameterized.expand([
-        (True, False, ''),
-        (False, True, ''),
-        (True, True, 'showPaused=True'),
-        (False, False, 'showPaused=False'),
-        (None, True, ''),
-        (None, False, ''),
-    ])
-    def test_params_show_paused(self, show_paused, hide_by_default, expected_result):
-        with conf_vars({('webserver', 'hide_paused_dags_by_default'): str(hide_by_default)}):
-            self.assertEqual(expected_result,
-                             utils.get_params(showPaused=show_paused))
-
-    @parameterized.expand([
-        (True, False, True),
-        (False, True, True),
-        (True, True, False),
-        (False, False, False),
-        (None, True, True),
-        (None, False, True),
-    ])
-    def test_should_remove_show_paused_from_url_params(self, show_paused,
-                                                       hide_by_default, expected_result):
-        with conf_vars({('webserver', 'hide_paused_dags_by_default'): str(hide_by_default)}):
-
-            self.assertEqual(
-                expected_result,
-                utils._should_remove_show_paused_from_url_params(
-                    show_paused,
-                    hide_by_default
-                )
-            )
-
     def test_params_none_and_zero(self):
-        query_str = utils.get_params(a=0, b=None)
+        query_str = utils.get_params(a=0, b=None, c='true')
         # The order won't be consistent, but that doesn't affect behaviour of a browser
         pairs = list(sorted(query_str.split('&')))
-        self.assertListEqual(['a=0', 'b='], pairs)
+        self.assertListEqual(['a=0', 'c=true'], pairs)
 
     def test_params_all(self):
-        query = utils.get_params(showPaused=False, page=3, search='bash_')
+        query = utils.get_params(status='active', page=3, search='bash_')
         self.assertEqual(
             {'page': ['3'],
              'search': ['bash_'],
-             'showPaused': ['False']},
+             'status': ['active']},
             parse_qs(query)
         )
 

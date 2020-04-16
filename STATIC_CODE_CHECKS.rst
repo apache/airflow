@@ -98,6 +98,8 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``shellcheck``                        Checks shell files with shellcheck.
 ----------------------------------- ---------------------------------------------------------------- ------------
+``stylelint``                         Checks CSS files with stylelint.
+----------------------------------- ---------------------------------------------------------------- ------------
 ``update-breeze-file``                Update output of breeze command in BREEZE.rst.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``yamllint``                          Checks yaml files with yamllint.

@@ -117,7 +117,8 @@ class TestCreateEvaluateOps(unittest.TestCase):
                 py_requirements=['apache-beam[gcp]>=2.14.0'],
                 py_interpreter='python3',
                 py_system_site_packages=False,
-                on_new_job_id_callback=ANY
+                on_new_job_id_callback=ANY,
+                project_id='test-project',
             )
 
         with patch('airflow.providers.google.cloud.utils.mlengine_operator_utils.GCSHook') as mock_gcs_hook:

@@ -76,11 +76,11 @@ class _PrestoToGCSPrestoCursorAdapter:
         """Close the cursor now"""
         self.cursor.close()
 
-    def execute(self, *args, **kwwargs):
+    def execute(self, *args, **kwargs):
         """Prepare and execute a database operation (query or command)."""
         self.initialized = False
         self.rows = []
-        return self.cursor.execute(*args, **kwwargs)
+        return self.cursor.execute(*args, **kwargs)
 
     def executemany(self, *args, **kwargs):
         """

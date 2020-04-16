@@ -125,3 +125,15 @@ class DagConcurrencyLimitReached(AirflowException):
 
 class TaskConcurrencyLimitReached(AirflowException):
     """Raise when task concurrency limit is reached"""
+
+
+class BackfillUnfinished(AirflowException):
+    """
+    Raises when not all tasks succeed in backfill.
+
+    :param message: The human-readable description of the exception
+    :zparam ti_status: The information about all task statuses
+    """
+    def __init__(self, message, ti_status):
+        super().__init__(message)
+        self.ti_status = ti_status

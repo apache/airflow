@@ -186,6 +186,7 @@ aws = [
     'watchtower~=0.7.3',
 ]
 azure = [
+    'azure-batch>=8.0.0',
     'azure-cosmos>=3.0.1',
     'azure-datalake-store>=0.0.45',
     'azure-kusto-data>=0.0.43',
@@ -239,6 +240,9 @@ elasticsearch = [
 ]
 exasol = [
     'pyexasol>=0.5.1,<1.0.0',
+]
+facebook = [
+    'facebook-business>=6.0.2',
 ]
 flask_oauth = [
     'Flask-OAuthlib>=0.9.1',
@@ -454,7 +458,7 @@ devel = [
 ############################################################################################################
 
 if PY3:
-    devel += ['mypy==0.740']
+    devel += ['mypy==0.770']
 else:
     devel += ['unittest2']
 
@@ -462,9 +466,9 @@ devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
 devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
 
 devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + dask + datadog + devel + doc + docker +
-             elasticsearch + exasol + gcp + grpc + hashicorp + jdbc + jenkins + kerberos + kubernetes +
-             ldap + odbc + oracle + pagerduty + papermill + password + redis + salesforce + samba +
-             segment + sendgrid + sentry + singularity + slack + snowflake + ssh + statsd + tableau +
+             elasticsearch + exasol + facebook + gcp + grpc + hashicorp + jdbc + jenkins + kerberos +
+             kubernetes + ldap + odbc + oracle + pagerduty + papermill + password + redis + salesforce +
+             samba + segment + sendgrid + sentry + singularity + slack + snowflake + ssh + statsd + tableau +
              virtualenv + webhdfs + yandexcloud + zendesk)
 
 # Snakebite is not Python 3 compatible :'(
@@ -496,6 +500,7 @@ EXTRAS_REQUIREMENTS = {
     'druid': druid,
     'elasticsearch': elasticsearch,
     'exasol': exasol,
+    'facebook': facebook,
     'gcp': gcp,
     'gcp_api': gcp,  # TODO: remove this in Airflow 2.1
     'github_enterprise': flask_oauth,

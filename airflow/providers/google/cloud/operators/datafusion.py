@@ -221,7 +221,7 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
                 raise
             self.log.info("Instance %s already exists", self.instance_name)
             instance = hook.get_instance(
-                instance_name=self.instance_name, location=self.location
+                instance_name=self.instance_name, location=self.location, project_id=self.project_id
             )
 
         return instance
@@ -618,6 +618,8 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
     :type instance_name: str
     :param location: The Cloud Data Fusion location in which to handle the request.
     :type location: str
+    :param runtime_args: Optional runtime args to be passed to the pipeline
+    :type runtime_args: dict
     :param namespace: If your pipeline belongs to a Basic edition instance, the namespace ID
         is always default. If your pipeline belongs to an Enterprise edition instance, you
         can create a namespace.
@@ -631,7 +633,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
     :type delegate_to: str
     """
 
-    template_fields = ("instance_name", "pipeline_name")
+    template_fields = ("instance_name", "pipeline_name", "runtime_args")
 
     @apply_defaults
     def __init__(
@@ -639,6 +641,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         pipeline_name: str,
         instance_name: str,
         location: str,
+        runtime_args: Optional[Dict[str, Any]] = None,
         namespace: str = "default",
         project_id: Optional[str] = None,
         api_version: str = "v1beta1",
@@ -649,6 +652,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
     ) -> None:
         super().__init__(*args, **kwargs)
         self.pipeline_name = pipeline_name
+        self.runtime_args = runtime_args
         self.namespace = namespace
         self.instance_name = instance_name
         self.location = location
@@ -674,6 +678,8 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
             pipeline_name=self.pipeline_name,
             instance_url=api_url,
             namespace=self.namespace,
+            runtime_args=self.runtime_args
+
         )
         self.log.info("Pipeline started")
 

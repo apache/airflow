@@ -102,7 +102,7 @@ def validate_stat(fn):
             stat_name = handle_stat_name_func(stat)
             return fn(_self, stat_name, *args, **kwargs)
         except InvalidStatsNameException:
-            log.warning('Invalid stat name: %s.', stat, exc_info=True)
+            log.error('Invalid stat name: %s.', stat, exc_info=True)
             return
 
     return wrapper
@@ -199,7 +199,7 @@ class _Stats(type):
                 else:
                     self.__class__.instance = DummyStatsLogger()
             except (socket.gaierror, ImportError) as e:
-                log.warning("Could not configure StatsClient: %s, using DummyStatsLogger instead.", e)
+                log.error("Could not configure StatsClient: %s, using DummyStatsLogger instead.", e)
                 self.__class__.instance = DummyStatsLogger()
 
     def get_statsd_logger(self):

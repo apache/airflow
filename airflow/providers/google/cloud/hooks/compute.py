@@ -73,7 +73,7 @@ class ComputeEngineHook(GoogleBaseHook):
         return self._conn
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def start_instance(self, zone: str, resource_id: str, project_id: Optional[str] = None) -> None:
+    def start_instance(self, zone: str, resource_id: str, project_id: str) -> None:
         """
         Starts an existing instance defined by project_id, zone and resource_id.
         Must be called with keyword arguments rather than positional.
@@ -88,8 +88,6 @@ class ComputeEngineHook(GoogleBaseHook):
         :type project_id: str
         :return: None
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
         response = self.get_conn().instances().start(  # pylint: disable=no-member
             project=project_id,
             zone=zone,
@@ -106,7 +104,7 @@ class ComputeEngineHook(GoogleBaseHook):
                                              zone=zone)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def stop_instance(self, zone: str, resource_id: str, project_id: Optional[str] = None) -> None:
+    def stop_instance(self, zone: str, resource_id: str, project_id: str) -> None:
         """
         Stops an instance defined by project_id, zone and resource_id
         Must be called with keyword arguments rather than positional.
@@ -121,8 +119,6 @@ class ComputeEngineHook(GoogleBaseHook):
         :type project_id: str
         :return: None
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
         response = self.get_conn().instances().stop(  # pylint: disable=no-member
             project=project_id,
             zone=zone,
@@ -144,7 +140,7 @@ class ComputeEngineHook(GoogleBaseHook):
         zone: str,
         resource_id: str,
         body: Dict,
-        project_id: Optional[str] = None
+        project_id: str
     ) -> None:
         """
         Sets machine type of an instance defined by project_id, zone and resource_id.
@@ -164,8 +160,6 @@ class ComputeEngineHook(GoogleBaseHook):
         :type project_id: str
         :return: None
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
         response = self._execute_set_machine_type(zone, resource_id, body, project_id)
         try:
             operation_name = response["name"]
@@ -189,7 +183,7 @@ class ComputeEngineHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_instance_template(self, resource_id: str, project_id: Optional[str] = None) -> Dict:
+    def get_instance_template(self, resource_id: str, project_id: str) -> Dict:
         """
         Retrieves instance template by project_id and resource_id.
         Must be called with keyword arguments rather than positional.
@@ -204,8 +198,6 @@ class ComputeEngineHook(GoogleBaseHook):
             https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates
         :rtype: dict
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
         response = self.get_conn().instanceTemplates().get(  # pylint: disable=no-member
             project=project_id,
             instanceTemplate=resource_id
@@ -216,8 +208,8 @@ class ComputeEngineHook(GoogleBaseHook):
     def insert_instance_template(
         self,
         body: Dict,
+        project_id: str,
         request_id: Optional[str] = None,
-        project_id: Optional[str] = None
     ) -> None:
         """
         Inserts instance template using body specified
@@ -237,8 +229,6 @@ class ComputeEngineHook(GoogleBaseHook):
         :type project_id: str
         :return: None
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
         response = self.get_conn().instanceTemplates().insert(  # pylint: disable=no-member
             project=project_id,
             body=body,
@@ -258,7 +248,7 @@ class ComputeEngineHook(GoogleBaseHook):
         self,
         zone: str,
         resource_id: str,
-        project_id: Optional[str] = None
+        project_id: str,
     ) -> Dict:
         """
         Retrieves Instance Group Manager by project_id, zone and resource_id.
@@ -276,8 +266,6 @@ class ComputeEngineHook(GoogleBaseHook):
             https://cloud.google.com/compute/docs/reference/rest/beta/instanceGroupManagers
         :rtype: dict
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
         response = self.get_conn().instanceGroupManagers().get(  # pylint: disable=no-member
             project=project_id,
             zone=zone,
@@ -291,8 +279,8 @@ class ComputeEngineHook(GoogleBaseHook):
         zone: str,
         resource_id: str,
         body: Dict,
+        project_id: str,
         request_id: Optional[str] = None,
-        project_id: Optional[str] = None
     ) -> None:
         """
         Patches Instance Group Manager with the specified body.
@@ -317,8 +305,6 @@ class ComputeEngineHook(GoogleBaseHook):
         :type project_id: str
         :return: None
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
         response = self.get_conn().instanceGroupManagers().patch(  # pylint: disable=no-member
             project=project_id,
             zone=zone,

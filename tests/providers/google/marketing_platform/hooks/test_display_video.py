@@ -136,3 +136,52 @@ class TestGoogleDisplayVideo360Hook(TestCase):
         get_conn_mock.return_value.queries.return_value.runquery.assert_called_once_with(
             queryId=query_id, body=params
         )
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook.get_conn"
+    )
+    def test_upload_line_items_should_be_called_once(self, get_conn_mock):
+        line_items = ["this", "is", "super", "awesome", "test"]
+
+        self.hook.upload_line_items(line_items)
+        get_conn_mock.return_value \
+            .lineitems.return_value \
+            .uploadlineitems.assert_called_once()
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook.get_conn"
+    )
+    def test_upload_line_items_should_be_called_with_params(self, get_conn_mock):
+        line_items = "I spent too much time on this"
+        request_body = {
+            "lineItems": line_items,
+            "dryRun": False,
+            "format": "CSV",
+        }
+
+        self.hook.upload_line_items(line_items)
+
+        get_conn_mock.return_value \
+            .lineitems.return_value \
+            .uploadlineitems.assert_called_once_with(body=request_body)
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook.get_conn"
+    )
+    def test_upload_line_items_should_return_equal_values(self, get_conn_mock):
+        line_items = {
+            "lineItems": "string",
+            "format": "string",
+            "dryRun": False
+        }
+        return_value = "TEST"
+        get_conn_mock.return_value \
+            .lineitems.return_value \
+            .uploadlineitems.return_value \
+            .execute.return_value = return_value
+        result = self.hook.upload_line_items(line_items)
+
+        self.assertEqual(return_value, result)

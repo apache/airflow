@@ -167,7 +167,7 @@ class CloudVisionHook(GoogleBaseHook):
         self,
         location: str,
         product_set: Union[dict, ProductSet],
-        project_id: Optional[str] = None,
+        project_id: str,
         product_set_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -177,8 +177,6 @@ class CloudVisionHook(GoogleBaseHook):
         For the documentation see:
         :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetCreateOperator`
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         parent = ProductSearchClient.location_path(project_id, location)
         self.log.info('Creating a new ProductSet under the parent: %s', parent)
@@ -205,7 +203,7 @@ class CloudVisionHook(GoogleBaseHook):
         self,
         location: str,
         product_set_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None, metadata: Optional[Sequence[Tuple[str, str]]] = None
     ) -> Dict:
@@ -213,8 +211,6 @@ class CloudVisionHook(GoogleBaseHook):
         For the documentation see:
         :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetGetOperator`
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         name = ProductSearchClient.product_set_path(project_id, location, product_set_id)
         self.log.info('Retrieving ProductSet: %s', name)
@@ -227,10 +223,10 @@ class CloudVisionHook(GoogleBaseHook):
     def update_product_set(
         self,
         product_set: Union[dict, ProductSet],
+        project_id: str,
         location: Optional[str] = None,
         product_set_id: Optional[str] = None,
         update_mask: Union[dict, FieldMask] = None,
-        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -239,8 +235,6 @@ class CloudVisionHook(GoogleBaseHook):
         For the documentation see:
         :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetUpdateOperator`
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         product_set = self.product_set_name_determiner.get_entity_with_name(
             product_set, product_set_id, location, project_id
@@ -258,7 +252,7 @@ class CloudVisionHook(GoogleBaseHook):
         self,
         location: str,
         product_set_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
@@ -267,8 +261,6 @@ class CloudVisionHook(GoogleBaseHook):
         For the documentation see:
         :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetDeleteOperator`
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         name = ProductSearchClient.product_set_path(project_id, location, product_set_id)
         self.log.info('Deleting ProductSet: %s', name)
@@ -280,7 +272,7 @@ class CloudVisionHook(GoogleBaseHook):
         self,
         location: str,
         product: Union[dict, Product],
-        project_id: Optional[str] = None,
+        project_id: str,
         product_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -290,8 +282,6 @@ class CloudVisionHook(GoogleBaseHook):
         For the documentation see:
         :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductCreateOperator`
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         parent = ProductSearchClient.location_path(project_id, location)
         self.log.info('Creating a new Product under the parent: %s', parent)
@@ -318,7 +308,7 @@ class CloudVisionHook(GoogleBaseHook):
         self,
         location: str,
         product_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
@@ -327,8 +317,6 @@ class CloudVisionHook(GoogleBaseHook):
         For the documentation see:
         :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductGetOperator`
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         name = ProductSearchClient.product_path(project_id, location, product_id)
         self.log.info('Retrieving Product: %s', name)
@@ -341,10 +329,10 @@ class CloudVisionHook(GoogleBaseHook):
     def update_product(
         self,
         product: Union[dict, Product],
+        project_id: str,
         location: Optional[str] = None,
         product_id: Optional[str] = None,
         update_mask: Optional[Dict[str, FieldMask]] = None,
-        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -353,8 +341,6 @@ class CloudVisionHook(GoogleBaseHook):
         For the documentation see:
         :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductUpdateOperator`
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         product = self.product_name_determiner.get_entity_with_name(product, product_id, location, project_id)
         self.log.info('Updating ProductSet: %s', product.name)
@@ -370,7 +356,7 @@ class CloudVisionHook(GoogleBaseHook):
         self,
         location: str,
         product_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None
@@ -379,8 +365,6 @@ class CloudVisionHook(GoogleBaseHook):
         For the documentation see:
         :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductDeleteOperator`
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         name = ProductSearchClient.product_path(project_id, location, product_id)
         self.log.info('Deleting ProductSet: %s', name)
@@ -393,8 +377,8 @@ class CloudVisionHook(GoogleBaseHook):
         location: str,
         product_id: str,
         reference_image: Union[Dict, ReferenceImage],
+        project_id: str,
         reference_image_id: Optional[str] = None,
-        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -403,8 +387,6 @@ class CloudVisionHook(GoogleBaseHook):
         For the documentation see:
         :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionReferenceImageCreateOperator`
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         self.log.info('Creating ReferenceImage')
         parent = ProductSearchClient.product_path(project=project_id, location=location, product=product_id)
@@ -436,7 +418,7 @@ class CloudVisionHook(GoogleBaseHook):
         location: str,
         product_id: str,
         reference_image_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -445,8 +427,6 @@ class CloudVisionHook(GoogleBaseHook):
         For the documentation see:
         :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionReferenceImageCreateOperator`
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         self.log.info('Deleting ReferenceImage')
         name = ProductSearchClient.reference_image_path(
@@ -465,8 +445,8 @@ class CloudVisionHook(GoogleBaseHook):
         self,
         product_set_id: str,
         product_id: str,
+        project_id: str,
         location: Optional[str] = None,
-        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -475,8 +455,6 @@ class CloudVisionHook(GoogleBaseHook):
         For the documentation see:
         :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionAddProductToProductSetOperator`
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
 
         product_name = ProductSearchClient.product_path(project_id, location, product_id)
@@ -495,8 +473,8 @@ class CloudVisionHook(GoogleBaseHook):
         self,
         product_set_id: str,
         product_id: str,
+        project_id: str,
         location: Optional[str] = None,
-        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -505,8 +483,6 @@ class CloudVisionHook(GoogleBaseHook):
         For the documentation see:
         :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionRemoveProductFromProductSetOperator` # pylint: disable=line-too-long # noqa
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
 
         product_name = ProductSearchClient.product_path(project_id, location, product_id)

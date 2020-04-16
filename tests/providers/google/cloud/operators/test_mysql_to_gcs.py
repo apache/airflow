@@ -92,9 +92,11 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
     @parameterized.expand([
         ("string", None, "string"),
         (datetime.date(1970, 1, 2), None, 86400),
+        (datetime.date(1970, 1, 2), "DATE", "1970-01-02"),
         (datetime.datetime(1970, 1, 1, 1, 0), None, 3600),
         (decimal.Decimal(5), None, 5),
         (b"bytes", "BYTES", "Ynl0ZXM="),
+        (b"\x00\x01", "INTEGER", 1),
         (None, "BYTES", None)
     ])
     def test_convert_type(self, value, schema_type, expected):

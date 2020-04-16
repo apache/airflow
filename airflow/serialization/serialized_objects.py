@@ -205,7 +205,7 @@ class BaseSerialization:
                 log.debug('Cast type %s to str in serialization.', type(var))
                 return str(var)
         except Exception:  # pylint: disable=broad-except
-            log.warning('Failed to stringify.', exc_info=True)
+            log.error('Failed to stringify.', exc_info=True)
             return FAILED
     # pylint: enable=too-many-return-statements
 

@@ -95,8 +95,6 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
 
         # make sure the hook was initialized with the specific params
         calls = [
-            mock.call(aws_conn_id='aws_test'),
-            mock.call(aws_conn_id='aws_test'),
             mock.call(aws_conn_id='aws_test')
         ]
         hook_init.assert_has_calls(calls)
@@ -130,8 +128,6 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
         self.assertEqual(mock_describe_job.call_count, 1)
 
         calls = [
-            mock.call(aws_conn_id='aws_test'),
-            mock.call(aws_conn_id='aws_test'),
             mock.call(aws_conn_id='aws_test')
         ]
         hook_init.assert_has_calls(calls)

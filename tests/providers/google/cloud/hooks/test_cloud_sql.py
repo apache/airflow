@@ -49,7 +49,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             side_effect=HttpError(resp=httplib2.Response({'status': 400}), content=b'Error content')
         )
         with self.assertRaises(AirflowException) as cm:
-            self.cloudsql_hook.import_instance(
+            self.cloudsql_hook.import_instance(  # pylint: disable=no-value-for-parameter
                 instance='instance',
                 body={})
         err = cm.exception
@@ -64,7 +64,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
                                   content=b'Error content')
         )
         with self.assertRaises(HttpError) as cm:
-            self.cloudsql_hook.export_instance(
+            self.cloudsql_hook.export_instance(  # pylint: disable=no-value-for-parameter
                 instance='instance',
                 body={})
         err = cm.exception
@@ -80,7 +80,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = import_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.import_instance(
+        self.cloudsql_hook.import_instance(  # pylint: disable=no-value-for-parameter
             instance='instance',
             body={})
 
@@ -99,7 +99,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = export_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.export_instance(
+        self.cloudsql_hook.export_instance(  # pylint: disable=no-value-for-parameter
             instance='instance',
             body={})
 
@@ -140,7 +140,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = get_method.return_value.execute
         execute_method.return_value = {"name": "instance"}
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook.get_instance(
+        res = self.cloudsql_hook.get_instance(  # pylint: disable=no-value-for-parameter
             instance='instance')
         self.assertIsNotNone(res)
         self.assertEqual('instance', res['name'])
@@ -158,7 +158,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = insert_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.create_instance(
+        self.cloudsql_hook.create_instance(  # pylint: disable=no-value-for-parameter
             body={})
 
         insert_method.assert_called_once_with(body={}, project='example-project')
@@ -181,7 +181,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             {"name": "operation_id"}
         ]
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.create_instance(
+        self.cloudsql_hook.create_instance(  # pylint: disable=no-value-for-parameter
             body={})
 
         self.assertEqual(1, mock_get_credentials.call_count)
@@ -204,7 +204,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             {"name": "operation_id"}
         ]
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.patch_instance(
+        self.cloudsql_hook.patch_instance(  # pylint: disable=no-value-for-parameter
             instance='instance',
             body={})
 
@@ -224,7 +224,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = patch_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.patch_instance(
+        self.cloudsql_hook.patch_instance(  # pylint: disable=no-value-for-parameter
             instance='instance',
             body={})
 
@@ -244,7 +244,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = delete_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.delete_instance(
+        self.cloudsql_hook.delete_instance(  # pylint: disable=no-value-for-parameter
             instance='instance')
 
         delete_method.assert_called_once_with(instance='instance', project='example-project')
@@ -267,7 +267,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             {"name": "operation_id"}
         ]
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.delete_instance(
+        self.cloudsql_hook.delete_instance(  # pylint: disable=no-value-for-parameter
             instance='instance')
 
         self.assertEqual(1, mock_get_credentials.call_count)
@@ -286,7 +286,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = get_method.return_value.execute
         execute_method.return_value = {"name": "database"}
         wait_for_operation_to_complete.return_value = None
-        res = self.cloudsql_hook.get_database(
+        res = self.cloudsql_hook.get_database(  # pylint: disable=no-value-for-parameter
             database='database',
             instance='instance')
         self.assertIsNotNone(res)
@@ -307,7 +307,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = insert_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.create_database(
+        self.cloudsql_hook.create_database(  # pylint: disable=no-value-for-parameter
             instance='instance',
             body={})
 
@@ -331,7 +331,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             {"name": "operation_id"}
         ]
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.create_database(
+        self.cloudsql_hook.create_database(  # pylint: disable=no-value-for-parameter
             instance='instance',
             body={})
 
@@ -351,7 +351,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = patch_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.patch_database(
+        self.cloudsql_hook.patch_database(  # pylint: disable=no-value-for-parameter
             instance='instance',
             database='database',
             body={})
@@ -379,7 +379,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             {"name": "operation_id"}
         ]
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.patch_database(
+        self.cloudsql_hook.patch_database(  # pylint: disable=no-value-for-parameter
             instance='instance',
             database='database',
             body={})
@@ -400,7 +400,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method = delete_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.delete_database(
+        self.cloudsql_hook.delete_database(  # pylint: disable=no-value-for-parameter
             instance='instance',
             database='database')
 
@@ -426,7 +426,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             {"name": "operation_id"}
         ]
         wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.delete_database(
+        self.cloudsql_hook.delete_database(  # pylint: disable=no-value-for-parameter
             instance='instance',
             database='database')
 
@@ -474,30 +474,6 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
-    def test_instance_import_missing_project_id(
-        self, wait_for_operation_to_complete, get_conn, mock_project_id
-    ):
-        import_method = get_conn.return_value.instances.return_value.import_
-        execute_method = import_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
-        wait_for_operation_to_complete.return_value = None
-        with self.assertRaises(AirflowException) as cm:
-            self.cloudsql_hook_no_default_project_id.import_instance(
-                instance='instance',
-                body={})
-        import_method.assert_not_called()
-        execute_method.assert_not_called()
-        err = cm.exception
-        self.assertIn("The project id must be passed", str(err))
-        wait_for_operation_to_complete.assert_not_called()
-
-    @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
-        new_callable=PropertyMock,
-        return_value=None
-    )
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
     def test_instance_export_overridden_project_id(
         self, wait_for_operation_to_complete, get_conn, mock_project_id
     ):
@@ -521,30 +497,6 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
-    def test_instance_export_missing_project_id(
-        self, wait_for_operation_to_complete, get_conn, mock_project_id
-    ):
-        export_method = get_conn.return_value.instances.return_value.export
-        execute_method = export_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
-        wait_for_operation_to_complete.return_value = None
-        with self.assertRaises(AirflowException) as cm:
-            self.cloudsql_hook_no_default_project_id.export_instance(
-                instance='instance',
-                body={})
-        export_method.assert_not_called()
-        execute_method.assert_not_called()
-        err = cm.exception
-        self.assertIn("The project id must be passed", str(err))
-        wait_for_operation_to_complete.assert_not_called()
-
-    @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
-        new_callable=PropertyMock,
-        return_value=None
-    )
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
     def test_get_instance_overridden_project_id(
         self, wait_for_operation_to_complete, get_conn, mock_project_id
     ):
@@ -559,29 +511,6 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         self.assertEqual('instance', res['name'])
         get_method.assert_called_once_with(instance='instance', project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
-        wait_for_operation_to_complete.assert_not_called()
-
-    @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
-        new_callable=PropertyMock,
-        return_value=None
-    )
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
-    def test_get_instance_missing_project_id(
-        self, wait_for_operation_to_complete, get_conn, mock_project_id
-    ):
-        get_method = get_conn.return_value.instances.return_value.get
-        execute_method = get_method.return_value.execute
-        execute_method.return_value = {"name": "instance"}
-        wait_for_operation_to_complete.return_value = None
-        with self.assertRaises(AirflowException) as cm:
-            self.cloudsql_hook_no_default_project_id.get_instance(
-                instance='instance')
-        get_method.assert_not_called()
-        execute_method.assert_not_called()
-        err = cm.exception
-        self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
     @mock.patch(
@@ -614,29 +543,6 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
-    def test_create_instance_missing_project_id(
-        self, wait_for_operation_to_complete, get_conn, mock_project_id
-    ):
-        insert_method = get_conn.return_value.instances.return_value.insert
-        execute_method = insert_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
-        wait_for_operation_to_complete.return_value = None
-        with self.assertRaises(AirflowException) as cm:
-            self.cloudsql_hook_no_default_project_id.create_instance(
-                body={})
-        insert_method.assert_not_called()
-        execute_method.assert_not_called()
-        err = cm.exception
-        self.assertIn("The project id must be passed", str(err))
-        wait_for_operation_to_complete.assert_not_called()
-
-    @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
-        new_callable=PropertyMock,
-        return_value=None
-    )
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
     def test_patch_instance_overridden_project_id(
         self, wait_for_operation_to_complete, get_conn, mock_project_id
     ):
@@ -661,30 +567,6 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
-    def test_patch_instance_missing_project_id(
-        self, wait_for_operation_to_complete, get_conn, mock_project_id
-    ):
-        patch_method = get_conn.return_value.instances.return_value.patch
-        execute_method = patch_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
-        wait_for_operation_to_complete.return_value = None
-        with self.assertRaises(AirflowException) as cm:
-            self.cloudsql_hook_no_default_project_id.patch_instance(
-                instance='instance',
-                body={})
-        patch_method.assert_not_called()
-        execute_method.assert_not_called()
-        err = cm.exception
-        self.assertIn("The project id must be passed", str(err))
-        wait_for_operation_to_complete.assert_not_called()
-
-    @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
-        new_callable=PropertyMock,
-        return_value=None
-    )
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
     def test_delete_instance_overridden_project_id(
         self, wait_for_operation_to_complete, get_conn, mock_project_id
     ):
@@ -700,29 +582,6 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(
             operation_name='operation_id', project_id='example-project'
         )
-
-    @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
-        new_callable=PropertyMock,
-        return_value=None
-    )
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
-    def test_delete_instance_missing_project_id(
-        self, wait_for_operation_to_complete, get_conn, mock_project_id
-    ):
-        delete_method = get_conn.return_value.instances.return_value.delete
-        execute_method = delete_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
-        wait_for_operation_to_complete.return_value = None
-        with self.assertRaises(AirflowException) as cm:
-            self.cloudsql_hook_no_default_project_id.delete_instance(
-                instance='instance')
-        delete_method.assert_not_called()
-        execute_method.assert_not_called()
-        err = cm.exception
-        self.assertIn("The project id must be passed", str(err))
-        wait_for_operation_to_complete.assert_not_called()
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -757,30 +616,6 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
-    def test_get_database_missing_project_id(
-        self, wait_for_operation_to_complete, get_conn, mock_project_id
-    ):
-        get_method = get_conn.return_value.databases.return_value.get
-        execute_method = get_method.return_value.execute
-        execute_method.return_value = {"name": "database"}
-        wait_for_operation_to_complete.return_value = None
-        with self.assertRaises(AirflowException) as cm:
-            self.cloudsql_hook_no_default_project_id.get_database(
-                database='database',
-                instance='instance')
-        get_method.assert_not_called()
-        execute_method.assert_not_called()
-        err = cm.exception
-        self.assertIn("The project id must be passed", str(err))
-        wait_for_operation_to_complete.assert_not_called()
-
-    @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
-        new_callable=PropertyMock,
-        return_value=None
-    )
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
     def test_create_database_overridden_project_id(
         self, wait_for_operation_to_complete, get_conn, mock_project_id
     ):
@@ -797,30 +632,6 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(
             operation_name='operation_id', project_id='example-project'
         )
-
-    @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
-        new_callable=PropertyMock,
-        return_value=None
-    )
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
-    def test_create_database_missing_project_id(
-        self, wait_for_operation_to_complete, get_conn, mock_project_id
-    ):
-        insert_method = get_conn.return_value.databases.return_value.insert
-        execute_method = insert_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
-        wait_for_operation_to_complete.return_value = None
-        with self.assertRaises(AirflowException) as cm:
-            self.cloudsql_hook_no_default_project_id.create_database(
-                instance='instance',
-                body={})
-        insert_method.assert_not_called()
-        execute_method.assert_not_called()
-        err = cm.exception
-        self.assertIn("The project id must be passed", str(err))
-        wait_for_operation_to_complete.assert_not_called()
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -857,31 +668,6 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
-    def test_patch_database_missing_project_id(
-        self, wait_for_operation_to_complete, get_conn, mock_project_id
-    ):
-        patch_method = get_conn.return_value.databases.return_value.patch
-        execute_method = patch_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
-        wait_for_operation_to_complete.return_value = None
-        with self.assertRaises(AirflowException) as cm:
-            self.cloudsql_hook_no_default_project_id.patch_database(
-                instance='instance',
-                database='database',
-                body={})
-        patch_method.assert_not_called()
-        execute_method.assert_not_called()
-        err = cm.exception
-        self.assertIn("The project id must be passed", str(err))
-        wait_for_operation_to_complete.assert_not_called()
-
-    @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
-        new_callable=PropertyMock,
-        return_value=None
-    )
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
     def test_delete_database_overridden_project_id(
         self, wait_for_operation_to_complete, get_conn, mock_project_id
     ):
@@ -900,30 +686,6 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(
             operation_name='operation_id', project_id='example-project'
         )
-
-    @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
-        new_callable=PropertyMock,
-        return_value=None
-    )
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn')
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete')
-    def test_delete_database_missing_project_id(
-        self, wait_for_operation_to_complete, get_conn, mock_project_id
-    ):
-        delete_method = get_conn.return_value.databases.return_value.delete
-        execute_method = delete_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
-        wait_for_operation_to_complete.return_value = None
-        with self.assertRaises(AirflowException) as cm:
-            self.cloudsql_hook_no_default_project_id.delete_database(
-                instance='instance',
-                database='database')
-        delete_method.assert_not_called()
-        execute_method.assert_not_called()
-        err = cm.exception
-        self.assertIn("The project id must be passed", str(err))
-        wait_for_operation_to_complete.assert_not_called()
 
 
 class TestCloudSqlDatabaseHook(unittest.TestCase):

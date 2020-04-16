@@ -215,7 +215,7 @@ class TestAuoMLHook(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.update_dataset")
     def test_update_dataset(self, mock_update_dataset):
         self.hook.update_dataset(
-            dataset=DATASET, update_mask=MASK, project_id=GCP_PROJECT_ID
+            dataset=DATASET, update_mask=MASK,
         )
 
         mock_update_dataset.assert_called_once_with(

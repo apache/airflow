@@ -241,7 +241,14 @@ def get_credentials_and_project_id(
         project_id = credentials.project_id
 
     if delegate_to:
-        credentials = credentials.with_subject(delegate_to)
+        if hasattr(credentials, 'with_subject'):
+            credentials = credentials.with_subject(delegate_to)
+        else:
+            raise AirflowException(
+                "The `delegate_to` parameter cannot be used here as the current "
+                "authentication method does not support account impersonate. "
+                "Please use service-account for authorization."
+            )
 
     return credentials, project_id
 
