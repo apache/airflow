@@ -62,6 +62,16 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Skipped tasks can satisfy wait_for_downstream
+
+Previously, a task instance with `wait_for_downstream=True` will only run if the downstream task of
+the previous task instance is successful. Meanwhile, a task instance with `depends_on_past=True`
+will run if the previous task instance is either successful or skipped. These two flags are close siblings
+yet they have different behavior. This inconsistency in behavior made the API less intuitive to users.
+To maintain consistent behavior, both successful or skipped downstream task can satisfy the
+`wait_for_downstream=True` flag.
+
+
 ### Ability to patch Pool.DEFAULT_POOL_NAME in BaseOperator
 It was not possible to patch pool in BaseOperator as the signature sets the default value of pool
 as Pool.DEFAULT_POOL_NAME.
