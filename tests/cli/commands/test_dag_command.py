@@ -319,7 +319,7 @@ class TestCliDags(unittest.TestCase):
         ('core', 'load_examples'): 'true'
     })
     def test_cli_list_dags(self):
-        args = self.parser.parse_args(['dags', 'list'])
+        args = self.parser.parse_args(['dags', 'list', '--output=fancy_grid'])
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_list_dags(args)
             out = temp_stdout.getvalue()

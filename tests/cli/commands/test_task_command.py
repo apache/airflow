@@ -197,7 +197,7 @@ class TestCliTasks(unittest.TestCase):
                              'state',
                              'start_date',
                              'end_date'],
-                            tablefmt="fancy_grid")
+                            tablefmt="plain")
 
         # Check that prints, and log messages, are shown
         self.assertEqual(expected.replace("\n", ""), actual_out.replace("\n", ""))
