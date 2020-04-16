@@ -105,6 +105,7 @@ class Variable(Base, LoggingMixin):
             return obj
 
     @classmethod
+    @provide_session
     def get(
         cls,
         key,  # type: str
