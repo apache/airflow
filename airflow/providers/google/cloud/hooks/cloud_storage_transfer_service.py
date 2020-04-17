@@ -20,11 +20,9 @@ This module contains a Google Storage Transfer Service Hook.
 """
 
 import json
+import logging
 import time
 import warnings
-import re
-import logging
-
 from copy import deepcopy
 from datetime import timedelta
 from typing import Dict, List, Optional, Set, Union
@@ -101,6 +99,7 @@ TRANSFER_OPERATIONS = 'transferOperations'
 TRANSFER_OPTIONS = 'transfer_options'
 TRANSFER_SPEC = 'transferSpec'
 YEAR = 'year'
+ALREADY_EXIST_CODE = 409
 
 NEGATIVE_STATUSES = {GcpTransferOperationStatus.FAILED, GcpTransferOperationStatus.ABORTED}
 
@@ -109,16 +108,14 @@ def gen_job_name(job_name: str) -> str:
     """
     Adds unique suffix to job name. If suffix already exists, updates it.
     Suffix — current timestamp
+
     :param job_name:
     :rtype job_name: str
-    :return:
+    :return: job_name with suffix
+    :rtype: str
     """
-    split = job_name.split("_")
-    uniq = str(int(time.time()))
-    if len(split) > 1 and re.compile("^[0-9]{10}$").match(split[-1]):
-        split[-1] = uniq
-        return "_".join(split)
-    return "_".join([job_name, uniq])
+    uniq = int(time.time())
+    return f"{job_name}_{uniq}"
 
 
 # noinspection PyAbstractClass
@@ -167,7 +164,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         """
         body = self._inject_project_id(body, BODY, PROJECT_ID)
         try:
-            transfer_job = self.get_conn().transferJobs()\
+            transfer_job = self.get_conn().transferJobs() \
                 .create(body=body).execute(  # pylint: disable=no-member
                 num_retries=self.num_retries)
         except HttpError as e:
@@ -175,7 +172,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
             # https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferOperations#Code.ENUM_VALUES.ALREADY_EXISTS
             # we should try to find this job
             job_name = body.get(JOB_NAME, "")
-            if 409 == int(e.resp.status) and job_name:
+            if int(e.resp.status) == ALREADY_EXIST_CODE and job_name:
                 transfer_job = self.get_transfer_job(
                     job_name=job_name, project_id=body.get(PROJECT_ID))
                 # Generate new job_name, if jobs status is deleted
@@ -183,13 +180,16 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
                 if transfer_job.get(STATUS) == GcpTransferJobsStatus.DELETED:
                     body[JOB_NAME] = gen_job_name(job_name)
                     self.log.info(
-                        f"Job `{job_name}` has been soft deleted. "
-                        f"Creating job with new name `{body[JOB_NAME]}` ")
-                    return self.get_conn().transferJobs()\
-                        .create(body=body).execute(  # pylint: disable=no-member
-                                num_retries=self.num_retries)
+                        "Job `%s` has been soft deleted. Creating job with "
+                        "new name `%s`", job_name, {body[JOB_NAME]})
+                    # pylint: disable=no-member
+                    return self.get_conn() \
+                        .transferJobs() \
+                        .create(body=body) \
+                        .execute(num_retries=self.num_retries)
                 elif transfer_job.get(STATUS) == GcpTransferJobsStatus.DISABLED:
-                    return self.enable_transfer_job(job_name=job_name)
+                    return self.enable_transfer_job(
+                        job_name=job_name, project_id=body.get(PROJECT_ID))
             else:
                 raise e
         return transfer_job
@@ -211,9 +211,9 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         """
         return (
             self.get_conn()  # pylint: disable=no-member
-            .transferJobs()
-            .get(jobName=job_name, projectId=project_id)
-            .execute(num_retries=self.num_retries)
+                .transferJobs()
+                .get(jobName=job_name, projectId=project_id)
+                .execute(num_retries=self.num_retries)
         )
 
     def list_transfer_job(self, request_filter: Optional[Dict] = None, **kwargs) -> List[Dict]:
@@ -256,6 +256,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
     def enable_transfer_job(self, job_name: str, project_id: str) -> Dict:
         """
         New transfers will be performed based on the schedule.
+
         :param job_name: (Required) Name of the job to be updated
         :type job_name: str
         :param project_id: (Optional) the ID of the project that owns the Transfer
@@ -276,7 +277,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
                     TRANSFER_JOB_FIELD_MASK: STATUS1,
                 },
             )
-            .execute(num_retries=self.num_retries)
+                .execute(num_retries=self.num_retries)
         )
 
     def update_transfer_job(self, job_name: str, body: Dict) -> Dict:
@@ -294,9 +295,9 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         body = self._inject_project_id(body, BODY, PROJECT_ID)
         return (
             self.get_conn()  # pylint: disable=no-member
-            .transferJobs()
-            .patch(jobName=job_name, body=body)
-            .execute(num_retries=self.num_retries)
+                .transferJobs()
+                .patch(jobName=job_name, body=body)
+                .execute(num_retries=self.num_retries)
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -317,8 +318,8 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         """
         (
             self.get_conn()  # pylint: disable=no-member
-            .transferJobs()
-            .patch(
+                .transferJobs()
+                .patch(
                 jobName=job_name,
                 body={
                     PROJECT_ID: project_id,
@@ -326,7 +327,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
                     TRANSFER_JOB_FIELD_MASK: STATUS1,
                 },
             )
-            .execute(num_retries=self.num_retries)
+                .execute(num_retries=self.num_retries)
         )
 
     def cancel_transfer_operation(self, operation_name: str) -> None:
@@ -354,9 +355,9 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         """
         return (
             self.get_conn()  # pylint: disable=no-member
-            .transferOperations()
-            .get(name=operation_name)
-            .execute(num_retries=self.num_retries)
+                .transferOperations()
+                .get(name=operation_name)
+                .execute(num_retries=self.num_retries)
         )
 
     def list_transfer_operations(self, request_filter: Optional[Dict] = None, **kwargs) -> List[Dict]:
@@ -466,8 +467,8 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
                 request_filter={FILTER_PROJECT_ID: job[PROJECT_ID], FILTER_JOB_NAMES: [job[NAME]]}
             )
 
-            if CloudDataTransferServiceHook.\
-                    operations_contain_expected_statuses(operations, expected_statuses):
+            if CloudDataTransferServiceHook. \
+                operations_contain_expected_statuses(operations, expected_statuses):
                 return
             time.sleep(TIME_TO_SLEEP_IN_SECONDS)
         raise AirflowException("Timeout. The operation could not be completed within the allotted time.")
