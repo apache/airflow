@@ -91,7 +91,6 @@ RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
            apt-utils \
            build-essential \
            ca-certificates \
-           curl \
            gnupg \
            dirmngr \
            freetds-bin \
