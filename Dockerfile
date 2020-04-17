@@ -332,4 +332,4 @@ EXPOSE 8080
 
 COPY scripts/include/clean-logs.sh /usr/local/bin/clean-airflow-logs
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
-CMD ["airflow", "--help"]
+CMD ["--help"]
