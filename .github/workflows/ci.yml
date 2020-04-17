@@ -45,6 +45,13 @@ jobs:
       TRAVIS_JOB_NAME: "Static"
     steps:
       - uses: actions/checkout@master
+      - name: free disk space
+        run: |
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          docker rmi $(docker image ls -aq)
+          df -h
       - uses: actions/setup-python@v1
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -65,6 +72,13 @@ jobs:
       TRAVIS_JOB_NAME: "Static"
     steps:
       - uses: actions/checkout@master
+      - name: free disk space
+        run: |
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          docker rmi $(docker image ls -aq)
+          df -h
       - uses: actions/setup-python@v1
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -100,6 +114,13 @@ jobs:
       RUN_INTEGRATION_TESTS: all
     steps:
       - uses: actions/checkout@master
+      - name: free disk space
+        run: |
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          docker rmi $(docker image ls -aq)
+          df -h
       - name: "Tests [Postgres9.6][Py3.6][integrations]"
         run: ./scripts/ci/ci_run_airflow_testing.sh
 
@@ -114,6 +135,13 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: 3.5
     steps:
       - uses: actions/checkout@master
+      - name: free disk space
+        run: |
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          docker rmi $(docker image ls -aq)
+          df -h
       - name: "Tests [Postgres10][Py3.6][providers]"
         run: ./scripts/ci/ci_run_airflow_testing.sh tests/providers
 
@@ -128,6 +156,13 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: 2.7
     steps:
       - uses: actions/checkout@master
+      - name: free disk space
+        run: |
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          docker rmi $(docker image ls -aq)
+          df -h
       - name: "Tests [Postgres9.6][Py3.6][core]"
         run: ./scripts/ci/ci_run_airflow_testing.sh --ignore=tests/providers
 
@@ -142,6 +177,13 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: 3.6
     steps:
       - uses: actions/checkout@master
+      - name: free disk space
+        run: |
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          docker rmi $(docker image ls -aq)
+          df -h
       - name: "Tests [Postgres9.6][Py3.6][core]"
         run: ./scripts/ci/ci_run_airflow_testing.sh --ignore=tests/providers
 
@@ -157,6 +199,13 @@ jobs:
       RUN_INTEGRATION_TESTS: all
     steps:
       - uses: actions/checkout@master
+      - name: free disk space
+        run: |
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          docker rmi $(docker image ls -aq)
+          df -h
       - name: "Tests [Sqlite][2.7][integrations]"
         run: ./scripts/ci/ci_run_airflow_testing.sh
 
@@ -173,6 +222,13 @@ jobs:
       RUN_INTEGRATION_TESTS: all
     steps:
       - uses: actions/checkout@master
+      - name: free disk space
+        run: |
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          docker rmi $(docker image ls -aq)
+          df -h
       - name: "Tests [Sqlite][3.7][integrations]"
         run: ./scripts/ci/ci_run_airflow_testing.sh
 
@@ -186,6 +242,13 @@ jobs:
       PYTHON_VERSION: 3.6
     steps:
       - uses: actions/checkout@master
+      - name: free disk space
+        run: |
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          docker rmi $(docker image ls -aq)
+          df -h
       - name: "Tests [Sqlite][Py3.6]"
         run: ./scripts/ci/ci_run_airflow_testing.sh
 
@@ -202,6 +265,13 @@ jobs:
       RUN_INTEGRATION_TESTS: all
     steps:
       - uses: actions/checkout@master
+      - name: free disk space
+        run: |
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          docker rmi $(docker image ls -aq)
+          df -h
       - name: "Tests [MySQL][Py3.6][integrations]"
         run: ./scripts/ci/ci_run_airflow_testing.sh
 
@@ -217,6 +287,13 @@ jobs:
       ENABLED_INTEGRATIONS: "kerberos"
     steps:
       - uses: actions/checkout@master
+      - name: free disk space
+        run: |
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          docker rmi $(docker image ls -aq)
+          df -h
       - name: "Tests [MySQL5.7][Py3.7][providers][kerberos]"
         run: ./scripts/ci/ci_run_airflow_testing.sh tests/providers
 
@@ -232,6 +309,13 @@ jobs:
       ENABLED_INTEGRATIONS: "kerberos"
     steps:
       - uses: actions/checkout@master
+      - name: free disk space
+        run: |
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          docker rmi $(docker image ls -aq)
+          df -h
       - name: "Tests [MySQL5.7][Py3.7][core][kerberos]"
         run: ./scripts/ci/ci_run_airflow_testing.sh --ignore=tests/providers
 
@@ -244,6 +328,13 @@ jobs:
         python-version: [2.7, 3.5, 3.6, 3.7]
     steps:
       - uses: actions/checkout@master
+      - name: free disk space
+        run: |
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          docker rmi $(docker image ls -aq)
+          df -h
       - uses: actions/setup-python@v1
       - name: "Generate requirements"
         env:
@@ -260,6 +351,13 @@ jobs:
         python-version: [2.7, 3.5, 3.6, 3.7]
     steps:
       - uses: actions/checkout@master
+      - name: free disk space
+        run: |
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          docker rmi $(docker image ls -aq)
+          df -h
       - uses: actions/setup-python@v1
       - name: "Build image"
         env:
