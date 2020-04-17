@@ -245,9 +245,8 @@ require more than one integration.
 If such a marked test does not have a required integration enabled, it is skipped.
 The skip message clearly says what is needed to use the test.
 
-To run all tests with a certain integration, use the custom pytest flag ``--integrations``,
-where you can pass integrations as comma-separated values. You can also specify ``all`` to start
-tests for all integrations.
+To run all tests with a certain integration, use the custom pytest flag ``--integrations``. You can also
+specify ``all`` to start tests for all integrations.
 
 **NOTE:** If an integration is not enabled in Breeze or Travis CI,
 the affected test will be skipped.
@@ -262,7 +261,7 @@ To run integration tests for ``mongo`` and ``rabbitmq``:
 
 .. code-block:: bash
 
-    pytest --integrations mongo,rabbitmq
+    pytest --integrations mongo --integration rabbitmq
 
 To runs all integration tests:
 
@@ -534,8 +533,7 @@ run Google Cloud system tests.
       pip install /dist/apache_airflow_providers_{google,postgres,mysql}*.whl || true
   fi
 
-To execute system tests, specify the ``--systems SYSTEMS``
-flag where ``SYSTEMS`` is a coma-separated list of systems to run the system tests for.
+To execute system tests, specify the ``--systems SYSTEMS`` flag.
 
 
 Forwarding Authentication from the Host

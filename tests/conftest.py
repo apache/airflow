@@ -70,7 +70,7 @@ def pytest_addoption(parser):
     )
     group.addoption(
         "--integrations",
-        action="store",
+        action="append",
         metavar="INTEGRATIONS",
         help="only run tests matching comma separated integrations: "
              "[cassandra,mongo,openldap,presto,rabbitmq,redis]. "
@@ -90,7 +90,7 @@ def pytest_addoption(parser):
     )
     group.addoption(
         "--systems",
-        action="store",
+        action="append",
         metavar="SYSTEMS",
         help="only run tests matching the systems specified [google.cloud, google.marketing_platform]",
     )
@@ -302,10 +302,8 @@ def skip_if_airflow_2_test(item):
 
 
 def pytest_runtest_setup(item):
-    selected_integrations = item.config.getoption("--integrations")
-    selected_integrations_list = selected_integrations.split(",") if selected_integrations else []
-    selected_systems = item.config.getoption("--systems")
-    selected_systems_list = selected_systems.split(",") if selected_systems else []
+    selected_integrations_list = item.config.getoption("--integrations")
+    selected_systems_list = item.config.getoption("--systems")
     include_long_running = item.config.getoption("--include-long-running")
     for marker in item.iter_markers(name="integration"):
         skip_if_integration_disabled(marker, item)
