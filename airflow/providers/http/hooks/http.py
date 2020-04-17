@@ -18,6 +18,7 @@
 
 import requests
 import tenacity
+from requests.auth import HTTPBasicAuth
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -27,20 +28,28 @@ class HttpHook(BaseHook):
     """
     Interact with HTTP servers.
 
+    :param method: the API method to be called
+    :type method: str
     :param http_conn_id: connection that has the base API url i.e https://www.google.com/
         and optional authentication credentials. Default headers can also be specified in
         the Extra field in json format.
     :type http_conn_id: str
-    :param method: the API method to be called
-    :type method: str
+    :param auth_type: the API method to be called
+    :type method: AuthBase of python requests lib
     """
 
-    def __init__(self, method='POST', http_conn_id='http_default'):
+    def __init__(
+        self,
+        method='POST',
+        http_conn_id='http_default',
+        auth_type=HTTPBasicAuth,
+    ) -> None:
         super().__init__()
         self.http_conn_id = http_conn_id
         self.method = method.upper()
         self.base_url = None
         self._retry_obj = None
+        self.auth_type = auth_type
 
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
@@ -66,7 +75,7 @@ class HttpHook(BaseHook):
             if conn.port:
                 self.base_url = self.base_url + ":" + str(conn.port)
             if conn.login:
-                session.auth = (conn.login, conn.password)
+                session.auth = self.auth_type(conn.login, conn.password)
             if conn.extra:
                 try:
                     session.headers.update(conn.extra_dejson)
