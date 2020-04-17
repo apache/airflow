@@ -22,6 +22,8 @@ This module contains a Google Storage Transfer Service Hook.
 import json
 import time
 import warnings
+import re
+
 from copy import deepcopy
 from datetime import timedelta
 from typing import Dict, List, Optional, Set, Union
@@ -100,6 +102,22 @@ YEAR = 'year'
 NEGATIVE_STATUSES = {GcpTransferOperationStatus.FAILED, GcpTransferOperationStatus.ABORTED}
 
 
+def gen_job_name(job_name: str) -> str:
+    """
+    Adds unique suffix to job name. If suffix already exists, updates it
+        suffix — current timestamp
+    :param job_name:
+    :rtype job_name: str
+    :return:
+    """
+    split = job_name.split("_")
+    uniq = str(int(time.time()))
+    if len(split) > 1 and re.compile("^[0-9]{10}$").match(split[-1]):
+        split[-1] = uniq
+        return "_".join(split)
+    return "_".join([job_name, uniq])
+
+
 # noinspection PyAbstractClass
 class CloudDataTransferServiceHook(GoogleBaseHook):
     """
@@ -145,23 +163,28 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         :rtype: dict
         """
         body = self._inject_project_id(body, BODY, PROJECT_ID)
-
         try:
-            transfer_job = self.get_conn().transferJobs().create(body=body).execute(  # pylint: disable=no-member
+            transfer_job = self.get_conn().transferJobs()\
+                .create(body=body).execute(  # pylint: disable=no-member
                 num_retries=self.num_retries)
         except HttpError as e:
             # If status code "Conflict"
             # https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferOperations#Code.ENUM_VALUES.ALREADY_EXISTS
             # we should try to find this job
-            if 409 == int(e.resp.status):
-                job_name = body.get("name", "")
-                if not job_name:
-                    raise e
+            job_name = body.get(JOB_NAME, "")
+            if 409 == int(e.resp.status) and job_name:
                 transfer_job = self.get_transfer_job(
                     job_name=job_name, project_id=body.get(PROJECT_ID))
+                # Generate new job_name, if jobs status is deleted
+                # and try to create this job again
+                if transfer_job.get(STATUS) == GcpTransferJobsStatus.DELETED:
+                    raise e
+                    # body[JOB_NAME] = gen_job_name(job_name)
+                    # return self.create_transfer_job(body)
+                elif transfer_job.get(STATUS) == GcpTransferJobsStatus.DISABLED:
+                    return self.enable_transfer_job(job_name=job_name)
             else:
                 raise e
-
         return transfer_job
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -221,6 +244,33 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
                                                     previous_response=response)
 
         return jobs
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def enable_transfer_job(self, job_name: str, project_id: str) -> Dict:
+        """
+        New transfers will be performed based on the schedule.
+        :param job_name: (Required) Name of the job to be updated
+        :type job_name: str
+        :param project_id: (Optional) the ID of the project that owns the Transfer
+            Job. If set to None or missing, the default project_id from the GCP
+            connection is used.
+        :type project_id: str
+        :return: If successful, TransferJob.
+        :rtype: dict
+        """
+        return (
+            self.get_conn()  # pylint: disable=no-member
+                .transferJobs()
+                .patch(
+                jobName=job_name,
+                body={
+                    PROJECT_ID: project_id,
+                    TRANSFER_JOB: {STATUS1: GcpTransferJobsStatus.ENABLED},
+                    TRANSFER_JOB_FIELD_MASK: STATUS1,
+                },
+            )
+            .execute(num_retries=self.num_retries)
+        )
 
     def update_transfer_job(self, job_name: str, body: Dict) -> Dict:
         """
