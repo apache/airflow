@@ -27,12 +27,14 @@ from googleapiclient.errors import HttpError
 from mock import PropertyMock, MagicMock
 from parameterized import parameterized
 
+from typing import Dict
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     DESCRIPTION, FILTER_JOB_NAMES, FILTER_PROJECT_ID, METADATA, OPERATIONS, PROJECT_ID, STATUS,
     TIME_TO_SLEEP_IN_SECONDS, TRANSFER_JOB, TRANSFER_JOB_FIELD_MASK, TRANSFER_JOBS,
     CloudDataTransferServiceHook, GcpTransferJobsStatus, GcpTransferOperationStatus,
-    gen_job_name
+    gen_job_name, JOB_NAME,
 )
 
 from tests.providers.google.cloud.utils.base_gcp_mock import (
@@ -44,6 +46,7 @@ NAME = "name"
 
 TEST_PROJECT_ID = 'project-id'
 TEST_TRANSFER_JOB_NAME = "transfer-job"
+TEST_CLEAR_JOB_NAME = "jobNames/transfer-job-clear"
 
 TEST_BODY = {DESCRIPTION: 'AAA', PROJECT_ID: TEST_PROJECT_ID}
 
@@ -77,15 +80,27 @@ def _without_key(body, key):
     return obj
 
 
-def _with_name(body):
+def _with_name(body, job_name):
     obj = deepcopy(body)
-    obj[NAME] = TEST_TRANSFER_JOB_NAME
+    obj[NAME] = job_name
     return obj
 
 
 class TestGCPTransferServiceHookWithPassedName(unittest.TestCase):
 
+    def __create_job_se(self, body: Dict):
+        if body.get(JOB_NAME) == TEST_CLEAR_JOB_NAME:
+            nt = namedtuple('resp', ['status'])(409)
+            raise HttpError(nt, b'Conflict')
+
+        class __Create:
+            def execute(*args, **kwargs):
+                return TEST_RESULT_STATUS_ENABLED
+
+        return __Create
+
     def setUp(self):
+        self.re = re.compile("^[0-9]{10}$")
         with mock.patch(
             'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__',
             new=mock_base_gcp_hook_no_default_project_id,
@@ -115,15 +130,14 @@ class TestGCPTransferServiceHookWithPassedName(unittest.TestCase):
                                      get_transfer_job: MagicMock,
                                      enable_transfer_job: MagicMock
                                      ):
-        body = _with_name(TEST_BODY)
+        body = _with_name(TEST_BODY, TEST_CLEAR_JOB_NAME)
         nt = namedtuple('resp', ['status'])(409)
         get_conn.return_value.transferJobs.return_value.create.side_effect \
-            = HttpError(nt, b'Conflict', "/")
+            = self.__create_job_se
 
-        # check status DELETED raises HttpError
+        # check status DELETED generates new job name
         get_transfer_job.return_value = TEST_RESULT_STATUS_DELETED
-        with self.assertRaises(HttpError):
-            self.gct_hook.create_transfer_job(body=body)
+        self.gct_hook.create_transfer_job(body=body)
 
         # check status DISABLED changes to status ENABLED
         get_transfer_job.return_value = TEST_RESULT_STATUS_DISABLED

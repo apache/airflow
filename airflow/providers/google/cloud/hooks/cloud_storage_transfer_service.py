@@ -23,6 +23,7 @@ import json
 import time
 import warnings
 import re
+import logging
 
 from copy import deepcopy
 from datetime import timedelta
@@ -33,6 +34,8 @@ from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+log = logging.getLogger(__name__)
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 10
@@ -104,8 +107,8 @@ NEGATIVE_STATUSES = {GcpTransferOperationStatus.FAILED, GcpTransferOperationStat
 
 def gen_job_name(job_name: str) -> str:
     """
-    Adds unique suffix to job name. If suffix already exists, updates it
-        suffix — current timestamp
+    Adds unique suffix to job name. If suffix already exists, updates it.
+    Suffix — current timestamp
     :param job_name:
     :rtype job_name: str
     :return:
@@ -178,9 +181,13 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
                 # Generate new job_name, if jobs status is deleted
                 # and try to create this job again
                 if transfer_job.get(STATUS) == GcpTransferJobsStatus.DELETED:
-                    raise e
-                    # body[JOB_NAME] = gen_job_name(job_name)
-                    # return self.create_transfer_job(body)
+                    body[JOB_NAME] = gen_job_name(job_name)
+                    self.log.info(
+                        f"Job `{job_name}` has been soft deleted. "
+                        f"Creating job with new name `{body[JOB_NAME]}` ")
+                    return self.get_conn().transferJobs()\
+                        .create(body=body).execute(  # pylint: disable=no-member
+                                num_retries=self.num_retries)
                 elif transfer_job.get(STATUS) == GcpTransferJobsStatus.DISABLED:
                     return self.enable_transfer_job(job_name=job_name)
             else:
