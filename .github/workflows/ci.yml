@@ -45,6 +45,13 @@ jobs:
       TRAVIS_JOB_NAME: "Static"
     steps:
       - uses: actions/checkout@master
+      - name: free disk space
+        run: |
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          docker rmi $(docker image ls -aq)
+          df -h
       - uses: actions/setup-python@v1
         with:
           python-version: ${{ env.PYTHON_VERSION }}
