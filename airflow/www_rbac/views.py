@@ -30,6 +30,7 @@ from collections import defaultdict
 from datetime import timedelta
 from urllib.parse import unquote
 
+import pkg_resources
 import six
 from six.moves.urllib.parse import parse_qsl, quote, urlencode, urlparse
 
@@ -2147,8 +2148,12 @@ class VersionView(AirflowBaseView):
     def version(self):
         try:
             airflow_version = airflow.__version__
+            airflow_upstream_version = airflow_version.split('.dev')[0].split('+astro')[0]
+            ac_url_version = airflow_upstream_version.replace('.', '-')
         except Exception as e:
             airflow_version = None
+            airflow_upstream_version = None
+            ac_url_version = None
             logging.error(e)
 
         # Get the Git repo and git hash
@@ -2160,12 +2165,24 @@ class VersionView(AirflowBaseView):
         except Exception as e:
             logging.error(e)
 
+        try:
+            ac_version = pkg_resources.get_distribution('astronomer-certified').version
+        except pkg_resources.DistributionNotFound:
+            # Try to work out ac_version from airflow version
+            if airflow_version:
+                ac_version = airflow_version.replace('+astro.', '-')
+            else:
+                ac_version = None
+
         # Render information
         title = "Version Info"
         return self.render_template(
             'airflow/version.html',
             title=title,
             airflow_version=airflow_version,
+            ac_version=ac_version,
+            airflow_upstream_version=airflow_upstream_version,
+            ac_url_version=ac_url_version,
             git_version=git_version)
 
 
