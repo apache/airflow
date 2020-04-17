@@ -37,7 +37,7 @@ fi
 
 case "${RESPONSE}" in
     [yY][eE][sS]|[yY])
-        echo "The answer is 'yes'. ${1}. This can take some time !"
+        echo "The answer is 'yes'. ${1}. This can take some time!"
         exit 0
         ;;
     [qQ][uU][iI][tT]|[qQ])
