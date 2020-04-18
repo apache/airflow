@@ -19,8 +19,9 @@ Transfer data in Google Cloud Storage
 =====================================
 
 The `Google Cloud Storage <https://cloud.google.com/storage/>`__  (GCS) is used to store large data from various applications.
-There are several operators for whose purpose is to copy data as part of the Google CLoud Service. This page shows
-how to use these operators.
+Note that files are called objects in GCS terminology, so the use of the term "object" and "file" in this guide is
+interchangeable. There are several operators for whose purpose is to copy data as part of the Google CLoud Service.
+This page shows how to use these operators.
 
 Overview
 --------
@@ -73,18 +74,91 @@ GCSToGCSOperator
 
 
 :class:`~airflow.providers.google.cloud.operators.gcs_to_gcs.GCSToGCSOperator` allows you to copy
-one or more files from one GCS bucket to another. The copying always takes place without taking into account the
-initial state of the destination bucket.
+one or more files within GCS. The files may be copied between two different buckets or within one bucket.
+The copying always takes place without taking into account the initial state of the destination bucket.
 
-This operator never deletes data in the destination bucket and it only deletes objects in the source bucket
-if the file move option is active.
+This operator only deletes objects in the source bucket if the file move option is active. When copying files
+between two different buckets, this operator never deletes data in the destination bucket.
 
 When you use this operator, you can specify whether objects should be deleted from the source after
-they are transferred to the sink. Source objects can be specified using single wildcard, as
+they are transferred to the sink. Source objects can be specified using a single wildcard, as
 well as based on the file modification date.
 
 The way this operator works by default can be compared to the ``cp`` command. When the file move option is active, this
 operator functions like the ``mv`` command.
+
+Below are examples of using the GCSToGCSOperator to copy a single file, to copy multiple files with a wild card,
+to copy multiple files, to move a single file, and to move multiple files.
+
+Copy single file
+----------------
+
+The following example would copy a single file, `OBJECT_1` from the `BUCKET_1_SRC` GCS bucket to the `BUCKET_1_DST` bucket.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_gcs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcs_to_gcs_single_file]
+    :end-before: [END howto_operator_gcs_to_gcs_single_file]
+
+Copy multiple files
+-------------------
+
+There are several ways to copy multiple files, various examples of which are presented following.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_gcs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcs_to_gcs_wildcard]
+    :end-before: [END howto_operator_gcs_to_gcs_wildcard]
+
+The `source_object` value may contain one wild card, denoted as "*". All files matching the wild card expression will
+be copied. In this example, all root level files ending with `.txt` in `BUCKET_1_SRC` will be copied to the `data`
+folder in `BUCKET_1_DST`, with file names unchanged.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_gcs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcs_to_gcs_delimiter]
+    :end-before: [END howto_operator_gcs_to_gcs_delimiter]
+
+The delimiter filed may be specified to select any source files starting with `source_object` and ending with the
+value supplied to `delimiter`. This example uses the `delimiter` value to implement the same functionality as the
+prior example.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_gcs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcs_to_gcs_list]
+    :end-before: [END howto_operator_gcs_to_gcs_list]
+
+Lastly, files may be copied by omitting the `source_object` argument and instead supplying a list to `source_objects`
+argument. In this example, `OBJECT_1` and `OBJECT_2` will be copied from `BUCKET_1_SRC` to `BUCKET_1_DST`. Instead
+of specific file names, the list can contain one or more wild card expressions, each with no more than one wild card.
+Supplying a list of size 1 functions the same as supplying a value to the `source_object` argument.
+
+Move single file
+----------------
+
+Supplying `True` to the `move` argument causes the operator to delete `source_object` once the copy is complete.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_gcs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcs_to_gcs_single_file_move]
+    :end-before: [END howto_operator_gcs_to_gcs_single_file_move]
+
+Move multiple files
+-------------------
+
+Multiple files may be moved by supplying `True` to the `move` argument. The same rules concerning wild cards and
+the `delimiter` argument apply to moves as well as copies.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_gcs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcs_to_gcs_list_move]
+    :end-before: [END howto_operator_gcs_to_gcs_list_move]
 
 
 .. _howto/operator:GCSSynchronizeBuckets:
