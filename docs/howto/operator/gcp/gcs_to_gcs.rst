@@ -72,7 +72,6 @@ Operators
 GCSToGCSOperator
 ~~~~~~~~~~~~~~~~
 
-
 :class:`~airflow.providers.google.cloud.operators.gcs_to_gcs.GCSToGCSOperator` allows you to copy
 one or more files within GCS. The files may be copied between two different buckets or within one bucket.
 The copying always takes place without taking into account the initial state of the destination bucket.
