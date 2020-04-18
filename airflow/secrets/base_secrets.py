@@ -16,7 +16,7 @@
 # under the License.
 
 from abc import ABC
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from airflow.models.connection import Connection
 
@@ -43,7 +43,7 @@ class BaseSecretsBackend(ABC):
         """
         return f"{path_prefix}{sep}{secret_id}"
 
-    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+    def get_conn_uri(self, conn_id: str) -> Optional[Union[str, List[str]]]:
         """
         Get conn_uri from Secrets Backend
 
