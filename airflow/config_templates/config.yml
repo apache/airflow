@@ -1134,6 +1134,15 @@
       type: string
       example: ~
       default: "8793"
+    - name: worker_umask
+      description: |
+        Umask that will be used when starting workers with the ``airflow celery worker``
+        in daemon mode. This control the file-creation mode mask which determines the initial
+        value of file permission bits for newly created files.
+      version_added: ~
+      type: string
+      example: ~
+      default: "0o077"
     - name: broker_url
       description: |
         The Celery broker URL. Celery supports RabbitMQ, Redis and experimentally

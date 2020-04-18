@@ -536,6 +536,10 @@ ARG_CELERY_HOSTNAME = Arg(
     ("-H", "--celery-hostname"),
     help=("Set the hostname of celery worker "
           "if you have multiple workers on a single machine"))
+ARG_UMASK = Arg(
+    ("-u", "--umask"),
+    help="Set the umask of celery worker in daemon mode",
+    default=conf.get('celery', 'worker_umask'))
 
 # flower
 ARG_BROKER_API = Arg(("-a", "--broker-api"), help="Broker API")
@@ -1108,7 +1112,7 @@ CELERY_COMMANDS = (
         func=lazy_load_command('airflow.cli.commands.celery_command.worker'),
         args=(
             ARG_DO_PICKLE, ARG_QUEUES, ARG_CONCURRENCY, ARG_CELERY_HOSTNAME, ARG_PID, ARG_DAEMON,
-            ARG_STDOUT, ARG_STDERR, ARG_LOG_FILE, ARG_AUTOSCALE, ARG_SKIP_SERVE_LOGS
+            ARG_UMASK, ARG_STDOUT, ARG_STDERR, ARG_LOG_FILE, ARG_AUTOSCALE, ARG_SKIP_SERVE_LOGS
         ),
     ),
     ActionCommand(
