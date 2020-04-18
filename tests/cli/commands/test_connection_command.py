@@ -18,6 +18,7 @@
 import io
 import unittest
 from contextlib import redirect_stdout
+from unittest import mock
 
 from parameterized import parameterized
 
@@ -283,3 +284,23 @@ class TestCliDeleteConnections(unittest.TestCase):
 
         # Check deletion attempt stdout
         self.assertIn("\tDid not find a connection with `conn_id`=fake", stdout)
+
+
+class TestCliLookupConnections(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = cli_parser.get_parser()
+
+    @mock.patch('airflow.cli.commands.connection_command.BaseHook.get_connections', return_value=[
+        Connection(conn_id="new1", host="host1"),
+        Connection(conn_id="new1", host="host2"),
+    ])
+    def test_should_lookup_all_vaariables(self, mock_get_connections):
+        with redirect_stdout(io.StringIO()) as stdout:
+            connection_command.connections_lookup(self.parser.parse_args(["connections", "lookup", "new1"]))
+            stdout = stdout.getvalue()
+        self.assertIn("new1", stdout)
+        self.assertIn("new1", stdout)
+        self.assertIn("host1", stdout)
+        self.assertIn("host1", stdout)
+        mock_get_connections.assert_called_once_with('new1')

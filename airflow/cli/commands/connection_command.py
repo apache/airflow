@@ -15,29 +15,41 @@
 # specific language governing permissions and limitations
 # under the License.
 """Connection sub-commands"""
-import reprlib
+from typing import List
 from urllib.parse import urlunparse
 
 from sqlalchemy.orm import exc
 from tabulate import tabulate
 
+from airflow.hooks.base_hook import BaseHook
 from airflow.models import Connection
 from airflow.utils import cli as cli_utils
 from airflow.utils.session import create_session
 
 
+def _tabule_connection(conns: List[Connection], tablefmt: str):
+    tabulat_data = [
+        {
+            'Conn Id': conn.conn_id,
+            'Conn Type': conn.conn_type,
+            'Host': conn.host,
+            'Port': conn.port,
+            'Is Encrypted': conn.is_encrypted,
+            'Is Extra Encrypted': conn.is_encrypted,
+            'Extra': conn.extra,
+        } for conn in conns
+    ]
+
+    msg = tabulate(tabulat_data, tablefmt=tablefmt, headers='keys')
+    return msg
+
+
 def connections_list(args):
     """Lists all connections at the command line"""
     with create_session() as session:
-        conns = session.query(Connection.conn_id, Connection.conn_type,
-                              Connection.host, Connection.port,
-                              Connection.is_encrypted,
-                              Connection.is_extra_encrypted,
-                              Connection.extra).all()
-        conns = [map(reprlib.repr, conn) for conn in conns]
-        msg = tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
-                               'Is Encrypted', 'Is Extra Encrypted', 'Extra'],
-                       tablefmt=args.output)
+        conns = session.query(Connection).all()
+        tablefmt = args.output
+        msg = _tabule_connection(conns, tablefmt)
         print(msg)
 
 
@@ -127,3 +139,14 @@ def connections_delete(args):
             msg = '\n\tSuccessfully deleted `conn_id`={conn_id}\n'
             msg = msg.format(conn_id=deleted_conn_id)
             print(msg)
+
+
+@cli_utils.action_logging
+def connections_lookup(args):
+    """
+    Displays one or more connections.
+
+    This method supports custom secrets backend.
+    """
+    conns = BaseHook.get_connections(args.conn_id)
+    print(_tabule_connection(conns=conns, tablefmt=args.output))

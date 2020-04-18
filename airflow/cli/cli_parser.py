@@ -1033,6 +1033,12 @@ CONNECTIONS_COMMANDS = (
         args=(ARG_CONN_ID, ARG_CONN_URI, ARG_CONN_EXTRA) + tuple(ALTERNATIVE_CONN_SPECS_ARGS),
     ),
     ActionCommand(
+        name='lookup',
+        help='Lookup connection by conn_id. This method support custom secret backend.',
+        func=lazy_load_command('airflow.cli.commands.connection_command.connections_lookup'),
+        args=(ARG_CONN_ID, ARG_OUTPUT,),
+    ),
+    ActionCommand(
         name='delete',
         help='Delete a connection',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_delete'),
