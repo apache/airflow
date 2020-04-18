@@ -156,3 +156,37 @@ class TestBashOperator(unittest.TestCase):
             stderr=STDOUT,
             stdout=PIPE
         )
+
+    @mock.patch.dict('os.environ', clear=True)
+    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook")
+    @mock.patch("airflow.operators.bash.TemporaryDirectory", **{  # type: ignore
+        'return_value.__enter__.return_value': '/tmp/airflowtmpcatcat'
+    })
+    @mock.patch("airflow.operators.bash.Popen", **{  # type: ignore
+        'return_value.stdout.readline.side_effect': [b'BAR', b'BAZ'],
+        'return_value.returncode': 0
+    })
+    def test_should_provide_gcp_credentials(self, mock_popen, mock_temporary_directory, mock_google_hook):
+        bash_operator = BashOperator(
+            bash_command='gcloud auth print-access-token',
+            task_id='test_return_value',
+            dag=None,
+            gcp_conn_id='google_cloud_default'
+        )
+        bash_operator.execute({})
+
+        mock_popen.assert_called_once_with(
+            ['bash', '-c', 'gcloud auth print-access-token'],
+            cwd='/tmp/airflowtmpcatcat',
+            env={},
+            preexec_fn=mock.ANY,
+            stderr=STDOUT,
+            stdout=PIPE
+        )
+        mock_google_hook.assert_called_once_with(gcp_conn_id='google_cloud_default', delegate_to=None)
+        (
+            mock_google_hook.
+            return_value.provide_authorized_gcloud.
+            return_value.__enter__.
+            assert_called_once_with(mock.ANY)
+        )

@@ -33,9 +33,10 @@ from flask_wtf.csrf import CSRFProtect
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from airflow import settings, version
+from airflow import settings
 from airflow.configuration import conf
 from airflow.logging_config import configure_logging
+from airflow.utils.documentation import DOC_BASE_URL
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.www.static_config import configure_manifest_files
 
@@ -142,17 +143,12 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                                 "XComs",
                                 category="Admin")
 
-            if "dev" in version.version:
-                airflow_doc_site = "https://airflow.readthedocs.io/en/latest"
-            else:
-                airflow_doc_site = 'https://airflow.apache.org/docs/{}'.format(version.version)
-
             appbuilder.add_link("Website",
                                 href='https://airflow.apache.org',
                                 category="Docs",
                                 category_icon="fa-globe")
             appbuilder.add_link("Documentation",
-                                href=airflow_doc_site,
+                                href=DOC_BASE_URL,
                                 category="Docs",
                                 category_icon="fa-cube")
             appbuilder.add_link("GitHub",

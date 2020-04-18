@@ -50,3 +50,37 @@ argument.
 
 The ``templates_dict`` argument is templated, so each value in the dictionary
 is evaluated as a :ref:`Jinja template <jinja-templating>`.
+
+Use with Google services
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+There are special ``gcp_conn_id`` parameters that facilitate the use of this operator along with
+Google services. If it is passed, the credentials for
+`Application Default Credentials (ADC) <https://cloud.google.com/docs/authentication/production>`__
+and
+`Cloud SDK <https://cloud.google.com/sdk>`__ (``gcloud``) will be configured.
+
+All Google Cloud Platform operators use connection ``google_cloud_default`` by default.
+Pass this value to also use the default connection.
+
+.. seealso::
+    For more information on how to set-up connection for GCP, take a look at:
+    :ref:`howto/connection:gcp`
+
+This allows you to use Google libraries:
+
+.. exampleinclude:: ../../../airflow/example_dags/example_google_python_operator.py
+    :language: python
+    :start-after: [START howto_operator_python_custom]
+    :end-before: [END howto_operator_python_custom]
+
+You can also execute ``gcloud`` commands:
+
+.. exampleinclude:: ../../../airflow/example_dags/example_python_operator.py
+    :language: python
+    :start-after: [START howto_operator_python_gcloud]
+    :end-before: [END howto_operator_python_gcloud]
+
+.. warning::
+    For the best reliability and integration with Airflow, consider using operators for Google services.
+    For list of GCP operators, take a look at: :ref:`GCP`

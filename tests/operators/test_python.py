@@ -310,6 +310,23 @@ class TestPythonOperator(TestPythonBase):
         )
         python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
+    @unittest.mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook")
+    def test_provide_gcp_credentials(self, mock_google_hook):
+        python_operator = PythonOperator(
+            task_id='python_operator',
+            python_callable=unittest.mock.MagicMock(),
+            dag=self.dag,
+            gcp_conn_id='google_cloud_default'
+        )
+        python_operator.execute(unittest.mock.MagicMock())
+        mock_google_hook.assert_called_once_with(gcp_conn_id='google_cloud_default', delegate_to=None)
+        (
+            mock_google_hook.
+            return_value.provide_authorized_gcloud.
+            return_value.__enter__.
+            assert_called_once_with(unittest.mock.ANY)
+        )
+
 
 class TestBranchOperator(unittest.TestCase):
     @classmethod

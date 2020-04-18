@@ -19,6 +19,7 @@
 
 import os
 import signal
+from contextlib import ExitStack
 from subprocess import PIPE, STDOUT, Popen
 from tempfile import TemporaryDirectory, gettempdir
 from typing import Dict, Optional
@@ -26,6 +27,7 @@ from typing import Dict, Optional
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.documentation import DOC_BASE_URL
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
@@ -50,6 +52,31 @@ class BashOperator(BaseOperator):
     :type env: dict
     :param output_encoding: Output encoding of bash command
     :type output_encoding: str
+    :param gcp_conn_id: The connection ID used to interact to Google Cloud Platform.
+        If passed, the credentials for
+        `Application Default Credentials <https://cloud.google.com/docs/authentication/production>`__
+        and
+        `Cloud SDK (``gcloud``) <https://cloud.google.com/sdk>`__   will be configured.
+
+        All Google Cloud Platform operators use connection ``google_cloud_default`` by default.
+        Pass this value to also use the default connection.
+
+        If the value is empty (default), nothing is done.
+
+        .. seealso::
+            For more information on how to set-up connection for GCP, take a look at:
+            :ref:`howto/connection:gcp`
+
+        .. warning::
+            For the best reliability and integration with Airflow, consider using operators for Google
+            services. For list of GCP operators, take a look at: :ref:`GCP`
+
+    :type gcp_conn_id: str
+    :param gcp_delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have domain-wide delegation enabled.
+
+        This parameters only works if the value is passed to the ``gcp_conn_id`` parameter.
+    :param gcp_delegate_to: str
 
     On execution of this operator the task will be up for retry
     when exception is raised. However, if a sub-command exits with non-zero
@@ -62,7 +89,7 @@ class BashOperator(BaseOperator):
 
         bash_command = "set -e; python3 script.py '{{ next_execution_date }}'"
     """
-    template_fields = ('bash_command', 'env')
+    template_fields = ('bash_command', 'env', 'gcp_conn_id')
     template_ext = ('.sh', '.bash',)
     ui_color = '#f0ede4'
 
@@ -72,6 +99,8 @@ class BashOperator(BaseOperator):
             bash_command: str,
             env: Optional[Dict[str, str]] = None,
             output_encoding: str = 'utf-8',
+            gcp_conn_id: Optional[str] = None,
+            gcp_delegate_to: Optional[str] = None,
             *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
@@ -81,6 +110,8 @@ class BashOperator(BaseOperator):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
         self.sub_process = None
+        self.gcp_conn_id = gcp_conn_id
+        self.gcp_gcp_delegate_to = gcp_delegate_to
 
     def execute(self, context):
         """
@@ -100,7 +131,25 @@ class BashOperator(BaseOperator):
                                   for k, v in airflow_context_vars.items()]))
         env.update(airflow_context_vars)
 
-        with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
+        with ExitStack() as exit_stack:
+            tmp_dir = exit_stack.enter_context(  # pylint: disable=no-member
+                TemporaryDirectory(prefix='airflowtmp')
+            )
+            if self.gcp_conn_id:
+                try:
+                    from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+                    exit_stack.enter_context(  # pylint: disable=no-member
+                        GoogleBaseHook(
+                            gcp_conn_id=self.gcp_conn_id, delegate_to=self.gcp_gcp_delegate_to
+                        ).provide_authorized_gcloud()
+                    )
+                except ImportError:
+                    raise AirflowException(
+                        'Additional packages gcp are not installed. Please install it to use gcp_conn_id '
+                        'parameter.'
+                        'For more information, please look at: '
+                        f'{DOC_BASE_URL}/installation.html'
+                    )
 
             def pre_exec():
                 # Restore default signal disposition and invoke setsid

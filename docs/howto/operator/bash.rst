@@ -41,6 +41,43 @@ You can use :ref:`Jinja templates <jinja-templating>` to parameterize the
     :start-after: [START howto_operator_bash_template]
     :end-before: [END howto_operator_bash_template]
 
+Use with Google services
+------------------------
+
+There are special ``gcp_conn_id`` parameters that facilitate the use of this operator along with
+Google services. If it is passed, the credentials for
+`Application Default Credentials (ADC) <https://cloud.google.com/docs/authentication/production>`__
+and
+`Cloud SDK <https://cloud.google.com/sdk>`__ (``gcloud``)  will be configured.
+
+All Google Cloud Platform operators use connection ``google_cloud_default`` by default.
+Pass this value to also use the default connection.
+
+.. seealso::
+    For more information on how to set-up connection for GCP, take a look at:
+    :ref:`howto/connection:gcp`
+
+You can run ``gcloud`` commands in script. For example, you can easily read the access key using
+the ``gcloud auth print-access`` command. After passing the result to ``curl``, you can send any
+requests to the Google API.
+
+.. exampleinclude:: ../../../airflow/example_dags/example_bash_operator.py
+    :language: python
+    :start-after: [START howto_operator_bash_gcloud]
+    :end-before: [END howto_operator_bash_gcloud]
+
+If you application support Application Default Credentials (ADC), you do not have to manage service-account
+for your application separately, but all credentials will be provided by Airflow.
+
+.. exampleinclude:: ../../../airflow/example_dags/example_bash_operator.py
+    :language: python
+    :start-after: [START howto_operator_bash_custom]
+    :end-before: [END howto_operator_bash_custom]
+
+.. warning::
+    For the best reliability and integration with Airflow, consider using operators for Google services.
+    For list of GCP operators, take a look at: :ref:`GCP`
+
 Troubleshooting
 ---------------
 

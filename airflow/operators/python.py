@@ -21,6 +21,7 @@ import os
 import pickle
 import sys
 import types
+from contextlib import ExitStack
 from inspect import signature
 from itertools import islice
 from tempfile import TemporaryDirectory
@@ -32,6 +33,7 @@ import dill
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, SkipMixin
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.documentation import DOC_BASE_URL
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv
 
@@ -60,6 +62,32 @@ class PythonOperator(BaseOperator):
     :param templates_exts: a list of file extensions to resolve while
         processing templated fields, for examples ``['.sql', '.hql']``
     :type templates_exts: list[str]
+    :param gcp_conn_id: The connection ID used to interact to Google Cloud Platform.
+        If passed, the credentials for
+        `Application Default Credentials <https://cloud.google.com/docs/authentication/production>`__
+        and
+        `Cloud SDK (``gcloud``) <https://cloud.google.com/sdk>`__   will be configured.
+
+        All Google Cloud Platform operators use connection ``google_cloud_default`` by default.
+        Pass this value to also use the default connection.
+
+        If the value is empty (default), nothing is done.
+
+        .. seealso::
+            For more information on how to set-up connection for GCP, take a look at:
+            :ref:`howto/connection:gcp`
+
+        .. warning::
+            For the best reliability and integration with Airflow, consider using operators for Google
+            services. For list of GCP operators, take a look at: :ref:`GCP`
+
+    :type gcp_conn_id: str
+    :param gcp_delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have domain-wide delegation enabled.
+
+        This parameters only works if the value is passed to the ``gcp_conn_id`` parameter.
+    :param gcp_delegate_to: str
+
     """
     template_fields = ('templates_dict', 'op_args', 'op_kwargs')
     ui_color = '#ffefeb'
@@ -76,6 +104,8 @@ class PythonOperator(BaseOperator):
         op_kwargs: Optional[Dict] = None,
         templates_dict: Optional[Dict] = None,
         templates_exts: Optional[List[str]] = None,
+        gcp_conn_id: Optional[str] = None,
+        gcp_delegate_to: Optional[str] = None,
         *args,
         **kwargs
     ) -> None:
@@ -88,6 +118,9 @@ class PythonOperator(BaseOperator):
         self.templates_dict = templates_dict
         if templates_exts:
             self.template_ext = templates_exts
+
+        self.gcp_conn_id = gcp_conn_id
+        self.gcp_gcp_delegate_to = gcp_delegate_to
 
     @staticmethod
     def determine_op_kwargs(python_callable: Callable,
@@ -130,10 +163,25 @@ class PythonOperator(BaseOperator):
         context['templates_dict'] = self.templates_dict
 
         self.op_kwargs = PythonOperator.determine_op_kwargs(self.python_callable, context, len(self.op_args))
-
-        return_value = self.execute_callable()
-        self.log.info("Done. Returned value was: %s", return_value)
-        return return_value
+        with ExitStack() as exit_stack:
+            if self.gcp_conn_id:
+                try:
+                    from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+                    exit_stack.enter_context(  # pylint: disable=no-member
+                        GoogleBaseHook(
+                            gcp_conn_id=self.gcp_conn_id, delegate_to=self.gcp_gcp_delegate_to
+                        ).provide_authorized_gcloud()
+                    )
+                except ImportError:
+                    raise AirflowException(
+                        'Additional packages gcp are not installed. Please install it to use gcp_conn_id '
+                        'parameter.'
+                        'For more information, please look at: '
+                        f'{DOC_BASE_URL}/installation.html'
+                    )
+            return_value = self.execute_callable()
+            self.log.info("Done. Returned value was: %s", return_value)
+            return return_value
 
     def execute_callable(self):
         """
