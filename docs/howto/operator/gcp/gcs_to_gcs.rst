@@ -230,3 +230,11 @@ already exist and it will not delete any files in `BUCKET_1_DST` not in `BUCKET_
     :dedent: 4
     :start-after: [START howto_sync_from_subdir]
     :end-before: [END howto_sync_from_subdir]
+
+Reference
+^^^^^^^^^
+
+For further information, look at:
+
+* `Google Cloud Storage Documentation <https://cloud.google.com/storage/>`__
+* `Google Cloud Storage Utilities rsync command <https://cloud.google.com/storage/docs/gsutil/commands/rsync>`__
