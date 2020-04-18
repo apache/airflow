@@ -34,7 +34,7 @@ task, use the operator
 You can also use the previous operator for this service -
 :class:`~airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceGCSToGCSOperator`
 
-These operators does not control the copying process locally, but uses Google resources, which allows to
+These operators do not control the copying process locally, but uses Google resources, which allows them to
 perform this task faster and more economically. The economic effects are especially prominent when the
 existence of Airflow is not found in the Google Cloud Platform, because this operator allows egress
 traffic reductions.
