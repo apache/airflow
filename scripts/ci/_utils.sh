@@ -1055,27 +1055,19 @@ function run_docs() {
 function pull_ci_image_if_needed() {
     # Whether to force pull images to populate cache
     export FORCE_PULL_IMAGES=${FORCE_PULL_IMAGES:="false"}
-    # In CI environment we skip pulling latest python image
-    export PULL_BASE_IMAGES=${PULL_BASE_IMAGES:="false"}
 
     if [[ "${DOCKER_CACHE}" == "pulled" ]]; then
         if [[ "${FORCE_PULL_IMAGES}" == "true" ]]; then
-            if [[ ${PULL_BASE_IMAGES} == "false" ]]; then
-                echo
-                echo "Skip force-pulling the ${PYTHON_BASE_IMAGE} image."
-                echo
-            else
-                echo
-                echo "Force pull base image ${PYTHON_BASE_IMAGE}"
-                echo
-                if [[ -n ${DETECTED_TERMINAL:=""} ]]; then
-                    echo -n "
+            echo
+            echo "Force pull base image ${PYTHON_BASE_IMAGE}"
+            echo
+            if [[ -n ${DETECTED_TERMINAL:=""} ]]; then
+                echo -n "
 Docker pulling ${PYTHON_BASE_IMAGE}.
                     " > "${DETECTED_TERMINAL}"
-                fi
-                verbose_docker pull "${PYTHON_BASE_IMAGE}" | tee -a "${OUTPUT_LOG}"
-                echo
             fi
+            verbose_docker pull "${PYTHON_BASE_IMAGE}" | tee -a "${OUTPUT_LOG}"
+            echo
         fi
         local PULL_IMAGE=${FORCE_PULL_IMAGES}
         local IMAGE_HASH
@@ -1102,21 +1094,14 @@ function pull_prod_images_if_needed() {
     # Whether to force pull images to populate cache
     export FORCE_PULL_IMAGES=${FORCE_PULL_IMAGES:="false"}
     # In CI environment we skip pulling latest python image
-    export PULL_BASE_IMAGES=${PULL_BASE_IMAGES:="false"}
 
     if [[ "${DOCKER_CACHE}" == "pulled" ]]; then
         if [[ "${FORCE_PULL_IMAGES}" == "true" ]]; then
-            if [[ ${PULL_BASE_IMAGES} == "false" ]]; then
-                echo
-                echo "Skip force-pulling the ${PYTHON_BASE_IMAGE} image."
-                echo
-            else
-                echo
-                echo "Force pull base image ${PYTHON_BASE_IMAGE}"
-                echo
-                verbose_docker pull "${PYTHON_BASE_IMAGE}" | tee -a "${OUTPUT_LOG}"
-                echo
-            fi
+            echo
+            echo "Force pull base image ${PYTHON_BASE_IMAGE}"
+            echo
+            verbose_docker pull "${PYTHON_BASE_IMAGE}" | tee -a "${OUTPUT_LOG}"
+            echo
         fi
         local PULL_BUILD_IMAGE=${FORCE_PULL_IMAGES}
         local BUILD_IMAGE_HASH
