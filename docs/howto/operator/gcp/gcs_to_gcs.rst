@@ -57,6 +57,12 @@ There are two operators that are used to copy data, where the entire process is 
 
 In the next section they will be described.
 
+Prerequisite Tasks
+------------------
+
+.. include:: _partials/prerequisite_tasks.rst
+
+
 Operators
 ---------
 
