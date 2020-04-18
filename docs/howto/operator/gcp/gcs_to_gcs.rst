@@ -38,11 +38,11 @@ These operators do not control the copying process locally, but uses Google reso
 perform this task faster and more economically. The economic effects are especially prominent when
 Airflow is not hosted in Google Cloud Platform, because these operators reduce egress traffic.
 
-This operator modifies source objects if the option that specifies whether objects should be deleted
+These operators modify source objects if the option that specifies whether objects should be deleted
 from the source after they are transferred to the sink is enabled.
 
-When you use this service, you can specify whether overwriting objects that already exist in the sink is
-allowed, whether objects that exist only in the sink should be deleted, or whether objects should be deleted
+When you use the Google Cloud Data Transfer service, you can specify whether overwriting objects that already exist in
+the sink is allowed, whether objects that exist only in the sink should be deleted, or whether objects should be deleted
 from the source after they are transferred to the sink.
 
 Source objects can be specified using include and exclusion prefixes, as well as based on the file
