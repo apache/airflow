@@ -18,7 +18,7 @@
 Transfer data in Google Cloud Storage
 =====================================
 
-The `Google Cloud Storage <https://cloud.google.com/storage/>`__ is used to store large data from various applications.
+The `Google Cloud Storage <https://cloud.google.com/storage/>`__  (GCS) is used to store large data from various applications.
 There are several operators for whose purpose is to copy data as part of the Google CLoud Service. This page shows
 how to use these operators.
 
@@ -67,17 +67,18 @@ GCSToGCSOperator
 
 
 :class:`~airflow.providers.google.cloud.operators.gcs_to_gcs.GCSToGCSOperator` allows you to copy
-one or more files. The copying always takes place without taking into account the initial state of
-the destination bucket.
+one or more files from one GCS bucket to another. The copying always takes place without taking into account the
+initial state of the destination bucket.
 
-This operator never deletes data in the destination bucket and it deletes objects in the source bucket
+This operator never deletes data in the destination bucket and it only deletes objects in the source bucket
 if the file move option is active.
 
 When you use this operator, you can specify whether objects should be deleted from the source after
 they are transferred to the sink. Source objects can be specified using single wildcard, as
 well as based on the file modification date.
 
-The way this operator works can be compared to the ``cp`` command.
+The way this operator works by default can be compared to the ``cp`` command. When the file move option is active, this
+operator functions like the ``mv`` command.
 
 
 .. _howto/operator:GCSSynchronizeBuckets:
