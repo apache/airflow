@@ -18,8 +18,9 @@
 Transfer data in Google Cloud Storage
 =====================================
 
-This page will show operators whose purpose is to copy data as part of the Google Cloud Service.
-Each of them has its own specific use cases, as well as limitations.
+The `Google Cloud Storage <https://cloud.google.com/storage/>`__ is used to store large data from various applications.
+There are several operators for whose purpose is to copy data as part of the Google CLoud Service. This page shows
+how to use these operators.
 
 Overview
 --------
