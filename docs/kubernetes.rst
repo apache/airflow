@@ -23,10 +23,11 @@ Kubernetes
 Kubernetes Executor
 ^^^^^^^^^^^^^^^^^^^
 
-The :doc:`Kubernetes Executor <executor/kubernetes>` allows you to run tasks on Kubernetes as Pods.
+The :doc:`Kubernetes Executor <executor/kubernetes>` allows you to run all the Airflow tasks on
+Kubernetes as separate Pods.
 
-Kubernetes Operator
-^^^^^^^^^^^^^^^^^^^
+KubernetesPodOperator
+^^^^^^^^^^^^^^^^^^^^^
 
 The :doc:`KubernetesPodOperator <howto/operator/kubernetes>` allows you to create
 Pods on Kubernetes.
