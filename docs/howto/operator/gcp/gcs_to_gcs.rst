@@ -35,9 +35,8 @@ You can also use the previous operator for this service -
 :class:`~airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceGCSToGCSOperator`
 
 These operators do not control the copying process locally, but uses Google resources, which allows them to
-perform this task faster and more economically. The economic effects are especially prominent when the
-existence of Airflow is not found in the Google Cloud Platform, because this operator allows egress
-traffic reductions.
+perform this task faster and more economically. The economic effects are especially prominent when
+Airflow is not hosted in Google Cloud Platform, because these operators reduce egress traffic.
 
 This operator modifies source objects if the option that specifies whether objects should be deleted
 from the source after they are transferred to the sink is enabled.
