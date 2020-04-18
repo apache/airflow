@@ -219,7 +219,7 @@ already exist and it will not delete any files in `BUCKET_1_DST/subdir` not in `
     :end-before: [END howto_synch_to_subdir]
 
 Synchronize from a Subdirectory
------------------------------
+-------------------------------
 
 This example will ensure all files in `BUCKET_1_SRC/subdir`, including any in subdirectories, are also in the
 in `BUCKET_1_DST`. It will not overwrite identically named files in `BUCKET_1_DST` if they
