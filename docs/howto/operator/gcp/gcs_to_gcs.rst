@@ -178,3 +178,55 @@ objects that exist only in the sink should be deleted, whether subdirectories ar
 which subdirectory is to be processed.
 
 The way this operator works can be compared to the ``rsync`` command.
+
+Basic Synchronization
+---------------------
+
+The following example will ensure all files in `BUCKET_1_SRC`, including any in subdirectories, are also in
+`BUCKET_1_DST`. It will not overwrite identically named files in `BUCKET_1_DST` if they already exist. It will not
+delete any files in `BUCKET_1_DST` not in `BUCKET_1_SRC`.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_gcs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_synch_bucket]
+    :end-before: [END howto_synch_bucket]
+
+Full Bucket Synchronization
+---------------------------
+
+This example will ensure all files in `BUCKET_1_SRC`, including any in subdirectories, are also in
+`BUCKET_1_DST`. It will overwrite identically named files in `BUCKET_1_DST` if they already exist. It will
+delete any files in `BUCKET_1_DST` not in `BUCKET_1_SRC`.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_gcs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_synch_full_bucket]
+    :end-before: [END howto_synch_full_bucket]
+
+Synchronize to a Subdirectory
+-----------------------------
+
+The following example will ensure all files in `BUCKET_1_SRC`, including any in subdirectories, are also in the
+`subdir` folder in `BUCKET_1_DST`. It will not overwrite identically named files in `BUCKET_1_DST/subdir` if they
+already exist and it will not delete any files in `BUCKET_1_DST/subdir` not in `BUCKET_1_SRC`.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_gcs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_synch_to_subdir]
+    :end-before: [END howto_synch_to_subdir]
+
+Synchronize from a Subdirectory
+-----------------------------
+
+This example will ensure all files in `BUCKET_1_SRC/subdir`, including any in subdirectories, are also in the
+in `BUCKET_1_DST`. It will not overwrite identically named files in `BUCKET_1_DST` if they
+already exist and it will not delete any files in `BUCKET_1_DST` not in `BUCKET_1_SRC/subdir`.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_gcs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sync_from_subdir]
+    :end-before: [END howto_sync_from_subdir]

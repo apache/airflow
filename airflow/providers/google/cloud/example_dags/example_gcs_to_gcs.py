@@ -42,27 +42,41 @@ OBJECT_2 = os.environ.get("GCP_GCS_OBJECT_2", "test-gcs-to-gcs-2")
 with models.DAG(
     "example_gcs_to_gcs", default_args=default_args, schedule_interval=None, tags=['example']
 ) as dag:
-    sync_full_bucket = GCSSynchronizeBuckets(
-        task_id="sync-full-bucket",
+    # [START howto_synch_bucket]
+    sync_bucket = GCSSynchronizeBuckets(
+        task_id="sync_bucket",
         source_bucket=BUCKET_1_SRC,
         destination_bucket=BUCKET_1_DST
     )
+    # [END howto_synch_bucket]
 
-    sync_to_subdirectory_and_delete_extra_files = GCSSynchronizeBuckets(
-        task_id="sync_to_subdirectory_and_delete_extra_files",
+    # [START howto_synch_full_bucket]
+    sync_full_bucket = GCSSynchronizeBuckets(
+        task_id="sync_full_bucket",
         source_bucket=BUCKET_1_SRC,
         destination_bucket=BUCKET_1_DST,
-        destination_object="subdir/",
         delete_extra_files=True,
+        allow_overwrite=True
     )
+    # [END howto_synch_full_bucket]
 
-    sync_from_subdirectory_and_allow_overwrite_and_non_recursive = GCSSynchronizeBuckets(
-        task_id="sync_from_subdirectory_and_allow_overwrite_and_non_recursive",
+    # [START howto_synch_to_subdir]
+    sync_to_subdirectory = GCSSynchronizeBuckets(
+        task_id="sync_to_subdirectory",
+        source_bucket=BUCKET_1_SRC,
+        destination_bucket=BUCKET_1_DST,
+        destination_object="subdir/"
+    )
+    # [END howto_synch_to_subdir]
+
+    # [START howto_sync_from_subdir]
+    sync_from_subdirectory = GCSSynchronizeBuckets(
+        task_id="sync_from_subdirectory",
         source_bucket=BUCKET_1_SRC,
         source_object="subdir/",
-        destination_bucket=BUCKET_1_DST,
-        recursive=False,
+        destination_bucket=BUCKET_1_DST
     )
+    # [END howto_sync_from_subdir]
 
     # [START howto_operator_gcs_to_gcs_single_file]
     copy_single_file = GCSToGCSOperator(
