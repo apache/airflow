@@ -28,7 +28,6 @@ if [[ "${TRAVIS_EVENT_TYPE:=}" == "cron" ]]; then
     echo "Disabling cache for CRON jobs"
     echo
     export DOCKER_CACHE="no-cache"
-    export PULL_BASE_IMAGES="true"
     export UPGRADE_TO_LATEST_REQUIREMENTS="true"
 fi
 
