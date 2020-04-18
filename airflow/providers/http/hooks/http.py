@@ -34,8 +34,8 @@ class HttpHook(BaseHook):
         and optional authentication credentials. Default headers can also be specified in
         the Extra field in json format.
     :type http_conn_id: str
-    :param auth_type: the API method to be called
-    :type method: AuthBase of python requests lib
+    :param auth_type: The auth type for the service
+    :type auth_type: AuthBase of python requests lib
     """
 
     def __init__(
