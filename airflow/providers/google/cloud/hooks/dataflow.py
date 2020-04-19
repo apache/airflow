@@ -693,7 +693,7 @@ class DataflowHook(GoogleBaseHook):
             elif value is None:
                 command.append(f"--{attr}")
             elif isinstance(value, bool) and value
-                command.append("--" + attr)
+                command.append(f"--{attr}")
             elif isinstance(value, list):
                 command.extend([f"--{attr}={v}" for v in value])
             else:
