@@ -62,6 +62,14 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Changes in BigQueryHook
+- `create_empty_table` method accepts now `table_resource` parameter. If provided all
+other parameters are ignored.
+- `create_empty_dataset` will now use values from `dataset_reference` instead of raising error
+if parameters were passed in `dataset_reference` and as arguments to method. Additionally validation
+of `dataset_reference` is done using `Dataset.from_api_repr`. Exception and log messages has been
+changed.
+
 ### Added mypy plugin to preserve types of decorated functions
 
 Mypy currently doesn't support precise type information for decorated
