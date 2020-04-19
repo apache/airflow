@@ -692,9 +692,8 @@ class DataflowHook(GoogleBaseHook):
                 command += label_formatter(value)
             elif value is None:
                 command.append(f"--{attr}")
-            elif isinstance(value, bool):
-                if value:  # pylint: disable=too-many-nested-blocks
-                    command.append("--" + attr)
+            elif isinstance(value, bool) and value
+                command.append("--" + attr)
             elif isinstance(value, list):
                 command.extend([f"--{attr}={v}" for v in value])
             else:
