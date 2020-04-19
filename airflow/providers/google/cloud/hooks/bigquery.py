@@ -26,7 +26,9 @@ import warnings
 from copy import deepcopy
 from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Optional, Tuple, Type, Union
 
-from google.cloud.bigquery import Client, Table
+from google.api_core.retry import Retry
+from google.cloud.bigquery import DEFAULT_RETRY, Client, Dataset, Table
+from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from pandas import DataFrame
@@ -39,6 +41,7 @@ from pandas_gbq.gbq import (
 from airflow.exceptions import AirflowException
 from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = logging.getLogger(__name__)
@@ -137,7 +140,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                         verbose=False,
                         credentials=credentials)
 
-    def table_exists(self, project_id: str, dataset_id: str, table_id: str) -> bool:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def table_exists(self, dataset_id: str, table_id: str, project_id: str) -> bool:
         """
         Checks for the existence of a table in Google BigQuery.
 
@@ -151,30 +155,28 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param table_id: The name of the table to check the existence of.
         :type table_id: str
         """
-        service = self.get_service()
+        table_reference = f"{project_id}.{dataset_id}.{table_id}"
+
         try:
-            service.tables().get(  # pylint: disable=no-member
-                projectId=project_id, datasetId=dataset_id,
-                tableId=table_id).execute(num_retries=self.num_retries)
+            Client(client_info=self.client_info).get_table(table_reference)
             return True
-        except HttpError as e:
-            if e.resp['status'] == '404':
-                return False
-            raise
+        except NotFound:
+            return False
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_empty_table(  # pylint: disable=too-many-arguments
         self,
+        project_id: str,
         dataset_id: str,
         table_id: str,
         table_resource: Optional[Dict[str, Any]] = None,
-        project_id: Optional[str] = None,
         schema_fields: Optional[List] = None,
         time_partitioning: Optional[Dict] = None,
         cluster_fields: Optional[List[str]] = None,
         labels: Optional[Dict] = None,
         view: Optional[Dict] = None,
         encryption_configuration: Optional[Dict] = None,
+        retry: Optional[Retry] = DEFAULT_RETRY,
         num_retries: Optional[int] = None
     ) -> None:
         """
@@ -196,6 +198,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type schema_fields: list
         :param labels: a dictionary containing labels for the table, passed to BigQuery
         :type labels: dict
+        :param retry: Optional. How to retry the RPC.
+        :type retry: google.api_core.retry.Retry
 
         **Example**: ::
 
@@ -272,13 +276,14 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         table_resource = table_resource or _table_resource
         table = Table.from_api_repr(table_resource)
-        Client(client_info=self.client_info).create_table(table=table, exists_ok=True)
+        Client(client_info=self.client_info).create_table(table=table, exists_ok=True, retry=retry)
 
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_empty_dataset(self,
-                             dataset_id: str = "",
-                             project_id: str = "",
+                             dataset_id: Optional[str] = None,
+                             project_id: Optional[str] = None,
                              location: Optional[str] = None,
-                             dataset_reference: Optional[Dict] = None) -> None:
+                             dataset_reference: Optional[Dict[str, Any]] = None) -> None:
         """
         Create a new empty dataset:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert
@@ -286,67 +291,46 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param project_id: The name of the project where we want to create
             an empty a dataset. Don't need to provide, if projectId in dataset_reference.
         :type project_id: str
-        :param dataset_id: The id of dataset. Don't need to provide,
-            if datasetId in dataset_reference.
+        :param dataset_id: The id of dataset. Don't need to provide, if datasetId in dataset_reference.
         :type dataset_id: str
         :param location: (Optional) The geographic location where the dataset should reside.
             There is no default value but the dataset will be created in US if nothing is provided.
         :type location: str
-        :param dataset_reference: Dataset reference that could be provided
-            with request body. More info:
+        :param dataset_reference: Dataset reference that could be provided with request body. More info:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
         :type dataset_reference: dict
         """
-        service = self.get_service()
 
-        if dataset_reference:
-            _validate_value('dataset_reference', dataset_reference, dict)
-        else:
-            dataset_reference = {}
+        dataset_reference = dataset_reference or {"datasetReference": {}}
 
-        if "datasetReference" not in dataset_reference:
-            dataset_reference["datasetReference"] = {}
-
-        if self.location:
-            dataset_reference['location'] = dataset_reference.get('location') or self.location
-
-        if not dataset_reference["datasetReference"].get("datasetId") and not dataset_id:
-            raise ValueError(
-                "dataset_id not provided and datasetId not exist in the datasetReference. "
-                "Impossible to create dataset")
-
-        dataset_required_params = [(dataset_id, "datasetId", ""),
-                                   (project_id, "projectId", self.project_id)]
-        for param_tuple in dataset_required_params:
-            param, param_name, param_default = param_tuple
-            if param_name not in dataset_reference['datasetReference']:
-                if param_default and not param:
+        for param, value in zip(["datasetId", "projectId"], [dataset_id, project_id]):
+            specified_param = dataset_reference["datasetReference"].get(param)
+            if specified_param:
+                if value:
                     self.log.info(
-                        "%s was not specified. Will be used default value %s.",
-                        param_name, param_default
+                        "`%s` was provided in both `dataset_reference` and as `%s`. "
+                        "Using value from `dataset_reference`",
+                        param, convert_camel_to_snake(param)
                     )
-                    param = param_default
-                dataset_reference['datasetReference'].update(
-                    {param_name: param})
-            elif param:
-                _api_resource_configs_duplication_check(
-                    param_name, param,
-                    dataset_reference['datasetReference'], 'dataset_reference')
+                continue  # use specified value
+            if not value:
+                raise ValueError(
+                    f"Please specify `{param}` either in `dataset_reference` "
+                    f"or by providing `{convert_camel_to_snake(param)}`",
+                )
+            # dataset_reference has no param but we can fallback to default value
+            self.log.info(
+                "%s was not specified in `dataset_reference`. Will use default value %s.",
+                param, value
+            )
+            dataset_reference["datasetReference"][param] = value
 
+        location = location or self.location
         if location:
-            if 'location' not in dataset_reference:
-                dataset_reference.update({'location': location})
-            else:
-                _api_resource_configs_duplication_check(
-                    'location', location,
-                    dataset_reference, 'dataset_reference')
+            dataset_reference["location"] = dataset_reference.get("location", location)
 
-        dataset_id = dataset_reference.get("datasetReference").get("datasetId")  # type: ignore
-        dataset_project_id = dataset_reference.get("datasetReference").get("projectId")  # type: ignore
-
-        service.datasets().insert(  # pylint: disable=no-member
-            projectId=dataset_project_id,
-            body=dataset_reference).execute(num_retries=self.num_retries)
+        dataset = Dataset.from_api_repr(dataset_reference)
+        Client(client_info=self.client_info).create_dataset(dataset=dataset, exists_ok=True)
 
     def get_dataset_tables(self, dataset_id: str, project_id: Optional[str] = None,
                            max_results: Optional[int] = None,
