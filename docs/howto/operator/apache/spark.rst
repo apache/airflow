@@ -26,12 +26,58 @@ Apache Spark Operators
 Prerequisite
 ------------
 
-To use ``SparkJDBCOperator`` and ``SparkSubmitOperator``, you must configure a :doc:`Spark Connection <../../connection/spark>`.
+To use ``SparkJDBCOperator`` and ``SparkSubmitOperator``, you must configure a :doc:`Spark Connection <../../connection/spark>`. For ``SparkJDBCOperator``, you must also `configure a JDBC connection`_.
+
+``SparkSqlOperator`` gets all the configurations from operator parameters.
 
 .. _howto/operator:SparkJDBCOperator:
 
 SparkJDBCOperator
 -----------------
+
+Launches applications on Spark cluster, it uses ``SparkSubmitOperator`` to perform data transfers to/from JDBC-based databases.
+
+For parameter definition take a look at :class:`~airflow.providers.apache.spark.operators.spark_jdbc.SparkJDBCOperator`.
+
+Configure a JDBC connection
+"""""""""""""""""""""""""""
+
+Host (required)
+    The host to connect to.
+
+Schema (required)
+    Specify the database name to be used in.
+
+Login (optional)
+    Specify the user name to connect to. Default ``root``.
+
+Password (optional)
+    Specify the password to connect to. Default ``root``.
+
+Port (optional)
+    Port of host to connect to.
+
+Extra (optional)
+    Specify the extra parameters (as json dictionary) that can be used in JDBC connection. The following parameters out of the standard python parameters are supported:
+
+    * ``conn_prefix`` - Used to build the connection url, added in front of host (``conn_prefix`` ``host`` [: ``port`` ] / ``schema``)
+
+Using the operator
+""""""""""""""""""
+
+Using ``cmd_type`` parameter, is possible to transfer data from Spark to a database (``spark_to_jdbc``) or from a database to Spark (``jdbc_to_spark``), which will write the table using the Spark command ``saveAsTable``.
+
+.. exampleinclude:: ../../../../airflow/providers/apache/spark/example_dags/example_spark_dag.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_spark_jdbc]
+    :end-before: [END howto_operator_spark_jdbc]
+
+
+Reference
+"""""""""
+
+For further information, look at `Apache Spark DataFrameWriter documentation <https://spark.apache.org/docs/2.4.5/api/scala/index.html#org.apache.spark.sql.DataFrameWriter>`_.
 
 .. _howto/operator:SparkSqlOperator:
 
@@ -57,6 +103,6 @@ Using the operator
     :end-before: [END howto_operator_spark_submit]
 
 Reference
----------
+"""""""""
 
 For further information, look at `Apache Spark submitting applications <https://spark.apache.org/docs/latest/submitting-applications.html>`_.
