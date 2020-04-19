@@ -51,7 +51,7 @@ Before using ECSOperator, *cluster* and *task definition* need to be created.
 More information
 ----------------
 
-For further information, look at the documentation of `run_task`_ method in `boto3`_.
+For further information, look at the documentation of :meth:`~ECS.Client.run_task`_ .
 
 .. _run_task: http://boto3.readthedocs.org/en/latest/reference/services/ecs.html#ECS.Client.run_task
 .. _boto3: https://pypi.org/project/boto3/
