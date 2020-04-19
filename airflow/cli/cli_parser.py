@@ -22,7 +22,7 @@ import argparse
 import json
 import os
 import textwrap
-from argparse import ArgumentError, RawTextHelpFormatter
+from argparse import Action, ArgumentError, RawTextHelpFormatter
 from typing import Callable, Dict, Iterable, List, NamedTuple, Set, Union
 
 from tabulate import tabulate_formats
@@ -1244,11 +1244,44 @@ DAG_CLI_COMMANDS: Set[str] = {
 }
 
 
+class AirflowHelpFormatter(argparse.HelpFormatter):
+    """
+    Custom help formatter to display help message.
+
+    It displays simple commands and groups of commands in separate sections.
+    """
+    def _format_action(self, action: Action):
+        if isinstance(action, argparse._SubParsersAction):  # pylint: disable=protected-access
+            parts = []
+            subactions = action._get_subactions()  # pylint: disable=protected-access
+            action_subcommnads, group_subcommnands = partition(
+                lambda d: isinstance(ALL_COMMANDS_DICT[d.dest], GroupCommand), subactions
+            )
+            parts.append("\n")
+            parts.append('%*s%s:\n' % (self._current_indent, '', "Groups"))
+            self._indent()
+            for subaction in group_subcommnands:
+                parts.append(self._format_action(subaction))
+            self._dedent()
+
+            parts.append("\n")
+            parts.append('%*s%s:\n' % (self._current_indent, '', "Commands"))
+            self._indent()
+
+            for subaction in action_subcommnads:
+                parts.append(self._format_action(subaction))
+            self._dedent()
+
+            # return a single string
+            return self._join_parts(parts)
+
+        return super()._format_action(action)
+
+
 def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
     """Creates and returns command line argument parser"""
-    parser = DefaultHelpParser(prog="airflow")
-    subparsers = parser.add_subparsers(
-        help='sub-command help', dest='subcommand')
+    parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
+    subparsers = parser.add_subparsers(dest='subcommand')
     subparsers.required = True
 
     subparser_list = DAG_CLI_COMMANDS if dag_parser else ALL_COMMANDS_DICT.keys()

@@ -18,6 +18,8 @@
 # under the License.
 
 import argparse
+import contextlib
+import io
 import re
 from collections import Counter
 from unittest import TestCase
@@ -144,3 +146,13 @@ class TestCli(TestCase):
 
         args = parser.parse_args([])
         self.assertEqual(args.test, 0)
+
+    def test_commands_and_command_group_sections(self):
+        parser = cli_parser.get_parser()
+
+        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+            with self.assertRaises(SystemExit):
+                parser.parse_args(['--help'])
+            stdout = stdout.getvalue()
+        self.assertIn("Commands", stdout)
+        self.assertIn("Groups", stdout)
