@@ -684,22 +684,21 @@ class DataflowHook(GoogleBaseHook):
         if variables is None:
             return command
 
-        # The logic of this method should be compatible with Apachea Beam:
+        # The logic of this method should be compatible with Apache Beam:
         # https://github.com/apache/beam/blob/b56740f0e8cd80c2873412847d0b336837429fb9/sdks/python/
         # apache_beam/options/pipeline_options.py#L230-L251
         for attr, value in variables.items():
             if attr == 'labels':
                 command += label_formatter(value)
             elif value is None:
-                command.append("--" + attr)
+                command.append(f"--{attr}")
             elif isinstance(value, bool):
                 if value:  # pylint: disable=too-many-nested-blocks
                     command.append("--" + attr)
             elif isinstance(value, list):
-                for v in value:  # pylint: disable=too-many-nested-blocks
-                    command.append("--" + attr + "=" + v)
+                command.extend([f"--{attr}={v}" for v in value])
             else:
-                command.append("--" + attr + "=" + value)
+                command.append(f"--{attr}={value}")
         return command
 
     @_fallback_to_project_id_from_variables
