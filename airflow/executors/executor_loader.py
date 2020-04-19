@@ -19,6 +19,7 @@ import logging
 from contextlib import suppress
 from typing import Optional
 
+from airflow.exceptions import AirflowConfigException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.utils.module_loading import import_string
 
@@ -65,7 +66,7 @@ class ExecutorLoader:
         """
         Loads the executor.
 
-        This supports the following following formats:
+        This supports the following formats:
         * by executor name for core executor
         * by ``{plugin_name}.{class_name}`` for executor from plugins
         * by import path.
@@ -87,8 +88,14 @@ class ExecutorLoader:
                 return import_string(f"airflow.executors.{executor_name}")()
 
         log.debug("Loading executor from custom path: %s", executor_name)
-        executor = import_string(executor_name)()
-
+        try:
+            executor = import_string(executor_name)()
+        except ImportError as e:
+            log.error(e)
+            raise AirflowConfigException(
+                f'The module/attribute could not be loaded. Please check "executor" key in "core" section. '
+                f'Current value: "{executor_name}".'
+            )
         log.info("Loaded executor: %s", executor_name)
 
         return executor
