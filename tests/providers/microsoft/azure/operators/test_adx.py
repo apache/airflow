@@ -95,7 +95,3 @@ class TestAzureDataExplorerQueryOperator(unittest.TestCase):
 
         self.assertEqual(ti.xcom_pull(task_ids=MOCK_DATA['task_id']),
                          MOCK_RESULT)
-
-
-if __name__ == '__main__':
-    unittest.main()

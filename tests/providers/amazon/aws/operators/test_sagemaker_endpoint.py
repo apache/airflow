@@ -128,7 +128,3 @@ class TestSageMakerEndpointOperator(unittest.TestCase):
                                              'ResponseMetadata':
                                              {'HTTPStatusCode': 200}}
         self.sagemaker.execute(None)
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -33,7 +33,3 @@ class TestVerticaOperator(unittest.TestCase):
         mock_hook.return_value.run.assert_called_once_with(
             sql=sql
         )
-
-
-if __name__ == '__main__':
-    unittest.main()

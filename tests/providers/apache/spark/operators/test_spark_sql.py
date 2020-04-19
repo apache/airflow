@@ -72,7 +72,3 @@ class TestSparkSqlOperator(unittest.TestCase):
         self.assertEqual(self._config['num_executors'], operator._num_executors)
         self.assertEqual(self._config['verbose'], operator._verbose)
         self.assertEqual(self._config['yarn_queue'], operator._yarn_queue)
-
-
-if __name__ == '__main__':
-    unittest.main()

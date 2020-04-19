@@ -109,7 +109,3 @@ class TestAzureDataLakeHook(unittest.TestCase):
         hook = AzureDataLakeHook(azure_data_lake_conn_id='adl_test_key')
         hook.list('file_path/some_folder/')
         mock_fs.return_value.walk.assert_called_once_with('file_path/some_folder/')
-
-
-if __name__ == '__main__':
-    unittest.main()

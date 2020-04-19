@@ -67,7 +67,3 @@ class TestAzureCosmosDbHook(unittest.TestCase):
         op.execute(None)
         cosmos_mock.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
         cosmos_mock.assert_has_calls(expected_calls)
-
-
-if __name__ == '__main__':
-    unittest.main()

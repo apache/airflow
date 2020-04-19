@@ -138,7 +138,3 @@ class TestSagemakerBaseSensor(unittest.TestCase):
         )
 
         self.assertRaises(AirflowException, sensor.poke, None)
-
-
-if __name__ == '__main__':
-    unittest.main()

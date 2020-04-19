@@ -157,7 +157,3 @@ class TestAwsBatchOperator(unittest.TestCase):
         self.client_mock.terminate_job.assert_called_once_with(
             jobId=JOB_ID, reason="Task killed by the user"
         )
-
-
-if __name__ == "__main__":
-    unittest.main()

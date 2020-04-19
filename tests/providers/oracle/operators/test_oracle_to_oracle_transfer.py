@@ -72,7 +72,3 @@ class TestOracleToOracleTransfer(unittest.TestCase):
             cursor_rows,
             commit_every=rows_chunk,
             target_fields=['id', 'description'])
-
-
-if __name__ == '__main__':
-    unittest.main()

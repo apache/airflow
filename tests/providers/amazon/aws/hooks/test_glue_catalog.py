@@ -171,7 +171,3 @@ class TestAwsGlueCatalogHook(unittest.TestCase):
 
         result = self.hook.get_table_location(DB_NAME, TABLE_NAME)
         self.assertEqual(result, TABLE_INPUT['StorageDescriptor']['Location'])
-
-
-if __name__ == '__main__':
-    unittest.main()

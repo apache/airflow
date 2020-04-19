@@ -167,7 +167,3 @@ class TestAzureDataExplorerHook(unittest.TestCase):
         assert mock_execute.called_with('Database',
                                         'Logs | schema',
                                         properties=properties)
-
-
-if __name__ == '__main__':
-    unittest.main()

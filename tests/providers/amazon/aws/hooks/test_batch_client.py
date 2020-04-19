@@ -322,7 +322,3 @@ class TestAwsBatchClientDelays(unittest.TestCase):
         result = self.batch_client.exponential_delay(tries)
         self.assertGreaterEqual(result, lower)
         self.assertLessEqual(result, upper)
-
-
-if __name__ == "__main__":
-    unittest.main()

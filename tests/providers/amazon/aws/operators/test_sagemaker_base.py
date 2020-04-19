@@ -67,7 +67,3 @@ class TestSageMakerBaseOperator(unittest.TestCase):
         ]
         self.sagemaker.parse_config_integers()
         self.assertEqual(self.sagemaker.config, parsed_config)
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -101,7 +101,3 @@ class TestSQSSensor(unittest.TestCase):
             self.sensor.poke(self.mock_context)
 
         self.assertTrue('test exception' in context.exception.args[0])
-
-
-if __name__ == '__main__':
-    unittest.main()

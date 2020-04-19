@@ -75,7 +75,3 @@ class TestAwsLogsHook(unittest.TestCase):
         assert count == 1
         assert events[0]['timestamp'] == input_events[0]['timestamp']
         assert events[0]['message'] == input_events[0]['message']
-
-
-if __name__ == '__main__':
-    unittest.main()

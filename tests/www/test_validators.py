@@ -131,7 +131,3 @@ class TestValidJson(unittest.TestCase):
             self._validate,
             message="Invalid JSON: {}",
         )
-
-
-if __name__ == '__main__':
-    unittest.main()

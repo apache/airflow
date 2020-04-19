@@ -165,7 +165,3 @@ class TestGoogleApiToS3Transfer(unittest.TestCase):
         )
         context['task_instance'].xcom_push.assert_not_called()
         mock_sys_getsizeof.assert_called_once_with(mock_google_api_hook_query.return_value)
-
-
-if __name__ == '__main__':
-    unittest.main()

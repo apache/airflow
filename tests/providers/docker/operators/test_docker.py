@@ -291,7 +291,3 @@ class TestDockerOperator(unittest.TestCase):
 
         self.assertEqual(xcom_push_result, b'container log')
         self.assertIs(no_xcom_push_result, None)
-
-
-if __name__ == "__main__":
-    unittest.main()

@@ -748,7 +748,3 @@ class TestSparkSubmitHook(unittest.TestCase):
         client.delete_namespaced_pod.assert_called_once_with(
             'spark-pi-edf2ace37be7353a958b38733a12f8e6-driver',
             'mynamespace', **kwargs)
-
-
-if __name__ == '__main__':
-    unittest.main()

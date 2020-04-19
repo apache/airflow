@@ -184,7 +184,3 @@ class TestStandardTaskRunner(unittest.TestCase):
                     yield proc
             except OSError:
                 pass
-
-
-if __name__ == '__main__':
-    unittest.main()

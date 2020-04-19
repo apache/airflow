@@ -2591,7 +2591,3 @@ class TestDecorators(TestBase):
         self.session.commit()
         self.check_last_log("example_bash_operator", event="clear",
                             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE)
-
-
-if __name__ == '__main__':
-    unittest.main()

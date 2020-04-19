@@ -67,7 +67,3 @@ class TestSQSPublishOperator(unittest.TestCase):
         context_calls = []
 
         self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context call  should be same")
-
-
-if __name__ == '__main__':
-    unittest.main()

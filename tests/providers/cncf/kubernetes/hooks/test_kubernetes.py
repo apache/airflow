@@ -87,7 +87,3 @@ class TestKubernetesHook(unittest.TestCase):
         kubernetes_hook_without_namespace = KubernetesHook(conn_id='kubernetes_default_kube_config')
         self.assertEqual(kubernetes_hook_with_namespace.get_namespace(), 'mock_namespace')
         self.assertEqual(kubernetes_hook_without_namespace.get_namespace(), 'default')
-
-
-if __name__ == '__main__':
-    unittest.main()

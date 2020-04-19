@@ -173,7 +173,3 @@ class TestCreateEvaluateOps(unittest.TestCase):
             params = other_params_but_models.copy()
             params['validate_fn'] = None
             mlengine_operator_utils.create_evaluate_ops(model_uri='gs://blah', **params)
-
-
-if __name__ == '__main__':
-    unittest.main()

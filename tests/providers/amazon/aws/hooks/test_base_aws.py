@@ -208,7 +208,3 @@ class TestAwsBaseHook(unittest.TestCase):
         arn = hook.expand_role('test-role')
         expect_arn = conn.get_role(RoleName='test-role').get('Role').get('Arn')
         self.assertEqual(arn, expect_arn)
-
-
-if __name__ == '__main__':
-    unittest.main()

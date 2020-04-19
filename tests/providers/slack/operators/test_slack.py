@@ -194,7 +194,3 @@ class TestSlackAPIPostOperator(unittest.TestCase):
             'blocks': '[]',
         }
         self.assertEqual(expected_api_params, slack_api_post_operator.api_params)
-
-
-if __name__ == "__main__":
-    unittest.main()

@@ -166,7 +166,3 @@ class TestTriggerDag(unittest.TestCase):
             replace_microseconds=True)
 
         self.assertEqual(triggers[0].conf, conf)
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -302,7 +302,3 @@ class TestKubernetesExecutor(unittest.TestCase):
         executor._change_state(key, State.FAILED, 'pod_id', 'test-namespace')
         self.assertTrue(executor.event_buffer[key] == State.FAILED)
         mock_delete_pod.assert_called_once_with('pod_id', 'test-namespace')
-
-
-if __name__ == '__main__':
-    unittest.main()

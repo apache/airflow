@@ -668,7 +668,3 @@ class TestSageMakerHook(unittest.TestCase):
                                  print_log=True, check_interval=1)
         self.assertEqual(mock_describe.call_count, 3)
         self.assertEqual(mock_session.describe_training_job.call_count, 1)
-
-
-if __name__ == '__main__':
-    unittest.main()
