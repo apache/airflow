@@ -25,7 +25,7 @@ To use this package, you must add the parent directory to the ``PYTHONPATH`` env
 repository root directory is ``/opt/airflow/``, then you need to run the following command:
 
 .. code-block:: bash
-    export PYTHONPATH=/opt/airflow/script/perf
+    export PYTHONPATH=/opt/airflow/scripts/perf
 
 Content
 =======
@@ -88,6 +88,7 @@ You can add a code snippet before the method definition, and then perform only o
 queries in it.
 
 .. code-block:: python
+   :emphasize-lines: 6-8
 
         prev = dag.previous_schedule(_next)
         prev_local = local_tz.convert(prev)
