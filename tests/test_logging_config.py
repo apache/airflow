@@ -17,13 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+import pathlib
 import six
 import sys
 import tempfile
 
-from airflow.configuration import conf, mkdir_p
-from tests.compat import patch
+
 from tests.test_utils.config import conf_vars
+from airflow import configuration as conf
+from tests.compat import patch
 
 
 if six.PY2:
@@ -122,7 +124,7 @@ class settings_context(object):
 
             # Create the directory structure
             dir_path = os.path.join(self.settings_root, dir)
-            mkdir_p(dir_path)
+            pathlib.Path(dir_path).mkdir(parents=True, exist_ok=True)
 
             # Add the __init__ for the directories
             # This is required for Python 2.7

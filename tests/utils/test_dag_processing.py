@@ -19,6 +19,7 @@
 
 from datetime import (datetime, timedelta)
 import os
+import pathlib
 import sys
 import tempfile
 import unittest
@@ -26,8 +27,9 @@ import mock
 
 from mock import MagicMock, PropertyMock
 
-from airflow.configuration import conf, mkdir_p
-from airflow.jobs import DagFileProcessor, LocalTaskJob as LJ
+from airflow import configuration as conf
+from airflow.jobs import DagFileProcessor
+from airflow.jobs import LocalTaskJob as LJ
 from airflow.models import DagBag, TaskInstance as TI
 from airflow.utils import timezone
 from airflow.utils.dag_processing import (
@@ -101,7 +103,7 @@ class settings_context(object):
 
             # Create the directory structure
             dir_path = os.path.join(self.settings_root, dir)
-            mkdir_p(dir_path)
+            pathlib.Path(dir_path).mkdir(parents=True, exist_ok=True)
 
             # Add the __init__ for the directories
             # This is required for Python 2.7
