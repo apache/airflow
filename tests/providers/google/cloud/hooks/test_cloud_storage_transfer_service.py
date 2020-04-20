@@ -17,21 +17,28 @@
 # under the License.
 #
 import json
-import re
 import unittest
+import re
+
+from typing import Dict
 from copy import deepcopy
+from collections import namedtuple
 
 import mock
+
 from googleapiclient.errors import HttpError
-from mock import MagicMock, PropertyMock
+from mock import PropertyMock, MagicMock
 from parameterized import parameterized
+
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     DESCRIPTION, FILTER_JOB_NAMES, FILTER_PROJECT_ID, METADATA, OPERATIONS, PROJECT_ID, STATUS,
     TIME_TO_SLEEP_IN_SECONDS, TRANSFER_JOB, TRANSFER_JOB_FIELD_MASK, TRANSFER_JOBS,
-    CloudDataTransferServiceHook, GcpTransferJobsStatus, GcpTransferOperationStatus, gen_job_name,
+    CloudDataTransferServiceHook, GcpTransferJobsStatus, GcpTransferOperationStatus,
+    gen_job_name, JOB_NAME,
 )
+
 from tests.providers.google.cloud.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST, mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,
@@ -81,14 +88,21 @@ def _with_name(body, job_name):
     return obj
 
 
-class GCPRequestMock:
-
-    status = TEST_HTTP_ERR_CODE
-
-
 class TestGCPTransferServiceHookWithPassedName(unittest.TestCase):
 
+    def __create_job_se(self, body: Dict):
+        if body.get(JOB_NAME) == TEST_CLEAR_JOB_NAME:
+            nt = namedtuple('resp', ['status'])(409)
+            raise HttpError(nt, b'Conflict')
+
+        class __Create:
+            def execute(*args, **kwargs):
+                return TEST_RESULT_STATUS_ENABLED
+
+        return __Create
+
     def setUp(self):
+        self.re = re.compile("^[0-9]{10}$")
         with mock.patch(
             'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__',
             new=mock_base_gcp_hook_no_default_project_id,
@@ -112,7 +126,6 @@ class TestGCPTransferServiceHookWithPassedName(unittest.TestCase):
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
         '.CloudDataTransferServiceHook.get_conn'
     )
-    # pylint: disable=unused-argument
     def test_pass_name_on_create_job(self,
                                      get_conn: MagicMock,
                                      project_id: PropertyMock,
@@ -120,19 +133,16 @@ class TestGCPTransferServiceHookWithPassedName(unittest.TestCase):
                                      enable_transfer_job: MagicMock
                                      ):
         body = _with_name(TEST_BODY, TEST_CLEAR_JOB_NAME)
-        get_conn.side_effect \
-            = HttpError(GCPRequestMock(), TEST_HTTP_ERR_CONTENT)
+        get_conn.return_value.transferJobs.return_value.create.side_effect \
+            = self.__create_job_se
 
-        with self.assertRaises(HttpError):
-
-            # check status DELETED generates new job name
-            get_transfer_job.return_value = TEST_RESULT_STATUS_DELETED
-            self.gct_hook.create_transfer_job(body=body)
+        # check status DELETED generates new job name
+        get_transfer_job.return_value = TEST_RESULT_STATUS_DELETED
+        self.gct_hook.create_transfer_job(body=body)
 
         # check status DISABLED changes to status ENABLED
         get_transfer_job.return_value = TEST_RESULT_STATUS_DISABLED
         enable_transfer_job.return_value = TEST_RESULT_STATUS_ENABLED
-
         res = self.gct_hook.create_transfer_job(body=body)
         self.assertEqual(res, TEST_RESULT_STATUS_ENABLED)
 
@@ -140,14 +150,14 @@ class TestGCPTransferServiceHookWithPassedName(unittest.TestCase):
 class TestJobNames(unittest.TestCase):
 
     def setUp(self) -> None:
-        self.re_suffix = re.compile("^[0-9]{10}$")
+        self.re = re.compile("^[0-9]{10}$")
 
     def test_new_suffix(self):
         for job_name in ["jobNames/new_job",
                          "jobNames/new_job_h",
                          "jobNames/newJob"]:
             self.assertIsNotNone(
-                self.re_suffix.match(gen_job_name(job_name).split("_")[-1])
+                self.re.match(gen_job_name(job_name).split("_")[-1])
             )
 
 
@@ -189,6 +199,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
         self.assertEqual(res, TEST_TRANSFER_JOB)
         create_method.assert_called_once_with(body=TEST_BODY)
         execute_method.assert_called_once_with(num_retries=5)
+
 
     @mock.patch(
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
