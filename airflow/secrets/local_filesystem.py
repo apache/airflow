@@ -22,40 +22,40 @@ import json
 import logging
 import os
 from collections import defaultdict
+from inspect import signature
 from json import JSONDecodeError
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from airflow.exceptions import AirflowException, AirflowFileParseException, FileSyntaxError
 from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.utils.file import COMMENT_PATTERN
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-# constants to limit cyclical imports
-CONNECTION_PARAMETERS_NAMES = {
-    "conn_id",
-    "conn_type",
-    "host",
-    "login",
-    "password",
-    "schema",
-    "port",
-    "extra",
-    "uri",
-}
-
 log = logging.getLogger(__name__)
 
 
-def _parser_env_file(content: str) -> Tuple[Dict[str, List[str]], List[FileSyntaxError]]:
+def get_connection_parameter_names() -> Set[str]:
+    """Returns :class:`airflow.models.connection.Connection` constructor parameters."""
+    from airflow.models.connection import Connection
+
+    return {k for k in signature(Connection.__init__).parameters.keys() if k != "self"}
+
+
+def _parser_env_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSyntaxError]]:
     """
     Parse a file in the ``.env '' format.
 
    .. code-block:: text
+
         MY_CONN_ID=my-conn-type://my-login:my-pa%2Fssword@my-host:5432/my-schema?param1=val1&param2=val2
 
-    :param content:
+    :param file_path: The location of the file that will be processed.
+    :type file_path: str
     :return: Tuple with mapping of key and list of values and list of syntax errors
     """
+    with open(file_path) as f:
+        content = f.read()
+
     secrets: Dict[str, List[str]] = defaultdict(list)
     errors: List[FileSyntaxError] = []
     for line_no, line in enumerate(content.splitlines(), 1):
@@ -84,13 +84,17 @@ def _parser_env_file(content: str) -> Tuple[Dict[str, List[str]], List[FileSynta
     return secrets, errors
 
 
-def _parse_json_file(content: str) -> Tuple[Dict[str, Any], List[FileSyntaxError]]:
+def _parse_json_file(file_path: str) -> Tuple[Dict[str, Any], List[FileSyntaxError]]:
     """
-    Parrse a file in the JSON format.
+    Parse a file in the JSON format.
 
-    :param content:
+    :param file_path: The location of the file that will be processed.
+    :type file_path: str
     :return: Tuple with mapping of key and list of values and list of syntax errors
     """
+    with open(file_path) as f:
+        content = f.read()
+
     if not content:
         return {}, [FileSyntaxError(line_no=1, message="The file is empty.")]
     try:
@@ -103,60 +107,61 @@ def _parse_json_file(content: str) -> Tuple[Dict[str, Any], List[FileSyntaxError
     return secrets, []
 
 
-def _parse_secret_file(file_content: str, file_path: str) -> Tuple[Dict[str, Any], List[FileSyntaxError]]:
+FILE_PARSERS = {
+    "env": _parser_env_file,
+    "json": _parse_json_file,
+}
+
+
+def _parse_secret_file(file_path: str) -> Dict[str, Any]:
     """
     Based on the file extension format, selects a parser and parse the file.
 
-    :param file_content:
-    :param file_path:
-    :return:
+    :param file_path: The location of the file that will be processed.
+    :type file_path: str
+    :return: Map of secret key (e.g. connection ID) and value.
     """
-    if file_path.lower().endswith(".env"):
-        secrets, parse_errors = _parser_env_file(file_content)
-    elif file_path.lower().endswith(".json"):
-        secrets, parse_errors = _parse_json_file(file_content)
-    else:
-        raise AirflowException("Unsupported file format. The file must have the extension .env or .json")
-    return secrets, parse_errors
-
-
-def _read_secret_file(file_path: str) -> Dict[str, str]:
     if not os.path.exists(file_path):
         raise AirflowException(
             f"File {file_path} was not found. Check the configuration of your secret backend."
         )
 
-    log.debug("Reading file: %s", file_path)
-    with open(file_path) as f:
-        file_content = f.read()
-
     log.debug("Parsing file: %s", file_path)
-    secrets, parse_errors = _parse_secret_file(file_content, file_path)
-    log.debug("Parsed file file: len(parse_errors)=%d, len(secrets)=%d", len(parse_errors), len(secrets))
+
+    ext = file_path.rsplit(".", 2)[-1].lower()
+
+    if ext not in FILE_PARSERS:
+        raise AirflowException("Unsupported file format. The file must have the extension .env or .json")
+
+    secrets, parse_errors = FILE_PARSERS[ext](file_path)
+
+    log.debug("Parsed file: len(parse_errors)=%d, len(secrets)=%d", len(parse_errors), len(secrets))
 
     if parse_errors:
         raise AirflowFileParseException(
             f"Failed to load the secret file.", file_path=file_path, parse_errors=parse_errors
         )
-    return secrets or {}
+
+    return secrets
 
 
 def _create_connection(conn_id: str, value: Any):
     """
-    Creates a connection based on a URL or object.
+    Creates a connection based on a URL or JSON object.
     """
     from airflow.models import Connection
 
     if isinstance(value, str):
         return Connection(conn_id=conn_id, uri=value)
     if isinstance(value, dict):
+        connection_parameter_names = get_connection_parameter_names()
         current_keys = set(value.keys())
-        if not current_keys.issubset(CONNECTION_PARAMETERS_NAMES):
-            illegal_keys = current_keys - CONNECTION_PARAMETERS_NAMES
+        if not current_keys.issubset(connection_parameter_names):
+            illegal_keys = current_keys - connection_parameter_names
             illegal_keys_list = ", ".join(illegal_keys)
             raise AirflowException(
                 f"The object have illegal keys: {illegal_keys_list}. "
-                f"The dictionary can only contain the following keys: {CONNECTION_PARAMETERS_NAMES}"
+                f"The dictionary can only contain the following keys: {connection_parameter_names}"
             )
 
         if "conn_id" in current_keys and conn_id != value["conn_id"]:
@@ -174,15 +179,17 @@ def _create_connection(conn_id: str, value: Any):
 
 def load_variables(file_path: str) -> Dict[str, str]:
     """
-    Load vaariable from text file.
+    Load variable from a text file.
 
     Both ``JSON`` and ``.env`` files are supported.
 
+    :param file_path: The location of the file that will be processed.
+    :type file_path: str
     :rtype: Dict[str, List[str]]
     """
-    log.debug("Loading variables")
+    log.debug("Loading variables from a text file")
 
-    secrets = _read_secret_file(file_path)
+    secrets = _parse_secret_file(file_path)
     invalid_keys = [key for key, values in secrets.items() if isinstance(values, list) and len(values) != 1]
     if invalid_keys:
         raise AirflowException(f'The "{file_path}" file contains multiple values for keys: {invalid_keys}')
@@ -202,7 +209,7 @@ def load_connections(file_path: str):
     """
     log.debug("Loading connection")
 
-    secrets: Dict[str, Any] = _read_secret_file(file_path)
+    secrets: Dict[str, Any] = _parse_secret_file(file_path)
     connections_by_conn_id = defaultdict(list)
     for key, secret_values in list(secrets.items()):
         if isinstance(secret_values, list):
@@ -222,33 +229,35 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
 
     Both ``JSON`` and ``.env`` files are supported.
 
-    :param variable_file_path: File location with variables data.
-    :type variable_file_path: str
-    :param connection_file_path: File location with connection data.
-    :type connection_file_path: str
+    :param variables_file_path: File location with variables data.
+    :type variables_file_path: str
+    :param connections_file_path: File location with connection data.
+    :type connections_file_path: str
     """
 
-    def __init__(self, variable_file_path: Optional[str] = None, connection_file_path: Optional[str] = None):
+    def __init__(
+        self, variables_file_path: Optional[str] = None, connections_file_path: Optional[str] = None
+    ):
         super().__init__()
-        self.variable_file = variable_file_path
-        self.connection_file = connection_file_path
+        self.variables_file = variables_file_path
+        self.connections_file = connections_file_path
 
     @property
     def _local_variables(self) -> Dict[str, str]:
-        if not self.variable_file:
+        if not self.variables_file:
             self.log.debug("The file for variables is not specified. Skipping")
             # The user may not specify any file.
             return {}
-        secrets = load_variables(self.variable_file)
+        secrets = load_variables(self.variables_file)
         return secrets
 
     @property
     def _local_connections(self) -> Dict[str, List[Any]]:
-        if not self.connection_file:
+        if not self.connections_file:
             self.log.debug("The file for connection is not specified. Skipping")
             # The user may not specify any file.
             return {}
-        return load_connections(self.connection_file)
+        return load_connections(self.connections_file)
 
     def get_connections(self, conn_id: str) -> List[Any]:
         return self._local_connections.get(conn_id) or []

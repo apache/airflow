@@ -52,7 +52,7 @@ Set ``backend`` to the fully qualified class name of the backend you want to ena
 You can provide ``backend_kwargs`` with json and it will be passed as kwargs to the ``__init__`` method of
 your secrets backend.
 
-.. _local_disk_secrets:
+.. _local_filesystem_secrets:
 
 Local Filesystem Secrets Backend
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -71,8 +71,8 @@ as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg``.
 
 Available parameters to ``backend_kwargs``:
 
-* ``variable_file_path``: File location with variables data.
-* ``connection_file_path``: File location with connection data.
+* ``variables_file_path``: File location with variables data.
+* ``connections_file_path``: File location with connections data.
 
 Here is a sample configuration:
 
@@ -88,14 +88,14 @@ the backend returns an empty collection.
 Storing and Retrieving Connections
 """"""""""""""""""""""""""""""""""
 
-If you have set ``connection_file_path`` as ``/files/my_conn.json``, then the backend will read the
+If you have set ``connections_file_path`` as ``/files/my_conn.json``, then the backend will read the
 file ``/files/my_conn.json`` when it looks for connections.
 
 The file can be defined in ``JSON`` or ``env`` format.
 
 The JSON file must contain an object where the key contains the connection ID and the value contains
 the definitions of one or more connections. The connection can be defined as a URL (string) or object.
-For a guide about defining a connection as a URI, see:: :doc:`generating_connection_uri`.
+For a guide about defining a connection as a URI, see:: :ref:`generating_connection_uri`.
 For a description of the connection object parameters see :class:`~airflow.models.connection.Connection`.
 The following is a sample JSON file.
 
@@ -123,13 +123,13 @@ be returned. The following is a sample file.
 
   .. code-block:: text
 
-    mysql_conn_id=mysql//log:password@13.1.21.1:3306/mysqldbrd
+    mysql_conn_id=mysql://log:password@13.1.21.1:3306/mysqldbrd
     google_custom_key=google-cloud-platform://?extra__google_cloud_platform__key_path=%2Fkeys%2Fkey.json
 
 Storing and Retrieving Variables
 """"""""""""""""""""""""""""""""
 
-If you have set ``variable_file_path`` as ``/files/my_var.json``, then the backend will read the
+If you have set ``variables_file_path`` as ``/files/my_var.json``, then the backend will read the
 file ``/files/my_var.json`` when it looks for variables.
 
 The file can be defined in ``JSON`` or ``env`` format.
@@ -145,7 +145,7 @@ the variable value. The following is a sample JSON file.
     }
 
 You can also define variable using a ``.env`` file. Then the key is the variable key, and variable should
-describe the variable value. The following is a sample  file.
+describe the variable value. The following is a sample file.
 
   .. code-block:: json
 

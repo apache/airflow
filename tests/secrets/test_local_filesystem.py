@@ -199,7 +199,7 @@ class TestLocalFileBackend(unittest.TestCase):
         with NamedTemporaryFile(suffix="var.env") as tmp_file:
             tmp_file.write("KEY_A=VAL_A".encode())
             tmp_file.flush()
-            backend = LocalFilesystemBackend(variable_file_path=tmp_file.name)
+            backend = LocalFilesystemBackend(variables_file_path=tmp_file.name)
             self.assertEqual("VAL_A", backend.get_variable("KEY_A"))
             self.assertEqual(None, backend.get_variable("KEY_B"))
 
@@ -207,7 +207,7 @@ class TestLocalFileBackend(unittest.TestCase):
         with NamedTemporaryFile(suffix=".env") as tmp_file:
             tmp_file.write("CONN_A=mysql://host_a\nCONN_A=mysql://host_b".encode())
             tmp_file.flush()
-            backend = LocalFilesystemBackend(connection_file_path=tmp_file.name)
+            backend = LocalFilesystemBackend(connections_file_path=tmp_file.name)
             self.assertEqual(
                 ["mysql://host_a", "mysql://host_b"],
                 [conn.get_uri() for conn in backend.get_connections("CONN_A")],
@@ -216,5 +216,5 @@ class TestLocalFileBackend(unittest.TestCase):
 
     def test_files_are_optional(self):
         backend = LocalFilesystemBackend()
-        self.assertIsNone(backend.get_connections("CONN_A"))
+        self.assertEqual([], backend.get_connections("CONN_A"))
         self.assertIsNone(backend.get_variable("VAR_A"))
