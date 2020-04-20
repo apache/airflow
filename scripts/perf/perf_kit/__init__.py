@@ -115,6 +115,5 @@ To run the test, execute the command
 
 This is not a beautiful solution, but it allows you to easily check a random piece of code.
 
-Personally, I also have a separate file - a notebook in which I save various test cases and run them
-like a classic Python program.
+Having a separate file to save various tests cases can be helpful.
 """
