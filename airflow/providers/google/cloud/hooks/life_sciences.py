@@ -27,7 +27,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 # Time to sleep between active checks of the operation results
-TIME_TO_SLEEP_IN_SECONDS = 10
+TIME_TO_SLEEP_IN_SECONDS = 5
 
 
 # noinspection PyAbstractClass
@@ -132,7 +132,7 @@ class LifeSciencesHook(GoogleBaseHook):
             operation_response = service.projects().locations().\
                 operations().get(name=operation_name).\
                 execute(num_retries=self.num_retries)
-
+            self.log.info('Waiting for pipeline operation to complete')
             if operation_response.get("done"):
                 response = operation_response.get("response")
                 error = operation_response.get("error")
