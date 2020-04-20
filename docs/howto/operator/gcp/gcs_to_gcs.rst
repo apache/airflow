@@ -208,9 +208,9 @@ delete any files in ``BUCKET_1_DST`` not in ``BUCKET_1_SRC``.
 Synchronize to a Subdirectory
 -----------------------------
 
-The following example will ensure all files in `BUCKET_1_SRC`, including any in subdirectories, are also in the
-`subdir` folder in `BUCKET_1_DST`. It will not overwrite identically named files in `BUCKET_1_DST/subdir` if they
-already exist and it will not delete any files in `BUCKET_1_DST/subdir` not in `BUCKET_1_SRC`.
+The following example will ensure all files in ``BUCKET_1_SRC``, including any in subdirectories, are also in the
+``subdir`` folder in ``BUCKET_1_DST``. It will not overwrite identically named files in ``BUCKET_1_DST/subdir`` if they
+already exist and it will not delete any files in ``BUCKET_1_DST/subdir`` not in ``BUCKET_1_SRC``.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_gcs.py
     :language: python
