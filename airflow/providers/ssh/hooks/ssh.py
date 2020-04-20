@@ -110,16 +110,16 @@ class SSHHook(BaseHook):
                 if "timeout" in extra_options:
                     self.timeout = int(extra_options["timeout"], 10)
 
-                if "compress" in extra_options\
-                        and str(extra_options["compress"]).lower() == 'false':
+                if "compress" in extra_options \
+                    and str(extra_options["compress"]).lower() == 'false':
                     self.compress = False
-                if "no_host_key_check" in extra_options\
-                        and\
-                        str(extra_options["no_host_key_check"]).lower() == 'false':
+                if "no_host_key_check" in extra_options \
+                    and \
+                    str(extra_options["no_host_key_check"]).lower() == 'false':
                     self.no_host_key_check = False
-                if "allow_host_key_change" in extra_options\
-                        and\
-                        str(extra_options["allow_host_key_change"]).lower() == 'true':
+                if "allow_host_key_change" in extra_options \
+                    and \
+                    str(extra_options["allow_host_key_change"]).lower() == 'true':
                     self.allow_host_key_change = True
                 if "host_key" in extra_options and self.no_host_key_check is False:
                     self.add_host_to_known_hosts(
@@ -291,7 +291,11 @@ class SSHHook(BaseHook):
         """This adds a specified remote_host public key to the known_hosts
             in order to prevent man-in-the-middle attacks."""
         # The .ssh hidden directory is required and not present on all airflow deployments
-        known_hosts_file_ref = SSHHook._create_known_hosts()
+        try:
+            known_hosts_file_ref = SSHHook._create_known_hosts()
+        except PermissionError:
+            raise AirflowException("The user running airflow on this system does not have the neccesary permissions "
+                                   "to make changes to the ~/.ssh directory and its contents.")
         record = SSHHook._format_known_hosts_record(host, key_type, host_key)
         with open(known_hosts_file_ref, 'r') as known_hosts:
             file_content = known_hosts.read()
