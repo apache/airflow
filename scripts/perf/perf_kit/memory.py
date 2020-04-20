@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import gc
 import os
 from contextlib import contextmanager
 
@@ -42,7 +42,7 @@ class TraceMemoryResult:
 
 
 @contextmanager
-def trace_memory(human_readable=True):
+def trace_memory(human_readable=True, gc_collect=False):
     """
     Calculates the amount of difference in free memory before and after script execution.
 
@@ -50,12 +50,17 @@ def trace_memory(human_readable=True):
 
     :param human_readable: If yes, the result will be displayed in human readable units.
         If no, the result will be displayed as bytes.
+    :param gc_collect: If yes, the garbage collector will be started before checking used memory.
     """
+    if gc_collect:
+        gc.collect()
     before = _get_process_memory()
     result = TraceMemoryResult()
     try:
         yield result
     finally:
+        if gc_collect:
+            gc.collect()
         after = _get_process_memory()
         diff = after - before
 
