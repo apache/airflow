@@ -27,13 +27,16 @@ from airflow.utils.decorators import apply_defaults
 
 class LifeSciencesRunPipelineOperator(BaseOperator):
     """
-    Runs a pipeline
+    Runs a Life Sciences Pipeline
 
     :param body: The request body
+    :type body: dict
     :param location: The location of the project
+    :type location: str
     :param project_id: ID of the Google Cloud project if None then
         default project_id is used.
-    The connection ID to use to connect to Google Cloud Platform.
+    :param project_id: str
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     :param api_version: API version used (for example v2beta).
     :type api_version: str

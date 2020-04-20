@@ -15,9 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
+
 import pytest
 
-from airflow.providers.google.cloud.example_dags.example_life_sciences import BUCKET, LOCATION
+from airflow.providers.google.cloud.example_dags.example_life_sciences import BUCKET, FILENAME, LOCATION
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_LIFE_SCIENCES_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
@@ -28,7 +30,13 @@ class CloudLifeSciencesExampleDagsSystemTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_LIFE_SCIENCES_KEY)
     def setUp(self):
+        super().setUp()
         self.create_gcs_bucket(BUCKET, LOCATION)
+        self.upload_content_to_gcs(
+            lines=f"{os.urandom(1 * 1024 * 1024)}",
+            bucket=BUCKET,
+            filename=FILENAME
+        )
 
     @provide_gcp_context(GCP_LIFE_SCIENCES_KEY)
     def test_run_example_dag_function(self):
@@ -37,3 +45,4 @@ class CloudLifeSciencesExampleDagsSystemTest(GoogleSystemTest):
     @provide_gcp_context(GCP_LIFE_SCIENCES_KEY)
     def tearDown(self):
         self.delete_gcs_bucket(BUCKET)
+        super().tearDown()

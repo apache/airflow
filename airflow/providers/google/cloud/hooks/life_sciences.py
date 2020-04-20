@@ -83,7 +83,7 @@ class LifeSciencesHook(GoogleBaseHook):
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the GCP connection is used.
         :type project_id: str
-        :return: Dict
+        :rtype: dict
         """
         parent = self._location_path(project_id=project_id, location=location)
         service = self.get_conn()
@@ -107,9 +107,9 @@ class LifeSciencesHook(GoogleBaseHook):
         """
         Return a location string.
 
-        :param project_id: :param project_id: Optional, Google Cloud Project
-            project_id where the function belongs. If set to None or missing,
-            the default project_id from the GCP connection is used.
+        :param project_id: Optional, Google Cloud Project project_id where the
+            function belongs. If set to None or missing, the default project_id
+            from the GCP connection is used.
         :type project_id: str
         :param location: The location of the project. For example: "us-east1".
         :type location: str

@@ -20,7 +20,7 @@
 Google Cloud Life Sciences Operators
 ====================================
 The `Google Cloud Life Sciences <https://cloud.google.com/life-sciences/>`__ is a service that executes
-series of compute engine containers on the google cloud. It is used to process, analyze and annotate genomics
+series of compute engine containers on the Google Cloud Platform. It is used to process, analyze and annotate genomics
 and biomedical data at scale.
 
 .. contents::
@@ -49,7 +49,7 @@ The pipeline can also be configured with multiple action.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_life_sciences.py
     :language: python
-    :dedent: 12
+    :dedent: 0
     :start-after: [START howto_configure_multiple_action_pipeline]
     :end-before: [END howto_configure_multiple_action_pipeline]
 
@@ -58,7 +58,7 @@ to understand all the fields you can include in the configuration
 
 .. _howto/operator:LifeSciencesRunPipelineOperator:
 
-LifeSciencesRunPipelineOperator
+Running a pipeline
 -------------------------------
 Use the
 :class:`~airflow.providers.google.cloud.operators.life_sciences.LifeSciencesRunPipelineOperator`
@@ -66,7 +66,7 @@ to execute pipelines.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_life_sciences.py
     :language: python
-    :dedent: 12
+    :dedent: 0
     :start-after: [START howto_run_pipeline]
     :end-before: [END howto_run_pipeline]
 

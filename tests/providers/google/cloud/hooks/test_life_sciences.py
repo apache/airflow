@@ -19,7 +19,6 @@
 Tests for Google Cloud Life Sciences Hook
 """
 import unittest
-from typing import Optional
 from unittest import mock
 
 from mock import PropertyMock
@@ -198,9 +197,10 @@ class TestLifeSciencesHookWithDefaultProjectIdFromConnection(unittest.TestCase):
             .get.return_value \
             .execute.return_value = TEST_DONE_OPERATION
 
-        result = self.hook.run_pipeline(body={},
+        result = self.hook.run_pipeline(body={},  # pylint: disable=no-value-for-parameter
                                         location=TEST_LOCATION)
-        parent = self.hook._location_path(location=TEST_LOCATION)
+        parent = self.hook.\
+            _location_path(location=TEST_LOCATION)  # pylint: disable=no-value-for-parameter
         service_mock.projects.return_value.locations.return_value\
             .pipelines.return_value.run \
             .assert_called_once_with(body={},
@@ -232,7 +232,7 @@ class TestLifeSciencesHookWithDefaultProjectIdFromConnection(unittest.TestCase):
             .get.return_value \
             .execute = execute_mock
 
-        result = self.hook.run_pipeline(body={},
+        result = self.hook.run_pipeline(body={},  # pylint: disable=no-value-for-parameter
                                         location=TEST_LOCATION)
         self.assertEqual(result, TEST_OPERATION)
 
@@ -260,9 +260,8 @@ class TestLifeSciencesHookWithDefaultProjectIdFromConnection(unittest.TestCase):
             .execute = execute_mock
 
         with self.assertRaisesRegex(AirflowException, "error"):
-            self.hook.run_pipeline(body={},
-                                   location=TEST_LOCATION
-                                   )
+            self.hook.run_pipeline(body={},  # pylint: disable=no-value-for-parameter
+                                   location=TEST_LOCATION)
 
 
 class TestLifeSciencesHookWithoutProjectId(unittest.TestCase):
@@ -290,10 +289,10 @@ class TestLifeSciencesHookWithoutProjectId(unittest.TestCase):
         return_value=None
     )
     @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook.get_conn")
-    def test_run_pipeline(self, get_conn_mock, mock_project_id):
+    def test_run_pipeline(self, get_conn_mock, mock_project_id):  # pylint: disable=unused-argument
         with self.assertRaises(AirflowException) as e:
-            self.hook.run_pipeline(body={},
-                                   location=TEST_LOCATION)  # pylint: disable=no-value-for-parameter
+            self.hook.run_pipeline(body={},  # pylint: disable=no-value-for-parameter
+                                   location=TEST_LOCATION)
 
         self.assertEqual(
             "The project id must be passed either as keyword project_id parameter or as project_id extra in "

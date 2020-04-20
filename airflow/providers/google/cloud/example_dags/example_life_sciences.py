@@ -15,15 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Example Airflow DAG that displays interactions with Google Cloud Life Sciences.
 
-This DAG relies on the following OS environment variables:
-
-* GCP_PROJECT_ID - Google Cloud Project to use for the Cloud Function.
-* GCP_GCS_BUCKET - Google Cloud Storage Bucket to use
-* GCP_LOCATION - The Location of the Google Cloud Project
-"""
 import os
 
 from airflow import models
@@ -32,7 +24,9 @@ from airflow.utils import dates
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project-id")
 BUCKET = os.environ.get("GCP_GCS_BUCKET", "example-bucket")
-LOCATION = os.environ.get("GCP_LOCATION", 'example-location')
+FILENAME = os.environ.get("GCP_GCS_LIFE_SCIENCES_FILENAME", 'input.in')
+LOCATION = os.environ.get("GCP_LIFE_SCIENCES_LOCATION", 'us-central1')
+
 
 # [START howto_configure_simple_action_pipeline]
 SIMPLE_ACTION_PIEPELINE = {
@@ -52,13 +46,14 @@ SIMPLE_ACTION_PIEPELINE = {
     },
 }
 # [END howto_configure_simple_action_pipeline]
+
 # [START howto_configure_multiple_action_pipeline]
 MULTI_ACTION_PIPELINE = {
     "pipeline": {
         "actions": [
             {
                 "imageUri": "google/cloud-sdk",
-                "commands": ["gsutil", "cp", "gs://{}/input.in".format(BUCKET), "/tmp"]
+                "commands": ["gsutil", "cp", "gs://{}/{}".format(BUCKET, FILENAME), "/tmp"]
             },
             {
                 "imageUri": "bash",
@@ -66,7 +61,7 @@ MULTI_ACTION_PIPELINE = {
             },
             {
                 "imageUri": "google/cloud-sdk",
-                "commands": ["gsutil", "cp", "gs://{}/input.in".format(BUCKET),
+                "commands": ["gsutil", "cp", "gs://{}/{}".format(BUCKET, FILENAME),
                              "gs://{}/output.in".format(BUCKET)]
             },
         ],
@@ -85,6 +80,7 @@ with models.DAG("example_gcp_life_sciences",
                 schedule_interval=None,
                 tags=['example'],
                 ) as dag:
+
     # [START howto_run_pipeline]
     simple_life_science_action_pipeline = LifeSciencesRunPipelineOperator(
         task_id='simple-action-pipeline',

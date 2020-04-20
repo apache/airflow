@@ -663,6 +663,7 @@ These integrations allow you to perform various operations within the Google Clo
      - :doc:`How to use <howto/operator/gcp/life_sciences>`
      - :mod:`airflow.providers.google.cloud.hooks.life_sciences`
      - :mod:`airflow.providers.google.cloud.operators.life_sciences`
+     -
 
    * - `Kubernetes Engine <https://cloud.google.com/kubernetes_engine/>`__
      -
