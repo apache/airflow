@@ -110,9 +110,11 @@ def gen_job_name(job_name: str) -> str:
     """
     Adds unique suffix to job name. If suffix already exists, updates it.
     Suffix — current timestamp
+
     :param job_name:
     :rtype job_name: str
-    :return:
+    :return: job_name with suffix
+    :rtype: str
     """
     uniq = str(int(time.time()))
     return "_".join([job_name, uniq])
@@ -254,6 +256,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
     def enable_transfer_job(self, job_name: str, project_id: str) -> Dict:
         """
         New transfers will be performed based on the schedule.
+
         :param job_name: (Required) Name of the job to be updated
         :type job_name: str
         :param project_id: (Optional) the ID of the project that owns the Transfer

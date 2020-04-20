@@ -92,17 +92,17 @@ class TestGCPTransferServiceHookWithPassedName(unittest.TestCase):
 
     def __create_job_se(self, body: Dict):
         if body.get(JOB_NAME) == TEST_CLEAR_JOB_NAME:
-            nt = namedtuple('resp', ['status'])(409)
-            raise HttpError(nt, b'Conflict')
+            resp = namedtuple('resp', ['status'])(TEST_HTTP_ERR_CODE)
+            raise HttpError(resp, b'Conflict')
 
-        class __Create:
-            def execute(*args, **kwargs):
+        class CreateJob:
+            @staticmethod
+            def execute(num_retries: int):  # pylint: disable=unused-argument
                 return TEST_RESULT_STATUS_ENABLED
 
-        return __Create
+        return CreateJob
 
     def setUp(self):
-        self.re = re.compile("^[0-9]{10}$")
         with mock.patch(
             'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__',
             new=mock_base_gcp_hook_no_default_project_id,
@@ -131,7 +131,7 @@ class TestGCPTransferServiceHookWithPassedName(unittest.TestCase):
                                      project_id: PropertyMock,
                                      get_transfer_job: MagicMock,
                                      enable_transfer_job: MagicMock
-                                     ):
+                                     ):  # pylint: disable=unused-argument
         body = _with_name(TEST_BODY, TEST_CLEAR_JOB_NAME)
         get_conn.return_value.transferJobs.return_value.create.side_effect \
             = self.__create_job_se
@@ -150,14 +150,14 @@ class TestGCPTransferServiceHookWithPassedName(unittest.TestCase):
 class TestJobNames(unittest.TestCase):
 
     def setUp(self) -> None:
-        self.re = re.compile("^[0-9]{10}$")
+        self.re_suffix = re.compile("^[0-9]{10}$")
 
     def test_new_suffix(self):
         for job_name in ["jobNames/new_job",
                          "jobNames/new_job_h",
                          "jobNames/newJob"]:
             self.assertIsNotNone(
-                self.re.match(gen_job_name(job_name).split("_")[-1])
+                self.re_suffix.match(gen_job_name(job_name).split("_")[-1])
             )
 
 
