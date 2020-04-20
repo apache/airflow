@@ -1193,7 +1193,14 @@ class DAG(BaseDag, LoggingMixin):
         # the tasks anyway, so we copy the tasks manually later
         task_dict = self.task_dict
         self.task_dict = {}
-        dag = copy.deepcopy(self)
+        try:
+            dag = copy.deepcopy(self)
+        except Exception:
+            self.log.info("Deepcopy DAG {} failed. Loading from dag file directly".format(self.dag_id))
+            dagbag = DagBag(dag_folder=self.full_filepath)
+            if self.dag_id not in dagbag.dags:
+                raise AirflowException("Dag id {} not found".format(self.dag_id))
+            dag = dagbag.get_dag(self.dag_id)
         self.task_dict = task_dict
 
         regex_match = [

@@ -43,77 +43,12 @@ jobs:
       script: ./scripts/ci/ci_docs.sh
       env: >-
         PYTHON_VERSION=3.5
-    - name: "Tests [Postgres][3.6][Kubernetes][persistent]"
-      env: >-
-        BACKEND=postgres
-        PYTHON_VERSION=3.6
-        RUNTIME=kubernetes
-        ENABLE_KIND_CLUSTER=true
-        KUBERNETES_MODE=persistent_mode
-        KUBERNETES_VERSION=v1.15.3
-      stage: test
-    - name: "Tests [Postgres][3.5][Kubernetes][git]"
-      env: >-
-        BACKEND=postgres
-        PYTHON_VERSION=3.5
-        RUNTIME=kubernetes
-        ENABLE_KIND_CLUSTER=true
-        KUBERNETES_MODE=git_mode
-        KUBERNETES_VERSION=v1.15.3
-      stage: test
-    - name: "Tests [Postgres][2.7][Kubernetes][persistent]"
-      env: >-
-        BACKEND=postgres
-        PYTHON_VERSION=2.7
-        ENABLE_KIND_CLUSTER=true
-        KUBERNETES_MODE=persistent_mode
-        KUBERNETES_VERSION=v1.15.3
-      stage: test
-    - name: "Tests [Postgres][2.7][Kubernetes][git]"
-      env: >-
-        BACKEND=postgres
-        PYTHON_VERSION=2.7
-        ENABLE_KIND_CLUSTER=true
-        KUBERNETES_MODE=git_mode
-        KUBERNETES_VERSION=v1.15.3
-      stage: test
     - name: "Tests [Postgres][3.6][integrations]"
       env: >-
         BACKEND=postgres
         PYTHON_VERSION=3.6
         ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
         RUN_INTEGRATION_TESTS=all
-      stage: test
-    - name: "Tests [Postgres][3.6][kerberos]"
-      env: >-
-        BACKEND=postgres
-        ENABLED_INTEGRATIONS="kerberos"
-        PYTHON_VERSION=3.6
-      stage: test
-    - name: "Tests [Sqlite][2.7][integrations]"
-      env: >-
-        BACKEND=sqlite
-        PYTHON_VERSION=2.7
-        ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
-        RUN_INTEGRATION_TESTS=all
-      stage: test
-    - name: "Tests [Sqlite][3.5]"
-      env: >-
-        BACKEND=sqlite
-        PYTHON_VERSION=3.5
-      stage: test
-    - name: "Tests [MySQL][3.6][integrations]"
-      env: >-
-        BACKEND=mysql
-        PYTHON_VERSION=3.6
-        ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
-        RUN_INTEGRATION_TESTS=all
-      stage: test
-    - name: "Tests [MySQL][2.7][kerberos]"
-      env: >-
-        BACKEND=mysql
-        ENABLED_INTEGRATIONS="kerberos"
-        PYTHON_VERSION=2.7
       stage: test
   services:
     - docker

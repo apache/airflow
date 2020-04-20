@@ -446,7 +446,7 @@ if [[ "${AIRFLOW_CONTAINER_PUSH_IMAGES}" != "false" ]]; then
     for IMAGE in ${IMAGES_BUILT}
     do
         echo "Pushing image '${IMAGE}'"
-        docker push ${IMAGE}
+        docker push "${IMAGE}"
     done
 else
     echo
