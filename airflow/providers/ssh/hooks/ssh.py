@@ -309,7 +309,7 @@ class SSHHook(BaseHook):
         :param host_key: The base64-ecoded public key of the remote host.
         :type host_key: str
         """
-        # The .ssh hidden directory is required and not present on all airflow deployments
+        # The .ssh hidden directory is required and not present on all airflow deployments.
         try:
             known_hosts_file_ref = SSHHook._create_known_hosts()
         except PermissionError:
