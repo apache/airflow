@@ -17,19 +17,21 @@
 # under the License.
 """Tests for Google Life Sciences Run Pipeline operator """
 
-import mock
 import unittest
 
+import mock
+
 from airflow.providers.google.cloud.operators.life_sciences import LifeSciencesRunPipelineOperator
+
 TEST_BODY = {
     "pipeline": {
-                    "actions": [{}],
-                    "resources": {},
-                    "environment": {},
-                    "timeout": '3.5s'
-    },
-    "labels": "my-pipeline"
+        "actions": [{}],
+        "resources": {},
+        "environment": {},
+        "timeout": '3.5s'
     }
+}
+
 TEST_OPERATION = {"name": 'operation-name', "metadata": {"@type": 'anytype'},
                   "done": True, "response": "response"}
 TEST_PROJECT_ID = "life-science-project-id"
@@ -62,4 +64,3 @@ class TestLifeSciencesRunPipelineOperator(unittest.TestCase):
         )
         result = operator.execute(None)
         self.assertEqual(result, TEST_OPERATION)
-

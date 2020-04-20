@@ -77,6 +77,3 @@ For further information, look at:
 
 * `Client Library Documentation <https://cloud.google.com/life-sciences/docs/reference/rest>`__
 * `Product Documentation <https://cloud.google.com/life-sciences/docs/>`__
-
-
-
