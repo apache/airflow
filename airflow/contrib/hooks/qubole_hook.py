@@ -20,6 +20,7 @@
 """Qubole hook"""
 import logging
 import os
+import pathlib
 import time
 import datetime
 import six
@@ -31,7 +32,9 @@ from qds_sdk.commands import Command, HiveCommand, PrestoCommand, HadoopCommand,
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.configuration import conf, mkdir_p
+from airflow.configuration import conf
+from airflow.utils.log.logging_mixin import LoggingMixin
+
 from airflow.utils.state import State
 
 log = logging.getLogger(__name__)
@@ -186,7 +189,7 @@ class QuboleHook(BaseHook):
                 conf.get('core', 'BASE_LOG_FOLDER')
             )
             resultpath = logpath + '/' + self.dag_id + '/' + self.task_id + '/results'
-            mkdir_p(resultpath)
+            pathlib.Path(resultpath).mkdir(parents=True, exist_ok=True)
             fp = open(resultpath + '/' + iso, 'wb')
 
         if self.cmd is None:
