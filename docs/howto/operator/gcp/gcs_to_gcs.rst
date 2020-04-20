@@ -232,7 +232,7 @@ already exist and it will not delete any files in `BUCKET_1_DST` not in `BUCKET_
     :end-before: [END howto_sync_from_subdir]
 
 Reference
-^^^^^^^^^
+---------
 
 For further information, look at:
 
