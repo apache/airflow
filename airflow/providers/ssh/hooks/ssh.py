@@ -304,7 +304,7 @@ class SSHHook(BaseHook):
 
         :param host: FQDN of the remote host.
         :type host: str
-        :param key_type: The algorithm format of the public key.
+        :param key_type: The algorithm format of the provided public key.
         :type key_type: str
         :param host_key: The base64-ecoded public key of the remote host.
         :type host_key: str
