@@ -618,7 +618,7 @@ ARG_INCLUDE_SECRETS = Arg(
     ('--include-secrets',),
     help=(
         "If passed, the connection in the secret backend will also be displayed."
-        "To use this option you must pass `--con_id` option."
+        "To use this option you must pass `--conn_id` option."
         ""
     ),
     action="store_true",
