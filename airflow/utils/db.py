@@ -317,6 +317,7 @@ def create_default_connections(session=None):
 
 
 def initdb(rbac=False):
+    from airflow.models import Connection
     session = settings.Session()
 
     from airflow import models
