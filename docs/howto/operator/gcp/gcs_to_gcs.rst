@@ -92,7 +92,7 @@ to copy multiple files, to move a single file, and to move multiple files.
 Copy single file
 ----------------
 
-The following example would copy a single file, `OBJECT_1` from the `BUCKET_1_SRC` GCS bucket to the `BUCKET_1_DST` bucket.
+The following example would copy a single file, ``OBJECT_1`` from the ``BUCKET_1_SRC`` GCS bucket to the ``BUCKET_1_DST`` bucket.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_gcs.py
     :language: python
@@ -111,9 +111,9 @@ There are several ways to copy multiple files, various examples of which are pre
     :start-after: [START howto_operator_gcs_to_gcs_wildcard]
     :end-before: [END howto_operator_gcs_to_gcs_wildcard]
 
-The `source_object` value may contain one wild card, denoted as "*". All files matching the wild card expression will
-be copied. In this example, all root level files ending with `.txt` in `BUCKET_1_SRC` will be copied to the `data`
-folder in `BUCKET_1_DST`, with file names unchanged.
+The ``source_object`` value may contain one wild card, denoted as "*". All files matching the wild card expression will
+be copied. In this example, all root level files ending with ``.txt`` in ``BUCKET_1_SRC`` will be copied to the ``data``
+folder in ``BUCKET_1_DST``, with file names unchanged.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_gcs.py
     :language: python
@@ -121,8 +121,8 @@ folder in `BUCKET_1_DST`, with file names unchanged.
     :start-after: [START howto_operator_gcs_to_gcs_delimiter]
     :end-before: [END howto_operator_gcs_to_gcs_delimiter]
 
-The delimiter filed may be specified to select any source files starting with `source_object` and ending with the
-value supplied to `delimiter`. This example uses the `delimiter` value to implement the same functionality as the
+The delimiter filed may be specified to select any source files starting with ``source_object`` and ending with the
+value supplied to ``delimiter``. This example uses the ``delimiter`` value to implement the same functionality as the
 prior example.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_gcs.py
@@ -131,15 +131,15 @@ prior example.
     :start-after: [START howto_operator_gcs_to_gcs_list]
     :end-before: [END howto_operator_gcs_to_gcs_list]
 
-Lastly, files may be copied by omitting the `source_object` argument and instead supplying a list to `source_objects`
-argument. In this example, `OBJECT_1` and `OBJECT_2` will be copied from `BUCKET_1_SRC` to `BUCKET_1_DST`. Instead
+Lastly, files may be copied by omitting the ``source_object`` argument and instead supplying a list to ``source_objects``
+argument. In this example, ``OBJECT_1`` and ``OBJECT_2`` will be copied from ``BUCKET_1_SRC`` to ``BUCKET_1_DST``. Instead
 of specific file names, the list can contain one or more wild card expressions, each with no more than one wild card.
-Supplying a list of size 1 functions the same as supplying a value to the `source_object` argument.
+Supplying a list of size 1 functions the same as supplying a value to the ``source_object`` argument.
 
 Move single file
 ----------------
 
-Supplying `True` to the `move` argument causes the operator to delete `source_object` once the copy is complete.
+Supplying ``True`` to the ``move`` argument causes the operator to delete ``source_object`` once the copy is complete.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_gcs.py
     :language: python
@@ -150,8 +150,8 @@ Supplying `True` to the `move` argument causes the operator to delete `source_ob
 Move multiple files
 -------------------
 
-Multiple files may be moved by supplying `True` to the `move` argument. The same rules concerning wild cards and
-the `delimiter` argument apply to moves as well as copies.
+Multiple files may be moved by supplying ``True`` to the ``move`` argument. The same rules concerning wild cards and
+the ``delimiter`` argument apply to moves as well as copies.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_gcs.py
     :language: python
@@ -182,9 +182,9 @@ The way this operator works can be compared to the ``rsync`` command.
 Basic Synchronization
 ---------------------
 
-The following example will ensure all files in `BUCKET_1_SRC`, including any in subdirectories, are also in
-`BUCKET_1_DST`. It will not overwrite identically named files in `BUCKET_1_DST` if they already exist. It will not
-delete any files in `BUCKET_1_DST` not in `BUCKET_1_SRC`.
+The following example will ensure all files in ``BUCKET_1_SRC``, including any in subdirectories, are also in
+``BUCKET_1_DST``. It will not overwrite identically named files in ``BUCKET_1_DST`` if they already exist. It will not
+delete any files in ``BUCKET_1_DST`` not in ``BUCKET_1_SRC``.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_gcs.py
     :language: python
@@ -195,9 +195,9 @@ delete any files in `BUCKET_1_DST` not in `BUCKET_1_SRC`.
 Full Bucket Synchronization
 ---------------------------
 
-This example will ensure all files in `BUCKET_1_SRC`, including any in subdirectories, are also in
-`BUCKET_1_DST`. It will overwrite identically named files in `BUCKET_1_DST` if they already exist. It will
-delete any files in `BUCKET_1_DST` not in `BUCKET_1_SRC`.
+This example will ensure all files in ``BUCKET_1_SRC``, including any in subdirectories, are also in
+``BUCKET_1_DST``. It will overwrite identically named files in ``BUCKET_1_DST`` if they already exist. It will
+delete any files in ``BUCKET_1_DST`` not in ``BUCKET_1_SRC``.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_gcs.py
     :language: python
@@ -221,9 +221,9 @@ already exist and it will not delete any files in `BUCKET_1_DST/subdir` not in `
 Synchronize from a Subdirectory
 -------------------------------
 
-This example will ensure all files in `BUCKET_1_SRC/subdir`, including any in subdirectories, are also in the
-in `BUCKET_1_DST`. It will not overwrite identically named files in `BUCKET_1_DST` if they
-already exist and it will not delete any files in `BUCKET_1_DST` not in `BUCKET_1_SRC/subdir`.
+This example will ensure all files in ``BUCKET_1_SRC/subdir``, including any in subdirectories, are also in the
+in ``BUCKET_1_DST``. It will not overwrite identically named files in ``BUCKET_1_DST`` if they
+already exist and it will not delete any files in ``BUCKET_1_DST`` not in ``BUCKET_1_SRC/subdir``.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_gcs.py
     :language: python
