@@ -147,7 +147,7 @@ the variable value. The following is a sample JSON file.
 You can also define variable using a ``.env`` file. Then the key is the variable key, and variable should
 describe the variable value. The following is a sample file.
 
-  .. code-block:: json
+  .. code-block:: text
 
     VAR_A=some_value
     var_B=different_value
