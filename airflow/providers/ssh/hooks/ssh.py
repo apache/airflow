@@ -20,7 +20,7 @@ import getpass
 import os
 import warnings
 from io import StringIO
-from typing import Optional
+from typing import Optional, TextIO
 
 import paramiko
 from paramiko.config import SSH_PORT
@@ -283,13 +283,32 @@ class SSHHook(BaseHook):
         return self.get_tunnel(remote_port, remote_host, local_port)
 
     @staticmethod
-    def _add_new_record_to_known_hosts(record, file):
+    def _add_new_record_to_known_hosts(record: str, file: TextIO) -> None:
         file.write(''.join([record, '\n']))
 
     @staticmethod
-    def add_host_to_known_hosts(host, key_type, host_key):
-        """This adds a specified remote_host public key to the known_hosts
-            in order to prevent man-in-the-middle attacks."""
+    def add_host_to_known_hosts(host: str, key_type: str, host_key: str) -> None:
+        """
+        Adds a specified remote_host public key to the known_hosts file
+            in order to prevent man-in-the-middle attacks.
+
+        The format of the new line in known_hosts will be:
+
+        {host} {key_type} {host_key}\n
+
+        So, for these inputs:
+        >>> SSHHook.add_host_to_known_hosts('example.com', 'ssh-rsa', 'mjL4Bb/hFHx8OfTO...')
+
+        We would expect to see a (new) line in ~/.ssh/known_hosts with the following:
+        example.com ssh-rsa mjL4Bb/hFHx8OfTO...\n
+
+        :param host: FQDN of the remote host.
+        :type host: str
+        :param key_type: The algorithm format of the public key.
+        :type key_type: str
+        :param host_key: The base64-ecoded public key of the remote host.
+        :type host_key: str
+        """
         # The .ssh hidden directory is required and not present on all airflow deployments
         try:
             known_hosts_file_ref = SSHHook._create_known_hosts()
@@ -308,11 +327,11 @@ class SSHHook(BaseHook):
                 )
 
     @staticmethod
-    def _format_known_hosts_record(host, key_type, public_key):
+    def _format_known_hosts_record(host: str, key_type: str, public_key: str) -> str:
         return ' '.join([host, key_type, public_key])
 
     @staticmethod
-    def _create_known_hosts():
+    def _create_known_hosts() -> str:
         if not os.path.exists(os.path.expanduser('~/.ssh')):
             os.mkdir(os.path.expanduser('~/.ssh'))
         with open(os.path.expanduser('~/.ssh/known_hosts'), 'a') as f:
