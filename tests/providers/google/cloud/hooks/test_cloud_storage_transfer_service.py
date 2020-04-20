@@ -17,28 +17,23 @@
 # under the License.
 #
 import json
-import unittest
 import re
-
-from typing import Dict
-from copy import deepcopy
+import unittest
 from collections import namedtuple
+from copy import deepcopy
+from typing import Dict
 
 import mock
-
 from googleapiclient.errors import HttpError
-from mock import PropertyMock, MagicMock
+from mock import MagicMock, PropertyMock
 from parameterized import parameterized
-
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
-    DESCRIPTION, FILTER_JOB_NAMES, FILTER_PROJECT_ID, METADATA, OPERATIONS, PROJECT_ID, STATUS,
+    DESCRIPTION, FILTER_JOB_NAMES, FILTER_PROJECT_ID, JOB_NAME, METADATA, OPERATIONS, PROJECT_ID, STATUS,
     TIME_TO_SLEEP_IN_SECONDS, TRANSFER_JOB, TRANSFER_JOB_FIELD_MASK, TRANSFER_JOBS,
-    CloudDataTransferServiceHook, GcpTransferJobsStatus, GcpTransferOperationStatus,
-    gen_job_name, JOB_NAME,
+    CloudDataTransferServiceHook, GcpTransferJobsStatus, GcpTransferOperationStatus, gen_job_name,
 )
-
 from tests.providers.google.cloud.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST, mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,
@@ -199,7 +194,6 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
         self.assertEqual(res, TEST_TRANSFER_JOB)
         create_method.assert_called_once_with(body=TEST_BODY)
         execute_method.assert_called_once_with(num_retries=5)
-
 
     @mock.patch(
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'

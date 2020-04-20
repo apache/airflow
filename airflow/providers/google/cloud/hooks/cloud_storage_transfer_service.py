@@ -20,10 +20,9 @@ This module contains a Google Storage Transfer Service Hook.
 """
 
 import json
+import logging
 import time
 import warnings
-import logging
-
 from copy import deepcopy
 from datetime import timedelta
 from typing import Dict, List, Optional, Set, Union

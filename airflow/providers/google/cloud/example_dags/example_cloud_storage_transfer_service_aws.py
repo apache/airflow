@@ -42,9 +42,9 @@ from datetime import datetime, timedelta
 from airflow import models
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ALREADY_EXISTING_IN_SINK, AWS_S3_DATA_SOURCE, BUCKET_NAME, DESCRIPTION, FILTER_JOB_NAMES,
-    FILTER_PROJECT_ID, GCS_DATA_SINK, PROJECT_ID, SCHEDULE, SCHEDULE_END_DATE, SCHEDULE_START_DATE,
-    START_TIME_OF_DAY, STATUS, TRANSFER_OPTIONS, TRANSFER_SPEC, JOB_NAME,
-    GcpTransferJobsStatus, GcpTransferOperationStatus
+    FILTER_PROJECT_ID, GCS_DATA_SINK, JOB_NAME, PROJECT_ID, SCHEDULE, SCHEDULE_END_DATE, SCHEDULE_START_DATE,
+    START_TIME_OF_DAY, STATUS, TRANSFER_OPTIONS, TRANSFER_SPEC, GcpTransferJobsStatus,
+    GcpTransferOperationStatus,
 )
 from airflow.providers.google.cloud.operators.cloud_storage_transfer_service import (
     CloudDataTransferServiceCancelOperationOperator, CloudDataTransferServiceCreateJobOperator,
