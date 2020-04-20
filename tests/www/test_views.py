@@ -35,6 +35,7 @@ import six
 from flask._compat import PY2
 
 from airflow.operators.bash_operator import BashOperator
+from airflow.utils import timezone
 from airflow.utils.db import create_session
 from tests.compat import mock
 
@@ -1070,6 +1071,48 @@ class TestTriggerDag(unittest.TestCase):
 
         self.assertEqual(resp.status_code, 200)
         self.assertIn('Trigger DAG: {}'.format(test_dag_id), resp.data.decode('utf-8'))
+
+    @mock.patch('airflow.models.dag.DAG.create_dagrun')
+    def test_trigger_dag(self, mock_dagrun):
+        test_dag_id = "example_bash_operator"
+        execution_date = timezone.utcnow()
+        run_id = "manual__{0}".format(execution_date.isoformat())
+        mock_dagrun.return_value = DagRun(
+            dag_id=test_dag_id, run_id=run_id,
+            execution_date=execution_date, start_date=datetime(2020, 1, 1, 1, 1, 1),
+            external_trigger=True,
+            conf={},
+            state="running"
+        )
+
+        response = self.app.post(
+            '/admin/airflow/trigger?dag_id={}'.format(test_dag_id), data={}, follow_redirects=True)
+        self.assertIn(
+            'Triggered example_bash_operator, it should start any moment now.',
+            response.data.decode('utf-8'))
+
+    @mock.patch('airflow.models.dag.DAG.create_dagrun')
+    @mock.patch('airflow.utils.dag_processing.os.path.isfile')
+    @conf_vars({("core", "store_serialized_dags"): "True"})
+    def test_trigger_serialized_dag(self, mock_os_isfile, mock_dagrun):
+        mock_os_isfile.return_value = False
+
+        test_dag_id = "example_bash_operator"
+        execution_date = timezone.utcnow()
+        run_id = "manual__{0}".format(execution_date.isoformat())
+        mock_dagrun.return_value = DagRun(
+            dag_id=test_dag_id, run_id=run_id,
+            execution_date=execution_date, start_date=datetime(2020, 1, 1, 1, 1, 1),
+            external_trigger=True,
+            conf={},
+            state="running"
+        )
+
+        response = self.app.post(
+            '/admin/airflow/trigger?dag_id={}'.format(test_dag_id), data={}, follow_redirects=True)
+        self.assertIn(
+            'Triggered example_bash_operator, it should start any moment now.',
+            response.data.decode('utf-8'))
 
 
 class HelpersTest(unittest.TestCase):
