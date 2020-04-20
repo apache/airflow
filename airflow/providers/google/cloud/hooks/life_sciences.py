@@ -88,8 +88,11 @@ class LifeSciencesHook(GoogleBaseHook):
         parent = self._location_path(project_id=project_id, location=location)
         service = self.get_conn()
 
-        request = service.projects().locations().\
-            pipelines().run(parent=parent, body=body)
+        request = (service.projects()  # pylint: disable=no-member
+                   .locations()
+                   .pipelines()
+                   .run(parent=parent, body=body)
+                   )
 
         response = request.execute(num_retries=self.num_retries)
 
@@ -104,8 +107,9 @@ class LifeSciencesHook(GoogleBaseHook):
         """
         Return a location string.
 
-        :param project_id: :param project_id: Optional, Google Cloud Project project_id where the function belongs.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: :param project_id: Optional, Google Cloud Project
+            project_id where the function belongs. If set to None or missing,
+            the default project_id from the GCP connection is used.
         :type project_id: str
         :param location: The location of the project. For example: "us-east1".
         :type location: str
@@ -129,9 +133,11 @@ class LifeSciencesHook(GoogleBaseHook):
         """
         service = self.get_conn()
         while True:
-            operation_response = service.projects().locations().\
-                operations().get(name=operation_name).\
-                execute(num_retries=self.num_retries)
+            operation_response = (service.projects()  # pylint: disable=no-member
+                                  .locations()
+                                  .operations()
+                                  .get(name=operation_name)
+                                  .execute(num_retries=self.num_retries))
             self.log.info('Waiting for pipeline operation to complete')
             if operation_response.get("done"):
                 response = operation_response.get("response")
@@ -142,6 +148,3 @@ class LifeSciencesHook(GoogleBaseHook):
                     raise AirflowException(str(error))
                 return response
             time.sleep(TIME_TO_SLEEP_IN_SECONDS)
-
-
-
