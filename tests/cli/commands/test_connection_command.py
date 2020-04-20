@@ -73,6 +73,43 @@ class TestCliListConnections(unittest.TestCase):
         for conn_id, conn_type in self.EXPECTED_CONS:
             self.assertTrue(any(conn_id in line and conn_type in line for line in lines))
 
+    def test_cli_connections_filter_conn_id(self):
+        args = self.parser.parse_args(["connections", "list", "--output", "tsv", '--conn-id', 'http_default'])
+
+        with redirect_stdout(io.StringIO()) as stdout:
+            connection_command.connections_list(args)
+            stdout = stdout.getvalue()
+            lines = stdout.split("\n")
+
+        conn_ids = [line.split("\t", 2)[0].strip() for line in lines[1:] if line]
+        self.assertEqual(conn_ids, ['http_default'])
+
+    @mock.patch('airflow.cli.commands.connection_command.BaseHook.get_connections', return_value=[
+        Connection(conn_id="http_default", host="host1"),
+        Connection(conn_id="http_default", host="host2"),
+    ])
+    def test_cli_connections_filter_conn_id_include_secrets(self, mock_get_connections):
+        args = self.parser.parse_args([
+            "connections", "list", "--output", "tsv", '--conn-id', 'http_default', '--include-secrets'
+        ])
+
+        with redirect_stdout(io.StringIO()) as stdout:
+            connection_command.connections_list(args)
+            stdout = stdout.getvalue()
+            lines = stdout.split("\n")
+
+        conn_ids = [line.split("\t", 2)[0].strip() for line in lines[1:] if line]
+        self.assertEqual(conn_ids, ['http_default', 'http_default'])
+        mock_get_connections.assert_called_once_with('http_default')
+
+    def test_cli_connections_include_secrets(self):
+        args = self.parser.parse_args([
+            "connections", "list", "--output", "tsv", '--include-secrets',
+        ])
+
+        with self.assertRaises(SystemExit):
+            connection_command.connections_list(args)
+
 
 TEST_URL = "postgresql://airflow:airflow@host:5432/airflow"
 
@@ -284,23 +321,3 @@ class TestCliDeleteConnections(unittest.TestCase):
 
         # Check deletion attempt stdout
         self.assertIn("\tDid not find a connection with `conn_id`=fake", stdout)
-
-
-class TestCliLookupConnections(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.parser = cli_parser.get_parser()
-
-    @mock.patch('airflow.cli.commands.connection_command.BaseHook.get_connections', return_value=[
-        Connection(conn_id="new1", host="host1"),
-        Connection(conn_id="new1", host="host2"),
-    ])
-    def test_should_lookup_all_vaariables(self, mock_get_connections):
-        with redirect_stdout(io.StringIO()) as stdout:
-            connection_command.connections_lookup(self.parser.parse_args(["connections", "lookup", "new1"]))
-            stdout = stdout.getvalue()
-        self.assertIn("new1", stdout)
-        self.assertIn("new1", stdout)
-        self.assertIn("host1", stdout)
-        self.assertIn("host1", stdout)
-        mock_get_connections.assert_called_once_with('new1')

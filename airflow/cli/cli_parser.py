@@ -578,6 +578,10 @@ ARG_CONN_ID = Arg(
     ('conn_id',),
     help='Connection id, required to add/delete a connection',
     type=str)
+ARG_CONN_ID_FILTER = Arg(
+    ('--conn-id',),
+    help='If passed, only items with the specified connection ID will be displayed',
+    type=str)
 ARG_CONN_URI = Arg(
     ('--conn-uri',),
     help='Connection URI, required to add a connection without conn_type',
@@ -610,7 +614,15 @@ ARG_CONN_EXTRA = Arg(
     ('--conn-extra',),
     help='Connection `Extra` field, optional when adding a connection',
     type=str)
-
+ARG_INCLUDE_SECRETS = Arg(
+    ('--include-secrets',),
+    help=(
+        "If passed, the connection in the secret backend will also be displayed."
+        "To use this option you must pass `--con_id` option."
+        ""
+    ),
+    action="store_true",
+    default=False)
 # users
 ARG_USERNAME = Arg(
     ('--username',),
@@ -1024,19 +1036,13 @@ CONNECTIONS_COMMANDS = (
         name='list',
         help='List connections',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_list'),
-        args=(ARG_OUTPUT,),
+        args=(ARG_OUTPUT, ARG_CONN_ID_FILTER, ARG_INCLUDE_SECRETS),
     ),
     ActionCommand(
         name='add',
         help='Add a connection',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_add'),
         args=(ARG_CONN_ID, ARG_CONN_URI, ARG_CONN_EXTRA) + tuple(ALTERNATIVE_CONN_SPECS_ARGS),
-    ),
-    ActionCommand(
-        name='lookup',
-        help='Lookup connection by conn_id. This method support custom secret backend.',
-        func=lazy_load_command('airflow.cli.commands.connection_command.connections_lookup'),
-        args=(ARG_CONN_ID, ARG_OUTPUT,),
     ),
     ActionCommand(
         name='delete',
