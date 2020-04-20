@@ -83,7 +83,7 @@ If you want to display only sensors, you can execute the following command.
 
 If you want to display only secrets backend, you can execute the following command.
 
-    {prog} | grep sensors
+    {prog} | grep secrets
 
 If you want to count the operators/sensors in each providers package, you can use the following command.
 
