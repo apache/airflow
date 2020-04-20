@@ -289,7 +289,7 @@ class SSHHook(BaseHook):
     @staticmethod
     def add_host_to_known_hosts(host: str, key_type: str, host_key: str) -> None:
         """
-        Adds a specified remote_host public key to the known_hosts file  
+        Adds a specified remote_host public key to the known_hosts file
             in order to prevent man-in-the-middle attacks.
 
         The format of the new line in known_hosts will be:
