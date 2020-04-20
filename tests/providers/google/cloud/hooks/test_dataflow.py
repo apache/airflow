@@ -535,7 +535,6 @@ class TestDataflowTemplateHook(unittest.TestCase):
         )
         mock_controller.return_value.wait_for_done.assert_called_once()
 
-
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'), return_value=MOCK_UUID)
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
     @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
@@ -544,10 +543,10 @@ class TestDataflowTemplateHook(unittest.TestCase):
     ):
         launch_method = (
             mock_conn.return_value.
-                projects.return_value.
-                locations.return_value.
-                templates.return_value.
-                launch
+            projects.return_value.
+            locations.return_value.
+            templates.return_value.
+            launch
         )
         launch_method.return_value.execute.return_value = {"job": {"id": TEST_JOB_ID}}
         variables_with_region = {'region': TEST_LOCATION}
@@ -593,10 +592,10 @@ class TestDataflowTemplateHook(unittest.TestCase):
     ):
         launch_method = (
             mock_conn.return_value.
-                projects.return_value.
-                locations.return_value.
-                templates.return_value.
-                launch
+            projects.return_value.
+            locations.return_value.
+            templates.return_value.
+            launch
         )
         launch_method.return_value.execute.return_value = {"job": {"id": TEST_JOB_ID}}
         variables_with_region = {'region': TEST_LOCATION}
