@@ -1163,9 +1163,10 @@ class BigQueryGetDatasetOperator(BaseOperator):
 
         self.log.info('Start getting dataset: %s:%s', self.project_id, self.dataset_id)
 
-        return bq_hook.get_dataset(
+        dataset = bq_hook.get_dataset(
             dataset_id=self.dataset_id,
             project_id=self.project_id)
+        return dataset.to_api_repr()
 
 
 class BigQueryGetDatasetTablesOperator(BaseOperator):
@@ -1301,8 +1302,8 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 dataset_id: str,
                  dataset_resource: dict,
+                 dataset_id: Optional[str] = None,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
@@ -1320,10 +1321,15 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
 
         self.log.info('Start updating dataset: %s:%s', self.project_id, self.dataset_id)
 
-        return bq_hook.update_dataset(
-            dataset_id=self.dataset_id,
+        fields = list(self.dataset_resource.keys())
+
+        dataset = bq_hook.update_dataset(
             dataset_resource=self.dataset_resource,
-            project_id=self.project_id)
+            project_id=self.project_id,
+            dataset_id=self.dataset_id,
+            fields=fields,
+        )
+        return dataset.to_api_repr()
 
 
 class BigQueryDeleteTableOperator(BaseOperator):
