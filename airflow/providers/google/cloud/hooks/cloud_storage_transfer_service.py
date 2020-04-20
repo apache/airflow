@@ -114,8 +114,8 @@ def gen_job_name(job_name: str) -> str:
     :return: job_name with suffix
     :rtype: str
     """
-    uniq = str(int(time.time()))
-    return "_".join([job_name, uniq])
+    uniq = int(time.time())
+    return f"{job_name}_{uniq}"
 
 
 # noinspection PyAbstractClass

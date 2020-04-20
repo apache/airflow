@@ -19,9 +19,7 @@
 import json
 import re
 import unittest
-from collections import namedtuple
 from copy import deepcopy
-from typing import Dict
 
 import mock
 from googleapiclient.errors import HttpError
@@ -30,7 +28,7 @@ from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
-    DESCRIPTION, FILTER_JOB_NAMES, FILTER_PROJECT_ID, JOB_NAME, METADATA, OPERATIONS, PROJECT_ID, STATUS,
+    DESCRIPTION, FILTER_JOB_NAMES, FILTER_PROJECT_ID, METADATA, OPERATIONS, PROJECT_ID, STATUS,
     TIME_TO_SLEEP_IN_SECONDS, TRANSFER_JOB, TRANSFER_JOB_FIELD_MASK, TRANSFER_JOBS,
     CloudDataTransferServiceHook, GcpTransferJobsStatus, GcpTransferOperationStatus, gen_job_name,
 )
@@ -83,19 +81,12 @@ def _with_name(body, job_name):
     return obj
 
 
+class GCPRequestMock:
+
+    status = TEST_HTTP_ERR_CODE
+
+
 class TestGCPTransferServiceHookWithPassedName(unittest.TestCase):
-
-    def __create_job_se(self, body: Dict):
-        if body.get(JOB_NAME) == TEST_CLEAR_JOB_NAME:
-            resp = namedtuple('resp', ['status'])(TEST_HTTP_ERR_CODE)
-            raise HttpError(resp, b'Conflict')
-
-        class CreateJob:
-            @staticmethod
-            def execute(num_retries: int):  # pylint: disable=unused-argument
-                return TEST_RESULT_STATUS_ENABLED
-
-        return CreateJob
 
     def setUp(self):
         with mock.patch(
@@ -121,23 +112,27 @@ class TestGCPTransferServiceHookWithPassedName(unittest.TestCase):
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
         '.CloudDataTransferServiceHook.get_conn'
     )
+    # pylint: disable=unused-argument
     def test_pass_name_on_create_job(self,
                                      get_conn: MagicMock,
                                      project_id: PropertyMock,
                                      get_transfer_job: MagicMock,
                                      enable_transfer_job: MagicMock
-                                     ):  # pylint: disable=unused-argument
+                                     ):
         body = _with_name(TEST_BODY, TEST_CLEAR_JOB_NAME)
-        get_conn.return_value.transferJobs.return_value.create.side_effect \
-            = self.__create_job_se
+        get_conn.side_effect \
+            = HttpError(GCPRequestMock(), TEST_HTTP_ERR_CONTENT)
 
-        # check status DELETED generates new job name
-        get_transfer_job.return_value = TEST_RESULT_STATUS_DELETED
-        self.gct_hook.create_transfer_job(body=body)
+        with self.assertRaises(HttpError):
+
+            # check status DELETED generates new job name
+            get_transfer_job.return_value = TEST_RESULT_STATUS_DELETED
+            self.gct_hook.create_transfer_job(body=body)
 
         # check status DISABLED changes to status ENABLED
         get_transfer_job.return_value = TEST_RESULT_STATUS_DISABLED
         enable_transfer_job.return_value = TEST_RESULT_STATUS_ENABLED
+
         res = self.gct_hook.create_transfer_job(body=body)
         self.assertEqual(res, TEST_RESULT_STATUS_ENABLED)
 
