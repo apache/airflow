@@ -83,8 +83,8 @@ with models.DAG(
         task_id="copy_single_gcs_file",
         source_bucket=BUCKET_1_SRC,
         source_object=OBJECT_1,
-        destination_bucket=BUCKET_1_DST, # If not supplied the source_bucket value will be used
-        destination_object="backup_" + OBJECT_1 # If not supplied the source_object value will be used
+        destination_bucket=BUCKET_1_DST,  # If not supplied the source_bucket value will be used
+        destination_object="backup_" + OBJECT_1  # If not supplied the source_object value will be used
     )
     # [END howto_operator_gcs_to_gcs_single_file]
 
@@ -113,7 +113,7 @@ with models.DAG(
     copy_files_with_list = GCSToGCSOperator(
         task_id="copy_files_with_list",
         source_bucket=BUCKET_1_SRC,
-        source_objects=[OBJECT_1, OBJECT_2], # Instead of files each element could be a wildcard expression
+        source_objects=[OBJECT_1, OBJECT_2],  # Instead of files each element could be a wildcard expression
         destination_bucket=BUCKET_1_DST,
         destination_object="backup/"
     )
