@@ -110,15 +110,15 @@ class SSHHook(BaseHook):
                 if "timeout" in extra_options:
                     self.timeout = int(extra_options["timeout"], 10)
 
-                if "compress" in extra_options \
+                if "compress" in extra_options\
                         and str(extra_options["compress"]).lower() == 'false':
                     self.compress = False
-                if "no_host_key_check" in extra_options \
-                        and \
+                if "no_host_key_check" in extra_options\
+                        and\
                         str(extra_options["no_host_key_check"]).lower() == 'false':
                     self.no_host_key_check = False
-                if "allow_host_key_change" in extra_options \
-                        and \
+                if "allow_host_key_change" in extra_options\
+                        and\
                         str(extra_options["allow_host_key_change"]).lower() == 'true':
                     self.allow_host_key_change = True
                 if "host_key" in extra_options and self.no_host_key_check is False:
