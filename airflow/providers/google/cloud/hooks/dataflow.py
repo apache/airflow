@@ -28,7 +28,7 @@ import uuid
 import warnings
 from copy import deepcopy
 from tempfile import TemporaryDirectory
-from typing import Any, Callable, Dict, List, Optional, Sequence, TypeVar, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, TypeVar, Union, cast
 
 from googleapiclient.discovery import build
 
@@ -36,6 +36,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.python_virtualenv import prepare_virtualenv
+from airflow.utils.timeout import timeout
 
 # This is the default location
 # https://cloud.google.com/dataflow/pipelines/specifying-exec-params
@@ -147,9 +148,10 @@ class _DataflowJobsController(LoggingMixin):
         not by specific job ID, then actions will be performed on all matching jobs.
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
         instead of canceling.
+    :param cancel_timeout: wait time in seconds for successful job canceling
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         dataflow: Any,
         project_number: str,
@@ -160,6 +162,7 @@ class _DataflowJobsController(LoggingMixin):
         num_retries: int = 0,
         multiple_jobs: bool = False,
         drain_pipeline: bool = False,
+        cancel_timeout: Optional[int] = 5 * 60,
     ) -> None:
 
         super().__init__()
@@ -171,8 +174,9 @@ class _DataflowJobsController(LoggingMixin):
         self._job_id = job_id
         self._num_retries = num_retries
         self._poll_sleep = poll_sleep
-        self.drain_pipeline = drain_pipeline
+        self._cancel_timeout = cancel_timeout
         self._jobs: Optional[List[dict]] = None
+        self.drain_pipeline = drain_pipeline
 
     def is_job_running(self) -> bool:
         """
@@ -317,6 +321,29 @@ class _DataflowJobsController(LoggingMixin):
 
         return self._jobs
 
+    def _wait_for_states(self, expected_states: Set[str]):
+        """Waiting for the jobs to reach a certain state."""
+        if not self._jobs:
+            raise ValueError("The _jobs should be set")
+        while True:
+            self._refresh_jobs()
+            job_states = {job['currentState'] for job in self._jobs}
+            if not job_states.difference(expected_states):
+                return
+            unexpected_failed_end_states = expected_states - DataflowJobStatus.FAILED_END_STATES
+            if unexpected_failed_end_states.intersection(job_states):
+                unexpected_failed_jobs = {
+                    job for job in self._jobs if job['currentState'] in unexpected_failed_end_states
+                }
+                raise AirflowException(
+                    "Jobs failed: "
+                    + ", ".join(
+                        f"ID: {job['id']} name: {job['name']} state: {job['currentState']}"
+                        for job in unexpected_failed_jobs
+                    )
+                )
+            time.sleep(self._poll_sleep)
+
     def cancel(self) -> None:
         """Cancels or drains current job"""
         jobs = self.get_jobs()
@@ -342,6 +369,12 @@ class _DataflowJobsController(LoggingMixin):
                     )
                 )
             batch.execute()
+            if self._cancel_timeout and isinstance(self._cancel_timeout, int):
+                timeout_error_message = "Canceling jobs failed due to timeout ({}s): {}".format(
+                    self._cancel_timeout, ", ".join(job_ids)
+                )
+                with timeout(seconds=self._cancel_timeout, error_message=timeout_error_message):
+                    self._wait_for_states({DataflowJobStatus.JOB_STATE_CANCELLED})
         else:
             self.log.info("No jobs to cancel")
 
@@ -453,9 +486,11 @@ class DataflowHook(GoogleBaseHook):
         poll_sleep: int = 10,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         drain_pipeline: bool = False,
+        cancel_timeout: Optional[int] = 5 * 60,
     ) -> None:
         self.poll_sleep = poll_sleep
         self.drain_pipeline = drain_pipeline
+        self.cancel_timeout = cancel_timeout
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
@@ -496,6 +531,7 @@ class DataflowHook(GoogleBaseHook):
             num_retries=self.num_retries,
             multiple_jobs=multiple_jobs,
             drain_pipeline=self.drain_pipeline,
+            cancel_timeout=self.cancel_timeout,
         )
         job_controller.wait_for_done()
 
@@ -669,6 +705,7 @@ class DataflowHook(GoogleBaseHook):
             poll_sleep=self.poll_sleep,
             num_retries=self.num_retries,
             drain_pipeline=self.drain_pipeline,
+            cancel_timeout=self.cancel_timeout,
         )
         jobs_controller.wait_for_done()
         return response["job"]
@@ -714,6 +751,7 @@ class DataflowHook(GoogleBaseHook):
             location=location,
             poll_sleep=self.poll_sleep,
             num_retries=self.num_retries,
+            cancel_timeout=self.cancel_timeout,
         )
         jobs_controller.wait_for_done()
 
@@ -898,6 +936,7 @@ class DataflowHook(GoogleBaseHook):
             poll_sleep=self.poll_sleep,
             drain_pipeline=self.drain_pipeline,
             num_retries=self.num_retries,
+            cancel_timeout=self.cancel_timeout,
         )
         return jobs_controller.is_job_running()
 
@@ -933,6 +972,7 @@ class DataflowHook(GoogleBaseHook):
             poll_sleep=self.poll_sleep,
             drain_pipeline=self.drain_pipeline,
             num_retries=self.num_retries,
+            cancel_timeout=self.cancel_timeout,
         )
         jobs_controller.cancel()
 

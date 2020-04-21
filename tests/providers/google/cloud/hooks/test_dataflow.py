@@ -91,6 +91,7 @@ TEST_FLEX_PARAMETERS = {
     },
 }
 TEST_PROJECT_ID = 'test-project-id'
+
 TEST_SQL_JOB_NAME = 'test-sql-job-name'
 TEST_DATASET = 'test-dataset'
 TEST_SQL_OPTIONS = {
@@ -108,6 +109,8 @@ FROM
 GROUP BY sales_region;
 """
 TEST_SQL_JOB_ID = 'test-job-id'
+
+DEFAULT_CANCEL_TIMEOUT = 5 * 60
 
 
 class TestFallbackToVariables(unittest.TestCase):
@@ -675,6 +678,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             project_number=TEST_PROJECT,
             location=DEFAULT_DATAFLOW_LOCATION,
             drain_pipeline=False,
+            cancel_timeout=DEFAULT_CANCEL_TIMEOUT,
         )
         mock_controller.return_value.wait_for_done.assert_called_once()
 
@@ -712,6 +716,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             project_number=TEST_PROJECT,
             location=TEST_LOCATION,
             drain_pipeline=False,
+            cancel_timeout=DEFAULT_CANCEL_TIMEOUT,
         )
         mock_controller.return_value.wait_for_done.assert_called_once()
 
@@ -751,6 +756,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             project_number=TEST_PROJECT,
             location=TEST_LOCATION,
             drain_pipeline=False,
+            cancel_timeout=DEFAULT_CANCEL_TIMEOUT,
         )
         mock_controller.return_value.wait_for_done.assert_called_once()
 
@@ -794,6 +800,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             poll_sleep=10,
             project_number=TEST_PROJECT,
             drain_pipeline=False,
+            cancel_timeout=DEFAULT_CANCEL_TIMEOUT,
         )
         mock_uuid.assert_called_once_with()
 
@@ -841,6 +848,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             poll_sleep=10,
             project_number=TEST_PROJECT,
             drain_pipeline=False,
+            cancel_timeout=DEFAULT_CANCEL_TIMEOUT,
         )
         mock_uuid.assert_called_once_with()
 
@@ -872,6 +880,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             location=TEST_LOCATION,
             poll_sleep=self.dataflow_hook.poll_sleep,
             num_retries=self.dataflow_hook.num_retries,
+            cancel_timeout=DEFAULT_CANCEL_TIMEOUT,
         )
         mock_controller.return_value.get_jobs.wait_for_done.assrt_called_once_with()
         mock_controller.return_value.get_jobs.assrt_called_once_with()
@@ -893,6 +902,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             project_number=TEST_PROJECT,
             num_retries=5,
             drain_pipeline=False,
+            cancel_timeout=DEFAULT_CANCEL_TIMEOUT,
         )
         jobs_controller.cancel()
 
@@ -1290,6 +1300,51 @@ class TestDataflowJob(unittest.TestCase):
         )
         mock_batch.add.assert_called_once_with(mock_update.return_value)
 
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.timeout")
+    @mock.patch("time.sleep")
+    def test_dataflow_job_cancel_job_cancel_timeout(self, mock_sleep, mock_timeout):
+        mock_jobs = self.mock_dataflow.projects.return_value.locations.return_value.jobs
+        get_method = mock_jobs.return_value.get
+        get_method.return_value.execute.side_effect = [
+            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_CANCELLING},
+            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_CANCELLING},
+            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_CANCELLING},
+            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_CANCELLING},
+            {"id": TEST_JOB_ID, "name": JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_CANCELLED},
+        ]
+
+        mock_jobs.return_value.list_next.return_value = None
+        dataflow_job = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name=UNIQUE_JOB_NAME,
+            location=TEST_LOCATION,
+            poll_sleep=4,
+            job_id=TEST_JOB_ID,
+            num_retries=20,
+            multiple_jobs=False,
+            cancel_timeout=10,
+        )
+        dataflow_job.cancel()
+
+        get_method.assert_called_with(jobId=TEST_JOB_ID, location=TEST_LOCATION, projectId=TEST_PROJECT)
+        get_method.return_value.execute.assert_called_with(num_retries=20)
+
+        self.mock_dataflow.new_batch_http_request.assert_called_once_with()
+        mock_batch = self.mock_dataflow.new_batch_http_request.return_value
+        mock_update = mock_jobs.return_value.update
+        mock_update.assert_called_once_with(
+            body={'requestedState': 'JOB_STATE_CANCELLED'},
+            jobId='test-job-id',
+            location=TEST_LOCATION,
+            projectId='test-project',
+        )
+        mock_batch.add.assert_called_once_with(mock_update.return_value)
+        mock_sleep.assert_has_calls([mock.call(4), mock.call(4), mock.call(4)])
+        mock_timeout.assert_called_once_with(
+            seconds=10, error_message='Canceling jobs failed due to timeout (10s): test-job-id'
+        )
+
     @parameterized.expand(
         [
             (False, "JOB_TYPE_BATCH", "JOB_STATE_CANCELLED"),
@@ -1324,6 +1379,7 @@ class TestDataflowJob(unittest.TestCase):
             num_retries=20,
             multiple_jobs=False,
             drain_pipeline=drain_pipeline,
+            cancel_timeout=None,
         )
         dataflow_job.cancel()
 
