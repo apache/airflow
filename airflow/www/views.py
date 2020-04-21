@@ -600,8 +600,7 @@ class Airflow(AirflowBaseView):
     @has_dag_access(can_dag_read=True)
     @has_access
     @action_logging
-    @provide_session
-    def rendered(self, session=None):
+    def rendered(self):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
@@ -775,8 +774,7 @@ class Airflow(AirflowBaseView):
     @has_dag_access(can_dag_read=True)
     @has_access
     @action_logging
-    @provide_session
-    def elasticsearch(self, session=None):
+    def elasticsearch(self):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
@@ -2065,8 +2063,7 @@ class Airflow(AirflowBaseView):
     @has_dag_access(can_dag_read=True)
     @has_access
     @action_logging
-    @provide_session
-    def task_instances(self, session=None):
+    def task_instances(self):
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
 
