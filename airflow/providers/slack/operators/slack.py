@@ -19,7 +19,6 @@
 import json
 from typing import Dict, List, Optional
 
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook
 from airflow.utils.decorators import apply_defaults
@@ -49,12 +48,6 @@ class SlackAPIOperator(BaseOperator):
                  api_params: Optional[Dict] = None,
                  *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-
-        if token is None and slack_conn_id is None:
-            raise AirflowException('No valid Slack token nor slack_conn_id supplied.')
-        if token is not None and slack_conn_id is not None:
-            raise AirflowException('Cannot determine Slack credential '
-                                   'when both token and slack_conn_id are supplied.')
 
         self.token = token  # type: Optional[str]
         self.slack_conn_id = slack_conn_id  # type: Optional[str]
