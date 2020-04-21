@@ -121,7 +121,7 @@ url.
 Technical details of Airflow images
 ===================================
 
-The CI image is used by Breeze as shell image but it is also used during CI builds on Travis.
+The CI image is used by Breeze as shell image but it is also used during CI build.
 The image is single segment image that contains Airflow installation with "all" dependencies installed.
 It is optimised for rebuild speed (``AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD`` flag set to "true").
 It installs PIP dependencies from the current branch first - so that any changes in setup.py do not trigger

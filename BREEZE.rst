@@ -336,7 +336,7 @@ Choosing a Breeze Environment
 
 You can use additional ``breeze`` flags to customize your environment. For example, you can specify a Python
 version to use, backend and a container environment for testing. With Breeze, you can recreate the same
-environments as we have in matrix builds in Travis CI.
+environments as we have in matrix builds in the CI.
 
 For example, you can choose to run Python 3.6 tests with MySQL as backend and in the Docker environment as
 follows:

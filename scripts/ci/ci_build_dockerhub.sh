@@ -17,7 +17,7 @@
 # under the License.
 
 # This is hook build used by DockerHub. We are also using it
-# on Travis CI to potentially rebuild (and refresh layers that
+# on CI to potentially rebuild (and refresh layers that
 # are not cached) Docker images that are used to run CI jobs
 export FORCE_ANSWER_TO_QUESTIONS="yes"
 
