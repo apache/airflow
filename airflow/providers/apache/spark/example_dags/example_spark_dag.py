@@ -21,6 +21,7 @@ Example Airflow DAG to submit Apache Spark applications using
 `SparkSubmitOperator`, `SparkJDBCOperator` and `SparkSqlOperator`.
 """
 from airflow.contrib.operators.spark_jdbc_operator import SparkJDBCOperator
+from airflow.contrib.operators.spark_sql_operator import SparkSqlOperator
 from airflow.contrib.operators.spark_submit_operator import SparkSubmitOperator
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
@@ -38,7 +39,7 @@ with DAG(
 ) as dag:
     # [START howto_operator_spark_submit]
     submit_job = SparkSubmitOperator(
-        application="dags/example_spark_job.py",
+        application="${SPARK_HOME}/examples/src/main/python/pi.py",
         task_id="submit_job"
     )
     # [END howto_operator_spark_submit]
@@ -67,3 +68,11 @@ with DAG(
         task_id="spark_to_jdbc_job"
     )
     # [END howto_operator_spark_jdbc]
+
+    # [START howto_operator_spark_sql]
+    sql_job = SparkSqlOperator(
+        sql="SELECT * FROM bar",
+        master="local",
+        task_id="sql_job"
+    )
+    # [END howto_operator_spark_sql]

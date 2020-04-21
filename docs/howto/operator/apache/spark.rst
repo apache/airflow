@@ -84,6 +84,23 @@ For further information, look at `Apache Spark DataFrameWriter documentation <ht
 SparkSqlOperator
 ----------------
 
+Launches applications on a Spark cluster, it requires that the ``spark-sql`` script is in the PATH.
+The operator will run the SQL query on Spark Hive metastore service, the ``sql`` parameter can be templated and be a ``.sql`` or ``.hql`` file.
+
+Using the operator
+""""""""""""""""""
+
+.. exampleinclude:: ../../../../airflow/providers/apache/spark/example_dags/example_spark_dag.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_spark_sql]
+    :end-before: [END howto_operator_spark_sql]
+
+Reference
+"""""""""
+
+For further information, look at `Running the Spark SQL CLI <https://spark.apache.org/docs/latest/sql-distributed-sql-engine.html#running-the-spark-sql-cli>`_.
+
 .. _howto/operator:SparkSubmitOperator:
 
 SparkSubmitOperator
