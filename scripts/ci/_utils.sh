@@ -60,6 +60,8 @@ function initialize_common_environment {
     mkdir -p "${AIRFLOW_SOURCES}/files"
     mkdir -p "${AIRFLOW_SOURCES}/dist"
 
+    # shellcheck source=common/_common_values.sh
+    . "${AIRFLOW_SOURCES}/common/_common_values.sh"
     # shellcheck source=common/_image_variables.sh
     . "${AIRFLOW_SOURCES}/common/_image_variables.sh"
     # shellcheck source=common/_files_for_rebuild_check.sh

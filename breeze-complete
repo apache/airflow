@@ -19,7 +19,7 @@
 
 _BREEZE_ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS="3.6 3.7"
 _BREEZE_ALLOWED_BACKENDS="sqlite mysql postgres"
-_BREEZE_ALLOWED_INTEGRATIONS="cassandra kerberos mongo openldap presto rabbitmq redis all"
+_BREEZE_ALLOWED_INTEGRATIONS="cassandra kerberos mongo openldap presto rabbitmq redis"
 _BREEZE_ALLOWED_KUBERNETES_MODES="persistent_mode git_mode"
 _BREEZE_ALLOWED_KUBERNETES_VERSIONS="v1.15.3 v1.16.2"
 _BREEZE_ALLOWED_MYSQL_VERSIONS="5.7 8"
