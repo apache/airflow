@@ -147,7 +147,7 @@ dag >> dummy
 This is no longer supported. Instead, we recommend using the DAG as context manager:
 
 ```python
-with DAG('my_dag):
+with DAG('my_dag'):
     dummy = DummyOperator(task_id='dummy')
 ```
 
