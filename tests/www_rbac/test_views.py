@@ -2163,6 +2163,46 @@ class TestTriggerDag(TestBase):
         self.assertEqual(resp.status_code, 200)
         self.check_content_in_response('Trigger DAG: {}'.format(test_dag_id), resp)
 
+    @mock.patch('airflow.models.dag.DAG.create_dagrun')
+    def test_trigger_dag(self, mock_dagrun):
+        test_dag_id = "example_bash_operator"
+        execution_date = timezone.utcnow()
+        run_id = "manual__{0}".format(execution_date.isoformat())
+        mock_dagrun.return_value = DagRun(
+            dag_id=test_dag_id, run_id=run_id,
+            execution_date=execution_date, start_date=datetime(2020, 1, 1, 1, 1, 1),
+            external_trigger=True,
+            conf={},
+            state="running"
+        )
+
+        response = self.client.post(
+            'trigger?dag_id={}'.format(test_dag_id), data={}, follow_redirects=True)
+        self.check_content_in_response(
+            'Triggered example_bash_operator, it should start any moment now.', response)
+
+    @mock.patch('airflow.models.dag.DAG.create_dagrun')
+    @mock.patch('airflow.utils.dag_processing.os.path.isfile')
+    @conf_vars({("core", "store_serialized_dags"): "True"})
+    def test_trigger_serialized_dag(self, mock_os_isfile, mock_dagrun):
+        mock_os_isfile.return_value = False
+
+        test_dag_id = "example_bash_operator"
+        execution_date = timezone.utcnow()
+        run_id = "manual__{0}".format(execution_date.isoformat())
+        mock_dagrun.return_value = DagRun(
+            dag_id=test_dag_id, run_id=run_id,
+            execution_date=execution_date, start_date=datetime(2020, 1, 1, 1, 1, 1),
+            external_trigger=True,
+            conf={},
+            state="running"
+        )
+
+        response = self.client.post(
+            'trigger?dag_id={}'.format(test_dag_id), data={}, follow_redirects=True)
+        self.check_content_in_response(
+            'Triggered example_bash_operator, it should start any moment now.', response)
+
 
 class TestExtraLinks(TestBase):
     def setUp(self):
