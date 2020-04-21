@@ -275,7 +275,7 @@ class DbApiHook(BaseHook):
                     if commit_every and i % commit_every == 0:
                         conn.commit()
                         self.log.info(
-                            "Loaded %s into %s rows so far", i, table
+                            "Loaded %s rows into %s so far", i, table
                         )
 
             conn.commit()
