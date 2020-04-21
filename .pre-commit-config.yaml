@@ -161,7 +161,7 @@ repos:
           - --remove
         exclude: ^airflow/_vendor/.*$
   - repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.4.4
+    rev: v1.5.1
     hooks:
       - id: rst-backticks
       - id: python-no-log-warn
