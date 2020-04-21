@@ -1421,40 +1421,33 @@ def connections(args):
     if args.filepath:
         with open(args.filepath, 'r') as stream:
             connections_config = yaml.load(stream)
-        connections = {
-            connection['conn_id']: connection['conn_uri']
-            for connection in connections_config['connections']
-        }
-        # check conn_id and conn_uri were passed from yaml file.
-        missing_args = list()
-        for conn_id, conn_uri in connections.items():
-            if conn_id is None:
-                missing_args.append('conn_id')
-            elif conn_uri is None:
-                missing_args.append('conn_uri')
-        if missing_args:
-            print('The following args are required to add a connection: {missing!r}'
-                  .format(missing=missing_args))
-            return
         with db.create_session() as session:
             # get exist conn_id list
-            exist_conns_id = [exist_conn.conn_id for exist_conn in session.query(Connection).all()]
+            exist_conns = {exist_conn.conn_id: exist_conn for exist_conn in session.query(Connection).all()}
             # if conn_id not in exist list, then create the Connection
             # if conn_id in exist list, then update the Connection
-            for conn_id, conn_uri in connections.items():
-                if conn_id not in exist_conns_id:
+            for connection in connections_config['connections']:
+                conn_id = connection['conn_id']
+                conn_uri = connection['conn_uri']
+                if not (conn_id and conn_uri):
+                    print("There is a connection record missing conn_id or conn_uri")
+                    continue
+                if conn_id not in exist_conns:
                     new_conn = Connection(conn_id=conn_id, uri=conn_uri)
                     db.merge_conn(new_conn, session)
                     print('Successfully added `conn_id`={} : {}'.format(conn_id, conn_uri))
                 else:
-                    to_delete = (session
-                                 .query(Connection)
-                                 .filter(Connection.conn_id == conn_id)
-                                 .one())
-                    session.delete(to_delete)
-                    print('Successfully delete old `conn_id`={} : {}'.format(conn_id, conn_uri))
-                    update_conn = Connection(conn_id=conn_id, uri=conn_uri)
-                    session.add(update_conn)
+                    new_conn = Connection(conn_id=conn_id, uri=conn_uri)
+                    old_conn = exist_conns.get(conn_id)
+                    # update existing connection
+                    old_conn.conn_type = new_conn.conn_type
+                    old_conn.host = new_conn.host
+                    old_conn.login = new_conn.login
+                    old_conn.password = new_conn.password
+                    old_conn.schema = new_conn.schema
+                    old_conn.port = new_conn.port
+                    old_conn.extra = new_conn.extra
+                    session.commit()
                     print('Successfully update `conn_id`={} : {}'.format(conn_id, conn_uri))
         return
 
