@@ -24,6 +24,8 @@ Please delete these comment blocks before submitting the issue.
 
 IMPORTANT!!!
 
+PLEASE CHECK IF THIS ISSUE HAS BEEN REPORTED PREVIOUSLY USING SEARCH!!!
+
 Please complete the next sections or the issue will be closed.
 This questions are the first thing we need to know to understand the context.
 
