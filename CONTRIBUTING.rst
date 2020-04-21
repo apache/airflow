@@ -277,7 +277,7 @@ Benefits:
     where all these services are available and can be used by tests
     automatically.
 
--   Breeze environment is almost the same as used in the  CI automated builds.
+-   Breeze environment is almost the same as used in the CI automated builds.
     So, if the tests run in your Breeze environment, they will work in the CI as well.
 
 Limitations:
