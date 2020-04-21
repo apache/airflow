@@ -1201,7 +1201,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           start all integrations. Selected integrations are not saved for future execution.
           One of:
 
-                 cassandra kerberos mongo openldap presto rabbitmq redis all
+                 cassandra kerberos mongo openldap presto rabbitmq redis
 
   ****************************************************************************************************
    Manage Kind kubernetes cluster (optional)
