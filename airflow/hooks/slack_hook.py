@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Slack"""
-from typing import Optional
+from typing import Optional, Any
 
 from slack import WebClient
 from slack.errors import SlackClientError
@@ -51,7 +51,13 @@ class SlackHook(BaseHook):
         Default is 30 seconds.
     :type timeout: int
     """
-    def __init__(self, token: Optional[str] = None, slack_conn_id: Optional[str] = None, **client_args) -> None:
+
+    def __init__(
+        self,
+        token: Optional[str] = None,
+        slack_conn_id: Optional[str] = None,
+        **client_args: Any,
+    ) -> None:
         token = self.__get_token(token, slack_conn_id)
         self.client = WebClient(token, **client_args)
 
