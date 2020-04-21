@@ -287,20 +287,33 @@ class SSHHook(BaseHook):
         file.write(''.join([record, '\n']))
 
     @staticmethod
+    def _update_record_in_known_hosts(host: str, record: str, file_contents: str, file: TextIO) -> None:
+        current_file_contents = str(file_contents)
+        current_records_with_host_removed = [line for line in current_file_contents.split('\n')
+                                             if host not in line and len(line) > 0]
+        new_file_records = current_records_with_host_removed + [record]
+        new_file_contents = '\n'.join(new_file_records) + '\n'
+        file.seek(0)
+        file.write(new_file_contents)
+
+    @staticmethod
     def add_host_to_known_hosts(host: str, key_type: str, host_key: str) -> None:
         """
         Adds a specified remote_host public key to the known_hosts file
             in order to prevent man-in-the-middle attacks.
 
+        If the host doesn't exist in the file then a new record is added.
+            If a record exists with a matching host but a different key,
+            then the existing record will be deleted and replaced with the new key.
+
         The format of the new line in known_hosts will be:
-
         {host} {key_type} {host_key}\n
-
         So, for these inputs:
-        >>> SSHHook.add_host_to_known_hosts('example.com', 'ssh-rsa', 'mjL4Bb/hFHx8OfTO...')
+        SSHHook.add_host_to_known_hosts('example.com', 'ssh-rsa', 'mjL4Bb/hFHx8OfTO...')
 
         We would expect to see a (new) line in ~/.ssh/known_hosts with the following:
         example.com ssh-rsa mjL4Bb/hFHx8OfTO...\n
+
 
         :param host: FQDN of the remote host.
         :type host: str
@@ -316,14 +329,25 @@ class SSHHook(BaseHook):
             raise AirflowException("The user running airflow on this system does not have the necessary "
                                    "permissions to make changes to the ~/.ssh directory and its contents.")
         record = SSHHook._format_known_hosts_record(host, key_type, host_key)
-        with open(known_hosts_file_ref, 'r') as known_hosts:
-            file_content = known_hosts.read()
+        with open(known_hosts_file_ref, 'r') as f:
+            file_content = f.read()
 
-        if len(file_content) == 0 or record not in file_content:
-            with open(known_hosts_file_ref, 'a') as known_hosts:
+        if host in file_content:
+            # the host may be in the file with a different (possibly old) key
+            # in this case, we should replace the existing record
+            with open(known_hosts_file_ref, 'w+') as f:
+                SSHHook._update_record_in_known_hosts(
+                    host,
+                    record,
+                    file_content,
+                    f
+                )
+        elif len(file_content) == 0 or record not in file_content:
+            # if file is empty or the record doesn't exist in the file, add it
+            with open(known_hosts_file_ref, 'a') as f:
                 SSHHook._add_new_record_to_known_hosts(
                     record,
-                    known_hosts
+                    f
                 )
 
     @staticmethod
