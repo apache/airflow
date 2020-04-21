@@ -364,7 +364,7 @@ Running Static Code Checks via Scripts from the Host
 ....................................................
 
 You can trigger the static checks from the host environment, without entering the Docker container. To do
-this, run the following scripts (the same is done in Travis CI):
+this, run the following scripts (the same is done in the CI builds):
 
 * `<scripts/ci/ci_check_license.sh>`_ - checks the licenses.
 * `<scripts/ci/ci_docs.sh>`_ - checks that documentation can be built without warnings.
