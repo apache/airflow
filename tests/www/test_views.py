@@ -532,6 +532,19 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('DAG details', resp)
 
+    @parameterized.expand(["graph", "tree", "dag_details"])
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_view_uses_existing_dagbag(self, endpoint, mock_get_dag):
+        """
+        Test that Graph, Tree & Dag Details View uses the DagBag already created in views.py
+        instead of creating a new one.
+        """
+        mock_get_dag.return_value = DAG(dag_id='example_bash_operator')
+        url = f'{endpoint}?dag_id=example_bash_operator'
+        resp = self.client.get(url, follow_redirects=True)
+        mock_get_dag.assert_called_once_with('example_bash_operator')
+        self.check_content_in_response('example_bash_operator', resp)
+
     def test_dag_details_trigger_origin_tree_view(self):
         dag = self.dagbag.dags['test_tree_view']
         dag.create_dagrun(
@@ -2207,6 +2220,18 @@ class TestTriggerDag(TestBase):
 
         self.assertEqual(resp.status_code, 200)
         self.check_content_in_response('Trigger DAG: {}'.format(test_dag_id), resp)
+
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_trigger_endpoint_uses_existing_dagbag(self, mock_get_dag):
+        """
+        Test that Trigger Endpoint uses the DagBag already created in views.py
+        instead of creating a new one.
+        """
+        mock_get_dag.return_value = DAG(dag_id='example_bash_operator')
+        url = 'trigger?dag_id=example_bash_operator'
+        resp = self.client.post(url, data={}, follow_redirects=True)
+        mock_get_dag.assert_called_once_with('example_bash_operator')
+        self.check_content_in_response('example_bash_operator', resp)
 
 
 class TestExtraLinks(TestBase):
