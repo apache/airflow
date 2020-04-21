@@ -1056,7 +1056,7 @@ Docker pulling ${PYTHON_BASE_IMAGE}.
             echo
             if [[ -n ${DETECTED_TERMINAL:=""} ]]; then
                 echo -n "
-Docker pulling ${IMAGE}.
+Docker pulling ${AIRFLOW_CI_IMAGE}.
 " > "${DETECTED_TERMINAL}"
             fi
             verbose_docker pull "${AIRFLOW_CI_IMAGE}" | tee -a "${OUTPUT_LOG}" || true
