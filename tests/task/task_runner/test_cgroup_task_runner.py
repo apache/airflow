@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -43,7 +42,3 @@ class TestCgroupTaskRunner(unittest.TestCase):
 
         runner.on_finish()
         self.assertTrue(mock_super_on_finish.called)
-
-
-if __name__ == '__main__':
-    unittest.main()

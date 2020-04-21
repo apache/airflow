@@ -38,6 +38,9 @@ There are three ways to connect to GCP using Airflow.
    file (JSON format) on disk - ``Keyfile Path``.
 3. Use a service account key file (JSON format) from connection configuration - ``Keyfile JSON``.
 
+Only one authorization method can be used at a time. If you need to manage multiple keys then you should
+configure multiple connections.
+
 Default Connection IDs
 ----------------------
 
@@ -86,7 +89,7 @@ Number of Retries
 
         * ``extra__google_cloud_platform__project`` - Project Id
         * ``extra__google_cloud_platform__key_path`` - Keyfile Path
-        * ``extra__google_cloud_platform__key_dict`` - Keyfile JSON
+        * ``extra__google_cloud_platform__keyfile_dict`` - Keyfile JSON
         * ``extra__google_cloud_platform__scope`` - Scopes
         * ``extra__google_cloud_platform__num_retries`` - Number of Retries
 

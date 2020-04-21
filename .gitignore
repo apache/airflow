@@ -106,6 +106,7 @@ celerybeat-schedule
 
 # dotenv
 .env
+.autoenv*.zsh
 
 # virtualenv
 .venv*
@@ -128,6 +129,16 @@ ENV/
 # vim
 *.swp
 
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
 # OSX
 .DS_Store
 
@@ -142,8 +153,8 @@ rat-results.txt
 # Kubernetes generated templated files
 *.generated
 *.tar.gz
-scripts/ci/kubernetes/kube/.generated/airflow.yaml
-scripts/ci/kubernetes/docker/requirements.txt
+scripts/ci/in_container/kubernetes/kube/.generated/airflow.yaml
+scripts/ci/in_container/kubernetes/docker/requirements.txt
 
 # Node & Webpack Stuff
 *.entry.js
@@ -157,13 +168,14 @@ airflow-*.err
 airflow-*.out
 airflow-*.log
 airflow-*.pid
+.airflow_db_initialised
 
 # mypy
 .mypy_cache/
 .dmypy.json
 dmypy.json
 
-# Needed for CI Dockerfile build system
+# Needed for CI Dockerfile.ci build system
 .build
 /tmp
 /files
@@ -171,5 +183,6 @@ dmypy.json
 /hive_scratch_dir/
 /.bash_aliases
 /.bash_history
+/.kube
 /.inputrc
 log.txt*

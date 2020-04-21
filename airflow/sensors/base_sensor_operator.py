@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,10 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
+import hashlib
 from datetime import timedelta
 from time import sleep
-from typing import Dict, Iterable
+from typing import Any, Dict, Iterable
 
 from airflow.exceptions import (
     AirflowException, AirflowRescheduleException, AirflowSensorTimeout, AirflowSkipException,
@@ -42,9 +41,9 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     :type soft_fail: bool
     :param poke_interval: Time in seconds that the job should wait in
         between each tries
-    :type poke_interval: int
+    :type poke_interval: float
     :param timeout: Time, in seconds before the task times out and fails.
-    :type timeout: int
+    :type timeout: float
     :param mode: How the sensor operates.
         Options are: ``{ poke | reschedule }``, default is ``poke``.
         When set to ``poke`` the sensor is taking up a worker slot for its
@@ -58,6 +57,9 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         quite long. The poke interval should be more than one minute to
         prevent too much load on the scheduler.
     :type mode: str
+    :param exponential_backoff: allow progressive longer waits between
+        pokes by using exponential backoff algorithm
+    :type exponential_backoff: bool
     """
     ui_color = '#e6f1f2'  # type: str
     valid_modes = ['poke', 'reschedule']  # type: Iterable[str]
@@ -68,6 +70,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                  timeout: float = 60 * 60 * 24 * 7,
                  soft_fail: bool = False,
                  mode: str = 'poke',
+                 exponential_backoff: bool = False,
                  *args,
                  **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -75,6 +78,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self.soft_fail = soft_fail
         self.timeout = timeout
         self.mode = mode
+        self.exponential_backoff = exponential_backoff
         self._validate_input_values()
 
     def _validate_input_values(self) -> None:
@@ -99,13 +103,15 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         """
         raise AirflowException('Override me.')
 
-    def execute(self, context: Dict) -> None:
+    def execute(self, context: Dict) -> Any:
         started_at = timezone.utcnow()
+        try_number = 1
         if self.reschedule:
             # If reschedule, use first start date of current try
             task_reschedules = TaskReschedule.find_for_task_instance(context['ti'])
             if task_reschedules:
                 started_at = task_reschedules[0].start_date
+                try_number = len(task_reschedules) + 1
         while not self.poke(context):
             if (timezone.utcnow() - started_at).total_seconds() > self.timeout:
                 # If sensor is in soft fail mode but will be retried then
@@ -118,10 +124,11 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                     raise AirflowSensorTimeout('Snap. Time is OUT.')
             if self.reschedule:
                 reschedule_date = timezone.utcnow() + timedelta(
-                    seconds=self.poke_interval)
+                    seconds=self._get_next_poke_interval(started_at, try_number))
                 raise AirflowRescheduleException(reschedule_date)
             else:
-                sleep(self.poke_interval)
+                sleep(self._get_next_poke_interval(started_at, try_number))
+                try_number += 1
         self.log.info("Success criteria met. Exiting.")
 
     def _do_skip_downstream_tasks(self, context: Dict) -> None:
@@ -130,14 +137,42 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         if downstream_tasks:
             self.skip(context['dag_run'], context['ti'].execution_date, downstream_tasks)
 
+    def _get_next_poke_interval(self, started_at, try_number):
+        """
+        Using the similar logic which is used for exponential backoff retry delay for operators.
+        """
+        if self.exponential_backoff:
+            min_backoff = int(self.poke_interval * (2 ** (try_number - 2)))
+            current_time = timezone.utcnow()
+
+            run_hash = int(hashlib.sha1("{}#{}#{}#{}".format(
+                self.dag_id, self.task_id, started_at, try_number
+            ).encode("utf-8")).hexdigest(), 16)
+            modded_hash = min_backoff + run_hash % min_backoff
+
+            delay_backoff_in_seconds = min(
+                modded_hash,
+                timedelta.max.total_seconds() - 1
+            )
+            new_interval = min(self.timeout - int((current_time - started_at).total_seconds()),
+                               delay_backoff_in_seconds)
+            self.log.info("new %s interval is %s", self.mode, new_interval)
+            return new_interval
+        else:
+            return self.poke_interval
+
     @property
     def reschedule(self):
+        """Define mode rescheduled sensors."""
         return self.mode == 'reschedule'
 
+    # pylint: disable=no-member
     @property
     def deps(self):
         """
         Adds one additional dependency for all sensor operators that
         checks if a sensor task instance can be rescheduled.
         """
-        return BaseOperator.deps.fget(self) | {ReadyToRescheduleDep()}
+        if self.reschedule:
+            return BaseOperator.deps.fget(self) | {ReadyToRescheduleDep()}
+        return BaseOperator.deps.fget(self)

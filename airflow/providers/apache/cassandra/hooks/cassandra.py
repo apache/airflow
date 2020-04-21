@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,14 +16,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+This module contains hook to integrate with Apache Cassandra.
+"""
+
+from typing import Any, Dict, Union
+
 from cassandra.auth import PlainTextAuthProvider
-from cassandra.cluster import Cluster
+from cassandra.cluster import Cluster, Session
 from cassandra.policies import (
     DCAwareRoundRobinPolicy, RoundRobinPolicy, TokenAwarePolicy, WhiteListRoundRobinPolicy,
 )
 
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+Policy = Union[DCAwareRoundRobinPolicy, RoundRobinPolicy, TokenAwarePolicy, WhiteListRoundRobinPolicy]
 
 
 class CassandraHook(BaseHook, LoggingMixin):
@@ -74,7 +81,8 @@ class CassandraHook(BaseHook, LoggingMixin):
 
     For details of the Cluster config, see cassandra.cluster.
     """
-    def __init__(self, cassandra_conn_id='cassandra_default'):
+    def __init__(self, cassandra_conn_id: str = 'cassandra_default'):
+        super().__init__()
         conn = self.get_connection(cassandra_conn_id)
 
         conn_config = {}
@@ -106,7 +114,7 @@ class CassandraHook(BaseHook, LoggingMixin):
         self.keyspace = conn.schema
         self.session = None
 
-    def get_conn(self):
+    def get_conn(self) -> Session:
         """
         Returns a cassandra Session object
         """
@@ -115,10 +123,13 @@ class CassandraHook(BaseHook, LoggingMixin):
         self.session = self.cluster.connect(self.keyspace)
         return self.session
 
-    def get_cluster(self):
+    def get_cluster(self) -> Cluster:
+        """
+        Returns Cassandra cluster.
+        """
         return self.cluster
 
-    def shutdown_cluster(self):
+    def shutdown_cluster(self) -> None:
         """
         Closes all sessions and connections associated with this Cluster.
         """
@@ -126,17 +137,15 @@ class CassandraHook(BaseHook, LoggingMixin):
             self.cluster.shutdown()
 
     @staticmethod
-    def get_lb_policy(policy_name, policy_args):
-        policies = {
-            'RoundRobinPolicy': RoundRobinPolicy,
-            'DCAwareRoundRobinPolicy': DCAwareRoundRobinPolicy,
-            'WhiteListRoundRobinPolicy': WhiteListRoundRobinPolicy,
-            'TokenAwarePolicy': TokenAwarePolicy,
-        }
+    def get_lb_policy(policy_name: str, policy_args: Dict[str, Any]) -> Policy:
+        """
+        Creates load balancing policy.
 
-        if not policies.get(policy_name) or policy_name == 'RoundRobinPolicy':
-            return RoundRobinPolicy()
-
+        :param policy_name: Name of the policy to use.
+        :type policy_name: str
+        :param policy_args: Parameters for the policy.
+        :type policy_args: Dict
+        """
         if policy_name == 'DCAwareRoundRobinPolicy':
             local_dc = policy_args.get('local_dc', '')
             used_hosts_per_remote_dc = int(policy_args.get('used_hosts_per_remote_dc', 0))
@@ -162,7 +171,10 @@ class CassandraHook(BaseHook, LoggingMixin):
                                                            child_policy_args)
                 return TokenAwarePolicy(child_policy)
 
-    def table_exists(self, table):
+        # Fallback to default RoundRobinPolicy
+        return RoundRobinPolicy()
+
+    def table_exists(self, table: str) -> bool:
         """
         Checks if a table exists in Cassandra
 
@@ -177,7 +189,7 @@ class CassandraHook(BaseHook, LoggingMixin):
         return (keyspace in cluster_metadata.keyspaces and
                 table in cluster_metadata.keyspaces[keyspace].tables)
 
-    def record_exists(self, table, keys):
+    def record_exists(self, table: str, keys: Dict[str, str]) -> bool:
         """
         Checks if a record exists in Cassandra
 
@@ -190,12 +202,10 @@ class CassandraHook(BaseHook, LoggingMixin):
         keyspace = self.keyspace
         if '.' in table:
             keyspace, table = table.split('.', 1)
-        ks = " AND ".join("{}=%({})s".format(key, key) for key in keys.keys())
-        cql = "SELECT * FROM {keyspace}.{table} WHERE {keys}".format(
-            keyspace=keyspace, table=table, keys=ks)
-
+        ks_str = " AND ".join(f"{key}=%({key})s" for key in keys.keys())
+        query = f"SELECT * FROM {keyspace}.{table} WHERE {ks_str}"
         try:
-            rs = self.get_conn().execute(cql, keys)
-            return rs.one() is not None
-        except Exception:
+            result = self.get_conn().execute(query, keys)
+            return result.one() is not None
+        except Exception:  # pylint: disable=broad-except
             return False

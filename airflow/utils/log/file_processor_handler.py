@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -107,7 +106,7 @@ class FileProcessorHandler(logging.Handler):
         """
         log_directory = self._get_log_directory()
         latest_log_directory_path = os.path.join(self.base_log_folder, "latest")
-        if os.path.isdir(log_directory):
+        if os.path.isdir(log_directory):  # pylint: disable=too-many-nested-blocks
             try:
                 # if symlink exists but is stale, update it
                 if os.path.islink(latest_log_directory_path):

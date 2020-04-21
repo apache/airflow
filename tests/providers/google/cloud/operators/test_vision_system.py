@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,25 +15,35 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
+from tempfile import NamedTemporaryFile
 
-from tests.gcp.utils.gcp_authenticator import GCP_AI_KEY
-from tests.providers.google.cloud.operators.test_vision_system_helper import GCPVisionTestHelper
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context, skip_gcp_system
-from tests.test_utils.system_tests_class import SystemTest
+import pytest
 
-VISION_HELPER = GCPVisionTestHelper()
+from tests.providers.google.cloud.utils.gcp_authenticator import GCP_AI_KEY, GCP_GCS_KEY
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
+
+GCP_BUCKET_NAME = os.environ.get('GCP_VISION_BUCKET_NAME', 'vision-bucket-system-test')
+GCP_REFERENCE_IMAGE_URL = os.environ.get('GCP_VISION_REFERENCE_IMAGE_URL', 'gs://bucket-name/image.png')
+GCP_ANNOTATE_IMAGE_URL = os.environ.get('GCP_VISION_ANNOTATE_IMAGE_URL', 'gs://bucket-name/image.png')
+GCP_VIDEO_SOURCE_URL = os.environ.get('GCP_VISION_SOURCE_IMAGE_URL', "http://google.com/image.jpg")
 
 
-@skip_gcp_system(GCP_AI_KEY)
-class CloudVisionExampleDagsSystemTest(SystemTest):
+@pytest.mark.system("google.cloud")
+@pytest.mark.credential_file(GCP_AI_KEY)
+class CloudVisionExampleDagsSystemTest(GoogleSystemTest):
     @provide_gcp_context(GCP_AI_KEY)
     def setUp(self):
         super().setUp()
-        VISION_HELPER.create_bucket()
+        self.create_gcs_bucket(GCP_BUCKET_NAME, location="europe-north1")
+        with NamedTemporaryFile(suffix=".png") as file:
+            self.execute_cmd(["curl", "-s", GCP_VIDEO_SOURCE_URL, "-o", file.name])
+            self.execute_with_ctx(['gsutil', 'cp', file.name, GCP_REFERENCE_IMAGE_URL], key=GCP_GCS_KEY)
+            self.execute_with_ctx(['gsutil', 'cp', file.name, GCP_ANNOTATE_IMAGE_URL], key=GCP_GCS_KEY)
 
     @provide_gcp_context(GCP_AI_KEY)
     def tearDown(self):
-        VISION_HELPER.delete_bucket()
+        self.delete_gcs_bucket(GCP_BUCKET_NAME)
         super().tearDown()
 
     @provide_gcp_context(GCP_AI_KEY)

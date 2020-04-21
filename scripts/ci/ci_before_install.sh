@@ -15,24 +15,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+set -x
 
-set -xeuo pipefail
+# shellcheck source=scripts/ci/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export UPGRADE_TO_LATEST_REQUIREMENTS="false"
 
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
+# In case of CRON jobs on Travis we run builds without cache
+if [[ "${TRAVIS_EVENT_TYPE:=}" == "cron" ]]; then
+    echo
+    echo "Disabling cache for CRON jobs"
+    echo
+    export DOCKER_CACHE="no-cache"
+    export UPGRADE_TO_LATEST_REQUIREMENTS="true"
+fi
 
-basic_sanity_checks
+build_ci_image_on_ci
 
-script_start
-
-build_image_on_ci
-
-KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
-
-mkdir -p "${AIRFLOW_SOURCES}/files"
-
-sudo pip install pre-commit
-
-script_end
+# We need newer version of six for Travis as they bundle 1.11.0 version
+# Bowler is installed for backport packages build
+pip install pre-commit bowler 'six~=1.14'

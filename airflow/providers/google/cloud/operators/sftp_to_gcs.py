@@ -22,22 +22,22 @@ import os
 from tempfile import NamedTemporaryFile
 from typing import Optional, Union
 
-from airflow import AirflowException
-from airflow.contrib.hooks.sftp_hook import SFTPHook
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.utils.decorators import apply_defaults
 
 WILDCARD = "*"
 
 
-class SFTPToGoogleCloudStorageOperator(BaseOperator):
+class SFTPToGCSOperator(BaseOperator):
     """
     Transfer files to Google Cloud Storage from SFTP server.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:SFTPToGoogleCloudStorageOperator`
+        :ref:`howto/operator:SFTPToGCSOperator`
 
     :param source_path: The sftp remote path. This is the specified file path
         for downloading the single file or multiple files from the SFTP server.
@@ -100,7 +100,7 @@ class SFTPToGoogleCloudStorageOperator(BaseOperator):
         self.move_object = move_object
 
     def execute(self, context):
-        gcs_hook = GoogleCloudStorageHook(
+        gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to
         )
 
@@ -137,7 +137,7 @@ class SFTPToGoogleCloudStorageOperator(BaseOperator):
 
     def _copy_single_object(
         self,
-        gcs_hook: GoogleCloudStorageHook,
+        gcs_hook: GCSHook,
         sftp_hook: SFTPHook,
         source_path: str,
         destination_object: str,

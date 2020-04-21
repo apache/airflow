@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,11 +18,13 @@
 """
 Example Airflow DAG that shows how to use DisplayVideo.
 """
+import os
 
 from airflow import models
 from airflow.providers.google.marketing_platform.operators.display_video import (
     GoogleDisplayVideo360CreateReportOperator, GoogleDisplayVideo360DeleteReportOperator,
     GoogleDisplayVideo360DownloadReportOperator, GoogleDisplayVideo360RunReportOperator,
+    GoogleDisplayVideo360UploadLineItemsOperator,
 )
 from airflow.providers.google.marketing_platform.sensors.display_video import (
     GoogleDisplayVideo360ReportSensor,
@@ -31,7 +32,9 @@ from airflow.providers.google.marketing_platform.sensors.display_video import (
 from airflow.utils import dates
 
 # [START howto_display_video_env_variables]
-BUCKET = "gs://test-display-video-bucket"
+
+BUCKET = os.environ.get("GMP_DISPLAY_VIDEO_BUCKET", "gs://test-display-video-bucket")
+OBJECT_NAME = os.environ.get("OBJECT_NAME", "file.csv")
 REPORT = {
     "kind": "doubleclickbidmanager#query",
     "metadata": {
@@ -92,6 +95,13 @@ with models.DAG(
     delete_report = GoogleDisplayVideo360DeleteReportOperator(
         report_id=report_id, task_id="delete_report"
     )
-    # [END howto_google_display_video_deletequery_report_operator]
+    # # [END howto_google_display_video_deletequery_report_operator]
 
+    # [START howto_google_display_video_upload_line_items_operator]
+    upload_line_items = GoogleDisplayVideo360UploadLineItemsOperator(
+        task_id="upload_line_items",
+        bucket_name=BUCKET,
+        object_name=OBJECT_NAME,
+    )
+    # [END howto_google_display_video_upload_line_items_operator]
     create_report >> run_report >> wait_for_report >> get_report >> delete_report

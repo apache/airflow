@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,9 +17,3 @@
 # under the License.
 
 """DAG serialization."""
-# pylint: disable=cyclic-import
-from airflow.serialization.serialized_baseoperator import SerializedBaseOperator
-# pylint: disable=cyclic-import
-from airflow.serialization.serialized_dag import SerializedDAG
-
-__ALL__ = [SerializedBaseOperator, SerializedDAG]

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,13 +20,13 @@ This dag tests performance of simple bash commands executed with Airflow.
 """
 from datetime import timedelta
 
-import airflow
 from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
+from airflow.utils.dates import days_ago
 
 args = {
-    'owner': 'Airflow',
-    'start_date': airflow.utils.dates.days_ago(3),
+    'owner': 'airflow',
+    'start_date': days_ago(3),
 }
 
 dag = DAG(

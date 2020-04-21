@@ -66,7 +66,7 @@ You can also add (or override) an extra link to an existing operators
 through an Airflow plugin.
 
 For example, the following Airflow plugin will add an Operator Link on all
-tasks using :class:`~airflow.operators.gcs_to_s3.GoogleCloudStorageToS3Operator` operator.
+tasks using :class:`~airflow.providers.amazon.aws.operators.gcs_to_s3.GCSToS3Operator` operator.
 
 **Adding Operator Links to Existing Operators**
 ``plugins/extra_link.py``:
@@ -75,14 +75,14 @@ tasks using :class:`~airflow.operators.gcs_to_s3.GoogleCloudStorageToS3Operator`
 
   from airflow.plugins_manager import AirflowPlugin
   from airflow.models.baseoperator import BaseOperatorLink
-  from airflow.operators.gcs_to_s3 import GoogleCloudStorageToS3Operator
+  from airflow.providers.amazon.aws.operators.gcs_to_s3 import GCSToS3Operator
 
   class S3LogLink(BaseOperatorLink):
       name = 'S3'
 
       # Add list of all the operators to which you want to add this OperatorLinks
-      # Example: operators = [GoogleCloudStorageToS3Operator, GoogleCloudStorageToBigQueryOperator]
-      operators = [GoogleCloudStorageToS3Operator]
+      # Example: operators = [GCSToS3Operator, GCSToBigQueryOperator]
+      operators = [GCSToS3Operator]
 
       def get_link(self, operator, dttm):
           return 'https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{execution_date}'.format(
@@ -101,14 +101,14 @@ tasks using :class:`~airflow.operators.gcs_to_s3.GoogleCloudStorageToS3Operator`
 **Overriding Operator Links of Existing Operators**:
 
 It is also possible to replace a built in link on an operator via a Plugin. For example
-:class:`~airflow.gcp.operators.bigquery.BigQueryOperator` includes a link to the GCP
+:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryOperator` includes a link to the GCP
 console, but if we wanted to change that link we could:
 
 .. code-block:: python
 
     from airflow.plugins_manager import AirflowPlugin
     from airflow.models.baseoperator import BaseOperatorLink
-    from airflow.gcp.operators.bigquery import BigQueryOperator
+    from airflow.providers.google.cloud.operators.bigquery import BigQueryOperator
 
     # Change from https to http just to display the override
     BIGQUERY_JOB_DETAILS_LINK_FMT = 'http://console.cloud.google.com/bigquery?j={job_id}'

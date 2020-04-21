@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -22,9 +21,9 @@ This module contains Google Search Ads operators.
 from tempfile import NamedTemporaryFile
 from typing import Any, Dict, Optional
 
-from airflow import AirflowException
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
-from airflow.models.baseoperator import BaseOperator
+from airflow.exceptions import AirflowException
+from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.search_ads import GoogleSearchAdsHook
 from airflow.utils.decorators import apply_defaults
 
@@ -170,7 +169,7 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
             api_version=self.api_version,
         )
 
-        gcs_hook = GoogleCloudStorageHook(
+        gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to
         )
 

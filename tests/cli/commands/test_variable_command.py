@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,7 +20,7 @@ import os
 import unittest
 
 from airflow import models
-from airflow.bin import cli
+from airflow.cli import cli_parser
 from airflow.cli.commands import variable_command
 from airflow.models import Variable
 
@@ -30,7 +29,7 @@ class TestCliVariables(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = models.DagBag(include_examples=True)
-        cls.parser = cli.CLIFactory.get_parser()
+        cls.parser = cli_parser.get_parser()
 
     def test_variables(self):
         # Checks if all subcommands are properly received
@@ -39,7 +38,7 @@ class TestCliVariables(unittest.TestCase):
         variable_command.variables_get(self.parser.parse_args([
             'variables', 'get', 'foo']))
         variable_command.variables_get(self.parser.parse_args([
-            'variables', 'get', 'baz', '-d', 'bar']))
+            'variables', 'get', 'baz', '--default', 'bar']))
         variable_command.variables_list(self.parser.parse_args([
             'variables', 'list']))
         variable_command.variables_delete(self.parser.parse_args([
@@ -128,3 +127,7 @@ class TestCliVariables(unittest.TestCase):
         os.remove('variables1.json')
         os.remove('variables2.json')
         os.remove('variables3.json')
+
+    def test_get_missing_variable(self):
+        with self.assertRaises(SystemExit):
+            variable_command.variables_get(self.parser.parse_args(['variables', 'get', 'no-existing-VAR']))

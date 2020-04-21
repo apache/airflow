@@ -60,7 +60,7 @@ In addition to supplying string, a document can refer to content stored in Googl
     :start-after: [START howto_operator_gcp_natural_language_document_gcs]
     :end-before: [END howto_operator_gcp_natural_language_document_gcs]
 
-.. _howto/operator:CloudLanguageAnalyzeEntitiesOperator:
+.. _howto/operator:CloudNaturalLanguageAnalyzeEntitiesOperator:
 
 Analyzing Entities
 ^^^^^^^^^^^^^^^^^^
@@ -68,7 +68,7 @@ Analyzing Entities
 Entity Analysis inspects the given text for known entities (proper nouns such as
 public figures, landmarks, etc.), and returns information about those entities.
 Entity analysis is performed with the
-:class:`~airflow.providers.google.cloud.operators.natural_language.CloudLanguageAnalyzeEntitiesOperator` operator.
+:class:`~airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeEntitiesOperator` operator.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_natural_language.py
     :language: python
@@ -77,7 +77,7 @@ Entity analysis is performed with the
     :end-before: [END howto_operator_gcp_natural_language_analyze_entities]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.providers.google.cloud.operators.natural_language.CloudLanguageAnalyzeEntitiesOperator`
+:template-fields:`airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeEntitiesOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
 
@@ -87,7 +87,7 @@ to be used by other operators.
     :start-after: [START howto_operator_gcp_natural_language_analyze_entities_result]
     :end-before: [END howto_operator_gcp_natural_language_analyze_entities_result]
 
-.. _howto/operator:CloudLanguageAnalyzeEntitySentimentOperator:
+.. _howto/operator:CloudNaturalLanguageAnalyzeEntitySentimentOperator:
 
 Analyzing Entity Sentiment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -95,7 +95,7 @@ Analyzing Entity Sentiment
 Sentiment Analysis inspects the given text and identifies the prevailing
 emotional opinion within the text, especially to determine a writer's attitude
 as positive, negative, or neutral. Sentiment analysis is performed through
-the :class:`~airflow.providers.google.cloud.operators.natural_language.CloudLanguageAnalyzeEntitySentimentOperator`
+the :class:`~airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeEntitySentimentOperator`
 operator.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_natural_language.py
@@ -105,7 +105,7 @@ operator.
     :end-before: [END howto_operator_gcp_natural_language_analyze_entity_sentiment]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.providers.google.cloud.operators.natural_language.CloudLanguageAnalyzeEntitiesOperator`
+:template-fields:`airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeEntitiesOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
 
@@ -115,7 +115,7 @@ to be used by other operators.
     :start-after: [START howto_operator_gcp_natural_language_analyze_entity_sentiment_result]
     :end-before: [END howto_operator_gcp_natural_language_analyze_entity_sentiment_result]
 
-.. _howto/operator:CloudLanguageAnalyzeSentimentOperator:
+.. _howto/operator:CloudNaturalLanguageAnalyzeSentimentOperator:
 
 Analyzing Sentiment
 ^^^^^^^^^^^^^^^^^^^
@@ -124,7 +124,7 @@ Sentiment Analysis inspects the given text and identifies the prevailing
 emotional opinion within the text, especially to determine a writer's
 attitude as positive, negative, or neutral. Sentiment analysis is performed
 through the
-:class:`~airflow.providers.google.cloud.operators.natural_language.CloudLanguageAnalyzeSentimentOperator`
+:class:`~airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeSentimentOperator`
 operator.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_natural_language.py
@@ -134,7 +134,7 @@ operator.
     :end-before: [END howto_operator_gcp_natural_language_analyze_sentiment]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.providers.google.cloud.operators.natural_language.CloudLanguageAnalyzeSentimentOperator`
+:template-fields:`airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeSentimentOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
 
@@ -144,7 +144,7 @@ to be used by other operators.
     :start-after: [START howto_operator_gcp_natural_language_analyze_sentiment_result]
     :end-before: [END howto_operator_gcp_natural_language_analyze_sentiment_result]
 
-.. _howto/operator:CloudLanguageClassifyTextOperator:
+.. _howto/operator:CloudNaturalLanguageClassifyTextOperator:
 
 Classifying Content
 ^^^^^^^^^^^^^^^^^^^
@@ -152,7 +152,7 @@ Classifying Content
 Content Classification analyzes a document and returns a list of content
 categories that apply to the text found in the document. To classify the
 content in a document, use the
-:class:`~airflow.providers.google.cloud.operators.natural_language.CloudLanguageClassifyTextOperator`
+:class:`~airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageClassifyTextOperator`
 operator.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_natural_language.py
@@ -162,7 +162,7 @@ operator.
     :end-before: [END howto_operator_gcp_natural_language_analyze_classify_text]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.providers.google.cloud.operators.natural_language.CloudLanguageClassifyTextOperator`
+:template-fields:`airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageClassifyTextOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,6 +17,7 @@
 # under the License.
 
 import atexit
+import json
 import logging
 import os
 import sys
@@ -30,7 +30,8 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.orm.session import Session as SASession
 from sqlalchemy.pool import NullPool
 
-import airflow
+# noinspection PyUnresolvedReferences
+from airflow import api
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
 from airflow.logging_config import configure_logging
 from airflow.utils.module_loading import import_string
@@ -64,40 +65,41 @@ LOGGING_LEVEL = logging.INFO
 # the prefix to append to gunicorn worker processes after init
 GUNICORN_WORKER_READY_PREFIX = "[ready] "
 
-LOG_FORMAT = conf.get('core', 'log_format')
-SIMPLE_LOG_FORMAT = conf.get('core', 'simple_log_format')
+LOG_FORMAT = conf.get('logging', 'log_format')
+SIMPLE_LOG_FORMAT = conf.get('logging', 'simple_log_format')
 
-SQL_ALCHEMY_CONN = None  # type: Optional[str]
-DAGS_FOLDER = None  # type: Optional[str]
-PLUGINS_FOLDER = None  # type: Optional[str]
-LOGGING_CLASS_PATH = None  # type: Optional[str]
+SQL_ALCHEMY_CONN: Optional[str] = None
+PLUGINS_FOLDER: Optional[str] = None
+LOGGING_CLASS_PATH: Optional[str] = None
+DAGS_FOLDER: str = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
-engine = None  # type: Optional[Engine]
-Session = None  # type: Optional[SASession]
+engine: Optional[Engine] = None
+Session: Optional[SASession] = None
+
+# The JSON library to use for DAG Serialization and De-Serialization
+json = json
 
 
-def policy(task_instance):
+def policy(task):
     """
-    This policy setting allows altering task instances right before they
+    This policy setting allows altering tasks right before they
     are executed. It allows administrator to rewire some task parameters.
 
-    Note that the ``TaskInstance`` object has an attribute ``task`` pointing
-    to its related task object, that in turns has a reference to the DAG
+    Note that the ``Task`` object has a reference to the DAG
     object. So you can use the attributes of all of these to define your
     policy.
 
     To define policy, add a ``airflow_local_settings`` module
     to your PYTHONPATH that defines this ``policy`` function. It receives
-    a ``TaskInstance`` object and can alter it where needed.
+    a ``Task`` object and can alter it where needed.
 
     Here are a few examples of how this can be useful:
 
     * You could enforce a specific queue (say the ``spark`` queue)
         for tasks using the ``SparkOperator`` to make sure that these
-        task instances get wired to the right workers
-    * You could force all task instances running on an
-        ``execution_date`` older than a week old to run in a ``backfill``
-        pool.
+        tasks get wired to the right workers
+    * You could enforce a task timeout policy, making sure that no tasks run
+        for more than 48 hours
     * ...
     """
 
@@ -172,19 +174,16 @@ def configure_orm(disable_connection_pool=False):
         # https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
         pool_pre_ping = conf.getboolean('core', 'SQL_ALCHEMY_POOL_PRE_PING', fallback=True)
 
-        log.info("settings.configure_orm(): Using pool settings. pool_size={}, max_overflow={}, "
-                 "pool_recycle={}, pid={}".format(pool_size, max_overflow, pool_recycle, os.getpid()))
+        log.debug("settings.configure_orm(): Using pool settings. pool_size=%d, max_overflow=%d, "
+                  "pool_recycle=%d, pid=%d", pool_size, max_overflow, pool_recycle, os.getpid())
         engine_args['pool_size'] = pool_size
         engine_args['pool_recycle'] = pool_recycle
         engine_args['pool_pre_ping'] = pool_pre_ping
         engine_args['max_overflow'] = max_overflow
 
     # Allow the user to specify an encoding for their DB otherwise default
-    # to utf-8 so jobs & users with non-latin1 characters can still use
-    # us.
+    # to utf-8 so jobs & users with non-latin1 characters can still use us.
     engine_args['encoding'] = conf.get('core', 'SQL_ENGINE_ENCODING', fallback='utf-8')
-    # For Python2 we get back a newstr and need a str
-    engine_args['encoding'] = engine_args['encoding'].__str__()
 
     if conf.has_option('core', 'sql_alchemy_connect_args'):
         connect_args = import_string(
@@ -306,6 +305,7 @@ def initialize():
     # The webservers import this file from models.py with the default settings.
     configure_orm()
     configure_action_logging()
+    api.load_auth()
 
     # Ensure we close DB connections at scheduler and gunicon worker terminations
     atexit.register(dispose_orm)
@@ -317,9 +317,6 @@ KILOBYTE = 1024
 MEGABYTE = KILOBYTE * KILOBYTE
 WEB_COLORS = {'LIGHTBLUE': '#4d9de0',
               'LIGHTORANGE': '#FF9933'}
-
-# Used by DAG context_managers
-CONTEXT_MANAGER_DAG = None  # type: Optional[airflow.models.dag.DAG]
 
 # If store_serialized_dags is True, scheduler writes serialized DAGs to DB, and webserver
 # reads DAGs from DB instead of importing from files.

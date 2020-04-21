@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,7 +18,7 @@
 from unittest import TestCase, mock
 
 from airflow.providers.google.marketing_platform.hooks.search_ads import GoogleSearchAdsHook
-from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 API_VERSION = "v2"
 GCP_CONN_ID = "google_cloud_default"
@@ -28,7 +27,7 @@ GCP_CONN_ID = "google_cloud_default"
 class TestSearchAdsHook(TestCase):
     def setUp(self):
         with mock.patch(
-            "airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__",
+            "airflow.providers.google.marketing_platform.hooks.search_ads.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = GoogleSearchAdsHook(gcp_conn_id=GCP_CONN_ID)

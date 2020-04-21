@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -22,22 +21,24 @@ import getpass
 from time import sleep
 from typing import Optional
 
-from sqlalchemy import Column, Index, Integer, String, and_, or_
+from sqlalchemy import Column, Index, Integer, String, and_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 
-from airflow import executors, models
+from airflow import models
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.base import ID_LEN, Base
 from airflow.stats import Stats
 from airflow.utils import helpers, timezone
-from airflow.utils.db import create_session, provide_session
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 
 class BaseJob(Base, LoggingMixin):
@@ -79,7 +80,7 @@ class BaseJob(Base, LoggingMixin):
             heartrate=None,
             *args, **kwargs):
         self.hostname = get_hostname()
-        self.executor = executor or executors.get_default_executor()
+        self.executor = executor or ExecutorLoader.get_default_executor()
         self.executor_class = executor.__class__.__name__
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
@@ -118,16 +119,19 @@ class BaseJob(Base, LoggingMixin):
         """
         return (
             self.state == State.RUNNING and
-            (timezone.utcnow() - self.latest_heartbeat).seconds < self.heartrate * grace_multiplier
+            (timezone.utcnow() - self.latest_heartbeat).total_seconds() < self.heartrate * grace_multiplier
         )
 
     @provide_session
     def kill(self, session=None):
+        """
+        Handles on_kill callback and updates state in database.
+        """
         job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
         job.end_date = timezone.utcnow()
         try:
             self.on_kill()
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             self.log.error('on_kill() method failed: %s', str(e))
         session.merge(job)
         session.commit()
@@ -139,7 +143,9 @@ class BaseJob(Base, LoggingMixin):
         """
 
     def heartbeat_callback(self, session=None):
-        pass
+        """
+        Callback that is called during heartbeat. This method should be overwritten.
+        """
 
     def heartbeat(self):
         """
@@ -154,7 +160,7 @@ class BaseJob(Base, LoggingMixin):
         This also allows for any job to be killed externally, regardless
         of who is running it or on which machine it is running.
 
-        Note that if your heartbeat is set to 60 seconds and you call this
+        Note that if your heart rate is set to 60 seconds and you call this
         method after 10 seconds of processing since the last heartbeat, it
         will sleep 50 seconds to complete the 60 seconds and keep a steady
         heart rate. If you go over 60 seconds before calling it, it won't
@@ -171,17 +177,14 @@ class BaseJob(Base, LoggingMixin):
             if self.state == State.SHUTDOWN:
                 self.kill()
 
-            is_unit_test = conf.getboolean('core', 'unit_test_mode')
-            if not is_unit_test:
-                # Figure out how long to sleep for
-                sleep_for = 0
-                if self.latest_heartbeat:
-                    seconds_remaining = self.heartrate - \
-                        (timezone.utcnow() - self.latest_heartbeat)\
-                        .total_seconds()
-                    sleep_for = max(0, seconds_remaining)
-
-                sleep(sleep_for)
+            # Figure out how long to sleep for
+            sleep_for = 0
+            if self.latest_heartbeat:
+                seconds_remaining = self.heartrate - \
+                    (timezone.utcnow() - self.latest_heartbeat)\
+                    .total_seconds()
+                sleep_for = max(0, seconds_remaining)
+            sleep(sleep_for)
 
             # Update last heartbeat time
             with create_session() as session:
@@ -203,6 +206,9 @@ class BaseJob(Base, LoggingMixin):
             self.latest_heartbeat = previous_heartbeat
 
     def run(self):
+        """
+        Starts the job.
+        """
         Stats.incr(self.__class__.__name__.lower() + '_start', 1, 1)
         # Adding an entry in the DB
         with create_session() as session:
@@ -248,8 +254,6 @@ class BaseJob(Base, LoggingMixin):
         :return: the TIs reset (in expired SQLAlchemy state)
         :rtype: list[airflow.models.TaskInstance]
         """
-        from airflow.jobs.backfill_job import BackfillJob
-
         queued_tis = self.executor.queued_tasks
         # also consider running as the state might not have changed in the db yet
         running_tis = self.executor.running
@@ -268,7 +272,7 @@ class BaseJob(Base, LoggingMixin):
                         TI.execution_date == DR.execution_date))
                 .filter(
                     DR.state == State.RUNNING,
-                    DR.run_id.notlike(BackfillJob.ID_PREFIX + '%'),
+                    DR.run_id.notlike(f"{DagRunType.BACKFILL_JOB.value}__%"),
                     TI.state.in_(resettable_states))).all()
         else:
             resettable_tis = filter_by_dag_run.get_task_instances(state=resettable_states,
@@ -283,19 +287,18 @@ class BaseJob(Base, LoggingMixin):
             return []
 
         def query(result, items):
-            filter_for_tis = ([and_(TI.dag_id == ti.dag_id,
-                                    TI.task_id == ti.task_id,
-                                    TI.execution_date == ti.execution_date)
-                               for ti in items])
-            reset_tis = (
-                session
-                .query(TI)
-                .filter(or_(*filter_for_tis), TI.state.in_(resettable_states))
-                .with_for_update()
-                .all())
+            if not items:
+                return result
+
+            filter_for_tis = TI.filter_for_tis(items)
+            reset_tis = session.query(TI).filter(
+                filter_for_tis, TI.state.in_(resettable_states)
+            ).with_for_update().all()
+
             for ti in reset_tis:
                 ti.state = State.NONE
                 session.merge(ti)
+
             return result + reset_tis
 
         reset_tis = helpers.reduce_in_chunks(query,

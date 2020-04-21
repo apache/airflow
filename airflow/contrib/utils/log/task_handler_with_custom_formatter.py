@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -44,13 +43,13 @@ class TaskHandlerWithCustomFormatter(StreamHandler):
         """
         if ti.raw:
             return
-        prefix = conf.get('core', 'task_log_prefix_template')
+        prefix = conf.get('logging', 'task_log_prefix_template')
 
         rendered_prefix = ""
         if prefix:
             _, self.prefix_jinja_template = parse_template_string(prefix)
             rendered_prefix = self._render_prefix(ti)
-        formatter = logging.Formatter(rendered_prefix + ":" + self.formatter._fmt)  # pylint:disable=W0212
+        formatter = logging.Formatter(rendered_prefix + ":" + self.formatter._fmt)  # pylint: disable=W0212
         self.setFormatter(formatter)
         self.setLevel(self.level)
 

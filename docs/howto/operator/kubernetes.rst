@@ -19,15 +19,26 @@
 
 .. _howto/operator:KubernetesPodOperator:
 
-Kubernetes Operator
-===================
+KubernetesPodOperator
+=====================
 
-The :class:`airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator` allows you to create
-Pods on Kubernetes. It works with any type of executor.
+The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`:
+
+* Launches a Docker image as a Kubernetes Pod to execute an individual Airflow
+  task via a Kubernetes API request, using the
+  `Kubernetes Python Client <https://github.com/kubernetes-client/python>`_
+* Terminate the pod when the task is completed
+* Works with any Airflow Executor
+* Allows Airflow to act a job orchestrator for a Docker container,
+  no matter the language the job was written in
+* Enables task-level resource configuration
+* Allow you to pass Kubernetes specific parameters into the task
 
 .. code:: python
 
-    from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
+    import kubernetes.client.models as k8s
+
+    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
     from airflow.contrib.kubernetes.secret import Secret
     from airflow.contrib.kubernetes.volume import Volume
     from airflow.contrib.kubernetes.volume_mount import VolumeMount
@@ -51,6 +62,30 @@ Pods on Kubernetes. It works with any type of executor.
           }
         }
     volume = Volume(name='test-volume', configs=volume_config)
+
+    init_container_volume_mounts = [k8s.V1VolumeMount(
+      mount_path='/etc/foo',
+      name='test-volume',
+      sub_path=None,
+      read_only=True
+    )]
+
+    init_environments = [k8s.V1EnvVar(
+      name='key1',
+      value='value1'
+    ), k8s.V1EnvVar(
+      name='key2',
+      value='value2'
+    )]
+
+    init_container = k8s.V1Container(
+      name="init-container",
+      image="ubuntu:16.04",
+      env=init_environments,
+      volume_mounts=init_container_volume_mounts,
+      command=["bash", "-cx"],
+      args=["echo 10"]
+    )
 
     affinity = {
         'nodeAffinity': {
@@ -115,7 +150,7 @@ Pods on Kubernetes. It works with any type of executor.
                               arguments=["echo", "10"],
                               labels={"foo": "bar"},
                               secrets=[secret_file, secret_env, secret_all_keys],
-                              ports=[port]
+                              ports=[port],
                               volumes=[volume],
                               volume_mounts=[volume_mount],
                               name="test",
@@ -124,5 +159,7 @@ Pods on Kubernetes. It works with any type of executor.
                               is_delete_operator_pod=True,
                               hostnetwork=False,
                               tolerations=tolerations,
-                              configmaps=configmaps
+                              configmaps=configmaps,
+                              init_containers=[init_container],
+                              priority_class_name="medium",
                               )

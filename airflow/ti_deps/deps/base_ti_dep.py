@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,9 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from collections import namedtuple
+from typing import NamedTuple
 
-from airflow.utils.db import provide_session
+from airflow.ti_deps.dep_context import DepContext
+from airflow.utils.session import provide_session
 
 
 class BaseTIDep:
@@ -41,7 +41,7 @@ class BaseTIDep:
         pass
 
     def __eq__(self, other):
-        return type(self) == type(other)
+        return isinstance(self, type(other))
 
     def __hash__(self):
         return hash(type(self))
@@ -57,7 +57,7 @@ class BaseTIDep:
         """
         return getattr(self, 'NAME', self.__class__.__name__)
 
-    def _get_dep_statuses(self, ti, session, dep_context=None):
+    def _get_dep_statuses(self, ti, session, dep_context):
         """
         Abstract method that returns an iterable of TIDepStatus objects that describe
         whether the given task instance has this dependency met.
@@ -87,9 +87,6 @@ class BaseTIDep:
         :param dep_context: the context for which this dependency should be evaluated for
         :type dep_context: DepContext
         """
-        # this avoids a circular dependency
-        from airflow.ti_deps.dep_context import DepContext
-
         if dep_context is None:
             dep_context = DepContext()
 
@@ -147,6 +144,11 @@ class BaseTIDep:
         return TIDepStatus(self.name, True, reason)
 
 
-# Dependency status for a specific task instance indicating whether or not the task
-# instance passed the dependency.
-TIDepStatus = namedtuple('TIDepStatus', ['dep_name', 'passed', 'reason'])
+class TIDepStatus(NamedTuple):
+    """
+    Dependency status for a specific task instance indicating whether or not the task
+    instance passed the dependency.
+    """
+    dep_name: str
+    passed: bool
+    reason: str

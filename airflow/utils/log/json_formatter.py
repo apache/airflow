@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -24,14 +23,7 @@ json_formatter module stores all related to ElasticSearch specific logger classe
 import json
 import logging
 
-
-def merge_dicts(dict1, dict2):
-    """
-    Merge two dicts
-    """
-    merged = dict1.copy()
-    merged.update(dict2)
-    return merged
+from airflow.utils.helpers import merge_dicts
 
 
 class JSONFormatter(logging.Formatter):

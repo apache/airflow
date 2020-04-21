@@ -16,6 +16,7 @@
 # under the License.
 import unittest
 import unittest.mock as mock
+import uuid
 
 import kubernetes.client.models as k8s
 from kubernetes.client import ApiClient
@@ -65,7 +66,8 @@ class TestSecret(unittest.TestCase):
 
     @mock.patch('uuid.uuid4')
     def test_attach_to_pod(self, mock_uuid):
-        mock_uuid.return_value = '0'
+        static_uuid = uuid.UUID('cf4a56d2-8101-4217-b027-2af6216feb48')
+        mock_uuid.return_value = static_uuid
         pod = PodGenerator(image='airflow-worker:latest',
                            name='base').gen_pod()
         secrets = [
@@ -82,7 +84,7 @@ class TestSecret(unittest.TestCase):
         self.assertEqual(result, {
             'apiVersion': 'v1',
             'kind': 'Pod',
-            'metadata': {'name': 'base-0'},
+            'metadata': {'name': 'base-' + static_uuid.hex},
             'spec': {
                 'containers': [{
                     'args': [],
@@ -98,19 +100,17 @@ class TestSecret(unittest.TestCase):
                     }],
                     'envFrom': [{'secretRef': {'name': 'secret_a'}}],
                     'image': 'airflow-worker:latest',
-                    'imagePullPolicy': 'IfNotPresent',
                     'name': 'base',
                     'ports': [],
                     'volumeMounts': [{
                         'mountPath': '/etc/foo',
-                        'name': 'secretvol0',
+                        'name': 'secretvol' + str(static_uuid),
                         'readOnly': True}]
                 }],
                 'hostNetwork': False,
                 'imagePullSecrets': [],
-                'restartPolicy': 'Never',
                 'volumes': [{
-                    'name': 'secretvol0',
+                    'name': 'secretvol' + str(static_uuid),
                     'secret': {'secretName': 'secret_b'}
                 }]
             }

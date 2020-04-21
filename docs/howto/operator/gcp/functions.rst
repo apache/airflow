@@ -29,31 +29,20 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
-.. _howto/operator:GcfFunctionDeleteOperator:
+.. _howto/operator:CloudFunctionDeleteFunctionOperator:
 
-GcfFunctionDeleteOperator
--------------------------
+CloudFunctionDeleteFunctionOperator
+-----------------------------------
 
 Use the operator to delete a function from Google Cloud Functions.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.functions.GcfFunctionDeleteOperator`.
-
-Arguments
-"""""""""
-
-The following examples of OS environment variables show how you can build function name
-to use in the operator:
-
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_functions.py
-    :language: python
-    :start-after: [START howto_operator_gcf_common_variables]
-    :end-before: [END howto_operator_gcf_common_variables]
+:class:`~airflow.providers.google.cloud.operators.functions.CloudFunctionDeleteFunctionOperator`.
 
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_functions.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_functions.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcf_delete]
@@ -62,7 +51,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/functions.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/functions.py
     :language: python
     :dedent: 4
     :start-after: [START gcf_function_delete_template_fields]
@@ -74,45 +63,25 @@ More information
 See Google Cloud Functions API documentation to `delete a function
 <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/delete>`_.
 
-.. _howto/operator:GcfFunctionDeployOperator:
+.. _howto/operator:CloudFunctionDeployFunctionOperator:
 
-GcfFunctionDeployOperator
--------------------------
+CloudFunctionDeployFunctionOperator
+-----------------------------------
 
 Use the operator to deploy a function to Google Cloud Functions.
 If a function with this name already exists, it will be updated.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.functions.GcfFunctionDeployOperator`.
+:class:`~airflow.providers.google.cloud.operators.functions.CloudFunctionDeployFunctionOperator`.
 
 
 Arguments
 """""""""
 
-In the example DAG the following environment variables are used to parameterize the
-operator's definition:
-
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_functions.py
-    :language: python
-    :start-after: [START howto_operator_gcf_common_variables]
-    :end-before: [END howto_operator_gcf_common_variables]
-
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_functions.py
-    :language: python
-    :start-after: [START howto_operator_gcf_deploy_variables]
-    :end-before: [END howto_operator_gcf_deploy_variables]
-
-Some of those variables are used to create the request's body:
-
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_functions.py
-    :language: python
-    :start-after: [START howto_operator_gcf_deploy_body]
-    :end-before: [END howto_operator_gcf_deploy_body]
-
 When a DAG is created, the default_args dictionary can be used to pass
 arguments common with other tasks:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_functions.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_functions.py
     :language: python
     :start-after: [START howto_operator_gcf_default_args]
     :end-before: [END howto_operator_gcf_default_args]
@@ -136,14 +105,19 @@ Using the operator
 Depending on the combination of parameters, the Function's source code can be obtained
 from different sources:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_functions.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_functions.py
+    :language: python
+    :start-after: [START howto_operator_gcf_deploy_body]
+    :end-before: [END howto_operator_gcf_deploy_body]
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_functions.py
     :language: python
     :start-after: [START howto_operator_gcf_deploy_variants]
     :end-before: [END howto_operator_gcf_deploy_variants]
 
 The code to create the operator:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_functions.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_functions.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcf_deploy]
@@ -152,7 +126,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the GCP connection used:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_functions.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_functions.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcf_deploy_no_project_id]
@@ -161,7 +135,7 @@ from the GCP connection used:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/functions.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/functions.py
     :language: python
     :dedent: 4
     :start-after: [START gcf_function_deploy_template_fields]

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -43,8 +42,7 @@ from functools import wraps
 from typing import Dict
 
 from elasticsearch.client import _normalize_hosts
-
-from tests.compat import patch
+from mock import patch
 
 from .fake_elasticsearch import FakeElasticsearch
 

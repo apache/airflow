@@ -19,9 +19,7 @@
 
 {% extends "airflow/dag.html" %}
 
-{% block title %}
-    {{ title }}
-{% endblock %}
+{% block page_title %}{{ dag.dag_id }} - DAG Details - Airflow{% endblock %}
 
 {% block content %}
     {{ super() }}
@@ -41,6 +39,14 @@
       <tr>
         <th>schedule_interval</td>
         <td>{{ dag.schedule_interval }}</td>
+      </tr>
+      <tr>
+        <th>start_date</td>
+        <td>{{ dag.start_date }}</td>
+      </tr>
+      <tr>
+        <th>end_date</td>
+        <td>{{ dag.end_date }}</td>
       </tr>
       <tr>
         <th>max_active_runs</td>

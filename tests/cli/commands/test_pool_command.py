@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,12 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import io
 import json
 import os
 import unittest
+from contextlib import redirect_stdout
 
 from airflow import models, settings
-from airflow.bin import cli
+from airflow.cli import cli_parser
 from airflow.cli.commands import pool_command
 from airflow.models import Pool
 from airflow.settings import Session
@@ -33,7 +34,7 @@ class TestCliPools(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = models.DagBag(include_examples=True)
-        cls.parser = cli.CLIFactory.get_parser()
+        cls.parser = cli_parser.get_parser()
 
     def setUp(self):
         super().setUp()
@@ -55,12 +56,11 @@ class TestCliPools(unittest.TestCase):
 
     def test_pool_list(self):
         pool_command.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
-        with self.assertLogs(level='INFO') as cm:
+        stdout = io.StringIO()
+        with redirect_stdout(stdout):
             pool_command.pool_list(self.parser.parse_args(['pools', 'list']))
 
-        stdout = cm.output
-
-        self.assertIn('foo', stdout[0])
+        self.assertIn('foo', stdout.getvalue())
 
     def test_pool_list_with_args(self):
         pool_command.pool_list(self.parser.parse_args(['pools', 'list', '--output', 'tsv']))

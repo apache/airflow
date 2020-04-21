@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -32,7 +31,7 @@ from airflow.utils import compression
 class TestCompression(unittest.TestCase):
 
     def setUp(self):
-        self.fn = {}
+        self.file_names = {}
         try:
             header = b"Sno\tSome,Text \n"
             line1 = b"1\tAirflow Test\n"
@@ -72,12 +71,12 @@ class TestCompression(unittest.TestCase):
     # Helper method to create a dictionary of file names and
     # file extension
     def _set_fn(self, fn, ext):
-        self.fn[ext] = fn
+        self.file_names[ext] = fn
 
     # Helper method to fetch a file of a
     # certain extension
     def _get_fn(self, ext):
-        return self.fn[ext]
+        return self.file_names[ext]
 
     def test_uncompress_file(self):
         # Testing txt file type
@@ -99,7 +98,3 @@ class TestCompression(unittest.TestCase):
         txt_bz2 = compression.uncompress_file(fn_bz2, '.bz2', self.tmp_dir)
         self.assertTrue(filecmp.cmp(txt_bz2, fn_txt, shallow=False),
                         msg="Uncompressed file doest match original")
-
-
-if __name__ == '__main__':
-    unittest.main()

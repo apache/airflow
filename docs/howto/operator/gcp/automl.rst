@@ -45,28 +45,28 @@ Creating Datasets
 ^^^^^^^^^^^^^^^^^
 
 To create a Google AutoML dataset you can use
-:class:`~airflow.gcp.operators.automl.AutoMLCreateDatasetOperator`.
+:class:`~airflow.providers.google.cloud.operators.automl.AutoMLCreateDatasetOperator`.
 The operator returns dataset id in :ref:`XCom <concepts:xcom>` under ``dataset_id`` key.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_automl_tables.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_automl_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_automl_create_dataset]
     :end-before: [END howto_operator_automl_create_dataset]
 
 After creating a dataset you can use it to import some data using
-:class:`~airflow.gcp.operators.automl.AutoMLImportDataOperator`.
+:class:`~airflow.providers.google.cloud.operators.automl.AutoMLImportDataOperator`.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_automl_tables.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_automl_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_automl_import_data]
     :end-before: [END howto_operator_automl_import_data]
 
 To update dataset you can use
-:class:`~airflow.gcp.operators.automl.AutoMLTablesUpdateDatasetOperator`.
+:class:`~airflow.providers.google.cloud.operators.automl.AutoMLTablesUpdateDatasetOperator`.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_automl_tables.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_automl_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_automl_update_dataset]
@@ -79,18 +79,18 @@ Listing Table And Columns Specs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To list table specs you can use
-:class:`~airflow.gcp.operators.automl.AutoMLTablesListTableSpecsOperator`.
+:class:`~airflow.providers.google.cloud.operators.automl.AutoMLTablesListTableSpecsOperator`.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_automl_tables.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_automl_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_automl_specs]
     :end-before: [END howto_operator_automl_specs]
 
 To list column specs you can use
-:class:`~airflow.gcp.operators.automl.AutoMLTablesListColumnSpecsOperator`.
+:class:`~airflow.providers.google.cloud.operators.automl.AutoMLTablesListColumnSpecsOperator`.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_automl_tables.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_automl_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_automl_column_specs]
@@ -105,38 +105,38 @@ Operations On Models
 ^^^^^^^^^^^^^^^^^^^^
 
 To create a Google AutoML model you can use
-:class:`~airflow.gcp.operators.automl.AutoMLTrainModelOperator`.
+:class:`~airflow.providers.google.cloud.operators.automl.AutoMLTrainModelOperator`.
 The operator will wait for the operation to complete. Additionally the operator
 returns the id of model in :ref:`XCom <concepts:xcom>` under ``model_id`` key.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_automl_tables.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_automl_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_automl_create_model]
     :end-before: [END howto_operator_automl_create_model]
 
 To get existing model one can use
-:class:`~airflow.gcp.operators.automl.AutoMLGetModelOperator`.
+:class:`~airflow.providers.google.cloud.operators.automl.AutoMLGetModelOperator`.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_automl_tables.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_automl_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_get_model]
     :end-before: [END howto_operator_get_model]
 
 Once a model is created it could be deployed using
-:class:`~airflow.gcp.operators.automl.AutoMLDeployModelOperator`.
+:class:`~airflow.providers.google.cloud.operators.automl.AutoMLDeployModelOperator`.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_automl_tables.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_automl_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_deploy_model]
     :end-before: [END howto_operator_deploy_model]
 
 If you wish to delete a model you can use
-:class:`~airflow.gcp.operators.automl.AutoMLDeleteModelOperator`.
+:class:`~airflow.providers.google.cloud.operators.automl.AutoMLDeleteModelOperator`.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_automl_tables.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_automl_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_automl_delete_model]
@@ -149,17 +149,17 @@ Making Predictions
 ^^^^^^^^^^^^^^^^^^
 
 To obtain predictions from Google Cloud AutoML model you can use
-:class:`~airflow.gcp.operators.automl.AutoMLPredictOperator` or
-:class:`~airflow.gcp.operators.automl.AutoMLBatchPredictOperator`. In the first case
+:class:`~airflow.providers.google.cloud.operators.automl.AutoMLPredictOperator` or
+:class:`~airflow.providers.google.cloud.operators.automl.AutoMLBatchPredictOperator`. In the first case
 the model must be deployed.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_automl_tables.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_automl_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_prediction]
     :end-before: [END howto_operator_prediction]
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_automl_tables.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_automl_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_batch_prediction]
@@ -172,19 +172,19 @@ Listing And Deleting Datasets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 You can get a list of AutoML models using
-:class:`~airflow.gcp.operators.automl.AutoMLListDatasetOperator`. The operator returns list
+:class:`~airflow.providers.google.cloud.operators.automl.AutoMLListDatasetOperator`. The operator returns list
 of datasets ids in :ref:`XCom <concepts:xcom>` under ``dataset_id_list`` key.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_automl_tables.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_automl_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_list_dataset]
     :end-before: [END howto_operator_list_dataset]
 
-To delete a model you can use :class:`~airflow.gcp.operators.automl.AutoMLDeleteDatasetOperator`.
+To delete a model you can use :class:`~airflow.providers.google.cloud.operators.automl.AutoMLDeleteDatasetOperator`.
 The delete operator allows also to pass list or coma separated string of datasets ids to be deleted.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_automl_tables.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_automl_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_delete_dataset]

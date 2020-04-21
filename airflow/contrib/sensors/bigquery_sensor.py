@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,14 +15,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.sensors.bigquery`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.sensors.bigquery`."""
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.sensors.bigquery import BigQueryTableSensor  # noqa
+from airflow.providers.google.cloud.sensors.bigquery import BigQueryTableExistenceSensor
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.sensors.bigquery`.",
-    DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.providers.google.cloud.sensors.bigquery`.",
+    DeprecationWarning,
+    stacklevel=2,
 )
+
+
+class BigQueryTableSensor(BigQueryTableExistenceSensor):
+    """
+    This class is deprecated.
+    Please use `airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceSensor`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceSensor`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

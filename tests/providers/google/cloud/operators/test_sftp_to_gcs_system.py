@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,34 +16,48 @@
 # specific language governing permissions and limitations
 # under the License.
 """System tests for Google Cloud Build operators"""
+import os
 
-from tests.gcp.utils.gcp_authenticator import GCP_GCS_KEY
-from tests.providers.google.cloud.operators.test_sftp_to_gcs_system_helper import SFTPtoGcsTestHelper
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
-from tests.test_utils.system_tests_class import SystemTest
+import pytest
+
+from airflow.providers.google.cloud.example_dags.example_sftp_to_gcs import (
+    BUCKET_SRC, DIR, OBJECT_SRC_1, OBJECT_SRC_2, OBJECT_SRC_3, SUBDIR, TMP_PATH,
+)
+from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
+
+files_and_dirs = [
+    (OBJECT_SRC_1, os.path.join(TMP_PATH, DIR)),
+    (OBJECT_SRC_2, os.path.join(TMP_PATH, DIR)),
+    (OBJECT_SRC_3, os.path.join(TMP_PATH, DIR)),
+    (OBJECT_SRC_1, os.path.join(TMP_PATH, DIR, SUBDIR)),
+    (OBJECT_SRC_2, os.path.join(TMP_PATH, DIR, SUBDIR)),
+    (OBJECT_SRC_3, os.path.join(TMP_PATH, DIR, SUBDIR)),
+]
 
 
-@skip_gcp_system(GCP_GCS_KEY)
-class SFTPToGcsExampleDagsSystemTest(SystemTest):
+@pytest.mark.system("google.cloud")
+@pytest.mark.credential_file(GCP_GCS_KEY)
+class SFTPToGcsExampleDagsSystemTest(GoogleSystemTest):
     """
     System tests for SFTP to Google Cloud Storage transfer operator
     It use a real service.
     """
 
-    helper = SFTPtoGcsTestHelper()
-
     @provide_gcp_context(GCP_GCS_KEY)
     def setUp(self):
         super().setUp()
-        self.helper.create_buckets()
-        self.helper.create_temp_files()
+        self.create_gcs_bucket(BUCKET_SRC)
+        for filename, dir_path in files_and_dirs:
+            self.create_dummy_file(filename, dir_path)
 
     @provide_gcp_context(GCP_GCS_KEY)
     def test_run_example_dag(self):
-        self.run_dag("example_sftp_to_gcs", GCP_DAG_FOLDER)
+        self.run_dag("example_sftp_to_gcs", CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_GCS_KEY)
     def tearDown(self):
-        self.helper.delete_buckets()
-        self.helper.delete_temp_files()
+        self.delete_gcs_bucket(BUCKET_SRC)
+        for filename, dir_path in files_and_dirs:
+            self.delete_dummy_file(filename, dir_path)
         super().tearDown()

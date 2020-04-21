@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,16 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.ti_deps.deps.dag_ti_slots_available_dep import DagTISlotsAvailableDep
-from airflow.ti_deps.deps.dag_unpaused_dep import DagUnpausedDep
-from airflow.ti_deps.deps.dagrun_exists_dep import DagrunRunningDep
-from airflow.ti_deps.deps.dagrun_id_dep import DagrunIdDep
-from airflow.ti_deps.deps.exec_date_after_start_date_dep import ExecDateAfterStartDateDep
-from airflow.ti_deps.deps.pool_slots_available_dep import PoolSlotsAvailableDep
-from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
-from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
-from airflow.ti_deps.deps.task_not_running_dep import TaskNotRunningDep
-from airflow.ti_deps.deps.valid_state_dep import ValidStateDep
+import pendulum
+from sqlalchemy.orm.session import Session
+
 from airflow.utils.state import State
 
 
@@ -67,6 +59,8 @@ class DepContext:
     :type ignore_task_deps: bool
     :param ignore_ti_state: Ignore the task instance's previous failure/success
     :type ignore_ti_state: bool
+    :param finished_tasks: A list of all the finished tasks of this run
+    :type finished_tasks: list[airflow.models.TaskInstance]
     """
     def __init__(
             self,
@@ -77,7 +71,8 @@ class DepContext:
             ignore_in_retry_period=False,
             ignore_in_reschedule_period=False,
             ignore_task_deps=False,
-            ignore_ti_state=False):
+            ignore_ti_state=False,
+            finished_tasks=None):
         self.deps = deps or set()
         self.flag_upstream_failed = flag_upstream_failed
         self.ignore_all_deps = ignore_all_deps
@@ -86,92 +81,25 @@ class DepContext:
         self.ignore_in_reschedule_period = ignore_in_reschedule_period
         self.ignore_task_deps = ignore_task_deps
         self.ignore_ti_state = ignore_ti_state
+        self.finished_tasks = finished_tasks
 
+    def ensure_finished_tasks(self, dag, execution_date: pendulum.datetime, session: Session):
+        """
+        This method makes sure finished_tasks is populated if it's currently None.
+        This is for the strange feature of running tasks without dag_run.
 
-# In order to be able to get queued a task must have one of these states
-SCHEDULEABLE_STATES = {
-    State.NONE,
-    State.UP_FOR_RETRY,
-    State.UP_FOR_RESCHEDULE,
-}
-
-RUNNABLE_STATES = {
-    # For cases like unit tests and run manually
-    State.NONE,
-    State.UP_FOR_RETRY,
-    State.UP_FOR_RESCHEDULE,
-    # For normal scheduler/backfill cases
-    State.QUEUED,
-}
-
-QUEUEABLE_STATES = {
-    State.SCHEDULED,
-}
-
-BACKFILL_QUEUEABLE_STATES = {
-    # For cases like unit tests and run manually
-    State.NONE,
-    State.UP_FOR_RESCHEDULE,
-    State.UP_FOR_RETRY,
-    # For normal backfill cases
-    State.SCHEDULED,
-}
-
-# Context to get the dependencies that need to be met in order for a task instance to be
-# set to 'scheduled' state.
-SCHEDULED_DEPS = {
-    RunnableExecDateDep(),
-    ValidStateDep(SCHEDULEABLE_STATES),
-    TaskNotRunningDep(),
-}
-
-# Dependencies that if met, task instance should be re-queued.
-REQUEUEABLE_DEPS = {
-    DagTISlotsAvailableDep(),
-    TaskConcurrencyDep(),
-    PoolSlotsAvailableDep(),
-}
-
-# Dependencies that need to be met for a given task instance to be set to 'RUNNING' state.
-RUNNING_DEPS = {
-    RunnableExecDateDep(),
-    ValidStateDep(RUNNABLE_STATES),
-    DagTISlotsAvailableDep(),
-    TaskConcurrencyDep(),
-    PoolSlotsAvailableDep(),
-    TaskNotRunningDep(),
-}
-
-BACKFILL_QUEUED_DEPS = {
-    RunnableExecDateDep(),
-    ValidStateDep(BACKFILL_QUEUEABLE_STATES),
-    DagrunRunningDep(),
-    TaskNotRunningDep(),
-}
-
-# TODO(aoen): SCHEDULER_QUEUED_DEPS is not coupled to actual scheduling/execution
-# in any way and could easily be modified or removed from the scheduler causing
-# this dependency to become outdated and incorrect. This coupling should be created
-# (e.g. via a dag_deps analog of ti_deps that will be used in the scheduler code,
-# or allow batch deps checks) to ensure that the logic here is equivalent to the logic
-# in the scheduler.
-# Right now there's one discrepancy between this context and how scheduler schedule tasks:
-# Scheduler will check if the executor has the task instance--it is not possible
-# to check the executor outside scheduler main process.
-
-# Dependencies that need to be met for a given task instance to be set to 'queued' state
-# by the scheduler.
-# This context has more DEPs than RUNNING_DEPS, as we can have task triggered by
-# components other than scheduler, e.g. webserver.
-SCHEDULER_QUEUED_DEPS = {
-    RunnableExecDateDep(),
-    ValidStateDep(QUEUEABLE_STATES),
-    DagTISlotsAvailableDep(),
-    TaskConcurrencyDep(),
-    PoolSlotsAvailableDep(),
-    DagrunRunningDep(),
-    DagrunIdDep(),
-    DagUnpausedDep(),
-    ExecDateAfterStartDateDep(),
-    TaskNotRunningDep(),
-}
+        :param dag: The DAG for which to find finished tasks
+        :type dag: airflow.models.DAG
+        :param execution_date: The execution_date to look for
+        :param session: Database session to use
+        :return: A list of all the finished tasks of this DAG and execution_date
+        :rtype: list[airflow.models.TaskInstance]
+        """
+        if self.finished_tasks is None:
+            self.finished_tasks = dag.get_task_instances(
+                start_date=execution_date,
+                end_date=execution_date,
+                state=State.finished() + [State.UPSTREAM_FAILED],
+                session=session,
+            )
+        return self.finished_tasks

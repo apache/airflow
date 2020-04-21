@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,14 +15,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.operators.translate_speech`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.operators.translate_speech`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.operators.translate_speech import GcpTranslateSpeechOperator  # noqa
+from airflow.providers.google.cloud.operators.translate_speech import CloudTranslateSpeechOperator  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.translate_speech`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.translate_speech`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class GcpTranslateSpeechOperator(CloudTranslateSpeechOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.providers.google.cloud.operators.translate_speech.CloudTranslateSpeechOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.google.cloud.operators.translate_speech.CloudTranslateSpeechOperator`.
+            """,
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

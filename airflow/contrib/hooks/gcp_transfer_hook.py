@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,17 +16,32 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.hooks.cloud_storage_transfer_service`.
+This module is deprecated. Please use `airflow.providers.google.cloud.hooks.cloud_storage_transfer_service`.
 """
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.hooks.cloud_storage_transfer_service import (  # noqa
-    GcpTransferJobsStatus, GcpTransferOperationStatus, GCPTransferServiceHook,
-)
+from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import CloudDataTransferServiceHook
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.hooks.cloud_storage_transfer_service`",
+    "This module is deprecated. "
+    "Please use `airflow.providers.google.cloud.hooks.cloud_storage_transfer_service`",
     DeprecationWarning, stacklevel=2
 )
+
+
+class GCPTransferServiceHook(CloudDataTransferServiceHook):
+    """
+    This class is deprecated. Please use
+    `airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.CloudDataTransferServiceHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.google.cloud.hooks.cloud_storage_transfer_service
+            .CloudDataTransferServiceHook`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

@@ -21,6 +21,8 @@ Using the Command Line Interface
 
 This document is meant to give an overview of all common tasks while using the CLI.
 
+.. note::
+    For more information on CLI commands, see :doc:`cli-ref`
 
 Set Up connection to a remote Airflow instance
 ----------------------------------------------
@@ -68,3 +70,107 @@ If you’re using ``zsh``, add the following to your ``.zshrc``:
   autoload bashcompinit
   bashcompinit
   eval "$(register-python-argcomplete airflow)"
+
+Creating a Connection
+---------------------
+
+For information on creating connection using CLI, see :ref:`connection/cli`
+
+Exporting DAGs structure to images
+----------------------------------
+
+The application has the functionality of saving DAG to image file. You can attach them to the documentation
+for the documentation, or send another without having to send the DAG file and install the application at
+the other person. However, you need to have `Graphviz <https://graphviz.gitlab.io/download/>`_ installed.
+
+For example, if you want to export ``example_complex`` DAG then you can use the following command:
+
+.. code-block:: bash
+
+  airflow dag show example_complex
+
+After passing the ``dag_id`` parameter itself, the command will print rendered DAG structure (similar to :ref:`Graph View <ui:graph-view>`)
+to the screen in the DOT format.
+
+It is possible to save the file in a different format. To do this, add the switch ``--save [filename].[format]``.
+If you want to save files as PNG, you can use the following command:
+
+.. code-block:: bash
+
+  airflow dags show example_complex --save example_complex.png
+
+An example image file may look as follow:
+
+.. figure:: img/usage_cli_export.png
+    :width: 100%
+
+    Example DAG representation
+
+The following file formats are supported:
+
+ * ``bmp``,
+ * ``canon``, ``dot``, ``gv``, ``xdot``, ``xdot1.2``, ``xdot1.4``,
+ * ``cgimage``,
+ * ``cmap``,
+ * ``eps``,
+ * ``exr``,
+ * ``fig``,
+ * ``gd``, ``gd2``,
+ * ``gif``,
+ * ``gtk``,
+ * ``ico``,
+ * ``imap``, ``cmapx``,
+ * ``imap_np``, ``cmapx_np``,
+ * ``ismap``,
+ * ``jp2``,
+ * ``jpg``, ``jpeg``, ``jpe``,
+ * ``json``, ``json0``, ``dot_json``, ``xdot_json``,
+ * ``pct``, ``pict``,
+ * ``pdf``,
+ * ``pic``,
+ * ``plain``, ``plain-ext``,
+ * ``png``,
+ * ``pov``,
+ * ``ps``,
+ * ``ps2``,
+ * ``psd``,
+ * ``sgi``,
+ * ``svg``, ``svgz``,
+ * ``tga``,
+ * ``tif``, ``tiff``,
+ * ``tk``,
+ * ``vml``, ``vmlz``,
+ * ``vrml``,
+ * ``wbmp``,
+ * ``webp``,
+ * ``xlib``,
+ * ``x11``.
+
+By default, the application search for DAGs in the directory specified in ``dags_folder`` option in
+``[core]`` section specified in the file ``airflow.cfg``. You can change it with the ``--subdir`` switch.
+
+Display DAGs structure
+----------------------
+
+Sometimes you will work on DAGs that contain complex dependencies. It is helpful then to preview
+the DAG to see if it is correct.
+
+If you have macOS, you can use `iTerm2 <https://iterm2.com/>`__ together with
+the `imgcat <https://www.iterm2.com/documentation-images.html>`__ script to display the DAG structure in the
+console. You also need to have `Graphviz <https://graphviz.gitlab.io/download/>`_ installed.
+
+Other terminals do not support the display of high-quality graphics. You can convert the image to a text
+form, but its resolution will prevent you from reading it.
+
+To do this, you should use the ``--imgcat`` switch in the ``airflow dags show`` command. For example, if you
+want to display ``example_bash_operator`` DAG  then you can use the following command:
+
+.. code-block:: bash
+
+  airflow dag show example_bash_operator --imgcat
+
+You will see a similar result as in the screenshot below.
+
+.. figure:: img/usage_cli_imgcat.png
+
+    Preview of DAG in iTerm2

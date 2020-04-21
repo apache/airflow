@@ -27,7 +27,7 @@ from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from requests.exceptions import BaseHTTPError
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -111,7 +111,7 @@ class PodLauncher(LoggingMixin):
         if resp.status.start_time is None:
             while self.pod_not_started(pod):
                 delta = dt.now() - curr_time
-                if delta.seconds >= startup_timeout:
+                if delta.total_seconds() >= startup_timeout:
                     raise AirflowException("Pod took too long to start")
                 time.sleep(1)
             self.log.debug('Pod not yet started')
@@ -188,6 +188,23 @@ class PodLauncher(LoggingMixin):
         wait=tenacity.wait_exponential(),
         reraise=True
     )
+    def read_pod_events(self, pod):
+        """Reads events from the POD"""
+        try:
+            return self._client.list_namespaced_event(
+                namespace=pod.metadata.namespace,
+                field_selector="involvedObject.name={}".format(pod.metadata.name)
+            )
+        except BaseHTTPError as e:
+            raise AirflowException(
+                'There was an error reading the kubernetes API: {}'.format(e)
+            )
+
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(3),
+        wait=tenacity.wait_exponential(),
+        reraise=True
+    )
     def read_pod(self, pod: V1Pod):
         """Read POD information"""
         try:
@@ -228,12 +245,12 @@ class PodLauncher(LoggingMixin):
         return None
 
     def process_status(self, job_id, status):
-        """Process status infomration for the JOB"""
+        """Process status information for the JOB"""
         status = status.lower()
         if status == PodStatus.PENDING:
             return State.QUEUED
         elif status == PodStatus.FAILED:
-            self.log.info('Event with job id %s Failed', job_id)
+            self.log.error('Event with job id %s Failed', job_id)
             return State.FAILED
         elif status == PodStatus.SUCCEEDED:
             self.log.info('Event with job id %s Succeeded', job_id)
@@ -241,5 +258,5 @@ class PodLauncher(LoggingMixin):
         elif status == PodStatus.RUNNING:
             return State.RUNNING
         else:
-            self.log.info('Event: Invalid state %s on job %s', status, job_id)
+            self.log.error('Event: Invalid state %s on job %s', status, job_id)
             return State.FAILED

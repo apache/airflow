@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-
+.. _concepts:
 
 Concepts
 ########
@@ -32,6 +32,9 @@ DAGs
 In Airflow, a ``DAG`` -- or a Directed Acyclic Graph -- is a collection of all
 the tasks you want to run, organized in a way that reflects their relationships
 and dependencies.
+
+A DAG is defined in a Python script, which represents the DAGs structure (tasks
+and their dependencies) as code.
 
 For example, a simple DAG could consist of three tasks: A, B, and C. It could
 say that A has to run successfully before B can run, but C can run anytime. It
@@ -92,7 +95,7 @@ any of its operators. This makes it easy to apply a common parameter to many ope
 
     default_args = {
         'start_date': datetime(2016, 1, 1),
-        'owner': 'Airflow'
+        'owner': 'airflow'
     }
 
     dag = DAG('my_dag', default_args=default_args)
@@ -113,13 +116,138 @@ DAGs can be used as context managers to automatically assign new operators to th
 
     op.dag is dag # True
 
-.. _concepts-operators:
+.. _concepts:dagruns:
+
+DAG Runs
+========
+
+A DAG run is an instantiation of a DAG, containing task instances that run for a specific ``execution_date``.
+
+A DAG run is usually created by the Airflow scheduler, but can also be created by an external trigger.
+Multiple DAG runs may be running at once for a particular DAG, each of them having a different ``execution_date``.
+For example, we might currently have two DAG runs that are in progress for 2016-01-01 and 2016-01-02 respectively.
+
+.. _concepts:execution_date:
+
+execution_date
+--------------
+
+The ``execution_date`` is the *logical* date and time which the DAG Run, and its task instances, are running for.
+
+This allows task instances to process data for the desired *logical* date & time.
+While a task_instance or DAG run might have a *actual* start date of now,
+their *logical* date might be 3 months ago because we are busy reloading something.
+
+In the prior example the ``execution_date`` was 2016-01-01 for the first DAG Run and 2016-01-02 for the second.
+
+A DAG run and all task instances created within it are instanced with the same ``execution_date``, so
+that logically you can think of a DAG run as simulating the DAG running all of its tasks at some
+previous date & time specified by the ``execution_date``.
+
+.. _concepts:tasks:
+
+Tasks
+=====
+
+A Task defines a unit of work within a DAG; it is represented as a node in the DAG graph, and it is written in Python.
+
+Each task is an implementation of an Operator, for example a ``PythonOperator`` to execute some Python code,
+or a ``BashOperator`` to run a Bash command.
+
+The task implements an operator by defining specific values for that operator,
+such as a Python callable in the case of ``PythonOperator`` or a Bash command in the case of ``BashOperator``.
+
+Relations between Tasks
+-----------------------
+
+Consider the following DAG with two tasks.
+Each task is a node in our DAG, and there is a dependency from task_1 to task_2:
+
+.. code:: python
+
+    with DAG('my_dag', start_date=datetime(2016, 1, 1)) as dag:
+        task_1 = DummyOperator('task_1')
+        task_2 = DummyOperator('task_2')
+        task_1 >> task_2 # Define dependencies
+
+We can say that task_1 is *upstream* of task_2, and conversely task_2 is *downstream* of task_1.
+When a DAG Run is created, task_1 will start running and task_2 waits for task_1 to complete successfully before it may start.
+
+Task Instances
+==============
+
+A task instance represents a specific run of a task and is characterized as the
+combination of a DAG, a task, and a point in time (``execution_date``). Task instances
+also have an indicative state, which could be "running", "success", "failed", "skipped", "up
+for retry", etc.
+
+Tasks are defined in DAGs, and both are written in Python code to define what you want to do.
+Task Instances belong to DAG Runs, have an associated ``execution_date``, and are instantiated, runnable entities.
+
+Relations between Task Instances
+--------------------------------
+
+Again consider the following tasks, defined for some DAG:
+
+.. code:: python
+
+    with DAG('my_dag', start_date=datetime(2016, 1, 1)) as dag:
+        task_1 = DummyOperator('task_1')
+        task_2 = DummyOperator('task_2')
+        task_1 >> task_2 # Define dependencies
+
+When we enable this DAG, the scheduler creates several DAG Runs - one with ``execution_date`` of 2016-01-01,
+one with ``execution_date`` of 2016-01-02, and so on up to the current date.
+
+Each DAG Run will contain a task_1 Task Instance and a task_2 Task instance. Both Task Instances will
+have ``execution_date`` equal to the DAG Run's ``execution_date``, and each task_2 will be *downstream* of
+(depends on) its task_1.
+
+We can also say that task_1 for 2016-01-01 is the *previous* task instance of the task_1 for 2016-01-02.
+Or that the DAG Run for 2016-01-01 is the *previous* DAG Run to the DAG Run of 2016-01-02.
+Here, *previous* refers to the logical past/prior ``execution_date``, that runs independently of other runs,
+and *upstream* refers to a dependency within the same run and having the same ``execution_date``.
+
+.. note::
+    The Airflow documentation sometimes refers to *previous* instead of *upstream* in places, and vice-versa.
+    If you find any occurrences of this, please help us improve by contributing some corrections!
+
+Task Lifecycle
+==============
+
+A task goes through various stages from start to completion. In the Airflow UI
+(graph and tree views), these stages are displayed by a color representing each
+stage:
+
+.. image:: img/task_stages.png
+
+The complete lifecycle of the task looks like this:
+
+.. image:: img/task_lifecycle_diagram.png
+
+The happy flow consists of the following stages:
+
+1. No status (scheduler created empty task instance)
+2. Scheduled (scheduler determined task instance needs to run)
+3. Queued (scheduler sent task to executor to run on the queue)
+4. Running (worker picked up a task and is now running it)
+5. Success (task completed)8
+
+There is also visual difference between scheduled and manually triggered
+DAGs/tasks:
+
+.. image:: img/task_manual_vs_scheduled.png
+
+The DAGs/tasks with a black border are scheduled runs, whereas the non-bordered
+DAGs/tasks are manually triggered, i.e. by ``airflow dags trigger``.
+
+.. _concepts:operators:
 
 Operators
 =========
 
 While DAGs describe *how* to run a workflow, ``Operators`` determine what
-actually gets done.
+actually gets done by a task.
 
 An operator describes a single task in a workflow. Operators are usually (but
 not always) atomic, meaning they can stand on their own and don't need to share
@@ -131,31 +259,33 @@ This is a subtle but very important point: in general, if two operators need to
 share information, like a filename or small amount of data, you should consider
 combining them into a single operator. If it absolutely can't be avoided,
 Airflow does have a feature for operator cross-communication called XCom that is
-described elsewhere in this document.
+described in the section :ref:`XComs <concepts:xcom>`
 
 Airflow provides operators for many common tasks, including:
 
-- :class:`~airflow.operators.bash_operator.BashOperator` - executes a bash command
-- :class:`~airflow.operators.python_operator.PythonOperator` - calls an arbitrary Python function
-- :class:`~airflow.operators.email_operator.EmailOperator` - sends an email
-- :class:`~airflow.operators.http_operator.SimpleHttpOperator` - sends an HTTP request
-- :class:`~airflow.operators.mysql_operator.MySqlOperator`,
-  :class:`~airflow.operators.sqlite_operator.SqliteOperator`,
-  :class:`~airflow.operators.postgres_operator.PostgresOperator`,
-  :class:`~airflow.operators.mssql_operator.MsSqlOperator`,
-  :class:`~airflow.operators.oracle_operator.OracleOperator`,
-  :class:`~airflow.operators.jdbc_operator.JdbcOperator`, etc. - executes a SQL command
-- ``Sensor`` - waits for a certain time, file, database row, S3 key, etc...
+- :class:`~airflow.operators.bash.BashOperator` - executes a bash command
+- :class:`~airflow.operators.python.PythonOperator` - calls an arbitrary Python function
+- :class:`~airflow.providers.email.operators.email.EmailOperator` - sends an email
+- :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` - sends an HTTP request
+- :class:`~airflow.providers.mysql.operators.mysql.MySqlOperator`,
+  :class:`~airflow.providers.sqlite.operators.sqlite.SqliteOperator`,
+  :class:`~airflow.providers.postgres.operators.postgres.PostgresOperator`,
+  :class:`~airflow.providers.microsoft.mssql.operators.mssql.MsSqlOperator`,
+  :class:`~airflow.providers.oracle.operators.oracle.OracleOperator`,
+  :class:`~airflow.providers.jdbc.operators.jdbc.JdbcOperator`, etc. - executes a SQL command
+- ``Sensor`` - an Operator that waits (polls) for a certain time, file, database row, S3 key, etc...
 
 In addition to these basic building blocks, there are many more specific
-operators: :class:`~airflow.operators.docker_operator.DockerOperator`,
-:class:`~airflow.operators.hive_operator.HiveOperator`, :class:`~airflow.operators.s3_file_transform_operator.S3FileTransformOperator`,
-:class:`~airflow.operators.presto_to_mysql.PrestoToMySqlTransfer`,
-:class:`~airflow.operators.slack_operator.SlackAPIOperator`... you get the idea!
+operators: :class:`~airflow.providers.docker.operators.docker.DockerOperator`,
+:class:`~airflow.providers.apache.hive.operators.hive.HiveOperator`, :class:`~airflow.providers.amazon.aws.operators.s3_file_transform.S3FileTransformOperator`,
+:class:`~airflow.providers.mysql.operators.presto_to_mysql.PrestoToMySqlTransfer`,
+:class:`~airflow.providers.slack.operators.slack.SlackAPIOperator`... you get the idea!
 
 Operators are only loaded by Airflow if they are assigned to a DAG.
 
-See :doc:`howto/operator/index` for how to use Airflow operators.
+.. seealso::
+    - :ref:`List Airflow operators <pythonapi:operators>`
+    - :doc:`How-to guides for some Airflow operators<howto/operator/index>`.
 
 DAG Assignment
 --------------
@@ -223,19 +353,6 @@ is equivalent to:
     op2.set_downstream(op3)
     op3.set_upstream(op4)
 
-For convenience, the bitshift operators can also be used with DAGs. For example:
-
-.. code:: python
-
-    dag >> op1 >> op2
-
-is equivalent to:
-
-.. code:: python
-
-    op1.dag = dag
-    op1.set_downstream(op2)
-
 We can put this all together to build a simple pipeline:
 
 .. code:: python
@@ -269,17 +386,22 @@ and equivalent to:
 .. code:: python
 
     op1.set_downstream([op2, op3])
+    op4.set_upstream([op2, op3])
 
 
-Relationship Helper
---------------------
+Relationship Builders
+---------------------
+
+*Moved in Airflow 2.0*
+
+In Airflow 2.0 those two methods moved from ``airflow.utils.helpers`` to ``airflow.models.baseoperator``.
 
 ``chain`` and ``cross_downstream`` function provide easier ways to set relationships
 between operators in specific situation.
 
-When setting relationships between two list of operators and wish all up list
-operators as upstream to all down list operators, we have to split one list
-manually using bitshift composition.
+When setting a relationship between two lists,
+if we want all operators in one list to be upstream to all operators in the other,
+we cannot use a single bitshift composition. Instead we have to split one of the lists:
 
 .. code:: python
 
@@ -300,7 +422,7 @@ concat them with bitshift composition.
 
     op1 >> op2 >> op3 >> op4 >> op5
 
-use ``chain`` could do that
+This can be accomplished using ``chain``
 
 .. code:: python
 
@@ -312,7 +434,7 @@ even without operator's name
 
     chain([DummyOperator(task_id='op' + i, dag=dag) for i in range(1, 6)])
 
-``chain`` could handle list of operators
+``chain`` can handle a list of operators
 
 .. code:: python
 
@@ -324,8 +446,7 @@ is equivalent to:
 
     op1 >> [op2, op3] >> op4
 
-Have to same size when ``chain`` set relationships between two list
-of operators.
+When ``chain`` sets relationships between two lists of operators, they must have the same size.
 
 .. code:: python
 
@@ -341,45 +462,6 @@ is equivalent to:
     [op4, op5] >> op6
 
 
-Tasks
-=====
-
-Once an operator is instantiated, it is referred to as a "task". The
-instantiation defines specific values when calling the abstract operator, and
-the parameterized task becomes a node in a DAG.
-
-Task Instances
-==============
-
-A task instance represents a specific run of a task and is characterized as the
-combination of a DAG, a task, and a point in time. Task instances also have an
-indicative state, which could be "running", "success", "failed", "skipped", "up
-for retry", etc.
-
-Task Lifecycle
-==============
-
-A task goes through various stages from start to completion. In the Airflow UI
-(graph and tree views), these stages are displayed by a color representing each
-stage:
-
-.. image:: img/task_lifecycle.png
-
-The happy flow consists of the following stages:
-
-1. no status (scheduler created empty task instance)
-2. queued (scheduler placed a task to run on the queue)
-3. running (worker picked up a task and is now running it)
-4. success (task completed)
-
-There is also visual difference between scheduled and manually triggered
-DAGs/tasks:
-
-.. image:: img/task_manual_vs_scheduled.png
-
-The DAGs/tasks with a black border are scheduled runs, whereas the non-bordered
-DAGs/tasks are manually triggered, i.e. by ``airflow dags trigger``.
-
 Workflows
 =========
 
@@ -387,11 +469,14 @@ You're now familiar with the core building blocks of Airflow.
 Some of the concepts may sound very similar, but the vocabulary can
 be conceptualized like this:
 
-- DAG: a description of the order in which work should take place
-- Operator: a class that acts as a template for carrying out some work
-- Task: a parameterized instance of an operator
-- Task Instance: a task that 1) has been assigned to a DAG and 2) has a
-  state associated with a specific run of the DAG
+- DAG: The work (tasks), and the order in which
+  work should take place (dependencies), written in Python.
+- DAG Run: An instance of a DAG for a particular logical date and time.
+- Operator: A class that acts as a template for carrying out some work.
+- Task: Defines work by implementing an operator, written in Python.
+- Task Instance: An instance of a task - that has been assigned to a DAG and has a
+  state associated with a specific DAG run (i.e for a specific execution_date).
+- execution_date: The logical date and time for a DAG Run and its Task Instances.
 
 By combining ``DAGs`` and ``Operators`` to create ``TaskInstances``, you can
 build complex workflows.
@@ -416,6 +501,9 @@ information out of pipelines, centralized in the metadata database.
 Hooks are also very useful on their own to use in Python scripts,
 Airflow airflow.operators.PythonOperator, and in interactive environments
 like iPython or Jupyter Notebook.
+
+.. seealso::
+    :ref:`List Airflow hooks <pythonapi:hooks>`
 
 Pools
 =====
@@ -453,6 +541,9 @@ reached, runnable tasks get queued and their state will show as such in the
 UI. As slots free up, queued tasks start running based on the
 ``priority_weight`` (of the task and its descendants).
 
+Pools are not thread-safe , in case of more than one scheduler in localExecutor Mode
+you can't ensure the non-scheduling of task even if the pool is full.
+
 Note that if tasks are not given a pool, they are assigned to a default
 pool ``default_pool``.  ``default_pool`` is initialized with 128 slots and
 can changed through the UI or CLI (though it cannot be removed).
@@ -464,36 +555,26 @@ To combine Pools with SubDAGs see the `SubDAGs`_ section.
 Connections
 ===========
 
-The connection information to external systems is stored in the Airflow
-metadata database and managed in the UI (``Menu -> Admin -> Connections``).
-A ``conn_id`` is defined there and hostname / login / password / schema
-information attached to it. Airflow pipelines can simply refer to the
-centrally managed ``conn_id`` without having to hard code any of this
-information anywhere.
+The information needed to connect to external systems is stored in the Airflow metastore database and can be
+managed in the UI (``Menu -> Admin -> Connections``).  A ``conn_id`` is defined there, and hostname / login /
+password / schema information attached to it.  Airflow pipelines retrieve centrally-managed connections
+information by specifying the relevant ``conn_id``.
 
-Many connections with the same ``conn_id`` can be defined and when that
-is the case, and when the **hooks** uses the ``get_connection`` method
-from ``BaseHook``, Airflow will choose one connection randomly, allowing
-for some basic load balancing and fault tolerance when used in conjunction
-with retries.
+You may add more than one connection with the same ``conn_id``.  When there is more than one connection
+with the same ``conn_id``, the :py:meth:`~airflow.hooks.base_hook.BaseHook.get_connection` method on
+:py:class:`~airflow.hooks.base_hook.BaseHook` will choose one connection randomly. This can be be used to
+provide basic load balancing and fault tolerance, when used in conjunction with retries.
 
-Airflow also has the ability to reference connections via environment
-variables from the operating system. Then connection parameters must
-be saved in URI format.
-
-If connections with the same ``conn_id`` are defined in both Airflow metadata
-database and environment variables, only the one in environment variables
-will be referenced by Airflow (for example, given ``conn_id``
-``postgres_master``, Airflow will search for ``AIRFLOW_CONN_POSTGRES_MASTER``
-in environment variables first and directly reference it if found,
-before it starts to search in metadata database).
+Airflow also provides a mechanism to store connections outside the database, e.g. in :ref:`environment variables <environment_variables_secrets_backend>`.
+Additonal sources may be enabled, e.g. :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>`, or you may
+:ref:`roll your own secrets backend <roll_your_own_secrets_backend>`.
 
 Many hooks have a default ``conn_id``, where operators using that hook do not
 need to supply an explicit connection ID. For example, the default
-``conn_id`` for the :class:`~airflow.hooks.postgres_hook.PostgresHook` is
+``conn_id`` for the :class:`~airflow.providers.postgres.hooks.postgres.PostgresHook` is
 ``postgres_default``.
 
-See :doc:`howto/connection/index` for how to create and manage connections.
+See :doc:`howto/connection/index` for details on creating and managing connections.
 
 Queues
 ======
@@ -506,8 +587,8 @@ the queue that tasks get assigned to when not specified, as well as which
 queue Airflow workers listen to when started.
 
 Workers can listen to one or multiple queues of tasks. When a worker is
-started (using the command ``airflow worker``), a set of comma-delimited
-queue names can be specified (e.g. ``airflow worker -q spark``). This worker
+started (using the command ``airflow celery worker``), a set of comma-delimited
+queue names can be specified (e.g. ``airflow celery worker -q spark``). This worker
 will then only pick up tasks wired to the specified queue(s).
 
 This can be useful if you need specialized workers, either from a
@@ -568,6 +649,7 @@ of what this may look like:
 Note that XComs are similar to `Variables`_, but are specifically designed
 for inter-task communication rather than global settings.
 
+.. _concepts:variables:
 
 Variables
 =========
@@ -608,6 +690,38 @@ or if you need to deserialize a json object from the variable :
 
     echo {{ var.json.<variable_name> }}
 
+Storing Variables in Environment Variables
+------------------------------------------
+
+.. versionadded:: 1.10.10
+
+Airflow Variables can also be created and managed using Environment Variables. The environment variable
+naming convention is ``AIRFLOW_VAR_<variable_name>``, all uppercase.
+So if your variable key is ``FOO`` then the variable name should be ``AIRFLOW_VAR_FOO``.
+
+For example,
+
+.. code:: bash
+
+    export AIRFLOW_VAR_FOO=BAR
+
+    # To use JSON, store them as JSON strings
+    export AIRFLOW_VAR_FOO_BAZ='{"hello":"world"}'
+
+You can use them in your DAGs as:
+
+.. code:: python
+
+    from airflow.models import Variable
+    foo = Variable.get("foo")
+    foo_json = Variable.get("foo_baz", deserialize_json=True)
+
+.. note::
+
+    Single underscores surround ``VAR``.  This is in contrast with the way ``airflow.cfg``
+    parameters are stored, where double underscores surround the config section name.
+    Variables set using Environment Variables would not appear in the Airflow UI but you will
+    be able to use it in your DAG file.
 
 Branching
 =========
@@ -633,7 +747,7 @@ Paths of the branching task are ``branch_a``, ``join`` and ``branch_b``. Since
 tasks when ``branch_a`` is returned by the Python callable.
 
 The ``BranchPythonOperator`` can also be used with XComs allowing branching
-context to dynamically decide what branch to follow based on previous tasks.
+context to dynamically decide what branch to follow based on upstream tasks.
 For example:
 
 .. code:: python
@@ -705,54 +819,17 @@ Note that SubDAG operators should contain a factory method that returns a DAG
 object. This will prevent the SubDAG from being treated like a separate DAG in
 the main UI. For example:
 
-.. code:: python
-
-  #dags/subdag.py
-  from airflow.models import DAG
-  from airflow.operators.dummy_operator import DummyOperator
-
-
-  # Dag is returned by a factory method
-  def sub_dag(parent_dag_name, child_dag_name, start_date, schedule_interval):
-    dag = DAG(
-      '%s.%s' % (parent_dag_name, child_dag_name),
-      schedule_interval=schedule_interval,
-      start_date=start_date,
-    )
-
-    dummy_operator = DummyOperator(
-      task_id='dummy_task',
-      dag=dag,
-    )
-
-    return dag
+.. exampleinclude:: ../airflow/example_dags/subdags/subdag.py
+    :language: python
+    :start-after: [START subdag]
+    :end-before: [END subdag]
 
 This SubDAG can then be referenced in your main DAG file:
 
-.. code:: python
-
-  # main_dag.py
-  from datetime import datetime, timedelta
-  from airflow.models import DAG
-  from airflow.operators.subdag_operator import SubDagOperator
-  from dags.subdag import sub_dag
-
-
-  PARENT_DAG_NAME = 'parent_dag'
-  CHILD_DAG_NAME = 'child_dag'
-
-  main_dag = DAG(
-    dag_id=PARENT_DAG_NAME,
-    schedule_interval=timedelta(hours=1),
-    start_date=datetime(2016, 1, 1)
-  )
-
-  sub_dag = SubDagOperator(
-    subdag=sub_dag(PARENT_DAG_NAME, CHILD_DAG_NAME, main_dag.start_date,
-                   main_dag.schedule_interval),
-    task_id=CHILD_DAG_NAME,
-    dag=main_dag,
-  )
+.. exampleinclude:: ../airflow/example_dags/example_subdag_operator.py
+    :language: python
+    :start-after: [START example_subdag_operator]
+    :end-before: [END example_subdag_operator]
 
 You can zoom into a SubDagOperator from the graph view of the main DAG to show
 the tasks contained within the SubDAG:
@@ -799,34 +876,16 @@ In addition to sending alerts to the addresses specified in a task's ``email`` p
 the ``sla_miss_callback`` specifies an additional ``Callable``
 object to be invoked when the SLA is not met.
 
-Email Configuration
--------------------
+If you don't want to check SLAs, you can disable globally (all the DAGs) by
+setting ``check_slas=False`` under ``[core]`` section in ``airflow.cfg`` file:
 
-You can configure the email that is being sent in your ``airflow.cfg``
-by setting a ``subject_template`` and/or a ``html_content_template``
-in the ``email`` section.
+.. code-block:: ini
 
-.. code::
+  [core]
+  check_slas = False
 
-  [email]
-
-  email_backend = airflow.utils.email.send_email_smtp
-
-  subject_template = /path/to/my_subject_template_file
-  html_content_template = /path/to/my_html_content_template_file
-
-To access the task's information you use `Jinja Templating <http://jinja.pocoo.org/docs/dev/>`_  in your template files.
-
-For example a ``html_content_template`` file could look like this:
-
-.. code::
-
-  Try {{try_number}} out of {{max_tries + 1}}<br>
-  Exception:<br>{{exception_html}}<br>
-  Log: <a href="{{ti.log_url}}">Link</a><br>
-  Host: {{ti.hostname}}<br>
-  Log file: {{ti.log_filepath}}<br>
-  Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>
+.. note::
+    For information on the email configuration, see :doc:`howto/email-config`
 
 .. _concepts/trigger_rule:
 
@@ -850,6 +909,7 @@ while creating tasks:
 * ``one_failed``: fires as soon as at least one parent has failed, it does not wait for all parents to be done
 * ``one_success``: fires as soon as at least one parent succeeds, it does not wait for all parents to be done
 * ``none_failed``: all parents have not failed (``failed`` or ``upstream_failed``) i.e. all parents have succeeded or been skipped
+* ``none_failed_or_skipped``: all parents have not failed (``failed`` or ``upstream_failed``) and at least one parent has succeeded.
 * ``none_skipped``: no parent is in a ``skipped`` state, i.e. all parents are in a ``success``, ``failed``, or ``upstream_failed`` state
 * ``dummy``: dependencies are just for show, trigger at will
 
@@ -860,7 +920,7 @@ previous schedule for the task hasn't succeeded.
 One must be aware of the interaction between trigger rules and skipped tasks
 in schedule level. Skipped tasks will cascade through trigger rules
 ``all_success`` and ``all_failed`` but not ``all_done``, ``one_failed``, ``one_success``,
-``none_failed``, ``none_skipped`` and ``dummy``.
+``none_failed``, ``none_failed_or_skipped``, ``none_skipped`` and ``dummy``.
 
 For example, consider the following DAG:
 
@@ -871,7 +931,7 @@ For example, consider the following DAG:
 
   from airflow.models import DAG
   from airflow.operators.dummy_operator import DummyOperator
-  from airflow.operators.python_operator import BranchPythonOperator
+  from airflow.operators.python import BranchPythonOperator
 
   dag = DAG(
       dag_id='branch_without_trigger',
@@ -903,19 +963,19 @@ skipped tasks will cascade through ``all_success``.
 
 .. image:: img/branch_without_trigger.png
 
-By setting ``trigger_rule`` to ``none_failed`` in ``join`` task,
+By setting ``trigger_rule`` to ``none_failed_or_skipped`` in ``join`` task,
 
 .. code:: python
 
   #dags/branch_with_trigger.py
   ...
-  join = DummyOperator(task_id='join', dag=dag, trigger_rule='none_failed')
+  join = DummyOperator(task_id='join', dag=dag, trigger_rule='none_failed_or_skipped')
   ...
 
 The ``join`` task will be triggered as soon as
 ``branch_false`` has been skipped (a valid completion state) and
 ``follow_branch_a`` has succeeded. Because skipped tasks **will not**
-cascade through ``none_failed``.
+cascade through ``none_failed_or_skipped``.
 
 .. image:: img/branch_with_trigger.png
 
@@ -930,52 +990,25 @@ a pause just wastes CPU cycles.
 
 For situations like this, you can use the ``LatestOnlyOperator`` to skip
 tasks that are not being run during the most recent scheduled run for a
-DAG. The ``LatestOnlyOperator`` skips all downstream tasks, if the time
+DAG. The ``LatestOnlyOperator`` skips all direct downstream tasks, if the time
 right now is not between its ``execution_time`` and the next scheduled
-``execution_time``.
+``execution_time`` or the DagRun has been externally triggered.
 
 For example, consider the following DAG:
 
-.. code:: python
+.. exampleinclude:: ../airflow/example_dags/example_latest_only_with_trigger.py
+    :language: python
+    :start-after: [START example]
+    :end-before: [END example]
 
-  #dags/latest_only_with_trigger.py
-  import datetime as dt
-
-  from airflow.models import DAG
-  from airflow.operators.dummy_operator import DummyOperator
-  from airflow.operators.latest_only_operator import LatestOnlyOperator
-  from airflow.utils.trigger_rule import TriggerRule
-
-
-  dag = DAG(
-      dag_id='latest_only_with_trigger',
-      schedule_interval=dt.timedelta(hours=1),
-      start_date=dt.datetime(2019, 2, 28),
-  )
-
-  latest_only = LatestOnlyOperator(task_id='latest_only', dag=dag)
-
-  task1 = DummyOperator(task_id='task1', dag=dag)
-  task1.set_upstream(latest_only)
-
-  task2 = DummyOperator(task_id='task2', dag=dag)
-
-  task3 = DummyOperator(task_id='task3', dag=dag)
-  task3.set_upstream([task1, task2])
-
-  task4 = DummyOperator(task_id='task4', dag=dag,
-                        trigger_rule=TriggerRule.ALL_DONE)
-  task4.set_upstream([task1, task2])
-
-In the case of this DAG, the ``latest_only`` task will show up as skipped
-for all runs except the latest run. ``task1`` is directly downstream of
-``latest_only`` and will also skip for all runs except the latest.
+In the case of this DAG, the task ``task1`` is directly downstream of
+``latest_only`` and will be skipped for all runs except the latest.
 ``task2`` is entirely independent of ``latest_only`` and will run in all
 scheduled periods. ``task3`` is downstream of ``task1`` and ``task2`` and
 because of the default ``trigger_rule`` being ``all_success`` will receive
 a cascaded skip from ``task1``. ``task4`` is downstream of ``task1`` and
-``task2``. It will be first skipped directly by ``LatestOnlyOperator``,
-even its ``trigger_rule`` is set to ``all_done``.
+``task2``, but it will not be skipped, since its ``trigger_rule`` is set to
+``all_done``.
 
 .. image:: img/latest_only_with_trigger.png
 
@@ -1013,7 +1046,7 @@ and is expected to alter its attributes.
 For example, this function could apply a specific queue property when
 using a specific operator, or enforce a task timeout policy, making sure
 that no tasks run for more than 48 hours. Here's an example of what this
-may look like inside your ``airflow_settings.py``:
+may look like inside your ``airflow_local_settings.py``:
 
 
 .. code:: python

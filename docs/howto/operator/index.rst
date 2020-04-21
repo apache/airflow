@@ -23,16 +23,20 @@ Using Operators
 An operator represents a single, ideally idempotent, task. Operators
 determine what actually executes when your DAG runs.
 
-See the :ref:`Operators Concepts <concepts-operators>` documentation and the
-:doc:`Operators API Reference <../../_api/index>` for more
-information.
+.. note::
+    See the :ref:`Operators Concepts <concepts:operators>` documentation and the
+    :doc:`Operators API Reference <../../_api/index>` for more
+    information.
 
 .. toctree::
     :maxdepth: 2
 
     bash
+    amazon/aws/index
     dingding
     gcp/index
     kubernetes
     papermill
     python
+    external
+    yandexcloud

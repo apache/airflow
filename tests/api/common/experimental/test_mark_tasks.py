@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,17 +20,19 @@ import time
 import unittest
 from datetime import datetime, timedelta
 
+import pytest
+
 from airflow import models
 from airflow.api.common.experimental.mark_tasks import (
     _create_dagruns, set_dag_run_state_to_failed, set_dag_run_state_to_running, set_dag_run_state_to_success,
     set_state,
 )
-from airflow.configuration import conf
 from airflow.models import DagRun
 from airflow.utils import timezone
 from airflow.utils.dates import days_ago
-from airflow.utils.db import create_session, provide_session
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
 
 DEV_NULL = "/dev/null"
@@ -57,7 +58,7 @@ class TestMarkTasks(unittest.TestCase):
         clear_db_runs()
         drs = _create_dagruns(self.dag1, self.execution_dates,
                               state=State.RUNNING,
-                              run_id_template="scheduled__{}")
+                              run_type=DagRunType.SCHEDULED.value)
         for dr in drs:
             dr.dag = self.dag1
             dr.verify_integrity()
@@ -65,7 +66,7 @@ class TestMarkTasks(unittest.TestCase):
         drs = _create_dagruns(self.dag2,
                               [self.dag2.default_args['start_date']],
                               state=State.RUNNING,
-                              run_id_template="scheduled__{}")
+                              run_type=DagRunType.SCHEDULED.value)
 
         for dr in drs:
             dr.dag = self.dag2
@@ -74,7 +75,7 @@ class TestMarkTasks(unittest.TestCase):
         drs = _create_dagruns(self.dag3,
                               self.dag3_execution_dates,
                               state=State.SUCCESS,
-                              run_id_template="manual__{}")
+                              run_type=DagRunType.MANUAL.value)
         for dr in drs:
             dr.dag = self.dag3
             dr.verify_integrity()
@@ -103,8 +104,11 @@ class TestMarkTasks(unittest.TestCase):
         self.assertTrue(len(tis) > 0)
 
         for ti in tis:  # pylint: disable=too-many-nested-blocks
+            self.assertEqual(ti.operator, dag.get_task(ti.task_id).__class__.__name__)
             if ti.task_id in task_ids and ti.execution_date in execution_dates:
                 self.assertEqual(ti.state, state)
+                if state in State.finished():
+                    self.assertIsNotNone(ti.end_date)
             else:
                 for old_ti in old_tis:
                     if old_ti.task_id == ti.task_id and old_ti.execution_date == ti.execution_date:
@@ -250,10 +254,10 @@ class TestMarkTasks(unittest.TestCase):
         self.verify_state(self.dag1, [task.task_id for task in tasks], [self.execution_dates[0]],
                           State.SUCCESS, snapshot)
 
-    # TODO: this skipIf should be removed once a fixing solution is found later
+    # TODO: this backend should be removed once a fixing solution is found later
     #       We skip it here because this test case is working with Postgres & SQLite
     #       but not with MySQL
-    @unittest.skipIf('mysql' in conf.get('core', 'sql_alchemy_conn'), "Flaky with MySQL")
+    @pytest.mark.backend("sqlite", "postgres")
     def test_mark_tasks_subdag(self):
         # set one task to success towards end of scheduled dag runs
         task = self.dag2.get_task("section-1")
@@ -589,7 +593,3 @@ class TestMarkDAGRun(unittest.TestCase):
         with create_session() as session:
             session.query(models.DagRun).delete()
             session.query(models.TaskInstance).delete()
-
-
-if __name__ == '__main__':
-    unittest.main()

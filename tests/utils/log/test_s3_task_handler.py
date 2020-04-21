@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -27,6 +26,7 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.log.s3_task_handler import S3TaskHandler
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
+from tests.test_utils.config import conf_vars
 
 try:
     import boto3
@@ -41,6 +41,7 @@ except ImportError:
 @mock_s3
 class TestS3TaskHandler(unittest.TestCase):
 
+    @conf_vars({('logging', 'remote_log_conn_id'): 'aws_default'})
     def setUp(self):
         super().setUp()
         self.remote_log_base = 's3://bucket/remote/log/location'
@@ -53,6 +54,8 @@ class TestS3TaskHandler(unittest.TestCase):
             self.remote_log_base,
             self.filename_template
         )
+        # Vivfy the hook now with the config override
+        assert self.s3_task_handler.hook is not None
 
         date = datetime(2016, 1, 1)
         self.dag = DAG('dag_for_testing_file_task_handler', start_date=date)
@@ -72,14 +75,19 @@ class TestS3TaskHandler(unittest.TestCase):
         if self.s3_task_handler.handler:
             try:
                 os.remove(self.s3_task_handler.handler.baseFilename)
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 pass
 
     def test_hook(self):
         self.assertIsInstance(self.s3_task_handler.hook, S3Hook)
 
+    @conf_vars({('logging', 'remote_log_conn_id'): 'aws_default'})
     def test_hook_raises(self):
-        handler = self.s3_task_handler
+        handler = S3TaskHandler(
+            self.local_log_location,
+            self.remote_log_base,
+            self.filename_template
+        )
         with mock.patch.object(handler.log, 'error') as mock_error:
             with mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook") as mock_hook:
                 mock_hook.side_effect = Exception('Failed to connect')
@@ -89,7 +97,7 @@ class TestS3TaskHandler(unittest.TestCase):
             mock_error.assert_called_once_with(
                 'Could not create an S3Hook with connection id "%s". Please make '
                 'sure that airflow[aws] is installed and the S3 connection exists.',
-                ''
+                'aws_default'
             )
 
     def test_log_exists(self):
@@ -106,6 +114,24 @@ class TestS3TaskHandler(unittest.TestCase):
         with mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook") as mock_hook:
             mock_hook.side_effect = Exception('Failed to connect')
             self.assertFalse(self.s3_task_handler.s3_log_exists(self.remote_log_location))
+
+    def test_set_context_raw(self):
+        self.ti.raw = True
+        mock_open = mock.mock_open()
+        with mock.patch('airflow.utils.log.s3_task_handler.open', mock_open):
+            self.s3_task_handler.set_context(self.ti)
+
+        self.assertFalse(self.s3_task_handler.upload_on_close)
+        mock_open.assert_not_called()
+
+    def test_set_context_not_raw(self):
+        mock_open = mock.mock_open()
+        with mock.patch('airflow.utils.log.s3_task_handler.open', mock_open):
+            self.s3_task_handler.set_context(self.ti)
+
+        self.assertTrue(self.s3_task_handler.upload_on_close)
+        mock_open.assert_called_once_with(os.path.abspath('local/log/location/1.log'), 'w')
+        mock_open().write.assert_not_called()
 
     def test_read(self):
         self.conn.put_object(Bucket='bucket', Key=self.remote_log_key, Body=b'Log line\n')
@@ -137,14 +163,16 @@ class TestS3TaskHandler(unittest.TestCase):
             self.s3_task_handler.s3_write('text', self.remote_log_location)
             # We shouldn't expect any error logs in the default working case.
             mock_error.assert_not_called()
-        body = boto3.resource('s3').Object('bucket', self.remote_log_key).get()['Body'].read()
+        body = boto3.resource('s3').Object(  # pylint: disable=no-member
+            'bucket', self.remote_log_key).get()['Body'].read()
 
         self.assertEqual(body, b'text')
 
     def test_write_existing(self):
         self.conn.put_object(Bucket='bucket', Key=self.remote_log_key, Body=b'previous ')
         self.s3_task_handler.s3_write('text', self.remote_log_location)
-        body = boto3.resource('s3').Object('bucket', self.remote_log_key).get()['Body'].read()
+        body = boto3.resource('s3').Object(  # pylint: disable=no-member
+            'bucket', self.remote_log_key).get()['Body'].read()
 
         self.assertEqual(body, b'previous \ntext')
 
@@ -163,7 +191,8 @@ class TestS3TaskHandler(unittest.TestCase):
 
         self.s3_task_handler.close()
         # Should not raise
-        boto3.resource('s3').Object('bucket', self.remote_log_key).get()
+        boto3.resource('s3').Object(  # pylint: disable=no-member
+            'bucket', self.remote_log_key).get()
 
     def test_close_no_upload(self):
         self.ti.raw = True
@@ -172,4 +201,5 @@ class TestS3TaskHandler(unittest.TestCase):
         self.s3_task_handler.close()
 
         with self.assertRaises(self.conn.exceptions.NoSuchKey):
-            boto3.resource('s3').Object('bucket', self.remote_log_key).get()
+            boto3.resource('s3').Object(  # pylint: disable=no-member
+                'bucket', self.remote_log_key).get()

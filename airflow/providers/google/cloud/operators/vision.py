@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-  # pylint: disable=too-many-lines
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -36,13 +35,13 @@ from airflow.utils.decorators import apply_defaults
 MetaData = Sequence[Tuple[str, str]]
 
 
-class CloudVisionProductSetCreateOperator(BaseOperator):
+class CloudVisionCreateProductSetOperator(BaseOperator):
     """
     Creates a new ProductSet resource.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductSetCreateOperator`
+        :ref:`howto/operator:CloudVisionCreateProductSetOperator`
 
     :param product_set: (Required) The ProductSet to create. If a dict is provided, it must be of the same
         form as the protobuf message `ProductSet`.
@@ -118,13 +117,13 @@ class CloudVisionProductSetCreateOperator(BaseOperator):
             return self.product_set_id
 
 
-class CloudVisionProductSetGetOperator(BaseOperator):
+class CloudVisionGetProductSetOperator(BaseOperator):
     """
     Gets information associated with a ProductSet.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductSetGetOperator`
+        :ref:`howto/operator:CloudVisionGetProductSetOperator`
 
     :param location: (Required) The region where the ProductSet is located. Valid regions (as of 2019-02-05)
         are: us-east1, us-west1, europe-west1, asia-east1
@@ -184,7 +183,7 @@ class CloudVisionProductSetGetOperator(BaseOperator):
         )
 
 
-class CloudVisionProductSetUpdateOperator(BaseOperator):
+class CloudVisionUpdateProductSetOperator(BaseOperator):
     """
     Makes changes to a `ProductSet` resource. Only display_name can be updated currently.
 
@@ -201,7 +200,7 @@ class CloudVisionProductSetUpdateOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductSetUpdateOperator`
+        :ref:`howto/operator:CloudVisionUpdateProductSetOperator`
 
     :param product_set: (Required) The ProductSet resource which replaces the one on the
         server. If a dict is provided, it must be of the same form as the protobuf
@@ -275,7 +274,7 @@ class CloudVisionProductSetUpdateOperator(BaseOperator):
         )
 
 
-class CloudVisionProductSetDeleteOperator(BaseOperator):
+class CloudVisionDeleteProductSetOperator(BaseOperator):
     """
     Permanently deletes a `ProductSet`. `Products` and `ReferenceImages` in the
     `ProductSet` are not deleted. The actual image files are not deleted from Google
@@ -283,7 +282,7 @@ class CloudVisionProductSetDeleteOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductSetDeleteOperator`
+        :ref:`howto/operator:CloudVisionDeleteProductSetOperator`
 
     :param location: (Required) The region where the ProductSet is located. Valid regions (as of 2019-02-05)
         are: us-east1, us-west1, europe-west1, asia-east1
@@ -343,7 +342,7 @@ class CloudVisionProductSetDeleteOperator(BaseOperator):
         )
 
 
-class CloudVisionProductCreateOperator(BaseOperator):
+class CloudVisionCreateProductOperator(BaseOperator):
     """
     Creates and returns a new product resource.
 
@@ -355,7 +354,7 @@ class CloudVisionProductCreateOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductCreateOperator`
+        :ref:`howto/operator:CloudVisionCreateProductOperator`
 
     :param location: (Required) The region where the Product should be created. Valid regions
         (as of 2019-02-05) are: us-east1, us-west1, europe-west1, asia-east1
@@ -430,7 +429,7 @@ class CloudVisionProductCreateOperator(BaseOperator):
             return self.product_id
 
 
-class CloudVisionProductGetOperator(BaseOperator):
+class CloudVisionGetProductOperator(BaseOperator):
     """
     Gets information associated with a `Product`.
 
@@ -440,7 +439,7 @@ class CloudVisionProductGetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductGetOperator`
+        :ref:`howto/operator:CloudVisionGetProductOperator`
 
     :param location: (Required) The region where the Product is located. Valid regions (as of 2019-02-05) are:
         us-east1, us-west1, europe-west1, asia-east1
@@ -500,7 +499,7 @@ class CloudVisionProductGetOperator(BaseOperator):
         )
 
 
-class CloudVisionProductUpdateOperator(BaseOperator):
+class CloudVisionUpdateProductOperator(BaseOperator):
     """
     Makes changes to a Product resource. Only the display_name, description, and labels fields can be
     updated right now.
@@ -528,7 +527,7 @@ class CloudVisionProductUpdateOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductUpdateOperator`
+        :ref:`howto/operator:CloudVisionUpdateProductOperator`
 
     :param product: (Required) The Product resource which replaces the one on the server. product.name is
         immutable. If a dict is provided, it must be of the same form as the protobuf message `Product`.
@@ -602,7 +601,7 @@ class CloudVisionProductUpdateOperator(BaseOperator):
         )
 
 
-class CloudVisionProductDeleteOperator(BaseOperator):
+class CloudVisionDeleteProductOperator(BaseOperator):
     """
     Permanently deletes a product and its reference images.
 
@@ -615,7 +614,7 @@ class CloudVisionProductDeleteOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductDeleteOperator`
+        :ref:`howto/operator:CloudVisionDeleteProductOperator`
 
     :param location: (Required) The region where the Product is located. Valid regions (as of 2019-02-05) are:
         us-east1, us-west1, europe-west1, asia-east1
@@ -675,13 +674,13 @@ class CloudVisionProductDeleteOperator(BaseOperator):
         )
 
 
-class CloudVisionAnnotateImageOperator(BaseOperator):
+class CloudVisionImageAnnotateOperator(BaseOperator):
     """
     Run image detection and annotation for an image or a batch of images.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionAnnotateImageOperator`
+        :ref:`howto/operator:CloudVisionImageAnnotateOperator`
 
     :param request: (Required) Annotation request for image or a batch.
         If a dict is provided, it must be of the same form as the protobuf
@@ -733,13 +732,13 @@ class CloudVisionAnnotateImageOperator(BaseOperator):
         return response
 
 
-class CloudVisionReferenceImageCreateOperator(BaseOperator):
+class CloudVisionCreateReferenceImageOperator(BaseOperator):
     """
     Creates and returns a new ReferenceImage ID resource.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionReferenceImageCreateOperator`
+        :ref:`howto/operator:CloudVisionCreateReferenceImageOperator`
 
     :param location: (Required) The region where the Product is located. Valid regions (as of 2019-02-05) are:
         us-east1, us-west1, europe-west1, asia-east1
@@ -1046,13 +1045,13 @@ class CloudVisionDetectTextOperator(BaseOperator):
         )
 
 
-class CloudVisionDetectDocumentTextOperator(BaseOperator):
+class CloudVisionTextDetectOperator(BaseOperator):
     """
     Detects Document Text in the image
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionDetectDocumentTextOperator`
+        :ref:`howto/operator:CloudVisionTextDetectOperator`
 
     :param image: (Required) The image to analyze. See more:
         https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.Image

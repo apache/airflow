@@ -1,0 +1,197 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+
+# Details: https://github.com/kaxil/boring-cyborg
+
+labelPRBasedOnFilePath:
+  provider:GCP:
+    - airflow/providers/google/cloud/**/*
+    - tests/providers/google/cloud/**/*
+    - tests/providers/google/cloud/*
+    - docs/howto/connection/gcp.rst
+    - docs/howto/connection/gcp_sql.rst
+    - docs/howto/operator/gcp/*
+
+  provider:AWS:
+    - airflow/providers/amazon/aws/**/*
+    - tests/providers/amazon/aws/**/*
+    - tests/providers/amazon/aws/*
+    - docs/howto/connection/aws.rst
+    - docs/howto/operator/amazon/aws/*
+
+  provider:Azure:
+    - airflow/providers/microsoft/azure/**/*
+    - tests/providers/microsoft/azure/**/*
+    - tests/providers/microsoft/azure/*
+
+  provider:Apache:
+    - airflow/providers/apache/**/*
+    - tests/providers/apache/**/*
+    - tests/providers/apache/*
+
+  k8s:
+    - airflow/**/kubernetes_*.py
+    - airflow/kubernetes/**/*
+    - tests/runtime/kubernetes/*
+    - docs/kubernetes.rst
+
+  area:dev:
+    - scripts/**/*
+    - scripts/*
+    - dev/**/*
+    - dev/*
+    - .github/**/*
+    - .github/*
+    - breeze
+    - Dockerfile.ci
+    - BREEZE.rst
+    - breeze-complete
+    - confirm
+    - CONTRIBUTING.*
+    - LOCAL_VIRTUALENV.rst
+    - STATIC_CODE_CHECKS.rst
+    - TESTING.rst
+    - yamllint-config.yml
+    - .asf.yaml
+    - .bash_completion
+    - .dockerignore
+    - .flake8
+    - .hadolint.yaml
+    - .pre-commit-config.yaml
+    - .rat-excludes
+    - .readthedocs.yml
+    - .travis.yml
+
+  area:docs:
+    - docs/**/*
+    - docs/*
+
+  area:Webserver:
+    - airflow/www/**/*
+    - airflow/www_rbac/**/*
+    - tests/www/**/*
+    - tests/www/*
+    - tests/www_rbac/**/*
+    - tests/www_rbac/*
+
+  area:CLI:
+    - airflow/bin/cli.py
+    - airflow/cli/**/*.py
+    - tests/cli/**/*.py
+
+  area:Lineage:
+    - airflow/lineage/**/*
+    - airflow/lineage/*
+    - tests/lineage/*
+
+  area:Logging:
+    - airflow/utils/log/*
+    - tests/utils/log/**/*
+    - tests/utils/log/*
+    - docs/lineage.rst
+
+  area:Plugins:
+    - airflow/plugins_manager.py
+    - tests/plugins/*
+    - docs/plugins.rst
+
+  area:Scheduler/Executor:
+    - airflow/executors/*
+    - airflow/jobs/*
+    - airflow/task/task_runner/*
+    - airflow/utils/dag_processing.py
+    - docs/executor/*
+    - docs/scheduler.rst
+    - tests/executors/*
+    - tests/jobs/*
+
+  area:Secrets:
+    - airflow/secrets/*
+    - airflow/providers/**/secrets/*
+    - tests/secrets/*
+    - tests/providers/**/secrets/*
+
+  area:Serialization:
+    - airflow/serialization/*
+    - tests/serialization/*
+    - docs/dag-serialization.rst
+
+# Various Flags to control behaviour of the "Labeler"
+labelerFlags:
+  # If this flag is changed to 'false', labels would only be added when the PR is first created
+  # and not when existing PR is updated.
+  # The default is 'true' which means the labels would be added when PR is updated even if they
+  # were removed by the user
+  labelOnPRUpdates: false
+
+# Comment to be posted to welcome users when they open their first PR
+firstPRWelcomeComment: >
+  Congratulations on your first Pull Request and welcome to the Apache Airflow community!
+  If you have any issues or are unsure about any anything please check our
+  Contribution Guide (https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst)
+
+  Here are some useful points:
+
+  - Pay attention to the quality of your code (flake8, pylint and type annotations). Our [pre-commits](
+  https://github.com/apache/airflow/blob/master/STATIC_CODE_CHECKS.rst#prerequisites-for-pre-commit-hooks)
+  will help you with that.
+
+  - In case of a new feature add useful documentation (in docstrings or in `docs/` directory).
+  Adding a new operator? Check this short
+  [guide](https://github.com/apache/airflow/blob/master/docs/howto/custom-operator.rst)
+  Consider adding an example DAG that shows how users should use it.
+
+  - Consider using [Breeze environment](https://github.com/apache/airflow/blob/master/BREEZE.rst) for testing
+  locally, it’s a heavy docker but it ships with a working Airflow and a lot of integrations.
+
+  - Be patient and persistent. It might take some time to get a review or get the final approval from
+  Committers.
+
+  - Be sure to read the [Airflow Coding style](
+  https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#coding-style-and-best-practices).
+
+  Apache Airflow is a community-driven project and together we are making it better 🚀.
+
+  In case of doubts contact the developers at:
+
+  Mailing List: dev@airflow.apache.org
+
+  Slack: https://apache-airflow-slack.herokuapp.com/
+
+# Comment to be posted to congratulate user on their first merged PR
+firstPRMergeComment: >
+  Awesome work, congrats on your first merged pull request!
+
+# Comment to be posted to on first time issues
+firstIssueWelcomeComment: >
+  Thanks for opening your first issue here! Be sure to follow the issue template!
+
+insertIssueLinkInPrDescription:
+  descriptionIssuePlaceholderRegexp: "^Issue link: (.*)$"
+  matchers:
+    jiraIssueMatch:
+      titleIssueIdRegexp: \[(AIRFLOW-[0-9]{4})\]
+      descriptionIssueLink: "[${1}](https://issues.apache.org/jira/browse/${1})"
+    docOnlyIssueMatch:
+      titleIssueIdRegexp: \[(AIRFLOW-X{4})\]
+      descriptionIssueLink: "`Document only change, no JIRA issue`"
+
+checkUpToDate:
+  - airflow/migrations/*
+  - airflow/migrations/**/*
+  - airflow/alembic.ini

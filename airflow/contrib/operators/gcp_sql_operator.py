@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,20 +16,128 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.operators.cloud_sql`.
+This module is deprecated. Please use `airflow.providers.google.cloud.operators.cloud_sql`.
 """
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.operators.cloud_sql import (  # noqa
-    CloudSqlBaseOperator, CloudSqlInstanceCreateOperator, CloudSqlInstanceDatabaseCreateOperator,
-    CloudSqlInstanceDatabaseDeleteOperator, CloudSqlInstanceDatabasePatchOperator,
-    CloudSqlInstanceDeleteOperator, CloudSqlInstanceExportOperator, CloudSqlInstanceImportOperator,
-    CloudSqlInstancePatchOperator, CloudSqlQueryOperator,
+from airflow.providers.google.cloud.operators.cloud_sql import (
+    CloudSQLBaseOperator, CloudSQLCreateInstanceDatabaseOperator, CloudSQLCreateInstanceOperator,
+    CloudSQLDeleteInstanceDatabaseOperator, CloudSQLDeleteInstanceOperator, CloudSQLExecuteQueryOperator,
+    CloudSQLExportInstanceOperator, CloudSQLImportInstanceOperator, CloudSQLInstancePatchOperator,
+    CloudSQLPatchInstanceDatabaseOperator,
 )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.cloud_sql`",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.cloud_sql`",
     DeprecationWarning, stacklevel=2
 )
+
+
+class CloudSqlBaseOperator(CloudSQLBaseOperator):
+    """
+    This class is deprecated. Please use `airflow.providers.google.cloud.operators.sql.CloudSQLBaseOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)
+        super().__init__(*args, **kwargs)
+
+
+class CloudSqlInstanceCreateOperator(CloudSQLCreateInstanceOperator):
+    """
+    This class is deprecated. Please use `airflow.providers.google.cloud.operators.sql
+    .CloudSQLCreateInstanceOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)
+        super().__init__(*args, **kwargs)
+
+
+class CloudSqlInstanceDatabaseCreateOperator(CloudSQLCreateInstanceDatabaseOperator):
+    """
+    This class is deprecated. Please use `airflow.providers.google.cloud.operators.sql
+    .CloudSQLCreateInstanceDatabaseOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)
+        super().__init__(*args, **kwargs)
+
+
+class CloudSqlInstanceDatabaseDeleteOperator(CloudSQLDeleteInstanceDatabaseOperator):
+    """
+    This class is deprecated. Please use `airflow.providers.google.cloud.operators.sql
+    .CloudSQLDeleteInstanceDatabaseOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)
+        super().__init__(*args, **kwargs)
+
+
+class CloudSqlInstanceDatabasePatchOperator(CloudSQLPatchInstanceDatabaseOperator):
+    """
+    This class is deprecated. Please use `airflow.providers.google.cloud.operators.sql
+    .CloudSQLPatchInstanceDatabaseOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)
+        super().__init__(*args, **kwargs)
+
+
+class CloudSqlInstanceDeleteOperator(CloudSQLDeleteInstanceOperator):
+    """
+    This class is deprecated. Please use `airflow.providers.google.cloud.operators.sql
+    .CloudSQLDeleteInstanceOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)
+        super().__init__(*args, **kwargs)
+
+
+class CloudSqlInstanceExportOperator(CloudSQLExportInstanceOperator):
+    """
+    This class is deprecated. Please use `airflow.providers.google.cloud.operators.sql
+    .CloudSQLExportInstanceOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)
+        super().__init__(*args, **kwargs)
+
+
+class CloudSqlInstanceImportOperator(CloudSQLImportInstanceOperator):
+    """
+    This class is deprecated. Please use `airflow.providers.google.cloud.operators.sql
+    .CloudSQLImportInstanceOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)
+        super().__init__(*args, **kwargs)
+
+
+class CloudSqlInstancePatchOperator(CloudSQLInstancePatchOperator):
+    """
+    This class is deprecated. Please use `airflow.providers.google.cloud.operators
+    .sql.CloudSQLInstancePatchOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)
+        super().__init__(*args, **kwargs)
+
+
+class CloudSqlQueryOperator(CloudSQLExecuteQueryOperator):
+    """
+    This class is deprecated. Please use `airflow.providers.google.cloud.operators
+    .sql.CloudSQLExecuteQueryOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)
+        super().__init__(*args, **kwargs)

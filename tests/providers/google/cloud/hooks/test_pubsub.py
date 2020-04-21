@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,17 +17,20 @@
 # under the License.
 
 import unittest
+from typing import List
 
+import mock
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.cloud.exceptions import NotFound
+from google.cloud.pubsub_v1.types import ReceivedMessage
+from google.protobuf.json_format import ParseDict
 from googleapiclient.errors import HttpError
 from parameterized import parameterized
 
 from airflow.providers.google.cloud.hooks.pubsub import PubSubException, PubSubHook
 from airflow.version import version
-from tests.compat import mock
 
-BASE_STRING = 'airflow.gcp.hooks.base.{}'
+BASE_STRING = 'airflow.providers.google.common.hooks.base_google.{}'
 PUBSUB_STRING = 'airflow.providers.google.cloud.hooks.pubsub.{}'
 
 EMPTY_CONTENT = b''
@@ -55,9 +57,24 @@ def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-ar
 
 class TestPubSubHook(unittest.TestCase):
     def setUp(self):
-        with mock.patch(BASE_STRING.format('GoogleCloudBaseHook.__init__'),
+        with mock.patch(BASE_STRING.format('GoogleBaseHook.__init__'),
                         new=mock_init):
             self.pubsub_hook = PubSubHook(gcp_conn_id='test')
+
+    def _generate_messages(self, count) -> List[ReceivedMessage]:
+        return [
+            ParseDict(
+                {
+                    "ack_id": str(i),
+                    "message": {
+                        "data": f'Message {i}'.encode('utf8'),
+                        "attributes": {"type": "generated message"},
+                    },
+                },
+                ReceivedMessage(),
+            )
+            for i in range(1, count + 1)
+        ]
 
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook.client_info",
                 new_callable=mock.PropertyMock)
@@ -235,7 +252,8 @@ class TestPubSubHook(unittest.TestCase):
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
     @mock.patch(PUBSUB_STRING.format('uuid4'), new_callable=mock.Mock(return_value=lambda: TEST_UUID))
-    def test_create_subscription_without_subscription_name(self, mock_uuid, mock_service):  # noqa  # pylint: disable=unused-argument,line-too-long
+    def test_create_subscription_without_subscription_name(self, mock_uuid,
+                                                           mock_service):  # noqa  # pylint: disable=unused-argument,line-too-long
         create_method = mock_service.create_subscription
         expected_name = EXPANDED_SUBSCRIPTION.replace(TEST_SUBSCRIPTION, 'sub-%s' % TEST_UUID)
 
@@ -367,7 +385,7 @@ class TestPubSubHook(unittest.TestCase):
         self.assertListEqual([], response)
 
     @parameterized.expand([
-        (exception, ) for exception in [
+        (exception,) for exception in [
             HttpError(resp={'status': '404'}, content=EMPTY_CONTENT),
             GoogleAPICallError("API Call Error")
         ]
@@ -389,7 +407,7 @@ class TestPubSubHook(unittest.TestCase):
             )
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
-    def test_acknowledge(self, mock_service):
+    def test_acknowledge_by_ack_ids(self, mock_service):
         ack_method = mock_service.acknowledge
 
         self.pubsub_hook.acknowledge(
@@ -405,8 +423,25 @@ class TestPubSubHook(unittest.TestCase):
             metadata=None
         )
 
+    @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
+    def test_acknowledge_by_message_objects(self, mock_service):
+        ack_method = mock_service.acknowledge
+
+        self.pubsub_hook.acknowledge(
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            messages=self._generate_messages(3),
+        )
+        ack_method.assert_called_once_with(
+            subscription=EXPANDED_SUBSCRIPTION,
+            ack_ids=['1', '2', '3'],
+            retry=None,
+            timeout=None,
+            metadata=None,
+        )
+
     @parameterized.expand([
-        (exception, ) for exception in [
+        (exception,) for exception in [
             HttpError(resp={'status': '404'}, content=EMPTY_CONTENT),
             GoogleAPICallError("API Call Error")
         ]
@@ -431,7 +466,7 @@ class TestPubSubHook(unittest.TestCase):
             )
 
     @parameterized.expand([
-        (messages, ) for messages in [
+        (messages,) for messages in [
             [{"data": b'test'}],
             [{"data": b''}],
             [{"data": b'test', "attributes": {"weight": "100kg"}}],
@@ -443,7 +478,7 @@ class TestPubSubHook(unittest.TestCase):
         PubSubHook._validate_messages(messages)
 
     @parameterized.expand([
-        ([("wrong type", )], "Wrong message type. Must be a dictionary."),
+        ([("wrong type",)], "Wrong message type. Must be a dictionary."),
         ([{"wrong_key": b'test'}], "Wrong message. Dictionary must contain 'data' or 'attributes'."),
         ([{"data": 'wrong string'}], "Wrong message. 'data' must be send as a bytestring"),
         ([{"data": None}], "Wrong message. 'data' must be send as a bytestring"),

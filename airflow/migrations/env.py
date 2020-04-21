@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -22,6 +21,7 @@ from logging.config import fileConfig
 from alembic import context
 
 from airflow import models, settings
+from airflow.models.serialized_dag import SerializedDagModel  # noqa
 
 
 def include_object(_, name, type_, *args):
@@ -68,8 +68,11 @@ def run_migrations_offline():
 
     """
     context.configure(
-        url=settings.SQL_ALCHEMY_CONN, target_metadata=target_metadata,
-        literal_binds=True, compare_type=COMPARE_TYPE)
+        url=settings.SQL_ALCHEMY_CONN,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        compare_type=COMPARE_TYPE,
+        render_as_batch=True)
 
     with context.begin_transaction():
         context.run_migrations()
@@ -91,6 +94,7 @@ def run_migrations_online():
             target_metadata=target_metadata,
             compare_type=COMPARE_TYPE,
             include_object=include_object,
+            render_as_batch=True
         )
 
         with context.begin_transaction():

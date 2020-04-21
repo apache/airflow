@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,12 +22,12 @@ operators to manage a cluster and submit jobs.
 
 import os
 
-import airflow
 from airflow import models
 from airflow.providers.google.cloud.operators.dataproc import (
-    DataprocClusterCreateOperator, DataprocClusterDeleteOperator, DataprocSubmitJobOperator,
+    DataprocCreateClusterOperator, DataprocDeleteClusterOperator, DataprocSubmitJobOperator,
     DataprocUpdateClusterOperator,
 )
+from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "an-id")
 CLUSTER_NAME = os.environ.get("GCP_DATAPROC_CLUSTER_NAME", "example-project")
@@ -39,7 +38,8 @@ OUTPUT_FOLDER = "wordcount"
 OUTPUT_PATH = "gs://{}/{}/".format(BUCKET, OUTPUT_FOLDER)
 PYSPARK_MAIN = os.environ.get("PYSPARK_MAIN", "hello_world.py")
 PYSPARK_URI = "gs://{}/{}".format(BUCKET, PYSPARK_MAIN)
-
+SPARKR_MAIN = os.environ.get("SPARKR_MAIN", "hello_world.R")
+SPARKR_URI = "gs://{}/{}".format(BUCKET, SPARKR_MAIN)
 
 # Cluster definition
 CLUSTER = {
@@ -105,6 +105,12 @@ PYSPARK_JOB = {
     "pyspark_job": {"main_python_file_uri": PYSPARK_URI},
 }
 
+SPARKR_JOB = {
+    "reference": {"project_id": PROJECT_ID},
+    "placement": {"cluster_name": CLUSTER_NAME},
+    "spark_r_job": {"main_r_file_uri": SPARKR_URI},
+}
+
 HIVE_JOB = {
     "reference": {"project_id": PROJECT_ID},
     "placement": {"cluster_name": CLUSTER_NAME},
@@ -122,10 +128,10 @@ HADOOP_JOB = {
 
 with models.DAG(
     "example_gcp_dataproc",
-    default_args={"start_date": airflow.utils.dates.days_ago(1)},
+    default_args={"start_date": days_ago(1)},
     schedule_interval=None,
 ) as dag:
-    create_cluster = DataprocClusterCreateOperator(
+    create_cluster = DataprocCreateClusterOperator(
         task_id="create_cluster", project_id=PROJECT_ID, cluster=CLUSTER, region=REGION
     )
 
@@ -158,6 +164,10 @@ with models.DAG(
         task_id="pyspark_task", job=PYSPARK_JOB, location=REGION, project_id=PROJECT_ID
     )
 
+    sparkr_task = DataprocSubmitJobOperator(
+        task_id="sparkr_task", job=SPARKR_JOB, location=REGION, project_id=PROJECT_ID
+    )
+
     hive_task = DataprocSubmitJobOperator(
         task_id="hive_task", job=HIVE_JOB, location=REGION, project_id=PROJECT_ID
     )
@@ -166,7 +176,7 @@ with models.DAG(
         task_id="hadoop_task", job=HADOOP_JOB, location=REGION, project_id=PROJECT_ID
     )
 
-    delete_cluster = DataprocClusterDeleteOperator(
+    delete_cluster = DataprocDeleteClusterOperator(
         task_id="delete_cluster",
         project_id=PROJECT_ID,
         cluster_name=CLUSTER_NAME,
@@ -179,4 +189,5 @@ with models.DAG(
     scale_cluster >> spark_sql_task >> delete_cluster
     scale_cluster >> spark_task >> delete_cluster
     scale_cluster >> pyspark_task >> delete_cluster
+    scale_cluster >> sparkr_task >> delete_cluster
     scale_cluster >> hadoop_task >> delete_cluster

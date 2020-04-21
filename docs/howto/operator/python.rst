@@ -22,7 +22,7 @@
 PythonOperator
 ==============
 
-Use the :class:`~airflow.operators.python_operator.PythonOperator` to execute
+Use the :class:`~airflow.operators.python.PythonOperator` to execute
 Python callables.
 
 .. exampleinclude:: ../../../airflow/example_dags/example_python_operator.py

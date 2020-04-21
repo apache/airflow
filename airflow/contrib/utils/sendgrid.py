@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,6 +20,7 @@ Airflow module for emailer using sendgrid
 """
 
 import base64
+import logging
 import mimetypes
 import os
 
@@ -30,7 +30,8 @@ from sendgrid.helpers.mail import (
 )
 
 from airflow.utils.email import get_email_address_list
-from airflow.utils.log.logging_mixin import LoggingMixin
+
+log = logging.getLogger(__name__)
 
 
 def send_email(to, subject, html_content, files=None, cc=None,
@@ -98,27 +99,28 @@ def send_email(to, subject, html_content, files=None, cc=None,
     for fname in files:
         basename = os.path.basename(fname)
 
-        attachment = Attachment()
-        attachment.type = mimetypes.guess_type(basename)[0]
-        attachment.filename = basename
-        attachment.disposition = "attachment"
-        attachment.content_id = '<{0}>'.format(basename)
-
         with open(fname, "rb") as file:
-            attachment.content = base64.b64encode(file.read()).decode('utf-8')
+            content = base64.b64encode(file.read()).decode('utf-8')
+
+        attachment = Attachment(
+            file_content=content,
+            file_type=mimetypes.guess_type(basename)[0],
+            file_name=basename,
+            disposition="attachment",
+            content_id=f"<{basename}>"
+        )
 
         mail.add_attachment(attachment)
     _post_sendgrid_mail(mail.get())
 
 
 def _post_sendgrid_mail(mail_data):
-    log = LoggingMixin().log
-    sendgrid_client = sendgrid.SendGridAPIClient(apikey=os.environ.get('SENDGRID_API_KEY'))
+    sendgrid_client = sendgrid.SendGridAPIClient(api_key=os.environ.get('SENDGRID_API_KEY'))
     response = sendgrid_client.client.mail.send.post(request_body=mail_data)
     # 2xx status code.
     if 200 <= response.status_code < 300:
         log.info('Email with subject %s is successfully sent to recipients: %s',
                  mail_data['subject'], mail_data['personalizations'])
     else:
-        log.warning('Failed to send out email with subject %s, status code: %s',
-                    mail_data['subject'], response.status_code)
+        log.error('Failed to send out email with subject %s, status code: %s',
+                  mail_data['subject'], response.status_code)

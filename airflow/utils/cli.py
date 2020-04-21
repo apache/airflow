@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -33,10 +32,13 @@ import threading
 import traceback
 from argparse import Namespace
 from datetime import datetime
+from typing import Optional
 
-from airflow import AirflowException, settings
-from airflow.models import DagBag, Log
+from airflow import settings
+from airflow.exceptions import AirflowException
+from airflow.models import DAG, DagBag, DagModel, DagPickle, Log
 from airflow.utils import cli_action_loggers
+from airflow.utils.session import provide_session
 
 
 def action_logging(f):
@@ -70,10 +72,11 @@ def action_logging(f):
             at 1st positional argument
         :param kwargs: A passthrough keyword argument
         """
-        assert args
-        assert isinstance(args[0], Namespace), \
-            "1st positional argument should be argparse.Namespace instance, " \
-            "but {}".format(args[0])
+        if not args:
+            raise ValueError("Args should be set")
+        if not isinstance(args[0], Namespace):
+            raise ValueError("1st positional argument should be argparse.Namespace instance,"
+                             f"but is {type(args[0])}")
         metrics = _build_metrics(f.__name__, args[0])
         cli_action_loggers.on_pre_execution(**metrics)
         try:
@@ -103,7 +106,9 @@ def _build_metrics(func_name, namespace):
     metrics = {'sub_command': func_name, 'start_datetime': datetime.utcnow(),
                'full_command': '{}'.format(list(sys.argv)), 'user': getpass.getuser()}
 
-    assert isinstance(namespace, Namespace)
+    if not isinstance(namespace, Namespace):
+        raise ValueError("namespace argument should be argparse.Namespace instance,"
+                         f"but is {type(namespace)}")
     tmp_dic = vars(namespace)
     metrics['dag_id'] = tmp_dic.get('dag_id')
     metrics['task_id'] = tmp_dic.get('task_id')
@@ -123,40 +128,59 @@ def _build_metrics(func_name, namespace):
     return metrics
 
 
-def process_subdir(subdir):
+def process_subdir(subdir: Optional[str]):
     """Expands path to absolute by replacing 'DAGS_FOLDER', '~', '.', etc."""
     if subdir:
+        if not settings.DAGS_FOLDER:
+            raise ValueError("DAGS_FOLDER variable in settings should be filled.")
         subdir = subdir.replace('DAGS_FOLDER', settings.DAGS_FOLDER)
         subdir = os.path.abspath(os.path.expanduser(subdir))
     return subdir
 
 
-def get_dag(args):
-    """Returns DAG of a given dag_id"""
-    dagbag = DagBag(process_subdir(args.subdir))
-    if args.dag_id not in dagbag.dags:
+def get_dag_by_file_location(dag_id: str):
+    """Returns DAG of a given dag_id by looking up file location"""
+    # Benefit is that logging from other dags in dagbag will not appear
+    dag_model = DagModel.get_current(dag_id)
+    if dag_model is None:
         raise AirflowException(
             'dag_id could not be found: {}. Either the dag did not exist or it failed to '
-            'parse.'.format(args.dag_id))
-    return dagbag.dags[args.dag_id]
+            'parse.'.format(dag_id))
+    dagbag = DagBag(dag_folder=dag_model.fileloc)
+    return dagbag.dags[dag_id]
 
 
-def get_dags(args):
+def get_dag(subdir: Optional[str], dag_id: str) -> DAG:
+    """Returns DAG of a given dag_id"""
+    dagbag = DagBag(process_subdir(subdir))
+    if dag_id not in dagbag.dags:
+        raise AirflowException(
+            'dag_id could not be found: {}. Either the dag did not exist or it failed to '
+            'parse.'.format(dag_id))
+    return dagbag.dags[dag_id]
+
+
+def get_dags(subdir: Optional[str], dag_id: str, use_regex: bool = False):
     """Returns DAG(s) matching a given regex or dag_id"""
-    if not args.dag_regex:
-        return [get_dag(args)]
-    dagbag = DagBag(process_subdir(args.subdir))
-    matched_dags = [dag for dag in dagbag.dags.values() if re.search(
-        args.dag_id, dag.dag_id)]
+    if not use_regex:
+        return [get_dag(subdir, dag_id)]
+    dagbag = DagBag(process_subdir(subdir))
+    matched_dags = [dag for dag in dagbag.dags.values() if re.search(dag_id, dag.dag_id)]
     if not matched_dags:
         raise AirflowException(
             'dag_id could not be found with regex: {}. Either the dag did not exist '
-            'or it failed to parse.'.format(args.dag_id))
+            'or it failed to parse.'.format(dag_id))
     return matched_dags
 
 
-alternative_conn_specs = ['conn_type', 'conn_host',
-                          'conn_login', 'conn_password', 'conn_schema', 'conn_port']
+@provide_session
+def get_dag_by_pickle(pickle_id, session=None):
+    """Fetch DAG from the database using pickling"""
+    dag_pickle = session.query(DagPickle).filter(DagPickle.id == pickle_id).first()
+    if not dag_pickle:
+        raise AirflowException("Who hid the pickle!? [missing pickle]")
+    pickle_dag = dag_pickle.pickle
+    return pickle_dag
 
 
 def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
@@ -210,3 +234,41 @@ def sigquit_handler(sig, frame):  # pylint: disable=unused-argument
             if line:
                 code.append("  {}".format(line.strip()))
     print("\n".join(code))
+
+
+def is_terminal_support_colors() -> bool:
+    """"
+    Try to determine if the current terminal supports colors.
+    """
+    if sys.platform == 'win32':
+        return False
+    if not hasattr(sys.stdout, 'isatty'):
+        return False
+    if not sys.stdout.isatty():
+        return False
+    if 'COLORTERM' in os.environ:
+        return True
+    term = os.environ.get('TERM', 'dumb').lower()
+    if term in ('xterm', 'linux') or 'color' in term:
+        return True
+    return False
+
+
+class ColorMode:
+    """
+    Coloring modes. If `auto` is then automatically detected.
+    """
+    ON = "on"
+    OFF = "off"
+    AUTO = "auto"
+
+
+def should_use_colors(args) -> bool:
+    """
+    Processes arguments and decides whether to enable color in output
+    """
+    if args.color == ColorMode.ON:
+        return True
+    if args.color == ColorMode.OFF:
+        return False
+    return is_terminal_support_colors()

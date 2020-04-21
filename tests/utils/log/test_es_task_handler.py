@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -63,7 +62,9 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             self.json_fields
         )
 
-        self.es = elasticsearch.Elasticsearch(hosts=[{'host': 'localhost', 'port': 9200}])
+        self.es = elasticsearch.Elasticsearch(  # pylint: disable=invalid-name
+            hosts=[{'host': 'localhost', 'port': 9200}]
+        )
         self.index_name = 'test_index'
         self.doc_type = 'log'
         self.test_message = 'some random stuff'

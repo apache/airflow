@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,16 +17,71 @@
 # under the License.
 
 import json
-from urllib.parse import parse_qsl, unquote, urlparse
+from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
 from sqlalchemy import Boolean, Column, Integer, String
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 
-from airflow import LoggingMixin
 from airflow.exceptions import AirflowException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
+from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.module_loading import import_string
+
+# A map that assigns a connection type to a tuple that contains
+# the path of the class and the name of the conn_id key parameter.
+# PLEASE KEEP BELOW LIST IN ALPHABETICAL ORDER.
+CONN_TYPE_TO_HOOK = {
+    "azure_batch": (
+        "airflow.providers.microsoft.azure.hooks.azure_batch.AzureBatchHook",
+        "azure_batch_conn_id"
+    ),
+    "azure_cosmos": (
+        "airflow.providers.microsoft.azure.hooks.azure_cosmos.AzureCosmosDBHook",
+        "azure_cosmos_conn_id",
+    ),
+    "azure_data_lake": (
+        "airflow.providers.microsoft.azure.hooks.azure_data_lake.AzureDataLakeHook",
+        "azure_data_lake_conn_id",
+    ),
+    "cassandra": ("airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook", "cassandra_conn_id"),
+    "cloudant": ("airflow.providers.cloudant.hooks.cloudant.CloudantHook", "cloudant_conn_id"),
+    "docker": ("airflow.providers.docker.hooks.docker.DockerHook", "docker_conn_id"),
+    "elasticsearch": (
+        "airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook",
+        "elasticsearch_conn_id"
+    ),
+    "exasol": ("airflow.providers.exasol.hooks.exasol.ExasolHook", "exasol_conn_id"),
+    "gcpcloudsql": (
+        "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook",
+        "gcp_cloudsql_conn_id",
+    ),
+    "google_cloud_platform": (
+        "airflow.providers.google.cloud.hooks.bigquery.BigQueryHook",
+        "bigquery_conn_id",
+    ),
+    "grpc": ("airflow.providers.grpc.hooks.grpc.GrpcHook", "grpc_conn_id"),
+    "hive_cli": ("airflow.providers.apache.hive.hooks.hive.HiveCliHook", "hive_cli_conn_id"),
+    "hiveserver2": ("airflow.providers.apache.hive.hooks.hive.HiveServer2Hook", "hiveserver2_conn_id"),
+    "jdbc": ("airflow.providers.jdbc.hooks.jdbc.JdbcHook", "jdbc_conn_id"),
+    "jira": ("airflow.providers.jira.hooks.jira.JiraHook", "jira_conn_id"),
+    "kubernetes": ("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook", "kubernetes_conn_id"),
+    "mongo": ("airflow.providers.mongo.hooks.mongo.MongoHook", "conn_id"),
+    "mssql": ("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook", "mssql_conn_id"),
+    "mysql": ("airflow.providers.mysql.hooks.mysql.MySqlHook", "mysql_conn_id"),
+    "odbc": ("airflow.providers.odbc.hooks.odbc.OdbcHook", "odbc_conn_id"),
+    "oracle": ("airflow.providers.oracle.hooks.oracle.OracleHook", "oracle_conn_id"),
+    "pig_cli": ("airflow.providers.apache.pig.hooks.pig.PigCliHook", "pig_cli_conn_id"),
+    "postgres": ("airflow.providers.postgres.hooks.postgres.PostgresHook", "postgres_conn_id"),
+    "presto": ("airflow.providers.presto.hooks.presto.PrestoHook", "presto_conn_id"),
+    "redis": ("airflow.providers.redis.hooks.redis.RedisHook", "redis_conn_id"),
+    "sqlite": ("airflow.providers.sqlite.hooks.sqlite.SqliteHook", "sqlite_conn_id"),
+    "tableau": ("airflow.providers.salesforce.hooks.tableau.TableauHook", "tableau_conn_id"),
+    "vertica": ("airflow.providers.vertica.hooks.vertica.VerticaHook", "vertica_conn_id"),
+    "wasb": ("airflow.providers.microsoft.azure.hooks.wasb.WasbHook", "wasb_conn_id"),
+}
+# PLEASE KEEP ABOVE LIST IN ALPHABETICAL ORDER.
 
 
 # Python automatically converts all letters to lowercase in hostname
@@ -66,47 +120,57 @@ class Connection(Base, LoggingMixin):
     _extra = Column('extra', String(5000))
 
     _types = [
-        ('docker', 'Docker Registry',),
+        ('docker', 'Docker Registry'),
+        ('elasticsearch', 'Elasticsearch'),
+        ('exasol', 'Exasol'),
+        ('facebook_social', 'Facebook Social'),
         ('fs', 'File (path)'),
-        ('ftp', 'FTP',),
+        ('ftp', 'FTP'),
         ('google_cloud_platform', 'Google Cloud Platform'),
-        ('hdfs', 'HDFS',),
-        ('http', 'HTTP',),
-        ('pig_cli', 'Pig Client Wrapper',),
-        ('hive_cli', 'Hive Client Wrapper',),
-        ('hive_metastore', 'Hive Metastore Thrift',),
-        ('hiveserver2', 'Hive Server 2 Thrift',),
-        ('jdbc', 'Jdbc Connection',),
+        ('hdfs', 'HDFS'),
+        ('http', 'HTTP'),
+        ('pig_cli', 'Pig Client Wrapper'),
+        ('hive_cli', 'Hive Client Wrapper'),
+        ('hive_metastore', 'Hive Metastore Thrift'),
+        ('hiveserver2', 'Hive Server 2 Thrift'),
+        ('jdbc', 'JDBC Connection'),
+        ('odbc', 'ODBC Connection'),
         ('jenkins', 'Jenkins'),
-        ('mysql', 'MySQL',),
-        ('postgres', 'Postgres',),
-        ('oracle', 'Oracle',),
-        ('vertica', 'Vertica',),
-        ('presto', 'Presto',),
-        ('s3', 'S3',),
-        ('samba', 'Samba',),
-        ('sqlite', 'Sqlite',),
-        ('ssh', 'SSH',),
-        ('cloudant', 'IBM Cloudant',),
+        ('mysql', 'MySQL'),
+        ('postgres', 'Postgres'),
+        ('oracle', 'Oracle'),
+        ('vertica', 'Vertica'),
+        ('presto', 'Presto'),
+        ('s3', 'S3'),
+        ('samba', 'Samba'),
+        ('sqlite', 'Sqlite'),
+        ('ssh', 'SSH'),
+        ('cloudant', 'IBM Cloudant'),
         ('mssql', 'Microsoft SQL Server'),
         ('mesos_framework-id', 'Mesos Framework ID'),
-        ('jira', 'JIRA',),
-        ('redis', 'Redis',),
+        ('jira', 'JIRA'),
+        ('redis', 'Redis'),
         ('wasb', 'Azure Blob Storage'),
-        ('databricks', 'Databricks',),
-        ('aws', 'Amazon Web Services',),
-        ('emr', 'Elastic MapReduce',),
-        ('snowflake', 'Snowflake',),
-        ('segment', 'Segment',),
-        ('sqoop', 'Sqoop',),
+        ('databricks', 'Databricks'),
+        ('aws', 'Amazon Web Services'),
+        ('emr', 'Elastic MapReduce'),
+        ('snowflake', 'Snowflake'),
+        ('segment', 'Segment'),
+        ('sqoop', 'Sqoop'),
+        ('azure_batch', 'Azure Batch Service'),
         ('azure_data_lake', 'Azure Data Lake'),
         ('azure_container_instances', 'Azure Container Instances'),
         ('azure_cosmos', 'Azure CosmosDB'),
-        ('cassandra', 'Cassandra',),
+        ('azure_data_explorer', 'Azure Data Explorer'),
+        ('cassandra', 'Cassandra'),
         ('qubole', 'Qubole'),
         ('mongo', 'MongoDB'),
         ('gcpcloudsql', 'Google Cloud SQL'),
         ('grpc', 'GRPC Connection'),
+        ('yandexcloud', 'Yandex Cloud'),
+        ('livy', 'Apache Livy'),
+        ('tableau', 'Tableau'),
+        ('kubernetes', 'Kubernetes cluster Connection'),
     ]
 
     def __init__(
@@ -144,6 +208,41 @@ class Connection(Base, LoggingMixin):
         self.port = uri_parts.port
         if uri_parts.query:
             self.extra = json.dumps(dict(parse_qsl(uri_parts.query, keep_blank_values=True)))
+
+    def get_uri(self) -> str:
+        uri = '{}://'.format(str(self.conn_type).lower().replace('_', '-'))
+
+        authority_block = ''
+        if self.login is not None:
+            authority_block += quote(self.login, safe='')
+
+        if self.password is not None:
+            authority_block += ':' + quote(self.password, safe='')
+
+        if authority_block > '':
+            authority_block += '@'
+
+            uri += authority_block
+
+        host_block = ''
+        if self.host:
+            host_block += quote(self.host, safe='')
+
+        if self.port:
+            if host_block > '':
+                host_block += ':{}'.format(self.port)
+            else:
+                host_block += '@:{}'.format(self.port)
+
+        if self.schema:
+            host_block += '/{}'.format(quote(self.schema, safe=''))
+
+        uri += host_block
+
+        if self.extra_dejson:
+            uri += '?{}'.format(urlencode(self.extra_dejson))
+
+        return uri
 
     def get_password(self):
         if self._password and self.is_encrypted:
@@ -200,79 +299,25 @@ class Connection(Base, LoggingMixin):
             self._extra = fernet.rotate(self._extra.encode('utf-8')).decode()
 
     def get_hook(self):
-        if self.conn_type == 'mysql':
-            from airflow.hooks.mysql_hook import MySqlHook
-            return MySqlHook(mysql_conn_id=self.conn_id)
-        elif self.conn_type == 'google_cloud_platform':
-            from airflow.gcp.hooks.bigquery import BigQueryHook
-            return BigQueryHook(bigquery_conn_id=self.conn_id)
-        elif self.conn_type == 'postgres':
-            from airflow.hooks.postgres_hook import PostgresHook
-            return PostgresHook(postgres_conn_id=self.conn_id)
-        elif self.conn_type == 'pig_cli':
-            from airflow.hooks.pig_hook import PigCliHook
-            return PigCliHook(pig_cli_conn_id=self.conn_id)
-        elif self.conn_type == 'hive_cli':
-            from airflow.hooks.hive_hooks import HiveCliHook
-            return HiveCliHook(hive_cli_conn_id=self.conn_id)
-        elif self.conn_type == 'presto':
-            from airflow.hooks.presto_hook import PrestoHook
-            return PrestoHook(presto_conn_id=self.conn_id)
-        elif self.conn_type == 'hiveserver2':
-            from airflow.hooks.hive_hooks import HiveServer2Hook
-            return HiveServer2Hook(hiveserver2_conn_id=self.conn_id)
-        elif self.conn_type == 'sqlite':
-            from airflow.hooks.sqlite_hook import SqliteHook
-            return SqliteHook(sqlite_conn_id=self.conn_id)
-        elif self.conn_type == 'jdbc':
-            from airflow.hooks.jdbc_hook import JdbcHook
-            return JdbcHook(jdbc_conn_id=self.conn_id)
-        elif self.conn_type == 'mssql':
-            from airflow.hooks.mssql_hook import MsSqlHook
-            return MsSqlHook(mssql_conn_id=self.conn_id)
-        elif self.conn_type == 'oracle':
-            from airflow.hooks.oracle_hook import OracleHook
-            return OracleHook(oracle_conn_id=self.conn_id)
-        elif self.conn_type == 'vertica':
-            from airflow.contrib.hooks.vertica_hook import VerticaHook
-            return VerticaHook(vertica_conn_id=self.conn_id)
-        elif self.conn_type == 'cloudant':
-            from airflow.contrib.hooks.cloudant_hook import CloudantHook
-            return CloudantHook(cloudant_conn_id=self.conn_id)
-        elif self.conn_type == 'jira':
-            from airflow.contrib.hooks.jira_hook import JiraHook
-            return JiraHook(jira_conn_id=self.conn_id)
-        elif self.conn_type == 'redis':
-            from airflow.contrib.hooks.redis_hook import RedisHook
-            return RedisHook(redis_conn_id=self.conn_id)
-        elif self.conn_type == 'wasb':
-            from airflow.contrib.hooks.wasb_hook import WasbHook
-            return WasbHook(wasb_conn_id=self.conn_id)
-        elif self.conn_type == 'docker':
-            from airflow.hooks.docker_hook import DockerHook
-            return DockerHook(docker_conn_id=self.conn_id)
-        elif self.conn_type == 'azure_data_lake':
-            from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
-            return AzureDataLakeHook(azure_data_lake_conn_id=self.conn_id)
-        elif self.conn_type == 'azure_cosmos':
-            from airflow.contrib.hooks.azure_cosmos_hook import AzureCosmosDBHook
-            return AzureCosmosDBHook(azure_cosmos_conn_id=self.conn_id)
-        elif self.conn_type == 'cassandra':
-            from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
-            return CassandraHook(cassandra_conn_id=self.conn_id)
-        elif self.conn_type == 'mongo':
-            from airflow.contrib.hooks.mongo_hook import MongoHook
-            return MongoHook(conn_id=self.conn_id)
-        elif self.conn_type == 'gcpcloudsql':
-            from airflow.gcp.hooks.cloud_sql import CloudSqlDatabaseHook
-            return CloudSqlDatabaseHook(gcp_cloudsql_conn_id=self.conn_id)
-        elif self.conn_type == 'grpc':
-            from airflow.contrib.hooks.grpc_hook import GrpcHook
-            return GrpcHook(grpc_conn_id=self.conn_id)
-        raise AirflowException("Unknown hook type {}".format(self.conn_type))
+        hook_class_name, conn_id_param = CONN_TYPE_TO_HOOK.get(self.conn_type, (None, None))
+        if not hook_class_name:
+            raise AirflowException('Unknown hook type "{}"'.format(self.conn_type))
+        hook_class = import_string(hook_class_name)
+        return hook_class(**{conn_id_param: self.conn_id})
 
     def __repr__(self):
         return self.conn_id
+
+    def log_info(self):
+        return ("id: {}. Host: {}, Port: {}, Schema: {}, "
+                "Login: {}, Password: {}, extra: {}".
+                format(self.conn_id,
+                       self.host,
+                       self.port,
+                       self.schema,
+                       self.login,
+                       "XXXXXXXX" if self.password else None,
+                       "XXXXXXXX" if self.extra_dejson else None))
 
     def debug_info(self):
         return ("id: {}. Host: {}, Port: {}, Schema: {}, "

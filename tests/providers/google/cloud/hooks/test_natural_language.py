@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,11 +19,11 @@
 import unittest
 from typing import Any, Dict
 
+import mock
 from google.cloud.language_v1.proto.language_service_pb2 import Document
 
 from airflow.providers.google.cloud.hooks.natural_language import CloudNaturalLanguageHook
-from tests.compat import mock
-from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
+from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 API_RESPONSE = {}  # type: Dict[Any, Any]
 DOCUMENT = Document(
@@ -36,7 +35,7 @@ ENCODING_TYPE = "UTF32"
 class TestCloudNaturalLanguageHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            "airflow.contrib.hooks." "gcp_api_base_hook.GoogleCloudBaseHook.__init__",
+            "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = CloudNaturalLanguageHook(gcp_conn_id="test")
@@ -57,11 +56,11 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         self.assertEqual(mock_client.return_value, result)
         self.assertEqual(self.hook._conn, result)
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook.get_conn",
-        **{"return_value.analyze_entities.return_value": API_RESPONSE}  # type: ignore
     )
     def test_analyze_entities(self, get_conn):
+        get_conn.return_value.analyze_entities.return_value = API_RESPONSE
         result = self.hook.analyze_entities(document=DOCUMENT, encoding_type=ENCODING_TYPE)
 
         self.assertEqual(result, API_RESPONSE)
@@ -70,11 +69,11 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
             document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook.get_conn",
-        **{"return_value.analyze_entity_sentiment.return_value": API_RESPONSE}
     )
     def test_analyze_entity_sentiment(self, get_conn):
+        get_conn.return_value.analyze_entity_sentiment.return_value = API_RESPONSE
         result = self.hook.analyze_entity_sentiment(document=DOCUMENT, encoding_type=ENCODING_TYPE)
 
         self.assertEqual(result, API_RESPONSE)
@@ -83,11 +82,11 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
             document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook.get_conn",
-        **{"return_value.analyze_sentiment.return_value": API_RESPONSE}
     )
     def test_analyze_sentiment(self, get_conn):
+        get_conn.return_value.analyze_sentiment.return_value = API_RESPONSE
         result = self.hook.analyze_sentiment(document=DOCUMENT, encoding_type=ENCODING_TYPE)
 
         self.assertEqual(result, API_RESPONSE)
@@ -96,11 +95,11 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
             document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook.get_conn",
-        **{"return_value.analyze_syntax.return_value": API_RESPONSE}
     )
     def test_analyze_syntax(self, get_conn):
+        get_conn.return_value.analyze_syntax.return_value = API_RESPONSE
         result = self.hook.analyze_syntax(document=DOCUMENT, encoding_type=ENCODING_TYPE)
 
         self.assertEqual(result, API_RESPONSE)
@@ -109,11 +108,11 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
             document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook.get_conn",
-        **{"return_value.annotate_text.return_value": API_RESPONSE}
     )
     def test_annotate_text(self, get_conn):
+        get_conn.return_value.annotate_text.return_value = API_RESPONSE
         result = self.hook.annotate_text(document=DOCUMENT, encoding_type=ENCODING_TYPE, features=None)
 
         self.assertEqual(result, API_RESPONSE)
@@ -127,11 +126,11 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook.get_conn",
-        **{"return_value.classify_text.return_value": API_RESPONSE}
     )
     def test_classify_text(self, get_conn):
+        get_conn.return_value.classify_text.return_value = API_RESPONSE
         result = self.hook.classify_text(document=DOCUMENT)
 
         self.assertEqual(result, API_RESPONSE)

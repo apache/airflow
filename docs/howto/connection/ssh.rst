@@ -19,7 +19,7 @@
 
 SSH Connection
 ==============
-The SSH connection type provides connection to use :class:`~airflow.contrib.hooks.ssh_hook.SSHHook` to run commands on a remote server using :class:`~airflow.contrib.operators.ssh_operator.SSHOperator` or transfer file from/to the remote server using :class:`~airflow.contrib.operators.ssh_operator.SFTPOperator`.
+The SSH connection type provides connection to use :class:`~airflow.providers.ssh.hooks.ssh.SSHHook` to run commands on a remote server using :class:`~airflow.providers.ssh.operators.ssh.SSHOperator` or transfer file from/to the remote server using :class:`~airflow.providers.ssh.operators.ssh.SFTPOperator`.
 
 Configuring the Connection
 --------------------------

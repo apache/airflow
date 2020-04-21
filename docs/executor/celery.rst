@@ -16,6 +16,7 @@
     under the License.
 
 
+.. _executor:CeleryExecutor:
 
 Celery Executor
 ===============
@@ -50,14 +51,26 @@ subcommand
 
 .. code-block:: bash
 
-    airflow worker
+    airflow celery worker
 
 Your worker should start picking up tasks as soon as they get fired in
-its direction.
+its direction. To stop a worker running on a machine you can use:
 
-Note that you can also run "Celery Flower", a web UI built on top of Celery,
-to monitor your workers. You can use the shortcut command ``airflow flower``
-to start a Flower web server.
+.. code-block:: bash
+
+    airflow celery stop
+
+It will try to stop the worker gracefully by sending ``SIGTERM`` signal to main Celery
+process as recommended by
+`Celery documentation <https://docs.celeryproject.org/en/latest/userguide/workers>`__.
+
+Note that you can also run `Celery Flower <https://flower.readthedocs.io/en/latest/>`__,
+a web UI built on top of Celery, to monitor your workers. You can use the shortcut command
+to start a Flower web server:
+
+.. code-block:: bash
+
+    airflow celery stop
 
 Please note that you must have the ``flower`` python library already installed on your system. The recommend way is to install the airflow celery bundle.
 
@@ -70,6 +83,7 @@ Some caveats:
 
 - Make sure to use a database backed result backend
 - Make sure to set a visibility timeout in ``[celery_broker_transport_options]`` that exceeds the ETA of your longest running task
+- Make sure to set umask in ``[worker_umask]`` to set permissions for newly created files by workers.
 - Tasks can consume resources. Make sure your worker has enough resources to run ``worker_concurrency`` tasks
 - Queue names are limited to 256 characters, but each broker backend might have its own restrictions
 
@@ -139,7 +153,7 @@ The components communicate with each other in many places
 * [5] **Workers** --> **Database** - Gets and stores information about connection configuration, variables and XCOM.
 * [6] **Workers** --> **Celery's result backend** - Saves the status of tasks
 * [7] **Workers** --> **Celery's broker** - Stores commands for execution
-* [8] **Scheduler** --> **Database** - Store a DAG run and related tasks
-* [9] **Scheduler** --> **DAG files** - Reveal the DAG structure and execute the tasks
+* [8] **Scheduler** --> **DAG files** - Reveal the DAG structure and execute the tasks
+* [9] **Scheduler** --> **Database** - Store a DAG run and related tasks
 * [10] **Scheduler** --> **Celery's result backend** - Gets information about the status of completed tasks
 * [11] **Scheduler** --> **Celery's broker** - Put the commands to be executed

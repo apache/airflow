@@ -32,19 +32,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Kerberos security provider"""
-
+import logging
 import socket
 import subprocess
 import sys
 import time
 from typing import Optional
 
-from airflow import LoggingMixin
 from airflow.configuration import conf
 
 NEED_KRB181_WORKAROUND = None  # type: Optional[bool]
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 def renew_from_kt(principal: str, keytab: str):
@@ -83,7 +82,9 @@ def renew_from_kt(principal: str, keytab: str):
     if subp.returncode != 0:
         log.error(
             "Couldn't reinit from keytab! `kinit' exited with %s.\n%s\n%s",
-            subp.returncode, "\n".join(subp.stdout.readlines()), "\n".join(subp.stderr.readlines())
+            subp.returncode,
+            "\n".join(subp.stdout.readlines() if subp.stdout else []),
+            "\n".join(subp.stderr.readlines() if subp.stderr else [])
         )
         sys.exit(subp.returncode)
 

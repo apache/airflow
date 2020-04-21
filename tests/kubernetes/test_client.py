@@ -17,8 +17,9 @@
 
 import unittest
 
+import mock
+
 from airflow.kubernetes.kube_client import RefreshConfiguration, get_kube_client
-from tests.compat import mock
 
 
 class TestClient(unittest.TestCase):

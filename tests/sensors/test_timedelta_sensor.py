@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,7 +18,8 @@
 import unittest
 from datetime import timedelta
 
-from airflow import DAG, models
+from airflow.models import DagBag
+from airflow.models.dag import DAG
 from airflow.sensors.time_delta_sensor import TimeDeltaSensor
 from airflow.utils.timezone import datetime
 
@@ -30,14 +30,14 @@ TEST_DAG_ID = 'unit_tests'
 
 class TestTimedeltaSensor(unittest.TestCase):
     def setUp(self):
-        self.dagbag = models.DagBag(
+        self.dagbag = DagBag(
             dag_folder=DEV_NULL, include_examples=True)
         self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG(TEST_DAG_ID, default_args=self.args)
 
     def test_timedelta_sensor(self):
-        t = TimeDeltaSensor(
+        op = TimeDeltaSensor(
             task_id='timedelta_sensor_check',
             delta=timedelta(seconds=2),
             dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

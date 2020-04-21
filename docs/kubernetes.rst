@@ -23,10 +23,11 @@ Kubernetes
 Kubernetes Executor
 ^^^^^^^^^^^^^^^^^^^
 
-The :doc:`Kubernetes Executor <executor/kubernetes>` allows you to run tasks on Kubernetes as Pods.
+The :doc:`Kubernetes Executor <executor/kubernetes>` allows you to run all the Airflow tasks on
+Kubernetes as separate Pods.
 
-Kubernetes Operator
-^^^^^^^^^^^^^^^^^^^
+KubernetesPodOperator
+^^^^^^^^^^^^^^^^^^^^^
 
 The :doc:`KubernetesPodOperator <howto/operator/kubernetes>` allows you to create
 Pods on Kubernetes.
@@ -34,8 +35,8 @@ Pods on Kubernetes.
 Pod Mutation Hook
 ^^^^^^^^^^^^^^^^^
 
-Your local Airflow settings file can define a ``pod_mutation_hook`` function that
-has the ability to mutate pod objects before sending them to the Kubernetes client
+The Airflow local settings file (``airflow_local_settings.py``) can define a ``pod_mutation_hook`` function
+that has the ability to mutate pod objects before sending them to the Kubernetes client
 for scheduling. It receives a single argument as a reference to pod objects, and
 is expected to alter its attributes.
 

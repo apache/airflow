@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -29,10 +28,10 @@ from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.api_core.retry import Retry
 from google.cloud.exceptions import NotFound
 from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
-from google.cloud.pubsub_v1.types import Duration, MessageStoragePolicy, PushConfig
+from google.cloud.pubsub_v1.types import Duration, MessageStoragePolicy, PushConfig, ReceivedMessage
 from googleapiclient.errors import HttpError
 
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.version import version
 
 
@@ -43,7 +42,7 @@ class PubSubException(Exception):
 
 
 # noinspection PyAbstractClass
-class PubSubHook(GoogleCloudBaseHook):
+class PubSubHook(GoogleBaseHook):
     """
     Hook for accessing Google Pub/Sub.
 
@@ -82,12 +81,12 @@ class PubSubHook(GoogleCloudBaseHook):
             client_info=self.client_info
         )
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def publish(
         self,
         topic: str,
         messages: List[Dict],
-        project_id: Optional[str] = None,
+        project_id: str,
     ) -> None:
         """
         Publishes messages to a Pub/Sub topic.
@@ -103,7 +102,6 @@ class PubSubHook(GoogleCloudBaseHook):
             If set to None or missing, the default project_id from the GCP connection is used.
         :type project_id: str
         """
-        assert project_id is not None
         self._validate_messages(messages)
 
         publisher = self.get_conn()
@@ -112,13 +110,14 @@ class PubSubHook(GoogleCloudBaseHook):
         self.log.info("Publish %d messages to topic (path) %s", len(messages), topic_path)
         try:
             for message in messages:
-                publisher.publish(
+                future = publisher.publish(
                     topic=topic_path,
                     data=message.get("data", b''),
                     **message.get('attributes', {})
                 )
+                future.result()
         except GoogleAPICallError as e:
-            raise PubSubException('Error publishing to topic {}'.format(topic_path), e)
+            raise PubSubException(f'Error publishing to topic {topic_path}', e)
 
         self.log.info("Published %d messages to topic (path) %s", len(messages), topic_path)
 
@@ -149,11 +148,11 @@ class PubSubHook(GoogleCloudBaseHook):
                     "Wrong message. If 'data' is not provided 'attributes' must be a non empty dictionary.")
 
     # pylint: disable=too-many-arguments
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_topic(
         self,
         topic: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         fail_if_exists: bool = False,
         labels: Optional[Dict[str, str]] = None,
         message_storage_policy: Union[Dict, MessageStoragePolicy] = None,
@@ -198,7 +197,6 @@ class PubSubHook(GoogleCloudBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]]
         """
-        assert project_id is not None
         publisher = self.get_conn()
         topic_path = PublisherClient.topic_path(project_id, topic)  # pylint: disable=no-member
 
@@ -227,11 +225,11 @@ class PubSubHook(GoogleCloudBaseHook):
 
         self.log.info("Created topic (path) %s", topic_path)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_topic(
         self,
         topic: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         fail_if_not_exists: bool = False,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -259,7 +257,6 @@ class PubSubHook(GoogleCloudBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]]
         """
-        assert project_id is not None
         publisher = self.get_conn()
         topic_path = PublisherClient.topic_path(project_id, topic)  # pylint: disable=no-member
 
@@ -281,11 +278,11 @@ class PubSubHook(GoogleCloudBaseHook):
         self.log.info("Deleted topic (path) %s", topic_path)
 
     # pylint: disable=too-many-arguments
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_subscription(
         self,
         topic: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         subscription: Optional[str] = None,
         subscription_project_id: Optional[str] = None,
         ack_deadline_secs: int = 10,
@@ -352,7 +349,6 @@ class PubSubHook(GoogleCloudBaseHook):
             the ``subscription`` parameter is not supplied
         :rtype: str
         """
-        assert project_id is not None
         subscriber = self.subscriber_client
 
         if not subscription:
@@ -392,11 +388,11 @@ class PubSubHook(GoogleCloudBaseHook):
         self.log.info("Created subscription (path) %s for topic (path) %s", subscription_path, topic_path)
         return subscription
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_subscription(
         self,
         subscription: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         fail_if_not_exists: bool = False,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -423,7 +419,6 @@ class PubSubHook(GoogleCloudBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]]
         """
-        assert project_id is not None
         subscriber = self.subscriber_client
         subscription_path = SubscriberClient.subscription_path(project_id, subscription)  # noqa E501 # pylint: disable=no-member,line-too-long
 
@@ -446,17 +441,17 @@ class PubSubHook(GoogleCloudBaseHook):
 
         self.log.info("Deleted subscription (path) %s", subscription_path)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def pull(
         self,
         subscription: str,
         max_messages: int,
-        project_id: Optional[str] = None,
+        project_id: str,
         return_immediately: bool = False,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
-    ) -> List[Dict]:
+    ) -> List[ReceivedMessage]:
         """
         Pulls up to ``max_messages`` messages from Pub/Sub subscription.
 
@@ -487,11 +482,10 @@ class PubSubHook(GoogleCloudBaseHook):
             the base64-encoded message content. See
             https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/pull#ReceivedMessage
         """
-        assert project_id is not None
         subscriber = self.subscriber_client
         subscription_path = SubscriberClient.subscription_path(project_id, subscription)  # noqa E501 # pylint: disable=no-member,line-too-long
 
-        self.log.info("Pulling mex %d messages from subscription (path) %s", max_messages, subscription_path)
+        self.log.info("Pulling max %d messages from subscription (path) %s", max_messages, subscription_path)
         try:
             # pylint: disable=no-member
             response = subscriber.pull(
@@ -508,12 +502,13 @@ class PubSubHook(GoogleCloudBaseHook):
         except (HttpError, GoogleAPICallError) as e:
             raise PubSubException('Error pulling messages from subscription {}'.format(subscription_path), e)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def acknowledge(
         self,
         subscription: str,
-        ack_ids: List[str],
-        project_id: Optional[str] = None,
+        project_id: str,
+        ack_ids: Optional[List[str]] = None,
+        messages: Optional[List[ReceivedMessage]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -524,9 +519,12 @@ class PubSubHook(GoogleCloudBaseHook):
         :param subscription: the Pub/Sub subscription name to delete; do not
             include the 'projects/{project}/topics/' prefix.
         :type subscription: str
-        :param ack_ids: List of ReceivedMessage ackIds from a previous pull
-            response
+        :param ack_ids: List of ReceivedMessage ackIds from a previous pull response.
+            Mutually exclusive with ``messages`` argument.
         :type ack_ids: list
+        :param messages: List of ReceivedMessage objects to acknowledge.
+            Mutually exclusive with ``ack_ids`` argument.
+        :type messages: list
         :param project_id: Optional, the GCP project name or ID in which to create the topic
             If set to None or missing, the default project_id from the GCP connection is used.
         :type project_id: str
@@ -540,7 +538,16 @@ class PubSubHook(GoogleCloudBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]]
         """
-        assert project_id is not None
+        if ack_ids is not None and messages is None:
+            pass
+        elif ack_ids is None and messages is not None:
+            ack_ids = [
+                message.ack_id
+                for message in messages
+            ]
+        else:
+            raise ValueError("One and only one of 'ack_ids' and 'messages' arguments have to be provided")
+
         subscriber = self.subscriber_client
         subscription_path = SubscriberClient.subscription_path(project_id, subscription)  # noqa E501 # pylint: disable=no-member,line-too-long
 

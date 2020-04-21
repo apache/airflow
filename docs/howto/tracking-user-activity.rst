@@ -24,7 +24,7 @@ You can configure Airflow to route anonymous data to
 
 Edit ``airflow.cfg`` and set the ``webserver`` block to have an ``analytics_tool`` and ``analytics_id``:
 
-.. code-block:: python
+.. code-block:: ini
 
   [webserver]
   # Send anonymous user activity to Google Analytics, Segment, or Metarouter
@@ -34,3 +34,6 @@ Edit ``airflow.cfg`` and set the ``webserver`` block to have an ``analytics_tool
 .. note:: You can see view injected tracker html within Airflow's source code at
   ``airflow/www/templates/appbuilder/baselayout.html``. The related global
   variables are set in ``airflow/www/templates/app.py``.
+
+.. note::
+    For more information on setting the configuration, see :doc:`../howto/set-config`

@@ -40,7 +40,22 @@ The time zone is set in ``airflow.cfg``. By default it is set to utc, but you ch
 an arbitrary IANA time zone, e.g. ``Europe/Amsterdam``. It is dependent on ``pendulum``, which is more accurate than ``pytz``.
 Pendulum is installed when you install Airflow.
 
-Please note that the Web UI currently only runs in UTC.
+Web UI
+------
+
+By default the Web UI will show times in UTC. It is possible to change the timezone shown by using the menu in the top right (click on the clock to activate it):
+
+.. image:: img/ui-timezone-chooser.png
+
+"Local" is detected from the browser's timezone. The "Server" value comes from the ``default_timezone`` setting under the ``core`` section.
+
+The users' selected timezone is stored in LocalStorage so is a pre-browser setting.
+
+.. note::
+
+  If you have configured your Airflow install to use a different default timezone and want the UI to use this same timezone, set ``default_ui_timezone`` under the ``webserver`` section to either an empty string, or the same value.
+
+  (It currently defaults to UTC to keep behavoiur of the UI consistent by default between point-releases.)
 
 Concepts
 --------
@@ -77,7 +92,7 @@ words if you have a default time zone setting of ``Europe/Amsterdam`` and create
 
     default_args=dict(
         start_date=datetime(2016, 1, 1),
-        owner='Airflow'
+        owner='airflow'
     )
 
     dag = DAG('my_dag', default_args=default_args)
@@ -107,6 +122,8 @@ it is therefore important to make sure this setting is equal on all Airflow node
     [core]
     default_timezone = utc
 
+.. note::
+    For more information on setting the configuration, see :doc:`howto/set-config`
 
 Time zone aware DAGs
 --------------------
@@ -122,7 +139,7 @@ using ``pendulum``.
 
     default_args=dict(
         start_date=datetime(2016, 1, 1, tzinfo=local_tz),
-        owner='Airflow'
+        owner='airflow'
     )
 
     dag = DAG('my_tz_dag', default_args=default_args)

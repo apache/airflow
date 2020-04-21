@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -96,4 +95,4 @@ class TestStreamLogWriter(unittest.TestCase):
         logger.log = mock.MagicMock()
 
         log = StreamLogWriter(logger, 1)
-        self.assertFalse(log.encoding)
+        self.assertIsNone(log.encoding)

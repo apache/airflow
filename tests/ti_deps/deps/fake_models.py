@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -25,20 +24,11 @@ class FakeTI:
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
 
-    def pool_full(self):
-        # Allow users of this fake to set pool_filled in the constructor to make this
-        # return True
-        try:
-            return self.pool_filled
-        except AttributeError:
-            # If pool_filled was not set default to false
-            return False
-
     def get_dagrun(self, _):
-        return self.dagrun
+        return self.dagrun  # pylint: disable=no-member
 
     def are_dependents_done(self, session):  # pylint: disable=unused-argument
-        return self.dependents_done
+        return self.dependents_done  # pylint: disable=no-member
 
 
 class FakeTask:
@@ -53,7 +43,7 @@ class FakeDag:
         self.__dict__.update(kwds)
 
     def get_running_dagruns(self, _):
-        return self.running_dagruns
+        return self.running_dagruns  # pylint: disable=no-member
 
 
 class FakeContext:

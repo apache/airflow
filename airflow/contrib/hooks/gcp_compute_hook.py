@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,15 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.hooks.compute`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.hooks.compute`."""
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.hooks.compute import ComputeEngineHook  # noqa
+from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 
 warnings.warn(
-    "This module is deprecated. Please use airflow.gcp.hooks.compute`",
+    "This module is deprecated. Please use airflow.providers.google.cloud.hooks.compute`",
     DeprecationWarning, stacklevel=2
 )
 
@@ -32,12 +30,12 @@ warnings.warn(
 class GceHook(ComputeEngineHook):
     """
     This class is deprecated.
-    Please use ``airflow.gcp.hooks.compute.ComputeEngineHook``.
+    Please use ``airflow.providers.google.cloud.hooks.compute.ComputeEngineHook``.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
-            "This class is deprecated. Please use `airflow.gcp.hooks.compute`.",
+            "This class is deprecated. Please use `airflow.providers.google.cloud.hooks.compute`.",
             DeprecationWarning, stacklevel=2
         )
 

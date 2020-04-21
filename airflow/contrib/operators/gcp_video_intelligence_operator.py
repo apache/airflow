@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,18 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.operators.video_intelligence`.
+This module is deprecated. Please use `airflow.providers.google.cloud.operators.video_intelligence`.
 """
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.operators.video_intelligence import (  # noqa
+from airflow.providers.google.cloud.operators.video_intelligence import (  # noqa
     CloudVideoIntelligenceDetectVideoExplicitContentOperator, CloudVideoIntelligenceDetectVideoLabelsOperator,
     CloudVideoIntelligenceDetectVideoShotsOperator,
 )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.video_intelligence`",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.video_intelligence`",
     DeprecationWarning, stacklevel=2
 )

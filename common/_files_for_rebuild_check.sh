@@ -20,9 +20,11 @@
 FILES_FOR_REBUILD_CHECK=(
  "setup.py"
  "setup.cfg"
- "Dockerfile"
+ "Dockerfile.ci"
  ".dockerignore"
  "airflow/version.py"
  "airflow/www/package.json"
- "airflow/www/package-lock.json" )
+ "airflow/www/yarn.lock"
+ "airflow/www/webpack.config.js"
+)
 export FILES_FOR_REBUILD_CHECK
