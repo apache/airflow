@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 Security
 ========
@@ -108,6 +110,41 @@ alter the content and make it part of the ``PYTHONPATH`` and configure it as a b
     authenticate = True
     auth_backend = mypackage.auth
 
+API Authentication
+------------------
+
+Authentication for the API is handled separately to the Web Authentication. The default is to not
+require any authentication on the API i.e. wide open by default. This is not recommended if your
+Airflow webserver is publicly accessible, and you should probably use the ``deny all`` backend:
+
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.api.auth.backend.deny_all
+
+Two "real" methods for authentication are currently supported for the API.
+
+To enabled Password authentication, set the following in the configuration:
+
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.contrib.auth.backends.password_auth
+
+It's usage is similar to the Password Authentication used for the Web interface.
+
+To enable Kerberos authentication, set the following in the configuration:
+
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.api.auth.backend.kerberos_auth
+
+    [kerberos]
+    keytab = <KEYTAB>
+
+The Kerberos service is configured as ``airflow/fully.qualified.domainname@REALM``. Make sure this
+principal exists in the keytab file.
 
 Kerberos
 --------
@@ -196,7 +233,7 @@ use it, simply update the connection details with, for example:
 
     { "use_beeline": true, "principal": "hive/_HOST@EXAMPLE.COM"}
 
-Adjust the principal to your settings. The _HOST part will be replaced by the fully qualified domain name of
+Adjust the principal to your settings. The ``_HOST`` part will be replaced by the fully qualified domain name of
 the server.
 
 You can specify if you would like to use the dag owner as the user for the connection or the user specified in the login
@@ -218,7 +255,7 @@ and in your DAG, when initializing the HiveOperator, specify:
 
     run_as_owner=True
 
-To use kerberos authentication, you must install Airflow with the `kerberos` extras group:
+To use kerberos authentication, you must install Airflow with the ``kerberos`` extras group:
 
 .. code-block:: bash
 
@@ -251,7 +288,7 @@ to only members of those teams.
 .. note:: If you do not specify a team whitelist, anyone with a valid account on
    your GHE installation will be able to login to Airflow.
 
-To use GHE authentication, you must install Airflow with the `github_enterprise` extras group:
+To use GHE authentication, you must install Airflow with the ``github_enterprise`` extras group:
 
 .. code-block:: bash
 
@@ -269,16 +306,16 @@ backend. In order to setup an application:
 4. Click 'Register new application'
 5. Fill in the required information (the 'Authorization callback URL' must be fully qualified e.g. http://airflow.example.com/example/ghe_oauth/callback)
 6. Click 'Register application'
-7. Copy 'Client ID', 'Client Secret', and your callback route to your airflow.cfg according to the above example
+7. Copy 'Client ID', 'Client Secret', and your callback route to your ``airflow.cfg`` according to the above example
 
 Using GHE Authentication with github.com
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 It is possible to use GHE authentication with github.com:
 
-1. `Create an Oauth App <https://developer.github.com/apps/building-oauth-apps/creating-an-oauth-app/>`_
+1. `Create an OAuth App <https://developer.github.com/apps/building-oauth-apps/creating-an-oauth-app/>`_
 2. Copy 'Client ID', 'Client Secret' to your airflow.cfg according to the above example
-3. Set ``host = github.com`` and ``oauth_callback_route = /oauth/callback`` in airflow.cfg
+3. Set ``host = github.com`` and ``oauth_callback_route = /oauth/callback`` in ``airflow.cfg``
 
 Google Authentication
 '''''''''''''''''''''
@@ -287,7 +324,7 @@ The Google authentication backend can be used to authenticate users
 against Google using OAuth2. You must specify the email domains to restrict
 login, separated with a comma, to only members of those domains.
 
-.. code-block:: bash
+.. code-block:: ini
 
     [webserver]
     authenticate = True
@@ -299,7 +336,7 @@ login, separated with a comma, to only members of those domains.
     oauth_callback_route = /oauth2callback
     domain = example1.com,example2.com
 
-To use Google authentication, you must install Airflow with the `google_auth` extras group:
+To use Google authentication, you must install Airflow with the ``google_auth`` extras group:
 
 .. code-block:: bash
 
@@ -317,7 +354,7 @@ backend. In order to setup an application:
 4. Choose 'Web application'
 5. Fill in the required information (the 'Authorized redirect URIs' must be fully qualified e.g. http://airflow.example.com/oauth2callback)
 6. Click 'Create'
-7. Copy 'Client ID', 'Client Secret', and your redirect URI to your airflow.cfg according to the above example
+7. Copy 'Client ID', 'Client Secret', and your redirect URI to your ``airflow.cfg`` according to the above example
 
 SSL
 ---
@@ -325,7 +362,7 @@ SSL
 SSL can be enabled by providing a certificate and key. Once enabled, be sure to use
 "https://" in your browser.
 
-.. code-block:: bash
+.. code-block:: ini
 
     [webserver]
     web_server_ssl_cert = <path to cert>
@@ -335,7 +372,7 @@ Enabling SSL will not automatically change the web server port. If you want to u
 standard port 443, you'll need to configure that too. Be aware that super user privileges
 (or cap_net_bind_service on Linux) are required to listen on port 443.
 
-.. code-block:: bash
+.. code-block:: ini
 
     # Optionally, set the server to listen on the standard SSL port.
     web_server_port = 443
@@ -344,7 +381,7 @@ standard port 443, you'll need to configure that too. Be aware that super user p
 Enable CeleryExecutor with SSL. Ensure you properly generate client and server
 certs and keys.
 
-.. code-block:: bash
+.. code-block:: ini
 
     [celery]
     ssl_active = True
@@ -358,10 +395,10 @@ Impersonation
 Airflow has the ability to impersonate a unix user while running task
 instances based on the task's ``run_as_user`` parameter, which takes a user's name.
 
-**NOTE:** For impersonations to work, Airflow must be run with `sudo` as subtasks are run
-with `sudo -u` and permissions of files are changed. Furthermore, the unix user needs to
+**NOTE:** For impersonations to work, Airflow must be run with ``sudo`` as subtasks are run
+with ``sudo -u`` and permissions of files are changed. Furthermore, the unix user needs to
 exist on the worker. Here is what a simple sudoers file entry could look like to achieve
-this, assuming as airflow is running as the `airflow` user. Note that this means that
+this, assuming as airflow is running as the ``airflow`` user. Note that this means that
 the airflow user must be trusted and treated the same way as the root user.
 
 .. code-block:: none
@@ -374,11 +411,11 @@ log to will have permissions changed such that only the unix user can write to i
 
 Default Impersonation
 '''''''''''''''''''''
-To prevent tasks that don't use impersonation to be run with `sudo` privileges, you can set the
-``core:default_impersonation`` config which sets a default user impersonate if `run_as_user` is
+To prevent tasks that don't use impersonation to be run with ``sudo`` privileges, you can set the
+``core:default_impersonation`` config which sets a default user impersonate if ``run_as_user`` is
 not set.
 
-.. code-block:: bash
+.. code-block:: ini
 
     [core]
     default_impersonation = airflow
@@ -397,7 +434,7 @@ command, or as a configuration item in your ``airflow.cfg``. For both cases, ple
 
     airflow flower --basic_auth=user1:password1,user2:password2
 
-.. code-block:: bash
+.. code-block:: ini
 
     [celery]
     flower_basic_auth = user1:password1,user2:password2
@@ -480,3 +517,49 @@ DAG Level Role
 is treated as a ``View`` which has two permissions associated with it (``can_dag_read`` and ``can_dag_edit``). There is a special view called ``all_dags`` which
 allows the role to access all the dags. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access ``all_dags`` view.
 
+
+.. _security/fernet:
+
+Securing Connections
+--------------------
+
+Airflow uses `Fernet <https://github.com/fernet/spec/>`__ to encrypt passwords in the connection
+configuration. It guarantees that a password encrypted using it cannot be manipulated or read without the key.
+Fernet is an implementation of symmetric (also known as “secret key”) authenticated cryptography.
+
+The first time Airflow is started, the ``airflow.cfg`` file is generated with the default configuration and the unique Fernet
+key. The key is saved to option ``fernet_key`` of section ``[core]``.
+
+You can also configure a fernet key using environment variables. This will overwrite the value from the
+`airflow.cfg` file
+
+    .. code-block:: bash
+
+      # Note the double underscores
+      export AIRFLOW__CORE__FERNET_KEY=your_fernet_key
+
+Generating fernet key
+'''''''''''''''''''''
+
+If you need to generate a new fernet key you can use the following code snippet.
+
+    .. code-block:: python
+
+      from cryptography.fernet import Fernet
+      fernet_key= Fernet.generate_key()
+      print(fernet_key.decode()) # your fernet_key, keep it in secured place!
+
+
+Rotating encryption keys
+''''''''''''''''''''''''
+
+Once connection credentials and variables have been encrypted using a fernet
+key, changing the key will cause decryption of existing credentials to fail. To
+rotate the fernet key without invalidating existing encrypted values, prepend
+the new key to the ``fernet_key`` setting, run
+``airflow rotate_fernet_key``, and then drop the original key from
+``fernet_keys``:
+
+#. Set ``fernet_key`` to ``new_fernet_key,old_fernet_key``
+#. Run ``airflow rotate_fernet_key`` to re-encrypt existing credentials with the new fernet key
+#. Set ``fernet_key`` to ``new_fernet_key``

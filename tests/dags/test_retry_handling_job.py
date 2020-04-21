@@ -17,9 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from datetime import datetime, timedelta
+
 from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
-from datetime import datetime, timedelta
 
 default_args = {
     'owner': 'airflow',

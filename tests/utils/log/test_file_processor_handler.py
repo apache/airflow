@@ -17,14 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import shutil
 import os
+import shutil
 import unittest
+from datetime import timedelta
+
 from freezegun import freeze_time
 
-from airflow.utils.log.file_processor_handler import FileProcessorHandler
 from airflow.utils import timezone
-from datetime import timedelta
+from airflow.utils.log.file_processor_handler import FileProcessorHandler
 
 
 class TestFileProcessorHandler(unittest.TestCase):

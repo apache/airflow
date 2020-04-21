@@ -19,8 +19,8 @@
 
 import unittest
 
-from airflow.models import Connection
 from airflow.contrib.hooks.azure_container_volume_hook import AzureContainerVolumeHook
+from airflow.models import Connection
 from airflow.utils import db
 
 

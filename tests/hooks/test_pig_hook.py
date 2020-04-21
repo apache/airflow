@@ -18,6 +18,7 @@
 # under the License.
 
 import unittest
+
 from airflow.hooks.pig_hook import PigCliHook
 from tests.compat import mock
 
@@ -41,7 +42,7 @@ class TestPigCliHook(unittest.TestCase):
 
     def test_init(self):
         self.pig_hook()
-        self.extra_dejson.get.assert_called_with('pig_properties', '')
+        self.extra_dejson.get.assert_called_once_with('pig_properties', '')
 
     @mock.patch('subprocess.Popen')
     def test_run_cli_success(self, popen_mock):

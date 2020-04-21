@@ -16,22 +16,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from flask import Blueprint, g, jsonify, request, url_for
+
 import airflow.api
-from airflow.api.common.experimental import delete_dag as delete
-from airflow.api.common.experimental import pool as pool_api
-from airflow.api.common.experimental import trigger_dag as trigger
+from airflow import models
+from airflow.api.common.experimental import delete_dag as delete, pool as pool_api, trigger_dag as trigger
+from airflow.api.common.experimental.get_code import get_code
+from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from airflow.api.common.experimental.get_dag_runs import get_dag_runs
 from airflow.api.common.experimental.get_task import get_task
 from airflow.api.common.experimental.get_task_instance import get_task_instance
-from airflow.api.common.experimental.get_code import get_code
-from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from airflow.exceptions import AirflowException
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils import timezone
+from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.strings import to_boolean
 from airflow.www.app import csrf
-from airflow import models
-
-from flask import g, Blueprint, jsonify, request, url_for
 
 _log = LoggingMixin().log
 
@@ -76,8 +75,12 @@ def trigger_dag(dag_id):
 
             return response
 
+    replace_microseconds = (execution_date is None)
+    if 'replace_microseconds' in data:
+        replace_microseconds = to_boolean(data['replace_microseconds'])
+
     try:
-        dr = trigger.trigger_dag(dag_id, run_id, conf, execution_date)
+        dr = trigger.trigger_dag(dag_id, run_id, conf, execution_date, replace_microseconds)
     except AirflowException as err:
         _log.error(err)
         response = jsonify(error="{}".format(err))
@@ -114,9 +117,10 @@ def dag_runs(dag_id):
     """
     Returns a list of Dag Runs for a specific DAG ID.
     :query param state: a query string parameter '?state=queued|running|success...'
+
     :param dag_id: String identifier of a DAG
     :return: List of DAG runs of a DAG with requested state,
-    or all runs if the state is not specified
+        or all runs if the state is not specified
     """
     try:
         state = request.args.get('state')

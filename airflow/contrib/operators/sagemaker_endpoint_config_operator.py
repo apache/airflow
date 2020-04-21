@@ -18,8 +18,8 @@
 # under the License.
 
 from airflow.contrib.operators.sagemaker_base_operator import SageMakerBaseOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
+from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerEndpointConfigOperator(SageMakerBaseOperator):

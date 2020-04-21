@@ -1,0 +1,231 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+default_stages: [commit, push]
+default_language_version:
+  # force all unspecified python hooks to run python3
+  python: python3
+minimum_pre_commit_version: "1.20.0"
+repos:
+  - repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.1.7
+    hooks:
+      - id: forbid-tabs
+        exclude: ^airflow/_vendor/.*$|^docs/Makefile$
+      - id: insert-license
+        name: Add license for all SQL files
+        files: \.sql$
+        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        args:
+          - --comment-style
+          - "/*||*/"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+      - id: insert-license
+        name: Add license for all other files
+        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        args:
+          - --comment-style
+          - "|#|"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+        files: >
+          \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|^Dockerfile.*$
+      - id: insert-license
+        name: Add license for all rst files
+        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        args:
+          - --comment-style
+          - "||"
+          - --license-filepath
+          - license-templates/LICENSE.rst
+          - --fuzzy-match-generates-todo
+        files: \.rst$
+      - id: insert-license
+        name: Add license for all JS files
+        files: \.js$
+        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        args:
+          - --comment-style
+          - "/**| *| */"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+      - id: insert-license
+        name: Add license for all JINJA template files
+        files: ^airflow/www/templates/.*\.html$|^docs/templates/.*\.html$|^airflow/contrib/plugins/metastore_browser/templates/.*\.html$  # yamllint disable-line rule:line-length
+        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        args:
+          - --comment-style
+          - "{#||#}"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+      - id: insert-license
+        name: Add license for all shell files
+        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        files: ^breeze$|^breeze-complete$|\.sh$
+        args:
+          - --comment-style
+          - "|#|"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+      - id: insert-license
+        name: Add license for all python files
+        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        types: [python]
+        args:
+          - --comment-style
+          - "|#|"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+      - id: insert-license
+        name: Add license for all XML files
+        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        types: [xml]
+        args:
+          - --comment-style
+          - "<!--||-->"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+      - id: insert-license
+        name: Add license for all yaml files
+        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        types: [yaml]
+        args:
+          - --comment-style
+          - "|#|"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+      - id: insert-license
+        name: Add license for all md files
+        files: \.md$
+        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        args:
+          - --comment-style
+          - "<!--|| -->"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+  - repo: https://github.com/thlorenz/doctoc.git
+    rev: v1.4.0
+    hooks:
+      - id: doctoc
+        name: Add TOC for md files
+        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.md$|^dev/README.md$
+        args:
+          - "--maxlevel"
+          - "2"
+  - repo: meta
+    hooks:
+      - id: check-hooks-apply
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.4.0
+    hooks:
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+      - id: check-executables-have-shebangs
+      - id: check-xml
+  - repo: https://github.com/pre-commit/pygrep-hooks
+    rev: v1.4.2
+    hooks:
+      - id: rst-backticks
+      - id: python-no-log-warn
+  - repo: local
+    hooks:
+      - id: yamllint
+        name: Check yaml files with yamllint
+        entry: yamllint -c yamllint-config.yml
+        language: python
+        additional_dependencies: ['yamllint']
+        types: [yaml]
+        exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$
+      - id: shellcheck
+        name: Check Shell scripts syntax correctness
+        language: docker_image
+        entry: koalaman/shellcheck:stable -x -a
+        types: [shell]
+        files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$
+        exclude: ^airflow/_vendor/.*$
+      - id: lint-dockerfile
+        name: Lint dockerfile
+        language: system
+        entry: "./scripts/ci/pre_commit_lint_dockerfile.sh"
+        files: ^Dockerfile.*$
+        pass_filenames: true
+      - id: isort
+        name: Run isort to sort imports
+        language: python
+        entry: isort
+        files: \.py$
+        # To keep consistent with the global isort skip config defined in setup.cfg
+        exclude: ^airflow/_vendor/.*$|^build/.*$|^.tox/.*$|^venv/.*$
+        additional_dependencies: ['isort']
+      - id: update-breeze-file
+        name: Update output of breeze command in BREEZE.rst
+        entry: "./scripts/ci/pre_commit_breeze_cmd_line.sh"
+        language: system
+        files: ^BREEZE.rst$|^breeze$|^breeze-complete$
+        pass_filenames: false
+        require_serial: true
+      - id: build
+        name: Check if image build is needed
+        entry: ./scripts/ci/pre_commit_ci_build.sh
+        language: system
+        always_run: true
+        pass_filenames: false
+      - id: check-apache-license
+        name: Check if licenses are OK for Apache
+        entry: "./scripts/ci/pre_commit_check_license.sh"
+        language: system
+        files: ^.*LICENSE.*$|^.*LICENCE.*$
+        pass_filenames: false
+        require_serial: true
+      - id: mypy
+        name: Run mypy
+        language: system
+        entry: "./scripts/ci/pre_commit_mypy.sh"
+        files: \.py$
+        exclude: ^airflow/_vendor/.*$
+        pass_filenames: true
+      - id: pylint
+        name: Run pylint for main sources
+        language: system
+        entry: "./scripts/ci/pre_commit_pylint_main.sh"
+        files: \.py$
+        exclude: ^tests/.*\.py$|^airflow/_vendor/.*$
+        pass_filenames: true
+      - id: pylint
+        name: Run pylint for tests
+        language: system
+        entry: "./scripts/ci/pre_commit_pylint_tests.sh"
+        files: ^tests/.*\.py$
+        pass_filenames: true
+      - id: flake8
+        name: Run flake8
+        language: system
+        entry: "./scripts/ci/pre_commit_flake8.sh"
+        files: \.py$
+        pass_filenames: true

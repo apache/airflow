@@ -17,18 +17,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from base64 import b64encode
-from collections import OrderedDict
 import copy
 import os
 import pathlib
 import shlex
-from six import iteritems
 import subprocess
 import sys
 import warnings
+from base64 import b64encode
+from collections import OrderedDict
+# Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
+from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
 
-from backports.configparser import ConfigParser, _UNSET, NoOptionError, NoSectionError
+from cryptography.fernet import Fernet
 from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException
@@ -41,15 +42,6 @@ warnings.filterwarnings(
     action='default', category=DeprecationWarning, module='airflow')
 warnings.filterwarnings(
     action='default', category=PendingDeprecationWarning, module='airflow')
-
-
-def generate_fernet_key():
-    try:
-        from cryptography.fernet import Fernet
-    except ImportError:
-        return ''
-    else:
-        return Fernet.generate_key().decode()
 
 
 def expand_env_var(env_var):
@@ -89,7 +81,7 @@ def run_command(command):
     return output
 
 
-def _read_default_config_file(file_name):
+def _read_default_config_file(file_name: str) -> str:
     templates_dir = os.path.join(os.path.dirname(__file__), 'config_templates')
     file_path = os.path.join(templates_dir, file_name)
     with open(file_path, encoding='utf-8') as file:
@@ -110,8 +102,6 @@ class AirflowConfigParser(ConfigParser):
         ('core', 'fernet_key'),
         ('celery', 'broker_url'),
         ('celery', 'result_backend'),
-        # Todo: remove this in Airflow 1.11
-        ('celery', 'celery_result_backend'),
         ('atlas', 'password'),
         ('smtp', 'smtp_password'),
         ('ldap', 'bind_password'),
@@ -122,14 +112,7 @@ class AirflowConfigParser(ConfigParser):
     # new_name, the old_name will be checked to see if it exists. If it does a
     # DeprecationWarning will be issued and the old name will be used instead
     deprecated_options = {
-        'celery': {
-            # Remove these keys in Airflow 1.11
-            'worker_concurrency': 'celeryd_concurrency',
-            'result_backend': 'celery_result_backend',
-            'broker_url': 'celery_broker_url',
-            'ssl_active': 'celery_ssl_active',
-            'ssl_cert': 'celery_ssl_cert',
-            'ssl_key': 'celery_ssl_key',
+        'elasticsearch': {
             'elasticsearch_host': 'host',
             'elasticsearch_log_id_template': 'log_id_template',
             'elasticsearch_end_of_log_mark': 'end_of_log_mark',
@@ -147,6 +130,12 @@ class AirflowConfigParser(ConfigParser):
             'task_runner': ('BashTaskRunner', 'StandardTaskRunner', '2.0'),
         },
     }
+
+    # This method transforms option names on every read, get, or set operation.
+    # This changes from the default behaviour of ConfigParser from lowercasing
+    # to instead be case-preserving
+    def optionxform(self, optionstr: str) -> str:
+        return optionstr
 
     def __init__(self, default_config=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -332,7 +321,7 @@ class AirflowConfigParser(ConfigParser):
                 key = env_var.replace(section_prefix, '').lower()
                 _section[key] = self._get_env_var_option(section, key)
 
-        for key, val in iteritems(_section):
+        for key, val in _section.items():
             try:
                 val = int(val)
             except ValueError:
@@ -389,7 +378,7 @@ class AirflowConfigParser(ConfigParser):
         if include_env:
             for ev in [ev for ev in os.environ if ev.startswith('AIRFLOW__')]:
                 try:
-                    _, section, key = ev.split('__')
+                    _, section, key = ev.split('__', 2)
                     opt = self._get_env_var_option(section, key)
                 except ValueError:
                     continue
@@ -399,8 +388,15 @@ class AirflowConfigParser(ConfigParser):
                     opt = opt.replace('%', '%%')
                 if display_source:
                     opt = (opt, 'env var')
-                cfg.setdefault(section.lower(), OrderedDict()).update(
-                    {key.lower(): opt})
+
+                section = section.lower()
+                # if we lower key for kubernetes_environment_variables section,
+                # then we won't be able to set any Airflow environment
+                # variables. Airflow only parse environment variables starts
+                # with AIRFLOW_. Therefore, we need to make it a special case.
+                if section != 'kubernetes_environment_variables':
+                    key = key.lower()
+                cfg.setdefault(section, OrderedDict()).update({key: opt})
 
         # add bash commands
         if include_cmds:
@@ -488,6 +484,7 @@ def parameterized_config(template):
     """
     Generates a configuration from the provided template + variables defined in
     current scope
+
     :param template: a config content templated with {{variables}}
     """
     all_vars = {k: v for d in [globals(), locals()] for k, v in d.items()}
@@ -504,7 +501,7 @@ TEST_CONFIG_FILE = get_airflow_test_config(AIRFLOW_HOME)
 
 # only generate a Fernet key if we need to create a new config file
 if not os.path.isfile(TEST_CONFIG_FILE) or not os.path.isfile(AIRFLOW_CONFIG):
-    FERNET_KEY = generate_fernet_key()
+    FERNET_KEY = Fernet.generate_key().decode()
 else:
     FERNET_KEY = ''
 
@@ -582,7 +579,7 @@ set = conf.set # noqa
 for func in [load_test_config, get, getboolean, getfloat, getint, has_option,
              remove_option, as_dict, set]:
     deprecated(
-        func,
+        func.__name__,
         "Accessing configuration method '{f.__name__}' directly from "
         "the configuration module is deprecated. Please access the "
         "configuration from the 'configuration.conf' object via "

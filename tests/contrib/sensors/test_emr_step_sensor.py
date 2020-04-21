@@ -18,8 +18,9 @@
 # under the License.
 
 import unittest
-from unittest.mock import MagicMock, patch
 from datetime import datetime
+from unittest.mock import MagicMock, patch
+
 from dateutil.tz import tzlocal
 
 from airflow import AirflowException
@@ -180,7 +181,7 @@ class TestEmrStepSensor(unittest.TestCase):
         self.emr_client_mock = MagicMock()
         self.sensor = EmrStepSensor(
             task_id='test_task',
-            poke_interval=1,
+            poke_interval=0,
             job_flow_id='j-8989898989',
             step_id='s-VK57YR1Z9Z5N',
             aws_conn_id='aws_default',
@@ -202,10 +203,11 @@ class TestEmrStepSensor(unittest.TestCase):
             self.sensor.execute(None)
 
             self.assertEqual(self.emr_client_mock.describe_step.call_count, 2)
-            self.emr_client_mock.describe_step.assert_called_with(
-                ClusterId='j-8989898989',
-                StepId='s-VK57YR1Z9Z5N'
-            )
+            calls = [
+                unittest.mock.call(ClusterId='j-8989898989', StepId='s-VK57YR1Z9Z5N'),
+                unittest.mock.call(ClusterId='j-8989898989', StepId='s-VK57YR1Z9Z5N')
+            ]
+            self.emr_client_mock.describe_step.assert_has_calls(calls)
 
     def test_step_cancelled(self):
         self.emr_client_mock.describe_step.side_effect = [

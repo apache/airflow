@@ -29,7 +29,7 @@ class SageMakerTransformSensor(SageMakerBaseSensor):
     containing the failure reason.
 
     :param job_name: job_name of the transform job instance to check the state of
-    :type job_name: string
+    :type job_name: str
     """
 
     template_fields = ['job_name']

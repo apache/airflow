@@ -26,7 +26,7 @@ from airflow.hooks.slack_hook import SlackHook
 from tests.compat import mock
 
 
-class SlackHookTestCase(unittest.TestCase):
+class TestSlackHook(unittest.TestCase):
 
     def test___get_token_with_token_only(self):
         """ tests `__get_token` method when only token is provided """
@@ -136,8 +136,8 @@ class SlackHookTestCase(unittest.TestCase):
 
         slack_hook.call(test_method, test_api_params)
 
-        slack_client_class_mock.assert_called_with(test_token)
-        slack_client_mock.api_call.assert_called_with(test_method, **test_api_params)
+        slack_client_class_mock.assert_called_once_with(test_token)
+        slack_client_mock.api_call.assert_called_once_with(test_method, **test_api_params)
         self.assertEqual(slack_response.validate.call_count, 1)
 
     @mock.patch('airflow.hooks.slack_hook.WebClient')

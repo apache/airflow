@@ -17,19 +17,18 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-
 from datetime import timedelta
 
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.sensors.hdfs_sensor import HdfsSensor
 from airflow.utils.timezone import datetime
-from tests.core import FakeHDFSHook
+from tests.test_utils.hdfs_utils import FakeHDFSHook
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_dag'
 
 
-class HdfsSensorTests(unittest.TestCase):
+class TestHdfsSensor(unittest.TestCase):
 
     def setUp(self):
         self.hook = FakeHDFSHook

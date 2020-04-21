@@ -18,10 +18,11 @@
 # under the License.
 #
 
+import unittest
 from unittest.mock import MagicMock, patch
+
 import requests
 import requests_mock
-import unittest
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.druid_hook import DruidDbApiHook, DruidHook
@@ -76,6 +77,31 @@ class TestDruidHook(unittest.TestCase):
 
         self.assertTrue(task_post.called_once)
         self.assertTrue(status_check.called_once)
+
+    @requests_mock.mock()
+    def test_submit_correct_json_body(self, m):
+        task_post = m.post(
+            'http://druid-overlord:8081/druid/indexer/v1/task',
+            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}'
+        )
+        status_check = m.get(
+            'http://druid-overlord:8081/druid/indexer/v1/task/'
+            '9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
+            text='{"status":{"status": "SUCCESS"}}'
+        )
+
+        json_ingestion_string = """
+        {
+            "task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"
+        }
+        """
+        self.db_hook.submit_indexing_job(json_ingestion_string)
+
+        self.assertTrue(task_post.called_once)
+        self.assertTrue(status_check.called_once)
+        if task_post.called_once:
+            req_body = task_post.request_history[0].json()
+            self.assertEqual(req_body['task'], "9f8a7359-77d4-4612-b0cd-cc2f6a3c28de")
 
     @requests_mock.mock()
     def test_submit_unknown_response(self, m):
@@ -134,6 +160,39 @@ class TestDruidHook(unittest.TestCase):
         hook = DruidHook(timeout=1, max_ingestion_time=5)
         self.assertEqual(hook.get_conn_url(), 'https://test_host:1/ingest')
 
+    @patch('airflow.hooks.druid_hook.DruidHook.get_connection')
+    def test_get_auth(self, mock_get_connection):
+        get_conn_value = MagicMock()
+        get_conn_value.login = 'airflow'
+        get_conn_value.password = 'password'
+        mock_get_connection.return_value = get_conn_value
+        expected = requests.auth.HTTPBasicAuth('airflow', 'password')
+        self.assertEqual(self.db_hook.get_auth(), expected)
+
+    @patch('airflow.hooks.druid_hook.DruidHook.get_connection')
+    def test_get_auth_with_no_user(self, mock_get_connection):
+        get_conn_value = MagicMock()
+        get_conn_value.login = None
+        get_conn_value.password = 'password'
+        mock_get_connection.return_value = get_conn_value
+        self.assertEqual(self.db_hook.get_auth(), None)
+
+    @patch('airflow.hooks.druid_hook.DruidHook.get_connection')
+    def test_get_auth_with_no_password(self, mock_get_connection):
+        get_conn_value = MagicMock()
+        get_conn_value.login = 'airflow'
+        get_conn_value.password = None
+        mock_get_connection.return_value = get_conn_value
+        self.assertEqual(self.db_hook.get_auth(), None)
+
+    @patch('airflow.hooks.druid_hook.DruidHook.get_connection')
+    def test_get_auth_with_no_user_and_password(self, mock_get_connection):
+        get_conn_value = MagicMock()
+        get_conn_value.login = None
+        get_conn_value.password = None
+        mock_get_connection.return_value = get_conn_value
+        self.assertEqual(self.db_hook.get_auth(), None)
+
 
 class TestDruidDbApiHook(unittest.TestCase):
 
@@ -176,6 +235,21 @@ class TestDruidDbApiHook(unittest.TestCase):
         self.cur.fetchall.return_value = result_sets
 
         self.assertEqual(result_sets, self.db_hook().get_records(statement))
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+        self.cur.execute.assert_called_once_with(statement)
+
+    def test_get_pandas_df(self):
+        statement = 'SQL'
+        column = 'col'
+        result_sets = [('row1',), ('row2',)]
+        self.cur.description = [(column,)]
+        self.cur.fetchall.return_value = result_sets
+        df = self.db_hook().get_pandas_df(statement)
+
+        self.assertEqual(column, df.columns[0])
+        for i in range(len(result_sets)):  # pylint: disable=consider-using-enumerate
+            self.assertEqual(result_sets[i][0], df.values.tolist()[i][0])
         assert self.conn.close.call_count == 1
         assert self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement)

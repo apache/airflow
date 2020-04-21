@@ -17,16 +17,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.hooks.base_hook import BaseHook
 import requests
+
 from airflow import AirflowException
+from airflow.hooks.base_hook import BaseHook
 
 OK_STATUS_CODE = 202
 
 
 class OpenFaasHook(BaseHook):
     """
-    Interact with Openfaas to query, deploy, invoke and update function
+    Interact with OpenFaaS to query, deploy, invoke and update function
 
     :param function_name: Name of the function, Defaults to None
     :type query: str

@@ -17,10 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from functools import wraps
-
-import os
 import contextlib
+import os
+from functools import wraps
 
 from airflow import settings
 from airflow.configuration import conf
@@ -160,7 +159,7 @@ def initdb():
     merge_conn(
         Connection(
             conn_id='http_default', conn_type='http',
-            host='https://www.google.com/'))
+            host='https://www.httpbin.org/'))
     merge_conn(
         Connection(
             conn_id='mssql_default', conn_type='mssql',
@@ -194,8 +193,7 @@ def initdb():
             extra='{"path": "/"}'))
     merge_conn(
         Connection(
-            conn_id='aws_default', conn_type='aws',
-            extra='{"region_name": "us-east-1"}'))
+            conn_id='aws_default', conn_type='aws'))
     merge_conn(
         Connection(
             conn_id='spark_default', conn_type='spark',
@@ -300,6 +298,10 @@ def initdb():
         Connection(
             conn_id='opsgenie_default', conn_type='http',
             host='', password=''))
+    merge_conn(
+        Connection(
+            conn_id='pinot_admin_default', conn_type='pinot',
+            host='localhost', port=9000))
 
     dagbag = models.DagBag()
     # Save individual DAGs in the ORM

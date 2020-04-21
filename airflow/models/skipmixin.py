@@ -17,13 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Iterable, Set, Union
+
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
-
-from typing import Union, Iterable, Set
 
 
 class SkipMixin(LoggingMixin):
@@ -54,7 +54,8 @@ class SkipMixin(LoggingMixin):
                      synchronize_session=False)
             session.commit()
         else:
-            assert execution_date is not None, "Execution date is None and no dag run"
+            if execution_date is None:
+                raise ValueError("Execution date is None and no dag run")
 
             self.log.warning("No DAG RUN present this should not happen")
             # this is defensive against dag runs that are not complete

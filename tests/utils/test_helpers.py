@@ -28,10 +28,10 @@ from datetime import datetime
 import psutil
 
 from airflow import DAG
-from airflow.utils import helpers
+from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.exceptions import AirflowException
+from airflow.utils import helpers
 
 
 class TestHelpers(unittest.TestCase):
@@ -144,31 +144,14 @@ class TestHelpers(unittest.TestCase):
                                                   2),
                          14)
 
-    def test_is_in(self):
-        obj = ["list", "object"]
-        # Check for existence of a list object within a list
-        self.assertTrue(
-            helpers.is_in(obj, [obj])
-        )
-
-        # Check that an empty list returns false
-        self.assertFalse(
-            helpers.is_in(obj, [])
-        )
-
-        # Check to ensure it handles None types
-        self.assertFalse(
-            helpers.is_in(None, [obj])
-        )
-
-        # Check to ensure true will be returned of multiple objects exist
-        self.assertTrue(
-            helpers.is_in(obj, [obj, obj])
-        )
-
     def test_is_container(self):
         self.assertFalse(helpers.is_container("a string is not a container"))
         self.assertTrue(helpers.is_container(["a", "list", "is", "a", "container"]))
+
+        self.assertTrue(helpers.is_container(['test_list']))
+        self.assertFalse(helpers.is_container('test_str_not_iterable'))
+        # Pass an object that is not iter nor a string.
+        self.assertFalse(helpers.is_container(10))
 
     def test_as_tuple(self):
         self.assertEqual(
@@ -181,8 +164,6 @@ class TestHelpers(unittest.TestCase):
             ("a", "list", "is", "a", "container")
         )
 
-
-class HelpersTest(unittest.TestCase):
     def test_as_tuple_iter(self):
         test_list = ['test_str']
         as_tup = helpers.as_tuple(test_list)
@@ -192,51 +173,6 @@ class HelpersTest(unittest.TestCase):
         test_str = 'test_str'
         as_tup = helpers.as_tuple(test_str)
         self.assertTupleEqual((test_str,), as_tup)
-
-    def test_is_in(self):
-        from airflow.utils import helpers
-        # `is_in` expects an object, and a list as input
-
-        test_dict = {'test': 1}
-        test_list = ['test', 1, dict()]
-        small_i = 3
-        big_i = 2 ** 31
-        test_str = 'test_str'
-        test_tup = ('test', 'tuple')
-
-        test_container = [test_dict, test_list, small_i, big_i, test_str, test_tup]
-
-        # Test that integers are referenced as the same object
-        self.assertTrue(helpers.is_in(small_i, test_container))
-        self.assertTrue(helpers.is_in(3, test_container))
-
-        # python caches small integers, so i is 3 will be True,
-        # but `big_i is 2 ** 31` is False.
-        self.assertTrue(helpers.is_in(big_i, test_container))
-        self.assertFalse(helpers.is_in(2 ** 31, test_container))
-
-        self.assertTrue(helpers.is_in(test_dict, test_container))
-        self.assertFalse(helpers.is_in({'test': 1}, test_container))
-
-        self.assertTrue(helpers.is_in(test_list, test_container))
-        self.assertFalse(helpers.is_in(['test', 1, dict()], test_container))
-
-        self.assertTrue(helpers.is_in(test_str, test_container))
-        self.assertTrue(helpers.is_in('test_str', test_container))
-        bad_str = 'test_'
-        bad_str += 'str'
-        self.assertFalse(helpers.is_in(bad_str, test_container))
-
-        self.assertTrue(helpers.is_in(test_tup, test_container))
-        self.assertFalse(helpers.is_in(('test', 'tuple'), test_container))
-        bad_tup = ('test', 'tuple', 'hello')
-        self.assertFalse(helpers.is_in(bad_tup[:2], test_container))
-
-    def test_is_container(self):
-        self.assertTrue(helpers.is_container(['test_list']))
-        self.assertFalse(helpers.is_container('test_str_not_iterable'))
-        # Pass an object that is not iter nor a string.
-        self.assertFalse(helpers.is_container(10))
 
     def test_cross_downstream(self):
         """Test if all dependencies between tasks are all set correctly."""
@@ -269,6 +205,11 @@ class HelpersTest(unittest.TestCase):
         [t1, t2, t3, t4, t5] = [DummyOperator(task_id='t{i}'.format(i=i), dag=dag) for i in range(1, 6)]
         with self.assertRaises(AirflowException):
             helpers.chain([t1, t2], [t3, t4, t5])
+
+    def test_convert_camel_to_snake(self):
+        self.assertEqual(helpers.convert_camel_to_snake('LocalTaskJob'), 'local_task_job')
+        self.assertEqual(helpers.convert_camel_to_snake('somethingVeryRandom'),
+                         'something_very_random')
 
 
 if __name__ == '__main__':

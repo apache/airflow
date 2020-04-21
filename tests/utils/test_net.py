@@ -27,7 +27,7 @@ def get_hostname():
     return 'awesomehostname'
 
 
-class GetHostname(unittest.TestCase):
+class TestGetHostname(unittest.TestCase):
 
     @mock.patch('airflow.utils.net.socket')
     @mock.patch('airflow.utils.net.conf')

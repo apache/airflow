@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Hook for Cloudant"""
 from cloudant import cloudant
 
 from airflow.exceptions import AirflowException
@@ -34,7 +34,6 @@ class CloudantHook(BaseHook):
     """
 
     def __init__(self, cloudant_conn_id='cloudant_default'):
-        super().__init__(cloudant_conn_id)
         self.cloudant_conn_id = cloudant_conn_id
 
     def get_conn(self):

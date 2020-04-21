@@ -18,9 +18,10 @@
 # under the License.
 #
 
+import unittest
+
 import requests
 import requests_mock
-import unittest
 
 from airflow import DAG
 from airflow.operators.hive_to_druid import HiveToDruidTransfer

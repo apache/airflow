@@ -17,13 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from tempfile import NamedTemporaryFile
 import subprocess
 import sys
+from tempfile import NamedTemporaryFile
+from typing import Optional, Union
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.S3_hook import S3Hook
 from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.decorators import apply_defaults
 
 
@@ -46,6 +47,12 @@ class S3FileTransformOperator(BaseOperator):
 
     :param source_s3_key: The key to be retrieved from S3. (templated)
     :type source_s3_key: str
+    :param dest_s3_key: The key to be written from S3. (templated)
+    :type dest_s3_key: str
+    :param transform_script: location of the executable transformation script
+    :type transform_script: str
+    :param select_expression: S3 Select expression
+    :type select_expression: str
     :param source_aws_conn_id: source s3 connection
     :type source_aws_conn_id: str
     :param source_verify: Whether or not to verify SSL certificates for S3 connection.
@@ -61,16 +68,13 @@ class S3FileTransformOperator(BaseOperator):
 
         This is also applicable to ``dest_verify``.
     :type source_verify: bool or str
-    :param dest_s3_key: The key to be written from S3. (templated)
-    :type dest_s3_key: str
     :param dest_aws_conn_id: destination s3 connection
     :type dest_aws_conn_id: str
+    :param dest_verify: Whether or not to verify SSL certificates for S3 connection.
+        See: ``source_verify``
+    :type dest_verify: bool or str
     :param replace: Replace dest S3 key if it already exists
     :type replace: bool
-    :param transform_script: location of the executable transformation script
-    :type transform_script: str
-    :param select_expression: S3 Select expression
-    :type select_expression: str
     """
 
     template_fields = ('source_s3_key', 'dest_s3_key')
@@ -80,16 +84,16 @@ class S3FileTransformOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            source_s3_key,
-            dest_s3_key,
-            transform_script=None,
+            source_s3_key: str,
+            dest_s3_key: str,
+            transform_script: Optional[str] = None,
             select_expression=None,
-            source_aws_conn_id='aws_default',
-            source_verify=None,
-            dest_aws_conn_id='aws_default',
-            dest_verify=None,
-            replace=False,
-            *args, **kwargs):
+            source_aws_conn_id: str = 'aws_default',
+            source_verify: Optional[Union[bool, str]] = None,
+            dest_aws_conn_id: str = 'aws_default',
+            dest_verify: Optional[Union[bool, str]] = None,
+            replace: bool = False,
+            *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.source_s3_key = source_s3_key
         self.source_aws_conn_id = source_aws_conn_id
@@ -107,10 +111,8 @@ class S3FileTransformOperator(BaseOperator):
             raise AirflowException(
                 "Either transform_script or select_expression must be specified")
 
-        source_s3 = S3Hook(aws_conn_id=self.source_aws_conn_id,
-                           verify=self.source_verify)
-        dest_s3 = S3Hook(aws_conn_id=self.dest_aws_conn_id,
-                         verify=self.dest_verify)
+        source_s3 = S3Hook(aws_conn_id=self.source_aws_conn_id, verify=self.source_verify)
+        dest_s3 = S3Hook(aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify)
 
         self.log.info("Downloading source S3 file %s", self.source_s3_key)
         if not source_s3.check_for_key(self.source_s3_key):

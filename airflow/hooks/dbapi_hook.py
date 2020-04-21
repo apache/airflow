@@ -17,14 +17,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import datetime
 from contextlib import closing
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import create_engine
 
-from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
+from airflow.typing_compat import Protocol
+
+
+class ConnectorProtocol(Protocol):
+    def connect(host, port, username, schema):
+        ...
 
 
 class DbApiHook(BaseHook):
@@ -38,7 +44,7 @@ class DbApiHook(BaseHook):
     # Override if this db supports autocommit.
     supports_autocommit = False
     # Override with the object that exposes the connect method
-    connector = None
+    connector = None  # type: Optional[ConnectorProtocol]
 
     def __init__(self, *args, **kwargs):
         if not self.conn_name_attr:
@@ -168,10 +174,10 @@ class DbApiHook(BaseHook):
         Sets the autocommit flag on the connection
         """
         if not self.supports_autocommit and autocommit:
-            self.log.warn(
-                ("%s connection doesn't support "
-                 "autocommit but autocommit activated."),
-                getattr(self, self.conn_name_attr))
+            self.log.warning(
+                "%s connection doesn't support autocommit but autocommit activated.",
+                getattr(self, self.conn_name_attr)
+            )
         conn.autocommit = autocommit
 
     def get_autocommit(self, conn):

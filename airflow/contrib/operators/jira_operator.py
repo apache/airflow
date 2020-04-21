@@ -18,8 +18,7 @@
 # under the License.
 
 
-from airflow.contrib.hooks.jira_hook import JIRAError
-from airflow.contrib.hooks.jira_hook import JiraHook
+from airflow.contrib.hooks.jira_hook import JIRAError, JiraHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults

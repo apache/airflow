@@ -18,16 +18,14 @@
 # under the License.
 #
 
-from collections import namedtuple
-from airflow.exceptions import AirflowException
-from airflow.contrib.operators.azure_container_instances_operator import AzureContainerInstancesOperator
-
-from azure.mgmt.containerinstance.models import (ContainerState,
-                                                 Event)
-
-from tests.compat import mock
-
 import unittest
+from collections import namedtuple
+
+from azure.mgmt.containerinstance.models import ContainerState, Event
+
+from airflow.contrib.operators.azure_container_instances_operator import AzureContainerInstancesOperator
+from airflow.exceptions import AirflowException
+from tests.compat import mock
 
 
 def make_mock_cg(container_state, events=[]):

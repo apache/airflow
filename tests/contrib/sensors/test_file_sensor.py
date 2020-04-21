@@ -18,13 +18,14 @@
 # under the License.
 #
 
-import unittest
+import os.path
 import shutil
 import tempfile
+import unittest
 
-from airflow import models, DAG
-from airflow.exceptions import AirflowSensorTimeout
+from airflow import DAG, models
 from airflow.contrib.sensors.file_sensor import FileSensor
+from airflow.exceptions import AirflowSensorTimeout
 from airflow.settings import Session
 from airflow.utils.timezone import datetime
 
@@ -43,14 +44,13 @@ def reset(dag_id=TEST_DAG_ID):
 reset()
 
 
-class FileSensorTest(unittest.TestCase):
+class TestFileSensor(unittest.TestCase):
     def setUp(self):
         from airflow.contrib.hooks.fs_hook import FSHook
         hook = FSHook()
         args = {
             'owner': 'airflow',
-            'start_date': DEFAULT_DATE,
-            'provide_context': True
+            'start_date': DEFAULT_DATE
         }
         dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once', default_args=args)
         dag.schedule_interval = '@once'
@@ -78,6 +78,7 @@ class FileSensorTest(unittest.TestCase):
             fs_conn_id='fs_default',
             dag=self.dag,
             timeout=0,
+            poke_interval=1
         )
         task._hook = self.hook
         try:
@@ -95,6 +96,7 @@ class FileSensorTest(unittest.TestCase):
             fs_conn_id='fs_default',
             dag=self.dag,
             timeout=0,
+            poke_interval=1
         )
         task._hook = self.hook
         try:
@@ -133,6 +135,57 @@ class FileSensorTest(unittest.TestCase):
             task._hook = self.hook
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                      ignore_ti_state=True)
+
+    def test_wildcard_file(self):
+        suffix = '.txt'
+        with tempfile.NamedTemporaryFile(suffix=suffix) as tmp:
+            fileglob = os.path.join(os.path.dirname(tmp.name), '*' + suffix)
+            task = FileSensor(
+                task_id='test',
+                filepath=fileglob,
+                fs_conn_id='fs_default',
+                dag=self.dag,
+                timeout=0,
+            )
+            task._hook = self.hook
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+                     ignore_ti_state=True)
+
+    def test_subdirectory_not_empty(self):
+        suffix = '.txt'
+        dir_ = tempfile.mkdtemp()
+        subdir = tempfile.mkdtemp(dir=dir_)
+
+        with tempfile.NamedTemporaryFile(suffix=suffix, dir=subdir):
+            task = FileSensor(
+                task_id='test',
+                filepath=dir_,
+                fs_conn_id='fs_default',
+                dag=self.dag,
+                timeout=0,
+            )
+            task._hook = self.hook
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+                     ignore_ti_state=True)
+        shutil.rmtree(dir_)
+
+    def test_subdirectory_empty(self):
+        dir_ = tempfile.mkdtemp()
+        tempfile.mkdtemp(dir=dir_)
+        task = FileSensor(
+            task_id='test',
+            filepath=dir_,
+            fs_conn_id='fs_default',
+            dag=self.dag,
+            timeout=0,
+            poke_interval=1
+        )
+        task._hook = self.hook
+
+        with self.assertRaises(AirflowSensorTimeout):
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+                     ignore_ti_state=True)
+            shutil.rmtree(dir_)
 
 
 if __name__ == '__main__':

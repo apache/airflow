@@ -17,14 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.hooks.oracle_hook import OracleHook
+import os
+
+import unicodecsv as csv
+
 from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
+from airflow.hooks.oracle_hook import OracleHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
-
-import unicodecsv as csv
-import os
 
 
 class OracleToAzureDataLakeTransfer(BaseOperator):

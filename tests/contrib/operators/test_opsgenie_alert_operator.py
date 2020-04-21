@@ -21,7 +21,6 @@
 import unittest
 
 from airflow import DAG
-
 from airflow.contrib.operators.opsgenie_alert_operator import OpsgenieAlertOperator
 from airflow.utils import timezone
 

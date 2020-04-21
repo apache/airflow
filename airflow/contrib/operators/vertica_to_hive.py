@@ -18,11 +18,12 @@
 # under the License.
 
 from collections import OrderedDict
-import unicodecsv as csv
 from tempfile import NamedTemporaryFile
 
-from airflow.hooks.hive_hooks import HiveCliHook
+import unicodecsv as csv
+
 from airflow.contrib.hooks.vertica_hook import VerticaHook
+from airflow.hooks.hive_hooks import HiveCliHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 

@@ -18,7 +18,9 @@
 # under the License.
 
 import time
-from zdesk import Zendesk, RateLimitError, ZendeskError
+
+from zdesk import RateLimitError, Zendesk, ZendeskError
+
 from airflow.hooks.base_hook import BaseHook
 
 

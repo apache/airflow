@@ -17,36 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.contrib.hooks.redshift_hook import RedshiftHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
+"""This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.redshift`."""
 
+import warnings
 
-class AwsRedshiftClusterSensor(BaseSensorOperator):
-    """
-    Waits for a Redshift cluster to reach a specific status.
+# pylint: disable=unused-import
+from airflow.providers.amazon.aws.sensors.redshift import AwsRedshiftClusterSensor  # noqa
 
-    :param cluster_identifier: The identifier for the cluster being pinged.
-    :type cluster_identifier: str
-    :param target_status: The cluster status desired.
-    :type target_status: str
-    """
-    template_fields = ('cluster_identifier', 'target_status')
-
-    @apply_defaults
-    def __init__(self,
-                 cluster_identifier,
-                 target_status='available',
-                 aws_conn_id='aws_default',
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
-        self.cluster_identifier = cluster_identifier
-        self.target_status = target_status
-        self.aws_conn_id = aws_conn_id
-
-    def poke(self, context):
-        self.log.info('Poking for status : %s\nfor cluster %s',
-                      self.target_status, self.cluster_identifier)
-        hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
-        return hook.cluster_status(self.cluster_identifier) == self.target_status
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.redshift`.",
+    DeprecationWarning,
+    stacklevel=2,
+)

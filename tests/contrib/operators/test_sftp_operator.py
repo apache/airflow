@@ -20,9 +20,10 @@
 import os
 import unittest
 from base64 import b64encode
+from unittest import mock
 
-from airflow import models
-from airflow.contrib.operators.sftp_operator import SFTPOperator, SFTPOperation
+from airflow import AirflowException, models
+from airflow.contrib.operators.sftp_operator import SFTPOperation, SFTPOperator
 from airflow.contrib.operators.ssh_operator import SSHOperator
 from airflow.models import DAG, TaskInstance
 from airflow.settings import Session
@@ -32,6 +33,7 @@ from tests.test_utils.config import conf_vars
 
 TEST_DAG_ID = 'unit_tests'
 DEFAULT_DATE = datetime(2017, 1, 1)
+TEST_CONN_ID = "conn_id_for_testing"
 
 
 def reset(dag_id=TEST_DAG_ID):
@@ -45,7 +47,7 @@ def reset(dag_id=TEST_DAG_ID):
 reset()
 
 
-class SFTPOperatorTest(unittest.TestCase):
+class TestSFTPOperator(unittest.TestCase):
     def setUp(self):
         from airflow.contrib.hooks.ssh_hook import SSHHook
         hook = SSHHook(ssh_conn_id='ssh_default')
@@ -53,7 +55,6 @@ class SFTPOperatorTest(unittest.TestCase):
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE,
-            'provide_context': True
         }
         dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once', default_args=args)
         dag.schedule_interval = '@once'
@@ -367,11 +368,8 @@ class SFTPOperatorTest(unittest.TestCase):
             content_received = file.read()
         self.assertEqual(content_received.strip(), test_remote_file_content)
 
+    @mock.patch.dict('os.environ', {'AIRFLOW_CONN_' + TEST_CONN_ID.upper(): "ssh://test_id@localhost"})
     def test_arg_checking(self):
-        from airflow.exceptions import AirflowException
-        conn_id = "conn_id_for_testing"
-        os.environ['AIRFLOW_CONN_' + conn_id.upper()] = "ssh://test_id@localhost"
-
         # Exception should be raised if neither ssh_hook nor ssh_conn_id is provided
         with self.assertRaisesRegex(AirflowException,
                                     "Cannot operate without ssh_hook or ssh_conn_id."):
@@ -388,7 +386,7 @@ class SFTPOperatorTest(unittest.TestCase):
         task_1 = SFTPOperator(
             task_id="test_sftp",
             ssh_hook="string_rather_than_SSHHook",  # invalid ssh_hook
-            ssh_conn_id=conn_id,
+            ssh_conn_id=TEST_CONN_ID,
             local_filepath=self.test_local_filepath,
             remote_filepath=self.test_remote_filepath,
             operation=SFTPOperation.PUT,
@@ -398,11 +396,11 @@ class SFTPOperatorTest(unittest.TestCase):
             task_1.execute(None)
         except Exception:
             pass
-        self.assertEqual(task_1.ssh_hook.ssh_conn_id, conn_id)
+        self.assertEqual(task_1.ssh_hook.ssh_conn_id, TEST_CONN_ID)
 
         task_2 = SFTPOperator(
             task_id="test_sftp",
-            ssh_conn_id=conn_id,  # no ssh_hook provided
+            ssh_conn_id=TEST_CONN_ID,  # no ssh_hook provided
             local_filepath=self.test_local_filepath,
             remote_filepath=self.test_remote_filepath,
             operation=SFTPOperation.PUT,
@@ -412,13 +410,13 @@ class SFTPOperatorTest(unittest.TestCase):
             task_2.execute(None)
         except Exception:
             pass
-        self.assertEqual(task_2.ssh_hook.ssh_conn_id, conn_id)
+        self.assertEqual(task_2.ssh_hook.ssh_conn_id, TEST_CONN_ID)
 
         # if both valid ssh_hook and ssh_conn_id are provided, ignore ssh_conn_id
         task_3 = SFTPOperator(
             task_id="test_sftp",
             ssh_hook=self.hook,
-            ssh_conn_id=conn_id,
+            ssh_conn_id=TEST_CONN_ID,
             local_filepath=self.test_local_filepath,
             remote_filepath=self.test_remote_filepath,
             operation=SFTPOperation.PUT,

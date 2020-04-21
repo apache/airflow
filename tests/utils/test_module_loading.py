@@ -22,7 +22,7 @@ import unittest
 from airflow.utils.module_loading import import_string
 
 
-class ModuleImportTestCase(unittest.TestCase):
+class TestModuleImport(unittest.TestCase):
     def test_import_string(self):
         cls = import_string('airflow.utils.module_loading.import_string')
         self.assertEqual(cls, import_string)

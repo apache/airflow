@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.redis_hook import RedisHook
 from airflow.models import BaseOperator
+from airflow.utils.decorators import apply_defaults
 
 
 class RedisPublishOperator(BaseOperator):

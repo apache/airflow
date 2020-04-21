@@ -17,11 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import gzip
 import functools
-import pendulum
+import gzip
 from io import BytesIO as IO
-from flask import after_this_request, flash, redirect, request, url_for, g
+
+import pendulum
+from flask import after_this_request, flash, g, redirect, request, url_for
+
 from airflow.models import Log
 from airflow.utils.db import create_session
 
@@ -43,13 +45,13 @@ def action_logging(f):
                 event=f.__name__,
                 task_instance=None,
                 owner=user,
-                extra=str(list(request.args.items())),
-                task_id=request.args.get('task_id'),
-                dag_id=request.args.get('dag_id'))
+                extra=str(list(request.values.items())),
+                task_id=request.values.get('task_id'),
+                dag_id=request.values.get('dag_id'))
 
-            if 'execution_date' in request.args:
+            if 'execution_date' in request.values:
                 log.execution_date = pendulum.parse(
-                    request.args.get('execution_date'))
+                    request.values.get('execution_date'))
 
             session.add(log)
 
@@ -65,7 +67,7 @@ def gzipped(f):
     @functools.wraps(f)
     def view_func(*args, **kwargs):
         @after_this_request
-        def zipper(response):
+        def zipper(response):  # pylint: disable=unused-variable
             accept_encoding = request.headers.get('Accept-Encoding', '')
 
             if 'gzip' not in accept_encoding.lower():

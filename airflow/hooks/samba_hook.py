@@ -17,8 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from smbclient import SambaClient
 import os
+
+from smbclient import SambaClient
 
 from airflow.hooks.base_hook import BaseHook
 

@@ -17,16 +17,23 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+"""
+This module contains integration with Azure Blob Storage.
+
+It communicate via the Window Azure Storage Blob protocol. Make sure that a
+Airflow connection of type `wasb` exists. Authorization can be done by supplying a
+login (=Storage account name) and password (=KEY), or login and SAS token in the extra
+field (see connection `wasb_default` for an example).
+"""
+from azure.storage.blob import BlockBlobService
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
-from azure.storage.blob import BlockBlobService
-
 
 class WasbHook(BaseHook):
     """
-    Interacts with Azure Blob Storage through the wasb:// protocol.
+    Interacts with Azure Blob Storage through the ``wasb://`` protocol.
 
     Additional options passed in the 'extra' field of the connection will be
     passed to the `BlockBlockService()` constructor. For example, authenticate
@@ -95,7 +102,7 @@ class WasbHook(BaseHook):
             `BlockBlobService.create_blob_from_path()` takes.
         :type kwargs: object
         """
-        # Reorder the argument order from airflow.hooks.S3_hook.load_file.
+        # Reorder the argument order from airflow.providers.amazon.aws.hooks.s3.load_file.
         self.connection.create_blob_from_path(container_name, blob_name,
                                               file_path, **kwargs)
 
@@ -113,7 +120,7 @@ class WasbHook(BaseHook):
             `BlockBlobService.create_blob_from_text()` takes.
         :type kwargs: object
         """
-        # Reorder the argument order from airflow.hooks.S3_hook.load_string.
+        # Reorder the argument order from airflow.providers.amazon.aws.hooks.s3.load_string.
         self.connection.create_blob_from_text(container_name, blob_name,
                                               string_data, **kwargs)
 

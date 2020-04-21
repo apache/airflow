@@ -16,11 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from unittest import mock
 import unittest
+from unittest import mock
 
 from airflow import DAG
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.sensors.sql_sensor import SqlSensor
 from airflow.utils.timezone import datetime
@@ -29,7 +29,7 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_sql_dag'
 
 
-class SqlSensorTests(unittest.TestCase):
+class TestSqlSensor(unittest.TestCase):
 
     def setUp(self):
         args = {
@@ -50,7 +50,7 @@ class SqlSensorTests(unittest.TestCase):
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @unittest.skipUnless(
-        'mysql' in configuration.conf.get('core', 'sql_alchemy_conn'), "this is a mysql test")
+        'mysql' in conf.get('core', 'sql_alchemy_conn'), "this is a mysql test")
     def test_sql_sensor_mysql(self):
         t1 = SqlSensor(
             task_id='sql_sensor_check',
@@ -70,7 +70,7 @@ class SqlSensorTests(unittest.TestCase):
         t2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @unittest.skipUnless(
-        'postgresql' in configuration.conf.get('core', 'sql_alchemy_conn'), "this is a postgres test")
+        'postgresql' in conf.get('core', 'sql_alchemy_conn'), "this is a postgres test")
     def test_sql_sensor_postgres(self):
         t1 = SqlSensor(
             task_id='sql_sensor_check',
@@ -103,5 +103,145 @@ class SqlSensorTests(unittest.TestCase):
         mock_get_records.return_value = []
         self.assertFalse(t.poke(None))
 
+        mock_get_records.return_value = [[None]]
+        self.assertFalse(t.poke(None))
+
+        mock_get_records.return_value = [['None']]
+        self.assertTrue(t.poke(None))
+
+        mock_get_records.return_value = [[0.0]]
+        self.assertFalse(t.poke(None))
+
+        mock_get_records.return_value = [[0]]
+        self.assertFalse(t.poke(None))
+
+        mock_get_records.return_value = [['0']]
+        self.assertTrue(t.poke(None))
+
         mock_get_records.return_value = [['1']]
         self.assertTrue(t.poke(None))
+
+    @mock.patch('airflow.sensors.sql_sensor.BaseHook')
+    def test_sql_sensor_postgres_poke_fail_on_empty(self, mock_hook):
+        t = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='postgres_default',
+            sql="SELECT 1",
+            fail_on_empty=True
+        )
+
+        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+
+        mock_get_records.return_value = []
+        self.assertRaises(AirflowException, t.poke, None)
+
+    @mock.patch('airflow.sensors.sql_sensor.BaseHook')
+    def test_sql_sensor_postgres_poke_success(self, mock_hook):
+        t = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='postgres_default',
+            sql="SELECT 1",
+            success=lambda x: x in [1]
+        )
+
+        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+
+        mock_get_records.return_value = []
+        self.assertFalse(t.poke(None))
+
+        mock_get_records.return_value = [[1]]
+        self.assertTrue(t.poke(None))
+
+        mock_get_records.return_value = [['1']]
+        self.assertFalse(t.poke(None))
+
+    @mock.patch('airflow.sensors.sql_sensor.BaseHook')
+    def test_sql_sensor_postgres_poke_failure(self, mock_hook):
+        t = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='postgres_default',
+            sql="SELECT 1",
+            failure=lambda x: x in [1]
+        )
+
+        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+
+        mock_get_records.return_value = []
+        self.assertFalse(t.poke(None))
+
+        mock_get_records.return_value = [[1]]
+        self.assertRaises(AirflowException, t.poke, None)
+
+    @mock.patch('airflow.sensors.sql_sensor.BaseHook')
+    def test_sql_sensor_postgres_poke_failure_success(self, mock_hook):
+        t = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='postgres_default',
+            sql="SELECT 1",
+            failure=lambda x: x in [1],
+            success=lambda x: x in [2]
+        )
+
+        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+
+        mock_get_records.return_value = []
+        self.assertFalse(t.poke(None))
+
+        mock_get_records.return_value = [[1]]
+        self.assertRaises(AirflowException, t.poke, None)
+
+        mock_get_records.return_value = [[2]]
+        self.assertTrue(t.poke(None))
+
+    @mock.patch('airflow.sensors.sql_sensor.BaseHook')
+    def test_sql_sensor_postgres_poke_failure_success_same(self, mock_hook):
+        t = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='postgres_default',
+            sql="SELECT 1",
+            failure=lambda x: x in [1],
+            success=lambda x: x in [1]
+        )
+
+        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+
+        mock_get_records.return_value = []
+        self.assertFalse(t.poke(None))
+
+        mock_get_records.return_value = [[1]]
+        self.assertRaises(AirflowException, t.poke, None)
+
+    @mock.patch('airflow.sensors.sql_sensor.BaseHook')
+    def test_sql_sensor_postgres_poke_invalid_failure(self, mock_hook):
+        t = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='postgres_default',
+            sql="SELECT 1",
+            failure=[1],
+        )
+
+        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+
+        mock_get_records.return_value = [[1]]
+        self.assertRaises(AirflowException, t.poke, None)
+
+    @mock.patch('airflow.sensors.sql_sensor.BaseHook')
+    def test_sql_sensor_postgres_poke_invalid_success(self, mock_hook):
+        t = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='postgres_default',
+            sql="SELECT 1",
+            success=[1],
+        )
+
+        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+
+        mock_get_records.return_value = [[1]]
+        self.assertRaises(AirflowException, t.poke, None)

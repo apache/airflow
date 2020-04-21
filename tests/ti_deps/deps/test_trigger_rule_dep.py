@@ -21,13 +21,13 @@ import unittest
 from datetime import datetime
 
 from airflow.models import BaseOperator, TaskInstance
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils.db import create_session
 from airflow.utils.state import State
+from airflow.utils.trigger_rule import TriggerRule
 
 
-class TriggerRuleDepTest(unittest.TestCase):
+class TestTriggerRuleDep(unittest.TestCase):
 
     def _get_task_instance(self, trigger_rule=TriggerRule.ALL_SUCCESS,
                            state=None, upstream_task_ids=None):
@@ -339,6 +339,19 @@ class TriggerRuleDepTest(unittest.TestCase):
                 upstream_failed=0,
                 done=2,
                 flag_upstream_failed=True,
+                session=session))
+            self.assertEqual(len(dep_statuses), 1)
+            self.assertFalse(dep_statuses[0].passed)
+
+            # Fail until all upstream tasks have completed execution
+            dep_statuses = tuple(TriggerRuleDep()._evaluate_trigger_rule(
+                ti=ti,
+                successes=0,
+                skipped=0,
+                failed=0,
+                upstream_failed=0,
+                done=0,
+                flag_upstream_failed=False,
                 session=session))
             self.assertEqual(len(dep_statuses), 1)
             self.assertFalse(dep_statuses[0].passed)

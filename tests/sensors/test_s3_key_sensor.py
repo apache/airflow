@@ -17,15 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from unittest import mock
 import unittest
+from unittest import mock
+
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.sensors.s3_key_sensor import S3KeySensor
 
 
-class S3KeySensorTests(unittest.TestCase):
+class TestS3KeySensor(unittest.TestCase):
 
     def test_bucket_name_None_and_bucket_key_as_relative_path(self):
         """
@@ -63,7 +64,7 @@ class S3KeySensorTests(unittest.TestCase):
         self.assertEqual(s.bucket_key, parsed_key)
         self.assertEqual(s.bucket_name, parsed_bucket)
 
-    @mock.patch('airflow.hooks.S3_hook.S3Hook')
+    @mock.patch('airflow.providers.amazon.aws.hooks.s3.S3Hook')
     def test_poke(self, mock_hook):
         s = S3KeySensor(
             task_id='s3_key_sensor',
@@ -72,12 +73,12 @@ class S3KeySensorTests(unittest.TestCase):
         mock_check_for_key = mock_hook.return_value.check_for_key
         mock_check_for_key.return_value = False
         self.assertFalse(s.poke(None))
-        mock_check_for_key.assert_called_with(s.bucket_key, s.bucket_name)
+        mock_check_for_key.assert_called_once_with(s.bucket_key, s.bucket_name)
 
         mock_hook.return_value.check_for_key.return_value = True
         self.assertTrue(s.poke(None))
 
-    @mock.patch('airflow.hooks.S3_hook.S3Hook')
+    @mock.patch('airflow.providers.amazon.aws.hooks.s3.S3Hook')
     def test_poke_wildcard(self, mock_hook):
         s = S3KeySensor(
             task_id='s3_key_sensor',
@@ -87,7 +88,7 @@ class S3KeySensorTests(unittest.TestCase):
         mock_check_for_wildcard_key = mock_hook.return_value.check_for_wildcard_key
         mock_check_for_wildcard_key.return_value = False
         self.assertFalse(s.poke(None))
-        mock_check_for_wildcard_key.assert_called_with(s.bucket_key, s.bucket_name)
+        mock_check_for_wildcard_key.assert_called_once_with(s.bucket_key, s.bucket_name)
 
         mock_check_for_wildcard_key.return_value = True
         self.assertTrue(s.poke(None))

@@ -18,6 +18,7 @@
 # under the License.
 
 import unittest
+
 from airflow.utils.trigger_rule import TriggerRule
 
 

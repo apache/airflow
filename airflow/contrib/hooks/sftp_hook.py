@@ -17,9 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import stat
-import pysftp
 import datetime
+import stat
+from typing import Dict, List, Optional, Tuple
+
+import pysftp
+
 from airflow.contrib.hooks.ssh_hook import SSHHook
 
 
@@ -43,7 +46,7 @@ class SFTPHook(SSHHook):
     Errors that may occur throughout but should be handled downstream.
     """
 
-    def __init__(self, ftp_conn_id='sftp_default', *args, **kwargs):
+    def __init__(self, ftp_conn_id: str = 'sftp_default', *args, **kwargs) -> None:
         kwargs['ssh_conn_id'] = ftp_conn_id
         super().__init__(*args, **kwargs)
 
@@ -89,7 +92,7 @@ class SFTPHook(SSHHook):
                     )
                     self.key_file = extra_options.get('private_key')
 
-    def get_conn(self):
+    def get_conn(self) -> pysftp.Connection:
         """
         Returns an SFTP connection object
         """
@@ -114,19 +117,20 @@ class SFTPHook(SSHHook):
             self.conn = pysftp.Connection(**conn_params)
         return self.conn
 
-    def close_conn(self):
+    def close_conn(self) -> None:
         """
         Closes the connection. An error will occur if the
         connection wasnt ever opened.
         """
         conn = self.conn
-        conn.close()
+        conn.close()  # type: ignore
         self.conn = None
 
-    def describe_directory(self, path):
+    def describe_directory(self, path: str) -> Dict[str, Dict[str, str]]:
         """
         Returns a dictionary of {filename: {attributes}} for all files
         on the remote system (where the MLSD command is supported).
+
         :param path: full path to the remote directory
         :type path: str
         """
@@ -142,9 +146,10 @@ class SFTPHook(SSHHook):
                 'modify': modify}
         return files
 
-    def list_directory(self, path):
+    def list_directory(self, path: str) -> List[str]:
         """
         Returns a list of files on the remote system.
+
         :param path: full path to the remote directory to list
         :type path: str
         """
@@ -152,30 +157,33 @@ class SFTPHook(SSHHook):
         files = conn.listdir(path)
         return files
 
-    def create_directory(self, path, mode=777):
+    def create_directory(self, path: str, mode: int = 777) -> None:
         """
         Creates a directory on the remote system.
+
         :param path: full path to the remote directory to create
         :type path: str
         :param mode: int representation of octal mode for directory
         """
         conn = self.get_conn()
-        conn.mkdir(path, mode)
+        conn.makedirs(path, mode)
 
-    def delete_directory(self, path):
+    def delete_directory(self, path: str) -> None:
         """
         Deletes a directory on the remote system.
+
         :param path: full path to the remote directory to delete
         :type path: str
         """
         conn = self.get_conn()
         conn.rmdir(path)
 
-    def retrieve_file(self, remote_full_path, local_full_path):
+    def retrieve_file(self, remote_full_path: str, local_full_path: str) -> None:
         """
         Transfers the remote file to a local location.
         If local_full_path is a string path, the file will be put
         at that location
+
         :param remote_full_path: full path to the remote file
         :type remote_full_path: str
         :param local_full_path: full path to the local file
@@ -186,11 +194,12 @@ class SFTPHook(SSHHook):
         conn.get(remote_full_path, local_full_path)
         self.log.info('Finished retrieving file from FTP: %s', remote_full_path)
 
-    def store_file(self, remote_full_path, local_full_path):
+    def store_file(self, remote_full_path: str, local_full_path: str) -> None:
         """
         Transfers a local file to the remote location.
         If local_full_path_or_buffer is a string path, the file will be read
         from that location
+
         :param remote_full_path: full path to the remote file
         :type remote_full_path: str
         :param local_full_path: full path to the local file
@@ -199,16 +208,82 @@ class SFTPHook(SSHHook):
         conn = self.get_conn()
         conn.put(local_full_path, remote_full_path)
 
-    def delete_file(self, path):
+    def delete_file(self, path: str) -> None:
         """
         Removes a file on the FTP Server
+
         :param path: full path to the remote file
         :type path: str
         """
         conn = self.get_conn()
         conn.remove(path)
 
-    def get_mod_time(self, path):
+    def get_mod_time(self, path: str) -> str:
         conn = self.get_conn()
         ftp_mdtm = conn.stat(path).st_mtime
         return datetime.datetime.fromtimestamp(ftp_mdtm).strftime('%Y%m%d%H%M%S')
+
+    def path_exists(self, path: str) -> bool:
+        """
+        Returns True if a remote entity exists
+
+        :param path: full path to the remote file or directory
+        :type path: str
+        """
+        conn = self.get_conn()
+        return conn.exists(path)
+
+    @staticmethod
+    def _is_path_match(path: str, prefix: Optional[str] = None, delimiter: Optional[str] = None) -> bool:
+        """
+        Return True if given path starts with prefix (if set) and ends with delimiter (if set).
+
+        :param path: path to be checked
+        :type path: str
+        :param prefix: if set path will be checked is starting with prefix
+        :type prefix: str
+        :param delimiter: if set path will be checked is ending with suffix
+        :type delimiter: str
+        :return: bool
+        """
+        if prefix is not None and not path.startswith(prefix):
+            return False
+        if delimiter is not None and not path.endswith(delimiter):
+            return False
+        return True
+
+    def get_tree_map(
+        self, path: str, prefix: Optional[str] = None, delimiter: Optional[str] = None
+    ) -> Tuple[List[str], List[str], List[str]]:
+        """
+        Return tuple with recursive lists of files, directories and unknown paths from given path.
+        It is possible to filter results by giving prefix and/or delimiter parameters.
+
+        :param path: path from which tree will be built
+        :type path: str
+        :param prefix: if set paths will be added if start with prefix
+        :type prefix: str
+        :param delimiter: if set paths will be added if end with delimiter
+        :type delimiter: str
+        :return: tuple with list of files, dirs and unknown items
+        :rtype: Tuple[List[str], List[str], List[str]]
+        """
+        conn = self.get_conn()
+        files, dirs, unknowns = [], [], []  # type: List[str], List[str], List[str]
+
+        def append_matching_path_callback(list_):
+            return (
+                lambda item: list_.append(item)
+                if self._is_path_match(item, prefix, delimiter)
+                else None
+            )
+
+        conn.walktree(
+            remotepath=path,
+            fcallback=append_matching_path_callback(files),
+            dcallback=append_matching_path_callback(dirs),
+            ucallback=append_matching_path_callback(unknowns),
+            recurse=True,
+        )
+
+        return files, dirs, unknowns

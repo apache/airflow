@@ -18,16 +18,15 @@
 # under the License.
 from typing import Optional, cast
 
-import six
 from sqlalchemy import (
-    Column, Integer, String, Boolean, PickleType, Index, UniqueConstraint, func, DateTime, or_,
-    and_
+    Boolean, Column, DateTime, Index, Integer, PickleType, String, UniqueConstraint, and_, func, or_,
 )
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 from sqlalchemy.orm.session import Session
+
 from airflow.exceptions import AirflowException
-from airflow.models.base import Base, ID_LEN
+from airflow.models.base import ID_LEN, Base
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.utils import timezone
@@ -65,6 +64,17 @@ class DagRun(Base, LoggingMixin):
         UniqueConstraint('dag_id', 'run_id'),
     )
 
+    def __init__(self, dag_id=None, run_id=None, execution_date=None, start_date=None, external_trigger=None,
+                 conf=None, state=None):
+        self.dag_id = dag_id
+        self.run_id = run_id
+        self.execution_date = execution_date
+        self.start_date = start_date
+        self.external_trigger = external_trigger
+        self.conf = conf
+        self.state = state
+        super().__init__()
+
     def __repr__(self):
         return (
             '<DagRun {dag_id} @ {execution_date}: {run_id}, '
@@ -96,6 +106,7 @@ class DagRun(Base, LoggingMixin):
     def refresh_from_db(self, session=None):
         """
         Reloads the current dagrun from the database
+
         :param session: database session
         """
         DR = DagRun
@@ -121,7 +132,7 @@ class DagRun(Base, LoggingMixin):
 
         :param dag_id: the dag_id to find dag runs for
         :type dag_id: int, list
-        :param run_id: defines the the run id for this dag run
+        :param run_id: defines the run id for this dag run
         :type run_id: str
         :param execution_date: the execution date
         :type execution_date: datetime.datetime
@@ -219,7 +230,7 @@ class DagRun(Base, LoggingMixin):
         return self.dag
 
     @provide_session
-    def get_previous_dagrun(self, state: str = None, session: Session = None) -> Optional['DagRun']:
+    def get_previous_dagrun(self, state: Optional[str] = None, session: Session = None) -> Optional['DagRun']:
         """The previous DagRun, if there is one"""
 
         session = cast(Session, session)  # mypy
@@ -298,20 +309,21 @@ class DagRun(Base, LoggingMixin):
         duration = (timezone.utcnow() - start_dttm).total_seconds() * 1000
         Stats.timing("dagrun.dependency-check.{}".format(self.dag_id), duration)
 
-        root_ids = [t.task_id for t in dag.roots]
-        roots = [t for t in tis if t.task_id in root_ids]
+        leaf_tis = [ti for ti in tis if ti.task_id in {t.task_id for t in dag.leaves}]
 
         # if all roots finished and at least one failed, the run failed
-        if (not unfinished_tasks and
-                any(r.state in (State.FAILED, State.UPSTREAM_FAILED) for r in roots)):
+        if not unfinished_tasks and any(
+            leaf_ti.state in {State.FAILED, State.UPSTREAM_FAILED} for leaf_ti in leaf_tis
+        ):
             self.log.info('Marking run %s failed', self)
             self.set_state(State.FAILED)
             dag.handle_callback(self, success=False, reason='task_failure',
                                 session=session)
 
-        # if all roots succeeded and no unfinished tasks, the run succeeded
-        elif not unfinished_tasks and all(r.state in (State.SUCCESS, State.SKIPPED)
-                                          for r in roots):
+        # if all leafs succeeded and no unfinished tasks, the run succeeded
+        elif not unfinished_tasks and all(
+            leaf_ti.state in {State.SUCCESS, State.SKIPPED} for leaf_ti in leaf_tis
+        ):
             self.log.info('Marking run %s successful', self)
             self.set_state(State.SUCCESS)
             dag.handle_callback(self, success=True, reason='success', session=session)
@@ -374,8 +386,7 @@ class DagRun(Base, LoggingMixin):
                         "task_removed_from_dag.{}".format(dag.dag_id), 1, 1)
                     ti.state = State.REMOVED
 
-            is_task_in_dag = task is not None
-            should_restore_task = is_task_in_dag and ti.state == State.REMOVED
+            should_restore_task = (task is not None) and ti.state == State.REMOVED
             if should_restore_task:
                 self.log.info("Restoring task '{}' which was previously "
                               "removed from DAG '{}'".format(ti, dag))
@@ -383,7 +394,7 @@ class DagRun(Base, LoggingMixin):
                 ti.state = State.NONE
 
         # check for missing tasks
-        for task in six.itervalues(dag.task_dict):
+        for task in dag.task_dict.values():
             if task.start_date > self.execution_date and not self.is_backfill:
                 continue
 

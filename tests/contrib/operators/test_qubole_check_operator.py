@@ -19,16 +19,18 @@
 #
 import unittest
 from datetime import datetime
-from airflow.models import DAG
-from airflow.exceptions import AirflowException
-from airflow.contrib.operators.qubole_check_operator import QuboleValueCheckOperator
+
+from qds_sdk.commands import HiveCommand
+
 from airflow.contrib.hooks.qubole_check_hook import QuboleCheckHook
 from airflow.contrib.hooks.qubole_hook import QuboleHook
-from qds_sdk.commands import HiveCommand
+from airflow.contrib.operators.qubole_check_operator import QuboleValueCheckOperator
+from airflow.exceptions import AirflowException
+from airflow.models import DAG
 from tests.compat import mock
 
 
-class QuboleValueCheckOperatorTest(unittest.TestCase):
+class TestQuboleValueCheckOperator(unittest.TestCase):
 
     def setUp(self):
         self.task_id = 'test_task'
@@ -52,8 +54,7 @@ class QuboleValueCheckOperatorTest(unittest.TestCase):
     def test_pass_value_template(self):
         pass_value_str = "2018-03-22"
         operator = self.__construct_operator('select date from tab1;', "{{ ds }}")
-        result = operator.render_template('pass_value', operator.pass_value,
-                                          {'ds': pass_value_str})
+        result = operator.render_template(operator.pass_value, {'ds': pass_value_str})
 
         self.assertEqual(operator.task_id, self.task_id)
         self.assertEqual(result, pass_value_str)
@@ -71,7 +72,7 @@ class QuboleValueCheckOperatorTest(unittest.TestCase):
 
         operator.execute(None)
 
-        mock_hook.get_first.assert_called_with(query)
+        mock_hook.get_first.assert_called_once_with(query)
 
     @mock.patch.object(QuboleValueCheckOperator, 'get_hook')
     def test_execute_assertion_fail(self, mock_get_hook):
@@ -93,7 +94,7 @@ class QuboleValueCheckOperatorTest(unittest.TestCase):
                                     'Qubole Command Id: ' + str(mock_cmd.id)):
             operator.execute()
 
-        mock_cmd.is_success.assert_called_with(mock_cmd.status)
+        mock_cmd.is_success.assert_called_once_with(mock_cmd.status)
 
     @mock.patch.object(QuboleValueCheckOperator, 'get_hook')
     def test_execute_assert_query_fail(self, mock_get_hook):
@@ -115,7 +116,7 @@ class QuboleValueCheckOperatorTest(unittest.TestCase):
             operator.execute()
 
         self.assertNotIn('Qubole Command Id: ', str(cm.exception))
-        mock_cmd.is_success.assert_called_with(mock_cmd.status)
+        mock_cmd.is_success.assert_called_once_with(mock_cmd.status)
 
     @mock.patch.object(QuboleCheckHook, 'get_query_results')
     @mock.patch.object(QuboleHook, 'execute')

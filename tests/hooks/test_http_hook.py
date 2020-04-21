@@ -325,5 +325,14 @@ class TestHttpHook(unittest.TestCase):
     def test_method_converted_to_uppercase_when_created_in_lowercase(self):
         self.assertEqual(self.get_lowercase_hook.method, 'GET')
 
+    @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
+    def test_connection_without_host(self, mock_get_connection):
+        c = Connection(conn_id='http_default', conn_type='http')
+        mock_get_connection.return_value = c
+
+        hook = HttpHook()
+        hook.get_conn({})
+        self.assertEqual(hook.base_url, 'http://')
+
 
 send_email_test = mock.Mock()

@@ -20,8 +20,8 @@
 import requests
 import tenacity
 
-from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
 
 
 class HttpHook(BaseHook):
@@ -59,12 +59,13 @@ class HttpHook(BaseHook):
         if self.http_conn_id:
             conn = self.get_connection(self.http_conn_id)
 
-            if "://" in conn.host:
+            if conn.host and "://" in conn.host:
                 self.base_url = conn.host
             else:
                 # schema defaults to HTTP
                 schema = conn.schema if conn.schema else "http"
-                self.base_url = schema + "://" + conn.host
+                host = conn.host if conn.host else ""
+                self.base_url = schema + "://" + host
 
             if conn.port:
                 self.base_url = self.base_url + ":" + str(conn.port)
@@ -74,7 +75,7 @@ class HttpHook(BaseHook):
                 try:
                     session.headers.update(conn.extra_dejson)
                 except TypeError:
-                    self.log.warn('Connection to %s has invalid extra field.', conn.host)
+                    self.log.warning('Connection to %s has invalid extra field.', conn.host)
         if headers:
             session.headers.update(headers)
 
@@ -175,7 +176,7 @@ class HttpHook(BaseHook):
             return response
 
         except requests.exceptions.ConnectionError as ex:
-            self.log.warn(str(ex) + ' Tenacity will retry to execute the operation')
+            self.log.warning(str(ex) + ' Tenacity will retry to execute the operation')
             raise ex
 
     def run_with_advanced_retry(self, _retry_args, *args, **kwargs):

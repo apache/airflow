@@ -28,7 +28,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import BranchPythonOperator
 
 args = {
-    'owner': 'airflow',
+    'owner': 'Airflow',
     'start_date': airflow.utils.dates.days_ago(2),
     'depends_on_past': True,
 }
@@ -58,7 +58,6 @@ def should_run(**kwargs):
 
 cond = BranchPythonOperator(
     task_id='condition',
-    provide_context=True,
     python_callable=should_run,
     dag=dag,
 )

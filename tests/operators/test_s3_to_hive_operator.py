@@ -17,20 +17,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
-
-from tests.compat import mock
-import logging
-from itertools import product
-from airflow.operators.s3_to_hive_operator import S3ToHiveTransfer
-from collections import OrderedDict
-from airflow.exceptions import AirflowException
-from tempfile import NamedTemporaryFile, mkdtemp
-from gzip import GzipFile
 import bz2
-import shutil
-import filecmp
 import errno
+import filecmp
+import logging
+import shutil
+import unittest
+from collections import OrderedDict
+from gzip import GzipFile
+from itertools import product
+from tempfile import NamedTemporaryFile, mkdtemp
+
+from airflow.exceptions import AirflowException
+from airflow.operators.s3_to_hive_operator import S3ToHiveTransfer
+from tests.compat import mock
 
 try:
     import boto3
@@ -39,7 +39,7 @@ except ImportError:
     mock_s3 = None
 
 
-class S3ToHiveTransferTest(unittest.TestCase):
+class TestS3ToHiveTransfer(unittest.TestCase):
 
     def setUp(self):
         self.fn = {}
@@ -274,7 +274,7 @@ class S3ToHiveTransferTest(unittest.TestCase):
                 input_serialization['CSV']['FileHeaderInfo'] = 'USE'
 
             # Confirm that select_key was called with the right params
-            with mock.patch('airflow.hooks.S3_hook.S3Hook.select_key',
+            with mock.patch('airflow.providers.amazon.aws.hooks.s3.S3Hook.select_key',
                             return_value="") as mock_select_key:
                 # Execute S3ToHiveTransfer
                 s32hive = S3ToHiveTransfer(**self.kwargs)

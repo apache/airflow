@@ -18,8 +18,7 @@
 # under the License.
 from jira.resources import Resource
 
-from airflow.contrib.operators.jira_operator import JIRAError
-from airflow.contrib.operators.jira_operator import JiraOperator
+from airflow.contrib.operators.jira_operator import JIRAError, JiraOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 

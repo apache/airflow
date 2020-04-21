@@ -17,11 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.models import DAG
-from airflow.operators.bash_operator import BashOperator
 from datetime import datetime
 from textwrap import dedent
 
+from airflow.models import DAG
+from airflow.operators.bash_operator import BashOperator
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 

@@ -98,7 +98,7 @@ class TestAzureDataLakeHook(unittest.TestCase):
         from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
         hook = AzureDataLakeHook(azure_data_lake_conn_id='adl_test_key')
         hook.list('file_path/*')
-        mock_fs.return_value.glob.assert_called_with('file_path/*')
+        mock_fs.return_value.glob.assert_called_once_with('file_path/*')
 
     @mock.patch('airflow.contrib.hooks.azure_data_lake_hook.core.AzureDLFileSystem',
                 autospec=True)
@@ -107,7 +107,7 @@ class TestAzureDataLakeHook(unittest.TestCase):
         from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
         hook = AzureDataLakeHook(azure_data_lake_conn_id='adl_test_key')
         hook.list('file_path/some_folder/')
-        mock_fs.return_value.walk.assert_called_with('file_path/some_folder/')
+        mock_fs.return_value.walk.assert_called_once_with('file_path/some_folder/')
 
 
 if __name__ == '__main__':

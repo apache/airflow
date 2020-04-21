@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 FAQ
 ========
@@ -38,7 +40,7 @@ Here are some of the common causes:
   files collocated with user's DAGs.
 
 - Is your ``start_date`` set properly? The Airflow scheduler triggers the
-  task soon after the ``start_date + scheduler_interval`` is passed.
+  task soon after the ``start_date + schedule_interval`` is passed.
 
 - Is your ``schedule_interval`` set properly? The default ``schedule_interval``
   is one day (``datetime.timedelta(1)``). You must specify a different ``schedule_interval``
@@ -82,14 +84,7 @@ sure you fully understand how it proceeds.
 How do I trigger tasks based on another task's failure?
 -------------------------------------------------------
 
-Check out the ``Trigger Rule`` section in the Concepts section of the
-documentation.
-
-Why are connection passwords still not encrypted in the metadata db after I installed airflow[crypto]?
-------------------------------------------------------------------------------------------------------
-
-Check out the ``Securing Connections`` section in the How-to Guides section of the
-documentation.
+Check out the :ref:`concepts/trigger_rule`.
 
 What's the deal with ``start_date``?
 ------------------------------------
@@ -185,7 +180,7 @@ How can my airflow dag run faster?
 
 There are a few variables we could control to improve airflow dag performance:
 
-- ``parallelism``: This variable controls the number of task instances that runs simultaneously across the whole Airflow cluster. User could increase the parallelism variable in the ``airflow.cfg``.
+- ``parallelism``: This variable controls the number of task instances that runs simultaneously across the whole Airflow cluster. User could increase the ``parallelism`` variable in the ``airflow.cfg``.
 - ``concurrency``: The Airflow scheduler will run no more than ``concurrency`` task instances for your DAG at any given time. Concurrency is defined in your Airflow DAG. If you do not set the concurrency on your DAG, the scheduler will use the default value from the ``dag_concurrency`` entry in your ``airflow.cfg``.
 - ``task_concurrency``: This variable controls the number of concurrent running task instances across ``dag_runs`` per task.
 - ``max_active_runs``: the Airflow scheduler will run no more than ``max_active_runs`` DagRuns of your DAG at a given time. If you do not set the ``max_active_runs`` in your DAG, the scheduler will use the default value from the ``max_active_runs_per_dag`` entry in your ``airflow.cfg``.
@@ -202,7 +197,7 @@ How to fix Exception: Global variable explicit_defaults_for_timestamp needs to b
 
 This means ``explicit_defaults_for_timestamp`` is disabled in your mysql server and you need to enable it by:
 
-#. Set ``explicit_defaults_for_timestamp = 1`` under the mysqld section in your my.cnf file.
+#. Set ``explicit_defaults_for_timestamp = 1`` under the ``mysqld`` section in your ``my.cnf`` file.
 #. Restart the Mysql server.
 
 
@@ -219,3 +214,8 @@ Why next_ds or prev_ds might not contain expected values?
   ``execution_date`` and ``schedule_interval``. If you set ``schedule_interval`` as ``None`` or ``@once``,
   the ``next_ds``, ``next_ds_nodash``, ``prev_ds``, ``prev_ds_nodash`` valueS will be set to ``None``.
 - When manually triggering DAG, the schedule will be ignored, and ``prev_ds == next_ds == ds``
+
+How do I stop the sync perms happening multiple times per webserver?
+--------------------------------------------------------------------
+
+Set the value of ``update_fab_perms`` configuration in ``airflow.cfg`` to ``False``.

@@ -18,11 +18,11 @@
 # under the License.
 
 import unittest
+from unittest.mock import call, patch
 
 from hdfs import HdfsError
-from unittest.mock import patch, call
 
-from airflow.hooks.webhdfs_hook import WebHDFSHook, AirflowWebHDFSHookException
+from airflow.hooks.webhdfs_hook import AirflowWebHDFSHookException, WebHDFSHook
 from airflow.models.connection import Connection
 
 
@@ -95,3 +95,11 @@ class TestWebHDFSHook(unittest.TestCase):
             overwrite=True,
             n_threads=1
         )
+
+    def test_simple_init(self):
+        c = WebHDFSHook()
+        self.assertIsNone(c.proxy_user)
+
+    def test_init_proxy_user(self):
+        c = WebHDFSHook(proxy_user='someone')
+        self.assertEqual('someone', c.proxy_user)

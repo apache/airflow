@@ -15,9 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from alembic import op
-
 """add idx_log_dag
 
 Revision ID: dd25f486b8ea
@@ -25,6 +22,7 @@ Revises: 9635ae0956e7
 Create Date: 2018-08-07 06:41:41.028249
 
 """
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'dd25f486b8ea'

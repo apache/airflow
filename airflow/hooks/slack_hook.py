@@ -16,43 +16,42 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Hook for Slack"""
+from typing import Optional
 
 from slack import WebClient
 from slack.errors import SlackClientError
 
-from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
 
 
+# noinspection PyAbstractClass
 class SlackHook(BaseHook):
     """
-       Interact with Slack, using slackclient library.
+    Creates a Slack connection, to be used for calls.
+
+    Takes both Slack API token directly and connection that has Slack API token.
+    If both supplied, Slack API token will be used.
+
+    Exposes also the rest of slack.WebClient args.
+
+    :param token: Slack API token
+    :type token: str
+    :param slack_conn_id: connection that has Slack API token in the password field
+    :type slack_conn_id: str
+    :param use_session: A boolean specifying if the client should take advantage of
+    connection pooling. Default is True.
+    :type base_url: bool
+    :param base_url: A string representing the Slack API base URL. Default is
+    `https://www.slack.com/api/`
+    :type base_url: str
+    :param timeout: The maximum number of seconds the client will wait
+        to connect and receive a response from Slack.
+        Default is 30 seconds.
+    :type timeout: int
     """
-
-    def __init__(self, token=None, slack_conn_id=None, **client_args):
-        """
-        Creates a Slack connection, to be used for calls.
-
-        Takes both Slack API token directly and connection that has Slack API token.
-        If both supplied, Slack API token will be used.
-
-        Exposes also the rest of slack.WebClient args.
-
-        :param token: Slack API token
-        :type token: str
-        :param slack_conn_id: connection that has Slack API token in the password field
-        :type slack_conn_id: str
-        :param use_session: A boolean specifying if the client should take advantage of
-        connection pooling. Default is True.
-        :type base_url: bool
-        :param base_url: A string representing the Slack API base URL. Default is
-        `https://www.slack.com/api/`
-        :type base_url: str
-        :param timeout: The maximum number of seconds the client will wait
-            to connect and receive a response from Slack.
-            Default is 30 seconds.
-        :type timeout: int
-        """
+    def __init__(self, token: Optional[str] = None, slack_conn_id: Optional[str] = None, **client_args) -> None:
         token = self.__get_token(token, slack_conn_id)
         self.client = WebClient(token, **client_args)
 
@@ -70,11 +69,17 @@ class SlackHook(BaseHook):
             raise AirflowException('Cannot get token: '
                                    'No valid Slack token nor slack_conn_id supplied.')
 
-    def call(self, method, api_params):
-        rc = self.client.api_call(method, **api_params)
+    def call(self, method: str, api_params: dict) -> None:
+        """
+        Calls the Slack client.
+
+        :param method: method
+        :param api_params: parameters of the API
+        """
+        return_code = self.client.api_call(method, **api_params)
 
         try:
-            rc.validate()
+            return_code.validate()
         except SlackClientError as exc:
             msg = f"Slack API call failed ({exc})"
             raise AirflowException(msg)

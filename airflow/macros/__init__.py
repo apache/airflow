@@ -17,12 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# pylint:disable=missing-docstring
+
+import time  # noqa
+import uuid  # noqa
 from datetime import datetime, timedelta
-import dateutil # noqa
-from random import random # noqa
-import time # noqa
-from . import hive # noqa
-import uuid # noqa
+from random import random  # noqa
+
+import dateutil  # noqa
+
+from . import hive  # noqa
 
 
 def ds_add(ds, days):
@@ -89,4 +93,4 @@ def _integrate_plugins():
     from airflow.plugins_manager import macros_modules
     for macros_module in macros_modules:
         sys.modules[macros_module.__name__] = macros_module
-        globals()[macros_module._name] = macros_module
+        globals()[macros_module._name] = macros_module  # pylint:disable=protected-access

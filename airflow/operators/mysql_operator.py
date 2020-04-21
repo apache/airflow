@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Iterable, Mapping, Optional, Union
 
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.models import BaseOperator
@@ -48,8 +49,13 @@ class MySqlOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, sql, mysql_conn_id='mysql_default', parameters=None,
-            autocommit=False, database=None, *args, **kwargs):
+            self,
+            sql: str,
+            mysql_conn_id: str = 'mysql_default',
+            parameters: Optional[Union[Mapping, Iterable]] = None,
+            autocommit: bool = False,
+            database: Optional[str] = None,
+            *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.mysql_conn_id = mysql_conn_id
         self.sql = sql

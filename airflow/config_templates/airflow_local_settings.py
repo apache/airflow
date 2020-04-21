@@ -16,11 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Airflow logging settings"""
 
 import os
-from typing import Dict, Any
+from typing import Any, Dict
 
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow.utils.file import mkdirs
 
 # TODO: Logging format and level should be configured
@@ -35,6 +36,12 @@ LOG_LEVEL = conf.get('core', 'LOGGING_LEVEL').upper()
 FAB_LOG_LEVEL = conf.get('core', 'FAB_LOGGING_LEVEL').upper()
 
 LOG_FORMAT = conf.get('core', 'LOG_FORMAT')
+
+COLORED_LOG_FORMAT = conf.get('core', 'COLORED_LOG_FORMAT')
+
+COLORED_LOG = conf.getboolean('core', 'COLORED_CONSOLE_LOG')
+
+COLORED_FORMATTER_CLASS = conf.get('core', 'COLORED_FORMATTER_CLASS')
 
 BASE_LOG_FOLDER = conf.get('core', 'BASE_LOG_FOLDER')
 
@@ -72,13 +79,17 @@ DEFAULT_LOGGING_CONFIG = {
     'disable_existing_loggers': False,
     'formatters': {
         'airflow': {
-            'format': LOG_FORMAT,
+            'format': LOG_FORMAT
+        },
+        'airflow_coloured': {
+            'format': COLORED_LOG_FORMAT if COLORED_LOG else LOG_FORMAT,
+            'class': COLORED_FORMATTER_CLASS if COLORED_LOG else 'logging.Formatter'
         },
     },
     'handlers': {
         'console': {
             'class': 'airflow.utils.log.logging_mixin.RedirectStdHandler',
-            'formatter': 'airflow',
+            'formatter': 'airflow_coloured',
             'stream': 'sys.stdout'
         },
         'task': {

@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 
 Tutorial
@@ -40,7 +42,7 @@ complicated, a line by line explanation follows below.
 
 
     default_args = {
-        'owner': 'airflow',
+        'owner': 'Airflow',
         'depends_on_past': False,
         'start_date': datetime(2015, 6, 1),
         'email': ['airflow@example.com'],
@@ -131,7 +133,7 @@ of default parameters that we can use when creating tasks.
     from datetime import datetime, timedelta
 
     default_args = {
-        'owner': 'airflow',
+        'owner': 'Airflow',
         'depends_on_past': False,
         'start_date': datetime(2015, 6, 1),
         'email': ['airflow@example.com'],
@@ -260,11 +262,11 @@ regarding custom filters have a look at the
 `Jinja Documentation <http://jinja.pocoo.org/docs/dev/api/#writing-filters>`_
 
 For more information on the variables and macros that can be referenced
-in templates, make sure to read through the :doc:`macros`
+in templates, make sure to read through the :doc:`macros-ref`
 
 Setting up Dependencies
 -----------------------
-We have tasks `t1`, `t2` and `t3` that do not depend on each other. Here's a few ways
+We have tasks ``t1``, ``t2`` and ``t3`` that do not depend on each other. Here's a few ways
 you can define dependencies between them:
 
 .. code:: python
@@ -316,7 +318,7 @@ something like this:
 
 
     default_args = {
-        'owner': 'airflow',
+        'owner': 'Airflow',
         'depends_on_past': False,
         'start_date': datetime(2015, 6, 1),
         'email': ['airflow@example.com'],

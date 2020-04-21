@@ -18,18 +18,16 @@
 # under the License.
 
 import datetime
-
-import funcsigs
 import sys
 import unittest
-
 from subprocess import CalledProcessError
 
+import funcsigs
+
 from airflow import DAG
+from airflow.exceptions import AirflowException
 from airflow.operators.python_operator import PythonVirtualenvOperator
 from airflow.utils import timezone
-
-from airflow.exceptions import AirflowException
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 END_DATE = timezone.datetime(2016, 1, 2)
@@ -199,20 +197,6 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         self._run_as_operator(f, op_args=[datetime.datetime.utcnow()])
 
     def test_context(self):
-        def f(**kwargs):
-            return kwargs['templates_dict']['ds']
+        def f(templates_dict):
+            return templates_dict['ds']
         self._run_as_operator(f, templates_dict={'ds': '{{ ds }}'})
-
-    def test_provide_context(self):
-        def fn():
-            pass
-        task = PythonVirtualenvOperator(
-            python_callable=fn,
-            python_version=sys.version_info[0],
-            task_id='task',
-            dag=self.dag,
-            provide_context=True,
-        )
-        self.assertTrue(
-            task.provide_context
-        )

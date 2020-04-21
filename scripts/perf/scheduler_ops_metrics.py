@@ -18,10 +18,12 @@
 # under the License.
 
 import logging
-import pandas as pd
 import sys
 
-from airflow import configuration, settings
+import pandas as pd
+
+from airflow import settings
+from airflow.configuration import conf
 from airflow.jobs import SchedulerJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.utils import timezone
@@ -191,7 +193,7 @@ def main():
             logging.error('Specify a positive integer for timeout.')
             sys.exit(1)
 
-    configuration.load_test_config()
+    conf.load_test_config()
 
     set_dags_paused_state(False)
     clear_dag_runs()

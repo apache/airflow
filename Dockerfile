@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -16,15 +15,8 @@
 #
 # WARNING: THIS DOCKERFILE IS NOT INTENDED FOR PRODUCTION USE OR DEPLOYMENT.
 #
-# Base image for the whole Docker file
-ARG APT_DEPS_IMAGE="airflow-apt-deps-ci-slim"
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-stretch"
-############################################################################################################
-# This is the slim image with APT dependencies needed by Airflow. It is based on a python slim image
-# Parameters:
-#    PYTHON_BASE_IMAGE - base python image (python:x.y-slim-stretch)
-############################################################################################################
-FROM ${PYTHON_BASE_IMAGE} as airflow-apt-deps-ci-slim
+FROM ${PYTHON_BASE_IMAGE} as main
 
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
@@ -38,12 +30,12 @@ ENV AIRFLOW_VERSION=$AIRFLOW_VERSION
 RUN echo "Base image: ${PYTHON_BASE_IMAGE}"
 RUN echo "Airflow version: ${AIRFLOW_VERSION}"
 
-# Make sure noninteractie debian install is used and language variables set
+# Make sure noninteractive debian install is used and language variables set
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 
 # By increasing this number we can do force build of all dependencies
-ARG DEPENDENCIES_EPOCH_NUMBER="1"
+ARG DEPENDENCIES_EPOCH_NUMBER="2"
 # Increase the value below to force renstalling of all dependencies
 ENV DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER}
 
@@ -55,7 +47,6 @@ RUN apt-get update \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
 
 # Install basic apt dependencies
 RUN curl -sL https://deb.nodesource.com/setup_10.x | bash - \
@@ -82,6 +73,14 @@ RUN curl -sL https://deb.nodesource.com/setup_10.x | bash - \
            rsync \
            sasl2-bin \
            sudo \
+    && apt-get autoremove -yqq --purge \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install graphviz - needed to build docs with diagrams
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+           graphviz \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -114,152 +113,124 @@ RUN adduser airflow \
     && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
     && chmod 0440 /etc/sudoers.d/airflow
 
-############################################################################################################
-# This is an image with all APT dependencies needed by CI. It is built on top of the airlfow APT image
-# Parameters:
-#     airflow-apt-deps - this is the base image for CI deps image.
-############################################################################################################
-FROM airflow-apt-deps-ci-slim as airflow-apt-deps-ci
-
-SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
-
 ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
 
-ARG APT_DEPS_IMAGE="airflow-apt-deps-ci-slim"
-ENV APT_DEPS_IMAGE=${APT_DEPS_IMAGE}
+# Note missing man directories on debian-stretch
+# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
+RUN mkdir -pv /usr/share/man/man1 \
+    && mkdir -pv /usr/share/man/man7 \
+    && apt-get update \
+    && apt-get install --no-install-recommends -y \
+      gnupg \
+      apt-transport-https \
+      ca-certificates \
+      software-properties-common \
+      krb5-user \
+      ldap-utils \
+      less \
+      lsb-release \
+      net-tools \
+      openjdk-8-jdk \
+      openssh-client \
+      openssh-server \
+      postgresql-client \
+      python-selinux \
+      sqlite3 \
+      tmux \
+      unzip \
+      vim \
+    && apt-get autoremove -yqq --purge \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN echo "${APT_DEPS_IMAGE}"
+ENV HADOOP_DISTRO="cdh" HADOOP_MAJOR="5" HADOOP_DISTRO_VERSION="5.11.0" HADOOP_VERSION="2.6.0" \
+    HADOOP_HOME="/opt/hadoop-cdh"
+ENV HIVE_VERSION="1.1.0" HIVE_HOME="/opt/hive"
+ENV HADOOP_URL="https://archive.cloudera.com/${HADOOP_DISTRO}${HADOOP_MAJOR}/${HADOOP_DISTRO}/${HADOOP_MAJOR}/"
+ENV MINICLUSTER_BASE="https://github.com/bolkedebruin/minicluster/releases/download/" \
+    MINICLUSTER_HOME="/opt/minicluster" \
+    MINICLUSTER_VER="1.1"
 
-# Note the ifs below might be removed if Buildkit will become usable. It should skip building this
-# image automatically if it is not used. For now we still go through all layers below but they are empty
-RUN if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-        # Note missing man directories on debian-stretch
-        # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
-        mkdir -pv /usr/share/man/man1 \
-        && mkdir -pv /usr/share/man/man7 \
-        && apt-get update \
-        && apt-get install --no-install-recommends -y \
-          gnupg \
-          krb5-user \
-          ldap-utils \
-          less \
-          lsb-release \
-          net-tools \
-          openjdk-8-jdk \
-          openssh-client \
-          openssh-server \
-          postgresql-client \
-          python-selinux \
-          sqlite3 \
-          tmux \
-          unzip \
-          vim \
-        && apt-get autoremove -yqq --purge \
-        && apt-get clean \
-        && rm -rf /var/lib/apt/lists/* \
-        ;\
-    fi
+RUN mkdir -pv "${HADOOP_HOME}" \
+    && mkdir -pv "${HIVE_HOME}" \
+    && mkdir -pv "${MINICLUSTER_HOME}" \
+    && mkdir -pv "/user/hive/warehouse" \
+    && chmod -R 777 "${HIVE_HOME}" \
+    && chmod -R 777 "/user/"
 
-ENV HADOOP_DISTRO=cdh \
-    HADOOP_MAJOR=5 \
-    HADOOP_DISTRO_VERSION=5.11.0 \
-    HADOOP_VERSION=2.6.0 \
-    HIVE_VERSION=1.1.0
-ENV HADOOP_URL=https://archive.cloudera.com/${HADOOP_DISTRO}${HADOOP_MAJOR}/${HADOOP_DISTRO}/${HADOOP_MAJOR}/
-ENV HADOOP_HOME=/tmp/hadoop-cdh HIVE_HOME=/tmp/hive
+ENV HADOOP_DOWNLOAD_URL="${HADOOP_URL}hadoop-${HADOOP_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz" \
+    HADOOP_TMP_FILE="/tmp/hadoop.tar.gz"
 
-RUN \
-if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-    mkdir -pv ${HADOOP_HOME} \
-    && mkdir -pv ${HIVE_HOME} \
-    && mkdir /tmp/minicluster \
-    && mkdir -pv /user/hive/warehouse \
-    && chmod -R 777 ${HIVE_HOME} \
-    && chmod -R 777 /user/ \
-    ;\
-fi
-# Install Hadoop
-# --absolute-names is a work around to avoid this issue https://github.com/docker/hub-feedback/issues/727
-RUN \
-if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-    HADOOP_URL=${HADOOP_URL}hadoop-${HADOOP_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz \
-    && HADOOP_TMP_FILE=/tmp/hadoop.tar.gz \
-    && curl -sL ${HADOOP_URL} > ${HADOOP_TMP_FILE} \
-    && tar xzf ${HADOOP_TMP_FILE} --absolute-names --strip-components 1 -C ${HADOOP_HOME} \
-    && rm ${HADOOP_TMP_FILE} \
-    ;\
-fi
+RUN curl -sL "${HADOOP_DOWNLOAD_URL}" >"${HADOOP_TMP_FILE}" \
+    && tar xzf "${HADOOP_TMP_FILE}" --absolute-names --strip-components 1 -C "${HADOOP_HOME}" \
+    && rm "${HADOOP_TMP_FILE}"
 
-# Install Hive
-RUN \
-if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-    HIVE_URL=${HADOOP_URL}hive-${HIVE_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz \
-    && HIVE_TMP_FILE=/tmp/hive.tar.gz \
-    && curl -sL ${HIVE_URL} > ${HIVE_TMP_FILE} \
-    && tar xzf ${HIVE_TMP_FILE} --strip-components 1 -C ${HIVE_HOME} \
-    && rm ${HIVE_TMP_FILE} \
-    ;\
-fi
+ENV HIVE_URL="${HADOOP_URL}hive-${HIVE_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz" \
+    HIVE_TMP_FILE="/tmp/hive.tar.gz"
 
-ENV MINICLUSTER_URL=https://github.com/bolkedebruin/minicluster/releases/download/
-ENV MINICLUSTER_VER=1.1
-# Install MiniCluster TODO: install it differently. Installing to /tmp is probably a bad idea
-RUN \
-if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-    MINICLUSTER_URL=${MINICLUSTER_URL}${MINICLUSTER_VER}/minicluster-${MINICLUSTER_VER}-SNAPSHOT-bin.zip \
-    && MINICLUSTER_TMP_FILE=/tmp/minicluster.zip \
-    && curl -sL ${MINICLUSTER_URL} > ${MINICLUSTER_TMP_FILE} \
-    && unzip ${MINICLUSTER_TMP_FILE} -d /tmp \
-    && rm ${MINICLUSTER_TMP_FILE} \
-    ;\
-fi
+RUN curl -sL "${HIVE_URL}" >"${HIVE_TMP_FILE}" \
+    && tar xzf "${HIVE_TMP_FILE}" --strip-components 1 -C "${HIVE_HOME}" \
+    && rm "${HIVE_TMP_FILE}"
 
-ENV PATH "${PATH}:/tmp/hive/bin"
+ENV MINICLUSTER_URL="${MINICLUSTER_BASE}${MINICLUSTER_VER}/minicluster-${MINICLUSTER_VER}-SNAPSHOT-bin.zip" \
+    MINICLUSTER_TMP_FILE="/tmp/minicluster.zip"
 
-ARG RAT_VERSION="0.12"
+RUN curl -sL "${MINICLUSTER_URL}" > "${MINICLUSTER_TMP_FILE}" \
+    && unzip "${MINICLUSTER_TMP_FILE}" -d "/opt" \
+    && rm "${MINICLUSTER_TMP_FILE}"
+
+ENV PATH "${PATH}:/opt/hive/bin"
+
+RUN curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add - \
+    && add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian stretch stable" \
+    && apt-get update \
+    && apt-get -y install --no-install-recommends docker-ce \
+    && apt-get autoremove -yqq --purge \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+ARG KUBECTL_VERSION="v1.15.0"
+ENV KUBECTL_VERSION=${KUBECTL_VERSION}
+ARG KIND_VERSION="v0.5.0"
+ENV KIND_VERSION=${KIND_VERSION}
+
+RUN curl -Lo kubectl \
+  "https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
+  && chmod +x kubectl \
+  && mv kubectl /usr/local/bin/kubectl
+
+RUN curl -Lo kind \
+   "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64" \
+   && chmod +x kind \
+   && mv kind /usr/local/bin/kind
+
+ARG RAT_VERSION="0.13"
 
 ENV RAT_VERSION="${RAT_VERSION}" \
-    RAT_JAR="/tmp/apache-rat-${RAT_VERSION}.jar" \
-    RAT_URL="http://repo1.maven.org/maven2/org/apache/rat/apache-rat/${RAT_VERSION}/apache-rat-${RAT_VERSION}.jar"
+    RAT_JAR="/opt/apache-rat-${RAT_VERSION}.jar" \
+    RAT_URL="https://repo1.maven.org/maven2/org/apache/rat/apache-rat/${RAT_VERSION}/apache-rat-${RAT_VERSION}.jar"
+ENV RAT_JAR_MD5="${RAT_JAR}.md5" \
+    RAT_URL_MD5="${RAT_URL}.md5"
 
-RUN \
-if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-    echo "Downloading RAT from ${RAT_URL} to ${RAT_JAR}" \
-    && curl -sL ${RAT_URL} > ${RAT_JAR} \
-    ;\
-fi
+RUN echo "Downloading RAT from ${RAT_URL} to ${RAT_JAR}" \
+    && curl -sL "${RAT_URL}" > "${RAT_JAR}" \
+    && curl -sL "${RAT_URL_MD5}" > "${RAT_JAR_MD5}" \
+    && jar -tf "${RAT_JAR}" >/dev/null \
+    && md5sum -c <<<"$(cat "${RAT_JAR_MD5}") ${RAT_JAR}"
 
-############################################################################################################
-# This is the target image - it installs PIP and NPM dependencies including efficient caching
-# mechanisms - it might be used to build the bare airflow build or CI build
-# Parameters:
-#    APT_DEPS_IMAGE - image with APT dependencies. It might either be base deps image with airflow
-#                     dependencies or CI deps image that contains also CI-required dependencies
-############################################################################################################
-FROM ${APT_DEPS_IMAGE} as main
-
-SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
-
-WORKDIR /opt/airflow
-
-RUN echo "Airflow version: ${AIRFLOW_VERSION}"
-
-ARG AIRFLOW_USER=airflow
-ENV AIRFLOW_USER=${AIRFLOW_USER}
-
-ARG HOME=/home/airflow
+ARG HOME=/root
 ENV HOME=${HOME}
 
-ARG AIRFLOW_HOME=${HOME}/airflow
+ARG AIRFLOW_HOME=/root/airflow
 ENV AIRFLOW_HOME=${AIRFLOW_HOME}
 
 ARG AIRFLOW_SOURCES=/opt/airflow
 ENV AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
 
+WORKDIR ${AIRFLOW_SOURCES}
+
 RUN mkdir -pv ${AIRFLOW_HOME} \
     mkdir -pv ${AIRFLOW_HOME}/dags \
-    mkdir -pv ${AIRFLOW_HOME}/logs \
-    && chown -R ${AIRFLOW_USER}.${AIRFLOW_USER} ${AIRFLOW_HOME}
+    mkdir -pv ${AIRFLOW_HOME}/logs
 
 # Increase the value here to force reinstalling Apache Airflow pip dependencies
 ARG PIP_DEPENDENCIES_EPOCH_NUMBER="1"
@@ -280,7 +251,7 @@ ENV PIP_NO_CACHE_DIR=${PIP_NO_CACHE_DIR}
 RUN echo "Pip no cache dir: ${PIP_NO_CACHE_DIR}"
 
 # PIP version used to install dependencies
-ARG PIP_VERSION="19.0.1"
+ARG PIP_VERSION="19.0.2"
 ENV PIP_VERSION=${PIP_VERSION}
 RUN echo "Pip version: ${PIP_VERSION}"
 
@@ -303,10 +274,9 @@ RUN echo "Installing with extras: ${AIRFLOW_EXTRAS}."
 ARG AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="false"
 ENV AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD=${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}
 
-# By changing the CI build epoch we can force reinstalling Arflow from the current master -
-# in case of CI optimized builds (next step). Our build scripts will change the EPOCH every month normally
-# But it can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
-ARG AIRFLOW_CI_BUILD_EPOCH=""
+# By changing the CI build epoch we can force reinstalling Arflow from the current master
+# It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
+ARG AIRFLOW_CI_BUILD_EPOCH="1"
 ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
 
 # In case of CI-optimised builds we want to pre-install master version of airflow dependencies so that
@@ -315,10 +285,22 @@ ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
 # And is automatically reinstalled from the scratch every month
 RUN \
     if [[ "${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" == "true" ]]; then \
-        pip install --no-use-pep517 \
+        pip install \
         "https://github.com/apache/airflow/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
         && pip uninstall --yes apache-airflow; \
     fi
+
+# Install NPM dependencies here. The NPM dependencies don't change that often and we already have pip
+# installed dependencies in case of CI optimised build, so it is ok to install NPM deps here
+# Rather than after setup.py is added.
+COPY airflow/www/package-lock.json ${AIRFLOW_SOURCES}/airflow/www/package-lock.json
+COPY airflow/www/package.json ${AIRFLOW_SOURCES}/airflow/www/package.json
+
+WORKDIR ${AIRFLOW_SOURCES}/airflow/www
+
+RUN npm ci
+
+WORKDIR ${AIRFLOW_SOURCES}
 
 # Note! We are copying everything with airflow:airflow user:group even if we use root to run the scripts
 # This is fine as root user will be able to use those dirs anyway.
@@ -326,62 +308,54 @@ RUN \
 # Airflow sources change frequently but dependency configuration won't change that often
 # We copy setup.py and other files needed to perform setup of dependencies
 # So in case setup.py changes we can install latest dependencies required.
-COPY --chown=airflow:airflow setup.py ${AIRFLOW_SOURCES}/setup.py
-COPY --chown=airflow:airflow setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
+COPY setup.py ${AIRFLOW_SOURCES}/setup.py
+COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
 
-COPY --chown=airflow:airflow airflow/version.py ${AIRFLOW_SOURCES}/airflow/version.py
-COPY --chown=airflow:airflow airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
-COPY --chown=airflow:airflow airflow/bin/airflow ${AIRFLOW_SOURCES}/airflow/bin/airflow
+COPY airflow/version.py ${AIRFLOW_SOURCES}/airflow/version.py
+COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
+COPY airflow/bin/airflow ${AIRFLOW_SOURCES}/airflow/bin/airflow
 
 # The goal of this line is to install the dependencies from the most current setup.py from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
 # In non-CI optimized build this will install all dependencies before installing sources.
-RUN pip install --no-use-pep517 -e ".[${AIRFLOW_EXTRAS}]"
-
-COPY --chown=airflow:airflow airflow/www/package.json ${AIRFLOW_SOURCES}/airflow/www/package.json
-COPY --chown=airflow:airflow airflow/www/package-lock.json ${AIRFLOW_SOURCES}/airflow/www/package-lock.json
+RUN pip install -e ".[${AIRFLOW_EXTRAS}]"
 
 WORKDIR ${AIRFLOW_SOURCES}/airflow/www
 
-ARG BUILD_NPM=true
-ENV BUILD_NPM=${BUILD_NPM}
-
-# Install necessary NPM dependencies (triggered by changes in package-lock.json)
-RUN \
-    if [[ "${BUILD_NPM}" == "true" ]]; then \
-        gosu ${AIRFLOW_USER} npm ci; \
-    fi
-
-COPY --chown=airflow:airflow airflow/www/ ${AIRFLOW_SOURCES}/airflow/www/
+# Copy all www files here so that we can run npm building for production
+COPY airflow/www/ ${AIRFLOW_SOURCES}/airflow/www/
 
 # Package NPM for production
-RUN \
-    if [[ "${BUILD_NPM}" == "true" ]]; then \
-        gosu ${AIRFLOW_USER} npm run prod; \
-    fi
+RUN npm run prod
 
-# Always apt-get update/upgrade here to get latest dependencies before
-# we redo pip install
-RUN apt-get update \
-    && apt-get upgrade -y --no-install-recommends \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+COPY ./scripts/docker/entrypoint.sh /entrypoint.sh
 
-# Cache for this line will be automatically invalidated if any
-# of airflow sources change
-COPY --chown=airflow:airflow . ${AIRFLOW_SOURCES}/
+COPY .bash_completion run-tests-complete run-tests ${HOME}/
+
+COPY .bash_completion.d/run-tests-complete \
+     ${HOME}/.bash_completion.d/run-tests-complete
+
+RUN echo ". ${HOME}/.bash_completion" >> "${HOME}/.bashrc"
+
+RUN chmod +x "${HOME}/run-tests-complete"
+
+RUN chmod +x "${HOME}/run-tests"
+
+# Copy selected subdirectories only
+COPY .github/ ${AIRFLOW_SOURCES}/.github/
+COPY dags/ ${AIRFLOW_SOURCES}/dags/
+COPY common/ ${AIRFLOW_SOURCES}/common/
+COPY licenses/ ${AIRFLOW_SOURCES}/licenses/
+COPY scripts/ci/ ${AIRFLOW_SOURCES}/scripts/ci/
+COPY docs/ ${AIRFLOW_SOURCES}/docs/
+COPY tests/ ${AIRFLOW_SOURCES}/tests/
+COPY airflow/ ${AIRFLOW_SOURCES}/airflow/
+COPY .coveragerc .rat-excludes .flake8 pylintrc LICENSE MANIFEST.in NOTICE CHANGELOG.txt \
+     .github .bash_completion .bash_completion.d run-tests run-tests-complete \
+     setup.cfg setup.py \
+     ${AIRFLOW_SOURCES}/
 
 WORKDIR ${AIRFLOW_SOURCES}
-
-# Finally install the requirements from the latest sources
-RUN pip install --no-use-pep517 -e ".[${AIRFLOW_EXTRAS}]"
-
-# Always add-get update/upgrade here to get latest dependencies before
-# we redo pip install
-RUN apt-get update \
-    && apt-get upgrade -y --no-install-recommends \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
 
 # Additional python deps to install
 ARG ADDITIONAL_PYTHON_DEPS=""
@@ -389,10 +363,6 @@ ARG ADDITIONAL_PYTHON_DEPS=""
 RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
         pip install ${ADDITIONAL_PYTHON_DEPS}; \
     fi
-
-COPY --chown=airflow:airflow ./scripts/docker/entrypoint.sh /entrypoint.sh
-
-USER ${AIRFLOW_USER}
 
 WORKDIR ${AIRFLOW_SOURCES}
 

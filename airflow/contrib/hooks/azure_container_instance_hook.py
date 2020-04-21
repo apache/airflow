@@ -20,14 +20,13 @@
 
 import os
 
-from airflow.hooks.base_hook import BaseHook
-from airflow.exceptions import AirflowException
-
 from azure.common.client_factory import get_client_from_auth_file
 from azure.common.credentials import ServicePrincipalCredentials
-
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 from zope.deprecation import deprecation
+
+from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
 
 
 class AzureContainerInstanceHook(BaseHook):

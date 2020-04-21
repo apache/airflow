@@ -22,8 +22,8 @@ import json
 
 import requests
 
-from airflow.hooks.http_hook import HttpHook
 from airflow import AirflowException
+from airflow.hooks.http_hook import HttpHook
 
 
 class OpsgenieAlertHook(HttpHook):

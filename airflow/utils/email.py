@@ -17,16 +17,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import collections
 import importlib
 import os
 import smtplib
-
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from email.utils import formatdate
+from typing import Iterable, List, Union
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -37,7 +38,7 @@ def send_email(to, subject, html_content,
     """
     Send email using backend specified in EMAIL_BACKEND.
     """
-    path, attr = configuration.conf.get('email', 'EMAIL_BACKEND').rsplit('.', 1)
+    path, attr = conf.get('email', 'EMAIL_BACKEND').rsplit('.', 1)
     module = importlib.import_module(path)
     backend = getattr(module, attr)
     to = get_email_address_list(to)
@@ -57,7 +58,7 @@ def send_email_smtp(to, subject, html_content, files=None,
 
     >>> send_email('test@example.com', 'foo', '<b>Foo</b> bar', ['/dev/null'], dryrun=True)
     """
-    smtp_mail_from = configuration.conf.get('smtp', 'SMTP_MAIL_FROM')
+    smtp_mail_from = conf.get('smtp', 'SMTP_MAIL_FROM')
 
     to = get_email_address_list(to)
 
@@ -97,16 +98,16 @@ def send_email_smtp(to, subject, html_content, files=None,
 def send_MIME_email(e_from, e_to, mime_msg, dryrun=False):
     log = LoggingMixin().log
 
-    SMTP_HOST = configuration.conf.get('smtp', 'SMTP_HOST')
-    SMTP_PORT = configuration.conf.getint('smtp', 'SMTP_PORT')
-    SMTP_STARTTLS = configuration.conf.getboolean('smtp', 'SMTP_STARTTLS')
-    SMTP_SSL = configuration.conf.getboolean('smtp', 'SMTP_SSL')
+    SMTP_HOST = conf.get('smtp', 'SMTP_HOST')
+    SMTP_PORT = conf.getint('smtp', 'SMTP_PORT')
+    SMTP_STARTTLS = conf.getboolean('smtp', 'SMTP_STARTTLS')
+    SMTP_SSL = conf.getboolean('smtp', 'SMTP_SSL')
     SMTP_USER = None
     SMTP_PASSWORD = None
 
     try:
-        SMTP_USER = configuration.conf.get('smtp', 'SMTP_USER')
-        SMTP_PASSWORD = configuration.conf.get('smtp', 'SMTP_PASSWORD')
+        SMTP_USER = conf.get('smtp', 'SMTP_USER')
+        SMTP_PASSWORD = conf.get('smtp', 'SMTP_PASSWORD')
     except AirflowConfigException:
         log.debug("No user/password found for SMTP, so logging in with no authentication.")
 
@@ -121,13 +122,22 @@ def send_MIME_email(e_from, e_to, mime_msg, dryrun=False):
         s.quit()
 
 
-def get_email_address_list(address_string):
-    if isinstance(address_string, str):
-        if ',' in address_string:
-            address_string = [address.strip() for address in address_string.split(',')]
-        elif ';' in address_string:
-            address_string = [address.strip() for address in address_string.split(';')]
-        else:
-            address_string = [address_string]
+def get_email_address_list(addresses: Union[str, Iterable[str]]) -> List[str]:
+    if isinstance(addresses, str):
+        return _get_email_list_from_str(addresses)
 
-    return address_string
+    elif isinstance(addresses, collections.abc.Iterable):
+        if not all(isinstance(item, str) for item in addresses):
+            raise TypeError("The items in your iterable must be strings.")
+        return list(addresses)
+
+    received_type = type(addresses).__name__
+    raise TypeError("Unexpected argument type: Received '{}'.".format(received_type))
+
+
+def _get_email_list_from_str(addresses: str) -> List[str]:
+    delimiters = [",", ";"]
+    for delimiter in delimiters:
+        if delimiter in addresses:
+            return [address.strip() for address in addresses.split(delimiter)]
+    return [addresses]

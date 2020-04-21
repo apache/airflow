@@ -20,10 +20,11 @@
 import json
 import unittest
 
+from airflow.exceptions import AirflowException
 from airflow.operators.slack_operator import SlackAPIPostOperator
 
 
-class SlackAPIPostOperatorTestCase(unittest.TestCase):
+class TestSlackAPIPostOperator(unittest.TestCase):
     def setUp(self):
         self.test_username = 'test_username'
         self.test_channel = '#test_slack_channel'
@@ -54,9 +55,29 @@ class SlackAPIPostOperatorTestCase(unittest.TestCase):
                 "ts": 123456789
             }
         ]
+        self.test_blocks = [
+            {
+                "type": "section",
+                "text": {
+                    "text": "A message *with some bold text* and _some italicized text_.",
+                    "type": "mrkdwn"
+                },
+                "fields": [
+                    {
+                        "type": "mrkdwn",
+                        "text": "High"
+                    },
+                    {
+                        "type": "plain_text",
+                        "emoji": True,
+                        "text": "String"
+                    }
+                ]
+            }
+        ]
         self.test_attachments_in_json = json.dumps(self.test_attachments)
+        self.test_blocks_in_json = json.dumps(self.test_blocks)
         self.test_api_params = {'key': 'value'}
-        self.test_kwarg = 'test_kwarg'
 
         self.expected_method = 'chat.postMessage'
         self.expected_api_params = {
@@ -65,6 +86,7 @@ class SlackAPIPostOperatorTestCase(unittest.TestCase):
             'text': self.test_text,
             'icon_url': self.test_icon_url,
             'attachments': self.test_attachments_in_json,
+            'blocks': self.test_blocks_in_json,
         }
 
     def __construct_operator(self, test_token, test_slack_conn_id, test_api_params=None):
@@ -77,8 +99,8 @@ class SlackAPIPostOperatorTestCase(unittest.TestCase):
             text=self.test_text,
             icon_url=self.test_icon_url,
             attachments=self.test_attachments,
+            blocks=self.test_blocks,
             api_params=test_api_params,
-            kwarg=self.test_kwarg
         )
 
     def test_init_with_valid_params(self):
@@ -95,6 +117,7 @@ class SlackAPIPostOperatorTestCase(unittest.TestCase):
         self.assertEqual(slack_api_post_operator.username, self.test_username)
         self.assertEqual(slack_api_post_operator.icon_url, self.test_icon_url)
         self.assertEqual(slack_api_post_operator.attachments, self.test_attachments)
+        self.assertEqual(slack_api_post_operator.blocks, self.test_blocks)
 
         slack_api_post_operator = self.__construct_operator(None, test_slack_conn_id)
         self.assertEqual(slack_api_post_operator.token, None)

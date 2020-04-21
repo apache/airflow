@@ -18,8 +18,9 @@
 # under the License.
 
 import datetime
-import pendulum
 import unittest
+
+import pendulum
 
 from airflow.utils import timezone
 
@@ -29,7 +30,7 @@ ICT = pendulum.timezone('Asia/Bangkok')  # Asia/Bangkok
 UTC = timezone.utc
 
 
-class TimezoneTest(unittest.TestCase):
+class TestTimezone(unittest.TestCase):
     def test_is_aware(self):
         self.assertTrue(timezone.is_localized(datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT)))
         self.assertFalse(timezone.is_localized(datetime.datetime(2011, 9, 1, 13, 20, 30)))

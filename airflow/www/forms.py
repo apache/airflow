@@ -17,19 +17,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.models import Connection
-from airflow.utils import timezone
-
+from flask_appbuilder.fieldwidgets import (
+    BS3PasswordFieldWidget, BS3TextAreaFieldWidget, BS3TextFieldWidget, DateTimePickerWidget, Select2Widget,
+)
 from flask_appbuilder.forms import DynamicForm
-from flask_appbuilder.fieldwidgets import (BS3TextFieldWidget, BS3TextAreaFieldWidget,
-                                           BS3PasswordFieldWidget, Select2Widget,
-                                           DateTimePickerWidget)
 from flask_babel import lazy_gettext
 from flask_wtf import FlaskForm
-
 from wtforms import validators
-from wtforms.fields import (IntegerField, SelectField, TextAreaField, PasswordField,
-                            StringField, DateTimeField, BooleanField)
+from wtforms.fields import (
+    BooleanField, DateTimeField, IntegerField, PasswordField, SelectField, StringField, TextAreaField,
+)
+
+from airflow.models import Connection
+from airflow.utils import timezone
 
 
 class DateTimeForm(FlaskForm):

@@ -22,7 +22,7 @@ from datetime import datetime
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
-from airflow.operators.check_operator import ValueCheckOperator, CheckOperator, IntervalCheckOperator
+from airflow.operators.check_operator import CheckOperator, IntervalCheckOperator, ValueCheckOperator
 from tests.compat import mock
 
 
@@ -64,19 +64,19 @@ class TestValueCheckOperator(unittest.TestCase):
         pass_value_str = "2018-03-22"
         operator = self._construct_operator('select date from tab1;', "{{ ds }}")
 
-        result = operator.render_template('pass_value', operator.pass_value, {'ds': pass_value_str})
+        operator.render_template_fields({'ds': pass_value_str})
 
         self.assertEqual(operator.task_id, self.task_id)
-        self.assertEqual(result, pass_value_str)
+        self.assertEqual(operator.pass_value, pass_value_str)
 
     def test_pass_value_template_string_float(self):
         pass_value_float = 4.0
         operator = self._construct_operator('select date from tab1;', pass_value_float)
 
-        result = operator.render_template('pass_value', operator.pass_value, {})
+        operator.render_template_fields({})
 
         self.assertEqual(operator.task_id, self.task_id)
-        self.assertEqual(result, str(pass_value_float))
+        self.assertEqual(operator.pass_value, str(pass_value_float))
 
     @mock.patch.object(ValueCheckOperator, 'get_db_hook')
     def test_execute_pass(self, mock_get_db_hook):
@@ -88,7 +88,7 @@ class TestValueCheckOperator(unittest.TestCase):
 
         operator.execute(None)
 
-        mock_hook.get_first.assert_called_with(sql)
+        mock_hook.get_first.assert_called_once_with(sql)
 
     @mock.patch.object(ValueCheckOperator, 'get_db_hook')
     def test_execute_fail(self, mock_get_db_hook):
@@ -102,7 +102,7 @@ class TestValueCheckOperator(unittest.TestCase):
             operator.execute()
 
 
-class IntervalCheckOperatorTest(unittest.TestCase):
+class TestIntervalCheckOperator(unittest.TestCase):
 
     def _construct_operator(self, table, metric_thresholds,
                             ratio_formula, ignore_zero):

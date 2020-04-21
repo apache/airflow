@@ -21,15 +21,13 @@ import json
 import unittest
 from unittest.mock import patch
 
-from airflow.models import Connection
-from airflow.contrib.hooks.azure_container_instance_hook import AzureContainerInstanceHook
-from airflow.utils import db
+from azure.mgmt.containerinstance.models import (
+    Container, ContainerGroup, Logs, ResourceRequests, ResourceRequirements,
+)
 
-from azure.mgmt.containerinstance.models import (Container,
-                                                 ContainerGroup,
-                                                 Logs,
-                                                 ResourceRequests,
-                                                 ResourceRequirements)
+from airflow.contrib.hooks.azure_container_instance_hook import AzureContainerInstanceHook
+from airflow.models import Connection
+from airflow.utils import db
 
 
 class TestAzureContainerInstanceHook(unittest.TestCase):
@@ -58,12 +56,12 @@ class TestAzureContainerInstanceHook(unittest.TestCase):
     @patch('azure.mgmt.containerinstance.operations.ContainerGroupsOperations.create_or_update')
     def test_create_or_update(self, create_or_update_mock, container_group_mock):
         self.testHook.create_or_update('resource_group', 'aci-test', container_group_mock)
-        create_or_update_mock.assert_called_with('resource_group', 'aci-test', container_group_mock)
+        create_or_update_mock.assert_called_once_with('resource_group', 'aci-test', container_group_mock)
 
     @patch('azure.mgmt.containerinstance.operations.ContainerGroupsOperations.get')
     def test_get_state(self, get_state_mock):
         self.testHook.get_state('resource_group', 'aci-test')
-        get_state_mock.assert_called_with('resource_group', 'aci-test', raw=False)
+        get_state_mock.assert_called_once_with('resource_group', 'aci-test', raw=False)
 
     @patch('azure.mgmt.containerinstance.operations.ContainerOperations.list_logs')
     def test_get_logs(self, list_logs_mock):
@@ -78,7 +76,7 @@ class TestAzureContainerInstanceHook(unittest.TestCase):
     @patch('azure.mgmt.containerinstance.operations.ContainerGroupsOperations.delete')
     def test_delete(self, delete_mock):
         self.testHook.delete('resource_group', 'aci-test')
-        delete_mock.assert_called_with('resource_group', 'aci-test')
+        delete_mock.assert_called_once_with('resource_group', 'aci-test')
 
     @patch('azure.mgmt.containerinstance.operations.ContainerGroupsOperations.list_by_resource_group')
     def test_exists_with_existing(self, list_mock):

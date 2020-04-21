@@ -17,8 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from wtforms.validators import EqualTo
-from wtforms.validators import ValidationError
+from wtforms.validators import EqualTo, ValidationError
 
 
 class GreaterEqualThan(EqualTo):

@@ -18,7 +18,6 @@
 # under the License.
 
 import unittest
-
 from unittest import mock
 
 from airflow import DAG

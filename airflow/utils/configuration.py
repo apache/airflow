@@ -17,11 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
 import json
+import os
 from tempfile import mkstemp
 
-from airflow import configuration as conf
+from airflow.configuration import conf
 
 
 def tmp_configuration_copy(chmod=0o600, include_env=True, include_cmds=True):

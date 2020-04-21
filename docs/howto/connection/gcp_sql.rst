@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,19 +6,21 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
 
+
+
 Google Cloud SQL Connection
 ===========================
 
-The gcpcloudsql:// connection is used by
+The ``gcpcloudsql://`` connection is used by
 :class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlQueryOperator` to perform query
 on a Google Cloud SQL database. Google Cloud SQL database can be either
 Postgres or MySQL, so this is a "meta" connection type. It introduces common schema
@@ -65,7 +67,7 @@ Extra (optional)
           "sql_proxy_use_tcp": false
        }
 
-    When specifying the connection as URI (in AIRFLOW_CONN_* variable), you should specify
+    When specifying the connection as URI (in ``AIRFLOW_CONN_*`` variable), you should specify
     it following the standard syntax of DB connection, where extras are passed as
     parameters of the URI. Note that all components of the URI should be URL-encoded.
 
@@ -73,4 +75,4 @@ Extra (optional)
 
     .. code-block:: bash
 
-        gcpcloudsql://user:XXXXXXXXX@1.1.1.1:3306/mydb?database_type=mysql&project_id=example-project&location=europe-west1&instance=testinstance&use_proxy=True&sql_proxy_use_tcp=False
+        export AIRFLOW_CONN_GOOGLE_CLOUD_SQL_DEFAULT='gcpcloudsql://user:XXXXXXXXX@1.1.1.1:3306/mydb?database_type=mysql&project_id=example-project&location=europe-west1&instance=testinstance&use_proxy=True&sql_proxy_use_tcp=False'

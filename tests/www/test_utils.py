@@ -18,16 +18,18 @@
 # under the License.
 
 import unittest
-from unittest import mock
 from datetime import datetime
+from unittest import mock
 from urllib.parse import parse_qs
 
 from bs4 import BeautifulSoup
+from parameterized import parameterized
 
 from airflow.www import utils
+from tests.test_utils.config import conf_vars
 
 
-class UtilsTest(unittest.TestCase):
+class TestUtils(unittest.TestCase):
     def test_empty_variable_should_not_be_hidden(self):
         self.assertFalse(utils.should_hide_value_for_key(""))
         self.assertFalse(utils.should_hide_value_for_key(None))
@@ -103,19 +105,43 @@ class UtilsTest(unittest.TestCase):
         self.assertEqual('search=bash_',
                          utils.get_params(search='bash_'))
 
-    def test_params_showPaused_true(self):
-        """Should detect True as default for showPaused"""
-        self.assertEqual('',
-                         utils.get_params(showPaused=True))
+    @parameterized.expand([
+        (True, False, ''),
+        (False, True, ''),
+        (True, True, 'showPaused=True'),
+        (False, False, 'showPaused=False'),
+        (None, True, ''),
+        (None, False, ''),
+    ])
+    def test_params_show_paused(self, show_paused, hide_by_default, expected_result):
+        with conf_vars({('webserver', 'hide_paused_dags_by_default'): str(hide_by_default)}):
+            self.assertEqual(expected_result,
+                             utils.get_params(showPaused=show_paused))
 
-    def test_params_showPaused_false(self):
-        self.assertEqual('showPaused=False',
-                         utils.get_params(showPaused=False))
+    @parameterized.expand([
+        (True, False, True),
+        (False, True, True),
+        (True, True, False),
+        (False, False, False),
+        (None, True, True),
+        (None, False, True),
+    ])
+    def test_should_remove_show_paused_from_url_params(self, show_paused,
+                                                       hide_by_default, expected_result):
+        with conf_vars({('webserver', 'hide_paused_dags_by_default'): str(hide_by_default)}):
+
+            self.assertEqual(
+                expected_result,
+                utils._should_remove_show_paused_from_url_params(
+                    show_paused,
+                    hide_by_default
+                )
+            )
 
     def test_params_none_and_zero(self):
-        qs = utils.get_params(a=0, b=None)
+        query_str = utils.get_params(a=0, b=None)
         # The order won't be consistent, but that doesn't affect behaviour of a browser
-        pairs = list(sorted(qs.split('&')))
+        pairs = list(sorted(query_str.split('&')))
         self.assertListEqual(['a=0', 'b='], pairs)
 
     def test_params_all(self):
@@ -135,26 +161,26 @@ class UtilsTest(unittest.TestCase):
         with mock.patch(
                 'io.open', mock.mock_open(read_data="data")) as mock_file:
             utils.open_maybe_zipped('/path/to/some/file.txt')
-            mock_file.assert_called_with('/path/to/some/file.txt', mode='r')
+            mock_file.assert_called_once_with('/path/to/some/file.txt', mode='r')
 
     def test_open_maybe_zipped_normal_file_with_zip_in_name(self):
         path = '/path/to/fakearchive.zip.other/file.txt'
         with mock.patch(
                 'io.open', mock.mock_open(read_data="data")) as mock_file:
             utils.open_maybe_zipped(path)
-            mock_file.assert_called_with(path, mode='r')
+            mock_file.assert_called_once_with(path, mode='r')
 
     @mock.patch("zipfile.is_zipfile")
     @mock.patch("zipfile.ZipFile")
-    def test_open_maybe_zipped_archive(self, mocked_ZipFile, mocked_is_zipfile):
+    def test_open_maybe_zipped_archive(self, mocked_zip_file, mocked_is_zipfile):
         mocked_is_zipfile.return_value = True
-        instance = mocked_ZipFile.return_value
+        instance = mocked_zip_file.return_value
         instance.open.return_value = mock.mock_open(read_data="data")
 
         utils.open_maybe_zipped('/path/to/archive.zip/deep/path/to/file.txt')
 
         mocked_is_zipfile.assert_called_once_with('/path/to/archive.zip')
-        mocked_ZipFile.assert_called_once_with('/path/to/archive.zip', mode='r')
+        mocked_zip_file.assert_called_once_with('/path/to/archive.zip', mode='r')
         instance.open.assert_called_once_with('deep/path/to/file.txt')
 
     def test_state_token(self):
@@ -212,7 +238,7 @@ class UtilsTest(unittest.TestCase):
         self.assertNotIn('<b2>', html)
 
 
-class AttrRendererTest(unittest.TestCase):
+class TestAttrRenderer(unittest.TestCase):
 
     def setUp(self):
         self.attr_renderer = utils.get_attr_renderer()

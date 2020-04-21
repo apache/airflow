@@ -17,15 +17,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# pylint:disable=missing-docstring
+
 import sys
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow import configuration
+from typing import Optional
+
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.executors.base_executor import BaseExecutor # noqa
+from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
+from airflow.utils.log.logging_mixin import LoggingMixin
 
-DEFAULT_EXECUTOR = None
+DEFAULT_EXECUTOR = None  # type: Optional[BaseExecutor]
 
 
 def _integrate_plugins():
@@ -33,17 +37,17 @@ def _integrate_plugins():
     from airflow.plugins_manager import executors_modules
     for executors_module in executors_modules:
         sys.modules[executors_module.__name__] = executors_module
-        globals()[executors_module._name] = executors_module
+        globals()[executors_module._name] = executors_module  # pylint:disable=protected-access
 
 
 def get_default_executor():
     """Creates a new instance of the configured executor if none exists and returns it"""
-    global DEFAULT_EXECUTOR
+    global DEFAULT_EXECUTOR  # pylint:disable=global-statement
 
     if DEFAULT_EXECUTOR is not None:
         return DEFAULT_EXECUTOR
 
-    executor_name = configuration.conf.get('core', 'EXECUTOR')
+    executor_name = conf.get('core', 'EXECUTOR')
 
     DEFAULT_EXECUTOR = _get_executor(executor_name)
 

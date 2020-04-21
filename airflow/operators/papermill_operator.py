@@ -16,11 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Dict
 
 import papermill as pm
 
-from airflow.models import BaseOperator
 from airflow.lineage.datasets import DataSet
+from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -41,8 +42,11 @@ class PapermillOperator(BaseOperator):
     :type parameters: dict
     """
     @apply_defaults
-    def __init__(self, input_nb: str, output_nb: str, parameters: dict,
-                 *args, **kwargs):
+    def __init__(self,
+                 input_nb: str,
+                 output_nb: str,
+                 parameters: Dict,
+                 *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.inlets.append(NoteBook(qualified_name=input_nb,

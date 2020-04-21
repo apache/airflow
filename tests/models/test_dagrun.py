@@ -20,10 +20,9 @@
 import datetime
 import unittest
 
-from airflow import settings, models
+from airflow import models, settings
 from airflow.jobs import BackfillJob
-from airflow.models import DAG, DagRun, clear_task_instances
-from airflow.models import TaskInstance as TI
+from airflow.models import DAG, DagRun, TaskInstance as TI, clear_task_instances
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import ShortCircuitOperator
 from airflow.utils import timezone
@@ -32,7 +31,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from tests.models import DEFAULT_DATE
 
 
-class DagRunTest(unittest.TestCase):
+class TestDagRun(unittest.TestCase):
 
     def create_dag_run(self, dag,
                        state=State.RUNNING,

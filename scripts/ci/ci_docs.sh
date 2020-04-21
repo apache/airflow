@@ -20,23 +20,19 @@ set -euo pipefail
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# shellcheck source=./_utils.sh
+export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
+
+export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
+
+# shellcheck source=scripts/ci/_utils.sh
 . "${MY_DIR}/_utils.sh"
 
 basic_sanity_checks
 
-force_python_3_6
-
 script_start
 
-rebuild_image_if_needed_for_static_checks
+rebuild_ci_image_if_needed
 
-docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
-       --entrypoint /opt/airflow/docs/build.sh \
-       --env PYTHONDONTWRITEBYTECODE="true" \
-       --env AIRFLOW_CI_VERBOSE=${VERBOSE} \
-       --env HOST_USER_ID="$(id -ur)" \
-       --env HOST_GROUP_ID="$(id -gr)" \
-       "${AIRFLOW_SLIM_CI_IMAGE}" \
+run_docs
 
 script_end

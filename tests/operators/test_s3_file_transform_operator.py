@@ -24,11 +24,10 @@ import os
 import shutil
 import sys
 import unittest
-from unittest import mock
 from tempfile import mkdtemp
+from unittest import mock
 
 import boto3
-
 from moto import mock_s3
 
 from airflow.exceptions import AirflowException
@@ -113,7 +112,7 @@ class TestS3FileTransformOperator(unittest.TestCase):
 
         self.assertEqual('Transform script failed: 42', str(e.exception))
 
-    @mock.patch('airflow.hooks.S3_hook.S3Hook.select_key', return_value="input")
+    @mock.patch('airflow.providers.amazon.aws.hooks.s3.S3Hook.select_key', return_value="input")
     @mock_s3
     def test_execute_with_select_expression(self, mock_select_key):
         bucket = "bucket"

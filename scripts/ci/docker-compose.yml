@@ -1,19 +1,20 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# Licensed to the Apache Software Foundation (ASF) under one or more
-# contributor license agreements.  See the NOTICE file distributed with
-# this work for additional information regarding copyright ownership.
-# The ASF licenses this file to You under the Apache License, Version 2.0
-# (the "License"); you may not use this file except in compliance with
-# the License.  You may obtain a copy of the License at
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
 version: "2.2"
 services:
 
@@ -23,6 +24,7 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=airflow
       - POSTGRES_DB=airflow
+
   mysql:
     image: mysql:5.6
     environment:
@@ -53,26 +55,35 @@ services:
       - LDAP_CONFIG_PASSWORD=insecure
     volumes:
       - ./openldap/ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom:ro
+
   krb5-kdc-server:
     image: godatadriven/krb5-kdc-server
     hostname: krb5-kdc-server
     domainname: example.com
 
+  docker:
+    image: docker:19.03.2-dind
+    privileged: true
+    environment:
+      - DOCKER_TLS_CERTDIR=
+      - DOCKER_TLS_VERIFY=
+
   airflow-testing:
     image: ${AIRFLOW_CONTAINER_DOCKER_IMAGE}
     init: true
-    entrypoint: [ "/bin/bash", "-c" ]
+    entrypoint: ["/bin/bash", "-c"]
     environment:
       - USER=root
       - ADDITIONAL_PATH=~/.local/bin
       - HADOOP_DISTRO=cdh
-      - HADOOP_HOME=/tmp/hadoop-cdh
-      - HADOOP_OPTS=-D/tmp/krb5.conf
-      - HIVE_HOME=/tmp/hive
-      - MINICLUSTER_HOME=/tmp/minicluster-1.1-SNAPSHOT
+      - HADOOP_HOME=/opt/hadoop-cdh
+      - HADOOP_OPTS=-D/opt/krb5.conf
+      - HIVE_HOME=/opt/hive
+      - MINICLUSTER_HOME=/opt/minicluster
       - KRB5_CONFIG=/etc/krb5.conf
       - KRB5_KTNAME=/etc/airflow.keytab
       - CELERY_BROKER_URLS=amqp://guest:guest@rabbitmq:5672,redis://redis:6379/0
+      - DOCKER_HOST=tcp://docker:2375
       - ENV
       - BACKEND
       - CI
@@ -89,6 +100,10 @@ services:
       - TRAVIS_TAG
       - RUN_TESTS
       - AIRFLOW_CI_VERBOSE
+      - AIRFLOW_CI_SILENT
+      - AIRFLOW_CONTAINER_DOCKER_IMAGE
+      - KUBERNETES_VERSION
+      - KUBERNETES_MODE
     depends_on:
       - postgres
       - mysql
@@ -98,3 +113,4 @@ services:
       - redis
       - openldap
       - krb5-kdc-server
+      - docker

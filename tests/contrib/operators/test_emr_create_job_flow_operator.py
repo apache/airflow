@@ -19,8 +19,8 @@
 #
 
 import unittest
-from unittest.mock import MagicMock, patch
 from datetime import timedelta
+from unittest.mock import MagicMock, patch
 
 from airflow import DAG
 from airflow.contrib.operators.emr_create_job_flow_operator import EmrCreateJobFlowOperator

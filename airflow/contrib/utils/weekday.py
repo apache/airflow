@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Get the ISO standard day number of the week from a given day string
+"""
 import enum
 
 
