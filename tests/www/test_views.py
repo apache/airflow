@@ -34,7 +34,7 @@ from urllib.parse import quote_plus
 
 import jinja2
 import pytest
-from flask import Markup, session as flask_session, url_for
+from flask import Markup, make_response, session as flask_session, url_for
 from parameterized import parameterized
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse
@@ -1154,6 +1154,23 @@ class TestVersionView(TestBase):
             password='test'
         ), follow_redirects=True)
         self.check_content_in_response('Version Info', resp)
+
+    @mock.patch('airflow.www.views.BaseView.render_template')
+    def test_version_jinja_context(self, mock_render_template):
+        with self.app.app_context():
+            mock_render_template.return_value = make_response("RESPONSE", 200)
+            self.client.get('version', data=dict(
+                username='test',
+                password='test'
+            ), follow_redirects=True)
+
+        mock_render_template.assert_called_once_with(
+            'airflow/version.html',
+            airflow_version=version.version,
+            git_version=mock.ANY,
+            scheduler_job=mock.ANY,
+            title='Version Info'
+        )
 
 
 class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
