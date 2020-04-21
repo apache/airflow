@@ -19,6 +19,8 @@ import prestodb
 from prestodb.exceptions import DatabaseError
 from prestodb.transaction import IsolationLevel
 
+from airflow.configuration import conf
+from airflow.security import utils
 from airflow.hooks.dbapi_hook import DbApiHook
 
 
@@ -44,7 +46,21 @@ class PrestoHook(DbApiHook):
     def get_conn(self):
         """Returns a connection object"""
         db = self.get_connection(self.presto_conn_id)  # pylint: disable=no-member
-        auth = prestodb.auth.BasicAuthentication(db.login, db.password) if db.password else None
+
+        auth = None
+        if db.extra_dejson.get('kerberos'):
+            principal = db.extra_dejson.get('kerberos_principal', conf.get('kerberos', 'principal'))
+            if "_HOST" in principal:
+                principal = utils.replace_hostname_pattern(
+                    utils.get_components(principal))
+            auth = prestodb.auth.KerberosAuthentication(
+                config=db.extra_dejson.get('kerberos_config', '/etc/krb5.conf'),
+                service_name=db.extra_dejson.get('kerberos_service', 'presto'),
+                principal=principal,
+                ca_bundle=db.extra_dejson.get('kerberos_ca_bundle'),
+                )
+        elif db.password:
+            auth = prestodb.auth.BasicAuthentication(db.login, db.password)
 
         return prestodb.dbapi.connect(
             host=db.host,
