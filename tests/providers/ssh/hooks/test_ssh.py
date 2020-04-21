@@ -364,6 +364,22 @@ class TestSSHHook(unittest.TestCase):
             assert ssh_mock.return_value.connect.called is True
         assert _add_new_record_to_known_hosts.call_count == 0
 
+    @mock.patch(
+        'airflow.providers.ssh.hooks.ssh.open',
+        mock.mock_open(read_data=f'localhost ssh-rsa BBB\n')
+    )
+    @mock.patch('airflow.providers.ssh.hooks.ssh.SSHHook._update_record_in_known_hosts')
+    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
+    def test_ssh_connection_with_host_key_where_host_with_old_key_is_in_known_hosts(
+        self,
+        ssh_mock,
+        _update_record_in_known_hosts
+    ):
+        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE)
+        with hook.get_conn():
+            assert ssh_mock.return_value.connect.called is True
+        assert _update_record_in_known_hosts.call_count == 1
+
     def test_format_known_hosts_record(self):
         assert f'remote_host ssh-rsa {TEST_HOST_KEY}' == \
                SSHHook._format_known_hosts_record('remote_host', 'ssh-rsa', TEST_HOST_KEY)
