@@ -31,4 +31,4 @@ prepare_ci_build
 
 rebuild_ci_image_if_needed
 
-pre-commit run pylint-tests --all-files --show-diff-on-failure --verbose
+pre-commit run pylint-tests --all-files --show-diff-on-failure --color always
