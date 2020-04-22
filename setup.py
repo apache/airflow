@@ -330,6 +330,7 @@ def do_setup():
         zip_safe=False,
         scripts=['airflow/bin/airflow'],
         install_requires=[
+            'WTforms<2.3.0',
             'alembic>=1.0, <2.0',
             'cached_property~=1.5',
             'colorlog==4.0.2',
