@@ -134,8 +134,6 @@ class ExternalTaskSensor(BaseSensorOperator):
         )
 
         DM = DagModel
-        TI = TaskInstance
-        DR = DagRun
 
         # we only do the check for 1st time, no need for subsequent poke
         if self.check_existence and not self.has_checked_existence:
