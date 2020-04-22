@@ -312,10 +312,10 @@ class TestDatabricksHook(unittest.TestCase):
             timeout=self.hook.timeout_seconds)
 
     @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
-    def test_get_job_id_from_run(self, mock_requests):
+    def test_get_job_id(self, mock_requests):
         mock_requests.get.return_value.json.return_value = GET_RUN_RESPONSE
 
-        job_id = self.hook.get_job_id_from_run(RUN_ID)
+        job_id = self.hook.get_job_id(RUN_ID)
 
         self.assertEqual(job_id, JOB_ID)
         mock_requests.get.assert_called_once_with(
