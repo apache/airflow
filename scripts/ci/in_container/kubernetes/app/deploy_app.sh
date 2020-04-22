@@ -47,12 +47,6 @@ export BUILD_DIRNAME="${MY_DIR}/build"
 # shellcheck source=common/_image_variables.sh
 . "${AIRFLOW_SOURCES}/common/_image_variables.sh"
 
-# Source branch will be set in DockerHub
-SOURCE_BRANCH=${SOURCE_BRANCH:=${DEFAULT_BRANCH}}
-# if BRANCH_NAME is not set it will be set to either SOURCE_BRANCH (if overridden)
-# or default branch for the sources
-BRANCH_NAME=${BRANCH_NAME:=${SOURCE_BRANCH}}
-
 if [[ ! -d "${BUILD_DIRNAME}" ]]; then
     mkdir -p "${BUILD_DIRNAME}"
 fi
@@ -73,14 +67,8 @@ else
     CONFIGMAP_DAGS_VOLUME_CLAIM=
 fi
 
-if [[ ${TRAVIS_PULL_REQUEST:=} != "" && ${TRAVIS_PULL_REQUEST} != "false" ]]; then
-    CONFIGMAP_GIT_REPO=${TRAVIS_PULL_REQUEST_SLUG}
-    CONFIGMAP_BRANCH=${TRAVIS_PULL_REQUEST_BRANCH}
-else
-    CONFIGMAP_GIT_REPO=${TRAVIS_REPO_SLUG:-apache/airflow}
-    CONFIGMAP_BRANCH=${TRAVIS_BRANCH:=master}
-fi
-
+CONFIGMAP_GIT_REPO=${CI_TARGET_REPO:-apache/airflow}
+CONFIGMAP_BRANCH=${CI_TARGET_BRANCH:=master}
 
 if [[ "${KUBERNETES_MODE}" == "persistent_mode" ]]; then
     sed -e "s/{{INIT_GIT_SYNC}}//g" \

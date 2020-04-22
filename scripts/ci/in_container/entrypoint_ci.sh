@@ -22,8 +22,6 @@ fi
 # shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-TRAVIS=${TRAVIS:=}
-
 AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../.." || exit 1; pwd)
 
 PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.6}
@@ -46,6 +44,10 @@ echo
 echo "Airflow home: ${AIRFLOW_HOME}"
 echo "Airflow sources: ${AIRFLOW_SOURCES}"
 echo "Airflow core SQL connection: ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
+if [[ -n "${AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS:=}" ]]; then
+    echo "Airflow collation for IDs: ${AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS}"
+fi
+
 echo
 
 ARGS=( "$@" )
@@ -108,16 +110,8 @@ export PATH=${PATH}:${AIRFLOW_SOURCES}
 # This is now set in conftest.py - only for pytest tests
 unset AIRFLOW__CORE__UNIT_TEST_MODE
 
-# Fix codecov build path
-# TODO: Check this - this should be made travis-independent
-if [[ ! -h /home/travis/build/apache/airflow ]]; then
-  sudo mkdir -p /home/travis/build/apache
-  sudo ln -s "${AIRFLOW_SOURCES}" /home/travis/build/apache/airflow
-fi
-
 mkdir -pv "${AIRFLOW_HOME}/logs/"
 cp -f "${MY_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
-
 
 "${MY_DIR}/check_environment.sh"
 
@@ -193,10 +187,10 @@ fi
 if [[ ${CI:=} == "true" && ${RUN_TESTS} == "true" ]] ; then
     echo
     echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    echo "  Setting default parallellism to 4 because we can run out of memory during tests on CI"
+    echo "  Setting default parallellism to 2 because we can run out of memory during tests on CI"
     echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     echo
-    export AIRFLOW__CORE__PARALELLISM=4
+    export AIRFLOW__CORE__PARALELLISM=2
 fi
 
 set +u
@@ -211,7 +205,7 @@ fi
 
 set -u
 
-if [[ "${TRAVIS}" == "true" ]]; then
+if [[ "${CI}" == "true" ]]; then
     CI_ARGS=(
         "--verbosity=0"
         "--strict-markers"
@@ -220,6 +214,7 @@ if [[ "${TRAVIS}" == "true" ]]; then
         "--cov=airflow/"
         "--cov-config=.coveragerc"
         "--cov-report=html:airflow/www_rbac/static/coverage/"
+        "--color=yes"
         "--maxfail=50"
         "--pythonwarnings=ignore::DeprecationWarning"
         "--pythonwarnings=ignore::PendingDeprecationWarning"
@@ -228,15 +223,34 @@ else
     CI_ARGS=()
 fi
 
-if [[ -n ${RUN_INTEGRATION_TESTS:=""} ]]; then
-    CI_ARGS+=("--integrations" "${RUN_INTEGRATION_TESTS}" "-rpfExX")
-fi
-
 TESTS_TO_RUN="tests/"
 
 if [[ ${#@} -gt 0 && -n "$1" ]]; then
     TESTS_TO_RUN="$1"
 fi
+
+if [[ -n ${RUN_INTEGRATION_TESTS:=""} ]]; then
+    for INTEGRATION in ${RUN_INTEGRATION_TESTS}
+    do
+        CI_ARGS+=("--integration" "${INTEGRATION}")
+    done
+    CI_ARGS+=("-rpfExX")
+elif [[ ${ONLY_RUN_LONG_RUNNING_TESTS:=""} == "true" ]]; then
+    CI_ARGS+=(
+        "-m" "long_running"
+        "--include-long-running"
+        "--verbosity=1"
+        "--reruns" "3"
+        "--timeout" "90")
+elif [[ ${ONLY_RUN_QUARANTINED_TESTS:=""} == "true" ]]; then
+    CI_ARGS+=(
+        "-m" "quarantined"
+        "--include-quarantined"
+        "--verbosity=1"
+        "--reruns" "3"
+        "--timeout" "90")
+fi
+
 
 if [[ -n ${RUNTIME} ]]; then
     CI_ARGS+=("--runtime" "${RUNTIME}" "-rpfExX")

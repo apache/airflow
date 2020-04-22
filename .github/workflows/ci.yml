@@ -20,7 +20,7 @@
 name: Airflow
 on:
   push:
-    branches: [master]
+    branches: ['*']
   pull_request:
     branches: [master]
 env:
@@ -31,16 +31,17 @@ env:
   SKIP_CHECK_REMOTE_IMAGE: "true"
   DB_RESET: "true"
   VERBOSE: "true"
-  CI: "true"
-  # Should be a target branch
-  TRAVIS_BRANCH: "master"
-  TRAVIS: "true"
+  UPGRADE_TO_LATEST_REQUIREMENTS: "false"
+  PYTHON_MAJOR_MINOR_VERSION: 3.5
+  CACHE_REGISTRY: "docker.pkg.github.com"
+  CACHE_IMAGE_PREFIX: ${{ github.repository }}
+  CACHE_REGISTRY_USERNAME: ${{ github.actor }}
+  CACHE_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 jobs:
   statics:
     name: Static checks
     runs-on: ubuntu-latest
     env:
-      PYTHON_MAJOR_MINOR_VERSION: 3.5
       AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS: "true"
       TRAVIS_JOB_NAME: "Static"
     steps:
@@ -54,20 +55,22 @@ jobs:
           df -h
       - uses: actions/setup-python@v1
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: "Before install"
-        run: ./scripts/ci/ci_before_install.sh
+          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+      - name: "Build image"
+        run: ./scripts/ci/ci_prepare_image_on_ci.sh
       - name: "Static checks"
         if: success()
         env:
-          PYTHON_VERSION: 3.6
-        run: ./scripts/ci/ci_run_all_static_checks.sh
+          PYTHON_MAJOR_MINOR_VERSION: 3.6
+        run: |
+          python -m pip install pre-commit \
+              --constraint requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt
+          ./scripts/ci/ci_run_all_static_checks.sh
 
   statics-tests:
     name: Pylint for tests
     runs-on: ubuntu-latest
     env:
-      PYTHON_MAJOR_MINOR_VERSION: 3.5
       AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS: "true"
       TRAVIS_JOB_NAME: "Static"
     steps:
@@ -81,14 +84,15 @@ jobs:
           df -h
       - uses: actions/setup-python@v1
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: "Before install"
-        run: ./scripts/ci/ci_before_install.sh
+          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+      - name: "Build image"
+        run: ./scripts/ci/ci_prepare_image_on_ci.sh
       - name: "Static checks tests"
         if: success()
-        env:
-          PYTHON_VERSION: 3.6
-        run: ./scripts/ci/ci_run_static_checks_pylint_tests.sh
+        run: |
+          python -m pip install pre-commit \
+            --constraint requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt
+          ./scripts/ci/ci_run_static_checks_pylint_tests.sh
 
   docs:
     name: Build docs
@@ -217,7 +221,7 @@ jobs:
     env:
       TRAVIS_JOB_NAME: "Tests [Sqlite][3.7][integrations]"
       BACKEND: sqlite
-      PYTHON_VERSION: 3.7
+      PYTHON_MAJOR_MINOR_VERSION: 3.7
       ENABLED_INTEGRATIONS: "cassandra kerberos mongo openldap rabbitmq redis"
       RUN_INTEGRATION_TESTS: all
     steps:
@@ -239,7 +243,7 @@ jobs:
     env:
       TRAVIS_JOB_NAME: "Tests [Sqlite][Py3.6]"
       BACKEND: sqlite
-      PYTHON_VERSION: 3.6
+      PYTHON_MAJOR_MINOR_VERSION: 3.6
     steps:
       - uses: actions/checkout@master
       - name: free disk space
@@ -259,7 +263,7 @@ jobs:
     env:
       TRAVIS_JOB_NAME: "Tests [MySQL][Py3.6][integrations]"
       BACKEND: sqlite
-      PYTHON_VERSION: 3.6
+      PYTHON_MAJOR_MINOR_VERSION: 3.6
       MYSQL_VERSION: 5.7
       ENABLED_INTEGRATIONS: "cassandra kerberos mongo openldap rabbitmq redis"
       RUN_INTEGRATION_TESTS: all
@@ -282,7 +286,7 @@ jobs:
     env:
       TRAVIS_JOB_NAME: "Tests [MySQL5.7][Py3.7][providers][kerberos]"
       BACKEND: mysql
-      PYTHON_VERSION: 3.7
+      PYTHON_MAJOR_MINOR_VERSION: 3.7
       MYSQL_VERSION: 5.7
       ENABLED_INTEGRATIONS: "kerberos"
     steps:
@@ -304,7 +308,7 @@ jobs:
     env:
       TRAVIS_JOB_NAME: "Tests [MySQL5.7][Py3.7][core][kerberos]"
       BACKEND: mysql
-      PYTHON_VERSION: 3.7
+      PYTHON_MAJOR_MINOR_VERSION: 3.7
       MYSQL_VERSION: 5.7
       ENABLED_INTEGRATIONS: "kerberos"
     steps:
