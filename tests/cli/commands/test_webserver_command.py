@@ -23,6 +23,7 @@ from time import sleep
 from unittest import mock
 
 import psutil
+import pytest
 
 from airflow import settings
 from airflow.cli import cli_parser
@@ -86,6 +87,7 @@ class TestCLIGetNumReadyWorkersRunning(unittest.TestCase):
         proc.wait()
 
 
+@pytest.mark.quarantined
 class TestCliWebServer(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

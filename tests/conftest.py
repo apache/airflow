@@ -98,6 +98,11 @@ def pytest_addoption(parser):
         action="store_true",
         help="Includes long running tests (marked with long_running marker). They are skipped by default.",
     )
+    group.addoption(
+        "--include-quarantined",
+        action="store_true",
+        help="Includes quarantined tests (marked with quarantined marker). They are skipped by default.",
+    )
 
 
 def initial_db_init():
@@ -180,6 +185,9 @@ def pytest_configure(config):
         "markers", "long_running: mark test that run for a long time (many minutes)"
     )
     config.addinivalue_line(
+        "markers", "quarantined: mark test that are in quarantine (i.e. flaky, need to be isolated and fixed)"
+    )
+    config.addinivalue_line(
         "markers", "credential_file(name): mark tests that require credential file in CREDENTIALS_DIR"
     )
     config.addinivalue_line(
@@ -245,6 +253,13 @@ def skip_long_running_test(item):
                     format(item=item))
 
 
+def skip_quarantined_test(item):
+    for _ in item.iter_markers(name="quarantined"):
+        pytest.skip("The test is skipped because it has quarantined marker. "
+                    "And --include-quarantined flag is passed to pytest. {item}".
+                    format(item=item))
+
+
 def skip_if_integration_disabled(marker, item):
     integration_name = marker.args[0]
     environment_variable_name = "INTEGRATION_" + integration_name.upper()
@@ -304,6 +319,7 @@ def pytest_runtest_setup(item):
     selected_systems_list = item.config.getoption("--system")
 
     include_long_running = item.config.getoption("--include-long-running")
+    include_quarantined = item.config.getoption("--include-quarantined")
 
     for marker in item.iter_markers(name="integration"):
         skip_if_integration_disabled(marker, item)
@@ -325,5 +341,7 @@ def pytest_runtest_setup(item):
         skip_if_not_marked_with_runtime(selected_runtime, item)
     if not include_long_running:
         skip_long_running_test(item)
+    if not include_quarantined:
+        skip_quarantined_test(item)
     skip_if_credential_file_missing(item)
     skip_if_airflow_2_test(item)

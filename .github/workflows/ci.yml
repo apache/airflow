@@ -256,6 +256,39 @@ jobs:
       - name: "Tests"
         run: ./scripts/ci/ci_run_airflow_testing.sh
 
+  tests-quarantined:
+    timeout-minutes: 30
+    name: "${{matrix.test-type}}:Pg${{matrix.postgres-version}},Py${{matrix.python-version}}"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    needs: [static-checks-1, static-checks-2, pyfiles]
+    strategy:
+      matrix:
+        python-version: [3.6]
+        postgres-version: [9.6]
+        test-type: [Quarantined]
+      fail-fast: false
+    env:
+      BACKEND: postgres
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      POSTGRES_VERSION: ${{ matrix.postgres-version }}
+      RUN_TESTS: "true"
+      CI_JOB_TYPE: "Tests"
+      TEST_TYPE: ${{ matrix.test-type }}
+    # For pull requests only run tests when python files changed
+    if: needs.pyfiles.outputs.count != '0' || github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-python@v1
+        with:
+          python-version: '3.x'
+      - name: "Free space"
+        run: ./scripts/ci/ci_free_space_on_ci.sh
+      - name: "Build CI image ${{ matrix.python-version }}"
+        run: ./scripts/ci/ci_prepare_image_on_ci.sh
+      - name: "Tests"
+        run: ./scripts/ci/ci_run_airflow_testing.sh
+
   requirements:
     timeout-minutes: 20
     name: "Requirements: Py${{ matrix.python-version }}"
