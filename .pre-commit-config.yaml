@@ -265,8 +265,14 @@ repos:
         language: pygrep
         name: Check for pydevd debug statements accidentally left
         entry: "pydevd.*settrace\\("
-        pass_filenames: true
         files: \.py$
+        pass_filenames: true
+      - id: check-integrations
+        name: Check if integration list is aligned
+        entry: ./scripts/ci/pre_commit_check_integrations.sh
+        language: system
+        pass_filenames: false
+        files: ^common/_common_values.sh$|^breeze-complete$
       - id: build
         name: Check if image build is needed
         entry: ./scripts/ci/pre_commit_ci_build.sh 3.5 false

@@ -25,7 +25,7 @@ Airflow Test Infrastructure
   and local virtualenv.
 
 * **Integration tests** are available in the Breeze development environment
-  that is also used for Airflow Travis CI tests. Integration tests are special tests that require
+  that is also used for Airflow CI tests. Integration tests are special tests that require
   additional services running, such as Postgres, MySQL, Kerberos, etc. Currently, these tests are not
   marked as integration tests but soon they will be clearly separated by ``pytest`` annotations.
 
@@ -161,7 +161,7 @@ Enabling Integrations
 ---------------------
 
 Airflow integration tests cannot be run in the local virtualenv. They can only run in the Breeze
-environment with enabled integrations and in Travis CI.
+environment with enabled integrations and in the CI.
 
 When you are in the Breeze environment, by default all integrations are disabled. This enables only true unit tests
 to be executed in Breeze. You can enable the integration by passing the ``--integration <INTEGRATION>``
@@ -245,30 +245,23 @@ require more than one integration.
 If such a marked test does not have a required integration enabled, it is skipped.
 The skip message clearly says what is needed to use the test.
 
-To run all tests with a certain integration, use the custom pytest flag ``--integrations``,
-where you can pass integrations as comma-separated values. You can also specify ``all`` to start
-tests for all integrations.
+To run all tests with a certain integration, use the custom pytest flag ``--integration``.
+You can pass several integration flags if you want to enable several integrations at once.
 
-**NOTE:** If an integration is not enabled in Breeze or Travis CI,
+**NOTE:** If an integration is not enabled in Breeze or CI,
 the affected test will be skipped.
 
 To run only ``mongo`` integration tests:
 
 .. code-block:: bash
 
-    pytest --integrations mongo
+    pytest --integration mongo
 
 To run integration tests fot ``mongo`` and ``rabbitmq``:
 
 .. code-block:: bash
 
-    pytest --integrations mongo,rabbitmq
-
-To runs all integration tests:
-
-.. code-block:: bash
-
-    pytest --integrations all
+    pytest --integration mongo --integration rabbitmq
 
 Note that collecting all tests takes some time. So, if you know where your tests are located, you can
 speed up the test collection significantly by providing the folder where the tests are located.
@@ -277,14 +270,14 @@ Here is an example of the collection limited to the ``providers/apache`` directo
 
 .. code-block:: bash
 
-    pytest --integrations cassandra tests/providers/apache/
+    pytest --integration cassandra tests/providers/apache/
 
 Running Backend-Specific Tests
 ------------------------------
 
 Tests that are using a specific backend are marked with a custom pytest marker ``pytest.mark.backend``.
 The marker has a single parameter - the name of a backend. It corresponds to the ``--backend`` switch of
-the Breeze environment (one of ``mysql``, ``sqlite``, or ``postgres``). Backen-specific tests only run when
+the Breeze environment (one of ``mysql``, ``sqlite``, or ``postgres``). Backend-specific tests only run when
 the Breeze environment is running with the right backend. If you specify more than one backend
 in the marker, the test runs for all specified backends.
 
@@ -312,6 +305,13 @@ Here is an example of running only postgres-specific backend tests:
 .. code-block:: bash
 
     pytest --backend postgres
+
+Running Long running tests
+--------------------------
+
+Some of the tests rung for a long time. Such tests are marked with ``@pytest.mark.long_running`` annotation.
+Those tests are skipped by default. You can enable them with ``--include-long-running`` flag. You
+can also decide to only run tests with ``-m long-running`` flags to run only those tests.
 
 Running Tests with Kubernetes
 -----------------------------
@@ -415,7 +415,9 @@ if you have appropriate credentials configured for your tests.
 The system tests derive from the ``tests.test_utils.system_test_class.SystemTests`` class. They should also
 be marked with ``@pytest.marker.system(SYSTEM)`` where ``system`` designates the system
 to be tested (for example, ``google.cloud``). These tests are skipped by default.
-You can execute the system tests by providing the ``--systems SYSTEMS`` flag to ``pytest``.
+
+You can execute the system tests by providing the ``--system SYSTEM`` flag to ``pytest``. You can
+specify several --system flags if you want to execute tests for several systems.
 
 The system tests execute a specified example DAG file that runs the DAG end-to-end.
 
@@ -428,8 +430,8 @@ add some intialization of environment variables to Breeze, you can always add a
 ``variables.env`` file in the ``files/airflow-breeze-config/variables.env`` file. It will be automatically
 sourced when entering the Breeze environment.
 
-To execute system tests, specify the ``--systems SYSTEMS``
-flag where ``SYSTEMS`` is a coma-separated list of systems to run the system tests for.
+To execute system tests, specify the ``--system SYSTEM`
+flag where ``SYSTEM`` is a system to run the system tests for. It can be repeated.
 
 Forwarding Authentication from the Host
 ----------------------------------------------------
@@ -466,14 +468,14 @@ tests whenever an operator/hook/sensor is added/modified in a given system.
   ``@pytest.mark.credential_file(<FILE>)`` so that they are skipped if such a credential file is not there.
   The tests should read the right credentials and authenticate on their own. The credentials are read
   in Breeze from the ``/files`` directory. The local "files" folder is mounted to the "/files" folder in Breeze.
-* If your system tests are long-lasting ones (i.e., require more than 20-30 minutes
+* If your system tests are long-running ones (i.e., require more than 20-30 minutes
   to complete), mark them with the ```@pytest.markers.long_running`` marker.
   Such tests are skipped by default unless you specify the ``--long-lasting`` flag to pytest.
 * The system test itself (python class) does not have any logic. Such a test runs
   the DAG specified by its ID. This DAG should contain the actual DAG logic
   to execute. Make sure to define the DAG in ``providers/<SYSTEM_NAME>/example_dags``. These example DAGs
   are also used to take some snippets of code out of them when documentation is generated. So, having these
-  DAGs runnable is a great way to make sure the documenation is describing a working example. Inside
+  DAGs runnable is a great way to make sure the documentation is describing a working example. Inside
   your test class/test method, simply use ``self.run_dag(<DAG_ID>,<DAG_FOLDER>)`` to run the DAG. Then,
   your test class/test method, simply use ``self.run_dag(<DAG_ID>,<DAG_FOLDER>)`` to run the DAG. Then,
   the system class will take care about running the DAG. Note that the DAG_FOLDER should be
@@ -501,9 +503,141 @@ The commands make sure that the source version of master Airflow is removed and 
 Airflow from ``Pypi`` is installed. Note that tests sources are not removed and they can be used
 to run tests (unit tests and system tests) against the freshly installed version.
 
-This works best for system tests: all the system tests should work for at least latest released 1.10.x
-Airflow version. Some of the unit and integration tests might also work in the same
-fashion but it is not necessary or expected.
+Once you installed 1.10.* Airflow version with ``--install-airflow-version`` and prepared and
+installed the required packages via ``variables.env`` it should be as easy as running
+``pytest --system=<SYSTEM_NAME> TEST_NAME``. Note that we have default timeout for running
+system tests set to 8 minutes and some system tests might take much longer to run and you might
+want to add ``-o faulthandler_timeout=2400`` (2400s = 40 minutes for example) to your
+pytest command.
+
+The typical system test session
+---------------------------
+
+Here is the typical session that you need to do to run system tests:
+
+1. Prepare backport packages
+
+.. code-block:: bash
+
+  ./scripts/ci/ci_prepare_backport_packages.sh google postgres mysql
+
+2. Enter breeze with installing Airflow 1.10.*, forwarding credentials and installing
+   backported packages (you need an appropriate line in ``./files/airflow-breeze-config/variables.env``)
+
+.. code-block:: bash
+
+   ./breeze --install-airflow-version 1.10.9 --python 3.6 --db-reset --forward-credentials restart
+
+This will:
+
+* install Airflow 1.10.9
+* restarts the whole environment (i.e. recreates metadata database from the scratch)
+* run Breeze with python 3.6 version
+* reset the Airflow database
+* forward your local credentials to Breeze
+
+3. Run the tests:
+
+.. code-block:: bash
+
+   pytest -o faulthandler_timeout=2400 \
+      --system=google tests/providers/google/cloud/operators/test_compute_system.py
+
+
+Iteration with System Tests if your resources are slow to create
+----------------------------------------------------------------
+
+When you want to iterate on system tests, you might want to create slow resources first.
+
+If you need to set up some external resources for your tests (for example compute instances in Google Cloud)
+you should set them up and teardown in the setUp/tearDown methods of your tests.
+Since those resources might be slow to create you might want to add some helpers that
+set them up and tear them down separately via manual operations. This way you can iterate on
+the tests without waiting for setUp and tearDown with every test.
+
+In this case, you should build in a mechanism to skip setUp and tearDown in case you manually
+created the resources. A somewhat complex example of that can be found in
+``tests.providers.google.cloud.operators.test_cloud_sql_system.py`` and the helper is
+available in ``tests.providers.google.cloud.operators.test_cloud_sql_system_helper.py``.
+
+When the helper is run with ``--action create`` to create cloud sql instances which are very slow
+to create and set-up so that you can iterate on running the system tests without
+losing the time for creating theme every time. A temporary file is created to prevent from
+setting up and tearing down the instances when running the test.
+
+This example also shows how you can use the random number generated at the entry of Breeze if you
+have it in your variables.env (see the previous chapter). In the case of Cloud SQL, you cannot reuse the
+same instance name for a week so we generate a random number that is used across the whole session
+and store it in ``/random.txt`` file so that the names are unique during tests.
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Important !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Do not forget to delete manually created resources before leaving the
+Breeze session. They are usually expensive to run.
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Important !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Note that in case you have to update your backported operators or system tests (they are part of
+the backport packageS) you need to rebuild the packages outside of breeze and
+``pip remove/pip install`` those packages to get them installed. This is not needed
+if you run system tests with ``current`` airflow version, so it is better to iterate with the
+system tests with the ``current`` version and fix all problems there and only afterwards run
+the tests with Airflow 1.10.*
+
+The typical session then looks as follows:
+
+1. Prepare backport packages
+
+.. code-block:: bash
+
+  ./scripts/ci/ci_prepare_backport_packages.sh google postgres mysql
+
+2. Enter breeze with installing Airflow 1.10.*, forwarding credentials and installing
+   backported packages (you need an appropriate line in ``./files/airflow-breeze-config/variables.env``)
+
+.. code-block:: bash
+
+   ./breeze --install-airflow-version 1.10.9 --python 3.6 --db-reset --forward-credentials restart
+
+3. Run create action in helper (to create slowly created resources):
+
+.. code-block:: bash
+
+    python tests/providers/google/cloud/operators/test_cloud_sql_system_helper.py --action create
+
+4. Run the tests:
+
+.. code-block:: bash
+
+   pytest -o faulthandler_timeout=2400 \
+      --system=google tests/providers/google/cloud/operators/test_compute_system.py
+
+5. In case you are running backport packages tests you need to rebuild and reinstall a package
+   every time you change the operators/hooks or example_dags. The example below shows reinstallation
+   of the google package:
+
+In the host:
+
+.. code-block:: bash
+
+  ./scripts/ci/ci_prepare_backport_packages.sh google
+
+In the container:
+
+.. code-block:: bash
+
+  pip uninstall apache-airflow-providers-google
+  pip install /dist/apache_airflow_providers_google-*.whl
+
+The points 4. and 5. can be repeated multiple times without leaving the container
+
+6. Run delete action in helper:
+
+.. code-block:: bash
+
+    python tests/providers/google/cloud/operators/test_cloud_sql_system_helper.py --action delete
+
 
 Local and Remote Debugging in IDE
 =================================
