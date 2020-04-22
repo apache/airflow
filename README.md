@@ -42,6 +42,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 - [Requirements](#requirements)
 - [Getting started](#getting-started)
+- [Installing from PyPI](#installing-from-pypi)
 - [Beyond the Horizon](#beyond-the-horizon)
 - [Principles](#principles)
 - [User Interface](#user-interface)
@@ -86,6 +87,34 @@ Documentation of GitHub master (latest development branch): [ReadTheDocs Documen
 For further information, please visit the [Airflow Wiki](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home).
 
 Official container (Docker) images for Apache Airflow are described in [IMAGES.rst](IMAGES.rst).
+
+## Installing from PyPI
+
+Airflow is published as `apache-airflow` package in PyPI. Installing it however might be sometimes tricky
+because Airflow is a bit of both a library and application. Libraries usually keep their dependencies open and
+applications usually pin them, but we should do neither and both at the same time. We decided to keep
+our dependencies as open as possible (in `setup.py`) so users can install different versions of libraries
+if needed. This means that from time to time plain `pip install apache-airflow` will not work or will
+produce unusable Airflow installation.
+
+In order to have repeatable installation, however, starting from **Airflow 1.10.10** we also keep a set of
+"known-to-be-working" requirement files in the `requirements` folder. Those "known-to-be-working"
+requirements are per major/minor python version (3.6/3.7). You can use them as constraint files
+when installing Airflow from PyPI. Note that you have to specify correct Airflow version and python versions
+in the URL.
+
+1. Installing just airflow:
+
+```bash
+pip install apache-airflow==1.10.10 \
+ --constraint https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt
+```
+
+2. Installing with extras (for example postgres,gcp)
+```bash
+pip install apache-airflow[postgres,gcp]==1.10.10 \
+ --constraint https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt
+```
 
 ## Beyond the Horizon
 

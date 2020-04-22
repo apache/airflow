@@ -23,19 +23,59 @@ Installation
 Getting Airflow
 '''''''''''''''
 
-The easiest way to install the latest stable version of Airflow is with ``pip``:
+Airflow is published as ``apache-airflow`` package in PyPI. Installing it however might be sometimes tricky
+because Airflow is a bit of both a library and application. Libraries usually keep their dependencies open and
+applications usually pin them, but we should do neither and both at the same time. We decided to keep
+our dependencies as open as possible (in ``setup.py``) so users can install different version of libraries
+if needed. This means that from time to time plain ``pip install apache-airflow`` will not work or will
+produce unusable Airflow installation.
+
+In order to have repeatable installation, however, starting from **Airflow 1.10.10** we also keep a set of
+"known-to-be-working" requirement files in the ``requirements`` folder. Those "known-to-be-working"
+requirements are per major/minor python version (3.6/3.7). You can use them as constraint
+files when installing Airflow from PyPI. Note that you have to specify correct Airflow version
+and python versions in the URL.
+
+1. Installing just airflow
 
 .. code-block:: bash
 
-    pip install apache-airflow
+    pip install \
+     apache-airflow==1.10.10 \
+     --constraint \
+            https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt
 
-You can also install Airflow with support for extra features like ``gcp`` or ``postgres``:
+
+2. Installing with extras (for example postgres, gcp)
 
 .. code-block:: bash
 
-    pip install 'apache-airflow[postgres,gcp]'
+    pip install \
+     apache-airflow[postgres,gcp]==1.10.10 \
+     --constraint \
+            https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt
 
-Airflow require that your operating system has ``libffi-dev`` installed.
+
+You need certain system level requirements in order to install Airflow. Those are requirements that are known
+to be needed for Linux system (Tested on Ubuntu Buster LTS) :
+
+.. code-block:: bash
+
+   sudo apt-get install -y --no-install-recommends \
+           freetds-bin \
+           krb5-user \
+           ldap-utils \
+           libffi6 \
+           libsasl2-2 \
+           libsasl2-modules \
+           libssl1.1 \
+           locales  \
+           lsb-release \
+           sasl2-bin \
+           sqlite3 \
+           unixodbc
+
+You also need database client packages (Postgres or MySQL) if you want to use those databases.
 
 If the ``airflow`` command is not getting recognized (can happen on Windows when using WSL), then
 ensure that ``~/.local/bin`` is in your ``PATH`` environment variable, and add it in if necessary:
