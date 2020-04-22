@@ -332,7 +332,9 @@ class SSHHook(BaseHook):
         with open(known_hosts_file_ref, 'r') as f:
             file_content = f.read()
 
-        if host in file_content:
+        if record in file_content:
+            pass
+        elif host in file_content:
             # the host may be in the file with a different (possibly old) key
             # in this case, we should replace the existing record
             with open(known_hosts_file_ref, 'w+') as f:
@@ -342,8 +344,8 @@ class SSHHook(BaseHook):
                     file_content,
                     f
                 )
-        elif len(file_content) == 0 or record not in file_content:
-            # if file is empty or the record doesn't exist in the file, add it
+        else:
+            # in this case the file is empty or the record doesn't exist in the file so add it
             with open(known_hosts_file_ref, 'a') as f:
                 SSHHook._add_new_record_to_known_hosts(
                     record,
