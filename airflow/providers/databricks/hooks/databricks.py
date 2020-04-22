@@ -236,7 +236,7 @@ class DatabricksHook(BaseHook):
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
         return response['run_page_url']
 
-    def get_job_id_from_run(self, run_id: str) -> str:
+    def get_job_id(self, run_id: str) -> str:
         """
         Retrieves job_id from run_id.
 
