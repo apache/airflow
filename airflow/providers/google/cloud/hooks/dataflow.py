@@ -489,6 +489,8 @@ class DataflowHook(GoogleBaseHook):
         :type multiple_jobs: bool
         :param on_new_job_id_callback: Callback called when the job ID is known.
         :type on_new_job_id_callback: callable
+        :param location: Job location.
+        :type location: str
         """
         name = self._build_dataflow_job_name(job_name, append_job_name)
         variables['jobName'] = name
@@ -542,6 +544,8 @@ class DataflowHook(GoogleBaseHook):
         :type append_job_name: bool
         :param on_new_job_id_callback: Callback called when the job ID is known.
         :type on_new_job_id_callback: callable
+        :param location: Job location.
+        :type location: str
         """
         name = self._build_dataflow_job_name(job_name, append_job_name)
         # Builds RuntimeEnvironment from variables dictionary
@@ -629,6 +633,8 @@ class DataflowHook(GoogleBaseHook):
             If set to None or missing, the default project_id from the GCP connection is used.
         :param on_new_job_id_callback: Callback called when the job ID is known.
         :type on_new_job_id_callback: callable
+        :param location: Job location.
+        :type location: str
         """
         name = self._build_dataflow_job_name(job_name, append_job_name)
         variables['job_name'] = name
@@ -729,9 +735,10 @@ class DataflowHook(GoogleBaseHook):
         :type name: str
         :param project_id: Optional, the GCP project ID in which to start a job.
             If set to None or missing, the default project_id from the GCP connection is used.
-        :return: True if job is running.
-        :param location:
+        :type project_id: str
+        :param location: Job location.
         :type location: str
+        :return: True if job is running.
         :rtype: bool
         """
         if variables:
