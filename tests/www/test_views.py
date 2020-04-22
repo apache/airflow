@@ -34,7 +34,7 @@ from urllib.parse import quote_plus
 
 import jinja2
 import pytest
-from flask import Markup, make_response, session as flask_session, url_for
+from flask import Markup, session as flask_session, url_for
 from parameterized import parameterized
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse
@@ -59,6 +59,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from airflow.www import app as application
+from tests.test_utils.asserts import catch_jinja_params
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
 
@@ -1149,28 +1150,20 @@ class TestLogView(TestBase):
 
 class TestVersionView(TestBase):
     def test_version(self):
-        resp = self.client.get('version', data=dict(
-            username='test',
-            password='test'
-        ), follow_redirects=True)
-        self.check_content_in_response('Version Info', resp)
-
-    @mock.patch('airflow.www.views.BaseView.render_template')
-    def test_version_jinja_context(self, mock_render_template):
-        with self.app.app_context():
-            mock_render_template.return_value = make_response("RESPONSE", 200)
-            self.client.get('version', data=dict(
+        with catch_jinja_params() as jinja_params:
+            resp = self.client.get('version', data=dict(
                 username='test',
                 password='test'
             ), follow_redirects=True)
+            self.check_content_in_response('Version Info', resp)
 
-        mock_render_template.assert_called_once_with(
-            'airflow/version.html',
+        self.assertEqual(jinja_params.template_name, 'airflow/version.html')
+        self.assertEqual(jinja_params.template_params, dict(
             airflow_version=version.version,
             git_version=mock.ANY,
             scheduler_job=mock.ANY,
             title='Version Info'
-        )
+        ))
 
 
 class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:

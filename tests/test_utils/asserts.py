@@ -18,6 +18,7 @@
 import logging
 import re
 from contextlib import contextmanager
+from unittest import mock
 
 from sqlalchemy import event
 
@@ -71,3 +72,34 @@ def assert_queries_count(expected_count, message_fmt=None):
                                  "The current number is {current_count}."
     message = message_fmt.format(current_count=result.count, expected_count=expected_count)
     assert expected_count == result.count, message
+
+
+class CatchJinjaParmasResult:
+    def __init__(self):
+        self.template_name = None
+        self.template_params = None
+
+
+@contextmanager
+def catch_jinja_params():
+    """Catch jinja parameters."""
+    result = CatchJinjaParmasResult()
+
+    from flask_appbuilder import BaseView
+
+    with mock.patch(
+        'flask_appbuilder.BaseView.render_template',
+        side_effect=BaseView.render_template,
+        autospec=True
+    ) as mock_render_template:
+        yield result
+
+    assert mock_render_template.call_count == 1, (
+        "BaseView.render_template was not called once.This method has been called {} times.".format(
+            mock_render_template.call_count
+        )
+    )
+    args, kwargs = mock_render_template.call_args
+    assert len(args) == 2  # self, template
+    result.template_name = args[1]
+    result.template_params = kwargs
