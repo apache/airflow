@@ -85,7 +85,8 @@ class ExternalTaskSensor(BaseSensorOperator):
         total_states.extend(self.failed_states)
 
         if len(list(set(total_states))) < (len(self.failed_states) + len(self.allowed_states)):
-            raise AirflowException("Duplicate values provided as allowed `{}` and failed states `{}`"
+            raise AirflowException("Duplicate values provided as allowed "
+                                   "`{}` and failed states `{}`"
                                    .format(self.allowed_states, self.failed_states))
 
         if external_task_id:
@@ -154,8 +155,9 @@ class ExternalTaskSensor(BaseSensorOperator):
                 refreshed_dag_info = DagBag(dag_to_wait.fileloc).get_dag(self.external_dag_id)
                 if not refreshed_dag_info.has_task(self.external_task_id):
                     raise AirflowException('The external task'
-                                           '{} in DAG {} does not exist.'.format(self.external_task_id,
-                                                                                 self.external_dag_id))
+                                           '{} in DAG {} does not exist.'
+                                           .format(self.external_task_id,
+                                                   self.external_dag_id))
             self.has_checked_existence = True
 
         count_allowed = self.get_count(DR, TI, dttm_filter, session, self.allowed_states)

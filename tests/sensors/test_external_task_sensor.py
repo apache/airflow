@@ -83,7 +83,7 @@ class TestExternalTaskSensor(unittest.TestCase):
                 dag=self.dag
             )
 
-    def test_external_task_sensor_init_with_wrong_failed_states(self):
+    def test_external_task_sensor_wrong_failed_states(self):
         with self.assertRaises(ValueError):
             ExternalTaskSensor(
                 task_id='test_external_task_sensor_check',
@@ -124,7 +124,10 @@ class TestExternalTaskSensor(unittest.TestCase):
                 end_date=DEFAULT_DATE,
                 ignore_ti_state=True
             )
-        self.assertEqual(str(cm.exception), "The external task time_sensor_check in DAG unit_test_dag failed.")
+        self.assertEqual(str(cm.exception),
+                         "The external task "
+                         "time_sensor_check in DAG "
+                         "unit_test_dag failed.")
 
     def test_external_dag_sensor(self):
 
