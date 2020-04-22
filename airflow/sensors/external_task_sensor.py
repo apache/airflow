@@ -134,7 +134,6 @@ class ExternalTaskSensor(BaseSensorOperator):
         )
 
         DM = DagModel
-
         # we only do the check for 1st time, no need for subsequent poke
         if self.check_existence and not self.has_checked_existence:
             dag_to_wait = session.query(DM).filter(
