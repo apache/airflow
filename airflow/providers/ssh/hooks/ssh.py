@@ -122,7 +122,7 @@ class SSHHook(BaseHook):
                         str(extra_options["allow_host_key_change"]).lower() == 'true':
                     self.allow_host_key_change = True
                 if "host_key" in extra_options and self.no_host_key_check is False:
-                    self.add_host_to_known_hosts(
+                    self.update_host_in_known_hosts(
                         self.remote_host,
                         'ssh-rsa',
                         extra_options["host_key"]
@@ -297,7 +297,7 @@ class SSHHook(BaseHook):
         file.write(new_file_contents)
 
     @staticmethod
-    def add_host_to_known_hosts(host: str, key_type: str, host_key: str) -> None:
+    def update_host_in_known_hosts(host: str, key_type: str, host_key: str) -> None:
         """
         Adds a specified remote_host public key to the known_hosts file
             in order to prevent man-in-the-middle attacks.
