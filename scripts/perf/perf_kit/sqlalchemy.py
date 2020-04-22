@@ -24,14 +24,14 @@ from sqlalchemy import event
 
 
 @contextlib.contextmanager
-def trace_queries(display_time=True, display_trace=True, display_sql=False, displaay_parameters=True):
+def trace_queries(display_time=True, display_trace=True, display_sql=False, display_parameters=True):
     """
     Tracking SQL queries in a code block. The result is displayed directly on the screen - ``print``
 
     :param display_time: If True, displays the query execution time.
     :param display_trace: If True, displays the simplified (one-line) stack trace
     :param display_sql: If True, displays the SQL statements
-    :param displaay_parameters: If True, display SQL statement parameters
+    :param display_parameters: If True, display SQL statement parameters
     :return:
     """
     import airflow.settings
@@ -62,7 +62,7 @@ def trace_queries(display_time=True, display_trace=True, display_sql=False, disp
             sql_oneline = statement.replace("\n", " ")
             output_parts.append(f"{sql_oneline}")
 
-        if displaay_parameters:
+        if display_parameters:
             output_parts.append(f"{parameters}")
 
         print(" | ".join(output_parts))
