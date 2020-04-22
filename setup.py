@@ -598,6 +598,7 @@ INSTALL_REQUIREMENTS = [
     'tzlocal>=1.4,<2.0.0',
     'unicodecsv>=0.14.1',
     'werkzeug<1.0.0',
+    'WTforms<2.3.0',
 ]
 
 
