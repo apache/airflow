@@ -25,9 +25,9 @@ from airflow.providers.amazon.aws.operators.s3_list_prefixes import S3ListPrefix
 TASK_ID = 'test-s3-list-operator'
 BUCKET = 'test-bucket'
 DELIMITER = '/'
-PREFIX = 'TEST'
-MOCK_SUBFOLDERS = ["foo/bar.parquet", "bar/", "baz/file.csv"]
-
+PREFIX = 'TEST/'
+# assuming these bucket contents: "year=foo/bar.parquet", "bar/", "baz/file.csv"
+MOCK_SUBFOLDERS = ["bar", "baz", "year=foo]
 
 class TestS3ListOperator(unittest.TestCase):
     @mock.patch('airflow.providers.amazon.aws.operators.s3_list.S3Hook')
