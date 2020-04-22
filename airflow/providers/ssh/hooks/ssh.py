@@ -283,20 +283,6 @@ class SSHHook(BaseHook):
         return self.get_tunnel(remote_port, remote_host, local_port)
 
     @staticmethod
-    def _add_new_record_to_known_hosts(record: str, file: TextIO) -> None:
-        file.write(''.join([record, '\n']))
-
-    @staticmethod
-    def _update_record_in_known_hosts(host: str, record: str, file_contents: str, file: TextIO) -> None:
-        current_file_contents = str(file_contents)
-        current_records_with_host_removed = [line for line in current_file_contents.split('\n')
-                                             if host not in line and len(line) > 0]
-        new_file_records = current_records_with_host_removed + [record]
-        new_file_contents = '\n'.join(new_file_records) + '\n'
-        file.seek(0)
-        file.write(new_file_contents)
-
-    @staticmethod
     def update_host_in_known_hosts(host: str, key_type: str, host_key: str) -> None:
         """
         Adds a specified remote_host public key to the known_hosts file
@@ -328,11 +314,14 @@ class SSHHook(BaseHook):
         except PermissionError:
             raise AirflowException("The user running airflow on this system does not have the necessary "
                                    "permissions to make changes to the ~/.ssh directory and its contents.")
-        record = SSHHook._format_known_hosts_record(host, key_type, host_key)
+
         with open(known_hosts_file_ref, 'r') as f:
             file_content = f.read()
 
+        record = SSHHook._format_known_hosts_record(host, key_type, host_key)
+
         if record in file_content:
+            # record already present in file; no update or append required
             pass
         elif host in file_content:
             # the host may be in the file with a different (possibly old) key
@@ -355,3 +344,17 @@ class SSHHook(BaseHook):
         with open(os.path.expanduser('~/.ssh/known_hosts'), 'a') as f:
             f.write(str())
         return os.path.expanduser('~/.ssh/known_hosts')
+
+    @staticmethod
+    def _add_new_record_to_known_hosts(record: str, file: TextIO) -> None:
+        file.write(''.join([record, '\n']))
+
+    @staticmethod
+    def _update_record_in_known_hosts(host: str, record: str, file_contents: str, file: TextIO) -> None:
+        current_file_contents = str(file_contents)
+        current_records_with_host_removed = [line for line in current_file_contents.split('\n')
+                                             if host not in line and len(line) > 0]
+        new_file_records = current_records_with_host_removed + [record]
+        new_file_contents = '\n'.join(new_file_records) + '\n'
+        file.seek(0)
+        file.write(new_file_contents)
