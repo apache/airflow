@@ -46,6 +46,9 @@ and python versions in the URL.
             https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt
 
 
+You need certain system level requirements in order to install Airflow. Those are requirements that are known
+to be needed for Linux system (Tested on Ubuntu Buster LTS) :
+
 2. Installing with extras (for example postgres, gcp)
 
 .. code-block:: bash
