@@ -572,7 +572,7 @@
       $('body').on('mouseover', '.has-svg-tooltip', function(e) {
         var elem = e.target;
         var text = elem.getAttribute('title');
-        var circ = document.getElementById(elem.id).getBoundingClientRect();
+        var circ = elem.getBoundingClientRect();
         showSvgTooltip(text, circ.top, circ.left);
       });
 
