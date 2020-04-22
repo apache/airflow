@@ -15,20 +15,41 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
+
+# Returns number of files matching the pattern changed in revision specified
+# Versus the tip of the target branch
+# Parameters
+#  $1: Revision to compare
+#  $2: Pattern to match
 
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
-    echo
-    echo "Skip tests"
-    echo
-    exit
-fi
+get_ci_environment
 
-prepare_ci_build
+git remote add target "https://github.com/${CI_TARGET_REPO}"
 
-rebuild_ci_image_if_needed
+git fetch target "${CI_TARGET_BRANCH}:${CI_TARGET_BRANCH}" --depth=1
 
-pre-commit run --all-files --show-diff-on-failure --color always
+CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r "${1}" "${CI_TARGET_BRANCH}")
+
+echo
+echo "Changed files:"
+echo
+echo "${CHANGED_FILES}"
+echo
+
+echo
+echo "Changed files matching the ${2} pattern"
+echo
+echo "${CHANGED_FILES}" | grep "${2}" || true
+echo
+
+echo
+echo "Count changed files matching the ${2} pattern"
+echo
+COUNT_CHANGED_FILES=$(echo "${CHANGED_FILES}" | grep -c "${2}")
+echo "${COUNT_CHANGED_FILES}"
+echo
+
+exit "${COUNT_CHANGED_FILES}"
