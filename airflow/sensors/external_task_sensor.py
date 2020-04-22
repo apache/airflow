@@ -160,11 +160,11 @@ class ExternalTaskSensor(BaseSensorOperator):
                                                    self.external_dag_id))
             self.has_checked_existence = True
 
-        count_allowed = self.get_count(DR, TI, dttm_filter, session, self.allowed_states)
+        count_allowed = self.get_count(dttm_filter, session, self.allowed_states)
 
         count_failed = -1
         if len(self.failed_states) > 0:
-            count_failed = self.get_count(DR, TI, dttm_filter, session, self.failed_states)
+            count_failed = self.get_count(dttm_filter, session, self.failed_states)
 
         session.commit()
         if count_failed == len(dttm_filter):
@@ -177,7 +177,20 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         return count_allowed == len(dttm_filter)
 
-    def get_count(self, DR, TI, dttm_filter, session, states):
+    def get_count(self, dttm_filter, session, states):
+        """
+        get the count of records against dttm filter and states
+        :param dttm_filter: date time filter for execution date
+        :type dttm_filter: list
+        :param session: airflow session object
+        :type session: SASession
+        :param states: task or dag states
+        :type states: list
+        :return: count of record against the filters
+        """
+        TI = TaskInstance
+        DR = DagRun
+
         if self.external_task_id:
             # .count() is inefficient
             count = session.query(func.count()).filter(
