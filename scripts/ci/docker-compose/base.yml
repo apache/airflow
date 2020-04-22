@@ -31,21 +31,13 @@ services:
       - MINICLUSTER_HOME=/opt/minicluster
       - CELERY_BROKER_URLS=amqp://guest:guest@rabbitmq:5672,redis://redis:6379/0
       - BACKEND
-      - CI
       - SOURCE_BRANCH
-      - TRAVIS
-      - TRAVIS_BRANCH
-      - TRAVIS_BUILD_DIR
-      - TRAVIS_BUILD_ID
-      - TRAVIS_JOB_ID
-      - TRAVIS_JOB_NUMBER
-      - TRAVIS_PULL_REQUEST
-      - TRAVIS_COMMIT
-      - TRAVIS_REPO_SLUG
-      - TRAVIS_PULL_REQUEST_BRANCH
-      - TRAVIS_PULL_REQUEST_SLUG
-      - TRAVIS_OS_NAME
-      - TRAVIS_TAG
+      - CI
+      - CI_BUILD_ID
+      - CI_JOB_ID
+      - CI_EVENT_TYPE
+      - CI_TARGET_REPO
+      - CI_TARGET_BRANCH
       - RUN_TESTS
       - VERBOSE
       - VEROSE_COMMANDS
