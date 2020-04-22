@@ -553,14 +553,14 @@
       $(".loading-dag-stats").remove();
     }
 
-    function showSvgTooltip(text, offsetTop, offsetLeft) {
+    function showSvgTooltip(text, circ) {
       var tip = $('#svg-tooltip');
       tip.children('.tooltip-inner').text(text);
       var centeringOffset = tip.width() / 2;
       tip.css({
         "display": "block",
-        "left": offsetLeft + 12.5 - centeringOffset + 'px',// 12.5 == half of circle width
-        "top": offsetTop - 25 + 'px'// 25 == position above circle
+        "left": circ.left + 12.5 - centeringOffset + 'px',// 12.5 == half of circle width
+        "top": circ.top - 25 + 'px'// 25 == position above circle
       });
     }
 
@@ -573,7 +573,7 @@
         var elem = e.target;
         var text = elem.getAttribute('title');
         var circ = elem.getBoundingClientRect();
-        showSvgTooltip(text, circ.top, circ.left);
+        showSvgTooltip(text, circ);
       });
 
       $('body').on('mouseout', '.has-svg-tooltip', function(e) {
