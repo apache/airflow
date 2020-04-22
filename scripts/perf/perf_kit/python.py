@@ -41,6 +41,7 @@ def pyspy():
     Alternatively you can edit the docker-compose yaml file
 
     .. code-block:: yaml
+
         your_service:
           cap_add:
           - SYS_PTRACE

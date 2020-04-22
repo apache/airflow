@@ -25,6 +25,7 @@ To use this package, you must add the parent directory to the ``PYTHONPATH`` env
 repository root directory is ``/opt/airflow/``, then you need to run the following command:
 
 .. code-block:: bash
+
     export PYTHONPATH=/opt/airflow/scripts/perf
 
 Content
@@ -112,6 +113,7 @@ queries in it.
 To run the test, execute the command
 
 .. code-block:: bash
+
     pytest tests.models.dag -k test_bulk_sync_to_db -s
 
 This is not a beautiful solution, but it allows you to easily check a random piece of code.
