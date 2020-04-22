@@ -598,7 +598,8 @@ INSTALL_REQUIREMENTS = [
     'tzlocal>=1.4,<2.0.0',
     'unicodecsv>=0.14.1',
     'werkzeug<1.0.0',
-    'WTforms<2.3.0',  # TODO: Remove after https://github.com/dpgaspar/Flask-AppBuilder/issues/1356 is fixed and released.
+    'WTforms<2.3.0',
+    # TODO: Remove after https://github.com/dpgaspar/Flask-AppBuilder/issues/1356 is fixed and released.
 ]
 
 
