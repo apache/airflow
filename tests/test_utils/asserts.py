@@ -95,9 +95,8 @@ def catch_jinja_params():
         yield result
 
     assert mock_render_template.call_count == 1, (
-        "BaseView.render_template was not called once.This method has been called {} times.".format(
-            mock_render_template.call_count
-        )
+        "It was expected that the BaseView.render_template method would only be called once. "
+        f"This was called {mock_render_template} times."
     )
     args, kwargs = mock_render_template.call_args
     assert len(args) == 2  # self, template
