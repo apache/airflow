@@ -366,7 +366,18 @@ def import_local_settings():
         log.debug("Failed to import airflow_local_settings.", exc_info=True)
 
 
-def initialize():
+def preload_custom_imports():
+    """
+    Any custom imports that need to loaded and cached,
+    for example of custom hooks, sensors and operators.
+
+    This method is meant to be overridden in airflow_local_settings.py
+    :rtype: None
+    """
+    pass
+
+
+def initialize(preload_imports=False):
     configure_vars()
     prepare_syspath()
     import_local_settings()
@@ -377,6 +388,8 @@ def initialize():
     configure_orm()
     configure_action_logging()
 
+    if preload_imports:
+        preload_custom_imports()
     # Ensure we close DB connections at scheduler and gunicon worker terminations
     atexit.register(dispose_orm)
 
