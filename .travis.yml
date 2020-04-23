@@ -46,13 +46,11 @@ env:
     # does not work with python 3
     - BOTO_CONFIG=/tmp/bogusvalue
   matrix:
-    - TOX_ENV=py27-cdh-airflow_backend_mysql
     - TOX_ENV=py27-cdh-airflow_backend_sqlite
     - TOX_ENV=py27-cdh-airflow_backend_postgres
 #    - TOX_ENV=py27-hdp-airflow_backend_mysql
 #    - TOX_ENV=py27-hdp-airflow_backend_sqlite
 #    - TOX_ENV=py27-hdp-airflow_backend_postgres
-    - TOX_ENV=py34-cdh-airflow_backend_mysql
     - TOX_ENV=py34-cdh-airflow_backend_sqlite
     - TOX_ENV=py34-cdh-airflow_backend_postgres
 #    - TOX_ENV=py34-hdp-airflow_backend_mysql

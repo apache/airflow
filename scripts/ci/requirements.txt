@@ -17,7 +17,7 @@ boto
 celery
 cgroupspy
 chartkick
-cloudant
+cloudant>=0.5.9,<2.0
 coverage
 coveralls
 croniter
