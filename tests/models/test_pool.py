@@ -60,9 +60,23 @@ class TestPool(unittest.TestCase):
         session.close()
 
         self.assertEqual(3, pool.open_slots())  # pylint: disable=no-value-for-parameter
-        self.assertEqual(1, pool.used_slots())  # pylint: disable=no-value-for-parameter
+        self.assertEqual(1, pool.running_slots())  # pylint: disable=no-value-for-parameter
         self.assertEqual(1, pool.queued_slots())  # pylint: disable=no-value-for-parameter
         self.assertEqual(2, pool.occupied_slots())  # pylint: disable=no-value-for-parameter
+        self.assertEqual({
+            "default_pool": {
+                "open": 128,
+                "queued": 0,
+                "total": 128,
+                "running": 0,
+            },
+            "test_pool": {
+                "open": 3,
+                "queued": 1,
+                "running": 1,
+                "total": 5,
+            },
+        }, pool.slots_stats())
 
     def test_infinite_slots(self):
         pool = Pool(pool='test_pool', slots=-1)
@@ -84,7 +98,7 @@ class TestPool(unittest.TestCase):
         session.close()
 
         self.assertEqual(float('inf'), pool.open_slots())  # pylint: disable=no-value-for-parameter
-        self.assertEqual(1, pool.used_slots())  # pylint: disable=no-value-for-parameter
+        self.assertEqual(1, pool.running_slots())  # pylint: disable=no-value-for-parameter
         self.assertEqual(1, pool.queued_slots())  # pylint: disable=no-value-for-parameter
         self.assertEqual(2, pool.occupied_slots())  # pylint: disable=no-value-for-parameter
 

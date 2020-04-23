@@ -51,9 +51,10 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
-from airflow.ti_deps.dependencies import QUEUEABLE_STATES, RUNNABLE_STATES
+from airflow.ti_deps.dependencies_states import QUEUEABLE_STATES, RUNNABLE_STATES
 from airflow.utils import dates, timezone
 from airflow.utils.session import create_session
+from airflow.utils.sqlalchemy import using_mysql
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
@@ -442,6 +443,30 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get('home', follow_redirects=True)
         self.check_content_in_response('DAGs', resp)
 
+    def test_users_list(self):
+        resp = self.client.get('users/list', follow_redirects=True)
+        self.check_content_in_response('List Users', resp)
+
+    def test_roles_list(self):
+        resp = self.client.get('roles/list', follow_redirects=True)
+        self.check_content_in_response('List Roles', resp)
+
+    def test_userstatschart_view(self):
+        resp = self.client.get('userstatschartview/chart/', follow_redirects=True)
+        self.check_content_in_response('User Statistics', resp)
+
+    def test_permissions_list(self):
+        resp = self.client.get('permissions/list/', follow_redirects=True)
+        self.check_content_in_response('List Base Permissions', resp)
+
+    def test_viewmenus_list(self):
+        resp = self.client.get('viewmenus/list/', follow_redirects=True)
+        self.check_content_in_response('List View Menus', resp)
+
+    def test_permissionsviews_list(self):
+        resp = self.client.get('permissionviews/list/', follow_redirects=True)
+        self.check_content_in_response('List Permissions on Views/Menus', resp)
+
     def test_home_filter_tags(self):
         from airflow.www.views import FILTER_TAGS_COOKIE
         with self.client:
@@ -450,6 +475,21 @@ class TestAirflowBaseViews(TestBase):
 
             self.client.get('home?reset_tags', follow_redirects=True)
             self.assertEqual(None, flask_session[FILTER_TAGS_COOKIE])
+
+    def test_home_status_filter_cookie(self):
+        from airflow.www.views import FILTER_STATUS_COOKIE
+        with self.client:
+            self.client.get('home', follow_redirects=True)
+            self.assertEqual('all', flask_session[FILTER_STATUS_COOKIE])
+
+            self.client.get('home?status=active', follow_redirects=True)
+            self.assertEqual('active', flask_session[FILTER_STATUS_COOKIE])
+
+            self.client.get('home?status=paused', follow_redirects=True)
+            self.assertEqual('paused', flask_session[FILTER_STATUS_COOKIE])
+
+            self.client.get('home?status=all', follow_redirects=True)
+            self.assertEqual('all', flask_session[FILTER_STATUS_COOKIE])
 
     def test_task(self):
         url = ('task?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
@@ -491,6 +531,19 @@ class TestAirflowBaseViews(TestBase):
         url = 'dag_details?dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('DAG details', resp)
+
+    @parameterized.expand(["graph", "tree", "dag_details"])
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_view_uses_existing_dagbag(self, endpoint, mock_get_dag):
+        """
+        Test that Graph, Tree & Dag Details View uses the DagBag already created in views.py
+        instead of creating a new one.
+        """
+        mock_get_dag.return_value = DAG(dag_id='example_bash_operator')
+        url = f'{endpoint}?dag_id=example_bash_operator'
+        resp = self.client.get(url, follow_redirects=True)
+        mock_get_dag.assert_called_once_with('example_bash_operator')
+        self.check_content_in_response('example_bash_operator', resp)
 
     def test_dag_details_trigger_origin_tree_view(self):
         dag = self.dagbag.dags['test_tree_view']
@@ -611,7 +664,7 @@ class TestAirflowBaseViews(TestBase):
         ):
             from airflow.models.dagcode import DagCode
             dag = models.DagBag(include_examples=True).get_dag("example_bash_operator")
-            DagCode(dag.fileloc).sync_to_db()
+            DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
             url = 'code?dag_id=example_bash_operator'
             resp = self.client.get(url)
             self.check_content_not_in_response('Failed to load file', resp)
@@ -626,7 +679,7 @@ class TestAirflowBaseViews(TestBase):
             from airflow.models.dagcode import DagCode
             dagbag = models.DagBag(include_examples=True)
             for dag in dagbag.dags.values():
-                DagCode(dag.fileloc).sync_to_db()
+                DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
             url = 'code?dag_id=example_bash_operator'
             resp = self.client.get(url)
             self.check_content_not_in_response('Failed to load file', resp)
@@ -1534,7 +1587,7 @@ class TestDagACLView(TestBase):
         self.login(username='all_dag_user',
                    password='all_dag_user')
         resp = self.client.get(
-            'dagmodel/autocomplete?query=example_bash&showPaused=True',
+            'dagmodel/autocomplete?query=example_bash',
             follow_redirects=False)
         self.check_content_in_response('example_bash_operator', resp)
         self.check_content_not_in_response('example_subdag_operator', resp)
@@ -2103,6 +2156,7 @@ class TestRenderedView(TestBase):
         )
 
 
+@pytest.mark.quarantined
 class TestTriggerDag(TestBase):
 
     def setUp(self):
@@ -2115,7 +2169,7 @@ class TestTriggerDag(TestBase):
         self.assertIn('/trigger?dag_id=example_bash_operator', resp.data.decode('utf-8'))
         self.assertIn("return confirmDeleteDag(this, 'example_bash_operator')", resp.data.decode('utf-8'))
 
-    @pytest.mark.xfail(condition=True, reason="This test might be flaky on mysql")
+    @pytest.mark.xfail(condition=using_mysql, reason="This test might be flaky on mysql")
     def test_trigger_dag_button(self):
 
         test_dag_id = "example_bash_operator"
@@ -2130,7 +2184,7 @@ class TestTriggerDag(TestBase):
         self.assertIsNotNone(run)
         self.assertIn("manual__", run.run_id)
 
-    @pytest.mark.xfail(condition=True, reason="This test might be flaky on mysql")
+    @pytest.mark.xfail(condition=using_mysql, reason="This test might be flaky on mysql")
     def test_trigger_dag_conf(self):
 
         test_dag_id = "example_bash_operator"
@@ -2167,6 +2221,18 @@ class TestTriggerDag(TestBase):
 
         self.assertEqual(resp.status_code, 200)
         self.check_content_in_response('Trigger DAG: {}'.format(test_dag_id), resp)
+
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_trigger_endpoint_uses_existing_dagbag(self, mock_get_dag):
+        """
+        Test that Trigger Endpoint uses the DagBag already created in views.py
+        instead of creating a new one.
+        """
+        mock_get_dag.return_value = DAG(dag_id='example_bash_operator')
+        url = 'trigger?dag_id=example_bash_operator'
+        resp = self.client.post(url, data={}, follow_redirects=True)
+        mock_get_dag.assert_called_once_with('example_bash_operator')
+        self.check_content_in_response('example_bash_operator', resp)
 
 
 class TestExtraLinks(TestBase):
@@ -2252,6 +2318,31 @@ class TestExtraLinks(TestBase):
             'url': 'https://github.com/apache/airflow',
             'error': None
         })
+
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_extra_link_in_gantt_view(self, get_dag_function):
+        get_dag_function.return_value = self.dag
+
+        exec_date = dates.days_ago(2)
+        start_date = datetime(2020, 4, 10, 2, 0, 0)
+        end_date = exec_date + timedelta(seconds=30)
+
+        with create_session() as session:
+            for task in self.dag.tasks:
+                ti = TaskInstance(task=task, execution_date=exec_date, state="success")
+                ti.start_date = start_date
+                ti.end_date = end_date
+                session.add(ti)
+
+        url = 'gantt?dag_id={}&execution_date={}'.format(self.dag.dag_id, exec_date)
+        resp = self.client.get(url, follow_redirects=True)
+
+        self.check_content_in_response('"extraLinks":', resp)
+
+        extra_links_grps = re.search(r'extraLinks\": \[(\".*?\")\]', resp.get_data(as_text=True))
+        extra_links = extra_links_grps.group(0)
+        self.assertIn('airflow', extra_links)
+        self.assertIn('github', extra_links)
 
     @mock.patch('airflow.www.views.dagbag.get_dag')
     def test_operator_extra_link_override_global_extra_link(self, get_dag_function):
@@ -2526,7 +2617,3 @@ class TestDecorators(TestBase):
         self.session.commit()
         self.check_last_log("example_bash_operator", event="clear",
                             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE)
-
-
-if __name__ == '__main__':
-    unittest.main()

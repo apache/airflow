@@ -140,8 +140,9 @@ This assumes all other Connection fields eg **Login** are empty.
       "assume_role_kwargs": { "something":"something" }
     }
 
-AssumeRoleWithSAML
-    The following settings may be used within the ``assume_role_with_saml`` container in Extra.
+
+The following settings may be used within the ``assume_role_with_saml`` container in Extra.
+
     * ``principal_arn``: The ARN of the SAML provider created in IAM that describes the identity provider.
     * ``idp_url``: The URL to your IDP endpoint, which provides SAML Assertions.
     * ``idp_auth_method``: Specify "http_spegno_auth" to use the Python ``requests_gssapi`` library. This library is more up to date than ``requests_kerberos`` and is backward compatible. See ``requests_gssapi`` documentation on PyPi.

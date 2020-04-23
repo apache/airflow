@@ -137,7 +137,3 @@ class TestHiveToDynamoDBTransferOperator(unittest.TestCase):
         table = self.hook.get_conn().Table('test_airflow')
         table.meta.client.get_waiter('table_exists').wait(TableName='test_airflow')
         self.assertEqual(table.item_count, 1)
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -25,9 +25,16 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class RedshiftHook(AwsBaseHook):
     """
     Interact with AWS Redshift, using the boto3 library
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
-    def get_conn(self):
-        return self.get_client_type('redshift')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(client_type='redshift', *args, **kwargs)
 
     # TODO: Wrap create_cluster_snapshot
     def cluster_status(self, cluster_identifier):
@@ -37,12 +44,11 @@ class RedshiftHook(AwsBaseHook):
         :param cluster_identifier: unique identifier of a cluster
         :type cluster_identifier: str
         """
-        conn = self.get_conn()
         try:
-            response = conn.describe_clusters(
+            response = self.get_conn().describe_clusters(
                 ClusterIdentifier=cluster_identifier)['Clusters']
             return response[0]['ClusterStatus'] if response else None
-        except conn.exceptions.ClusterNotFoundFault:
+        except self.get_conn().exceptions.ClusterNotFoundFault:
             return 'cluster_not_found'
 
     def delete_cluster(  # pylint: disable=invalid-name

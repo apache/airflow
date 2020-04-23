@@ -120,7 +120,3 @@ class TestCloudFormationDeleteStackSensor(unittest.TestCase):
     def test_poke_stack_does_not_exist(self):
         op = CloudFormationDeleteStackSensor(task_id='task', stack_name='foo')
         self.assertTrue(op.poke({}))
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -34,7 +34,9 @@ def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-ar
 
 class TestDatastoreHook(unittest.TestCase):
     def setUp(self):
-        with patch('airflow.providers.google.cloud.hooks.base.CloudBaseHook.__init__', new=mock_init):
+        with patch(
+            'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__', new=mock_init
+        ):
             self.datastore_hook = DatastoreHook()
 
     @patch('airflow.providers.google.cloud.hooks.datastore.DatastoreHook._authorize')
@@ -71,7 +73,8 @@ class TestDatastoreHook(unittest.TestCase):
         partial_keys = []
 
         with self.assertRaises(AirflowException) as err:
-            self.datastore_hook.allocate_ids(partial_keys=partial_keys)
+            self.datastore_hook.allocate_ids(  # pylint: disable=no-value-for-parameter
+                partial_keys=partial_keys)
         self.assertIn("project_id", str(err.exception))
 
     @patch('airflow.providers.google.cloud.hooks.datastore.DatastoreHook.get_conn')
@@ -94,7 +97,7 @@ class TestDatastoreHook(unittest.TestCase):
     def test_begin_transaction_no_project_id(self, mock_get_conn, mock_project_id):
         self.datastore_hook.connection = mock_get_conn.return_value
         with self.assertRaises(AirflowException) as err:
-            self.datastore_hook.begin_transaction()
+            self.datastore_hook.begin_transaction()  # pylint: disable=no-value-for-parameter
         self.assertIn("project_id", str(err.exception))
 
     @patch('airflow.providers.google.cloud.hooks.datastore.DatastoreHook.get_conn')
@@ -120,7 +123,7 @@ class TestDatastoreHook(unittest.TestCase):
         body = {'item': 'a'}
 
         with self.assertRaises(AirflowException) as err:
-            self.datastore_hook.commit(body=body)
+            self.datastore_hook.commit(body=body)  # pylint: disable=no-value-for-parameter
         self.assertIn("project_id", str(err.exception))
 
     @patch('airflow.providers.google.cloud.hooks.datastore.DatastoreHook.get_conn')
@@ -159,7 +162,7 @@ class TestDatastoreHook(unittest.TestCase):
         transaction = 'transaction'
 
         with self.assertRaises(AirflowException) as err:
-            self.datastore_hook.lookup(keys=keys,
+            self.datastore_hook.lookup(keys=keys,  # pylint: disable=no-value-for-parameter
                                        read_consistency=read_consistency,
                                        transaction=transaction,
                                        )
@@ -188,7 +191,7 @@ class TestDatastoreHook(unittest.TestCase):
         transaction = 'transaction'
 
         with self.assertRaises(AirflowException) as err:
-            self.datastore_hook.rollback(transaction=transaction)
+            self.datastore_hook.rollback(transaction=transaction)  # pylint: disable=no-value-for-parameter
         self.assertIn("project_id", str(err.exception))
 
     @patch('airflow.providers.google.cloud.hooks.datastore.DatastoreHook.get_conn')
@@ -214,7 +217,7 @@ class TestDatastoreHook(unittest.TestCase):
         body = {'item': 'a'}
 
         with self.assertRaises(AirflowException) as err:
-            self.datastore_hook.run_query(body=body)
+            self.datastore_hook.run_query(body=body)  # pylint: disable=no-value-for-parameter
         self.assertIn("project_id", str(err.exception))
 
     @patch('airflow.providers.google.cloud.hooks.datastore.DatastoreHook.get_conn')
@@ -308,11 +311,12 @@ class TestDatastoreHook(unittest.TestCase):
         labels = {}
 
         with self.assertRaises(AirflowException) as err:
-            self.datastore_hook.export_to_storage_bucket(bucket=bucket,
-                                                         namespace=namespace,
-                                                         entity_filter=entity_filter,
-                                                         labels=labels,
-                                                         )
+            self.datastore_hook.export_to_storage_bucket(  # pylint: disable=no-value-for-parameter
+                bucket=bucket,
+                namespace=namespace,
+                entity_filter=entity_filter,
+                labels=labels,
+            )
         self.assertIn("project_id", str(err.exception))
 
     @patch('airflow.providers.google.cloud.hooks.datastore.DatastoreHook.get_conn')
@@ -359,10 +363,11 @@ class TestDatastoreHook(unittest.TestCase):
         labels = {}
 
         with self.assertRaises(AirflowException) as err:
-            self.datastore_hook.import_from_storage_bucket(bucket=bucket,
-                                                           file=file,
-                                                           namespace=namespace,
-                                                           entity_filter=entity_filter,
-                                                           labels=labels,
-                                                           )
+            self.datastore_hook.import_from_storage_bucket(  # pylint: disable=no-value-for-parameter
+                bucket=bucket,
+                file=file,
+                namespace=namespace,
+                entity_filter=entity_filter,
+                labels=labels,
+            )
         self.assertIn("project_id", str(err.exception))

@@ -79,7 +79,3 @@ class TestFileToWasbOperator(unittest.TestCase):
         mock_instance.load_file.assert_called_once_with(
             'file', 'container', 'blob', timeout=2
         )
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -133,8 +133,12 @@ def worker(args):
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
 
+        if args.umask:
+            umask = args.umask
+
         ctx = daemon.DaemonContext(
             files_preserve=[handle],
+            umask=int(umask, 8),
             stdout=stdout,
             stderr=stderr,
         )

@@ -30,7 +30,7 @@ from parameterized import parameterized
 from airflow.providers.google.cloud.hooks.pubsub import PubSubException, PubSubHook
 from airflow.version import version
 
-BASE_STRING = 'airflow.providers.google.cloud.hooks.base.{}'
+BASE_STRING = 'airflow.providers.google.common.hooks.base_google.{}'
 PUBSUB_STRING = 'airflow.providers.google.cloud.hooks.pubsub.{}'
 
 EMPTY_CONTENT = b''
@@ -57,7 +57,7 @@ def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-ar
 
 class TestPubSubHook(unittest.TestCase):
     def setUp(self):
-        with mock.patch(BASE_STRING.format('CloudBaseHook.__init__'),
+        with mock.patch(BASE_STRING.format('GoogleBaseHook.__init__'),
                         new=mock_init):
             self.pubsub_hook = PubSubHook(gcp_conn_id='test')
 

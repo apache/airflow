@@ -295,7 +295,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             processor_agent.start()
             parsing_result = []
             if not async_mode:
-                processor_agent.heartbeat()
+                processor_agent.run_single_parsing_loop()
             while not processor_agent.done:
                 if not async_mode:
                     processor_agent.wait_until_finished()
@@ -410,7 +410,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                                                     async_mode)
             processor_agent.start()
             if not async_mode:
-                processor_agent.heartbeat()
+                processor_agent.run_single_parsing_loop()
 
             processor_agent._process.join()
 
@@ -435,7 +435,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         processor_agent.start()
         parsing_result = []
         if not async_mode:
-            processor_agent.heartbeat()
+            processor_agent.run_single_parsing_loop()
         while not processor_agent.done:
             if not async_mode:
                 processor_agent.wait_until_finished()
@@ -468,7 +468,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                                                 async_mode)
         processor_agent.start()
         if not async_mode:
-            processor_agent.heartbeat()
+            processor_agent.run_single_parsing_loop()
 
         processor_agent._process.join()
 

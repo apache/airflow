@@ -22,10 +22,10 @@ from typing import Dict, List, Optional, Union
 
 from google.cloud.translate_v2 import Client
 
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class CloudTranslateHook(CloudBaseHook):
+class CloudTranslateHook(GoogleBaseHook):
     """
     Hook for Google Cloud translate APIs.
 
@@ -48,7 +48,7 @@ class CloudTranslateHook(CloudBaseHook):
             self._client = Client(credentials=self._get_credentials(), client_info=self.client_info)
         return self._client
 
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def translate(
         self,
         values: Union[str, List[str]],

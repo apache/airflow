@@ -186,6 +186,7 @@ aws = [
     'watchtower~=0.7.3',
 ]
 azure = [
+    'azure-batch>=8.0.0',
     'azure-cosmos>=3.0.1',
     'azure-datalake-store>=0.0.45',
     'azure-kusto-data>=0.0.43',
@@ -236,6 +237,12 @@ elasticsearch = [
     'elasticsearch>7, <7.6.0',
     'elasticsearch-dbapi==0.1.0',
     'elasticsearch-dsl>=5.0.0',
+]
+exasol = [
+    'pyexasol>=0.5.1,<1.0.0',
+]
+facebook = [
+    'facebook-business>=6.0.2',
 ]
 flask_oauth = [
     'Flask-OAuthlib>=0.9.1',
@@ -410,7 +417,7 @@ zendesk = [
 ]
 # End dependencies group
 
-all_dbs = (cassandra + cloudant + druid + hdfs + hive + mongo + mssql + mysql +
+all_dbs = (cassandra + cloudant + druid + exasol + hdfs + hive + mongo + mssql + mysql +
            pinot + postgres + presto + vertica)
 
 ############################################################################################################
@@ -439,6 +446,9 @@ devel = [
     'pytest',
     'pytest-cov',
     'pytest-instafail',
+    'pytest-rerunfailures',
+    'pytest-timeout',
+    'pytest-xdist',
     'pywinrm',
     'qds-sdk>=1.9.6',
     'requests_mock',
@@ -451,16 +461,17 @@ devel = [
 ############################################################################################################
 
 if PY3:
-    devel += ['mypy==0.740']
+    devel += ['mypy==0.770']
 else:
     devel += ['unittest2']
 
 devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
 devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
+
 devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + dask + datadog + devel + doc + docker +
-             elasticsearch + gcp + grpc + hashicorp + jdbc + jenkins + kerberos + kubernetes + ldap + odbc +
-             oracle + pagerduty + papermill + password + redis + salesforce + samba + segment +
-             sendgrid + sentry + singularity + slack + snowflake + ssh + statsd + tableau +
+             elasticsearch + exasol + facebook + gcp + grpc + hashicorp + jdbc + jenkins + kerberos +
+             kubernetes + ldap + odbc + oracle + pagerduty + papermill + password + redis + salesforce +
+             samba + segment + sendgrid + sentry + singularity + slack + snowflake + ssh + statsd + tableau +
              virtualenv + webhdfs + yandexcloud + zendesk)
 
 # Snakebite is not Python 3 compatible :'(
@@ -491,6 +502,8 @@ EXTRAS_REQUIREMENTS = {
     'docker': docker,
     'druid': druid,
     'elasticsearch': elasticsearch,
+    'exasol': exasol,
+    'facebook': facebook,
     'gcp': gcp,
     'gcp_api': gcp,  # TODO: remove this in Airflow 2.1
     'github_enterprise': flask_oauth,
@@ -530,6 +543,7 @@ EXTRAS_REQUIREMENTS = {
     'statsd': statsd,
     'tableau': tableau,
     'vertica': vertica,
+    'virtualenv': virtualenv,
     'webhdfs': webhdfs,
     'winrm': winrm,
     'yandexcloud': yandexcloud,
@@ -541,6 +555,8 @@ EXTRAS_REQUIREMENTS = {
 # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile.ci
 #####################################################################################################
 INSTALL_REQUIREMENTS = [
+    'WTforms<2.3.0',
+    # TODO: Remove after https://github.com/dpgaspar/Flask-AppBuilder/issues/1356 is fixed and released.
     'alembic>=1.2, <2.0',
     'argcomplete~=1.10',
     'attrs~=19.3',

@@ -204,7 +204,3 @@ class TestCassandraHook(unittest.TestCase):
 
         session.shutdown()
         hook.shutdown_cluster()
-
-
-if __name__ == '__main__':
-    unittest.main()

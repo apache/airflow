@@ -108,6 +108,10 @@ All operators are in the following packages:
 
   airflow/providers/email/operators/index
 
+  airflow/providers/exasol/operators/index
+
+  airflow/providers/google/facebook_ads_to_gcs/operators/index
+
   airflow/providers/ftp/sensors/index
 
   airflow/providers/google/ads/operators/index
@@ -247,11 +251,17 @@ All hooks are in the following packages:
 
   airflow/providers/elasticsearch/hooks/index
 
+  airflow/providers/exasol/hooks/index
+
+  airflow/providers/facebook/ads/hooks/index
+
   airflow/providers/ftp/hooks/index
 
   airflow/providers/google/ads/hooks/index
 
   airflow/providers/google/cloud/hooks/index
+
+  airflow/providers/google/common/hooks/index
 
   airflow/providers/google/firebase/hooks/index
 

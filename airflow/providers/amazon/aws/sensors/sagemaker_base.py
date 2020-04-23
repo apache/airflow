@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -36,6 +37,13 @@ class SageMakerBaseSensor(BaseSensorOperator):
             *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.aws_conn_id = aws_conn_id
+        self.hook = None
+
+    def get_hook(self):
+        """Get SageMakerHook"""
+        if not self.hook:
+            self.hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
+        return self.hook
 
     def poke(self, context):
         response = self.get_sagemaker_response()

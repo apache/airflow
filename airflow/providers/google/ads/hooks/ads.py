@@ -21,6 +21,7 @@ This module contains Google Ad hook.
 from tempfile import NamedTemporaryFile
 from typing import IO, Any, Dict, Generator, List
 
+from cached_property import cached_property
 from google.ads.google_ads.client import GoogleAdsClient
 from google.ads.google_ads.errors import GoogleAdsException
 from google.ads.google_ads.v2.types import GoogleAdsRow
@@ -52,7 +53,7 @@ class GoogleAdsHook(BaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         google_ads_conn_id: str = "google_ads_default",
-        api_version: str = "v2",
+        api_version: str = "v3",
     ) -> None:
         super().__init__()
         self.gcp_conn_id = gcp_conn_id
@@ -61,14 +62,32 @@ class GoogleAdsHook(BaseHook):
         self.api_version = api_version
         self.google_ads_config: Dict[str, Any] = {}
 
-    def _get_service(self) -> GoogleAdsClient:
-        """Connects and authenticates with the Google Ads API using a service account"""
+    @cached_property
+    def _get_service(self):
+        """
+        Connects and authenticates with the Google Ads API using a service account
+        """
         with NamedTemporaryFile("w", suffix=".json") as secrets_temp:
             self._get_config()
             self._update_config_with_secret(secrets_temp)
             try:
                 client = GoogleAdsClient.load_from_dict(self.google_ads_config)
                 return client.get_service("GoogleAdsService", version=self.api_version)
+            except GoogleAuthError as e:
+                self.log.error("Google Auth Error: %s", e)
+                raise
+
+    @cached_property
+    def _get_customer_service(self):
+        """
+        Connects and authenticates with the Google Ads API using a service account
+        """
+        with NamedTemporaryFile("w", suffix=".json") as secrets_temp:
+            self._get_config()
+            self._update_config_with_secret(secrets_temp)
+            try:
+                client = GoogleAdsClient.load_from_dict(self.google_ads_config)
+                return client.get_service("CustomerService", version=self.api_version)
             except GoogleAuthError as e:
                 self.log.error("Google Auth Error: %s", e)
                 raise
@@ -112,7 +131,7 @@ class GoogleAdsHook(BaseHook):
         :return: Google Ads API response, converted to Google Ads Row objects
         :rtype: list[GoogleAdsRow]
         """
-        service = self._get_service()
+        service = self._get_service
         iterators = (
             service.search(client_id, query=query, page_size=page_size, **kwargs)
             for client_id in client_ids
@@ -149,4 +168,28 @@ class GoogleAdsHook(BaseHook):
                         self.log.error(
                             "\t\tOn field: %s", field_path_element.field_name
                         )
+            raise
+
+    def list_accessible_customers(self) -> List[str]:
+        """
+        Returns resource names of customers directly accessible by the user authenticating the call.
+        The resulting list of customers is based on your OAuth credentials. The request returns a list
+        of all accounts that you are able to act upon directly given your current credentials. This will
+        not necessarily include all accounts within the account hierarchy; rather, it will only include
+        accounts where your authenticated user has been added with admin or other rights in the account.
+
+        ..seealso::
+            https://developers.google.com/google-ads/api/reference/rpc
+
+        :return: List of names of customers
+        """
+        try:
+            accessible_customers = self._get_customer_service.list_accessible_customers()
+            return accessible_customers.resource_names
+        except GoogleAdsException as ex:
+            for error in ex.failure.errors:
+                self.log.error('\tError with message "%s".', error.message)
+                if error.location:
+                    for field_path_element in error.location.field_path_elements:
+                        self.log.error('\t\tOn field: %s', field_path_element.field_name)
             raise

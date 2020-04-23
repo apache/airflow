@@ -25,10 +25,10 @@ from typing import Any, Dict, List, Optional
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class GSheetsHook(CloudBaseHook):
+class GSheetsHook(GoogleBaseHook):
     """
     Interact with Google Sheets via GCP connection
     Reading and writing cells in Google Sheet:

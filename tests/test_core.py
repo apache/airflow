@@ -487,7 +487,3 @@ class TestCore(unittest.TestCase):
 
         self.assertEqual(context['prev_ds'], execution_ds)
         self.assertEqual(context['prev_ds_nodash'], execution_ds_nodash)
-
-
-if __name__ == '__main__':
-    unittest.main()

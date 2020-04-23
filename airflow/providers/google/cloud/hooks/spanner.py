@@ -28,10 +28,10 @@ from google.cloud.spanner_v1.transaction import Transaction
 from google.longrunning.operations_grpc_pb2 import Operation  # noqa: F401
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class SpannerHook(CloudBaseHook):
+class SpannerHook(GoogleBaseHook):
     """
     Hook for Google Cloud Spanner APIs.
 
@@ -60,11 +60,11 @@ class SpannerHook(CloudBaseHook):
             )
         return self._client
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_instance(
         self,
         instance_id: str,
-        project_id: Optional[str] = None
+        project_id: str,
     ) -> Instance:
         """
         Gets information about a particular instance.
@@ -77,8 +77,6 @@ class SpannerHook(CloudBaseHook):
         :return: Spanner instance
         :rtype: google.cloud.spanner_v1.instance.Instance
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
         instance = self._get_client(project_id=project_id).instance(instance_id=instance_id)
         if not instance.exists():
             return None
@@ -126,14 +124,14 @@ class SpannerHook(CloudBaseHook):
             result = operation.result()
             self.log.info(result)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_instance(
         self,
         instance_id: str,
         configuration_name: str,
         node_count: int,
         display_name: str,
-        project_id: Optional[str] = None
+        project_id: str,
     ) -> None:
         """
         Creates a new Cloud Spanner instance.
@@ -156,19 +154,17 @@ class SpannerHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
         self._apply_to_instance(project_id, instance_id, configuration_name,
                                 node_count, display_name, lambda x: x.create())
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def update_instance(
         self,
         instance_id: str,
         configuration_name: str,
         node_count: int,
         display_name: str,
-        project_id: Optional[str] = None
+        project_id: str,
     ) -> None:
         """
         Updates an existing Cloud Spanner instance.
@@ -191,13 +187,11 @@ class SpannerHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
         self._apply_to_instance(project_id, instance_id, configuration_name,
                                 node_count, display_name, lambda x: x.update())
 
-    @CloudBaseHook.fallback_to_default_project_id
-    def delete_instance(self, instance_id: str, project_id: Optional[str] = None) -> None:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_instance(self, instance_id: str, project_id: str) -> None:
         """
         Deletes an existing Cloud Spanner instance.
 
@@ -208,8 +202,6 @@ class SpannerHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
         instance = self._get_client(project_id=project_id).instance(instance_id)
         try:
             instance.delete()
@@ -218,12 +210,12 @@ class SpannerHook(CloudBaseHook):
             self.log.error('An error occurred: %s. Exiting.', e.message)
             raise e
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_database(
         self,
         instance_id: str,
         database_id: str,
-        project_id: Optional[str] = None
+        project_id: str,
     ) -> Optional[Database]:
         """
         Retrieves a database in Cloud Spanner. If the database does not exist
@@ -239,9 +231,6 @@ class SpannerHook(CloudBaseHook):
         :return: Database object or None if database does not exist
         :rtype: google.cloud.spanner_v1.database.Database or None
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         instance = self._get_client(project_id=project_id).instance(
             instance_id=instance_id)
         if not instance.exists():
@@ -253,13 +242,13 @@ class SpannerHook(CloudBaseHook):
 
         return database
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_database(
         self,
         instance_id: str,
         database_id: str,
         ddl_statements: List[str],
-        project_id: Optional[str] = None
+        project_id: str,
     ) -> None:
         """
         Creates a new database in Cloud Spanner.
@@ -275,9 +264,6 @@ class SpannerHook(CloudBaseHook):
             database. If set to None or missing, the default project_id from the GCP connection is used.
         :return: None
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         instance = self._get_client(project_id=project_id).instance(
             instance_id=instance_id)
         if not instance.exists():
@@ -295,13 +281,13 @@ class SpannerHook(CloudBaseHook):
             result = operation.result()
             self.log.info(result)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def update_database(
         self,
         instance_id: str,
         database_id: str,
         ddl_statements: List[str],
-        project_id: Optional[str] = None,
+        project_id: str,
         operation_id: Optional[str] = None
     ) -> None:
         """
@@ -321,9 +307,6 @@ class SpannerHook(CloudBaseHook):
         :type operation_id: str
         :return: None
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         instance = self._get_client(project_id=project_id).instance(
             instance_id=instance_id)
         if not instance.exists():
@@ -346,8 +329,8 @@ class SpannerHook(CloudBaseHook):
             self.log.error('An error occurred: %s. Exiting.', e.message)
             raise e
 
-    @CloudBaseHook.fallback_to_default_project_id
-    def delete_database(self, instance_id: str, database_id, project_id: Optional[str] = None) -> bool:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_database(self, instance_id: str, database_id, project_id: str) -> bool:
         """
         Drops a database in Cloud Spanner.
 
@@ -361,9 +344,6 @@ class SpannerHook(CloudBaseHook):
         :return: True if everything succeeded
         :rtype: bool
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         instance = self._get_client(project_id=project_id).\
             instance(instance_id=instance_id)
         if not instance.exists():
@@ -384,13 +364,13 @@ class SpannerHook(CloudBaseHook):
 
         return True
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def execute_dml(
         self,
         instance_id: str,
         database_id: str,
         queries: List[str],
-        project_id: Optional[str] = None,
+        project_id: str,
     ) -> None:
         """
         Executes an arbitrary DML query (INSERT, UPDATE, DELETE).
@@ -405,9 +385,6 @@ class SpannerHook(CloudBaseHook):
             database. If set to None or missing, the default project_id from the GCP connection is used.
         :type project_id: str
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         self._get_client(project_id=project_id).instance(instance_id=instance_id).\
             database(database_id=database_id).run_in_transaction(
             lambda transaction: self._execute_sql_in_transaction(transaction, queries))

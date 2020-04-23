@@ -61,7 +61,3 @@ class TestJdbcHook(unittest.TestCase):
         jdbc_conn = jdbc_hook.get_conn()
         jdbc_hook.get_autocommit(jdbc_conn)
         jdbc_conn.jconn.getAutoCommit.assert_called_once_with()
-
-
-if __name__ == '__main__':
-    unittest.main()

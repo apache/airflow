@@ -81,7 +81,3 @@ class TestEmrModifyClusterOperator(unittest.TestCase):
 
         with patch('boto3.session.Session', self.boto3_session_mock):
             self.assertRaises(AirflowException, self.operator.execute, self.mock_context)
-
-
-if __name__ == '__main__':
-    unittest.main()

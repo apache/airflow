@@ -24,6 +24,7 @@ import pickle
 import re
 import sys
 import traceback
+import warnings
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from typing import Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Type, Union
@@ -253,7 +254,8 @@ class DAG(BaseDag, LoggingMixin):
 
         self._description = description
         # set file location to caller source path
-        self.fileloc = sys._getframe().f_back.f_code.co_filename
+        back = sys._getframe().f_back
+        self.fileloc = back.f_code.co_filename if back else ""
         self.task_dict: Dict[str, BaseOperator] = dict()
 
         # set timezone from start_date
@@ -290,12 +292,6 @@ class DAG(BaseDag, LoggingMixin):
             )
 
         self.schedule_interval = schedule_interval
-        if isinstance(schedule_interval, str) and schedule_interval in cron_presets:
-            self._schedule_interval = cron_presets.get(schedule_interval)  # type: Optional[ScheduleInterval]
-        elif schedule_interval == '@once':
-            self._schedule_interval = None
-        else:
-            self._schedule_interval = schedule_interval
         if isinstance(template_searchpath, str):
             template_searchpath = [template_searchpath]
         self.template_searchpath = template_searchpath
@@ -378,7 +374,7 @@ class DAG(BaseDag, LoggingMixin):
             end_date = None
         return utils_date_range(
             start_date=start_date, end_date=end_date,
-            num=num, delta=self._schedule_interval)
+            num=num, delta=self.normalized_schedule_interval)
 
     def is_fixed_time_schedule(self):
         """
@@ -387,7 +383,7 @@ class DAG(BaseDag, LoggingMixin):
         :return: True if the schedule has a fixed time, False if not.
         """
         now = datetime.now()
-        cron = croniter(self._schedule_interval, now)
+        cron = croniter(self.normalized_schedule_interval, now)
 
         start = cron.get_next(datetime)
         cron_next = cron.get_next(datetime)
@@ -404,12 +400,12 @@ class DAG(BaseDag, LoggingMixin):
         :param dttm: utc datetime
         :return: utc datetime
         """
-        if isinstance(self._schedule_interval, str):
+        if isinstance(self.normalized_schedule_interval, str):
             # we don't want to rely on the transitions created by
             # croniter as they are not always correct
             dttm = pendulum.instance(dttm)
             naive = timezone.make_naive(dttm, self.timezone)
-            cron = croniter(self._schedule_interval, naive)
+            cron = croniter(self.normalized_schedule_interval, naive)
 
             # We assume that DST transitions happen on the minute/hour
             if not self.is_fixed_time_schedule():
@@ -422,8 +418,8 @@ class DAG(BaseDag, LoggingMixin):
                 tz = pendulum.timezone(self.timezone.name)
                 following = timezone.make_aware(naive, tz)
             return timezone.convert_to_utc(following)
-        elif self._schedule_interval is not None:
-            return dttm + self._schedule_interval
+        elif self.normalized_schedule_interval is not None:
+            return dttm + self.normalized_schedule_interval
 
     def previous_schedule(self, dttm):
         """
@@ -432,12 +428,12 @@ class DAG(BaseDag, LoggingMixin):
         :param dttm: utc datetime
         :return: utc datetime
         """
-        if isinstance(self._schedule_interval, str):
+        if isinstance(self.normalized_schedule_interval, str):
             # we don't want to rely on the transitions created by
             # croniter as they are not always correct
             dttm = pendulum.instance(dttm)
             naive = timezone.make_naive(dttm, self.timezone)
-            cron = croniter(self._schedule_interval, naive)
+            cron = croniter(self.normalized_schedule_interval, naive)
 
             # We assume that DST transitions happen on the minute/hour
             if not self.is_fixed_time_schedule():
@@ -450,8 +446,8 @@ class DAG(BaseDag, LoggingMixin):
                 tz = pendulum.timezone(self.timezone.name)
                 previous = timezone.make_aware(naive, tz)
             return timezone.convert_to_utc(previous)
-        elif self._schedule_interval is not None:
-            return dttm - self._schedule_interval
+        elif self.normalized_schedule_interval is not None:
+            return dttm - self.normalized_schedule_interval
 
     def get_run_dates(self, start_date, end_date=None):
         """
@@ -597,7 +593,11 @@ class DAG(BaseDag, LoggingMixin):
             fallback=False) and self.schedule_interval is None
 
     @provide_session
-    def _get_concurrency_reached(self, session=None) -> bool:
+    def get_concurrency_reached(self, session=None) -> bool:
+        """
+        Returns a boolean indicating whether the concurrency limit for this DAG
+        has been reached
+        """
         TI = TaskInstance
         qry = session.query(func.count(TI.task_id)).filter(
             TI.dag_id == self.dag_id,
@@ -606,25 +606,55 @@ class DAG(BaseDag, LoggingMixin):
         return qry.scalar() >= self.concurrency
 
     @property
-    def concurrency_reached(self) -> bool:
+    def concurrency_reached(self):
         """
-        Returns a boolean indicating whether the concurrency limit for this DAG
-        has been reached
+        This attribute is deprecated. Please use `airflow.models.DAG.get_concurrency_reached` method.
         """
-        return self._get_concurrency_reached()
+        warnings.warn(
+            "This attribute is deprecated. Please use `airflow.models.DAG.get_concurrency_reached` method.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.get_concurrency_reached()
 
     @provide_session
-    def _get_is_paused(self, session=None):
+    def get_is_paused(self, session=None):
+        """
+        Returns a boolean indicating whether this DAG is paused
+        """
         qry = session.query(DagModel).filter(
             DagModel.dag_id == self.dag_id)
         return qry.value(DagModel.is_paused)
 
     @property
-    def is_paused(self) -> bool:
+    def is_paused(self):
         """
-        Returns a boolean indicating whether this DAG is paused
+        This attribute is deprecated. Please use `airflow.models.DAG.get_is_paused` method.
         """
-        return self._get_is_paused()
+        warnings.warn(
+            "This attribute is deprecated. Please use `airflow.models.DAG.get_is_paused` method.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.get_is_paused()
+
+    @property
+    def normalized_schedule_interval(self) -> Optional[ScheduleInterval]:
+        """
+        Returns Normalized Schedule Interval. This is used internally by the Scheduler to
+        schedule DAGs.
+
+        1. Converts Cron Preset to a Cron Expression (e.g ``@monthly`` to ``0 0 1 * *``)
+        2. If Schedule Interval is "@once" return "None"
+        3. If not (1) or (2) returns schedule_interval
+        """
+        if isinstance(self.schedule_interval, str) and self.schedule_interval in cron_presets:
+            _schedule_interval = cron_presets.get(self.schedule_interval)  # type: Optional[ScheduleInterval]
+        elif self.schedule_interval == '@once':
+            _schedule_interval = None
+        else:
+            _schedule_interval = self.schedule_interval
+        return _schedule_interval
 
     @provide_session
     def handle_callback(self, dagrun, success=True, reason=None, session=None):
@@ -727,7 +757,10 @@ class DAG(BaseDag, LoggingMixin):
         return dagruns
 
     @provide_session
-    def _get_latest_execution_date(self, session=None):
+    def get_latest_execution_date(self, session=None):
+        """
+        Returns the latest date for which at least one dag run exists
+        """
         return session.query(func.max(DagRun.execution_date)).filter(
             DagRun.dag_id == self.dag_id
         ).scalar()
@@ -735,9 +768,14 @@ class DAG(BaseDag, LoggingMixin):
     @property
     def latest_execution_date(self):
         """
-        Returns the latest date for which at least one dag run exists
+        This attribute is deprecated. Please use `airflow.models.DAG.get_latest_execution_date` method.
         """
-        return self._get_latest_execution_date()
+        warnings.warn(
+            "This attribute is deprecated. Please use `airflow.models.DAG.get_latest_execution_date` method.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.get_latest_execution_date()
 
     @property
     def subdags(self):
@@ -912,12 +950,7 @@ class DAG(BaseDag, LoggingMixin):
             query = query.filter(DagRun.execution_date >= start_date)
         if end_date:
             query = query.filter(DagRun.execution_date <= end_date)
-        drs = query.all()
-
-        dirty_ids = []
-        for dr in drs:
-            dr.state = state
-            dirty_ids.append(dr.dag_id)
+        query.update({DagRun.state: state})
 
     @provide_session
     def clear(
@@ -978,7 +1011,7 @@ class DAG(BaseDag, LoggingMixin):
             conditions = []
             for dag in self.subdags + [self]:
                 conditions.append(
-                    TI.dag_id.like(dag.dag_id) &
+                    (TI.dag_id == dag.dag_id) &
                     TI.task_id.in_(dag.task_ids)
                 )
             tis = tis.filter(or_(*conditions))
@@ -1636,7 +1669,7 @@ class DAG(BaseDag, LoggingMixin):
             cls.__serialized_fields = frozenset(vars(DAG(dag_id='test')).keys()) - {
                 'parent_dag', '_old_context_manager_dags', 'safe_dag_id', 'last_loaded',
                 '_full_filepath', 'user_defined_filters', 'user_defined_macros',
-                '_schedule_interval', 'partial', '_old_context_manager_dags',
+                'partial', '_old_context_manager_dags',
                 '_pickle_id', '_log', 'is_subdag', 'task_dict', 'template_searchpath',
                 'sla_miss_callback', 'on_success_callback', 'on_failure_callback',
                 'template_undefined', 'jinja_environment_kwargs'
@@ -1747,41 +1780,6 @@ class DagModel(Base):
     @property
     def safe_dag_id(self):
         return self.dag_id.replace('.', '__dot__')
-
-    @provide_session
-    def create_dagrun(self,
-                      run_id,
-                      state,
-                      execution_date,
-                      start_date=None,
-                      external_trigger=False,
-                      conf=None,
-                      session=None):
-        """
-        Creates a dag run from this dag including the tasks associated with this dag.
-        Returns the dag run.
-
-        :param run_id: defines the run id for this dag run
-        :type run_id: str
-        :param execution_date: the execution date of this dag run
-        :type execution_date: datetime.datetime
-        :param state: the state of the dag run
-        :type state: airflow.utils.state.State
-        :param start_date: the date this dag run should be evaluated
-        :type start_date: datetime.datetime
-        :param external_trigger: whether this dag run is externally triggered
-        :type external_trigger: bool
-        :param session: database session
-        :type session: sqlalchemy.orm.session.Session
-        """
-
-        return self.get_dag().create_dagrun(run_id=run_id,
-                                            state=state,
-                                            execution_date=execution_date,
-                                            start_date=start_date,
-                                            external_trigger=external_trigger,
-                                            conf=conf,
-                                            session=session)
 
     @provide_session
     def set_is_paused(self,

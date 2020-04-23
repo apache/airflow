@@ -165,6 +165,11 @@ Foundation.
      -
      - :mod:`airflow.providers.apache.hive.operators.s3_to_hive`
 
+   * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
+     - `MySQL <https://www.mysql.com/>`__
+     -
+     - :mod:`airflow.providers.mysql.operators.s3_to_mysql`
+
    * - `Apache Cassandra <http://cassandra.apache.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
@@ -225,6 +230,11 @@ These integrations allow you to perform various operations within the Microsoft 
      - Hook
      - Operators
      - Sensors
+
+   * - `Azure Batch <https://azure.microsoft.com/en-us/services/batch/>`__
+     - :mod:`airflow.providers.microsoft.azure.hooks.azure_batch`
+     - :mod:`airflow.providers.microsoft.azure.operators.azure_batch`
+     -
 
    * - `Azure Blob Storage <https://azure.microsoft.com/en-us/services/storage/blobs/>`__
      - :mod:`airflow.providers.microsoft.azure.hooks.wasb`
@@ -531,7 +541,7 @@ Airflow has extensive support for the `Google Cloud Platform <https://cloud.goog
 See the :doc:`GCP connection type <howto/connection/gcp>` documentation to
 configure connections to GCP.
 
-All hooks are based on :class:`airflow.providers.google.cloud.hooks.base.GoogleCloudBaseHook`.
+All hooks are based on :class:`airflow.providers.google.common.hooks.base.GoogleBaseHook`.
 
 .. note::
     You can learn how to use GCP integrations by analyzing the
@@ -567,7 +577,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `BigQuery <https://cloud.google.com/bigquery/>`__
-     -
+     - :doc:`How to use <howto/operator/gcp/bigquery>`
      - :mod:`airflow.providers.google.cloud.hooks.bigquery`
      - :mod:`airflow.providers.google.cloud.operators.bigquery`
      - :mod:`airflow.providers.google.cloud.sensors.bigquery`
@@ -784,6 +794,11 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      -
      - :mod:`airflow.providers.google.cloud.operators.adls_to_gcs`
 
+   * - `Facebook Ads <http://business.facebook.com>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.providers.google.facebook_ads_to_gcs.operators.ads`
+
    * - `Google BigQuery <https://cloud.google.com/bigquery/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
@@ -866,6 +881,15 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      -
      - :mod:`airflow.providers.google.cloud.operators.sql_to_gcs`
 
+   * - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
+     - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.providers.google.cloud.operators.sheets_to_gcs`
+
+   * - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
+     -
+     - :mod:`airflow.providers.google.suite.operators.gcs_to_sheets`
 
 .. _integration:GCP-Discovery:
 
@@ -892,7 +916,7 @@ Other operators and hooks
 
    * -
      -
-     - :mod:`airflow.providers.google.cloud.hooks.discovery_api`
+     - :mod:`airflow.providers.google.common.hooks.discovery_api`
 
 .. _service:
 
@@ -905,7 +929,7 @@ Airflow has a limited support for the `Yandex.Cloud <https://cloud.yandex.com/>`
 See the :doc:`Yandex.Cloud connection type <howto/connection/yandexcloud>` documentation to
 configure connections to Yandex.Cloud.
 
-All hooks are based on :class:`airflow.contrib.hooks.yandexcloud_base_hook.YandexCloudBaseHook`.
+All hooks are based on :class:`airflow.contrib.hooks.yandexcloud_base_hook.YandexGoogleBaseHook`.
 
 .. note::
     You can learn how to use Yandex.Cloud integrations by analyzing the
@@ -930,7 +954,7 @@ These integrations allow you to perform various operations within the Yandex.Clo
 
    * - `Base Classes <https://cloud.yandex.com>`__
      - :doc:`How to use <howto/operator/yandexcloud>`
-     - :mod:`airflow.providers.yandex.hooks.yandexcloud_base_hook`
+     - :mod:`airflow.providers.yandex.hooks.yandex`
      - :mod:`airflow.providers.yandex.operators.yandexcloud_base_operator`
      -
 
@@ -993,6 +1017,12 @@ These integrations allow you to perform various operations within various servic
      -
      - :mod:`airflow.providers.discord.hooks.discord_webhook`
      - :mod:`airflow.providers.discord.operators.discord_webhook`
+     -
+
+   * - `Facebook Ads <http://business.facebook.com>`__
+     -
+     - :mod:`airflow.providers.facebook.ads.hooks.ads`
+     -
      -
 
    * - `Google Ads <https://ads.google.com/home/>`__
@@ -1160,6 +1190,12 @@ These integrations allow you to perform various operations using various softwar
      -
      - :mod:`airflow.providers.elasticsearch.hooks.elasticsearch`
      -
+     -
+
+   * - `Exasol <https://docs.exasol.com/home.htm>`__
+     -
+     - :mod:`airflow.providers.exasol.hooks.exasol`
+     - :mod:`airflow.providers.exasol.operators.exasol`
      -
 
    * - `GNU Bash <https://www.gnu.org/software/bash/>`__

@@ -33,6 +33,10 @@ from airflow.utils.module_loading import import_string
 # the path of the class and the name of the conn_id key parameter.
 # PLEASE KEEP BELOW LIST IN ALPHABETICAL ORDER.
 CONN_TYPE_TO_HOOK = {
+    "azure_batch": (
+        "airflow.providers.microsoft.azure.hooks.azure_batch.AzureBatchHook",
+        "azure_batch_conn_id"
+    ),
     "azure_cosmos": (
         "airflow.providers.microsoft.azure.hooks.azure_cosmos.AzureCosmosDBHook",
         "azure_cosmos_conn_id",
@@ -48,6 +52,7 @@ CONN_TYPE_TO_HOOK = {
         "airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook",
         "elasticsearch_conn_id"
     ),
+    "exasol": ("airflow.providers.exasol.hooks.exasol.ExasolHook", "exasol_conn_id"),
     "gcpcloudsql": (
         "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook",
         "gcp_cloudsql_conn_id",
@@ -117,6 +122,8 @@ class Connection(Base, LoggingMixin):
     _types = [
         ('docker', 'Docker Registry'),
         ('elasticsearch', 'Elasticsearch'),
+        ('exasol', 'Exasol'),
+        ('facebook_social', 'Facebook Social'),
         ('fs', 'File (path)'),
         ('ftp', 'FTP'),
         ('google_cloud_platform', 'Google Cloud Platform'),
@@ -150,6 +157,7 @@ class Connection(Base, LoggingMixin):
         ('snowflake', 'Snowflake'),
         ('segment', 'Segment'),
         ('sqoop', 'Sqoop'),
+        ('azure_batch', 'Azure Batch Service'),
         ('azure_data_lake', 'Azure Data Lake'),
         ('azure_container_instances', 'Azure Container Instances'),
         ('azure_cosmos', 'Azure CosmosDB'),

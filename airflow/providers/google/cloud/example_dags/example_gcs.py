@@ -25,7 +25,7 @@ from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import (
     GCSBucketCreateAclEntryOperator, GCSCreateBucketOperator, GCSDeleteBucketOperator,
-    GCSDeleteObjectsOperator, GcsFileTransformOperator, GCSListObjectsOperator,
+    GCSDeleteObjectsOperator, GCSFileTransformOperator, GCSListObjectsOperator,
     GCSObjectCreateAclEntryOperator, GCSToLocalOperator,
 )
 from airflow.providers.google.cloud.operators.gcs_to_gcs import GCSToGCSOperator
@@ -81,7 +81,7 @@ with models.DAG(
         bucket=BUCKET_1,
     )
 
-    transform_file = GcsFileTransformOperator(
+    transform_file = GCSFileTransformOperator(
         task_id="transform_file",
         source_bucket=BUCKET_1,
         source_object=BUCKET_FILE_LOCATION,

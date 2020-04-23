@@ -21,7 +21,7 @@ services:
     image: mongo:3
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
-  airflow-testing:
+  airflow:
     environment:
       - INTEGRATION_MONGO=true
     depends_on:

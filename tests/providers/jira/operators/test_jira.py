@@ -96,7 +96,3 @@ class TestJiraOperator(unittest.TestCase):
 
         self.assertTrue(jira_mock.called)
         self.assertTrue(jira_mock.return_value.add_comment.called)
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -104,7 +104,3 @@ class TestAwsGlueCatalogPartitionSensor(unittest.TestCase):
         mock_check_for_partition.assert_called_once_with('my_db',
                                                          'my_tbl',
                                                          "ds='{{ ds }}'")
-
-
-if __name__ == '__main__':
-    unittest.main()

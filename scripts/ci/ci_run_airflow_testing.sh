@@ -27,7 +27,9 @@ if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
     exit
 fi
 
-prepare_build
+get_ci_environment
+
+prepare_ci_build
 
 rebuild_ci_image_if_needed
 
@@ -59,7 +61,7 @@ if [[ ${FORWARD_CREDENTIALS} == "true" ]]; then
     DOCKER_COMPOSE_LOCAL+=("-f" "${MY_DIR}/docker-compose/forward-credentials.yml")
 fi
 
-if [[ ${INSTALL_AIRFLOW_VERSION} != "" ]]; then
+if [[ ${INSTALL_AIRFLOW_VERSION} != "" || ${INSTALL_AIRFLOW_REFERENCE} != "" ]]; then
     DOCKER_COMPOSE_LOCAL+=("-f" "${MY_DIR}/docker-compose/remove-sources.yml")
 fi
 
@@ -70,6 +72,15 @@ echo
 INTEGRATIONS=()
 
 ENABLED_INTEGRATIONS=${ENABLED_INTEGRATIONS:=""}
+
+if [[ ${TEST_TYPE:=} == "Integration" ]]; then
+    export ENABLED_INTEGRATIONS="${AVAILABLE_INTEGRATIONS}"
+    export RUN_INTEGRATION_TESTS="${AVAILABLE_INTEGRATIONS}"
+elif [[ ${TEST_TYPE:=} == "Long" ]]; then
+    export ONLY_RUN_LONG_RUNNING_TESTS="true"
+elif [[ ${TEST_TYPE:=} == "Quarantined" ]]; then
+    export ONLY_RUN_QUARANTINED_TESTS="true"
+fi
 
 for _INT in ${ENABLED_INTEGRATIONS}
 do
@@ -91,7 +102,7 @@ if [[ ${RUNTIME:=} == "kubernetes" ]]; then
       -f "${MY_DIR}/docker-compose/runtime-kubernetes.yml" \
       "${INTEGRATIONS[@]}" \
       "${DOCKER_COMPOSE_LOCAL[@]}" \
-         run airflow-testing \
+         run airflow \
            '/opt/airflow/scripts/ci/in_container/entrypoint_ci.sh "${@}"' \
            /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh "${@}"
          # Note the command is there twice (!) because it is passed via bash -c
@@ -105,7 +116,7 @@ else
       -f "${MY_DIR}/docker-compose/backend-${BACKEND}.yml" \
       "${INTEGRATIONS[@]}" \
       "${DOCKER_COMPOSE_LOCAL[@]}" \
-         run airflow-testing \
+         run airflow \
            '/opt/airflow/scripts/ci/in_container/entrypoint_ci.sh "${@}"' \
            /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh "${@}"
          # Note the command is there twice (!) because it is passed via bash -c

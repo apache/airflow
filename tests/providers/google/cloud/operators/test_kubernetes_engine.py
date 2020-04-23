@@ -162,7 +162,7 @@ class TestGKEPodOperator(unittest.TestCase):
     @mock.patch(
         'airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute')
     @mock.patch(
-        'airflow.providers.google.cloud.operators.kubernetes_engine.CloudBaseHook')
+        'airflow.providers.google.cloud.operators.kubernetes_engine.GoogleBaseHook')
     @mock.patch(
         'airflow.providers.google.cloud.operators.kubernetes_engine.execute_in_subprocess')
     @mock.patch('tempfile.NamedTemporaryFile')

@@ -29,7 +29,7 @@ from typing import Dict, List, Optional, Set, Union
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 10
@@ -99,7 +99,7 @@ NEGATIVE_STATUSES = {GcpTransferOperationStatus.FAILED, GcpTransferOperationStat
 
 
 # noinspection PyAbstractClass
-class CloudDataTransferServiceHook(CloudBaseHook):
+class CloudDataTransferServiceHook(GoogleBaseHook):
     """
     Hook for Google Storage Transfer Service.
 
@@ -146,8 +146,8 @@ class CloudDataTransferServiceHook(CloudBaseHook):
         return self.get_conn().transferJobs().create(body=body).execute(  # pylint: disable=no-member
             num_retries=self.num_retries)
 
-    @CloudBaseHook.fallback_to_default_project_id
-    def get_transfer_job(self, job_name: str, project_id: Optional[str] = None) -> Dict:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_transfer_job(self, job_name: str, project_id: str) -> Dict:
         """
         Gets the latest state of a long-running operation in Google Storage
         Transfer Service.
@@ -161,8 +161,6 @@ class CloudDataTransferServiceHook(CloudBaseHook):
         :return: Transfer Job
         :rtype: dict
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         return (
             self.get_conn()  # pylint: disable=no-member
             .transferJobs()
@@ -226,8 +224,8 @@ class CloudDataTransferServiceHook(CloudBaseHook):
             .execute(num_retries=self.num_retries)
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
-    def delete_transfer_job(self, job_name: str, project_id: Optional[str] = None) -> None:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_transfer_job(self, job_name: str, project_id: str) -> None:
         """
         Deletes a transfer job. This is a soft delete. After a transfer job is
         deleted, the job and all the transfer executions are subject to garbage
@@ -242,8 +240,6 @@ class CloudDataTransferServiceHook(CloudBaseHook):
         :type project_id: str
         :rtype: None
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         (
             self.get_conn()  # pylint: disable=no-member
             .transferJobs()

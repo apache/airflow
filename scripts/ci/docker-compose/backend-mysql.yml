@@ -17,7 +17,7 @@
 ---
 version: "2.2"
 services:
-  airflow-testing:
+  airflow:
     environment:
       - BACKEND=mysql
       - AIRFLOW__CORE__SQL_ALCHEMY_CONN=mysql://root@mysql/airflow?charset=utf8mb4

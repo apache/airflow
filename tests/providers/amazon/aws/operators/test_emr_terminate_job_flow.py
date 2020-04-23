@@ -49,7 +49,3 @@ class TestEmrTerminateJobFlowOperator(unittest.TestCase):
             )
 
             operator.execute(None)
-
-
-if __name__ == '__main__':
-    unittest.main()

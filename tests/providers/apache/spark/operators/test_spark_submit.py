@@ -167,7 +167,3 @@ class TestSparkSubmitOperator(unittest.TestCase):
         self.assertListEqual(expected_application_args,
                              getattr(operator, '_application_args'))
         self.assertEqual(expected_name, getattr(operator, '_name'))
-
-
-if __name__ == '__main__':
-    unittest.main()

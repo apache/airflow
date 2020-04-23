@@ -17,7 +17,7 @@
 ---
 version: "2.2"
 services:
-  airflow-testing:
+  airflow:
     environment:
       - RUNTIME=kubernetes
       - KUBERNETES_MODE

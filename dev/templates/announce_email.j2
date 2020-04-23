@@ -18,25 +18,25 @@
 -#}
 To: {{ receiver_email | list | join(', ') }}
 From: {{ sender_email }}
-Subject: [ANNOUNCE] Apache {{ project_name }} version {{ version }} Released
+Subject: [ANNOUNCE] Apache Airflow version {{ version }} Released
 
-Dear {{ project_name }} community,
+Dear Apache Airflow community,
 
-I am pleased to announce that {{ project_name }} {{ version }} has just been released.
+I am pleased to announce that Apache Airflow {{ version }} has just been released.
 
-{{ project_description }}
+Apache Airflow - A platform to programmatically author, schedule, and monitor workflows.
 
 The official source release:
-https://dist.apache.org/repos/dist/release/{{ project_module }}/{{ version }}
+https://dist.apache.org/repos/dist/release/airflow/{{ version }}
 
 The Pypi package:
-https://pypi.org/project/apache-{{ project_module }}/{{ version }}/
+https://pypi.org/project/apache-airflow/{{ version }}/
 
 The documentation is available on:
-https://{{ project_module }}.apache.org/docs/{{ version }}/
+https://airflow.apache.org/docs/{{ version }}/
 
 Find the CHANGELOG here for more details:
-https://{{ project_module }}.apache.org/docs/{{ version }}/changelog.html
+https://airflow.apache.org/docs/{{ version }}/changelog.html
 
 If you have any usage questions, or have problems when upgrading or
 find any problems about enhancements included in this release, please

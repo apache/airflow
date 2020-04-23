@@ -118,7 +118,3 @@ class TestVariableFromSecrets(unittest.TestCase):
         """
         variable_value = Variable.get(key="test_var", default_var="new")
         self.assertEqual("new", variable_value)
-
-
-if __name__ == "__main__":
-    unittest.main()

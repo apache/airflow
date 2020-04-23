@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
-export AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
+export MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
 
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
@@ -38,7 +38,9 @@ function run_test_package_installation() {
         | tee -a "${OUTPUT_LOG}"
 }
 
-prepare_build
+get_ci_environment
+
+prepare_ci_build
 
 rebuild_ci_image_if_needed
 

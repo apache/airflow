@@ -70,7 +70,7 @@ class DataprocClusterCreateOperatorTest(TestCase):
             schedule_interval='@daily'
         )
 
-    @patch('airflow.providers.yandex.hooks.YandexCloudBaseHook._get_credentials')
+    @patch('airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials')
     @patch('airflow.hooks.base_hook.BaseHook.get_connection')
     @patch('yandexcloud._wrappers.dataproc.Dataproc.create_cluster')
     def test_create_cluster(self, create_cluster_mock, *_):
@@ -117,7 +117,7 @@ class DataprocClusterCreateOperatorTest(TestCase):
             call(key='yandexcloud_connection_id', value=CONNECTION_ID),
         ])
 
-    @patch('airflow.providers.yandex.hooks.YandexCloudBaseHook._get_credentials')
+    @patch('airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials')
     @patch('airflow.hooks.base_hook.BaseHook.get_connection')
     @patch('yandexcloud._wrappers.dataproc.Dataproc.delete_cluster')
     def test_delete_cluster_operator(self, delete_cluster_mock, *_):
@@ -131,7 +131,7 @@ class DataprocClusterCreateOperatorTest(TestCase):
         context['task_instance'].xcom_pull.assert_called_once_with(key='cluster_id')
         delete_cluster_mock.assert_called_once_with('my_cluster_id')
 
-    @patch('airflow.providers.yandex.hooks.YandexCloudBaseHook._get_credentials')
+    @patch('airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials')
     @patch('airflow.hooks.base_hook.BaseHook.get_connection')
     @patch('yandexcloud._wrappers.dataproc.Dataproc.create_hive_job')
     def test_create_hive_job_operator(self, create_hive_job_mock, *_):
@@ -158,7 +158,7 @@ class DataprocClusterCreateOperatorTest(TestCase):
             script_variables=None,
         )
 
-    @patch('airflow.providers.yandex.hooks.YandexCloudBaseHook._get_credentials')
+    @patch('airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials')
     @patch('airflow.hooks.base_hook.BaseHook.get_connection')
     @patch('yandexcloud._wrappers.dataproc.Dataproc.create_mapreduce_job')
     def test_create_mapreduce_job_operator(self, create_mapreduce_job_mock, *_):
@@ -214,7 +214,7 @@ class DataprocClusterCreateOperatorTest(TestCase):
             }
         )
 
-    @patch('airflow.providers.yandex.hooks.YandexCloudBaseHook._get_credentials')
+    @patch('airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials')
     @patch('airflow.hooks.base_hook.BaseHook.get_connection')
     @patch('yandexcloud._wrappers.dataproc.Dataproc.create_spark_job')
     def test_create_spark_job_operator(self, create_spark_job_mock, *_):
@@ -271,7 +271,7 @@ class DataprocClusterCreateOperatorTest(TestCase):
             properties={'spark.submit.deployMode': 'cluster'}
         )
 
-    @patch('airflow.providers.yandex.hooks.YandexCloudBaseHook._get_credentials')
+    @patch('airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials')
     @patch('airflow.hooks.base_hook.BaseHook.get_connection')
     @patch('yandexcloud._wrappers.dataproc.Dataproc.create_pyspark_job')
     def test_create_pyspark_job_operator(self, create_pyspark_job_mock, *_):

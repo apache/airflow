@@ -28,12 +28,12 @@ import google.auth
 from googleapiclient.discovery import Resource, build
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 Operation = Dict[str, Any]
 
 
-class DataFusionHook(CloudBaseHook):
+class DataFusionHook(GoogleBaseHook):
     """
     Hook for Google DataFusion.
     """
@@ -87,6 +87,7 @@ class DataFusionHook(CloudBaseHook):
         )
 
         payload = json.dumps(body) if body else None
+
         response = request(method=method, url=url, headers=headers, body=payload)
         return response
 
@@ -104,9 +105,9 @@ class DataFusionHook(CloudBaseHook):
             )
         return self._conn
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def restart_instance(
-        self, instance_name: str, location: str, project_id: Optional[str] = None
+        self, instance_name: str, location: str, project_id: str
     ) -> Operation:
         """
         Restart a single Data Fusion instance.
@@ -119,9 +120,6 @@ class DataFusionHook(CloudBaseHook):
         :param project_id: The ID of the Google Cloud Platform project that the instance belongs to.
         :type project_id: str
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         operation = (
             self.get_conn()  # pylint: disable=no-member
             .projects()
@@ -132,9 +130,9 @@ class DataFusionHook(CloudBaseHook):
         )
         return operation
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_instance(
-        self, instance_name: str, location: str, project_id: Optional[str] = None
+        self, instance_name: str, location: str, project_id: str
     ) -> Operation:
         """
         Deletes a single Date Fusion instance.
@@ -146,9 +144,6 @@ class DataFusionHook(CloudBaseHook):
         :param project_id: The ID of the Google Cloud Platform project that the instance belongs to.
         :type project_id: str
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         operation = (
             self.get_conn()  # pylint: disable=no-member
             .projects()
@@ -159,13 +154,13 @@ class DataFusionHook(CloudBaseHook):
         )
         return operation
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_instance(
         self,
         instance_name: str,
         instance: Dict[str, Any],
         location: str,
-        project_id: Optional[str] = None,
+        project_id: str,
     ) -> Operation:
         """
         Creates a new Data Fusion instance in the specified project and location.
@@ -180,9 +175,6 @@ class DataFusionHook(CloudBaseHook):
         :param project_id: The ID of the Google Cloud Platform project that the instance belongs to.
         :type project_id: str
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         operation = (
             self.get_conn()  # pylint: disable=no-member
             .projects()
@@ -197,9 +189,9 @@ class DataFusionHook(CloudBaseHook):
         )
         return operation
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_instance(
-        self, instance_name: str, location: str, project_id: Optional[str] = None
+        self, instance_name: str, location: str, project_id: str
     ) -> Dict[str, Any]:
         """
         Gets details of a single Data Fusion instance.
@@ -211,9 +203,6 @@ class DataFusionHook(CloudBaseHook):
         :param project_id: The ID of the Google Cloud Platform project that the instance belongs to.
         :type project_id: str
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         instance = (
             self.get_conn()  # pylint: disable=no-member
             .projects()
@@ -224,14 +213,14 @@ class DataFusionHook(CloudBaseHook):
         )
         return instance
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def patch_instance(
         self,
         instance_name: str,
         instance: Dict[str, Any],
         update_mask: str,
         location: str,
-        project_id: Optional[str] = None,
+        project_id: str,
     ) -> Operation:
         """
         Updates a single Data Fusion instance.
@@ -253,9 +242,6 @@ class DataFusionHook(CloudBaseHook):
         :param project_id: The ID of the Google Cloud Platform project that the instance belongs to.
         :type project_id: str
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         operation = (
             self.get_conn()  # pylint: disable=no-member
             .projects()
@@ -372,7 +358,10 @@ class DataFusionHook(CloudBaseHook):
         return json.loads(response.data)
 
     def start_pipeline(
-        self, pipeline_name: str, instance_url: str, namespace: str = "default"
+        self, pipeline_name: str,
+        instance_url: str,
+        namespace: str = "default",
+        runtime_args: Optional[Dict[str, Any]] = None
     ) -> None:
         """
         Starts a Cloud Data Fusion pipeline. Works for both batch and stream pipelines.
@@ -381,6 +370,8 @@ class DataFusionHook(CloudBaseHook):
         :type pipeline_name: str
         :param instance_url: Endpoint on which the REST APIs is accessible for the instance.
         :type instance_url: str
+        :param runtime_args: Optional runtime JSON args to be passed to the pipeline
+        :type runtime_args: Optional[Dict[str, Any]]
         :param namespace: f your pipeline belongs to a Basic edition instance, the namespace ID
             is always default. If your pipeline belongs to an Enterprise edition instance, you
             can create a namespace.
@@ -395,9 +386,10 @@ class DataFusionHook(CloudBaseHook):
             pipeline_name,
             "workflows",
             "DataPipelineWorkflow",
-            "start",
+            "start"
         )
-        response = self._cdap_request(url=url, method="POST")
+
+        response = self._cdap_request(url=url, method="POST", body=runtime_args)
         if response.status != 200:
             raise AirflowException(
                 f"Starting a pipeline failed with code {response.status}"

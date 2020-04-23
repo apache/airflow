@@ -96,7 +96,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
             conn.extra = json.dumps(extras)
             session.commit()
         except BaseException as ex:
-            self.log.info('Airflow DB Session error: %s', str(ex))
+            self.log.error('Airflow DB Session error: %s', str(ex))
             session.rollback()
             raise
         finally:
@@ -122,7 +122,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
             conn.extra = json.dumps(extras)
             session.commit()
         except BaseException as ex:
-            self.log.info('Airflow DB Session error: %s', str(ex))
+            self.log.error('Airflow DB Session error: %s', str(ex))
             session.rollback()
             raise
         finally:
@@ -146,11 +146,11 @@ class GcpAuthenticator(LoggingCommandExecutor):
             self.log.info("The %s is not a directory", gcp_config_dir)
         key_dir = os.path.join(gcp_config_dir, "keys")
         if not os.path.isdir(key_dir):
-            self.log.info("The %s is not a directory", key_dir)
+            self.log.error("The %s is not a directory", key_dir)
             return
         key_path = os.path.join(key_dir, self.gcp_key)
         if not os.path.isfile(key_path):
-            self.log.info("The %s file is missing", key_path)
+            self.log.error("The %s file is missing", key_path)
         self.full_key_path = key_path
 
     def _validate_key_set(self):

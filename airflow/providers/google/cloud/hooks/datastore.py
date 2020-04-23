@@ -26,10 +26,10 @@ from typing import Any, Dict, List, Optional, Union
 
 from googleapiclient.discovery import build
 
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class DatastoreHook(CloudBaseHook):
+class DatastoreHook(GoogleBaseHook):
     """
     Interact with Google Cloud Datastore. This hook uses the Google Cloud Platform connection.
 
@@ -70,8 +70,8 @@ class DatastoreHook(CloudBaseHook):
 
         return self.connection
 
-    @CloudBaseHook.fallback_to_default_project_id
-    def allocate_ids(self, partial_keys: List, project_id: Optional[str] = None) -> List:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def allocate_ids(self, partial_keys: List, project_id: str) -> List:
         """
         Allocate IDs for incomplete keys.
 
@@ -94,8 +94,8 @@ class DatastoreHook(CloudBaseHook):
 
         return resp['keys']
 
-    @CloudBaseHook.fallback_to_default_project_id
-    def begin_transaction(self, project_id: Optional[str] = None) -> str:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def begin_transaction(self, project_id: str) -> str:
         """
         Begins a new transaction.
 
@@ -116,8 +116,8 @@ class DatastoreHook(CloudBaseHook):
 
         return resp['transaction']
 
-    @CloudBaseHook.fallback_to_default_project_id
-    def commit(self, body: Dict, project_id: Optional[str] = None) -> Dict:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def commit(self, body: Dict, project_id: str) -> Dict:
         """
         Commit a transaction, optionally creating, deleting or modifying some entities.
 
@@ -140,12 +140,14 @@ class DatastoreHook(CloudBaseHook):
 
         return resp
 
-    @CloudBaseHook.fallback_to_default_project_id
-    def lookup(self,
-               keys: List,
-               read_consistency: Optional[str] = None,
-               transaction: Optional[str] = None,
-               project_id: Optional[str] = None) -> Dict:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def lookup(
+        self,
+        keys: List,
+        project_id: str,
+        read_consistency: Optional[str] = None,
+        transaction: Optional[str] = None,
+    ) -> Dict:
         """
         Lookup some entities by key.
 
@@ -178,8 +180,8 @@ class DatastoreHook(CloudBaseHook):
 
         return resp
 
-    @CloudBaseHook.fallback_to_default_project_id
-    def rollback(self, transaction: str, project_id: Optional[str] = None) -> Any:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def rollback(self, transaction: str, project_id: str) -> Any:
         """
         Roll back a transaction.
 
@@ -197,8 +199,8 @@ class DatastoreHook(CloudBaseHook):
             projectId=project_id, body={'transaction': transaction}
         ).execute(num_retries=self.num_retries)
 
-    @CloudBaseHook.fallback_to_default_project_id
-    def run_query(self, body: Dict, project_id: Optional[str] = None) -> Dict:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def run_query(self, body: Dict, project_id: str) -> Dict:
         """
         Run a query for entities.
 
@@ -288,13 +290,15 @@ class DatastoreHook(CloudBaseHook):
             else:
                 return result
 
-    @CloudBaseHook.fallback_to_default_project_id
-    def export_to_storage_bucket(self,
-                                 bucket: str,
-                                 namespace: Optional[str] = None,
-                                 entity_filter: Optional[Dict] = None,
-                                 labels: Optional[Dict[str, str]] = None,
-                                 project_id: Optional[str] = None) -> Dict:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def export_to_storage_bucket(
+            self,
+            bucket: str,
+            project_id: str,
+            namespace: Optional[str] = None,
+            entity_filter: Optional[Dict] = None,
+            labels: Optional[Dict[str, str]] = None,
+    ) -> Dict:
         """
         Export entities from Cloud Datastore to Cloud Storage for backup.
 
@@ -336,14 +340,16 @@ class DatastoreHook(CloudBaseHook):
 
         return resp
 
-    @CloudBaseHook.fallback_to_default_project_id
-    def import_from_storage_bucket(self,
-                                   bucket: str,
-                                   file: str,
-                                   namespace: Optional[str] = None,
-                                   entity_filter: Optional[Dict] = None,
-                                   labels: Optional[Union[Dict, str]] = None,
-                                   project_id: Optional[str] = None) -> Dict:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def import_from_storage_bucket(
+            self,
+            bucket: str,
+            file: str,
+            project_id: str,
+            namespace: Optional[str] = None,
+            entity_filter: Optional[Dict] = None,
+            labels: Optional[Union[Dict, str]] = None,
+    ) -> Dict:
         """
         Import a backup from Cloud Storage to Cloud Datastore.
 

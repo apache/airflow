@@ -1053,7 +1053,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         context['task_instance'].xcom_push("gcp_metadata", gcp_metadata)
 
 
-class MLEngineTrainingJobFailureOperator(BaseOperator):
+class MLEngineTrainingCancelJobOperator(BaseOperator):
 
     """
     Operator for cleaning up failed MLEngine training job.

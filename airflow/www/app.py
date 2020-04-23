@@ -25,6 +25,7 @@ from urllib.parse import urlparse
 
 import flask
 import flask_login
+import pendulum
 from flask import Flask, session as flask_session
 from flask_appbuilder import SQLA, AppBuilder
 from flask_caching import Cache
@@ -48,15 +49,6 @@ log = logging.getLogger(__name__)
 def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     global app, appbuilder
     app = Flask(__name__)
-    if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
-        app.wsgi_app = ProxyFix(
-            app.wsgi_app,
-            x_for=conf.getint("webserver", "PROXY_FIX_X_FOR", fallback=1),
-            x_proto=conf.getint("webserver", "PROXY_FIX_X_PROTO", fallback=1),
-            x_host=conf.getint("webserver", "PROXY_FIX_X_HOST", fallback=1),
-            x_port=conf.getint("webserver", "PROXY_FIX_X_PORT", fallback=1),
-            x_prefix=conf.getint("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
-        )
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
     session_lifetime_days = conf.getint('webserver', 'SESSION_LIFETIME_DAYS', fallback=30)
@@ -202,8 +194,14 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                 log.debug("Adding blueprint %s:%s", bp["name"], bp["blueprint"].import_name)
                 app.register_blueprint(bp["blueprint"])
 
+        def init_error_handlers(app: Flask):
+            from airflow.www import views
+            app.register_error_handler(500, views.show_traceback)
+            app.register_error_handler(404, views.circles)
+
         init_views(appbuilder)
         init_plugin_blueprints(app)
+        init_error_handlers(app)
 
         if conf.getboolean('webserver', 'UPDATE_FAB_PERMS'):
             security_manager = appbuilder.sm
@@ -218,10 +216,26 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
         app.register_blueprint(e.api_experimental, url_prefix='/api/experimental')
 
+        server_timezone = conf.get('core', 'default_timezone')
+        if server_timezone == "system":
+            server_timezone = pendulum.local_timezone().name
+        elif server_timezone == "utc":
+            server_timezone = "UTC"
+
+        default_ui_timezone = conf.get('webserver', 'default_ui_timezone')
+        if default_ui_timezone == "system":
+            default_ui_timezone = pendulum.local_timezone().name
+        elif default_ui_timezone == "utc":
+            default_ui_timezone = "UTC"
+        if not default_ui_timezone:
+            default_ui_timezone = server_timezone
+
         @app.context_processor
         def jinja_globals():  # pylint: disable=unused-variable
 
             globals = {
+                'server_timezone': server_timezone,
+                'default_ui_timezone': default_ui_timezone,
                 'hostname': socket.getfqdn() if conf.getboolean(
                     'webserver', 'EXPOSE_HOSTNAME', fallback=True) else 'redact',
                 'navbar_color': conf.get(
@@ -283,6 +297,15 @@ def cached_app(config=None, session=None, testing=False):
 
         app, _ = create_app(config, session, testing)
         app = DispatcherMiddleware(root_app, {base_url: app})
+        if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
+            app = ProxyFix(
+                app,
+                x_for=conf.getint("webserver", "PROXY_FIX_X_FOR", fallback=1),
+                x_proto=conf.getint("webserver", "PROXY_FIX_X_PROTO", fallback=1),
+                x_host=conf.getint("webserver", "PROXY_FIX_X_HOST", fallback=1),
+                x_port=conf.getint("webserver", "PROXY_FIX_X_PORT", fallback=1),
+                x_prefix=conf.getint("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
+            )
     return app
 
 

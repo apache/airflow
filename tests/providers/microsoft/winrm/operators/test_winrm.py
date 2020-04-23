@@ -42,7 +42,3 @@ class TestWinRMOperator(unittest.TestCase):
         exception_msg = "No command specified so nothing to execute here."
         with self.assertRaisesRegex(AirflowException, exception_msg):
             op.execute(None)
-
-
-if __name__ == '__main__':
-    unittest.main()

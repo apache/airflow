@@ -188,7 +188,3 @@ class TestWasbHook(unittest.TestCase):
                 is_prefix=True, ignore_if_missing=False
             )
         self.assertIsInstance(context.exception, AirflowException)
-
-
-if __name__ == '__main__':
-    unittest.main()

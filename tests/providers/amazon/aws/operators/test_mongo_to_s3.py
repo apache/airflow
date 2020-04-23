@@ -110,7 +110,3 @@ class TestMongoToS3Operator(unittest.TestCase):
             bucket_name=S3_BUCKET,
             replace=False
         )
-
-
-if __name__ == '__main__':
-    unittest.main()

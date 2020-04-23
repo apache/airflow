@@ -22,7 +22,7 @@ import mock
 
 from airflow.providers.google.cloud.operators.gcs import (
     GCSBucketCreateAclEntryOperator, GCSCreateBucketOperator, GCSDeleteBucketOperator,
-    GCSDeleteObjectsOperator, GcsFileTransformOperator, GCSListObjectsOperator,
+    GCSDeleteObjectsOperator, GCSFileTransformOperator, GCSListObjectsOperator,
     GCSObjectCreateAclEntryOperator, GCSToLocalOperator,
 )
 
@@ -177,7 +177,7 @@ class TestGoogleCloudStorageListOperator(unittest.TestCase):
         self.assertEqual(sorted(files), sorted(MOCK_FILES))
 
 
-class TestGcsFileTransformOperator(unittest.TestCase):
+class TestGCSFileTransformOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.gcs.NamedTemporaryFile")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
@@ -205,7 +205,7 @@ class TestGcsFileTransformOperator(unittest.TestCase):
         mock_subprocess.Popen.return_value.wait.return_value = None
         mock_subprocess.Popen.return_value.returncode = 0
 
-        op = GcsFileTransformOperator(
+        op = GCSFileTransformOperator(
             task_id=TASK_ID,
             source_bucket=source_bucket,
             source_object=source_object,

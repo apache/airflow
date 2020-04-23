@@ -71,7 +71,7 @@ def trigger_dag(dag_id):
                 'Given execution date, {}, could not be identified '
                 'as a date. Example date format: 2015-11-16T14:34:15+00:00'
                 .format(execution_date))
-            log.info(error_message)
+            log.error(error_message)
             response = jsonify({'error': error_message})
             response.status_code = 400
 
@@ -229,7 +229,7 @@ def task_instance_info(dag_id, execution_date, task_id):
             'Given execution date, {}, could not be identified '
             'as a date. Example date format: 2015-11-16T14:34:15+00:00'
             .format(execution_date))
-        log.info(error_message)
+        log.error(error_message)
         response = jsonify({'error': error_message})
         response.status_code = 400
 
@@ -270,7 +270,7 @@ def dag_run_status(dag_id, execution_date):
             'Given execution date, {}, could not be identified '
             'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(
                 execution_date))
-        log.info(error_message)
+        log.error(error_message)
         response = jsonify({'error': error_message})
         response.status_code = 400
 
@@ -383,7 +383,7 @@ def get_lineage(dag_id: str, execution_date: str):
             'Given execution date, {}, could not be identified '
             'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(
                 execution_date))
-        log.info(error_message)
+        log.error(error_message)
         response = jsonify({'error': error_message})
         response.status_code = 400
 

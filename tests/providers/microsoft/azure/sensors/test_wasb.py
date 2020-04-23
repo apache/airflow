@@ -126,7 +126,3 @@ class TestWasbPrefixSensor(unittest.TestCase):
         mock_instance.check_for_prefix.assert_called_once_with(
             'container', 'prefix', timeout=2
         )
-
-
-if __name__ == '__main__':
-    unittest.main()

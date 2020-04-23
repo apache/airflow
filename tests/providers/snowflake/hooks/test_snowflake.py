@@ -102,6 +102,7 @@ class TestSnowflakeHook(unittest.TestCase):
                                 'warehouse': 'af_wh',
                                 'region': 'af_region',
                                 'role': 'af_role'}
+        self.assertEqual(self.db_hook.snowflake_conn_id, 'snowflake_default')  # pylint: disable=no-member
         self.assertEqual(conn_params_shouldbe, self.db_hook._get_conn_params())
 
     def test_get_conn(self):

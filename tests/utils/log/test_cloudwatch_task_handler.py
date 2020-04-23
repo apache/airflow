@@ -28,6 +28,7 @@ from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.utils.log.cloudwatch_task_handler import CloudwatchTaskHandler
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
+from tests.test_utils.config import conf_vars
 
 try:
     import boto3
@@ -42,6 +43,7 @@ except ImportError:
 @mock_logs
 class TestCloudwatchTaskHandler(unittest.TestCase):
 
+    @conf_vars({('logging', 'remote_log_conn_id'): 'aws_default'})
     def setUp(self):
         self.remote_log_group = 'log_group_name'
         self.region_name = 'us-west-2'
@@ -52,6 +54,7 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
             "arn:aws:logs:{}:11111111:log-group:{}".format(self.region_name, self.remote_log_group),
             self.filename_template
         )
+        self.cloudwatch_task_handler.hook
 
         date = datetime(2020, 1, 1)
         dag_id = 'dag_for_testing_file_task_handler'
@@ -75,8 +78,14 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
     def test_hook(self):
         self.assertIsInstance(self.cloudwatch_task_handler.hook, AwsLogsHook)
 
+    @conf_vars({('logging', 'remote_log_conn_id'): 'aws_default'})
     def test_hook_raises(self):
-        handler = self.cloudwatch_task_handler
+        handler = CloudwatchTaskHandler(
+            self.local_log_location,
+            "arn:aws:logs:{}:11111111:log-group:{}".format(self.region_name, self.remote_log_group),
+            self.filename_template
+        )
+
         with mock.patch.object(handler.log, 'error') as mock_error:
             with mock.patch("airflow.providers.amazon.aws.hooks.logs.AwsLogsHook") as mock_hook:
                 mock_hook.side_effect = Exception('Failed to connect')
@@ -86,7 +95,7 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
             mock_error.assert_called_once_with(
                 'Could not create an AwsLogsHook with connection id "%s". Please make '
                 'sure that airflow[aws] is installed and the Cloudwatch logs connection exists.',
-                ''
+                'aws_default'
             )
 
     def test_handler(self):

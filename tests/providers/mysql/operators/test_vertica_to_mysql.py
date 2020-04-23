@@ -87,7 +87,3 @@ class TestVerticaToMySqlTransfer(unittest.TestCase):
                                       bulk_load=True,
                                       dag=self.dag)
         task.execute(None)
-
-
-if __name__ == '__main__':
-    unittest.main()

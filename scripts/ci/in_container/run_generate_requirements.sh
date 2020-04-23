@@ -23,6 +23,20 @@ HANDLERS="$( trap -p EXIT | cut -f2 -d \' )"
 # shellcheck disable=SC2064
 trap "${HANDLERS}${HANDLERS:+;}in_container_fix_ownership" EXIT
 
+STORED_SETUP_PY_HASH_FILE="${AIRFLOW_SOURCES}/requirements/setup-${PYTHON_MAJOR_MINOR_VERSION}.md5"
+
+CURRENT_SETUP_PY_HASH=$(md5sum "${AIRFLOW_SOURCES}/setup.py")
+STORED_SETUP_PY_HASH=$(cat "${STORED_SETUP_PY_HASH_FILE}" 2>/dev/null || true)
+
+if [[ ${STORED_SETUP_PY_HASH} != "${CURRENT_SETUP_PY_HASH}" ]]; then
+    echo
+    echo "Setup.py changed since last time requirements were generated"
+    echo
+    echo "Switching to eager update strategy for the requirements"
+    echo
+    UPGRADE_WHILE_GENERATING_REQUIREMENTS="true"
+fi
+
 # Upgrading requirements will happen only in CRON job to see that we have some
 # new requirements released
 if [[ ${UPGRADE_WHILE_GENERATING_REQUIREMENTS} == "true" ]]; then
@@ -44,7 +58,7 @@ echo
 echo "Freezing requirements to ${GENERATED_REQUIREMENTS_FILE}"
 echo
 
-pip freeze | \
+pip freeze | sort | \
     grep -v "apache_airflow" | \
     grep -v "/opt/airflow" >"${GENERATED_REQUIREMENTS_FILE}"
 
@@ -52,12 +66,17 @@ echo
 echo "Requirements generated in ${GENERATED_REQUIREMENTS_FILE}"
 echo
 
+echo
+echo "Storing setup.py hash in ${STORED_SETUP_PY_HASH_FILE}"
+echo
+echo "${CURRENT_SETUP_PY_HASH}" > "${STORED_SETUP_PY_HASH_FILE}"
+
 set +e
 # Fail in case diff shows difference
 diff --color=always "${OLD_REQUIREMENTS_FILE}" "${GENERATED_REQUIREMENTS_FILE}"
 RES=$?
 
-if [[ ${RES} != "0" ]]; then
+if [[ ${RES} != "0" && ${SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS:=} == "true" ]]; then
     echo
     echo " ERROR! Requirements need to be updated!"
     echo

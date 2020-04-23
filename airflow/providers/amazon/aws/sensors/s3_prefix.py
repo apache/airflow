@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -69,12 +70,17 @@ class S3PrefixSensor(BaseSensorOperator):
         self.full_url = "s3://" + bucket_name + '/' + prefix
         self.aws_conn_id = aws_conn_id
         self.verify = verify
+        self.hook = None
 
     def poke(self, context):
         self.log.info('Poking for prefix : %s in bucket s3://%s', self.prefix, self.bucket_name)
-        from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-        hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
-        return hook.check_for_prefix(
+        return self.get_hook().check_for_prefix(
             prefix=self.prefix,
             delimiter=self.delimiter,
             bucket_name=self.bucket_name)
+
+    def get_hook(self):
+        """Create and return an S3Hook"""
+        if not self.hook:
+            self.hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+        return self.hook

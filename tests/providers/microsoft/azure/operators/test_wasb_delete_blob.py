@@ -77,7 +77,3 @@ class TestWasbDeleteBlobOperator(unittest.TestCase):
         mock_instance.delete_file.assert_called_once_with(
             'container', 'blob', True, True
         )
-
-
-if __name__ == '__main__':
-    unittest.main()

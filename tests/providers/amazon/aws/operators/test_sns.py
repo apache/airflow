@@ -73,7 +73,3 @@ class TestSnsPublishOperator(unittest.TestCase):
 
         # Then
         self.assertEqual(hook_response, result)
-
-
-if __name__ == '__main__':
-    unittest.main()

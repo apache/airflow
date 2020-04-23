@@ -20,7 +20,8 @@ import unittest
 from mock import Mock, patch
 
 from airflow.models import Pool
-from airflow.ti_deps.deps.pool_slots_available_dep import STATES_TO_COUNT_AS_RUNNING, PoolSlotsAvailableDep
+from airflow.ti_deps.dependencies_states import EXECUTION_STATES
+from airflow.ti_deps.deps.pool_slots_available_dep import PoolSlotsAvailableDep
 from airflow.utils.session import create_session
 from tests.test_utils import db
 
@@ -51,7 +52,7 @@ class TestPoolSlotsAvailableDep(unittest.TestCase):
     @patch('airflow.models.Pool.open_slots', return_value=0)
     # pylint: disable=unused-argument
     def test_running_pooled_task_pass(self, mock_open_slots):
-        for state in STATES_TO_COUNT_AS_RUNNING:
+        for state in EXECUTION_STATES:
             ti = Mock(pool='test_pool', state=state, pool_slots=1)
             self.assertTrue(PoolSlotsAvailableDep().is_met(ti=ti))
 

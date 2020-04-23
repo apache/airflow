@@ -18,7 +18,7 @@
 Google Sheets Operators
 =======================
 
-Read, write, and format data in Sheets. The latest version of the Sheets API lets developers programmatically:
+cThe latest version of the Sheets API lets developers programmatically:
 
 - Read and write data
 - Format text and numbers
@@ -40,23 +40,6 @@ Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
 .. include:: _partials/prerequisite_tasks.rst
-
-.. _howto/operator:GoogleSheetsToGCSOperator:
-
-Upload data from Google Sheets to GCS
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-To upload data from Google Spreadsheet to Google Cloud Storage you can use the
-:class:`~airflow.providers.google.suite.operators.sheet.GoogleSheetsToGCSOperator`.
-
-.. exampleinclude:: ../../../../airflow/providers/google/suite/example_dags/example_sheets.py
-    :language: python
-    :dedent: 4
-    :start-after: [START upload_sheet_to_gcs]
-    :end-before: [END upload_sheet_to_gcs]
-
-You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.providers.google.suite.operators.sheets.GoogleSheetsToGCSOperator`.
 
 .. _howto/operator:GoogleSheetsCreateSpreadsheet:
 
@@ -82,20 +65,3 @@ To get the URL of newly created spreadsheet use XCom value:
     :dedent: 4
     :start-after: [START print_spreadsheet_url]
     :end-before: [END print_spreadsheet_url]
-
-.. _howto/operator:GCStoGoogleSheets:
-
-Upload data from GCS to Google Sheets
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-To upload data from Google Cloud Storage to Google Spreadsheet you can use the
-:class:`~airflow.providers.google.suite.operators.sheet.GCStoGoogleSheets`.
-
-.. exampleinclude:: ../../../../airflow/providers/google/suite/example_dags/example_sheets.py
-    :language: python
-    :dedent: 4
-    :start-after: [START upload_sheet_to_gcs]
-    :end-before: [END upload_sheet_to_gcs]
-
-You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.providers.google.suite.operators.sheets.GCStoGoogleSheets`.

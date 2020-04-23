@@ -17,7 +17,7 @@
 ---
 version: "2.2"
 services:
-  airflow-testing:
+  airflow:
     # We need to mount files an directories individually because some files
     # such apache_airflow.egg-info should not be mounted from host
     # we only mount those files that it makes sense to edit while developing

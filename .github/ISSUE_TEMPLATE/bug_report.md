@@ -24,6 +24,11 @@ Please delete these comment blocks before submitting the issue.
 
 IMPORTANT!!!
 
+PLEASE CHECK "SIMILAR TO X EXISTING ISSUES" OPTION IF VISIBLE
+NEXT TO "SUBMIT NEW ISSUE" BUTTON!!!
+
+PLEASE CHECK IF THIS ISSUE HAS BEEN REPORTED PREVIOUSLY USING SEARCH!!!
+
 Please complete the next sections or the issue will be closed.
 This questions are the first thing we need to know to understand the context.
 
@@ -41,6 +46,7 @@ This questions are the first thing we need to know to understand the context.
 - **Kernel** (e.g. `uname -a`):
 - **Install tools**:
 - **Others**:
+
 **What happened**:
 
 <!-- (please include exact error messages if you can) -->

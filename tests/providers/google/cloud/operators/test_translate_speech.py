@@ -24,7 +24,7 @@ from google.cloud.speech_v1.proto.cloud_speech_pb2 import (
 )
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.operators.translate_speech import GcpTranslateSpeechOperator
+from airflow.providers.google.cloud.operators.translate_speech import CloudTranslateSpeechOperator
 
 GCP_CONN_ID = 'google_cloud_default'
 
@@ -49,7 +49,7 @@ class TestCloudTranslateSpeech(unittest.TestCase):
             }
         ]
 
-        op = GcpTranslateSpeechOperator(
+        op = CloudTranslateSpeechOperator(
             audio={"uri": "gs://bucket/object"},
             config={"encoding": "LINEAR16"},
             target_language='pl',
@@ -94,7 +94,7 @@ class TestCloudTranslateSpeech(unittest.TestCase):
         mock_speech_hook.return_value.recognize_speech.return_value = RecognizeResponse(
             results=[SpeechRecognitionResult()]
         )
-        op = GcpTranslateSpeechOperator(
+        op = CloudTranslateSpeechOperator(
             audio={"uri": "gs://bucket/object"},
             config={"encoding": "LINEAR16"},
             target_language='pl',

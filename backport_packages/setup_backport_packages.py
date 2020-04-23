@@ -99,6 +99,8 @@ PROVIDERS_DEPENDENCIES: Dict[str, List[str]] = {
     "docker": setup.docker,
     "email": [],
     "elasticsearch": [],
+    "exasol": setup.exasol,
+    "facebook": setup.facebook,
     "ftp": [],
     "google": setup.gcp,
     "grpc": setup.grpc,
@@ -346,6 +348,10 @@ def do_setup_package_providers(provider_package: str, deps: List[str], extras: D
         license='Apache License 2.0',
         version='0.0.1',
         packages=found_packages,
+        package_data={
+            '': ["airflow/providers/cncf/kubernetes/example_dags/*.yaml"],
+        },
+
         include_package_data=True,
         zip_safe=False,
         install_requires=['apache-airflow~=1.10'] + deps,

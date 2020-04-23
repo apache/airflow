@@ -526,6 +526,7 @@ def dag_bag_multiple():
     yield dag_bag
 
 
+@pytest.mark.quarantined
 @pytest.mark.backend("postgres", "mysql")
 def test_clear_multiple_external_task_marker(dag_bag_multiple):
     """

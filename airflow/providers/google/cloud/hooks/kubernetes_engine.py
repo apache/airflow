@@ -34,12 +34,12 @@ from google.protobuf.json_format import ParseDict
 
 from airflow import version
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 OPERATIONAL_POLL_INTERVAL = 15
 
 
-class GKEHook(CloudBaseHook):
+class GKEHook(GoogleBaseHook):
     """
     Hook for Google Kubernetes Engine APIs.
 
@@ -138,11 +138,11 @@ class GKEHook(CloudBaseHook):
         cluster_proto.resource_labels.update({key: val})
         return cluster_proto
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_cluster(
         self,
         name: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Retry = DEFAULT,
         timeout: float = DEFAULT
     ) -> Optional[str]:
@@ -185,11 +185,11 @@ class GKEHook(CloudBaseHook):
             self.log.info('Assuming Success: %s', error.message)
             return None
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_cluster(
         self,
         cluster: Union[Dict, Cluster],
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Retry = DEFAULT,
         timeout: float = DEFAULT
     ) -> str:
@@ -241,13 +241,13 @@ class GKEHook(CloudBaseHook):
             return resource.target_link
         except AlreadyExists as error:
             self.log.info('Assuming Success: %s', error.message)
-            return self.get_cluster(name=cluster.name)
+            return self.get_cluster(name=cluster.name, project_id=project_id)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_cluster(
         self,
         name: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Retry = DEFAULT,
         timeout: float = DEFAULT
     ) -> Cluster:

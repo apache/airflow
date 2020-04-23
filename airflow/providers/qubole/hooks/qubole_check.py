@@ -130,5 +130,5 @@ class QuboleCheckHook(QuboleHook):
             query_result_buffer.close()
             return query_result
         else:
-            self.log.info("Qubole command not found")
+            self.log.error("Qubole command not found")
             return None

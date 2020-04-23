@@ -445,7 +445,3 @@ class TestSFTPOperator(unittest.TestCase):
     def tearDown(self):
         self.delete_local_resource()
         self.delete_remote_resource()
-
-
-if __name__ == '__main__':
-    unittest.main()

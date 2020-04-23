@@ -21,11 +21,11 @@ from typing import Any, Optional
 from googleapiclient.discovery import Resource, build
 from googleapiclient.http import MediaFileUpload
 
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 # noinspection PyAbstractClass
-class GoogleDriveHook(CloudBaseHook):
+class GoogleDriveHook(GoogleBaseHook):
     """
     Hook for the Google Drive APIs.
 

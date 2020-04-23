@@ -24,10 +24,10 @@ from google.cloud.datacatalog_v1beta1.types import (
 )
 
 from airflow import AirflowException
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class CloudDataCatalogHook(CloudBaseHook):
+class CloudDataCatalogHook(GoogleBaseHook):
     """
     Hook for Google Cloud Data Catalog Service.
 
@@ -54,14 +54,14 @@ class CloudDataCatalogHook(CloudBaseHook):
             )
         return self._client
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_entry(
         self,
         location: str,
         entry_group: str,
         entry_id: str,
         entry: Union[Dict, Entry],
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -83,7 +83,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         :type entry: Union[Dict, google.cloud.datacatalog_v1beta1.types.Entry]
         :param project_id: The ID of the GCP project that owns the entry.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
+        :type project_id: str
         :param retry: A retry object used to retry requests. If set to ``None`` or missing, requests will be
             retried using a default configuration.
         :type retry: google.api_core.retry.Retry
@@ -102,13 +102,13 @@ class CloudDataCatalogHook(CloudBaseHook):
         self.log.info('Created a entry: name=%s', result.name)
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_entry_group(
         self,
         location: str,
         entry_group_id: str,
         entry_group: Union[Dict, EntryGroup],
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -129,7 +129,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         :type entry_group: Union[Dict, google.cloud.datacatalog_v1beta1.types.EntryGroup]
         :param project_id: The ID of the GCP project that owns the entry group.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
         :type retry: google.api_core.retry.Retry
@@ -155,15 +155,15 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_tag(
         self,
         location: str,
         entry_group: str,
         entry: str,
         tag: Union[Dict, Tag],
+        project_id: str,
         template_id: Optional[str] = None,
-        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -185,7 +185,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         :type template_id: Optional[str]
         :param project_id: The ID of the GCP project that owns the tag.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
         :type retry: google.api_core.retry.Retry
@@ -210,13 +210,13 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_tag_template(
         self,
         location,
         tag_template_id: str,
         tag_template: Union[Dict, TagTemplate],
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -235,7 +235,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         :type tag_template: Union[Dict, google.cloud.datacatalog_v1beta1.types.TagTemplate]
         :param project_id: The ID of the GCP project that owns the tag template.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
         :type retry: google.api_core.retry.Retry
@@ -262,14 +262,14 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_tag_template_field(
         self,
         location: str,
         tag_template: str,
         tag_template_field_id: str,
         tag_template_field: Union[Dict, TagTemplateField],
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -293,7 +293,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         :type tag_template_field: Union[Dict, google.cloud.datacatalog_v1beta1.types.TagTemplateField]
         :param project_id: The ID of the GCP project that owns the tag template field.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
         :type retry: google.api_core.retry.Retry
@@ -321,13 +321,13 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_entry(
         self,
         location: str,
         entry_group: str,
         entry: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -343,7 +343,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         :type entry: str
         :param project_id: The ID of the GCP project that owns the entry group.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
         :type retry: google.api_core.retry.Retry
@@ -359,12 +359,12 @@ class CloudDataCatalogHook(CloudBaseHook):
         client.delete_entry(name=name, retry=retry, timeout=timeout, metadata=metadata)
         self.log.info('Deleted a entry: name=%s', name)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_entry_group(
         self,
         location,
         entry_group,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -380,7 +380,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         :type entry_group: str
         :param project_id: The ID of the GCP project that owns the entry group.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
         :type retry: google.api_core.retry.Retry
@@ -397,14 +397,14 @@ class CloudDataCatalogHook(CloudBaseHook):
         client.delete_entry_group(name=name, retry=retry, timeout=timeout, metadata=metadata)
         self.log.info('Deleted a entry group: name=%s', name)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_tag(
         self,
         location: str,
         entry_group: str,
         entry: str,
         tag: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -422,7 +422,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         :type tag: str
         :param project_id: The ID of the GCP project that owns the entry group.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
         :type retry: google.api_core.retry.Retry
@@ -439,13 +439,13 @@ class CloudDataCatalogHook(CloudBaseHook):
         client.delete_tag(name=name, retry=retry, timeout=timeout, metadata=metadata)
         self.log.info('Deleted a tag: name=%s', name)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_tag_template(
         self,
         location,
         tag_template,
         force: bool,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -459,7 +459,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         :type tag_template: str
         :param project_id: The ID of the GCP project that owns the entry group.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
+        :type project_id: str
         :param force: Required. Currently, this field must always be set to ``true``. This confirms the
             deletion of any possible tags using this template. ``force = false`` will be supported in the
             future.
@@ -480,14 +480,14 @@ class CloudDataCatalogHook(CloudBaseHook):
         client.delete_tag_template(name=name, force=force, retry=retry, timeout=timeout, metadata=metadata)
         self.log.info('Deleted a tag template: name=%s', name)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_tag_template_field(
         self,
         location: str,
         tag_template: str,
         field: str,
         force: bool,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -505,7 +505,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         :type force: bool
         :param project_id: The ID of the GCP project that owns the entry group.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
         :type retry: google.api_core.retry.Retry
@@ -524,13 +524,13 @@ class CloudDataCatalogHook(CloudBaseHook):
         )
         self.log.info('Deleted a tag template field: name=%s', name)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_entry(
         self,
         location: str,
         entry_group: str,
         entry: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -546,7 +546,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         :type entry: str
         :param project_id: The ID of the GCP project that owns the entry group.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
         :type retry: google.api_core.retry.Retry
@@ -565,13 +565,13 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_entry_group(
         self,
         location: str,
         entry_group: str,
+        project_id: str,
         read_mask: Union[Dict, FieldMask] = None,
-        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -590,7 +590,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         :type read_mask: Union[Dict, google.cloud.datacatalog_v1beta1.types.FieldMask]
         :param project_id: The ID of the GCP project that owns the entry group.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
         :type retry: google.api_core.retry.Retry
@@ -613,12 +613,12 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_tag_template(
         self,
         location: str,
         tag_template: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -632,7 +632,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         :type tag_template: str
         :param project_id: The ID of the GCP project that owns the entry group.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
         :type retry: google.api_core.retry.Retry
@@ -653,14 +653,14 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def list_tags(
         self,
         location: str,
         entry_group: str,
         entry: str,
-        page_size: int = 100,
-        project_id: Optional[str] = None,
+        project_id: str,
+        page_size: Optional[int] = 100,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -680,7 +680,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         :type page_size: int
         :param project_id: The ID of the GCP project that owns the entry group.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
         :type retry: google.api_core.retry.Retry
@@ -703,14 +703,14 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_tag_for_template_name(
         self,
         location: str,
         entry_group: str,
         entry: str,
         template_name: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -728,7 +728,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         :type template_name: str
         :param project_id: The ID of the GCP project that owns the entry group.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
         :type retry: google.api_core.retry.Retry
@@ -801,14 +801,14 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def rename_tag_template_field(
         self,
         location: str,
         tag_template: str,
         field: str,
         new_tag_template_field_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -828,7 +828,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         :type new_tag_template_field_id: str
         :param project_id: The ID of the GCP project that owns the entry group.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
         :type retry: google.api_core.retry.Retry
@@ -935,15 +935,15 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def update_entry(
         self,
         entry: Union[Dict, Entry],
         update_mask: Union[Dict, FieldMask],
+        project_id: str,
         location: Optional[str] = None,
         entry_group: Optional[str] = None,
         entry_id: Optional[str] = None,
-        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -970,7 +970,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         :type entry_id: str
         :param project_id: The ID of the GCP project that owns the entry group.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
         :type retry: google.api_core.retry.Retry
@@ -1006,16 +1006,16 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def update_tag(  # pylint: disable=too-many-arguments
         self,
         tag: Union[Dict, Tag],
         update_mask: Union[Dict, FieldMask],
+        project_id: str,
         location: Optional[str] = None,
         entry_group: Optional[str] = None,
         entry: Optional[str] = None,
         tag_id: Optional[str] = None,
-        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -1044,7 +1044,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         :type tag_id: str
         :param project_id: The ID of the GCP project that owns the entry group.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
         :type retry: google.api_core.retry.Retry
@@ -1079,14 +1079,14 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def update_tag_template(
         self,
         tag_template: Union[Dict, TagTemplate],
         update_mask: Union[Dict, FieldMask],
+        project_id: str,
         location: Optional[str] = None,
         tag_template_id: Optional[str] = None,
-        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -1116,7 +1116,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         :type tag_template_id: str
         :param project_id: The ID of the GCP project that owns the entry group.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
         :type retry: google.api_core.retry.Retry
@@ -1157,16 +1157,16 @@ class CloudDataCatalogHook(CloudBaseHook):
 
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def update_tag_template_field(  # pylint: disable=too-many-arguments
         self,
         tag_template_field: Union[Dict, TagTemplateField],
         update_mask: Union[Dict, FieldMask],
+        project_id: str,
         tag_template_field_name: Optional[str] = None,
         location: Optional[str] = None,
         tag_template: Optional[str] = None,
         tag_template_field_id: Optional[str] = None,
-        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -1202,7 +1202,7 @@ class CloudDataCatalogHook(CloudBaseHook):
         :type tag_template_field_id: str
         :param project_id: The ID of the GCP project that owns the entry group.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
-        :type project_id: Optional[str]
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
         :type retry: google.api_core.retry.Retry

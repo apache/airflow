@@ -31,6 +31,7 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.bash import BashOperator
 from airflow.utils.session import create_session
 from airflow.utils.timezone import datetime
+from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_rendered_ti_fields
 
 TEST_DAG = DAG("example_rendered_ti_field", schedule_interval=None)
@@ -129,7 +130,15 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
         ti2 = TI(task_2, EXECUTION_DATE)
         self.assertIsNone(RTIF.get_templated_fields(ti=ti2))
 
-    def test_delete_old_records(self):
+    @parameterized.expand([
+        (0, 1, 0, 1),
+        (1, 1, 1, 1),
+        (1, 0, 1, 0),
+        (3, 1, 1, 1),
+        (4, 2, 2, 1),
+        (5, 2, 2, 1),
+    ])
+    def test_delete_old_records(self, rtif_num, num_to_keep, remaining_rtifs, expected_query_count):
         """
         Test that old records are deleted from rendered_task_instance_fields table
         for a given task_id and dag_id.
@@ -139,29 +148,28 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
         with dag:
             task = BashOperator(task_id="test", bash_command="echo {{ ds }}")
 
-        rtif_1 = RTIF(TI(task=task, execution_date=EXECUTION_DATE))
-        rtif_2 = RTIF(TI(task=task, execution_date=EXECUTION_DATE + timedelta(days=1)))
-        rtif_3 = RTIF(TI(task=task, execution_date=EXECUTION_DATE + timedelta(days=2)))
+        rtif_list = [
+            RTIF(TI(task=task, execution_date=EXECUTION_DATE + timedelta(days=num)))
+            for num in range(rtif_num)
+        ]
 
-        session.add(rtif_1)
-        session.add(rtif_2)
-        session.add(rtif_3)
+        session.add_all(rtif_list)
         session.commit()
 
         result = session.query(RTIF)\
             .filter(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id).all()
 
-        self.assertIn(rtif_1, result)
-        self.assertIn(rtif_2, result)
-        self.assertIn(rtif_3, result)
-        self.assertEqual(3, len(result))
+        for rtif in rtif_list:
+            self.assertIn(rtif, result)
 
-        # Verify old records are deleted and only 1 record is kept
-        RTIF.delete_old_records(task_id=task.task_id, dag_id=task.dag_id, num_to_keep=1)
+        self.assertEqual(rtif_num, len(result))
+
+        # Verify old records are deleted and only 'num_to_keep' records are kept
+        with assert_queries_count(expected_query_count):
+            RTIF.delete_old_records(task_id=task.task_id, dag_id=task.dag_id, num_to_keep=num_to_keep)
         result = session.query(RTIF) \
             .filter(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id).all()
-        self.assertEqual(1, len(result))
-        self.assertEqual(rtif_3.execution_date, result[0].execution_date)
+        self.assertEqual(remaining_rtifs, len(result))
 
     def test_write(self):
         """

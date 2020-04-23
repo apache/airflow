@@ -27,7 +27,7 @@ from tabulate import tabulate
 
 from airflow import models
 from airflow.exceptions import (
-    AirflowException, DagConcurrencyLimitReached, NoAvailablePoolSlot, PoolNotFound,
+    AirflowException, BackfillUnfinished, DagConcurrencyLimitReached, NoAvailablePoolSlot, PoolNotFound,
     TaskConcurrencyLimitReached,
 )
 from airflow.executors.local_executor import LocalExecutor
@@ -37,7 +37,7 @@ from airflow.models import DAG, DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKeyType
 from airflow.ti_deps.dep_context import DepContext
-from airflow.ti_deps.dependencies import BACKFILL_QUEUED_DEPS
+from airflow.ti_deps.dependencies_deps import BACKFILL_QUEUED_DEPS
 from airflow.utils import timezone
 from airflow.utils.configuration import tmp_configuration_copy
 from airflow.utils.session import provide_session
@@ -808,7 +808,7 @@ class BackfillJob(BaseJob):
                 )
                 err = self._collect_errors(ti_status=ti_status, session=session)
                 if err:
-                    raise AirflowException(err)
+                    raise BackfillUnfinished(err, ti_status)
 
                 if remaining_dates > 0:
                     self.log.info(

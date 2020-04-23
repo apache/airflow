@@ -534,7 +534,7 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
                                user_project=self.user_project)
 
 
-class GcsFileTransformOperator(BaseOperator):
+class GCSFileTransformOperator(BaseOperator):
     """
     Copies data from a source GCS location to a temporary location on the
     local filesystem. Runs a transformation on this file as specified by
@@ -604,8 +604,9 @@ class GcsFileTransformOperator(BaseOperator):
                 close_fds=True
             )
             self.log.info("Process output:")
-            for line in iter(process.stdout.readline, b''):
-                self.log.info(line.decode(self.output_encoding).rstrip())
+            if process.stdout:
+                for line in iter(process.stdout.readline, b''):
+                    self.log.info(line.decode(self.output_encoding).rstrip())
 
             process.wait()
             if process.returncode > 0:

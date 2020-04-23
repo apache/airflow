@@ -385,7 +385,7 @@ COPY requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt \
 # But in cron job we will install latest versions matching setup.py to see if there is no breaking change
 RUN \
     if [[ "${UPGRADE_TO_LATEST_REQUIREMENTS}" == "true" ]]; then \
-        pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade; \
+        pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy eager; \
     else \
         pip install -e ".[${AIRFLOW_EXTRAS}]" \
             --constraint  ${AIRFLOW_SOURCES}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt ; \
@@ -399,7 +399,7 @@ COPY airflow/www/static ${AIRFLOW_SOURCES}/airflow/www/static/
 # Package JS/css for production
 RUN yarn --cwd airflow/www run prod
 
-COPY scripts/docker/entrypoint.sh /entrypoint.sh
+COPY entrypoint.sh /entrypoint.sh
 
 # Copy selected subdirectories only
 COPY .github/ ${AIRFLOW_SOURCES}/.github/

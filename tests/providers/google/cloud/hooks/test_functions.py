@@ -35,7 +35,7 @@ GCF_FUNCTION = 'function'
 class TestFunctionHookNoDefaultProjectId(unittest.TestCase):
 
     def setUp(self):
-        with mock.patch('airflow.providers.google.cloud.hooks.base.CloudBaseHook.__init__',
+        with mock.patch('airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__',
                         new=mock_base_gcp_hook_no_default_project_id):
             self.gcf_function_hook_no_project_id = CloudFunctionsHook(gcp_conn_id='test', api_version='v1')
 
@@ -48,34 +48,6 @@ class TestFunctionHookNoDefaultProjectId(unittest.TestCase):
         )
         self.assertEqual(mock_build.return_value, result)
         self.assertEqual(self.gcf_function_hook_no_project_id._conn, result)
-
-    @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
-        new_callable=PropertyMock,
-        return_value=None
-    )
-    @mock.patch('airflow.providers.google.cloud.hooks.functions.CloudFunctionsHook.get_conn')
-    @mock.patch(
-        'airflow.providers.google.cloud.hooks.functions.CloudFunctionsHook._wait_for_operation_to_complete'
-    )
-    def test_create_new_function_missing_project_id(
-        self, wait_for_operation_to_complete, get_conn, mock_project_id
-    ):
-        create_method = get_conn.return_value.projects.return_value.locations. \
-            return_value.functions.return_value.create
-        execute_method = create_method.return_value.execute
-        execute_method.return_value = {"name": "operation_id"}
-        wait_for_operation_to_complete.return_value = None
-        with self.assertRaises(AirflowException) as cm:
-            self.gcf_function_hook_no_project_id.create_new_function(
-                location=GCF_LOCATION,
-                body={}
-            )
-        create_method.assert_not_called()
-        execute_method.assert_not_called()
-        err = cm.exception
-        self.assertIn("The project id must be passed", str(err))
-        wait_for_operation_to_complete.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.hooks.functions.CloudFunctionsHook.get_conn')
     @mock.patch(
@@ -97,34 +69,6 @@ class TestFunctionHookNoDefaultProjectId(unittest.TestCase):
                                               location='projects/example-project/locations/location')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(operation_name='operation_id')
-
-    @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
-        new_callable=PropertyMock,
-        return_value=None
-    )
-    @mock.patch('requests.put')
-    @mock.patch('airflow.providers.google.cloud.hooks.functions.CloudFunctionsHook.get_conn')
-    def test_upload_function_zip_missing_project_id(
-        self, get_conn, requests_put, mock_project_id
-    ):
-        mck = mock.mock_open()
-        with mock.patch('builtins.open', mck):
-            generate_upload_url_method = get_conn.return_value.projects.return_value.locations. \
-                return_value.functions.return_value.generateUploadUrl
-            execute_method = generate_upload_url_method.return_value.execute
-            execute_method.return_value = {"uploadUrl": "http://uploadHere"}
-            requests_put.return_value = None
-            with self.assertRaises(AirflowException) as cm:
-                self.gcf_function_hook_no_project_id.upload_function_zip(
-                    location=GCF_LOCATION,
-                    zip_path="/tmp/path.zip"
-                )
-                generate_upload_url_method.assert_not_called()
-                execute_method.assert_not_called()
-                mck.assert_not_called()
-                err = cm.exception
-                self.assertIn("The project id must be passed", str(err))
 
     @mock.patch('requests.put')
     @mock.patch('airflow.providers.google.cloud.hooks.functions.CloudFunctionsHook.get_conn')
@@ -155,7 +99,7 @@ class TestFunctionHookNoDefaultProjectId(unittest.TestCase):
 
 class TestFunctionHookDefaultProjectId(unittest.TestCase):
     def setUp(self):
-        with mock.patch('airflow.providers.google.cloud.hooks.base.CloudBaseHook.__init__',
+        with mock.patch('airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__',
                         new=mock_base_gcp_hook_default_project_id):
             self.gcf_function_hook = CloudFunctionsHook(gcp_conn_id='test', api_version='v1')
 
@@ -170,7 +114,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
         self.assertEqual(self.gcf_function_hook._conn, result)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -186,7 +130,8 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
         wait_for_operation_to_complete.return_value = None
         res = self.gcf_function_hook.create_new_function(
             location=GCF_LOCATION,
-            body={}
+            body={},
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
         self.assertIsNone(res)
         create_method.assert_called_once_with(body={},
@@ -271,7 +216,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(operation_name='operation_id')
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -287,7 +232,8 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
             requests_put.return_value = None
             res = self.gcf_function_hook.upload_function_zip(
                 location=GCF_LOCATION,
-                zip_path="/tmp/path.zip"
+                zip_path="/tmp/path.zip",
+                project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
             )
             self.assertEqual("http://uploadHere", res)
             generate_upload_url_method.assert_called_once_with(

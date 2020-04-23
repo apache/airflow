@@ -859,7 +859,7 @@ class TestDag(unittest.TestCase):
             'dag_paused'
         )
         dag.sync_to_db()
-        self.assertFalse(dag.is_paused)
+        self.assertFalse(dag.get_is_paused())
 
         dag = DAG(
             'dag_paused',
@@ -867,7 +867,7 @@ class TestDag(unittest.TestCase):
         )
         dag.sync_to_db()
         # Since the dag existed before, it should not follow the pause flag upon creation
-        self.assertFalse(dag.is_paused)
+        self.assertFalse(dag.get_is_paused())
 
     def test_new_dag_is_paused_upon_creation(self):
         dag = DAG(
@@ -1136,6 +1136,7 @@ class TestDag(unittest.TestCase):
         dag_id = "test_schedule_dag_once"
         dag = DAG(dag_id=dag_id)
         dag.schedule_interval = '@once'
+        self.assertEqual(dag.normalized_schedule_interval, None)
         dag.add_task(BaseOperator(
             task_id="faketastic",
             owner='Also fake',
@@ -1319,6 +1320,38 @@ class TestDag(unittest.TestCase):
             session.query(DagModel).filter(
                 DagModel.dag_id == dag_id).delete(
                 synchronize_session=False)
+
+    @parameterized.expand([
+        (None, None),
+        ("@daily", "0 0 * * *"),
+        ("@weekly", "0 0 * * 0"),
+        ("@monthly", "0 0 1 * *"),
+        ("@quarterly", "0 0 1 */3 *"),
+        ("@yearly", "0 0 1 1 *"),
+        ("@once", None),
+        (datetime.timedelta(days=1), datetime.timedelta(days=1)),
+    ])
+    def test_normalized_schedule_interval(
+        self, schedule_interval, expected_n_schedule_interval
+    ):
+        dag = DAG("test_schedule_interval", schedule_interval=schedule_interval)
+
+        self.assertEqual(dag.normalized_schedule_interval, expected_n_schedule_interval)
+        self.assertEqual(dag.schedule_interval, schedule_interval)
+
+    def test_set_dag_runs_state(self):
+        clear_db_runs()
+        dag_id = "test_set_dag_runs_state"
+        dag = DAG(dag_id=dag_id)
+
+        for i in range(3):
+            dag.create_dagrun(run_id=f"test{i}", state=State.RUNNING)
+
+        dag.set_dag_runs_state(state=State.NONE)
+        drs = DagRun.find(dag_id=dag_id)
+
+        assert len(drs) == 3
+        assert all(dr.state == State.NONE for dr in drs)
 
 
 class TestQueries(unittest.TestCase):

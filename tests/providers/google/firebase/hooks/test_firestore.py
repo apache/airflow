@@ -48,7 +48,7 @@ class TestCloudFirestoreHookWithPassedProjectId(unittest.TestCase):
 
     def setUp(self):
         with mock.patch(
-            "airflow.providers.google.cloud.hooks.base.CloudBaseHook.__init__",
+            "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = CloudFirestoreHook(gcp_conn_id="test")
@@ -140,7 +140,7 @@ class TestCloudFirestoreHookWithDefaultProjectIdFromConnection(unittest.TestCase
 
     def setUp(self):
         with mock.patch(
-            "airflow.providers.google.cloud.hooks.base.CloudBaseHook.__init__",
+            "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = CloudFirestoreHook(gcp_conn_id="test")
@@ -160,7 +160,7 @@ class TestCloudFirestoreHookWithDefaultProjectIdFromConnection(unittest.TestCase
         self.assertEqual(self.hook._conn, result)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -186,7 +186,7 @@ class TestCloudFirestoreHookWithDefaultProjectIdFromConnection(unittest.TestCase
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -216,7 +216,7 @@ class TestCloudFirestoreHookWithDefaultProjectIdFromConnection(unittest.TestCase
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -245,13 +245,13 @@ class TestCloudFirestoreHookWithoutProjectId(unittest.TestCase):
 
     def setUp(self):
         with mock.patch(
-            "airflow.providers.google.cloud.hooks.base.CloudBaseHook.__init__",
+            "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = CloudFirestoreHook(gcp_conn_id="test")
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )

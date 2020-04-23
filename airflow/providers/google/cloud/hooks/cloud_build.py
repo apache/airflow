@@ -23,14 +23,14 @@ from typing import Any, Dict, Optional
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 5
 
 
 # noinspection PyAbstractClass
-class CloudBuildHook(CloudBaseHook):
+class CloudBuildHook(GoogleBaseHook):
     """
     Hook for the Google Cloud Build APIs.
 
@@ -69,8 +69,8 @@ class CloudBuildHook(CloudBaseHook):
             self._conn = build("cloudbuild", self.api_version, http=http_authorized, cache_discovery=False)
         return self._conn
 
-    @CloudBaseHook.fallback_to_default_project_id
-    def create_build(self, body: Dict, project_id: Optional[str] = None) -> Dict:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def create_build(self, body: Dict, project_id: str) -> Dict:
         """
         Starts a build with the specified configuration.
 
@@ -82,8 +82,6 @@ class CloudBuildHook(CloudBaseHook):
         :type project_id: str
         :return: Dict
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
         service = self.get_conn()
 
         # Create build

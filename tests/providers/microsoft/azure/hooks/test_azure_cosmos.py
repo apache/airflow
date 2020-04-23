@@ -191,7 +191,3 @@ class TestAzureCosmosDbHook(unittest.TestCase):
         expected_calls = [mock.call().DeleteContainer('dbs/test_database_default/colls/test_collection_name')]
         mock_cosmos.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
         mock_cosmos.assert_has_calls(expected_calls)
-
-
-if __name__ == '__main__':
-    unittest.main()

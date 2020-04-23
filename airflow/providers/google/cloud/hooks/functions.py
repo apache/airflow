@@ -25,14 +25,14 @@ import requests
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 1
 
 
 # noinspection PyAbstractClass
-class CloudFunctionsHook(CloudBaseHook):
+class CloudFunctionsHook(GoogleBaseHook):
     """
     Hook for the Google Cloud Functions APIs.
 
@@ -89,8 +89,8 @@ class CloudFunctionsHook(CloudBaseHook):
         return self.get_conn().projects().locations().functions().get(  # pylint: disable=no-member
             name=name).execute(num_retries=self.num_retries)
 
-    @CloudBaseHook.fallback_to_default_project_id
-    def create_new_function(self, location: str, body: Dict, project_id: Optional[str] = None) -> None:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def create_new_function(self, location: str, body: Dict, project_id: str) -> None:
         """
         Creates a new function in Cloud Function in the location specified in the body.
 
@@ -103,8 +103,6 @@ class CloudFunctionsHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
         response = self.get_conn().projects().locations().functions().create(  # pylint: disable=no-member
             location=self._full_location(project_id, location),
             body=body
@@ -132,8 +130,8 @@ class CloudFunctionsHook(CloudBaseHook):
         operation_name = response["name"]
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
-    @CloudBaseHook.fallback_to_default_project_id
-    def upload_function_zip(self, location: str, zip_path: str, project_id: Optional[str] = None) -> str:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def upload_function_zip(self, location: str, zip_path: str, project_id: str) -> str:
         """
         Uploads zip file with sources.
 
@@ -147,8 +145,6 @@ class CloudFunctionsHook(CloudBaseHook):
         :return: The upload URL that was returned by generateUploadUrl method.
         :rtype: str
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
         response = \
             self.get_conn().projects().locations().functions().generateUploadUrl(  # pylint: disable=no-member # noqa
             parent=self._full_location(project_id, location)
@@ -182,13 +178,13 @@ class CloudFunctionsHook(CloudBaseHook):
         operation_name = response["name"]
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def call_function(
             self,
             function_id: str,
             input_data: Dict,
             location: str,
-            project_id: Optional[str] = None
+            project_id: str,
     ) -> Dict:
         """
         Synchronously invokes a deployed Cloud Function. To be used for testing

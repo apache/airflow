@@ -67,7 +67,7 @@ JOB_TRIGGER_PATH = "projects/{}/jobTriggers/{}".format(PROJECT_ID, TRIGGER_ID)
 class TestCloudDLPHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            "airflow.providers.google.cloud.hooks.base.CloudBaseHook.__init__",
+            "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = CloudDLPHook(gcp_conn_id="test")
@@ -101,17 +101,17 @@ class TestCloudDLPHook(unittest.TestCase):
             self.hook.cancel_dlp_job(dlp_job_id=None, project_id=PROJECT_ID)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_cancel_dlp_job_without_parent(self, _, mock_project_id):
         with self.assertRaises(AirflowException):
-            self.hook.cancel_dlp_job(dlp_job_id=DLP_JOB_ID)
+            self.hook.cancel_dlp_job(dlp_job_id=DLP_JOB_ID)  # pylint: disable=no-value-for-parameter
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -146,7 +146,7 @@ class TestCloudDLPHook(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -174,14 +174,14 @@ class TestCloudDLPHook(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_create_dlp_job_without_project_id(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
-            self.hook.create_dlp_job()
+            self.hook.create_dlp_job()  # pylint: disable=no-value-for-parameter
 
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_create_dlp_job_with_wait_until_finished(self, get_conn):
@@ -197,7 +197,7 @@ class TestCloudDLPHook(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -232,7 +232,7 @@ class TestCloudDLPHook(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -257,7 +257,7 @@ class TestCloudDLPHook(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -266,10 +266,10 @@ class TestCloudDLPHook(unittest.TestCase):
     )
     def test_create_job_trigger_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
-            self.hook.create_job_trigger()
+            self.hook.create_job_trigger()  # pylint: disable=no-value-for-parameter
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -304,7 +304,7 @@ class TestCloudDLPHook(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -334,7 +334,7 @@ class TestCloudDLPHook(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -343,10 +343,10 @@ class TestCloudDLPHook(unittest.TestCase):
     )
     def test_deidentify_content_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
-            self.hook.deidentify_content()
+            self.hook.deidentify_content()  # pylint: disable=no-value-for-parameter
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -384,7 +384,7 @@ class TestCloudDLPHook(unittest.TestCase):
             self.hook.delete_deidentify_template(template_id=None)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -407,17 +407,17 @@ class TestCloudDLPHook(unittest.TestCase):
             self.hook.delete_dlp_job(dlp_job_id=None, project_id=PROJECT_ID)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_dlp_job_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
-            self.hook.delete_dlp_job(dlp_job_id=DLP_JOB_ID)
+            self.hook.delete_dlp_job(dlp_job_id=DLP_JOB_ID)  # pylint: disable=no-value-for-parameter
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -453,7 +453,7 @@ class TestCloudDLPHook(unittest.TestCase):
             self.hook.delete_inspect_template(template_id=None)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -476,17 +476,17 @@ class TestCloudDLPHook(unittest.TestCase):
             self.hook.delete_job_trigger(job_trigger_id=None, project_id=PROJECT_ID)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_job_trigger_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
-            self.hook.delete_job_trigger(job_trigger_id=TRIGGER_ID)
+            self.hook.delete_job_trigger(job_trigger_id=TRIGGER_ID)  # pylint: disable=no-value-for-parameter
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -522,7 +522,7 @@ class TestCloudDLPHook(unittest.TestCase):
             self.hook.delete_stored_info_type(stored_info_type_id=None)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -532,7 +532,7 @@ class TestCloudDLPHook(unittest.TestCase):
             self.hook.delete_stored_info_type(stored_info_type_id=STORED_INFO_TYPE_ID)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -572,7 +572,7 @@ class TestCloudDLPHook(unittest.TestCase):
             self.hook.get_deidentify_template(template_id=None)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -597,17 +597,17 @@ class TestCloudDLPHook(unittest.TestCase):
             self.hook.get_dlp_job(dlp_job_id=None, project_id=PROJECT_ID)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_dlp_job_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
-            self.hook.get_dlp_job(dlp_job_id=DLP_JOB_ID)
+            self.hook.get_dlp_job(dlp_job_id=DLP_JOB_ID)  # pylint: disable=no-value-for-parameter
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -647,7 +647,7 @@ class TestCloudDLPHook(unittest.TestCase):
             self.hook.get_inspect_template(template_id=None)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -674,17 +674,17 @@ class TestCloudDLPHook(unittest.TestCase):
             self.hook.get_job_trigger(job_trigger_id=None, project_id=PROJECT_ID)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_job_trigger_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
-            self.hook.get_job_trigger(job_trigger_id=TRIGGER_ID)
+            self.hook.get_job_trigger(job_trigger_id=TRIGGER_ID)  # pylint: disable=no-value-for-parameter
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -724,7 +724,7 @@ class TestCloudDLPHook(unittest.TestCase):
             self.hook.get_stored_info_type(stored_info_type_id=None)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -750,17 +750,17 @@ class TestCloudDLPHook(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_inspect_content_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
-            self.hook.inspect_content()
+            self.hook.inspect_content()  # pylint: disable=no-value-for-parameter
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -793,7 +793,7 @@ class TestCloudDLPHook(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -819,14 +819,14 @@ class TestCloudDLPHook(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_list_dlp_jobs_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
-            self.hook.list_dlp_jobs()
+            self.hook.list_dlp_jobs()  # pylint: disable=no-value-for-parameter
 
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_list_info_types(self, get_conn):
@@ -839,7 +839,7 @@ class TestCloudDLPHook(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -872,7 +872,7 @@ class TestCloudDLPHook(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -897,17 +897,17 @@ class TestCloudDLPHook(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_list_job_triggers_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
-            self.hook.list_job_triggers()
+            self.hook.list_job_triggers()  # pylint: disable=no-value-for-parameter
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -940,7 +940,7 @@ class TestCloudDLPHook(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -967,14 +967,14 @@ class TestCloudDLPHook(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_redact_image_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
-            self.hook.redact_image()
+            self.hook.redact_image()  # pylint: disable=no-value-for-parameter
 
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_reidentify_content(self, get_conn):
@@ -995,7 +995,7 @@ class TestCloudDLPHook(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -1004,10 +1004,10 @@ class TestCloudDLPHook(unittest.TestCase):
     )
     def test_reidentify_content_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
-            self.hook.reidentify_content()
+            self.hook.reidentify_content()  # pylint: disable=no-value-for-parameter
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -1053,7 +1053,7 @@ class TestCloudDLPHook(unittest.TestCase):
             )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -1063,7 +1063,7 @@ class TestCloudDLPHook(unittest.TestCase):
             self.hook.update_deidentify_template(template_id=TEMPLATE_ID)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -1109,7 +1109,7 @@ class TestCloudDLPHook(unittest.TestCase):
             )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -1141,17 +1141,17 @@ class TestCloudDLPHook(unittest.TestCase):
             self.hook.update_job_trigger(job_trigger_id=None, project_id=PROJECT_ID)
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_update_job_trigger_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
-            self.hook.update_job_trigger(job_trigger_id=TRIGGER_ID)
+            self.hook.update_job_trigger(job_trigger_id=TRIGGER_ID)  # pylint: disable=no-value-for-parameter
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -1199,7 +1199,7 @@ class TestCloudDLPHook(unittest.TestCase):
             )
 
     @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )

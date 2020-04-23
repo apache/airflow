@@ -35,7 +35,7 @@ from google.cloud.dataproc_v1beta2.types import (  # pylint: disable=no-name-in-
 )
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.version import version as airflow_version
 
 
@@ -203,7 +203,7 @@ class DataProcJobBuilder:
         return self.job
 
 
-class DataprocHook(CloudBaseHook):
+class DataprocHook(GoogleBaseHook):
     """
     Hook for Google Cloud Dataproc APIs.
 
@@ -249,12 +249,12 @@ class DataprocHook(CloudBaseHook):
             client_options=client_options
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_cluster(
         self,
         region: str,
         cluster: Union[Dict, Cluster],
-        project_id: Optional[str] = None,
+        project_id: str,
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -296,13 +296,13 @@ class DataprocHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_cluster(
         self,
         region: str,
         cluster_name: str,
+        project_id: str,
         cluster_uuid: Optional[str] = None,
-        project_id: Optional[str] = None,
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -346,12 +346,12 @@ class DataprocHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def diagnose_cluster(
         self,
         region: str,
         cluster_name: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -386,12 +386,12 @@ class DataprocHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_cluster(
         self,
         region: str,
         cluster_name: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -425,13 +425,13 @@ class DataprocHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def list_clusters(
         self,
         region: str,
         filter_: str,
+        project_id: str,
         page_size: Optional[int] = None,
-        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -470,14 +470,14 @@ class DataprocHook(CloudBaseHook):
         )
         return result
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def update_cluster(  # pylint: disable=too-many-arguments
         self,
         location: str,
         cluster_name: str,
         cluster: Union[Dict, Cluster],
         update_mask: Union[Dict, FieldMask],
-        project_id: Optional[str] = None,
+        project_id: str,
         graceful_decommission_timeout: Optional[Union[Dict, Duration]] = None,
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
@@ -557,12 +557,12 @@ class DataprocHook(CloudBaseHook):
         )
         return operation
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_workflow_template(
         self,
         location: str,
         template: Union[Dict, WorkflowTemplate],
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -596,12 +596,12 @@ class DataprocHook(CloudBaseHook):
             metadata=metadata
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def instantiate_workflow_template(
         self,
         location: str,
         template_name: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         version: Optional[int] = None,
         request_id: Optional[str] = None,
         parameters: Optional[Dict[str, str]] = None,
@@ -653,12 +653,12 @@ class DataprocHook(CloudBaseHook):
         )
         return operation
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def instantiate_inline_workflow_template(
         self,
         location: str,
         template: Union[Dict, WorkflowTemplate],
-        project_id: Optional[str] = None,
+        project_id: str,
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -699,12 +699,12 @@ class DataprocHook(CloudBaseHook):
         )
         return operation
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def wait_for_job(
         self,
         job_id: str,
         location: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         wait_time: int = 10
     ):
         """
@@ -733,12 +733,12 @@ class DataprocHook(CloudBaseHook):
         if state == JobStatus.CANCELLED:
             raise AirflowException('Job was cancelled:\n{}'.format(job))
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_job(
         self,
         location: str,
         job_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -772,12 +772,12 @@ class DataprocHook(CloudBaseHook):
         )
         return job
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def submit_job(
         self,
         location: str,
         job: Union[Dict, Job],
-        project_id: Optional[str] = None,
+        project_id: str,
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -854,11 +854,11 @@ class DataprocHook(CloudBaseHook):
             project_id=project_id
         )
 
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def cancel_job(
         self,
         job_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         location: str = 'global',
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,

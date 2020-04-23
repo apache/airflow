@@ -190,7 +190,3 @@ class TestACIOperator(unittest.TestCase):
         for name in valid_names:
             checked_name = AzureContainerInstancesOperator._check_name(name)
             self.assertEqual(checked_name, name)
-
-
-if __name__ == '__main__':
-    unittest.main()

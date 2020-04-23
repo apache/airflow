@@ -54,6 +54,7 @@
       description: |
         The executor class that airflow should use. Choices include
         SequentialExecutor, LocalExecutor, CeleryExecutor, DaskExecutor, KubernetesExecutor
+        or the full import path to the class when using a custom executor.
       version_added: ~
       type: string
       example: ~
@@ -237,7 +238,9 @@
       default: "50"
     - name: task_runner
       description: |
-        The class to use for running task instances in a subprocess
+        The class to use for running task instances in a subprocess.
+        Choices include StandardTaskRunner, CgroupTaskRunner or the full import path to the class
+        when using a custom task runner.
       version_added: ~
       type: string
       example: ~
@@ -257,14 +260,6 @@
       type: string
       example: ~
       default: ""
-    - name: secure_mode
-      description: |
-        If set to False enables some unsecure features like Charts and Ad Hoc Queries.
-        In 2.0 will default to True.
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
     - name: unit_test_mode
       description: |
         Turn unit test mode on (overwrites many configuration options with test
@@ -340,8 +335,8 @@
         Whether to persist DAG files code in DB.
         If set to True, Webserver reads file contents from DB instead of
         trying to access files in a DAG folder. Defaults to same as the
-        store_serialized_dags setting.
-      version_added: 2.0.0
+        ``store_serialized_dags`` setting.
+      version_added: 1.10.10
       type: string
       example: ~
       default: "%(store_serialized_dags)s"
@@ -511,16 +506,17 @@
     - name: backend
       description: |
         Full class name of secrets backend to enable (will precede env vars and metastore in search path)
-      version_added: ~
+      version_added: 1.10.10
       type: string
-      example: ~
+      example: "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend"
       default: ""
     - name: backend_kwargs
       description: |
         The backend_kwargs param is loaded into a dictionary and passed to __init__ of secrets backend class.
         See documentation for the secrets backend you are using. JSON is expected.
-        Example for AWS SSM: {{"prefix": "/airflow", "profile_name": "my_aws_profile"}}
-      version_added: ~
+        Example for AWS Systems Manager ParameterStore:
+        ``{{"connections_prefix": "/airflow/connections", "profile_name": "default"}}``
+      version_added: 1.10.10
       type: string
       example: ~
       default: ""
@@ -682,6 +678,16 @@
       type: string
       example: ~
       default: "http://localhost:8080"
+    - name: default_ui_timezone
+      description: |
+        Default timezone to display all dates in the UI, can be UTC, system, or
+        any IANA timezone string (e.g. Europe/Amsterdam). If left empty the
+        default value of core/default_timezone will be used
+      version_added: 1.10.10
+      type: string
+      example: "America/New_York"
+      # Default is left as UTC for now so the date's don't "suddenly" change on upgrade
+      default: "UTC"
     - name: web_server_host
       description: |
         The ip specified when starting the web server
@@ -1128,6 +1134,15 @@
       type: string
       example: ~
       default: "8793"
+    - name: worker_umask
+      description: |
+        Umask that will be used when starting workers with the ``airflow celery worker``
+        in daemon mode. This control the file-creation mode mask which determines the initial
+        value of file permission bits for newly created files.
+      version_added: ~
+      type: string
+      example: ~
+      default: "0o077"
     - name: broker_url
       description: |
         The Celery broker URL. Celery supports RabbitMQ, Redis and experimentally
@@ -1486,12 +1501,6 @@
       type: string
       example: ~
       default: "2"
-    - name: authenticate
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
     - name: use_job_schedule
       description: |
         Turn off scheduler use of cron intervals by setting this to False.
@@ -1746,13 +1755,14 @@
       type: string
       example: ~
       default: "True"
-    - name: delete_worker_pods_on_success
+    - name: delete_worker_pods_on_failure
       description: |
-        If True (default), worker pods will be deleted only on task success
+        If False (and delete_worker_pods is True),
+        failed worker pods will not be deleted so users can investigate them.
       version_added: ~
       type: string
       example: ~
-      default: "True"
+      default: "False"
     - name: worker_pods_creation_batch_size
       description: |
         Number of Kubernetes Worker Pod creation calls per scheduler loop.
@@ -1836,6 +1846,13 @@
     - name: dags_volume_subpath
       description: |
         For either git sync or volume mounted DAGs, the worker will look in this subpath for DAGs
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
+    - name: dags_volume_mount_point
+      description: |
+        For either git sync or volume mounted DAGs, the worker will mount the volume in this path
       version_added: ~
       type: string
       example: ~
@@ -2155,6 +2172,13 @@
       version_added: ~
       type: string
       example: ~
+      default: ""
+    - name: worker_resources
+      description: |
+        Worker resources configuration as a single line formatted JSON object.
+      version_added: ~
+      type: string
+      example: '{ "limit_cpu": 0.25, "limit_memory": "64Mi", "request_cpu": "250m", "request_memory": "64Mi"}'
       default: ""
 - name: kubernetes_node_selectors
   description: |

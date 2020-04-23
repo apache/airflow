@@ -20,10 +20,10 @@ from typing import Any, Dict, List, Optional
 from googleapiclient.discovery import Resource, build
 from googleapiclient.http import MediaFileUpload
 
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class GoogleAnalyticsHook(CloudBaseHook):
+class GoogleAnalyticsHook(GoogleBaseHook):
     """
     Hook for Google Analytics 360.
     """

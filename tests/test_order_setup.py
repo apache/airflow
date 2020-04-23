@@ -127,7 +127,3 @@ class TestOrderSetup(unittest.TestCase):
         src = pattern_dependent.findall(extras_requires)
         alphabetical = sorted(src)
         self.assertListEqual(alphabetical, src)
-
-
-if __name__ == '__main__':
-    unittest.main(verbosity=2)

@@ -195,7 +195,3 @@ class TestEmrAddStepsOperator(unittest.TestCase):
             with self.assertRaises(AirflowException) as error:
                 operator.execute(self.mock_context)
             self.assertEqual(str(error.exception), f'No cluster found for name: {cluster_name}')
-
-
-if __name__ == '__main__':
-    unittest.main()

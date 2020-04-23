@@ -110,7 +110,3 @@ class TestEmrCreateJobFlowOperator(unittest.TestCase):
 
         with patch('boto3.session.Session', boto3_session_mock):
             self.assertEqual(self.operator.execute(None), 'j-8989898989')
-
-
-if __name__ == '__main__':
-    unittest.main()

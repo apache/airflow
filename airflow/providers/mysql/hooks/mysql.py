@@ -205,12 +205,12 @@ class MySqlHook(DbApiHook):
         from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
         aws_conn_id = conn.extra_dejson.get('aws_conn_id', 'aws_default')
-        aws_hook = AwsBaseHook(aws_conn_id)
+        aws_hook = AwsBaseHook(aws_conn_id, client_type='rds')
         if conn.port is None:
             port = 3306
         else:
             port = conn.port
-        client = aws_hook.get_client_type('rds')
+        client = aws_hook.get_conn()
         token = client.generate_db_auth_token(conn.host, port, conn.login)
         return token, port
 
