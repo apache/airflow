@@ -532,7 +532,13 @@ class DataflowHook(GoogleBaseHook):
 
         :param job_name: The name of the job.
         :type job_name: str
-        :param variables: Variables passed to the job.
+        :param variables: Map of job runtime environment options.
+
+            .. seealso::
+                For more information on possible configurations, look at the API documentation
+                `https://cloud.google.com/dataflow/pipelines/specifying-exec-params
+                <https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment>`__
+
         :type variables: dict
         :param parameters: Parameters fot the template
         :type parameters: dict
@@ -548,23 +554,17 @@ class DataflowHook(GoogleBaseHook):
         :type location: str
         """
         name = self._build_dataflow_job_name(job_name, append_job_name)
-        # Builds RuntimeEnvironment from variables dictionary
-        # https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment
-        environment = {}
-        for key in ['numWorkers', 'maxWorkers', 'zone', 'serviceAccountEmail',
-                    'tempLocation', 'bypassTempDirValidation', 'machineType',
-                    'additionalExperiments', 'network', 'subnetwork', 'additionalUserLabels']:
-            if key in variables:
-                environment.update({key: variables[key]})
-        body = {"jobName": name,
-                "parameters": parameters,
-                "environment": environment}
+
         service = self.get_conn()
         request = service.projects().locations().templates().launch(  # pylint: disable=no-member
             projectId=project_id,
             location=location,
             gcsPath=dataflow_template,
-            body=body
+            body={
+                "jobName": name,
+                "parameters": parameters,
+                "environment": variables
+            }
         )
         response = request.execute(num_retries=self.num_retries)
 

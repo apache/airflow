@@ -33,7 +33,9 @@ from airflow.providers.google.cloud.hooks.dataflow import (
 
 TASK_ID = 'test-dataflow-operator'
 JOB_NAME = 'test-dataflow-pipeline'
-TEMPLATE = 'gs://dataflow-templates/wordcount/template_file'
+MOCK_UUID = '12345678'
+UNIQUE_JOB_NAME = 'test-dataflow-pipeline-{}'.format(MOCK_UUID)
+TEST_TEMPLATE = 'gs://dataflow-templates/wordcount/template_file'
 PARAMETERS = {
     'inputFile': 'gs://dataflow-samples/shakespeare/kinglear.txt',
     'output': 'gs://test/output/my_output'
@@ -52,32 +54,32 @@ DATAFLOW_VARIABLES_JAVA = {
     'stagingLocation': 'gs://test/staging',
     'labels': {'foo': 'bar'}
 }
-DATAFLOW_VARIABLES_TEMPLATE = {
-    'project': 'test',
-    'tempLocation': 'gs://test/temp',
-    'zone': 'us-central1-f'
-}
 RUNTIME_ENV = {
-    'tempLocation': 'gs://test/temp',
-    'zone': 'us-central1-f',
-    'numWorkers': 2,
-    'maxWorkers': 10,
-    'serviceAccountEmail': 'test@apache.airflow',
-    'machineType': 'n1-standard-1',
     'additionalExperiments': ['exp_flag1', 'exp_flag2'],
-    'network': 'default',
-    'subnetwork': 'regions/REGION/subnetworks/SUBNETWORK',
     'additionalUserLabels': {
         'name': 'wrench',
         'mass': '1.3kg',
         'count': '3'
-    }
+    },
+    'bypassTempDirValidation': {},
+    'ipConfiguration': 'WORKER_IP_PRIVATE',
+    'kmsKeyName': (
+        'projects/TEST_PROJECT_ID/locations/TEST_LOCATIONS/keyRings/TEST_KEYRING/cryptoKeys/TEST_CRYPTOKEYS'
+    ),
+    'maxWorkers': 10,
+    'network': 'default',
+    'numWorkers': 2,
+    'serviceAccountEmail': 'test@apache.airflow',
+    'subnetwork': 'regions/REGION/subnetworks/SUBNETWORK',
+    'tempLocation': 'gs://test/temp',
+    'workerRegion': "test-region",
+    'workerZone': 'test-zone',
+    'zone': 'us-central1-f',
+    'machineType': 'n1-standard-1',
 }
 BASE_STRING = 'airflow.providers.google.common.hooks.base_google.{}'
 DATAFLOW_STRING = 'airflow.providers.google.cloud.hooks.dataflow.{}'
-MOCK_UUID = '12345678'
 TEST_PROJECT = 'test-project'
-TEST_JOB_NAME = 'test-job-name'
 TEST_JOB_ID = 'test-job-id'
 TEST_LOCATION = 'custom-location'
 DEFAULT_PY_INTERPRETER = 'python3'
@@ -501,26 +503,23 @@ class TestDataflowTemplateHook(unittest.TestCase):
             launch
         )
         launch_method.return_value.execute.return_value = {"job": {"id": TEST_JOB_ID}}
+        variables = {
+            'zone': 'us-central1-f',
+            'tempLocation': 'gs://test/temp'
+        }
         self.dataflow_hook.start_template_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME, variables=DATAFLOW_VARIABLES_TEMPLATE, parameters=PARAMETERS,
-            dataflow_template=TEMPLATE,
+            job_name=JOB_NAME, variables=copy.deepcopy(variables), parameters=PARAMETERS,
+            dataflow_template=TEST_TEMPLATE, project_id=TEST_PROJECT
         )
-        options_with_region = {'region': DEFAULT_DATAFLOW_LOCATION}
-        options_with_region.update(DATAFLOW_VARIABLES_TEMPLATE)
-        options_with_region_without_project = copy.deepcopy(options_with_region)
-        del options_with_region_without_project['project']
 
         launch_method.assert_called_once_with(
             body={
                 'jobName': 'test-dataflow-pipeline-12345678',
                 'parameters': PARAMETERS,
-                'environment': {
-                    'zone': 'us-central1-f',
-                    'tempLocation': 'gs://test/temp'
-                }
+                'environment': variables
             },
             gcsPath='gs://dataflow-templates/wordcount/template_file',
-            projectId='test',
+            projectId=TEST_PROJECT,
             location=DEFAULT_DATAFLOW_LOCATION,
         )
 
@@ -530,7 +529,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             name='test-dataflow-pipeline-12345678',
             num_retries=5,
             poll_sleep=10,
-            project_number='test',
+            project_number=TEST_PROJECT,
             location=DEFAULT_DATAFLOW_LOCATION
         )
         mock_controller.return_value.wait_for_done.assert_called_once()
@@ -549,37 +548,28 @@ class TestDataflowTemplateHook(unittest.TestCase):
             launch
         )
         launch_method.return_value.execute.return_value = {"job": {"id": TEST_JOB_ID}}
-        variables_with_region = {'region': TEST_LOCATION}
-        variables_with_region.update(DATAFLOW_VARIABLES_TEMPLATE)
-        variables_with_region_without_project = copy.deepcopy(variables_with_region)
-        del variables_with_region_without_project['project']
-
         self.dataflow_hook.start_template_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME, variables=variables_with_region, parameters=PARAMETERS,
-            dataflow_template=TEMPLATE,
+            job_name=JOB_NAME,
+            variables={'region': TEST_LOCATION},
+            parameters=PARAMETERS,
+            dataflow_template=TEST_TEMPLATE,
+            project_id=TEST_PROJECT
         )
 
         launch_method.assert_called_once_with(
-            body={
-                'jobName': 'test-dataflow-pipeline-12345678',
-                'parameters': PARAMETERS,
-                'environment': {
-                    'zone': 'us-central1-f',
-                    'tempLocation': 'gs://test/temp'
-                }
-            },
-            gcsPath='gs://dataflow-templates/wordcount/template_file',
-            projectId='test',
+            projectId=TEST_PROJECT,
             location=TEST_LOCATION,
+            gcsPath=TEST_TEMPLATE,
+            body=mock.ANY,
         )
 
         mock_controller.assert_called_once_with(
             dataflow=mock_conn.return_value,
-            job_id='test-job-id',
-            name='test-dataflow-pipeline-12345678',
+            job_id=TEST_JOB_ID,
+            name=UNIQUE_JOB_NAME,
             num_retries=5,
             poll_sleep=10,
-            project_number='test',
+            project_number=TEST_PROJECT,
             location=TEST_LOCATION,
         )
         mock_controller.return_value.wait_for_done.assert_called_once()
@@ -598,37 +588,30 @@ class TestDataflowTemplateHook(unittest.TestCase):
             launch
         )
         launch_method.return_value.execute.return_value = {"job": {"id": TEST_JOB_ID}}
-        variables_with_region = {'region': TEST_LOCATION}
-        variables_with_region.update(DATAFLOW_VARIABLES_TEMPLATE)
-        variables_with_region_without_project = copy.deepcopy(variables_with_region)
-        del variables_with_region_without_project['project']
 
         self.dataflow_hook.start_template_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME, variables=DATAFLOW_VARIABLES_TEMPLATE, parameters=PARAMETERS,
-            dataflow_template=TEMPLATE, location=TEST_LOCATION
+            job_name=JOB_NAME, variables={}, parameters=PARAMETERS,
+            dataflow_template=TEST_TEMPLATE, location=TEST_LOCATION, project_id=TEST_PROJECT
         )
 
         launch_method.assert_called_once_with(
             body={
-                'jobName': 'test-dataflow-pipeline-12345678',
+                'jobName': UNIQUE_JOB_NAME,
                 'parameters': PARAMETERS,
-                'environment': {
-                    'zone': 'us-central1-f',
-                    'tempLocation': 'gs://test/temp'
-                }
+                'environment': {}
             },
             gcsPath='gs://dataflow-templates/wordcount/template_file',
-            projectId='test',
+            projectId=TEST_PROJECT,
             location=TEST_LOCATION,
         )
 
         mock_controller.assert_called_once_with(
             dataflow=mock_conn.return_value,
-            job_id='test-job-id',
-            name='test-dataflow-pipeline-12345678',
+            job_id=TEST_JOB_ID,
+            name=UNIQUE_JOB_NAME,
             num_retries=5,
             poll_sleep=10,
-            project_number='test',
+            project_number=TEST_PROJECT,
             location=TEST_LOCATION,
         )
         mock_controller.return_value.wait_for_done.assert_called_once()
@@ -637,9 +620,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
     @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
     def test_start_template_dataflow_with_runtime_env(self, mock_conn, mock_dataflowjob, mock_uuid):
-        dataflow_options_template = copy.deepcopy(DATAFLOW_VARIABLES_TEMPLATE)
         options_with_runtime_env = copy.deepcopy(RUNTIME_ENV)
-        options_with_runtime_env.update(dataflow_options_template)
 
         dataflowjob_instance = mock_dataflowjob.return_value
         dataflowjob_instance.wait_for_done.return_value = None
@@ -654,26 +635,27 @@ class TestDataflowTemplateHook(unittest.TestCase):
             job_name=JOB_NAME,
             variables=options_with_runtime_env,
             parameters=PARAMETERS,
-            dataflow_template=TEMPLATE,
+            dataflow_template=TEST_TEMPLATE,
+            project_id=TEST_PROJECT,
         )
         body = {"jobName": mock.ANY,
                 "parameters": PARAMETERS,
                 "environment": RUNTIME_ENV
                 }
         method.assert_called_once_with(
-            projectId=options_with_runtime_env['project'],
-            location='us-central1',
-            gcsPath=TEMPLATE,
+            projectId=TEST_PROJECT,
+            location=DEFAULT_DATAFLOW_LOCATION,
+            gcsPath=TEST_TEMPLATE,
             body=body,
         )
         mock_dataflowjob.assert_called_once_with(
             dataflow=mock_conn.return_value,
             job_id=TEST_JOB_ID,
-            location='us-central1',
+            location=DEFAULT_DATAFLOW_LOCATION,
             name='test-dataflow-pipeline-{}'.format(MOCK_UUID),
             num_retries=5,
             poll_sleep=10,
-            project_number='test'
+            project_number=TEST_PROJECT
         )
         mock_uuid.assert_called_once_with()
 
@@ -681,7 +663,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
     @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
     def test_cancel_job(self, mock_get_conn, jobs_controller):
         self.dataflow_hook.cancel_job(
-            job_name=TEST_JOB_NAME,
+            job_name=UNIQUE_JOB_NAME,
             job_id=TEST_JOB_ID,
             project_id=TEST_PROJECT,
             location=TEST_LOCATION
@@ -690,7 +672,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             dataflow=mock_get_conn.return_value,
             job_id=TEST_JOB_ID,
             location=TEST_LOCATION,
-            name=TEST_JOB_NAME,
+            name=UNIQUE_JOB_NAME,
             poll_sleep=10,
             project_number=TEST_PROJECT
         )
@@ -708,12 +690,12 @@ class TestDataflowJob(unittest.TestCase):
             jobs.return_value = mock_jobs
         _DataflowJobsController(
             self.mock_dataflow, TEST_PROJECT,
-            TEST_LOCATION, 10, TEST_JOB_NAME, TEST_JOB_ID).get_jobs()
+            TEST_LOCATION, 10, UNIQUE_JOB_NAME, TEST_JOB_ID).get_jobs()
         mock_jobs.get.assert_called_once_with(projectId=TEST_PROJECT, location=TEST_LOCATION,
                                               jobId=TEST_JOB_ID)
 
     def test_dataflow_job_init_without_job_id(self):
-        job = {"id": TEST_JOB_ID, "name": TEST_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DONE}
+        job = {"id": TEST_JOB_ID, "name": UNIQUE_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DONE}
 
         mock_list = (
             self.mock_dataflow.projects.return_value.
@@ -732,7 +714,7 @@ class TestDataflowJob(unittest.TestCase):
         ) = None
         _DataflowJobsController(
             self.mock_dataflow, TEST_PROJECT,
-            TEST_LOCATION, 10, TEST_JOB_NAME).get_jobs()
+            TEST_LOCATION, 10, UNIQUE_JOB_NAME).get_jobs()
 
         mock_list.assert_called_once_with(
             projectId=TEST_PROJECT,
@@ -740,7 +722,7 @@ class TestDataflowJob(unittest.TestCase):
         )
 
     def test_dataflow_job_wait_for_multiple_jobs(self):
-        job = {"id": TEST_JOB_ID, "name": TEST_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DONE}
+        job = {"id": TEST_JOB_ID, "name": UNIQUE_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DONE}
 
         (
             self.mock_dataflow.projects.return_value.
@@ -761,7 +743,7 @@ class TestDataflowJob(unittest.TestCase):
         dataflow_job = _DataflowJobsController(
             dataflow=self.mock_dataflow,
             project_number=TEST_PROJECT,
-            name=TEST_JOB_NAME,
+            name=UNIQUE_JOB_NAME,
             location=TEST_LOCATION,
             poll_sleep=10,
             job_id=TEST_JOB_ID,
@@ -916,7 +898,7 @@ class TestDataflowJob(unittest.TestCase):
         self.assertEqual(1, mock_jobs_list.call_count)
 
     def test_dataflow_job_wait_for_single_jobs(self):
-        job = {"id": TEST_JOB_ID, "name": TEST_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DONE}
+        job = {"id": TEST_JOB_ID, "name": UNIQUE_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DONE}
 
         self.mock_dataflow.projects.return_value.locations.return_value. \
             jobs.return_value.get.return_value.execute.return_value = job
@@ -931,7 +913,7 @@ class TestDataflowJob(unittest.TestCase):
         dataflow_job = _DataflowJobsController(
             dataflow=self.mock_dataflow,
             project_number=TEST_PROJECT,
-            name=TEST_JOB_NAME,
+            name=UNIQUE_JOB_NAME,
             location=TEST_LOCATION,
             poll_sleep=10,
             job_id=TEST_JOB_ID,
@@ -984,7 +966,9 @@ class TestDataflowJob(unittest.TestCase):
         self.assertEqual(False, result)
 
     def test_dataflow_job_cancel_job(self):
-        job = {"id": TEST_JOB_ID, "name": TEST_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_RUNNING}
+        job = {
+            "id": TEST_JOB_ID, "name": UNIQUE_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_RUNNING
+        }
 
         get_method = (
             self.mock_dataflow.projects.return_value.
@@ -1004,7 +988,7 @@ class TestDataflowJob(unittest.TestCase):
         dataflow_job = _DataflowJobsController(
             dataflow=self.mock_dataflow,
             project_number=TEST_PROJECT,
-            name=TEST_JOB_NAME,
+            name=UNIQUE_JOB_NAME,
             location=TEST_LOCATION,
             poll_sleep=10,
             job_id=TEST_JOB_ID,
