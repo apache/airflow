@@ -325,17 +325,21 @@ with models.DAG(
     )
     # [END howto_operator_bigquery_interval_check]
 
-    create_dataset >> execute_query_save >> delete_dataset
-    create_dataset >> get_empty_dataset_tables >> create_table >> get_dataset_tables >> delete_dataset
-    create_dataset >> get_dataset >> delete_dataset
-    create_dataset >> patch_dataset >> update_dataset >> delete_dataset
-    execute_query_save >> get_data >> get_dataset_result
-    get_data >> delete_dataset
-    create_dataset >> create_external_table >> execute_query_external_table >> \
-        copy_from_selected_data >> delete_dataset
+    create_dataset >> execute_query_save >> get_data >> get_data_result >> delete_dataset
+
+    create_dataset >> patch_dataset >> update_dataset >> get_dataset >> \
+        get_dataset_result >> delete_dataset
+
+    create_dataset >> create_external_table >> execute_query_external_table
+    execute_query_external_table >> copy_from_selected_data >> delete_dataset
     execute_query_external_table >> bigquery_to_gcs >> delete_dataset
+
+    create_dataset >> get_empty_dataset_tables >> create_table
+    create_table >> update_table >> delete_table >> delete_dataset
+    create_table >> get_dataset_tables >> delete_dataset
     create_table >> create_view >> delete_view >> delete_table >> delete_dataset
-    create_dataset_with_location >> create_table_with_location >> delete_dataset_with_location
-    create_dataset >> create_table >> update_table >> delete_table >> delete_dataset
+
     create_dataset >> execute_query_save >> check_count >> check_value >> \
         check_interval >> delete_dataset
+
+    create_dataset_with_location >> create_table_with_location >> delete_dataset_with_location
