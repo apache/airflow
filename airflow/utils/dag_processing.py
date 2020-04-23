@@ -619,7 +619,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         # in logging_config.py
         reload_module(import_module(airflow.settings.LOGGING_CLASS_PATH.rsplit('.', 1)[0]))
         reload_module(airflow.settings)
-        airflow.settings.initialize()
+        airflow.settings.initialize(preload_imports=True)
         del os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER']
         processor_manager = DagFileProcessorManager(dag_directory,
                                                     file_paths,
