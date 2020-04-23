@@ -35,7 +35,7 @@ To use ``SparkJDBCOperator`` and ``SparkSubmitOperator``, you must configure a :
 SparkJDBCOperator
 -----------------
 
-Launches applications on Spark cluster, it uses ``SparkSubmitOperator`` to perform data transfers to/from JDBC-based databases.
+Launches applications on a Apache Spark server, it uses ``SparkSubmitOperator`` to perform data transfers to/from JDBC-based databases.
 
 For parameter definition take a look at :class:`~airflow.providers.apache.spark.operators.spark_jdbc.SparkJDBCOperator`.
 
@@ -84,7 +84,7 @@ For further information, look at `Apache Spark DataFrameWriter documentation <ht
 SparkSqlOperator
 ----------------
 
-Launches applications on a Spark cluster, it requires that the ``spark-sql`` script is in the PATH.
+Launches applications on a Apache Spark server, it requires that the ``spark-sql`` script is in the PATH.
 The operator will run the SQL query on Spark Hive metastore service, the ``sql`` parameter can be templated and be a ``.sql`` or ``.hql`` file.
 
 Using the operator
@@ -106,7 +106,7 @@ For further information, look at `Running the Spark SQL CLI <https://spark.apach
 SparkSubmitOperator
 -------------------
 
-Launches applications on a Spark cluster, it uses the ``spark-submit`` script that takes care of setting up the classpath with Spark and its dependencies, and can support different cluster managers and deploy modes that Spark supports.
+Launches applications on a Apache Spark server, it uses the ``spark-submit`` script that takes care of setting up the classpath with Spark and its dependencies, and can support different cluster managers and deploy modes that Spark supports.
 
 For parameter definition take a look at :class:`~airflow.providers.apache.spark.operators.spark_submit.SparkSubmitOperator`.
 
