@@ -62,6 +62,12 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Unify `hostname_callable` option in `core` section
+
+The previous option used a colon(`:`) to split the module from function. Now the dot(`.`) is used.
+
+The change aims to unify the format of all options that refer to objects in the `airflow.cfg` file.
+
 ### Changes in BigQueryHook
 - `create_empty_table` method accepts now `table_resource` parameter. If provided all
 other parameters are ignored.
