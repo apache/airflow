@@ -47,6 +47,41 @@ class BigQueryUIColors(enum.Enum):
     DATASET = "#5F86FF"
 
 
+class BigQueryConsoleLink(BaseOperatorLink):
+    """
+    Helper class for constructing BigQuery link.
+    """
+    name = 'BigQuery Console'
+
+    def get_link(self, operator, dttm):
+        ti = TaskInstance(task=operator, execution_date=dttm)
+        job_id = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
+        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ''
+
+
+@attr.s(auto_attribs=True)
+class BigQueryConsoleIndexableLink(BaseOperatorLink):
+    """
+    Helper class for constructing BigQuery link.
+    """
+
+    index: int = attr.ib()
+
+    @property
+    def name(self) -> str:
+        return 'BigQuery Console #{index}'.format(index=self.index + 1)
+
+    def get_link(self, operator, dttm):
+        ti = TaskInstance(task=operator, execution_date=dttm)
+        job_ids = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
+        if not job_ids:
+            return None
+        if len(job_ids) < self.index:
+            return None
+        job_id = job_ids[self.index]
+        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id)
+
+
 class BigQueryCheckOperator(CheckOperator):
     """
     Performs checks against BigQuery. The ``BigQueryCheckOperator`` expects
@@ -339,41 +374,6 @@ class BigQueryGetDataOperator(BaseOperator):
             table_data.append(single_row)
 
         return table_data
-
-
-class BigQueryConsoleLink(BaseOperatorLink):
-    """
-    Helper class for constructing BigQuery link.
-    """
-    name = 'BigQuery Console'
-
-    def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        job_id = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
-        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ''
-
-
-@attr.s(auto_attribs=True)
-class BigQueryConsoleIndexableLink(BaseOperatorLink):
-    """
-    Helper class for constructing BigQuery link.
-    """
-
-    index: int = attr.ib()
-
-    @property
-    def name(self) -> str:
-        return 'BigQuery Console #{index}'.format(index=self.index + 1)
-
-    def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        job_ids = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
-        if not job_ids:
-            return None
-        if len(job_ids) < self.index:
-            return None
-        job_id = job_ids[self.index]
-        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id)
 
 
 # pylint: disable=too-many-instance-attributes
