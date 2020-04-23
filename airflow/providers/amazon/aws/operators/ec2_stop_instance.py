@@ -39,7 +39,7 @@ class EC2StopInstanceOperator(BaseOperator):
     :type check_interval: float
     """
 
-    template_fields = ["region_name"]
+    template_fields = ("instance_id", "region_name")
     ui_color = "#eeaa11"
     ui_fgcolor = "#ffffff"
 

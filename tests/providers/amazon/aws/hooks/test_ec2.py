@@ -69,7 +69,3 @@ class TestEC2Hook(unittest.TestCase):
             instance_id=created_instance_id
         )
         self.assertEqual(created_instance_state, existing_instance_state)
-
-
-if __name__ == '__main__':
-    unittest.main()

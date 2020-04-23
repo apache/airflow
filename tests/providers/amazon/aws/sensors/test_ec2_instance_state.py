@@ -126,7 +126,3 @@ class TestEC2InstanceStateSensor(unittest.TestCase):
         ec2_hook.get_instance(instance_id=instance_id).terminate()
         # assert instance state is terminated
         self.assertTrue(stop_sensor.poke(None))
-
-
-if __name__ == '__main__':
-    unittest.main()

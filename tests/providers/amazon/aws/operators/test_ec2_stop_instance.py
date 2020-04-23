@@ -62,7 +62,3 @@ class TestEC2Operator(unittest.TestCase):
             ec2_hook.get_instance_state(instance_id=instance_id),
             "stopped"
         )
-
-
-if __name__ == '__main__':
-    unittest.main()

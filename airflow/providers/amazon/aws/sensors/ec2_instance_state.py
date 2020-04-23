@@ -37,7 +37,7 @@ class EC2InstanceStateSensor(BaseSensorOperator):
     :type region_name: Optional[str]
     """
 
-    template_fields = ["target_state", "region_name"]
+    template_fields = ("target_state", "instance_id", "region_name")
     ui_color = "#cc8811"
     ui_fgcolor = "#ffffff"
     valid_states = ["running", "stopped", "terminated"]
