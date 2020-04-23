@@ -83,6 +83,7 @@ class SSHHook(BaseHook):
         self.no_host_key_check = True
         self.allow_host_key_change = False
         self.host_proxy = None
+        self.host_key = None
 
         # Placeholder for deprecated __enter__
         self.client = None
@@ -122,11 +123,12 @@ class SSHHook(BaseHook):
                         str(extra_options["allow_host_key_change"]).lower() == 'true':
                     self.allow_host_key_change = True
                 if "host_key" in extra_options and self.no_host_key_check is False:
-                    self.update_host_in_known_hosts(
-                        self.remote_host,
-                        'ssh-rsa',
-                        extra_options["host_key"]
-                    )
+                    # self.update_host_in_known_hosts(
+                    #     self.remote_host,
+                    #     'ssh-rsa',
+                    #     extra_options["host_key"]
+                    # )
+                    self.host_key = extra_options["host_key"]
 
         if self.pkey and self.key_file:
             raise AirflowException(
@@ -178,6 +180,15 @@ class SSHHook(BaseHook):
                              'against Man-In-The-Middle attacks')
             # Default is RejectPolicy
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        else:
+            if self.host_key is not None:
+                client_host_keys = client.get_host_keys()
+                client_host_keys.add(self.remote_host, 'ssh-rsa', self.host_key)
+                if not client_host_keys.check(self.remote_host, self.host_key):
+                    self.log.warning('host_key key was not added - could be invalid.')
+            else:
+                self.log.warning('No public key supplied for remote_host. '
+                                 'Please set a value for "host_key" in SSH Connection extras.')
         connect_kwargs = dict(
             hostname=self.remote_host,
             username=self.username,
