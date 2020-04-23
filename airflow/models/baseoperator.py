@@ -804,12 +804,15 @@ class BaseOperator(Operator, LoggingMixin):
         if not jinja_env:
             jinja_env = self.get_template_env()
 
+        from airflow.models.xcom_arg import XComArg
         if isinstance(content, str):
             if any(content.endswith(ext) for ext in self.template_ext):
                 # Content contains a filepath
                 return jinja_env.get_template(content).render(**context)
             else:
                 return jinja_env.from_string(content).render(**context)
+        elif isinstance(content, XComArg):
+            return content.resolve(context)
 
         if isinstance(content, tuple):
             if type(content) is not tuple:  # pylint: disable=unidiomatic-typecheck
