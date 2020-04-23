@@ -31,7 +31,6 @@ from unittest.mock import patch
 import pendulum
 from dateutil.relativedelta import relativedelta
 from parameterized import parameterized
-from pendulum import utcnow
 
 from airflow import models, settings
 from airflow.configuration import conf
@@ -1210,7 +1209,7 @@ class TestDag(unittest.TestCase):
         """
         session = settings.Session()
         delta = datetime.timedelta(days=1)
-        now = utcnow()
+        now = pendulum.now('UTC')
         start_date = now.subtract(weeks=1)
 
         runs = (now - start_date).days

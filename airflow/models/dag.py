@@ -333,7 +333,6 @@ class DAG(BaseDag, LoggingMixin):
     def __eq__(self, other):
         if (type(self) == type(other) and
                 self.dag_id == other.dag_id):
-
             # Use getattr() instead of __dict__ as __dict__ doesn't return
             # correct values for properties.
             return all(getattr(self, c, None) == getattr(other, c, None) for c in self._comps)
@@ -412,7 +411,7 @@ class DAG(BaseDag, LoggingMixin):
             if not self.is_fixed_time_schedule():
                 # relative offset (eg. every 5 minutes)
                 delta = cron.get_next(datetime) - naive
-                following = dttm.in_timezone(self.timezone).add_timedelta(delta)
+                following = dttm.in_timezone(self.timezone) + delta
             else:
                 # absolute (e.g. 3 AM)
                 naive = cron.get_next(datetime)
@@ -420,7 +419,7 @@ class DAG(BaseDag, LoggingMixin):
                 following = timezone.make_aware(naive, tz)
             return timezone.convert_to_utc(following)
         elif self.normalized_schedule_interval is not None:
-            return dttm + self.normalized_schedule_interval
+            return timezone.convert_to_utc(dttm + self.normalized_schedule_interval)
 
     def previous_schedule(self, dttm):
         """
@@ -440,7 +439,7 @@ class DAG(BaseDag, LoggingMixin):
             if not self.is_fixed_time_schedule():
                 # relative offset (eg. every 5 minutes)
                 delta = naive - cron.get_prev(datetime)
-                previous = dttm.in_timezone(self.timezone).subtract_timedelta(delta)
+                previous = dttm.in_timezone(self.timezone) - delta
             else:
                 # absolute (e.g. 3 AM)
                 naive = cron.get_prev(datetime)
@@ -448,7 +447,7 @@ class DAG(BaseDag, LoggingMixin):
                 previous = timezone.make_aware(naive, tz)
             return timezone.convert_to_utc(previous)
         elif self.normalized_schedule_interval is not None:
-            return dttm - self.normalized_schedule_interval
+            return timezone.convert_to_utc(dttm - self.normalized_schedule_interval)
 
     def get_run_dates(self, start_date, end_date=None):
         """
@@ -788,8 +787,8 @@ class DAG(BaseDag, LoggingMixin):
         subdag_lst = []
         for task in self.tasks:
             if (isinstance(task, SubDagOperator) or
-                    # TODO remove in Airflow 2.0
-                    type(task).__name__ == 'SubDagOperator' or
+                # TODO remove in Airflow 2.0
+                type(task).__name__ == 'SubDagOperator' or
                     task.task_type == 'SubDagOperator'):
                 subdag_lst.append(task.subdag)
                 subdag_lst += task.subdag.subdags
@@ -837,8 +836,8 @@ class DAG(BaseDag, LoggingMixin):
             self.get_task(downstream_task_id))
 
     @provide_session
-    def get_task_instances(
-            self, start_date=None, end_date=None, state=None, session=None):
+    def get_task_instances(self, start_date=None,
+                           end_date=None, state=None, session=None):
         if not start_date:
             start_date = (timezone.utcnow() - timedelta(30)).date()
             start_date = timezone.make_aware(
@@ -940,11 +939,11 @@ class DAG(BaseDag, LoggingMixin):
 
     @provide_session
     def set_dag_runs_state(
-            self,
-            state: str = State.RUNNING,
-            session: Session = None,
-            start_date: Optional[datetime] = None,
-            end_date: Optional[datetime] = None,
+        self,
+        state: str = State.RUNNING,
+        session: Session = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> None:
         query = session.query(DagRun).filter_by(dag_id=self.dag_id)
         if start_date:
@@ -955,19 +954,19 @@ class DAG(BaseDag, LoggingMixin):
 
     @provide_session
     def clear(
-            self, start_date=None, end_date=None,
-            only_failed=False,
-            only_running=False,
-            confirm_prompt=False,
-            include_subdags=True,
-            include_parentdag=True,
-            reset_dag_runs=True,
-            dry_run=False,
-            session=None,
-            get_tis=False,
-            recursion_depth=0,
-            max_recursion_depth=None,
-            dag_bag=None,
+        self, start_date=None, end_date=None,
+        only_failed=False,
+        only_running=False,
+        confirm_prompt=False,
+        include_subdags=True,
+        include_parentdag=True,
+        reset_dag_runs=True,
+        dry_run=False,
+        session=None,
+        get_tis=False,
+        recursion_depth=0,
+        max_recursion_depth=None,
+        dag_bag=None,
     ):
         """
         Clears a set of task instances associated with the current dag for
@@ -1021,7 +1020,6 @@ class DAG(BaseDag, LoggingMixin):
             tis = tis.filter(TI.task_id.in_(self.task_ids))
 
         if include_parentdag and self.is_subdag:
-
             p_dag = self.parent_dag.sub_dag(
                 task_regex=r"^{}$".format(self.dag_id.split('.')[1]),
                 include_upstream=False,
@@ -1147,16 +1145,16 @@ class DAG(BaseDag, LoggingMixin):
 
     @classmethod
     def clear_dags(
-            cls, dags,
-            start_date=None,
-            end_date=None,
-            only_failed=False,
-            only_running=False,
-            confirm_prompt=False,
-            include_subdags=True,
-            include_parentdag=False,
-            reset_dag_runs=True,
-            dry_run=False,
+        cls, dags,
+        start_date=None,
+        end_date=None,
+        only_failed=False,
+        only_running=False,
+        confirm_prompt=False,
+        include_subdags=True,
+        include_parentdag=False,
+        reset_dag_runs=True,
+        dry_run=False,
     ):
         all_tis = []
         for dag in dags:
@@ -1304,6 +1302,7 @@ class DAG(BaseDag, LoggingMixin):
 
     def tree_view(self) -> None:
         """Print an ASCII tree representation of the DAG."""
+
         def get_downstream(task, level=0):
             print((" " * level * 4) + str(task))
             level += 1
@@ -1358,21 +1357,21 @@ class DAG(BaseDag, LoggingMixin):
             self.add_task(task)
 
     def run(
-            self,
-            start_date=None,
-            end_date=None,
-            mark_success=False,
-            local=False,
-            executor=None,
-            donot_pickle=conf.getboolean('core', 'donot_pickle'),
-            ignore_task_deps=False,
-            ignore_first_depends_on_past=True,
-            pool=None,
-            delay_on_limit_secs=1.0,
-            verbose=False,
-            conf=None,
-            rerun_failed_tasks=False,
-            run_backwards=False,
+        self,
+        start_date=None,
+        end_date=None,
+        mark_success=False,
+        local=False,
+        executor=None,
+        donot_pickle=conf.getboolean('core', 'donot_pickle'),
+        ignore_task_deps=False,
+        ignore_first_depends_on_past=True,
+        pool=None,
+        delay_on_limit_secs=1.0,
+        verbose=False,
+        conf=None,
+        rerun_failed_tasks=False,
+        run_backwards=False,
     ):
         """
         Runs the DAG.
@@ -1614,8 +1613,8 @@ class DAG(BaseDag, LoggingMixin):
 
         if len(active_dag_ids) == 0:
             return
-        for dag in session.query(
-                DagModel).filter(~DagModel.dag_id.in_(active_dag_ids)).all():
+        for dag in session.query(DagModel)\
+                .filter(~DagModel.dag_id.in_(active_dag_ids)).all():
             dag.is_active = False
             session.merge(dag)
         session.commit()
@@ -1633,8 +1632,8 @@ class DAG(BaseDag, LoggingMixin):
         :return: None
         """
         for dag in session.query(
-                DagModel).filter(DagModel.last_scheduler_run < expiration_date,
-                                 DagModel.is_active).all():
+            DagModel).filter(DagModel.last_scheduler_run < expiration_date,
+                             DagModel.is_active).all():
             log.info(
                 "Deactivating DAG ID %s since it was last touched by the scheduler at %s",
                 dag.dag_id, dag.last_scheduler_run.isoformat()
@@ -1708,7 +1707,6 @@ class DagTag(Base):
 
 
 class DagModel(Base):
-
     __tablename__ = "dag"
     """
     These items are stored in the database for state related information
@@ -1717,7 +1715,7 @@ class DagModel(Base):
     root_dag_id = Column(String(ID_LEN))
     # A DAG can be paused from the UI / DB
     # Set this default value of is_paused based on a configuration value!
-    is_paused_at_creation = conf\
+    is_paused_at_creation = conf \
         .getboolean('core',
                     'dags_are_paused_at_creation')
     is_paused = Column(Boolean, default=is_paused_at_creation)

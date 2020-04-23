@@ -639,7 +639,7 @@ class TaskInstance(Base, LoggingMixin):
         self,
         state: Optional[str] = None,
         session: Session = None,
-    ) -> Optional[pendulum.datetime]:
+    ) -> Optional[pendulum.DateTime]:
         """
         The execution date from property previous_ti_success.
 
@@ -654,7 +654,7 @@ class TaskInstance(Base, LoggingMixin):
         self,
         state: Optional[str] = None,
         session: Session = None
-    ) -> Optional[pendulum.datetime]:
+    ) -> Optional[pendulum.DateTime]:
         """
         The start date from property previous_ti_success.
 
@@ -665,7 +665,7 @@ class TaskInstance(Base, LoggingMixin):
         return prev_ti and prev_ti.start_date
 
     @property
-    def previous_start_date_success(self) -> Optional[pendulum.datetime]:
+    def previous_start_date_success(self) -> Optional[pendulum.DateTime]:
         """
         This attribute is deprecated.
         Please use `airflow.models.taskinstance.TaskInstance.get_previous_start_date` method.

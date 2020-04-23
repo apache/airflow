@@ -295,7 +295,7 @@ class ClusterGenerator:
         if self.auto_delete_time:
             utc_auto_delete_time = timezone.convert_to_utc(self.auto_delete_time)
             cluster_data['config']['lifecycle_config']['auto_delete_time'] = \
-                utc_auto_delete_time.format('%Y-%m-%dT%H:%M:%S.%fZ', formatter='classic')
+                utc_auto_delete_time.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
         elif self.auto_delete_ttl:
             cluster_data['config']['lifecycle_config']['auto_delete_ttl'] = \
                 "{}s".format(self.auto_delete_ttl)

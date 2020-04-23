@@ -327,7 +327,6 @@ class TestPoolModelView(TestBase):
         self.check_content_in_response('Already exists.', resp)
 
     def test_create_pool_with_empty_name(self):
-
         self.pool['pool'] = ''
         resp = self.client.post('/pool/add',
                                 data=self.pool,
@@ -458,19 +457,19 @@ class TestAirflowBaseViews(TestBase):
         self.assertEqual(last_scheduler_heartbeat_for_testing_1.isoformat(),
                          resp_json['scheduler']['latest_scheduler_heartbeat'])
 
-        self.session.query(BaseJob).\
+        self.session.query(BaseJob). \
             filter(BaseJob.job_type == 'SchedulerJob',
                    BaseJob.state == 'running',
-                   BaseJob.latest_heartbeat == last_scheduler_heartbeat_for_testing_1).\
+                   BaseJob.latest_heartbeat == last_scheduler_heartbeat_for_testing_1). \
             delete()
         self.session.commit()
 
         # case-2: unhealthy scheduler status - scenario 1 (SchedulerJob is running too slowly)
         last_scheduler_heartbeat_for_testing_2 = timezone.utcnow() - timedelta(minutes=1)
         (self.session
-             .query(BaseJob)
-             .filter(BaseJob.job_type == 'SchedulerJob')
-             .update({'latest_heartbeat': last_scheduler_heartbeat_for_testing_2 - timedelta(seconds=1)}))
+         .query(BaseJob)
+         .filter(BaseJob.job_type == 'SchedulerJob')
+         .update({'latest_heartbeat': last_scheduler_heartbeat_for_testing_2 - timedelta(seconds=1)}))
         self.session.add(BaseJob(job_type='SchedulerJob',
                                  state='running',
                                  latest_heartbeat=last_scheduler_heartbeat_for_testing_2))
@@ -483,17 +482,17 @@ class TestAirflowBaseViews(TestBase):
         self.assertEqual(last_scheduler_heartbeat_for_testing_2.isoformat(),
                          resp_json['scheduler']['latest_scheduler_heartbeat'])
 
-        self.session.query(BaseJob).\
+        self.session.query(BaseJob). \
             filter(BaseJob.job_type == 'SchedulerJob',
                    BaseJob.state == 'running',
-                   BaseJob.latest_heartbeat == last_scheduler_heartbeat_for_testing_2).\
+                   BaseJob.latest_heartbeat == last_scheduler_heartbeat_for_testing_2). \
             delete()
         self.session.commit()
 
         # case-3: unhealthy scheduler status - scenario 2 (no running SchedulerJob)
-        self.session.query(BaseJob).\
+        self.session.query(BaseJob). \
             filter(BaseJob.job_type == 'SchedulerJob',
-                   BaseJob.state == 'running').\
+                   BaseJob.state == 'running'). \
             delete()
         self.session.commit()
 
@@ -926,7 +925,7 @@ class TestAirflowBaseViews(TestBase):
             self.check_content_in_response('', resp, resp_code=200)
 
             msg = "Task is in the &#39;{}&#39; state which is not a valid state for execution. " \
-                  .format(state) + "The task must be cleared in order to be run"
+                .format(state) + "The task must be cleared in order to be run"
             self.assertFalse(re.search(msg, resp.get_data(as_text=True)))
 
     @mock.patch('airflow.executors.executor_loader.ExecutorLoader.get_default_executor')
@@ -956,7 +955,7 @@ class TestAirflowBaseViews(TestBase):
             self.check_content_in_response('', resp, resp_code=200)
 
             msg = "Task is in the &#39;{}&#39; state which is not a valid state for execution. " \
-                  .format(state) + "The task must be cleared in order to be run"
+                .format(state) + "The task must be cleared in order to be run"
             self.assertTrue(re.search(msg, resp.get_data(as_text=True)))
 
     def test_refresh(self):
@@ -1166,9 +1165,8 @@ class TestLogView(TestBase):
                                                 self.TASK_ID,
                                                 quote_plus(self.DEFAULT_DATE.isoformat()),
                                                 1,
-                                                json.dumps({})), data=dict(
-                                                    username='test',
-                                                    password='test'),
+                                                json.dumps({})), data=dict(username='test',
+                                                                           password='test'),
                             follow_redirects=True)
 
         self.assertIn('"message":', response.data.decode('utf-8'))
@@ -1184,9 +1182,8 @@ class TestLogView(TestBase):
             self.client.get(url_template.format(self.DAG_ID,
                                                 self.TASK_ID,
                                                 quote_plus(self.DEFAULT_DATE.isoformat()),
-                                                1), data=dict(
-                                                    username='test',
-                                                    password='test'),
+                                                1), data=dict(username='test',
+                                                              password='test'),
                             follow_redirects=True)
 
         self.assertIn('"message":', response.data.decode('utf-8'))
@@ -1622,12 +1619,12 @@ class TestDagACLView(TestBase):
         self.logout()
         self.login(username='test',
                    password='test')
-        perm_on_dag = self.appbuilder.sm.\
+        perm_on_dag = self.appbuilder.sm. \
             find_permission_view_menu('can_dag_edit', 'example_bash_operator')
         dag_tester_role = self.appbuilder.sm.find_role('dag_acl_tester')
         self.appbuilder.sm.add_permission_role(dag_tester_role, perm_on_dag)
 
-        perm_on_all_dag = self.appbuilder.sm.\
+        perm_on_all_dag = self.appbuilder.sm. \
             find_permission_view_menu('can_dag_edit', 'all_dags')
         all_dag_role = self.appbuilder.sm.find_role('all_dag_role')
         self.appbuilder.sm.add_permission_role(all_dag_role, perm_on_all_dag)
@@ -1635,7 +1632,7 @@ class TestDagACLView(TestBase):
         role_user = self.appbuilder.sm.find_role('User')
         self.appbuilder.sm.add_permission_role(role_user, perm_on_all_dag)
 
-        read_only_perm_on_dag = self.appbuilder.sm.\
+        read_only_perm_on_dag = self.appbuilder.sm. \
             find_permission_view_menu('can_dag_read', 'example_bash_operator')
         dag_read_only_role = self.appbuilder.sm.find_role('dag_acl_read_only')
         self.appbuilder.sm.add_permission_role(dag_read_only_role, read_only_perm_on_dag)
@@ -2272,7 +2269,6 @@ class TestTriggerDag(TestBase):
 
     @pytest.mark.xfail(condition=using_mysql, reason="This test might be flaky on mysql")
     def test_trigger_dag_button(self):
-
         test_dag_id = "example_bash_operator"
 
         DR = models.DagRun
@@ -2288,7 +2284,6 @@ class TestTriggerDag(TestBase):
 
     @pytest.mark.xfail(condition=using_mysql, reason="This test might be flaky on mysql")
     def test_trigger_dag_conf(self):
-
         test_dag_id = "example_bash_operator"
         conf_dict = {'string': 'Hello, World!'}
 
@@ -2372,7 +2367,6 @@ class TestExtraLinks(TestBase):
                 return 'https://airflow.apache.org'
 
         class DummyTestOperator(BaseOperator):
-
             operator_extra_links = (
                 RaiseErrorLink(),
                 NoResponseLink(),
