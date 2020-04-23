@@ -1002,6 +1002,7 @@ class TestRenderedView(unittest.TestCase):
                 resp.data.decode('utf-8'))
 
 
+@pytest.mark.quarantined
 class TestTriggerDag(unittest.TestCase):
 
     def setUp(self):

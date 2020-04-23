@@ -91,6 +91,7 @@ class DaskExecutorTest(BaseDaskTest):
         executor = DaskExecutor(cluster_address=self.cluster.scheduler_address)
         self.assert_tasks_on_executor(executor)
 
+    @pytest.mark.quarantined
     def test_backfill_integration(self):
         """
         Test that DaskExecutor can be used to backfill example dags

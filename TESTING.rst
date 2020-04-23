@@ -313,6 +313,17 @@ Some of the tests rung for a long time. Such tests are marked with ``@pytest.mar
 Those tests are skipped by default. You can enable them with ``--include-long-running`` flag. You
 can also decide to only run tests with ``-m long-running`` flags to run only those tests.
 
+Quarantined tests
+-----------------
+
+Some of our tests are quarantined. This means that this test will be run in isolation and that it will be
+re-run several times. Also when quarantined tests fail, the whole test suite will not fail. The quarantined
+tests are usually flaky tests that need some attention and fix.
+
+Those tests are marked with ``@pytest.mark.quarantined`` annotation.
+Those tests are skipped by default. You can enable them with ``--include-quarantined`` flag. You
+can also decide to only run tests with ``-m quarantined`` flag to run only those tests.
+
 Running Tests with Kubernetes
 -----------------------------
 

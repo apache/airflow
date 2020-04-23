@@ -206,6 +206,7 @@ class TestCLI(unittest.TestCase):
         p.terminate()
         p.wait()
 
+    @pytest.mark.quarantined
     def test_local_run(self):
         args = create_mock_args(
             task_id='print_the_context',
@@ -246,6 +247,7 @@ class TestCLI(unittest.TestCase):
         finally:
             sys.stdout = saved_stdout
 
+    @pytest.mark.quarantined
     def test_next_execution(self):
         # A scaffolding function
         def reset_dr_db(dag_id):
