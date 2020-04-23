@@ -57,6 +57,9 @@ from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
+from airflow.utils.sla import (
+    yield_unscheduled_runs, yield_unscheduled_tis,
+    create_sla_misses)
 from airflow.utils.sqlalchemy import Interval, UtcDateTime
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -159,9 +162,6 @@ class DAG(BaseDag, LoggingMixin):
         is only enforced for scheduled DagRuns, and only once the
         # of active DagRuns == max_active_runs.
     :type dagrun_timeout: datetime.timedelta
-    :param sla_miss_callback: specify a function to call when reporting SLA
-        timeouts.
-    :type sla_miss_callback: types.FunctionType
     :param default_view: Specify DAG default view (tree, graph, duration,
                                                    gantt, landing_times), default tree
     :type default_view: str
@@ -231,7 +231,6 @@ class DAG(BaseDag, LoggingMixin):
         concurrency: int = conf.getint('core', 'dag_concurrency'),
         max_active_runs: int = conf.getint('core', 'max_active_runs_per_dag'),
         dagrun_timeout: Optional[timedelta] = None,
-        sla_miss_callback: Optional[Callable] = None,
         default_view: str = conf.get('webserver', 'dag_default_view').lower(),
         orientation: str = conf.get('webserver', 'dag_orientation'),
         catchup: bool = conf.getboolean('scheduler', 'catchup_by_default'),
@@ -313,7 +312,6 @@ class DAG(BaseDag, LoggingMixin):
         self.safe_dag_id = dag_id.replace('.', '__dot__')
         self.max_active_runs = max_active_runs
         self.dagrun_timeout = dagrun_timeout
-        self.sla_miss_callback = sla_miss_callback
         if default_view in DEFAULT_VIEW_PRESETS:
             self._default_view: str = default_view
         else:
@@ -1664,12 +1662,204 @@ class DAG(BaseDag, LoggingMixin):
         """
         self.bulk_sync_to_db([self], sync_time, session)
 
+
     def get_default_view(self):
         """This is only there for backward compatible jinja2 templates"""
         if self.default_view is None:
             return conf.get('webserver', 'dag_default_view').lower()
         else:
             return self.default_view
+
+
+    @provide_session
+    def manage_slas(self, session=None):
+        """
+        Helper function to encapsulate the sequence of SLA operations.
+        """
+        # Create SlaMiss objects for the various types of SLA misses.
+        self.record_sla_misses(session=session)
+
+        # Collect pending SLA miss callbacks, either created immediately above
+        # or previously failed.
+        unsent_sla_misses = self.get_unsent_sla_notifications(session=session)
+        self.log.debug("Found %s unsent SLA miss notifications",
+                       len(unsent_sla_misses))
+
+        # Trigger the SLA miss callbacks.
+        if unsent_sla_misses:
+            self.send_sla_notifications(unsent_sla_misses, session=session)
+
+    @provide_session
+    def record_sla_misses(self, session=None):
+        """
+        Create SLAMiss records for task instances associated with tasks in this
+        DAG. This involves walking forward to address potentially unscheduled
+        but expected executions, since new DAG runs may not get created if
+        there are concurrency restrictions on the scheduler. We still want to
+        receive SLA notifications in that scenario!
+        In the future, it would be preferable to have an SLA monitoring service
+        that runs independently from the scheduler, so that the service
+        responsible for scheduling work is not also responsible for determining
+        whether work is being scheduled.
+        """
+        self.log.debug("Checking for SLA misses for DAG %s", self.dag_id)
+
+        # Get all current DagRuns.
+        scheduled_dagruns = DagRun.find(
+            dag_id=self.dag_id,
+            # TODO related to AIRFLOW-2236: determine how SLA misses should
+            # work for backfills and externally triggered
+            # DAG runs. At minimum they could have duration SLA misses.
+            external_trigger=False,
+            no_backfills=True,
+            # We aren't passing in the "state" parameter because we care about
+            # checking for SLAs whether the DAG run has failed, succeeded, or
+            # is still running.
+            session=session
+        )
+
+        # TODO: Is there a better limit here than "look at most recent 100"?
+        # Perhaps there should be a configurable lookback window on the DAG,
+        # for how many runs to consider SLA violations for.
+        scheduled_dagruns = scheduled_dagruns[-100:]
+        scheduled_dagrun_ids = [d.id for d in scheduled_dagruns]
+
+        TI = TaskInstance
+        DR = DagRun
+
+        if scheduled_dagrun_ids:
+            # Find full, existing TIs for these DagRuns.
+            scheduled_tis = (
+                session.query(TI)
+                .outerjoin(DR, and_(
+                    DR.dag_id == TI.dag_id,
+                    DR.execution_date == TI.execution_date))
+                # Only look at TIs for this DAG.
+                .filter(TI.dag_id == self.dag_id)
+                # Only look at TIs that *still* exist in this DAG.
+                .filter(TI.task_id.in_(self.task_ids))
+                # Don't look for success/skip TIs. We check SLAs often, so
+                # there's little chance that a TI switches to successful
+                # after an SLA miss but before we notice; and this should
+                # be a major perf boost (since most TIs are successful or
+                # skipped).
+                .filter(or_(
+                    # has to be written this way to account for sql nulls
+                    TI.state == None, # noqa E711
+                    not_(TI.state.in_((State.SUCCESS, State.SKIPPED)))
+                ))
+                # Only look at specified DagRuns
+                .filter(DR.id.in_(scheduled_dagrun_ids))
+                # If the DAGRun is SUCCEEDED, then everything has gone
+                # according to plan. But if it's FAILED, someone may be
+                # coming to fix it, and SLAs for tasks in it will still
+                # matter.
+                .filter(DR.state != State.SUCCESS)
+                .order_by(asc(DR.execution_date))
+                .all()
+            )
+        else:
+            scheduled_tis = []
+
+        self.log.debug(
+            "Found {} outstanding TIs across {} dagruns for DAG {}".format(
+                len(scheduled_tis), len(scheduled_dagruns), self.dag_id))
+
+        # We need to examine unscheduled DAGRuns, too. If there are concurrency
+        # limitations, it's possible that a task instance will miss its SLA
+        # before its corresponding DAGRun even gets created.
+        last_dagrun = scheduled_dagruns[-1] if scheduled_dagruns else None
+
+        def unscheduled_tis(last_dagrun):
+            for dag_run in yield_unscheduled_runs(self, last_dagrun, ts):
+                for ti in yield_unscheduled_tis(dag_run, ts):
+                    yield ti
+
+        # Snapshot the time to check SLAs against.
+        ts = timezone.utcnow()
+
+        for ti in itertools.chain(scheduled_tis, unscheduled_tis(last_dagrun)):
+            ti.task = self.task_dict[ti.task_id]
+            # Ignore tasks that don't have SLAs, saving most calculation of
+            # future task instances.
+            if ti.task.has_slas():
+                create_sla_misses(ti, ts, session=session)
+
+        # Save any SlaMisses that were created in `create_sla_misses()`
+        session.commit()
+
+    @provide_session
+    def get_unsent_sla_notifications(self, session=None):
+        """
+        Find all SlaMisses for this DAG that haven't yet been notified.
+        """
+        return (
+            session
+            .query(SlaMiss)
+            .filter(SlaMiss.notification_sent == False)  # noqa
+            .filter(SlaMiss.dag_id == self.dag_id)
+            .all()
+        )
+
+    @provide_session
+    def send_sla_notifications(self, sla_misses, session=None):
+        """
+        Given a list of SLA misses, send emails and/or do SLA miss callback.
+        """
+        if not sla_misses:
+            self.log.warning("send_sla_notifications was called without any "
+                             "SLA notifications to send!")
+            return
+
+        # Retrieve the context for this TI, but patch in the SLA miss object.
+        for sla_miss in sla_misses:
+            if sla_miss.notification_sent:
+                self.log.debug("SLA miss %s has already had a notification sent, "
+                               "ignoring.", sla_miss)
+
+            TI = TaskInstance
+            ti = session.query(TI).filter(
+                TI.dag_id == sla_miss.dag_id,
+                TI.task_id == sla_miss.task_id,
+                TI.execution_date == sla_miss.execution_date,
+            ).all()
+
+            # Use the TI if found
+            task = self.get_task(sla_miss.task_id)
+            if ti:
+                ti = ti.pop()
+                ti.task = task
+            # Else make a temporary one.
+            else:
+                ti = TaskInstance(task, sla_miss.execution_date)
+                ti.task = task
+
+            notification_sent = False
+            # If no callback exists, we don't want to send any notification;
+            # but we do want to update the SlaMiss in the database so that it
+            # doesn't keep looping.
+            if not task.sla_miss_callback:
+                notification_sent = True
+            else:
+                self.log.info("Calling sla_miss_callback for %s", sla_miss)
+                try:
+                    # Patch context with the current SLA miss.
+                    context = ti.get_template_context()
+                    context["sla_miss"] = sla_miss
+                    task.sla_miss_callback(context)
+                    notification_sent = True
+                    self.log.debug("Called sla_miss_callback for %s", sla_miss)
+                except Exception:
+                    self.log.exception(
+                        "Could not call sla_miss_callback for DAG %s",
+                        self.dag_id
+                    )
+
+            # If we sent any notification, update the sla_miss table
+            if notification_sent:
+                sla_miss.notification_sent = True
+                session.merge(sla_miss)
+                session.commit()
 
     @staticmethod
     @provide_session
@@ -1759,8 +1949,8 @@ class DAG(BaseDag, LoggingMixin):
                 '_full_filepath', 'user_defined_filters', 'user_defined_macros',
                 'partial', '_old_context_manager_dags',
                 '_pickle_id', '_log', 'is_subdag', 'task_dict', 'template_searchpath',
-                'sla_miss_callback', 'on_success_callback', 'on_failure_callback',
-                'template_undefined', 'jinja_environment_kwargs'
+                'on_success_callback', 'on_failure_callback', 'template_undefined',
+                'jinja_environment_kwargs'
             }
         return cls.__serialized_fields
 

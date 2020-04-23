@@ -28,11 +28,15 @@ class SlaMiss(Base):
     It is used to keep track of SLA failures over time and to avoid double
     triggering alert emails.
     """
+    TASK_DURATION_EXCEEDED = "task_duration_exceeded"
+    TASK_LATE_START = "task_late_start"
+    TASK_LATE_FINISH = "task_late_finish"
 
     __tablename__ = "sla_miss"
 
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    sla_type = Column(String(50), primary_key=True)
     execution_date = Column(UtcDateTime, primary_key=True)
     email_sent = Column(Boolean, default=False)
     timestamp = Column(UtcDateTime)
@@ -44,5 +48,6 @@ class SlaMiss(Base):
     )
 
     def __repr__(self):
-        return str((
-            self.dag_id, self.task_id, self.execution_date.isoformat()))
+        return "SlaMiss <{sla_type}, {dag_id}.{task_id} [{exc_date}]>".format(
+            dag_id=self.dag_id, task_id=self.task_id, sla_type=self.sla_type,
+            exc_date=self.execution_date.isoformat())

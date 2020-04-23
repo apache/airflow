@@ -56,6 +56,7 @@ from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import provide_session
+from airflow.utils.sla import send_sla_miss_email
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
@@ -206,18 +207,49 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     :param pool_slots: the number of pool slots this task should use (>= 1)
         Values less than 1 are not allowed.
     :type pool_slots: int
-    :param sla: time by which the job is expected to succeed. Note that
-        this represents the ``timedelta`` after the period is closed. For
-        example if you set an SLA of 1 hour, the scheduler would send an email
-        soon after 1:00AM on the ``2016-01-02`` if the ``2016-01-01`` instance
-        has not succeeded yet.
-        The scheduler pays special attention for jobs with an SLA and
-        sends alert
-        emails for sla misses. SLA misses are also recorded in the database
-        for future reference. All tasks that share the same SLA time
-        get bundled in a single email, sent soon after that time. SLA
-        notification are sent once and only once for each task instance.
+    :param sla: Deprecated in favor of ``expected_finish``.
     :type sla: datetime.timedelta
+    :param expected_duration: the maximum duration the task is allowed to take,
+        provided as a ``timedelta``. This ``timedelta`` is relative to when the
+        task actually starts running, not to the execution date. It includes
+        any task retries, similar to the ``execution_timeout`` parameter.
+        SLA misses are stored in the database, and then SLA miss callbacks
+        are triggered. The default SLA miss callback is to email task owners.
+        Note that SLA parameters do not influence the scheduler, so you should
+        set appropriate SLA parameters given your DAG's schedule. For example,
+        setting an ``expected_start`` of ``timedelta(hours=2)`` on a task that
+        depends on a ``TimeDeltaSensor`` with ``timedelta(hours=3)`` would be
+        expected to always cause an SLA miss.
+    :type expected_duration: datetime.timedelta
+    :param expected_start: time by which the task is expected to start,
+        provided as a ``timedelta`` relative to the expected start time of
+        this task's DAG. For instance, if you set an ``expected_start`` of
+        ``timedelta(hours=1)`` on a task inside of a DAG that runs on a
+        midnight UTC schedule, any unscheduled instances would be marked as
+        missing their ``expected_start`` SLA shortly after 1 AM UTC.
+        SLA misses are stored in the database, and then SLA miss callbacks
+        are triggered. The default SLA miss callback is to email task owners.
+        Note that SLA parameters do not influence the scheduler, so you should
+        set appropriate SLA parameters given your DAG's schedule. For example,
+        setting an ``expected_start`` of ``timedelta(hours=2)`` on a task that
+        depends on a ``TimeDeltaSensor`` with ``timedelta(hours=3)`` would be
+        expected to always cause an SLA miss.
+    :type expected_start: datetime.timedelta
+    :param expected_finish: time by which the task is expected to finish,
+        provided as a ``timedelta`` relative to the expected start time of
+        this task's DAG. For instance, if you set an ``expected_finish`` of
+        ``timedelta(hours=1)`` on a task inside of a DAG that runs on a
+        midnight UTC schedule, any unscheduled or still-executing task
+        instances would be marked as missing their ``expected_finish`` SLA
+        shortly after 1 AM UTC.
+        SLA misses are stored in the database, and then SLA miss callbacks
+        are triggered. The default SLA miss callback is to email task owners.
+        Note that SLA parameters do not influence the scheduler, so you should
+        set appropriate SLA parameters given your DAG's schedule. For example,
+        setting an ``expected_finish`` of ``timedelta(hours=2)`` on a task that
+        depends on a ``TimeDeltaSensor`` with ``timedelta(hours=3)`` would be
+        expected to always cause an SLA miss.
+    :type expected_finish: datetime.timedelta
     :param execution_timeout: max time allowed for the execution of
         this task instance, if it goes beyond it will raise and fail.
     :type execution_timeout: datetime.timedelta
@@ -235,6 +267,15 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     :type on_retry_callback: TaskStateChangeCallback
     :param on_success_callback: much like the ``on_failure_callback`` except
         that it is executed when the task succeeds.
+    :type on_success_callback: TaskStateChangeCallback
+    :param sla_miss_callback: a function to be called when a task instance
+        misses an SLA. The function receives the same context dictionary as the
+        other callback functions, but with an additional ``sla_miss` key
+        referencing the triggering ``SLAMiss`` object. A task can have this
+        callback triggered once per missed SLA type, so where relevant,
+        callbacks should inspect the ``SLAMiss`` object to determine which SLA
+        was missed. The current SLA parameters are ``expected_duration``,
+        ``expected_start``, and ``expected_finish``.
     :type on_success_callback: TaskStateChangeCallback
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
@@ -289,6 +330,11 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     # each operator should override this class attr for shallow copy attrs.
     shallow_copy_attrs: Tuple[str, ...] = ()
 
+    # Determines which attributes define SLA calculations.
+    sla_attributes = ["expected_duration",
+                      "expected_start",
+                      "expected_finish"]
+
     # Defines the operator level extra links
     operator_extra_links: Iterable['BaseOperatorLink'] = ()
 
@@ -308,13 +354,13 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         'depends_on_past',
         'wait_for_downstream',
         'priority_weight',
-        'sla',
         'execution_timeout',
         'on_execute_callback',
         'on_failure_callback',
         'on_success_callback',
         'on_retry_callback',
         'do_xcom_push',
+        'sla_miss_callback',
     }
 
     # Defines if the operator supports lineage without manual definitions
@@ -352,11 +398,15 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         pool: Optional[str] = None,
         pool_slots: int = 1,
         sla: Optional[timedelta] = None,
+        expected_duration: Optional[timedelta] = None,
+        expected_start: Optional[timedelta] = None,
+        expected_finish: Optional[timedelta] = None,
         execution_timeout: Optional[timedelta] = None,
         on_execute_callback: Optional[TaskStateChangeCallback] = None,
         on_failure_callback: Optional[TaskStateChangeCallback] = None,
         on_success_callback: Optional[TaskStateChangeCallback] = None,
         on_retry_callback: Optional[TaskStateChangeCallback] = None,
+        sla_miss_callback: Optional[TaskStateChangeCallback] = send_sla_miss_email,
         trigger_rule: str = TriggerRule.ALL_SUCCESS,
         resources: Optional[Dict] = None,
         run_as_user: Optional[str] = None,
@@ -432,10 +482,79 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                                    % (self.task_id, dag.dag_id))
         self.sla = sla
         self.execution_timeout = execution_timeout
+
+        # Warn about use of the deprecated SLA parameter
+        if sla and expected_finish:
+            warnings.warn(
+                "Both sla and expected_finish provided as task "
+                "parameters to {}; using expected_finish and ignoring "
+                "deprecated sla parameter.".format(self),
+                category=PendingDeprecationWarning
+            )
+        elif sla:
+            warnings.warn(
+                "sla is deprecated as a task parameter for {}; converting to "
+                "expected_finish instead.".format(self),
+                category=PendingDeprecationWarning
+            )
+            expected_finish = sla
+
+        # Set SLA parameters, batching invalid type messages into a
+        # single exception.
+        sla_param_errs = []
+        if expected_duration and not isinstance(expected_duration, timedelta):
+            sla_param_errs.append("expected_duration must be a timedelta, "
+                                  "got: {}".format(expected_duration))
+        if expected_start and not isinstance(expected_start, timedelta):
+            sla_param_errs.append("expected_start must be a timedelta, "
+                                  "got: {}".format(expected_start))
+        if expected_finish and not isinstance(expected_finish, timedelta):
+            sla_param_errs.append("expected_finish must be a timedelta, "
+                                  "got: {}".format(expected_finish))
+        if sla_param_errs:
+            raise AirflowException("Invalid SLA params were set! {}".format(
+                "; ".join(sla_param_errs)))
+
+        # If no exception has been raised, go ahead and set these.
+        self.expected_duration = expected_duration
+        self.expected_start = expected_start
+        self.expected_finish = expected_finish
+
+        # Warn the user if they've set any non-sensical parameter combinations
+        if self.expected_start and self.expected_finish \
+                and self.expected_start >= self.expected_finish:
+            self.log.warning(
+                "Task %s has an expected_start (%s) that occurs after its "
+                "expected_finish (%s), so it will always send an SLA "
+                "notification.",
+                self, self.expected_start, self.expected_finish
+            )
+
+            if self.expected_duration and self.expected_start \
+                    and self.expected_finish and \
+                    (self.expected_start + self.expected_duration) \
+                    > self.expected_finish:
+                self.log.warning(
+                    "Task %s has an expected_start (%s) and expected_duration "
+                    "(%s) that exceed its expected_finish (%s), so it will "
+                    "always send an SLA notification.",
+                    self, self.expected_start, self.expected_duration, self.expected_finish
+                )
+
+        if self.expected_duration and self.execution_timeout \
+                and self.expected_duration > self.execution_timeout:
+            self.log.warning(
+                "Task %s has an expected_duration (%s) that is longer than "
+                "its execution_timeout (%s), so it will time out before "
+                "sending an SLA notification.",
+                self, self.expected_duration, self.execution_timeout
+            )
+
         self.on_execute_callback = on_execute_callback
         self.on_failure_callback = on_failure_callback
         self.on_success_callback = on_success_callback
         self.on_retry_callback = on_retry_callback
+        self.sla_miss_callback = sla_miss_callback
 
         if isinstance(retry_delay, timedelta):
             self.retry_delay = retry_delay
@@ -1315,12 +1434,20 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
         return cls.__serialized_fields
 
+
     def is_smart_sensor_compatible(self):
         """
         Return if this operator can use smart service. Default False.
 
         """
         return False
+
+
+    def has_slas(self):
+        """
+        Return whether this task has any SLA attributes set.
+        """
+        return any(getattr(self, attr, None) for attr in self.sla_attributes)
 
 
 def chain(*tasks: Union[BaseOperator, Sequence[BaseOperator]]):

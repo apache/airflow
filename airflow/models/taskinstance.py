@@ -477,6 +477,25 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             "&downstream=false"
         ).format(task_id=self.task_id, dag_id=self.dag_id, iso=iso)
 
+    @property
+    def details_url(self):
+        iso = quote(self.execution_date.isoformat())
+        BASE_URL = configuration.conf.get('webserver', 'BASE_URL')
+        if settings.RBAC:
+            return BASE_URL + (
+                "/task"
+                "?task_id={self.task_id}"
+                "&dag_id={self.dag_id}"
+                "&execution_date={iso}"
+            ).format(**locals())
+        else:
+            return BASE_URL + (
+                "/admin/airflow/task"
+                "?task_id={self.task_id}"
+                "&dag_id={self.dag_id}"
+                "&execution_date={iso}"
+            ).format(**locals())
+
     @provide_session
     def current_state(self, session=None) -> str:
         """
