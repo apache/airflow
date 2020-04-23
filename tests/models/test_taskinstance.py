@@ -21,7 +21,7 @@ import os
 import time
 import unittest
 import urllib
-from typing import List, Optional, Union
+from typing import List, Optional, Union, cast
 from unittest.mock import call, mock_open, patch
 
 import pendulum
@@ -591,7 +591,7 @@ class TestTaskInstance(unittest.TestCase):
 
         date = ti.next_retry_datetime()
         # between 1 * 2^0.5 and 1 * 2^1 (15 and 30)
-        period = ti.end_date.add(seconds=1) - ti.end_date.add(seconds=15)
+        period = ti.end_date.add(seconds=15) - ti.end_date.add(seconds=1)
         self.assertTrue(date in period)
 
     def test_reschedule_handling(self):
@@ -1265,12 +1265,12 @@ class TestTaskInstance(unittest.TestCase):
         dag = models.DAG(dag_id=dag_id, schedule_interval=schedule_interval, catchup=catchup)
         task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
 
-        def get_test_ti(session, execution_date: pendulum.datetime, state: str) -> TI:
+        def get_test_ti(session, execution_date: pendulum.DateTime, state: str) -> TI:
             dag.create_dagrun(
                 run_type=DagRunType.SCHEDULED,
                 state=state,
                 execution_date=execution_date,
-                start_date=pendulum.utcnow(),
+                start_date=pendulum.now('UTC'),
                 session=session
             )
             ti = TI(task=task, execution_date=execution_date)
@@ -1279,7 +1279,7 @@ class TestTaskInstance(unittest.TestCase):
 
         with create_session() as session:  # type: Session
 
-            date = pendulum.parse('2019-01-01T00:00:00+00:00')
+            date = cast(pendulum.DateTime, pendulum.parse('2019-01-01T00:00:00+00:00'))
 
             ret = []
 
@@ -1384,9 +1384,9 @@ class TestTaskInstance(unittest.TestCase):
 
         template_context = ti.get_template_context()
 
-        self.assertIsInstance(template_context["execution_date"], pendulum.datetime)
-        self.assertIsInstance(template_context["next_execution_date"], pendulum.datetime)
-        self.assertIsInstance(template_context["prev_execution_date"], pendulum.datetime)
+        self.assertIsInstance(template_context["execution_date"], pendulum.DateTime)
+        self.assertIsInstance(template_context["next_execution_date"], pendulum.DateTime)
+        self.assertIsInstance(template_context["prev_execution_date"], pendulum.DateTime)
 
     @parameterized.expand(
         [

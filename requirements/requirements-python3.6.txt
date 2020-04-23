@@ -45,7 +45,7 @@ apispec==1.3.3
 appdirs==1.4.4
 argcomplete==1.11.1
 asn1crypto==1.3.0
-astroid==2.3.3
+astroid==2.4.2
 async-generator==1.10
 async-timeout==3.0.1
 atlasclient==1.0.0
@@ -66,15 +66,15 @@ azure-nspkg==3.0.2
 azure-storage-blob==2.1.0
 azure-storage-common==2.1.0
 azure-storage==0.36.0
-backcall==0.1.0
+backcall==0.2.0
 bcrypt==3.1.7
 beautifulsoup4==4.7.1
 billiard==3.6.3.0
 black==19.10b0
 blinker==1.4
-boto3==1.13.25
+boto3==1.13.26
 boto==2.49.0
-botocore==1.16.25
+botocore==1.16.26
 bowler==0.8.0
 cached-property==1.5.1
 cachetools==4.1.0
@@ -145,7 +145,7 @@ google-auth-oauthlib==0.4.1
 google-auth==1.16.1
 google-cloud-automl==0.10.0
 google-cloud-bigquery-datatransfer==1.0.0
-google-cloud-bigquery==1.24.0
+google-cloud-bigquery==1.25.0
 google-cloud-bigtable==1.2.1
 google-cloud-container==0.5.0
 google-cloud-core==1.3.0
@@ -187,7 +187,7 @@ ijson==2.6.1
 imagesize==1.2.0
 immutables==0.14
 importlib-metadata==1.6.1
-importlib-resources==2.0.0
+importlib-resources==1.5.0
 inflection==0.5.0
 ipdb==0.13.2
 ipython-genutils==0.2.0
@@ -223,7 +223,7 @@ monotonic==1.5
 more-itertools==8.3.0
 moto==1.3.14
 msgpack==1.0.0
-msrest==0.6.15
+msrest==0.6.16
 msrestazure==0.6.3
 multi-key-dict==2.0.3
 multidict==4.7.6
@@ -233,7 +233,7 @@ mysql-connector-python==8.0.18
 mysqlclient==1.3.14
 natsort==7.0.1
 nbclient==0.3.1
-nbformat==5.0.6
+nbformat==5.0.7
 nest-asyncio==1.3.3
 networkx==2.4
 nodeenv==1.4.0
@@ -252,7 +252,7 @@ paramiko==2.7.1
 parso==0.7.0
 pathspec==0.8.0
 pbr==5.4.5
-pendulum==1.4.4
+pendulum==2.1.0
 pep562==1.0
 pexpect==4.8.0
 pickleshare==0.7.5
