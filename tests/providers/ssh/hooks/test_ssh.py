@@ -306,7 +306,6 @@ class TestSSHHook(unittest.TestCase):
                 sock=None
             )
 
-    @mock.patch('airflow.providers.ssh.hooks.ssh.open', mock.mock_open(read_data=''))
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
     def test_ssh_connection_with_host_key_extra(self, ssh_mock):
         hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_EXTRA)
@@ -318,71 +317,6 @@ class TestSSHHook(unittest.TestCase):
         hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE)
         with hook.get_conn():
             assert ssh_mock.return_value.connect.called is True
-
-    @mock.patch('airflow.providers.ssh.hooks.ssh.open', mock.mock_open(read_data=''))
-    @mock.patch('airflow.providers.ssh.hooks.ssh.SSHHook._add_new_record_to_known_hosts')
-    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
-    def test_ssh_connection_with_host_key_where_known_hosts_is_empty(
-        self,
-        ssh_mock,
-        _add_new_record_to_known_hosts
-    ):
-        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE)
-        with hook.get_conn():
-            assert ssh_mock.return_value.connect.called is True
-        assert _add_new_record_to_known_hosts.call_count == 1
-
-    @mock.patch(
-        'airflow.providers.ssh.hooks.ssh.open',
-        mock.mock_open(read_data='some_host ssh-rsa AAA\n')
-    )
-    @mock.patch('airflow.providers.ssh.hooks.ssh.SSHHook._add_new_record_to_known_hosts')
-    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
-    def test_ssh_connection_with_host_key_where_this_record_is_not_in_known_hosts(
-        self,
-        ssh_mock,
-        _add_new_record_to_known_hosts
-    ):
-        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE)
-        with hook.get_conn():
-            assert ssh_mock.return_value.connect.called is True
-        assert _add_new_record_to_known_hosts.call_count == 1
-
-    @mock.patch(
-        'airflow.providers.ssh.hooks.ssh.open',
-        mock.mock_open(read_data=f'localhost ssh-rsa {TEST_HOST_KEY}\n')
-    )
-    @mock.patch('airflow.providers.ssh.hooks.ssh.SSHHook._add_new_record_to_known_hosts')
-    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
-    def test_ssh_connection_with_host_key_where_this_record_is_in_known_hosts(
-        self,
-        ssh_mock,
-        _add_new_record_to_known_hosts
-    ):
-        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE)
-        with hook.get_conn():
-            assert ssh_mock.return_value.connect.called is True
-        assert _add_new_record_to_known_hosts.call_count == 0
-
-    @mock.patch(
-        'airflow.providers.ssh.hooks.ssh.open',
-        mock.mock_open(read_data=f'localhost ssh-rsa BBB\n')
-    )
-    @mock.patch('airflow.providers.ssh.hooks.ssh.SSHHook._update_record_in_known_hosts')
-    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
-    def test_ssh_connection_with_host_key_where_host_with_old_key_is_in_known_hosts(
-        self,
-        ssh_mock,
-        _update_record_in_known_hosts
-    ):
-        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE)
-        with hook.get_conn():
-            assert ssh_mock.return_value.connect.called is True
-        assert _update_record_in_known_hosts.call_count == 1
-
-    def test_format_known_hosts_record(self):
-        assert f'remote_host ssh-rsa {TEST_HOST_KEY}' == \
-               SSHHook._format_known_hosts_record('remote_host', 'ssh-rsa', TEST_HOST_KEY)
 
 
 if __name__ == '__main__':

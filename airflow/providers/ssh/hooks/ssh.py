@@ -20,9 +20,10 @@ import getpass
 import os
 import warnings
 from io import StringIO
-from typing import Optional, TextIO
+from typing import Optional
 
 import paramiko
+from paramiko import py3compat
 from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
 
@@ -175,6 +176,7 @@ class SSHHook(BaseHook):
             self.log.warning('Remote Identification Change is not verified. '
                              'This wont protect against Man-In-The-Middle attacks')
             client.load_system_host_keys()
+
         if self.no_host_key_check:
             self.log.warning('No Host Key Verification. This wont protect '
                              'against Man-In-The-Middle attacks')
@@ -182,10 +184,11 @@ class SSHHook(BaseHook):
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         else:
             if self.host_key is not None:
+                pkey = paramiko.RSAKey(data=py3compat.decodebytes(self.host_key.encode('utf-8')))
                 client_host_keys = client.get_host_keys()
-                client_host_keys.add(self.remote_host, 'ssh-rsa', self.host_key)
-                if not client_host_keys.check(self.remote_host, self.host_key):
-                    self.log.warning('host_key key was not added - could be invalid.')
+                client_host_keys.add(self.remote_host, 'ssh-rsa', pkey)
+                if not client_host_keys.check(self.remote_host, pkey):
+                    self.log.warning('host_key was not added - could be malformed.')
             else:
                 self.log.warning('No public key supplied for remote_host. '
                                  'Please set a value for "host_key" in SSH Connection extras.')
@@ -201,6 +204,7 @@ class SSHHook(BaseHook):
         if self.password:
             password = self.password.strip()
             connect_kwargs.update(password=password)
+            connect_kwargs.update(look_for_keys=False)
 
         if self.pkey:
             connect_kwargs.update(pkey=self.pkey)
@@ -292,80 +296,3 @@ class SSHHook(BaseHook):
                       category=DeprecationWarning)
 
         return self.get_tunnel(remote_port, remote_host, local_port)
-
-    @staticmethod
-    def update_host_in_known_hosts(host: str, key_type: str, host_key: str) -> None:
-        """
-        Adds a specified remote_host public key to the known_hosts file
-            in order to prevent man-in-the-middle attacks.
-
-        If the host doesn't exist in the file then a new record is added.
-            If a record exists with a matching host but a different key,
-            then the existing record will be deleted and replaced with the new key.
-
-        The format of the new line in known_hosts will be:
-        {host} {key_type} {host_key}\n
-        So, for these inputs:
-        SSHHook.add_host_to_known_hosts('example.com', 'ssh-rsa', 'mjL4Bb/hFHx8OfTO...')
-
-        We would expect to see a (new) line in ~/.ssh/known_hosts with the following:
-        example.com ssh-rsa mjL4Bb/hFHx8OfTO...\n
-
-
-        :param host: FQDN of the remote host.
-        :type host: str
-        :param key_type: The algorithm format of the provided public key.
-        :type key_type: str
-        :param host_key: The base64-ecoded public key of the remote host.
-        :type host_key: str
-        """
-        # The .ssh hidden directory is required and not present on all airflow deployments.
-        try:
-            known_hosts_file_ref = SSHHook._create_known_hosts()
-        except PermissionError:
-            raise AirflowException("The user running airflow on this system does not have the necessary "
-                                   "permissions to make changes to the ~/.ssh directory and its contents.")
-
-        with open(known_hosts_file_ref, 'r') as f:
-            file_content = f.read()
-
-        record = SSHHook._format_known_hosts_record(host, key_type, host_key)
-
-        if record in file_content:
-            # record already present in file; no update or append required
-            pass
-        elif host in file_content:
-            # the host may be in the file with a different (possibly old) key
-            # in this case, we should replace the existing record
-            with open(known_hosts_file_ref, 'w+') as f:
-                SSHHook._update_record_in_known_hosts(host, record, file_content, f)
-        else:
-            # in this case the file is empty or the record doesn't exist in the file so add it
-            with open(known_hosts_file_ref, 'a') as f:
-                SSHHook._add_new_record_to_known_hosts(record, f)
-
-    @staticmethod
-    def _format_known_hosts_record(host: str, key_type: str, public_key: str) -> str:
-        return ' '.join([host, key_type, public_key])
-
-    @staticmethod
-    def _create_known_hosts() -> str:
-        if not os.path.exists(os.path.expanduser('~/.ssh')):
-            os.mkdir(os.path.expanduser('~/.ssh'))
-        with open(os.path.expanduser('~/.ssh/known_hosts'), 'a') as f:
-            f.write(str())
-        return os.path.expanduser('~/.ssh/known_hosts')
-
-    @staticmethod
-    def _add_new_record_to_known_hosts(record: str, file: TextIO) -> None:
-        file.write(''.join([record, '\n']))
-
-    @staticmethod
-    def _update_record_in_known_hosts(host: str, record: str, file_contents: str, file: TextIO) -> None:
-        current_file_contents = str(file_contents)
-        current_records_with_host_removed = [line for line in current_file_contents.split('\n')
-                                             if host not in line and len(line) > 0]
-        new_file_records = current_records_with_host_removed + [record]
-        new_file_contents = '\n'.join(new_file_records) + '\n'
-        file.seek(0)
-        file.write(new_file_contents)
