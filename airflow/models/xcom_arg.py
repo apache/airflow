@@ -32,7 +32,7 @@ class XComArg:
         self._keys = keys or [XCOM_RETURN_KEY]
 
     def __eq__(self, other):
-        return self._operator == other._operator  # pylint: disable=protected-access
+        return self._operator == other.operator and self.keys == other.keys
 
     def __lshift__(self, other):
         self.set_upstream(other)
@@ -41,6 +41,15 @@ class XComArg:
     def __rshift__(self, other):
         self.set_downstream(other)
         return self
+
+    @property
+    def operator(self):
+        """Operator"""
+        return self._operator
+
+    @property
+    def keys(self):
+        return self._keys
 
     def set_upstream(self, task_or_task_list: Union[BaseOperator, List[BaseOperator]]):
         """

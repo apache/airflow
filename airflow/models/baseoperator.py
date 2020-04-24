@@ -1075,7 +1075,7 @@ class BaseOperator(Operator, LoggingMixin):
             task_list = [task_or_task_list]  # type: ignore
 
         task_list = [
-            t._operator if isinstance(t, XComArg) else t  # pylint: disable=protected-access  type: ignore
+            t.operator if isinstance(t, XComArg) else t  # type: ignore
             for t in task_list
         ]
 
