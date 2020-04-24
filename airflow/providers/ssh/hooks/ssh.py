@@ -17,14 +17,13 @@
 # under the License.
 """Hook for SSH connections."""
 import getpass
-import codecs
 import os
 import warnings
+from base64 import decodebytes
 from io import StringIO
 from typing import Optional
 
 import paramiko
-from paramiko import py3compat
 from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
 
@@ -181,15 +180,15 @@ class SSHHook(BaseHook):
         else:
             if self.host_key is not None:
                 try:
-                    encoded_host_key = py3compat.decodebytes(self.host_key.encode('utf-8'))
+                    encoded_host_key = decodebytes(self.host_key.encode('utf-8'))
                     pkey = paramiko.RSAKey(data=encoded_host_key)
                 except Exception:
                     raise AirflowException('Connection extra host_key is malformed.')
                 client_host_keys = client.get_host_keys()
                 client_host_keys.add(self.remote_host, 'ssh-rsa', pkey)
             else:
-                raise AirflowException('No public key supplied for remote_host. '
-                                       'Please set a value for "host_key" in SSH Connection extras.')
+                pass  # will fallback to system host keys if none explicitly specified in conn extra
+
         connect_kwargs = dict(
             hostname=self.remote_host,
             username=self.username,
