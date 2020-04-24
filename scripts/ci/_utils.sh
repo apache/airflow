@@ -176,7 +176,7 @@ function initialize_common_environment {
     if [[ ${LOCAL_RUN} == "true" ]]; then
         export UPGRADE_WHILE_GENERATING_REQUIREMENTS="true"
     else
-        export UPGRADE_WHILE_GENERATING_REQUIREMENTS="false"
+        export UPGRADE_WHILE_GENERATING_REQUIREMENTS=${UPGRADE_WHILE_GENERATING_REQUIREMENTS:="false"}
     fi
 
     export SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS=${SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS:="false"}
@@ -995,7 +995,9 @@ function build_ci_image_on_ci() {
         echo "Disabling cache for scheduled jobs"
         echo
         export DOCKER_CACHE="no-cache"
-        export PULL_BASE_IMAGES="true"
+        echo
+        echo "Requirements are upgraded to latest while running Docker build"
+        echo
         export UPGRADE_TO_LATEST_REQUIREMENTS="true"
     fi
 
@@ -1505,20 +1507,21 @@ function push_prod_images() {
 }
 
 function run_generate_requirements() {
-        docker run "${EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint "/usr/local/bin/dumb-init"  \
-            --env PYTHONDONTWRITEBYTECODE \
-            --env VERBOSE \
-            --env VERBOSE_COMMANDS \
-            --env HOST_USER_ID="$(id -ur)" \
-            --env HOST_GROUP_ID="$(id -gr)" \
-            --env UPGRADE_WHILE_GENERATING_REQUIREMENTS \
-            --env PYTHON_MAJOR_MINOR_VERSION \
-            --env SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS \
-            --rm \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/ci/in_container/run_generate_requirements.sh" \
-            | tee -a "${OUTPUT_LOG}"
+    docker run "${EXTRA_DOCKER_FLAGS[@]}" \
+        --entrypoint "/usr/local/bin/dumb-init"  \
+        --env PYTHONDONTWRITEBYTECODE \
+        --env VERBOSE \
+        --env VERBOSE_COMMANDS \
+        --env HOST_USER_ID="$(id -ur)" \
+        --env HOST_GROUP_ID="$(id -gr)" \
+        --env UPGRADE_WHILE_GENERATING_REQUIREMENTS \
+        --env PYTHON_MAJOR_MINOR_VERSION \
+        --env SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS \
+        --env FAIL_WHEN_REQUIREMENTS_UPDATED \
+        --rm \
+        "${AIRFLOW_CI_IMAGE}" \
+        "--" "/opt/airflow/scripts/ci/in_container/run_generate_requirements.sh" \
+        | tee -a "${OUTPUT_LOG}"
 }
 
 

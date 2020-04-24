@@ -66,41 +66,6 @@ echo
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-DOCKER_IMAGE_SPEC="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DOCKER_TAG}"
-
-IMAGE_CREATED_AT=$(docker image ls "${DOCKER_IMAGE_SPEC}" --format '{{ .CreatedAt }}' | tr -d "[:upper:]")
-
-if [[ -z ${IMAGE_CREATED_AT} ]]; then
-    echo
-    echo "Image never built. Rebuilding it."
-    echo
-else
-    echo "Image created at ${IMAGE_CREATED_AT}"
-
-    EPOCH_SECONDS_WHEN_IMAGE_CREATED=$(date --date "${IMAGE_CREATED_AT}" +"%s")
-
-    echo "EPOCH seconds for when image created = ${EPOCH_SECONDS_WHEN_IMAGE_CREATED}"
-    EPOCH_SECONDS_NOW=$(date +"%s")
-    echo "EPOCH seconds now = ${EPOCH_SECONDS_NOW}"
-
-    SECONDS_SINCE_CREATED=$((EPOCH_SECONDS_NOW - EPOCH_SECONDS_WHEN_IMAGE_CREATED))
-    echo "Seconds since created = ${SECONDS_SINCE_CREATED}"
-    echo "Hours since created = $((SECONDS_SINCE_CREATED / 3600 ))"
-
-    if (( SECONDS_SINCE_CREATED > 3600 * 10 )) ; then
-        echo
-        echo "The image ${DOCKER_IMAGE_SPEC} is older than 10 hours (Created at ${IMAGE_CREATED_AT})."
-        echo "Rebuilding the image."
-        echo
-    else
-        echo
-        echo "The image ${DOCKER_IMAGE_SPEC} is created recently (Created ${IMAGE_CREATED_AT})."
-        echo "Skipping rebuilding the image."
-        echo
-        exit
-    fi
-fi
-
 if [[ ${DOCKER_TAG} == *python*-ci ]]; then
     echo
     echo "Building CI image"
