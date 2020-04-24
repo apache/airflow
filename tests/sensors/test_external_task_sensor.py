@@ -109,7 +109,6 @@ class TestExternalTaskSensor(unittest.TestCase):
         )
 
     def test_external_task_sensor_failed_states_as_success(self):
-        
         self.test_time_sensor()
         op = ExternalTaskSensor(
             task_id='test_external_task_sensor_check',
