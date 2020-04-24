@@ -732,21 +732,21 @@ class S3Hook(AwsBaseHook):
 
     def generate_presigned_url(self, client_method, params=None, expires_in=3600, http_method=None):
         """
-            Generate a presigned url given a client, its method, and arguments
+        Generate a presigned url given a client, its method, and arguments
 
-            :param client_method: The client method to presign for.
-            :type client_method: str
-            :param params: The parameters normally passed to ClientMethod.
-            :type params: dict
-            :param expires_in: The number of seconds the presigned url is valid for.
-                By default it expires in an hour (3600 seconds).
-            :type expires_in: int
-            :param http_method: The http method to use on the generated url.
-                By default, the http method is whatever is used in the method's model.
-            :type http_method: str
-            :return: The presigned url.
-            :rtype: str
-            """
+        :param client_method: The client method to presign for.
+        :type client_method: str
+        :param params: The parameters normally passed to ClientMethod.
+        :type params: dict
+        :param expires_in: The number of seconds the presigned url is valid for.
+            By default it expires in an hour (3600 seconds).
+        :type expires_in: int
+        :param http_method: The http method to use on the generated url.
+            By default, the http method is whatever is used in the method's model.
+        :type http_method: str
+        :return: The presigned url.
+        :rtype: str
+        """
 
         s3_client = self.get_conn()
         try:
