@@ -879,7 +879,7 @@ Apache Airflow is a Community within Apache Software Foundation. As the motto of
 the Apache Software Foundation states "Community over Code" - people in the
 community are far more important than their contribution.
 
-This means that communication plays a big role in it, and this chapter is all about it. This is really important. 
+This means that communication plays a big role in it, and this chapter is all about it. This is really important.
 
 We have various channels of communication - starting from the official devlist, comments
 in the Pull Requests, Slack, wiki.
