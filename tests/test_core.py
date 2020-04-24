@@ -20,6 +20,7 @@ import multiprocessing
 import os
 import signal
 import unittest
+import warnings
 from datetime import timedelta
 from time import sleep
 

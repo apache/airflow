@@ -114,7 +114,7 @@ class SlaEmailTest(unittest.TestCase):
             "exceeded <pre><code>1:00:00</pre></code>.\n\n"
 
             # TODO: this is likely too brittle
-            "View Task Details: http://localhost:8080/admin/airflow/task?task_id=test_task&dag_id=test_send_task_duration_exceeded_email_dag&execution_date=2016-01-01T00%3A00%3A00%2B00%3A00\n\n" ## noqa
+            "View Task Details: http://localhost:8080/task?task_id=test_task&dag_id=test_send_task_duration_exceeded_email_dag&execution_date=2016-01-01T00%3A00%3A00%2B00%3A00\n\n" ## noqa
 
             "This may be impacting the following downstream tasks:\n"
             "<pre><code>"
@@ -160,7 +160,7 @@ class SlaEmailTest(unittest.TestCase):
             "start by <pre><code>2016-01-01 01:00:00+00:00</pre></code>.\n\n"
 
             # TODO: this is likely too brittle
-            "View Task Details: http://localhost:8080/admin/airflow/task?task_id=test_task&dag_id=test_send_task_late_start_email_dag&execution_date=2016-01-01T00%3A00%3A00%2B00%3A00\n\n" ## noqa
+            "View Task Details: http://localhost:8080/task?task_id=test_task&dag_id=test_send_task_late_start_email_dag&execution_date=2016-01-01T00%3A00%3A00%2B00%3A00\n\n" ## noqa
 
             "This may be impacting the following downstream tasks:\n"
             "<pre><code>"
@@ -206,7 +206,7 @@ class SlaEmailTest(unittest.TestCase):
             "finish by <pre><code>2016-01-01 01:00:00+00:00</pre></code>.\n\n"
 
             # TODO: this is likely too brittle
-            "View Task Details: http://localhost:8080/admin/airflow/task?task_id=test_task&dag_id=test_send_task_late_finish_email_dag&execution_date=2016-01-01T00%3A00%3A00%2B00%3A00\n\n" ## noqa
+            "View Task Details: http://localhost:8080/task?task_id=test_task&dag_id=test_send_task_late_finish_email_dag&execution_date=2016-01-01T00%3A00%3A00%2B00%3A00\n\n" ## noqa
 
             "This may be impacting the following downstream tasks:\n"
             "<pre><code>"

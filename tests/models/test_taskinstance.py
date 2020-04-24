@@ -1152,6 +1152,19 @@ class TestTaskInstance(unittest.TestCase):
         self.assertEqual(query['task_id'][0], 'op')
         self.assertEqual(pendulum.parse(query['execution_date'][0]), now)
 
+    def test_details_url(self):
+        dag = DAG('dag', start_date=DEFAULT_DATE)
+        task = DummyOperator(task_id='op', dag=dag)
+        ti = TI(task=task, execution_date=datetime.datetime(2018, 1, 1))
+
+        expected_url = (
+            'http://localhost:8080/task?'
+            'task_id=op'
+            '&dag_id=dag'
+            '&execution_date=2018-01-01T00%3A00%3A00%2B00%3A00'
+        )
+        self.assertEqual(ti.details_url, expected_url)
+
     def test_overwrite_params_with_dag_run_conf(self):
         task = DummyOperator(task_id='op')
         ti = TI(task=task, execution_date=datetime.datetime.now())

@@ -3,7 +3,7 @@ from __future__ import absolute_import
 
 import airflow.models
 from airflow.utils import asciiart
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 from airflow.utils.email import send_email
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
@@ -72,7 +72,7 @@ def yield_unscheduled_runs(dag, last_scheduled_run, ts):
         # Create and yield a fake DAGRun, which won't exist in the db yet.
         next_run = airflow.models.DagRun(
             dag_id=dag.dag_id,
-            run_id=airflow.models.DagRun.ID_PREFIX + next_run_date.isoformat(),
+            run_id='manual__' + next_run_date.isoformat(),
             execution_date=next_run_date,
             start_date=ts,
             state=State.NONE,

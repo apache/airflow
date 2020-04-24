@@ -18,6 +18,7 @@
 
 import copy
 import functools
+import itertools
 import logging
 import os
 import pickle
@@ -35,7 +36,9 @@ import jinja2
 import pendulum
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
-from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, func, or_
+from sqlalchemy import (
+    Boolean, Column, ForeignKey, Index, Integer, String, Text,
+    and_, asc, func, not_, or_)
 from sqlalchemy.orm import backref, joinedload, relationship
 from sqlalchemy.orm.session import Session
 
@@ -49,6 +52,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
+from airflow.models.slamiss import SlaMiss
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
 from airflow.stats import Stats
 from airflow.utils import timezone

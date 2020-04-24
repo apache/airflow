@@ -37,7 +37,7 @@ from airflow import models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.jobs.scheduler_job import DagFileProcessor
-from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
+from airflow.models import DAG, DagModel, DagRun, DagTag, SlaMiss, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
@@ -1524,7 +1524,7 @@ class TestDag(unittest.TestCase):
         start_date = execution_date + datetime.timedelta(days=1)
 
         # DAGrun got created at "midnight" on the first run
-        with patch("airflow.models.timezone.utcnow",
+        with patch("airflow.utils.timezone.utcnow",
                    return_value=start_date):
 
             # Create a DAGRun.
@@ -1548,7 +1548,7 @@ class TestDag(unittest.TestCase):
             finish_ti.set_state(state=State.NONE, session=session)
 
         # SLA miss check as of 4 hours after first run
-        with patch("airflow.models.timezone.utcnow",
+        with patch("airflow.utils.timezone.utcnow",
                    return_value=start_date + datetime.timedelta(hours=4)):
             # Record SLA misses
             dag.record_sla_misses(session=session)
@@ -1604,7 +1604,7 @@ class TestDag(unittest.TestCase):
 
         # DAGrun got created at "midnight" on the first run
         fake_time = start_date
-        with patch("airflow.models.timezone.utcnow", return_value=fake_time):
+        with patch("airflow.utils.timezone.utcnow", return_value=fake_time):
 
             # Create a DAGRun.
             dr = dag.create_dagrun(
@@ -1632,7 +1632,7 @@ class TestDag(unittest.TestCase):
         # SLA miss check as of 4 hours after first run should now find nothing
         # because all tasks were flagged as success.
         fake_time = start_date + datetime.timedelta(hours=4)
-        with patch("airflow.models.timezone.utcnow", return_value=fake_time):
+        with patch("airflow.utils.timezone.utcnow", return_value=fake_time):
             # Check for SLA misses
             dag.record_sla_misses(session=session)
 
@@ -1648,7 +1648,7 @@ class TestDag(unittest.TestCase):
         # SLA miss 1 day, 1 hour, and 1 minute after the first run should find
         # *one* SLA miss so far (the late start for the next day)
         fake_time = start_date + datetime.timedelta(days=1, hours=1, minutes=1)
-        with patch("airflow.models.timezone.utcnow", return_value=fake_time):
+        with patch("airflow.utils.timezone.utcnow", return_value=fake_time):
             # Check for SLA misses (again)
             dag.record_sla_misses(session=session)
 
@@ -1671,7 +1671,7 @@ class TestDag(unittest.TestCase):
         # *two* SLA misses now, since the late finish operator for the next day
         # also has not fired
         fake_time = start_date + datetime.timedelta(days=1, hours=2, minutes=1)
-        with patch("airflow.models.timezone.utcnow", return_value=fake_time):
+        with patch("airflow.utils.timezone.utcnow", return_value=fake_time):
             # Check for SLA misses (yes, again...)
             dag.record_sla_misses(session=session)
 
@@ -1700,7 +1700,7 @@ class TestDag(unittest.TestCase):
         # for. Then test that we only get one more new SLA miss for duration
         # exceeded.
         fake_time = start_date + datetime.timedelta(days=1, hours=3)
-        with patch("airflow.models.timezone.utcnow", return_value=fake_time):
+        with patch("airflow.utils.timezone.utcnow", return_value=fake_time):
             # Create a DAGRun.
             dr = dag.create_dagrun(
                 run_id="scheduled__" + next_execution_date.isoformat(),
@@ -1746,7 +1746,7 @@ class TestDag(unittest.TestCase):
 
         # Check again in an hour and one minute later.
         fake_time = start_date + datetime.timedelta(days=1, hours=4, minutes=1)
-        with patch("airflow.models.timezone.utcnow", return_value=fake_time):
+        with patch("airflow.utils.timezone.utcnow", return_value=fake_time):
             # Check for SLA misses, the final time.
             dag.record_sla_misses(session=session)
 
@@ -1791,17 +1791,17 @@ class TestDag(unittest.TestCase):
             expected_duration = DummyOperator(
                 task_id="expected_duration",
                 expected_duration=datetime.timedelta(hours=1),
-                sla_miss_callback=Mock(name="expected_duration_callback"))
+                sla_miss_callback=mock.MagicMock(name="expected_duration_callback"))
 
             expected_start = DummyOperator(
                 task_id="expected_start",
                 expected_start=datetime.timedelta(hours=1),
-                sla_miss_callback=Mock(name="expected_start_callback"))
+                sla_miss_callback=mock.MagicMock(name="expected_start_callback"))
 
             expected_finish = DummyOperator(
                 task_id="expected_finish",
                 expected_finish=datetime.timedelta(hours=1),
-                sla_miss_callback=Mock(name="expected_finish_callback"))
+                sla_miss_callback=mock.MagicMock(name="expected_finish_callback"))
 
             expected_duration >> expected_start >> expected_finish
 
@@ -1816,7 +1816,7 @@ class TestDag(unittest.TestCase):
 
         # Create a DAGrun with TIs on "midnight" on the first run
         fake_time = start_date
-        with patch("airflow.models.timezone.utcnow", return_value=fake_time):
+        with patch("airflow.utils.timezone.utcnow", return_value=fake_time):
             # Create a DAGRun.
             dr = dag.create_dagrun(
                 run_id="scheduled__" + execution_date.isoformat(),
