@@ -330,7 +330,6 @@ class TestSSHHook(unittest.TestCase):
         with hook.get_conn():
             assert ssh_client.return_value.connect.called is True
             assert ssh_client.return_value.get_host_keys.return_value.add.called is False
-            assert ssh_client.return_value.get_host_keys.return_value.check.called is False
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
     def test_ssh_connection_with_host_key_where_no_host_key_check_is_true(self, ssh_client):
@@ -339,7 +338,6 @@ class TestSSHHook(unittest.TestCase):
         with hook.get_conn():
             assert ssh_client.return_value.connect.called is True
             assert ssh_client.return_value.get_host_keys.return_value.add.called is False
-            assert ssh_client.return_value.get_host_keys.return_value.check.called is False
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
     def test_ssh_connection_with_host_key_where_no_host_key_check_is_false(self, ssh_client):
@@ -348,7 +346,6 @@ class TestSSHHook(unittest.TestCase):
         with hook.get_conn():
             assert ssh_client.return_value.connect.called is True
             assert ssh_client.return_value.get_host_keys.return_value.add.called is True
-            assert ssh_client.return_value.get_host_keys.return_value.check.called is True
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
     def test_ssh_connection_with_no_host_key_where_no_host_key_check_is_false(self, ssh_client):

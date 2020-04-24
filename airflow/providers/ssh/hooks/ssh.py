@@ -17,6 +17,7 @@
 # under the License.
 """Hook for SSH connections."""
 import getpass
+import codecs
 import os
 import warnings
 from io import StringIO
@@ -179,14 +180,16 @@ class SSHHook(BaseHook):
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         else:
             if self.host_key is not None:
-                pkey = paramiko.RSAKey(data=py3compat.decodebytes(self.host_key.encode('utf-8')))
+                try:
+                    encoded_host_key = py3compat.decodebytes(self.host_key.encode('utf-8'))
+                    pkey = paramiko.RSAKey(data=encoded_host_key)
+                except Exception:
+                    raise AirflowException('Connection extra host_key is malformed.')
                 client_host_keys = client.get_host_keys()
                 client_host_keys.add(self.remote_host, 'ssh-rsa', pkey)
-                if not client_host_keys.check(self.remote_host, pkey):
-                    raise AirflowException('host_key was not added - could be malformed.')
             else:
                 raise AirflowException('No public key supplied for remote_host. '
-                                 'Please set a value for "host_key" in SSH Connection extras.')
+                                       'Please set a value for "host_key" in SSH Connection extras.')
         connect_kwargs = dict(
             hostname=self.remote_host,
             username=self.username,
