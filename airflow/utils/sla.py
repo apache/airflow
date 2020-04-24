@@ -20,7 +20,7 @@ from __future__ import absolute_import
 from six import string_types
 from sqlalchemy import or_
 
-from airflow.models import DagRun, SlaMiss, TaskInstance
+import airflow.models
 from airflow.utils import asciiart
 from airflow.utils.email import send_email
 from airflow.utils.log.logging_mixin import LoggingMixin
