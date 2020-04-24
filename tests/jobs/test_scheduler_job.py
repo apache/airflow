@@ -858,6 +858,40 @@ class TestDagFileProcessor(unittest.TestCase):
 
             self.assertGreater(parent_dagruns, 0)
 
+    @mock.patch('airflow.models.DAG.manage_slas')
+    def test_process_dasg_call_manage_slas(self, mock_manage_slas):
+        """
+        Test that dag file processor calls manage_slas of the dag when
+        processing the dag
+        """
+        dag = DAG(dag_id='test_dag_for_sla_test', start_date=DEFAULT_DATE)
+
+        processor = DagFileProcessor(dag_ids=[dag.dag_id], log=mock.MagicMock())
+        processor._process_task_instances = mock.MagicMock()
+
+        processor._process_dags([dag])
+        mock_manage_slas.assert_called_once()
+
+    @mock.patch('airflow.models.DAG.manage_slas')
+    def test_process_dags_handles_sla_exceptions(self, mock_manage_slas):
+        """
+        Test that dag file processor gracefully logs an exception if there is a
+        problem sending an email
+        """
+        mock_manage_slas.side_effect=RuntimeError('Could not call function')
+        dag = DAG(dag_id='test_dag_for_sla_test', start_date=DEFAULT_DATE)
+
+        mock_log = mock.MagicMock()
+        processor = DagFileProcessor(dag_ids=[dag.dag_id], log=mock_log)
+        processor._process_task_instances = mock.MagicMock()
+
+        processor._process_dags([dag])
+        mock_manage_slas.assert_called_once()
+        mock_log.exception.assert_called_once_with(
+            "DAG {} was unable to successfully manage SLAs; continuing"
+            " with scheduling rather than raising exception."
+            .format(dag))
+
     @patch.object(TaskInstance, 'handle_failure')
     def test_execute_on_failure_callbacks(self, mock_ti_handle_failure):
         dagbag = DagBag(dag_folder="/dev/null", include_examples=True)
