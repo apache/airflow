@@ -40,14 +40,14 @@ from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.jobs.scheduler_job import DagFileProcessor, SchedulerJob
-from airflow.models import DAG, DagBag, DagModel, Pool, SlaMiss, TaskInstance, errors
+from airflow.models import DAG, DagBag, DagModel, Pool, TaskInstance, errors
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
-from airflow.utils.dag_processing import FailureCallbackRequest, SimpleDagBag
+from airflow.utils.dag_processing import FailureCallbackRequest, SimpleDag, SimpleDagBag
 from airflow.utils.dates import days_ago
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
@@ -1129,49 +1129,26 @@ class TestDagFileProcessorQueriesCount(unittest.TestCase):
             # pylint: disable=bad-whitespace
             # expected, dag_count, task_count, start_ago, schedule_interval, shape
             # One DAG with two tasks per DAG file
-<<<<<<< HEAD
             ([ 5,   5,   5,   5],  1,  1, "1d",   "None", "no_structure"),  # noqa
             ([ 5,   5,   5,   5],  1,  1, "1d",   "None",       "linear"),  # noqa
-            ([15,   9,   9,   9],  1,  1, "1d",  "@once", "no_structure"),  # noqa
-            ([15,   9,   9,   9],  1,  1, "1d",  "@once",       "linear"),  # noqa
-            ([15,  18,  21,  24],  1,  1, "1d",    "30m", "no_structure"),  # noqa
-            ([15,  18,  21,  24],  1,  1, "1d",    "30m",       "linear"),  # noqa
+            ([18,   9,   9,   9],  1,  1, "1d",  "@once", "no_structure"),  # noqa
+            ([18,   9,   9,   9],  1,  1, "1d",  "@once",       "linear"),  # noqa
+            ([18,  18,  21,  24],  1,  1, "1d",    "30m", "no_structure"),  # noqa
+            ([18,  18,  21,  24],  1,  1, "1d",    "30m",       "linear"),  # noqa
             # One DAG with five tasks per DAG file
             ([ 5,   5,   5,   5],  1,  5, "1d",   "None", "no_structure"),  # noqa
             ([ 5,   5,   5,   5],  1,  5, "1d",   "None",       "linear"),  # noqa
-            ([15,   9,   9,   9],  1,  5, "1d",  "@once", "no_structure"),  # noqa
-            ([16,  10,  10,  10],  1,  5, "1d",  "@once",       "linear"),  # noqa
-            ([15,  18,  21,  24],  1,  5, "1d",    "30m", "no_structure"),  # noqa
-            ([16,  20,  24,  28],  1,  5, "1d",    "30m",       "linear"),  # noqa
+            ([18,   9,   9,   9],  1,  5, "1d",  "@once", "no_structure"),  # noqa
+            ([19,  10,  10,  10],  1,  5, "1d",  "@once",       "linear"),  # noqa
+            ([18,  18,  21,  24],  1,  5, "1d",    "30m", "no_structure"),  # noqa
+            ([19,  20,  24,  28],  1,  5, "1d",    "30m",       "linear"),  # noqa
             # 10 DAGs with 10 tasks per DAG file
             ([ 5,   5,   5,   5], 10, 10, "1d",  "None",  "no_structure"),  # noqa
             ([ 5,   5,   5,   5], 10, 10, "1d",  "None",        "linear"),  # noqa
-            ([87,  45,  45,  45], 10, 10, "1d", "@once",  "no_structure"),  # noqa
-            ([97,  55,  55,  55], 10, 10, "1d", "@once",        "linear"),  # noqa
-            ([87, 117, 117, 117], 10, 10, "1d",   "30m",  "no_structure"),  # noqa
-            ([97, 137, 137, 137], 10, 10, "1d",   "30m",        "linear"),  # noqa
-=======
-            ( 5,  1,  1, "1d",   "None", "no_structure"),  # noqa
-            ( 5,  1,  1, "1d",   "None",       "linear"),  # noqa
-            (18,  1,  1, "1d",  "@once", "no_structure"),  # noqa
-            (18,  1,  1, "1d",  "@once",       "linear"),  # noqa
-            (18,  1,  1, "1d",    "30m", "no_structure"),  # noqa
-            (18,  1,  1, "1d",    "30m",       "linear"),  # noqa
-            # One DAG with five tasks per DAG file
-            ( 5,  1,  5, "1d",   "None", "no_structure"),  # noqa
-            ( 5,  1,  5, "1d",   "None",       "linear"),  # noqa
-            (18,  1,  5, "1d",  "@once", "no_structure"),  # noqa
-            (19,  1,  5, "1d",  "@once",       "linear"),  # noqa
-            (18,  1,  5, "1d",    "30m", "no_structure"),  # noqa
-            (19,  1,  5, "1d",    "30m",       "linear"),  # noqa
-            # 10 DAGs with 10 tasks per DAG file
-            ( 5, 10, 10, "1d",  "None",  "no_structure"),  # noqa
-            ( 5, 10, 10, "1d",  "None",        "linear"),  # noqa
-            (117, 10, 10, "1d", "@once",  "no_structure"),  # noqa
-            (127, 10, 10, "1d", "@once",        "linear"),  # noqa
-            (117, 10, 10, "1d",   "30m",  "no_structure"),  # noqa
-            (127, 10, 10, "1d",   "30m",        "linear"),  # noqa
->>>>>>> remove schedule job sla test; bump query count in query count test;
+            ([117,  45,  45,  45], 10, 10, "1d", "@once",  "no_structure"),  # noqa
+            ([127,  55,  55,  55], 10, 10, "1d", "@once",        "linear"),  # noqa
+            ([117, 117, 117, 117], 10, 10, "1d",   "30m",  "no_structure"),  # noqa
+            ([127, 137, 137, 137], 10, 10, "1d",   "30m",        "linear"),  # noqa
             # pylint: enable=bad-whitespace
         ]
     )
