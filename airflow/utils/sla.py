@@ -20,7 +20,7 @@ from __future__ import absolute_import
 from six import string_types
 from sqlalchemy import or_
 
-import airflow.models
+from airflow.models import DagRun, SlaMiss, TaskInstance
 from airflow.utils import asciiart
 from airflow.utils.email import send_email
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -101,7 +101,7 @@ def yield_unscheduled_runs(dag, last_scheduled_run, ts):
         next_run_date = dag.following_schedule(next_run_date)
 
 
-def yield_unscheduled_tis(dag_run, ts, session=None):
+def yield_unscheduled_tis(dag_run, ts):
     """
     Given an unscheduled `DagRun`, yield any unscheduled TIs that will exist
     for it in the future, respecting the end date of the DAG and task. See note
@@ -146,7 +146,7 @@ def create_sla_misses(ti, timestamp, session):
     if ti.state == State.SKIPPED:
         return
 
-    log.debug("Calculating SLA misses for {} as of {}".format(ti, timestamp))
+    log.debug("Calculating SLA misses for %s as of %s", ti, timestamp)
 
     SM = airflow.models.SlaMiss
 
@@ -169,9 +169,9 @@ def create_sla_misses(ti, timestamp, session):
                 duration = timestamp - ti.start_date
 
             if duration > ti.task.expected_duration:
-                log.debug("Task instance {}'s duration of {} > its expected "
-                          "duration of {}. Creating duration exceeded SLA miss."
-                          .format(ti, duration, ti.task.expected_duration))
+                log.debug("Task instance %s's duration of %s > its expected "
+                          "duration of %s. Creating duration exceeded SLA miss.",
+                          ti, duration, ti.task.expected_duration)
                 session.merge(SM(
                     task_id=ti.task_id,
                     dag_id=ti.dag_id,
@@ -179,10 +179,10 @@ def create_sla_misses(ti, timestamp, session):
                     sla_type=SM.TASK_DURATION_EXCEEDED,
                     timestamp=timestamp))
             else:
-                log.debug("Task instance {}'s duration of {} <= its expected "
-                          "duration of {}, SLA not yet missed."
-                          .format(ti, duration, ti.task.expected_duration))
-        except Exception:
+                log.debug("Task instance %s's duration of %s <= its expected "
+                          "duration of %s, SLA not yet missed.",
+                          ti, duration, ti.task.expected_duration)
+        except Exception:  # pylint: disable=broad-except
             log.exception(
                 "Failed to calculate expected duration SLA miss for "
                 "task instance %s",
@@ -199,9 +199,9 @@ def create_sla_misses(ti, timestamp, session):
 
             # The case where we have started the ti, but late
             if ti.start_date and ti.start_date > expected_start:
-                log.debug("Task instance {}'s actual start {} > its expected "
-                          "start of {}. Creating late start SLA miss."
-                          .format(ti, ti.start_date, expected_start))
+                log.debug("Task instance %s's actual start %s > its expected "
+                          "start of %s. Creating late start SLA miss.",
+                          ti, ti.start_date, expected_start)
                 session.merge(SM(
                     task_id=ti.task_id,
                     dag_id=ti.dag_id,
@@ -211,9 +211,9 @@ def create_sla_misses(ti, timestamp, session):
 
             # The case where we haven't even started the ti yet
             elif timestamp > expected_start:
-                log.debug("Task instance {} has not started by its expected "
-                          "start of {}. Creating late start SLA miss."
-                          .format(ti, expected_start))
+                log.debug("Task instance %s has not started by its expected "
+                          "start of %s. Creating late start SLA miss.",
+                          ti, expected_start)
                 session.merge(SM(
                     task_id=ti.task_id,
                     dag_id=ti.dag_id,
@@ -221,9 +221,9 @@ def create_sla_misses(ti, timestamp, session):
                     sla_type=SM.TASK_LATE_START,
                     timestamp=timestamp))
             else:
-                log.debug("Task instance {}'s expected start of {} hasn't "
-                          "happened yet, SLA not yet missed."
-                          .format(ti, expected_start))
+                log.debug("Task instance %s's expected start of %s hasn't "
+                          "happened yet, SLA not yet missed.",
+                          ti, expected_start)
         except Exception:
             log.exception(
                 "Failed to calculate expected start SLA miss for "
@@ -240,9 +240,9 @@ def create_sla_misses(ti, timestamp, session):
             expected_finish += ti.task.expected_finish
 
             if ti.end_date and ti.end_date > expected_finish:
-                log.debug("Task instance {}'s actual finish {} > its expected "
-                          "finish of {}. Creating late finish SLA miss."
-                          .format(ti, ti.end_date, expected_finish))
+                log.debug("Task instance %s's actual finish %s > its expected "
+                          "finish of %s. Creating late finish SLA miss.",
+                          ti, ti.end_date, expected_finish)
                 session.merge(SM(
                     task_id=ti.task_id,
                     dag_id=ti.dag_id,
@@ -251,9 +251,9 @@ def create_sla_misses(ti, timestamp, session):
                     timestamp=timestamp))
 
             elif timestamp > expected_finish:
-                log.debug("Task instance {} has not finished by its expected "
-                          "finish of {}. Creating late finish SLA miss."
-                          .format(ti, expected_finish))
+                log.debug("Task instance %s has not finished by its expected "
+                          "finish of %s. Creating late finish SLA miss.",
+                          ti, expected_finish)
                 session.merge(SM(
                     task_id=ti.task_id,
                     dag_id=ti.dag_id,
@@ -261,9 +261,9 @@ def create_sla_misses(ti, timestamp, session):
                     sla_type=SM.TASK_LATE_FINISH,
                     timestamp=timestamp))
             else:
-                log.debug("Task instance {}'s expected finish of {} hasn't "
-                          "happened yet, SLA not yet missed."
-                          .format(ti, expected_finish))
+                log.debug("Task instance %s's expected finish of %s hasn't "
+                          "happened yet, SLA not yet missed.",
+                          ti, expected_finish)
         except Exception:
             log.exception(
                 "Failed to calculate expected finish SLA miss for "

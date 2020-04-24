@@ -42,7 +42,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
 from airflow.jobs.base_job import BaseJob
-from airflow.models import DAG, DagModel, SlaMiss, errors
+from airflow.models import DAG, DagModel, errors
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
@@ -630,11 +630,10 @@ class DagFileProcessor(LoggingMixin):
                     # prevent tasks from being scheduled!
                     try:
                         dag.manage_slas()
-                    except Exception:
+                    except Exception:  # pylint: disable=broad-except
                         self.log.exception(
-                            "DAG {} was unable to successfully manage SLAs; continuing"
-                            " with scheduling rather than raising exception."
-                            .format(dag))
+                            "DAG %s was unable to successfully manage SLAs; continuing"
+                            " with scheduling rather than raising exception.", dag)
 
         return tis_out
 

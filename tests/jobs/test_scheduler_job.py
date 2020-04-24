@@ -878,7 +878,7 @@ class TestDagFileProcessor(unittest.TestCase):
         Test that dag file processor gracefully logs an exception if there is a
         problem sending an email
         """
-        mock_manage_slas.side_effect=RuntimeError('Could not call function')
+        mock_manage_slas.side_effect = RuntimeError('Could not call function')
         dag = DAG(dag_id='test_dag_for_sla_test', start_date=DEFAULT_DATE)
 
         mock_log = mock.MagicMock()
