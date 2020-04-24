@@ -22,9 +22,7 @@ from io import StringIO
 
 import mock
 import paramiko
-import pytest
 
-from airflow import AirflowException
 from airflow.models import Connection
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils import db
@@ -51,17 +49,18 @@ def generate_key_string(pkey: paramiko.PKey):
     return key_str
 
 
-def generate_host_key_string(pkey: paramiko.PKey):
+def generate_host_key(pkey: paramiko.PKey):
     key_fh = StringIO()
     pkey.write_private_key(key_fh)
     key_fh.seek(0)
     key_obj = paramiko.RSAKey(file_obj=key_fh)
-    return key_obj.get_base64()
+    return key_obj
 
 
 TEST_PKEY = paramiko.RSAKey.generate(4096)
 TEST_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY)
-TEST_HOST_KEY = generate_host_key_string(pkey=TEST_PKEY)
+TEST_HOST_PKEY = generate_host_key(pkey=TEST_PKEY)
+TEST_HOST_KEY = TEST_HOST_PKEY.get_base64()
 
 
 class TestSSHHook(unittest.TestCase):
@@ -129,7 +128,7 @@ class TestSSHHook(unittest.TestCase):
         db.merge_conn(
             Connection(
                 conn_id=cls.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE,
-                host='localhost',
+                host='remote_host',
                 conn_type='ssh',
                 extra=json.dumps({
                     "private_key": TEST_PRIVATE_KEY,
@@ -141,7 +140,7 @@ class TestSSHHook(unittest.TestCase):
         db.merge_conn(
             Connection(
                 conn_id=cls.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE,
-                host='localhost',
+                host='remote_host',
                 conn_type='ssh',
                 extra=json.dumps({
                     "private_key": TEST_PRIVATE_KEY,
@@ -153,7 +152,7 @@ class TestSSHHook(unittest.TestCase):
         db.merge_conn(
             Connection(
                 conn_id=cls.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE,
-                host='localhost',
+                host='remote_host',
                 conn_type='ssh',
                 extra=json.dumps({
                     "private_key": TEST_PRIVATE_KEY,
@@ -346,14 +345,19 @@ class TestSSHHook(unittest.TestCase):
         with hook.get_conn():
             assert ssh_client.return_value.connect.called is True
             assert ssh_client.return_value.get_host_keys.return_value.add.called is True
+            assert ssh_client.return_value.get_host_keys.return_value.add.assert_called_once_with(
+                'remote_host',
+                'ssh-rsa',
+                TEST_HOST_PKEY
+            )
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
     def test_ssh_connection_with_no_host_key_where_no_host_key_check_is_false(self, ssh_client):
         hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE)
         assert hook.host_key is None
-        with pytest.raises(AirflowException):
-            with hook.get_conn():
-                ssh_client
+        with hook.get_conn():
+            assert ssh_client.return_value.connect.called is True
+            assert ssh_client.return_value.get_host_keys.return_value.add.called is False
 
 
 if __name__ == '__main__':
