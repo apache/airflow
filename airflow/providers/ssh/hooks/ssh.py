@@ -124,11 +124,6 @@ class SSHHook(BaseHook):
                         str(extra_options["allow_host_key_change"]).lower() == 'true':
                     self.allow_host_key_change = True
                 if "host_key" in extra_options and self.no_host_key_check is False:
-                    # self.update_host_in_known_hosts(
-                    #     self.remote_host,
-                    #     'ssh-rsa',
-                    #     extra_options["host_key"]
-                    # )
                     self.host_key = extra_options["host_key"]
 
         if self.pkey and self.key_file:
@@ -188,9 +183,9 @@ class SSHHook(BaseHook):
                 client_host_keys = client.get_host_keys()
                 client_host_keys.add(self.remote_host, 'ssh-rsa', pkey)
                 if not client_host_keys.check(self.remote_host, pkey):
-                    self.log.warning('host_key was not added - could be malformed.')
+                    raise AirflowException('host_key was not added - could be malformed.')
             else:
-                self.log.warning('No public key supplied for remote_host. '
+                raise AirflowException('No public key supplied for remote_host. '
                                  'Please set a value for "host_key" in SSH Connection extras.')
         connect_kwargs = dict(
             hostname=self.remote_host,
