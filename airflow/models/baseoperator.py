@@ -1067,10 +1067,17 @@ class BaseOperator(Operator, LoggingMixin):
                        task_or_task_list: Union['BaseOperator', List['BaseOperator']],
                        upstream: bool = False) -> None:
         """Sets relatives for the task or task list."""
+        from airflow.models.xcom_arg import XComArg
+
         try:
             task_list = list(task_or_task_list)  # type: ignore
         except TypeError:
             task_list = [task_or_task_list]  # type: ignore
+
+        task_list = [
+            t._operator if isinstance(t, XComArg) else t  # pylint: disable=protected-access  type: ignore
+            for t in task_list
+        ]
 
         for task in task_list:
             if not isinstance(task, BaseOperator):
@@ -1123,6 +1130,12 @@ class BaseOperator(Operator, LoggingMixin):
         task.
         """
         self._set_relatives(task_or_task_list, upstream=True)
+
+    @property
+    def output(self):
+        """Returns default XComArg for the operator"""
+        from airflow.models.xcom_arg import XComArg
+        return XComArg(operator=self)
 
     @staticmethod
     def xcom_push(
