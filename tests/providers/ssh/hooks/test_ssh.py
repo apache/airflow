@@ -174,12 +174,13 @@ class TestSSHHook(unittest.TestCase):
             ssh_mock.return_value.connect.assert_called_once_with(
                 hostname='remote_host',
                 username='username',
-                password='password',
-                key_filename='fake.file',
                 timeout=10,
                 compress=True,
                 port='port',
-                sock=None
+                sock=None,
+                password='password',
+                look_for_keys=False,
+                key_filename='fake.file',
             )
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
@@ -345,11 +346,6 @@ class TestSSHHook(unittest.TestCase):
         with hook.get_conn():
             assert ssh_client.return_value.connect.called is True
             assert ssh_client.return_value.get_host_keys.return_value.add.called is True
-            assert ssh_client.return_value.get_host_keys.return_value.add.assert_called_once_with(
-                'remote_host',
-                'ssh-rsa',
-                TEST_HOST_PKEY
-            )
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
     def test_ssh_connection_with_no_host_key_where_no_host_key_check_is_false(self, ssh_client):
