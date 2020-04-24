@@ -147,7 +147,7 @@ class SerializedDagModel(Base):
     def remove_stale_dags(cls, expiration_date, session=None):
         """
         Deletes Serialized DAGs that were last touched by the scheduler before
-        the expiration date.  These DAGs were likely deleted.
+        the expiration date. These DAGs were likely deleted.
 
         :param expiration_date: set inactive DAGs that were touched before this
             time

@@ -581,8 +581,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
         # How often to mark DAGs as inactive and delete their serializations
         # if they haven't been processed recently.
-        self._dag_cleanup_interval = conf.getint('scheduler',
-                                                 'dag_cleanup_interval')
+        self._dag_cleanup_interval = conf.getint('scheduler', 'dag_cleanup_interval')
         self._min_serialized_dag_update_interval = conf.getint('core',
                                                                'min_serialized_dag_update_interval')
         # Parse and schedule each file no faster than this interval.
