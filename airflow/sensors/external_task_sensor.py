@@ -193,14 +193,14 @@ class ExternalTaskSensor(BaseSensorOperator):
             count = session.query(func.count()).filter(
                 TI.dag_id == self.external_dag_id,
                 TI.task_id == self.external_task_id,
-                TI.state.in_(states),
+                TI.state.in_(states),  # pylint: disable=no-member
                 TI.execution_date.in_(dttm_filter),
             ).scalar()
         else:
             # .count() is inefficient
             count = session.query(func.count()).filter(
                 DR.dag_id == self.external_dag_id,
-                DR.state.in_(states),
+                DR.state.in_(states),  # pylint: disable=no-member
                 DR.execution_date.in_(dttm_filter),
             ).scalar()
         return count
