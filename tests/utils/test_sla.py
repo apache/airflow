@@ -17,15 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 import datetime
 import difflib
+import unittest
 
-from airflow import settings, models
+from airflow import models, settings
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.utils.state import State
 from airflow.utils import asciiart, sla, timezone
-
+from airflow.utils.state import State
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
@@ -34,7 +33,7 @@ class SlaEmailTest(unittest.TestCase):
     """
     Test that the email helper functions produce correct copy.
     """
-    def assertTextMatch(self, a, b):
+    def assert_text_match(self, a, b):
         """
         Replace AssertionErrors with a nice diff.
         """
@@ -114,7 +113,9 @@ class SlaEmailTest(unittest.TestCase):
             "exceeded <pre><code>1:00:00</pre></code>.\n\n"
 
             # TODO: this is likely too brittle
-            "View Task Details: http://localhost:8080/task?task_id=test_task&dag_id=test_send_task_duration_exceeded_email_dag&execution_date=2016-01-01T00%3A00%3A00%2B00%3A00\n\n" ## noqa
+            "View Task Details: http://localhost:8080/task?task_id=test_task&"
+            "dag_id=test_send_task_duration_exceeded_email_dag&"
+            "execution_date=2016-01-01T00%3A00%3A00%2B00%3A00\n\n"
 
             "This may be impacting the following downstream tasks:\n"
             "<pre><code>"
@@ -127,7 +128,7 @@ class SlaEmailTest(unittest.TestCase):
             "{art}"
             "</pre></code>".format(art=asciiart.snail)
         )
-        self.assertTextMatch(email_body, desired_body)
+        self.assert_text_match(email_body, desired_body)
 
     def test_send_task_late_start_email(self):
         context = {
@@ -160,7 +161,9 @@ class SlaEmailTest(unittest.TestCase):
             "start by <pre><code>2016-01-01 01:00:00+00:00</pre></code>.\n\n"
 
             # TODO: this is likely too brittle
-            "View Task Details: http://localhost:8080/task?task_id=test_task&dag_id=test_send_task_late_start_email_dag&execution_date=2016-01-01T00%3A00%3A00%2B00%3A00\n\n" ## noqa
+            "View Task Details: http://localhost:8080/task?task_id=test_task&"
+            "dag_id=test_send_task_late_start_email_dag&"
+            "execution_date=2016-01-01T00%3A00%3A00%2B00%3A00\n\n"
 
             "This may be impacting the following downstream tasks:\n"
             "<pre><code>"
@@ -173,7 +176,7 @@ class SlaEmailTest(unittest.TestCase):
             "{art}"
             "</pre></code>".format(art=asciiart.snail)
         )
-        self.assertTextMatch(email_body, desired_body)
+        self.assert_text_match(email_body, desired_body)
 
     def test_send_task_late_finish_email(self):
         context = {
@@ -206,7 +209,9 @@ class SlaEmailTest(unittest.TestCase):
             "finish by <pre><code>2016-01-01 01:00:00+00:00</pre></code>.\n\n"
 
             # TODO: this is likely too brittle
-            "View Task Details: http://localhost:8080/task?task_id=test_task&dag_id=test_send_task_late_finish_email_dag&execution_date=2016-01-01T00%3A00%3A00%2B00%3A00\n\n" ## noqa
+            "View Task Details: http://localhost:8080/task?task_id=test_task&"
+            "dag_id=test_send_task_late_finish_email_dag&"
+            "execution_date=2016-01-01T00%3A00%3A00%2B00%3A00\n\n"
 
             "This may be impacting the following downstream tasks:\n"
             "<pre><code>"
@@ -219,4 +224,4 @@ class SlaEmailTest(unittest.TestCase):
             "{art}"
             "</pre></code>".format(art=asciiart.snail)
         )
-        self.assertTextMatch(email_body, desired_body)
+        self.assert_text_match(email_body, desired_body)

@@ -156,20 +156,20 @@ class TestCore(unittest.TestCase):
             str(ctx.exception))
 
     def test_sla_deprecated_arg_warning(self):
-        with warnings.catch_warnings(record=True) as w:
+        with warnings.catch_warnings(record=True) as warning:
             DummyOperator(
                 task_id="test_sla_deprecated_arg_warning",
                 sla=timedelta(hours=1)
             )
 
         self.assertTrue(
-            issubclass(w[0].category, PendingDeprecationWarning))
+            issubclass(warning[0].category, PendingDeprecationWarning))
         self.assertIn(
             "sla is deprecated as a task parameter",
-            w[0].message.args[0])
+            warning[0].message.args[0])
 
     def test_sla_redundant_arg_warning(self):
-        with warnings.catch_warnings(record=True) as w:
+        with warnings.catch_warnings(record=True) as warning:
             expected_finish = timedelta(hours=2)
             op = DummyOperator(
                 task_id="test_sla_redundant_arg_warning",
@@ -177,12 +177,12 @@ class TestCore(unittest.TestCase):
                 expected_finish=expected_finish
             )
 
-        self.assertEquals(op.expected_finish, expected_finish)
+        self.assertEqual(op.expected_finish, expected_finish)
         self.assertTrue(
-            issubclass(w[0].category, PendingDeprecationWarning))
+            issubclass(warning[0].category, PendingDeprecationWarning))
         self.assertIn(
             "Both sla and expected_finish provided as task parameters",
-            w[0].message.args[0])
+            warning[0].message.args[0])
 
     def test_sla_invalid_arg_exception(self):
         msg = (
@@ -192,7 +192,7 @@ class TestCore(unittest.TestCase):
             "expected_finish must be a timedelta, got: 10"
         )
 
-        with self.assertRaisesRegexp(AirflowException, msg):
+        with self.assertRaisesRegex(AirflowException, msg):
             DummyOperator(
                 task_id="test_sla_redundant_arg_warning",
                 expected_duration=10,

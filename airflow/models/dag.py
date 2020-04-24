@@ -36,9 +36,7 @@ import jinja2
 import pendulum
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
-from sqlalchemy import (
-    Boolean, Column, ForeignKey, Index, Integer, String, Text,
-    and_, asc, func, not_, or_)
+from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, and_, asc, func, not_, or_
 from sqlalchemy.orm import backref, joinedload, relationship
 from sqlalchemy.orm.session import Session
 
@@ -61,9 +59,7 @@ from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.utils.sla import (
-    yield_unscheduled_runs, yield_unscheduled_tis,
-    create_sla_misses)
+from airflow.utils.sla import create_sla_misses, yield_unscheduled_runs, yield_unscheduled_tis
 from airflow.utils.sqlalchemy import Interval, UtcDateTime
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
