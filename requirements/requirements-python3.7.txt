@@ -11,6 +11,7 @@ Flask-OpenID==1.2.5
 Flask-SQLAlchemy==2.4.1
 Flask-WTF==0.14.3
 Flask==1.1.2
+GitPython==3.1.1
 HeapDict==1.0.1
 JPype1==0.7.3
 JayDeBeApi==1.1.1
@@ -68,9 +69,10 @@ beautifulsoup4==4.7.1
 billiard==3.6.3.0
 black==19.10b0
 blinker==1.4
-boto3==1.12.44
+boto3==1.12.46
 boto==2.49.0
-botocore==1.15.44
+botocore==1.15.46
+bowler==0.8.0
 cached-property==1.5.1
 cachetools==4.1.0
 cassandra-driver==3.20.2
@@ -89,16 +91,16 @@ colorama==0.4.3
 colorlog==4.0.2
 coverage==5.1
 croniter==0.3.31
-cryptography==2.9.1
+cryptography==2.9.2
 curlify==2.2.1
 cx-Oracle==7.3.0
-dask==2.14.0
+dask==2.15.0
 datadog==0.35.0
 decorator==4.4.2
 defusedxml==0.6.0
 dill==0.3.1.1
 distlib==0.3.0
-distributed==2.14.0
+distributed==2.15.0
 dnspython==1.16.0
 docker-pycreds==0.4.0
 docker==3.7.3
@@ -113,6 +115,7 @@ execnet==1.7.1
 facebook-business==6.0.3
 fastavro==0.23.2
 filelock==3.0.12
+fissix==19.2b1
 flake8-colors==0.1.6
 flake8==3.7.9
 flaky==3.6.1
@@ -124,6 +127,7 @@ funcsigs==1.0.2
 future-fstrings==1.2.0
 future==0.18.2
 gcsfs==0.6.1
+gitdb==4.0.4
 google-ads==5.0.4
 google-api-core==1.17.0
 google-api-python-client==1.8.2
@@ -166,7 +170,7 @@ hmsclient==0.1.1
 httplib2==0.17.3
 humanize==0.5.1
 hvac==0.10.1
-identify==1.4.14
+identify==1.4.15
 idna==2.9
 ijson==2.6.1
 imagesize==1.2.0
@@ -224,7 +228,7 @@ oscrypto==1.2.0
 packaging==20.3
 pandas-gbq==0.13.1
 pandas==1.0.3
-papermill==2.1.0
+papermill==2.1.1
 parameterized==0.7.4
 paramiko==2.7.1
 parso==0.7.0
@@ -252,7 +256,7 @@ pycodestyle==2.5.0
 pycountry==19.8.18
 pycparser==2.20
 pycryptodomex==3.9.7
-pydata-google-auth==1.0.0
+pydata-google-auth==1.1.0
 pydruid==0.5.8
 pyexasol==0.12.0
 pyflakes==2.1.1
@@ -301,9 +305,11 @@ sendgrid==6.2.2
 sentinels==1.0.0
 sentry-sdk==0.14.3
 setproctitle==1.1.10
+sh==1.12.14
 simple-salesforce==1.0.0
 six==1.14.0
 slackclient==1.3.2
+smmap==3.0.2
 snowballstemmer==2.0.0
 snowflake-connector-python==2.2.4
 snowflake-sqlalchemy==1.2.3

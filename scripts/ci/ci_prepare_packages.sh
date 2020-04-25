@@ -19,100 +19,11 @@ export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
-LIST_OF_DIRS_FILE=$(mktemp)
 
-cd "${MY_DIR}/../../airflow/providers" || exit 1
+get_ci_environment
 
-find . -type d | sed 's/.\///; s/\//\./g' | grep -E 'hooks|operators|sensors|secrets' \
-    > "${LIST_OF_DIRS_FILE}"
+prepare_ci_build
 
-cd "${MY_DIR}/../../backport_packages" || exit 1
+rebuild_ci_image_if_needed
 
-rm -rf dist/*
-rm -rf -- *.egg-info
-
-if [[ -z "$*" ]]; then
-    BACKPORT_PACKAGES=$(python3 setup_backport_packages.py list-backport-packages)
-    BUILD_AIRFLOW_PACKAGE="true"
-
-    PACKAGE_ERROR="false"
-    # Check if all providers are included
-    for PACKAGE in ${BACKPORT_PACKAGES}
-    do
-        if ! grep -E "^${PACKAGE}" <"${LIST_OF_DIRS_FILE}" >/dev/null; then
-            echo "The package ${PACKAGE} is not available in providers dir"
-            PACKAGE_ERROR="true"
-        fi
-        sed -i "/^${PACKAGE}.*/d" "${LIST_OF_DIRS_FILE}"
-    done
-
-    if [[ ${PACKAGE_ERROR} == "true" ]]; then
-        echo
-        echo "ERROR! Some packages from backport_packages/setup_backport_packages.py are missing in providers dir"
-        exit 1
-    fi
-
-    NUM_LINES=$(wc -l "${LIST_OF_DIRS_FILE}" | awk '{ print $1 }')
-    if [[ ${NUM_LINES} != "0" ]]; then
-        echo "ERROR! Some folders from providers package are not defined"
-        echo "       Please add them to backport_packages/setup_backport_packages.py:"
-        echo
-        cat "${LIST_OF_DIRS_FILE}"
-        echo
-        exit 1
-    fi
-else
-    if [[ "$1" == "--help" ]]; then
-        echo
-        echo "Builds all backport packages."
-        echo
-        echo "You can provide list of packages to build out of:"
-        echo
-        python3 setup_backport_packages.py list-backport-packages | tr '\n ' ' ' | fold -w 100 -s
-        echo
-        echo
-        exit
-    fi
-    BACKPORT_PACKAGES="$*"
-    BUILD_AIRFLOW_PACKAGE="false"
-fi
-
-echo "==================================================================================="
-echo " Copying sources and doing refactor for backporting"
-echo "==================================================================================="
-python3 setup_backport_packages.py prepare
-
-for BACKPORT_PACKAGE in ${BACKPORT_PACKAGES}
-do
-    echo "==================================================================================="
-    echo " Preparing backporting package ${BACKPORT_PACKAGE}"
-    echo "-----------------------------------------------------------------------------------"
-    python3 setup_backport_packages.py "${BACKPORT_PACKAGE}" clean --all >/dev/null 2>&1
-    python3 setup_backport_packages.py "${BACKPORT_PACKAGE}" sdist bdist_wheel >/dev/null 2>&1
-    echo " Prepared backporting package ${BACKPORT_PACKAGE}"
-done
-
-cd "${MY_DIR}/../../" || exit 1
-
-if [[ ${BUILD_AIRFLOW_PACKAGE} == "true" ]]; then
-    echo "==================================================================================="
-    echo " Preparing apache-airflow package"
-    echo "==================================================================================="
-    python3 setup.py clean --all
-    python3 setup.py sdist bdist_wheel >/dev/null
-fi
-echo "==================================================================================="
-
-AIRFLOW_PACKAGES_TGZ_FILE="/tmp/airflow-packages-$(date +"%Y%m%d-%H%M%S").tar.gz"
-
-tar -cvzf "${AIRFLOW_PACKAGES_TGZ_FILE}" dist/*.whl dist/*.tar.gz
-echo
-echo "Airflow packages are in dist folder and tar-gzipped in ${AIRFLOW_PACKAGES_TGZ_FILE}"
-echo
-if [[ "${CI:=false}" == "true" ]]; then
-    echo
-    echo "Sending all airflow packages to file.io"
-    echo
-    curl -F "file=@${AIRFLOW_PACKAGES_TGZ_FILE}" https://file.io
-    echo
-fi
+run_prepare_packages "$@"

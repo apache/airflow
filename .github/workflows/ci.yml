@@ -131,20 +131,24 @@ jobs:
         run: ./scripts/ci/ci_build_production_images.sh
 
   prepare-backport-packages:
-    timeout-minutes: 20
+    timeout-minutes: 60
     name: "Backport packages"
     runs-on: ubuntu-latest
     env:
       INSTALL_AIRFLOW_VERSION: "1.10.10"
       CI_JOB_TYPE: "Prepare & test packages"
+      PYTHON_MAJOR_MINOR_VERSION: 3.6
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
         with:
           python-version: '3.x'
+      - name: "Free space"
+        run: ./scripts/ci/ci_free_space_on_ci.sh
+      - name: "Build CI image ${{ matrix.python-version }}"
+        run: ./scripts/ci/ci_prepare_image_on_ci.sh
       - name: "Prepare & test backport packages"
         run: |
-          python -m pip install bowler sdist wheel
           ./scripts/ci/ci_prepare_and_test_backport_packages.sh
 
   pyfiles:
