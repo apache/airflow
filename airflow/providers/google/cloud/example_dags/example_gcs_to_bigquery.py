@@ -29,7 +29,7 @@ args = {
 }
 
 dag = models.DAG(
-    dag_id='example_gcs_to_bq_operator', default_args=args,
+    dag_id='example_gcs_to_bigquery_operator', default_args=args,
     schedule_interval=None, tags=['example'])
 
 create_test_dataset = BashOperator(
@@ -39,7 +39,7 @@ create_test_dataset = BashOperator(
 
 # [START howto_operator_gcs_to_bq]
 load_csv = GCSToBigQueryOperator(
-    task_id='gcs_to_bq_example',
+    task_id='gcs_to_bigquery_example',
     bucket='cloud-samples-data',
     source_objects=['bigquery/us-states/us-states.csv'],
     destination_project_dataset_table='airflow_test.gcs_to_bq_table',
