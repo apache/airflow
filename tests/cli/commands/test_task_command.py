@@ -22,6 +22,7 @@ from contextlib import redirect_stdout
 from datetime import datetime, timedelta
 from unittest import mock
 
+import pytest
 from parameterized import parameterized
 from tabulate import tabulate
 
@@ -197,7 +198,7 @@ class TestCliTasks(unittest.TestCase):
                              'state',
                              'start_date',
                              'end_date'],
-                            tablefmt="fancy_grid")
+                            tablefmt="plain")
 
         # Check that prints, and log messages, are shown
         self.assertEqual(expected.replace("\n", ""), actual_out.replace("\n", ""))
@@ -219,6 +220,7 @@ class TestCliTasks(unittest.TestCase):
             '--exclude-parentdag'])
         task_command.task_clear(args)
 
+    @pytest.mark.quarantined
     def test_local_run(self):
         args = self.parser.parse_args([
             'tasks',
@@ -253,6 +255,7 @@ class TestCliTaskBackfill(unittest.TestCase):
 
         self.parser = cli_parser.get_parser()
 
+    @pytest.mark.quarantined
     def test_run_ignores_all_dependencies(self):
         """
         Test that run respects ignore_all_dependencies

@@ -264,7 +264,7 @@ function send_docker_logs_to_file_io() {
     echo "   DUMPING LOG FILES FROM CONTAINERS AND SENDING THEM TO file.io"
     echo
     echo "##############################################################################"
-    DUMP_FILE=/tmp/$(date "+%Y-%m-%d")_docker_${TRAVIS_BUILD_ID:="default"}_${TRAVIS_JOB_ID:="default"}.log.gz
+    DUMP_FILE=/tmp/$(date "+%Y-%m-%d")_docker_${CI_BUILD_ID:="default"}_${CI_JOB_ID:="default"}.log.gz
     dump_container_logs 2>&1 | gzip >"${DUMP_FILE}"
     echo
     echo "   Logs saved to ${DUMP_FILE}"
@@ -279,7 +279,7 @@ function send_airflow_logs_to_file_io() {
     echo "   DUMPING LOG FILES FROM AIRFLOW AND SENDING THEM TO file.io"
     echo
     echo "##############################################################################"
-    DUMP_FILE=/tmp/$(date "+%Y-%m-%d")_airflow_${TRAVIS_BUILD_ID:="default"}_${TRAVIS_JOB_ID:="default"}.log.tar.gz
+    DUMP_FILE=/tmp/$(date "+%Y-%m-%d")_airflow_${CI_BUILD_ID:="default"}_${CI_JOB_ID:="default"}.log.tar.gz
     dump_airflow_logs "${DUMP_FILE}"
     echo
     echo "   Logs saved to ${DUMP_FILE}"
@@ -305,7 +305,7 @@ function send_kubernetes_logs_to_file_io() {
     echo "   DUMPING LOG FILES FROM KIND AND SENDING THEM TO file.io"
     echo
     echo "##############################################################################"
-    DUMP_DIR_NAME=$(date "+%Y-%m-%d")_kind_${TRAVIS_BUILD_ID:="default"}_${TRAVIS_JOB_ID:="default"}
+    DUMP_DIR_NAME=$(date "+%Y-%m-%d")_kind_${CI_BUILD_ID:="default"}_${CI_JOB_ID:="default"}
     DUMP_DIR=/tmp/${DUMP_DIR_NAME}
     dump_kind_logs "${DUMP_DIR}"
     tar -cvzf "${DUMP_DIR}.tar.gz" -C /tmp "${DUMP_DIR_NAME}"

@@ -91,7 +91,3 @@ class TestRedisHook(unittest.TestCase):
         self.assertTrue(redis.set('test_key', 'test_value'), 'Connection to Redis with SET works.')
         self.assertEqual(redis.get('test_key'), b'test_value', 'Connection to Redis with GET works.')
         self.assertEqual(redis.delete('test_key'), 1, 'Connection to Redis with DELETE works.')
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -78,7 +78,3 @@ def lambda_handler(event, context):
         response = hook.invoke_lambda(payload=json.dumps(payload))
 
         self.assertEqual(response["StatusCode"], 202)
-
-
-if __name__ == '__main__':
-    unittest.main()

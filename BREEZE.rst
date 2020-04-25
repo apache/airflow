@@ -263,6 +263,8 @@ Set up local development environment:
 Note that the below environment interaction is by default with the CI image. If you want to use production
 image for those commands you need to add ``--production-image`` flag.
 
+Note that you also should not run both (CI and production) environments simultaneously, as they are using
+the same docker-compose configuration which for example contain the link to the database, port mapping, etc.
 
 Entering Breeze CI environment
 ------------------------------
@@ -334,7 +336,7 @@ Choosing a Breeze Environment
 
 You can use additional ``breeze`` flags to customize your environment. For example, you can specify a Python
 version to use, backend and a container environment for testing. With Breeze, you can recreate the same
-environments as we have in matrix builds in Travis CI.
+environments as we have in matrix builds in the CI.
 
 For example, you can choose to run Python 3.6 tests with MySQL as backend and in the Docker environment as
 follows:
@@ -1199,7 +1201,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           start all integrations. Selected integrations are not saved for future execution.
           One of:
 
-                 cassandra kerberos mongo openldap presto rabbitmq redis all
+                 cassandra kerberos mongo openldap presto rabbitmq redis
 
   ****************************************************************************************************
    Manage Kind kubernetes cluster (optional)

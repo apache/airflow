@@ -270,6 +270,8 @@ def check_if_pidfile_process_is_running(pid_file: str, process_name: str):
     if pid_lock_file.is_locked():
         # Read the pid
         pid = pid_lock_file.read_pid()
+        if pid is None:
+            return
         try:
             # Check if process is still running
             proc = psutil.Process(pid)

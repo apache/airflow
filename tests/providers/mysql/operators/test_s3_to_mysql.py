@@ -107,7 +107,3 @@ class TestS3ToMySqlTransfer(unittest.TestCase):
              .query(models.Connection)
              .filter(or_(models.Connection.conn_id == 's3_test', models.Connection.conn_id == 'mysql_test'))
              .delete())
-
-
-if __name__ == '__main__':
-    unittest.main()

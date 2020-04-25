@@ -110,7 +110,3 @@ class TestPagerdutyHook(unittest.TestCase):
                     "custom_details": '{"foo": "bar"}',
                 },
             })
-
-
-if __name__ == '__main__':
-    unittest.main()

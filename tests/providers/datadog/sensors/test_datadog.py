@@ -104,7 +104,3 @@ class TestDatadogSensor(unittest.TestCase):
             response_check=None)
 
         self.assertFalse(sensor.poke({}))
-
-
-if __name__ == '__main__':
-    unittest.main()

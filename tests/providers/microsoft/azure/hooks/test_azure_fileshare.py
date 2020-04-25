@@ -155,7 +155,3 @@ class TestAzureFileshareHook(unittest.TestCase):
         mock_instance.get_file_to_stream.assert_called_once_with(
             'share', 'directory', 'file', 'stream', max_connections=1
         )
-
-
-if __name__ == '__main__':
-    unittest.main()

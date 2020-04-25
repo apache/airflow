@@ -20,15 +20,13 @@ This module contains Google Dataflow operators.
 """
 
 import copy
-import os
 import re
-import tempfile
-import uuid
+from contextlib import ExitStack
 from enum import Enum
 from typing import List, Optional
 
 from airflow.models import BaseOperator
-from airflow.providers.google.cloud.hooks.dataflow import DataflowHook
+from airflow.providers.google.cloud.hooks.dataflow import DEFAULT_DATAFLOW_LOCATION, DataflowHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils.decorators import apply_defaults
 from airflow.version import version
@@ -97,8 +95,24 @@ class DataflowCreateJavaJobOperator(BaseOperator):
     :type job_name: str
     :param dataflow_default_options: Map of default job options.
     :type dataflow_default_options: dict
-    :param options: Map of job specific options.
+    :param options: Map of job specific options.The key must be a dictionary.
+        The value can contain different types:
+
+        * If the value is None, the single option - ``--key`` (without value) will be added.
+        * If the value is False, this option will be skipped
+        * If the value is True, the single option - ``--key`` (without value) will be added.
+        * If the value is list, the many options will be added for each key.
+          If the value is ``['A', 'B']`` and the key is ``key`` then the ``--key=A --key-B`` options
+          will be left
+        * Other value types will be replaced with the Python textual representation.
+
+        When defining labels (``labels`` option), you can also provide a dictionary.
     :type options: dict
+    :param project_id: Optional, the GCP project ID in which to start a job.
+        If set to None or missing, the default project_id from the GCP connection is used.
+    :type project_id: str
+    :param location: Job location.
+    :type location: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud
         Platform.
     :type gcp_conn_id: str
@@ -134,7 +148,6 @@ class DataflowCreateJavaJobOperator(BaseOperator):
 
        default_args = {
            'dataflow_default_options': {
-               'project': 'my-gcp-project',
                'zone': 'europe-west1-d',
                'stagingLocation': 'gs://my-staging-bucket/staging/'
            }
@@ -173,6 +186,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
             dataflow_default_options: Optional[dict] = None,
             options: Optional[dict] = None,
             project_id: Optional[str] = None,
+            location: str = DEFAULT_DATAFLOW_LOCATION,
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
             poll_sleep: int = 10,
@@ -188,6 +202,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         options.setdefault('labels', {}).update(
             {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')})
         self.project_id = project_id
+        self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.jar = jar
@@ -215,29 +230,37 @@ class DataflowCreateJavaJobOperator(BaseOperator):
                 name=self.job_name,
                 variables=dataflow_options,
                 project_id=self.project_id,
+                location=self.location
             )
             while is_running and self.check_if_running == CheckJobRunning.WaitForRun:
                 is_running = self.hook.is_job_dataflow_running(
-                    name=self.job_name, variables=dataflow_options, project_id=self.project_id)
+                    name=self.job_name, variables=dataflow_options, project_id=self.project_id,
+                    location=self.location
+                )
 
         if not is_running:
-            bucket_helper = GoogleCloudBucketHelper(
-                self.gcp_conn_id, self.delegate_to)
-            self.jar = bucket_helper.google_cloud_to_local(self.jar)
+            with ExitStack() as exit_stack:
+                if self.jar.lower().startswith('gs://'):
+                    gcs_hook = GCSHook(self.gcp_conn_id, self.delegate_to)
+                    tmp_gcs_file = exit_stack.enter_context(  # pylint: disable=no-member
+                        gcs_hook.provide_file(object_url=self.jar)
+                    )
+                    self.jar = tmp_gcs_file.name
 
-            def set_current_job_id(job_id):
-                self.job_id = job_id
+                def set_current_job_id(job_id):
+                    self.job_id = job_id
 
-            self.hook.start_java_dataflow(
-                job_name=self.job_name,
-                variables=dataflow_options,
-                jar=self.jar,
-                job_class=self.job_class,
-                append_job_name=True,
-                multiple_jobs=self.multiple_jobs,
-                on_new_job_id_callback=set_current_job_id,
-                project_id=self.project_id,
-            )
+                self.hook.start_java_dataflow(
+                    job_name=self.job_name,
+                    variables=dataflow_options,
+                    jar=self.jar,
+                    job_class=self.job_class,
+                    append_job_name=True,
+                    multiple_jobs=self.multiple_jobs,
+                    on_new_job_id_callback=set_current_job_id,
+                    project_id=self.project_id,
+                    location=self.location
+                )
 
     def on_kill(self) -> None:
         self.log.info("On kill.")
@@ -258,6 +281,11 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
     :type dataflow_default_options: dict
     :param parameters: Map of job specific parameters for the template.
     :type parameters: dict
+    :param project_id: Optional, the GCP project ID in which to start a job.
+        If set to None or missing, the default project_id from the GCP connection is used.
+    :type project_id: str
+    :param location: Job location.
+    :type location: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud
         Platform.
     :type gcp_conn_id: str
@@ -281,8 +309,6 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
 
        default_args = {
            'dataflow_default_options': {
-               'project': 'my-gcp-project',
-               'region': 'europe-west1',
                'zone': 'europe-west1-d',
                'tempLocation': 'gs://my-staging-bucket/staging/',
                }
@@ -329,6 +355,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             dataflow_default_options: Optional[dict] = None,
             parameters: Optional[dict] = None,
             project_id: Optional[str] = None,
+            location: str = DEFAULT_DATAFLOW_LOCATION,
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
             poll_sleep: int = 10,
@@ -344,6 +371,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         self.dataflow_default_options = dataflow_default_options
         self.parameters = parameters
         self.project_id = project_id
+        self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.poll_sleep = poll_sleep
@@ -367,6 +395,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             dataflow_template=self.template,
             on_new_job_id_callback=set_current_job_id,
             project_id=self.project_id,
+            location=self.location
         )
 
         return job
@@ -400,7 +429,18 @@ class DataflowCreatePythonJobOperator(BaseOperator):
     :type py_options: list[str]
     :param dataflow_default_options: Map of default job options.
     :type dataflow_default_options: dict
-    :param options: Map of job specific options.
+    :param options: Map of job specific options.The key must be a dictionary.
+        The value can contain different types:
+
+        * If the value is None, the single option - ``--key`` (without value) will be added.
+        * If the value is False, this option will be skipped
+        * If the value is True, the single option - ``--key`` (without value) will be added.
+        * If the value is list, the many options will be added for each key.
+          If the value is ``['A', 'B']`` and the key is ``key`` then the ``--key=A --key-B`` options
+          will be left
+        * Other value types will be replaced with the Python textual representation.
+
+        When defining labels (``labels`` option), you can also provide a dictionary.
     :type options: dict
     :param py_interpreter: Python version of the beam pipeline.
         If None, this defaults to the python3.
@@ -418,9 +458,13 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         See virtualenv documentation for more information.
 
         This option is only relevant if the ``py_requirements`` parameter is passed.
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud
-        Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param project_id: Optional, the GCP project ID in which to start a job.
+        If set to None or missing, the default project_id from the GCP connection is used.
+    :type project_id: str
+    :param location: Job location.
+    :type location: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide  delegation enabled.
@@ -444,6 +488,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
             py_requirements: Optional[List[str]] = None,
             py_system_site_packages: bool = False,
             project_id: Optional[str] = None,
+            location: str = DEFAULT_DATAFLOW_LOCATION,
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
             poll_sleep: int = 10,
@@ -463,6 +508,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         self.py_requirements = py_requirements or []
         self.py_system_site_packages = py_system_site_packages
         self.project_id = project_id
+        self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.poll_sleep = poll_sleep
@@ -471,85 +517,43 @@ class DataflowCreatePythonJobOperator(BaseOperator):
 
     def execute(self, context):
         """Execute the python dataflow job."""
-        bucket_helper = GoogleCloudBucketHelper(
-            self.gcp_conn_id, self.delegate_to)
-        self.py_file = bucket_helper.google_cloud_to_local(self.py_file)
-        self.hook = DataflowHook(
-            gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
-            poll_sleep=self.poll_sleep
-        )
-        dataflow_options = self.dataflow_default_options.copy()
-        dataflow_options.update(self.options)
-        # Convert argument names from lowerCamelCase to snake case.
-        camel_to_snake = lambda name: re.sub(
-            r'[A-Z]', lambda x: '_' + x.group(0).lower(), name)
-        formatted_options = {camel_to_snake(key): dataflow_options[key]
-                             for key in dataflow_options}
+        with ExitStack() as exit_stack:
+            if self.py_file.lower().startswith('gs://'):
+                gcs_hook = GCSHook(self.gcp_conn_id, self.delegate_to)
+                tmp_gcs_file = exit_stack.enter_context(  # pylint: disable=no-member
+                    gcs_hook.provide_file(object_url=self.py_file)
+                )
+                self.py_file = tmp_gcs_file.name
 
-        def set_current_job_id(job_id):
-            self.job_id = job_id
+            self.hook = DataflowHook(
+                gcp_conn_id=self.gcp_conn_id,
+                delegate_to=self.delegate_to,
+                poll_sleep=self.poll_sleep
+            )
+            dataflow_options = self.dataflow_default_options.copy()
+            dataflow_options.update(self.options)
+            # Convert argument names from lowerCamelCase to snake case.
+            camel_to_snake = lambda name: re.sub(r'[A-Z]', lambda x: '_' + x.group(0).lower(), name)
+            formatted_options = {camel_to_snake(key): dataflow_options[key]
+                                 for key in dataflow_options}
 
-        self.hook.start_python_dataflow(
-            job_name=self.job_name,
-            variables=formatted_options,
-            dataflow=self.py_file,
-            py_options=self.py_options,
-            py_interpreter=self.py_interpreter,
-            py_requirements=self.py_requirements,
-            py_system_site_packages=self.py_system_site_packages,
-            on_new_job_id_callback=set_current_job_id,
-            project_id=self.project_id,
-        )
+            def set_current_job_id(job_id):
+                self.job_id = job_id
+
+            self.hook.start_python_dataflow(
+                job_name=self.job_name,
+                variables=formatted_options,
+                dataflow=self.py_file,
+                py_options=self.py_options,
+                py_interpreter=self.py_interpreter,
+                py_requirements=self.py_requirements,
+                py_system_site_packages=self.py_system_site_packages,
+                on_new_job_id_callback=set_current_job_id,
+                project_id=self.project_id,
+                location=self.location,
+            )
 
     def on_kill(self) -> None:
         self.log.info("On kill.")
         if self.job_id:
             self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id)
-
-
-class GoogleCloudBucketHelper:
-    """GoogleCloudStorageHook helper class to download GCS object."""
-    GCS_PREFIX_LENGTH = 5
-
-    def __init__(self,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 delegate_to: Optional[str] = None) -> None:
-        self._gcs_hook = GCSHook(gcp_conn_id, delegate_to)
-
-    def google_cloud_to_local(self, file_name: str) -> str:
-        """
-        Checks whether the file specified by file_name is stored in Google Cloud
-        Storage (GCS), if so, downloads the file and saves it locally. The full
-        path of the saved file will be returned. Otherwise the local file_name
-        will be returned immediately.
-
-        :param file_name: The full path of input file.
-        :type file_name: str
-        :return: The full path of local file.
-        :rtype: str
-        """
-        if not file_name.startswith('gs://'):
-            return file_name
-
-        # Extracts bucket_id and object_id by first removing 'gs://' prefix and
-        # then split the remaining by path delimiter '/'.
-        path_components = file_name[self.GCS_PREFIX_LENGTH:].split('/')
-        if len(path_components) < 2:
-            raise Exception(
-                'Invalid Google Cloud Storage (GCS) object path: {}'
-                .format(file_name))
-
-        bucket_id = path_components[0]
-        object_id = '/'.join(path_components[1:])
-        local_file = os.path.join(
-            tempfile.gettempdir(),
-            'dataflow{}-{}'.format(str(uuid.uuid4())[:8], path_components[-1])
-        )
-        self._gcs_hook.download(bucket_id, object_id, local_file)
-
-        if os.stat(local_file).st_size > 0:
-            return local_file
-        raise Exception(
-            'Failed to download Google Cloud Storage (GCS) object: {}'
-            .format(file_name))

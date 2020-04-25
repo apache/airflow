@@ -41,14 +41,13 @@ class SnowflakeHook(DbApiHook):
         self.region = kwargs.pop("region", None)
         self.role = kwargs.pop("role", None)
         self.schema = kwargs.pop("schema", None)
-        self.snowflake_conn_id = 'snowflake_conn_id'
 
     def _get_conn_params(self):
         """
         one method to fetch connection params as a dict
         used in get_uri() and get_connection()
         """
-        conn = self.get_connection(self.snowflake_conn_id)
+        conn = self.get_connection(self.snowflake_conn_id)  # pylint: disable=no-member
         account = conn.extra_dejson.get('account', '')
         warehouse = conn.extra_dejson.get('warehouse', '')
         database = conn.extra_dejson.get('database', '')
@@ -119,8 +118,8 @@ class SnowflakeHook(DbApiHook):
 
         intended to be used by external import and export statements
         """
-        if self.snowflake_conn_id:
-            connection_object = self.get_connection(self.snowflake_conn_id)
+        if self.snowflake_conn_id:  # pylint: disable=no-member
+            connection_object = self.get_connection(self.snowflake_conn_id)  # pylint: disable=no-member
             if 'aws_secret_access_key' in connection_object.extra_dejson:
                 aws_access_key_id = connection_object.extra_dejson.get(
                     'aws_access_key_id')

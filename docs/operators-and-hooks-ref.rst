@@ -577,7 +577,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `BigQuery <https://cloud.google.com/bigquery/>`__
-     -
+     - :doc:`How to use <howto/operator/gcp/bigquery>`
      - :mod:`airflow.providers.google.cloud.hooks.bigquery`
      - :mod:`airflow.providers.google.cloud.operators.bigquery`
      - :mod:`airflow.providers.google.cloud.sensors.bigquery`
@@ -658,6 +658,11 @@ These integrations allow you to perform various operations within the Google Clo
      -
      - :mod:`airflow.providers.google.cloud.hooks.kms`
      -
+     -
+   * - `Cloud Life Sciences <https://cloud.google.com/life-sciences/>`__
+     - :doc:`How to use <howto/operator/gcp/life_sciences>`
+     - :mod:`airflow.providers.google.cloud.hooks.life_sciences`
+     - :mod:`airflow.providers.google.cloud.operators.life_sciences`
      -
 
    * - `Kubernetes Engine <https://cloud.google.com/kubernetes_engine/>`__
@@ -793,6 +798,11 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
      - :mod:`airflow.providers.google.cloud.operators.adls_to_gcs`
+
+   * - `Facebook Ads <http://business.facebook.com>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.providers.google.facebook_ads_to_gcs.operators.ads`
 
    * - `Google BigQuery <https://cloud.google.com/bigquery/>`__
      - `MySQL <https://www.mysql.com/>`__
@@ -949,7 +959,7 @@ These integrations allow you to perform various operations within the Yandex.Clo
 
    * - `Base Classes <https://cloud.yandex.com>`__
      - :doc:`How to use <howto/operator/yandexcloud>`
-     - :mod:`airflow.providers.yandex.hooks.yandexcloud_base_hook`
+     - :mod:`airflow.providers.yandex.hooks.yandex`
      - :mod:`airflow.providers.yandex.operators.yandexcloud_base_operator`
      -
 
@@ -1012,6 +1022,12 @@ These integrations allow you to perform various operations within various servic
      -
      - :mod:`airflow.providers.discord.hooks.discord_webhook`
      - :mod:`airflow.providers.discord.operators.discord_webhook`
+     -
+
+   * - `Facebook Ads <http://business.facebook.com>`__
+     -
+     - :mod:`airflow.providers.facebook.ads.hooks.ads`
+     -
      -
 
    * - `Google Ads <https://ads.google.com/home/>`__

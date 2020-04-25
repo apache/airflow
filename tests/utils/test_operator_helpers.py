@@ -82,7 +82,3 @@ class TestOperatorHelpers(unittest.TestCase):
                 'AIRFLOW_CTX_DAG_EMAIL': 'email1@test.com'
             }
         )
-
-
-if __name__ == '__main__':
-    unittest.main()

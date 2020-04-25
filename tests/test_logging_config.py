@@ -258,7 +258,3 @@ class TestLoggingSettings(unittest.TestCase):
 
         logger = logging.getLogger('airflow.task')
         self.assertIsInstance(logger.handlers[0], WasbTaskHandler)
-
-
-if __name__ == '__main__':
-    unittest.main()

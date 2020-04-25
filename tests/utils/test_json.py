@@ -64,7 +64,3 @@ class TestAirflowJsonEncoder(unittest.TestCase):
                                json.dumps,
                                Exception,
                                cls=utils_json.AirflowJsonEncoder)
-
-
-if __name__ == '__main__':
-    unittest.main()

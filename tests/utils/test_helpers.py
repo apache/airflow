@@ -150,7 +150,3 @@ class TestHelpers(unittest.TestCase):
         dict2 = {'a': 1, 'r': {'c': 3, 'b': 0}}
         merged = merge_dicts(dict1, dict2)
         self.assertDictEqual(merged, {'a': 1, 'r': {'b': 0, 'c': 3}})
-
-
-if __name__ == '__main__':
-    unittest.main()

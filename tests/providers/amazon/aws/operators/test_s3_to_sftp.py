@@ -145,7 +145,3 @@ class TestS3ToSFTPOperator(unittest.TestCase):
 
     def tearDown(self):
         self.delete_remote_resource()
-
-
-if __name__ == '__main__':
-    unittest.main()

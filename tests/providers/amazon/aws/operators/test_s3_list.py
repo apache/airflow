@@ -43,7 +43,3 @@ class TestS3ListOperator(unittest.TestCase):
         mock_hook.return_value.list_keys.assert_called_once_with(
             bucket_name=BUCKET, prefix=PREFIX, delimiter=DELIMITER)
         self.assertEqual(sorted(files), sorted(MOCK_FILES))
-
-
-if __name__ == '__main__':
-    unittest.main()

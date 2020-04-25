@@ -234,7 +234,3 @@ class TestEmrStepSensor(unittest.TestCase):
 
         with patch('boto3.session.Session', self.boto3_session_mock):
             self.assertRaises(AirflowException, self.sensor.execute, None)
-
-
-if __name__ == '__main__':
-    unittest.main()

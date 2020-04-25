@@ -95,7 +95,3 @@ class TestSageMakerEndpointSensor(unittest.TestCase):
             mock.call(aws_conn_id='aws_test')
         ]
         hook_init.assert_has_calls(calls)
-
-
-if __name__ == '__main__':
-    unittest.main()

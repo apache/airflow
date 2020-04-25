@@ -143,7 +143,3 @@ class TestAWSAthenaOperator(unittest.TestCase):
         self.assertEqual(ti.xcom_pull(task_ids='test_aws_athena_operator'),
                          ATHENA_QUERY_ID)
 # pylint: enable=unused-argument
-
-
-if __name__ == '__main__':
-    unittest.main()

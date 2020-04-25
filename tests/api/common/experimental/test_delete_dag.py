@@ -132,7 +132,3 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
         self.check_dag_models_exists()
         delete_dag(dag_id=self.key, keep_records_in_log=False)
         self.check_dag_models_removed(expect_logs=0)
-
-
-if __name__ == '__main__':
-    unittest.main()

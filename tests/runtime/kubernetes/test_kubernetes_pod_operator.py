@@ -821,5 +821,3 @@ class TestKubernetesPodOperator(unittest.TestCase):
 
 
 # pylint: enable=unused-argument
-if __name__ == '__main__':
-    unittest.main()

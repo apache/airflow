@@ -130,7 +130,3 @@ class TestSparkJDBCHook(unittest.TestCase):
 
         # Expect Exception
         hook._build_jdbc_application_arguments(hook._resolve_jdbc_connection())
-
-
-if __name__ == '__main__':
-    unittest.main()

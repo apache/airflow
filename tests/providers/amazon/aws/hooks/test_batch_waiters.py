@@ -459,7 +459,3 @@ class TestAwsBatchWaiters(unittest.TestCase):
             self.assertEqual(get_waiter.call_args_list, [mock.call("JobExists")])
             mock_waiter.wait.assert_called_with(jobs=[self.job_id])
             self.assertEqual(mock_waiter.wait.call_count, 1)
-
-
-if __name__ == "__main__":
-    unittest.main()

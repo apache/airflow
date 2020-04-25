@@ -215,7 +215,3 @@ class TestSSHOperator(unittest.TestCase):
         except Exception:  # pylint: disable=broad-except
             pass
         self.assertEqual(task.get_pty, get_pty_out)
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -99,7 +99,3 @@ class TestCloudFormationDeleteStackOperator(unittest.TestCase):
             operator.execute(self.mock_context)
 
         self.cloudformation_client_mock.delete_stack.assert_any_call(StackName=stack_name)
-
-
-if __name__ == '__main__':
-    unittest.main()

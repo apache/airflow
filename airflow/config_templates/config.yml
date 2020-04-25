@@ -260,14 +260,6 @@
       type: string
       example: ~
       default: ""
-    - name: secure_mode
-      description: |
-        If set to False enables some unsecure features like Charts and Ad Hoc Queries.
-        In 2.0 will default to True.
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
     - name: unit_test_mode
       description: |
         Turn unit test mode on (overwrites many configuration options with test
@@ -1142,6 +1134,15 @@
       type: string
       example: ~
       default: "8793"
+    - name: worker_umask
+      description: |
+        Umask that will be used when starting workers with the ``airflow celery worker``
+        in daemon mode. This control the file-creation mode mask which determines the initial
+        value of file permission bits for newly created files.
+      version_added: ~
+      type: string
+      example: ~
+      default: "0o077"
     - name: broker_url
       description: |
         The Celery broker URL. Celery supports RabbitMQ, Redis and experimentally
@@ -1492,12 +1493,6 @@
       type: string
       example: ~
       default: "2"
-    - name: authenticate
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
     - name: use_job_schedule
       description: |
         Turn off scheduler use of cron intervals by setting this to False.
@@ -1752,13 +1747,14 @@
       type: string
       example: ~
       default: "True"
-    - name: delete_worker_pods_on_success
+    - name: delete_worker_pods_on_failure
       description: |
-        If True (default), worker pods will be deleted only on task success
+        If False (and delete_worker_pods is True),
+        failed worker pods will not be deleted so users can investigate them.
       version_added: ~
       type: string
       example: ~
-      default: "True"
+      default: "False"
     - name: worker_pods_creation_batch_size
       description: |
         Number of Kubernetes Worker Pod creation calls per scheduler loop.

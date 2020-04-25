@@ -123,7 +123,3 @@ class TestOracleToAzureDataLakeTransfer(unittest.TestCase):
         mock_oracle_hook.assert_called_once_with(oracle_conn_id=oracle_conn_id)
         mock_data_lake_hook.assert_called_once_with(
             azure_data_lake_conn_id=azure_data_lake_conn_id)
-
-
-if __name__ == '__main__':
-    unittest.main()

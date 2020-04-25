@@ -236,6 +236,18 @@ class DatabricksHook(BaseHook):
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
         return response['run_page_url']
 
+    def get_job_id(self, run_id: str) -> str:
+        """
+        Retrieves job_id from run_id.
+
+        :param run_id: id of the run
+        :type run_id: str
+        :return: Job id for given Databricks run
+        """
+        json = {'run_id': run_id}
+        response = self._do_api_call(GET_RUN_ENDPOINT, json)
+        return response['job_id']
+
     def get_run_state(self, run_id: str) -> RunState:
         """
         Retrieves run state of the run.

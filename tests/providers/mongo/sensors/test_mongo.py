@@ -58,7 +58,3 @@ class TestMongoSensor(unittest.TestCase):
 
     def test_poke(self):
         self.assertTrue(self.sensor.poke(None))
-
-
-if __name__ == '__main__':
-    unittest.main()

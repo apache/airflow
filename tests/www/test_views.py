@@ -532,6 +532,19 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('DAG details', resp)
 
+    @parameterized.expand(["graph", "tree", "dag_details"])
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_view_uses_existing_dagbag(self, endpoint, mock_get_dag):
+        """
+        Test that Graph, Tree & Dag Details View uses the DagBag already created in views.py
+        instead of creating a new one.
+        """
+        mock_get_dag.return_value = DAG(dag_id='example_bash_operator')
+        url = f'{endpoint}?dag_id=example_bash_operator'
+        resp = self.client.get(url, follow_redirects=True)
+        mock_get_dag.assert_called_once_with('example_bash_operator')
+        self.check_content_in_response('example_bash_operator', resp)
+
     def test_dag_details_trigger_origin_tree_view(self):
         dag = self.dagbag.dags['test_tree_view']
         dag.create_dagrun(
@@ -2148,6 +2161,7 @@ class TestRenderedView(TestBase):
         )
 
 
+@pytest.mark.quarantined
 class TestTriggerDag(TestBase):
 
     def setUp(self):
@@ -2212,6 +2226,18 @@ class TestTriggerDag(TestBase):
 
         self.assertEqual(resp.status_code, 200)
         self.check_content_in_response('Trigger DAG: {}'.format(test_dag_id), resp)
+
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_trigger_endpoint_uses_existing_dagbag(self, mock_get_dag):
+        """
+        Test that Trigger Endpoint uses the DagBag already created in views.py
+        instead of creating a new one.
+        """
+        mock_get_dag.return_value = DAG(dag_id='example_bash_operator')
+        url = 'trigger?dag_id=example_bash_operator'
+        resp = self.client.post(url, data={}, follow_redirects=True)
+        mock_get_dag.assert_called_once_with('example_bash_operator')
+        self.check_content_in_response('example_bash_operator', resp)
 
 
 class TestExtraLinks(TestBase):
@@ -2297,6 +2323,31 @@ class TestExtraLinks(TestBase):
             'url': 'https://github.com/apache/airflow',
             'error': None
         })
+
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_extra_link_in_gantt_view(self, get_dag_function):
+        get_dag_function.return_value = self.dag
+
+        exec_date = dates.days_ago(2)
+        start_date = datetime(2020, 4, 10, 2, 0, 0)
+        end_date = exec_date + timedelta(seconds=30)
+
+        with create_session() as session:
+            for task in self.dag.tasks:
+                ti = TaskInstance(task=task, execution_date=exec_date, state="success")
+                ti.start_date = start_date
+                ti.end_date = end_date
+                session.add(ti)
+
+        url = 'gantt?dag_id={}&execution_date={}'.format(self.dag.dag_id, exec_date)
+        resp = self.client.get(url, follow_redirects=True)
+
+        self.check_content_in_response('"extraLinks":', resp)
+
+        extra_links_grps = re.search(r'extraLinks\": \[(\".*?\")\]', resp.get_data(as_text=True))
+        extra_links = extra_links_grps.group(0)
+        self.assertIn('airflow', extra_links)
+        self.assertIn('github', extra_links)
 
     @mock.patch('airflow.www.views.dagbag.get_dag')
     def test_operator_extra_link_override_global_extra_link(self, get_dag_function):
@@ -2571,7 +2622,3 @@ class TestDecorators(TestBase):
         self.session.commit()
         self.check_last_log("example_bash_operator", event="clear",
                             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE)
-
-
-if __name__ == '__main__':
-    unittest.main()

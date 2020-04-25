@@ -119,6 +119,7 @@ class TestCreateEvaluateOps(unittest.TestCase):
                 py_system_site_packages=False,
                 on_new_job_id_callback=ANY,
                 project_id='test-project',
+                location='us-central1',
             )
 
         with patch('airflow.providers.google.cloud.utils.mlengine_operator_utils.GCSHook') as mock_gcs_hook:
@@ -173,7 +174,3 @@ class TestCreateEvaluateOps(unittest.TestCase):
             params = other_params_but_models.copy()
             params['validate_fn'] = None
             mlengine_operator_utils.create_evaluate_ops(model_uri='gs://blah', **params)
-
-
-if __name__ == '__main__':
-    unittest.main()

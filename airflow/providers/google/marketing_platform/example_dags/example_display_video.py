@@ -23,8 +23,8 @@ import os
 from airflow import models
 from airflow.providers.google.marketing_platform.operators.display_video import (
     GoogleDisplayVideo360CreateReportOperator, GoogleDisplayVideo360DeleteReportOperator,
-    GoogleDisplayVideo360DownloadReportOperator, GoogleDisplayVideo360RunReportOperator,
-    GoogleDisplayVideo360UploadLineItemsOperator,
+    GoogleDisplayVideo360DownloadLineItemsOperator, GoogleDisplayVideo360DownloadReportOperator,
+    GoogleDisplayVideo360RunReportOperator, GoogleDisplayVideo360UploadLineItemsOperator,
 )
 from airflow.providers.google.marketing_platform.sensors.display_video import (
     GoogleDisplayVideo360ReportSensor,
@@ -32,9 +32,10 @@ from airflow.providers.google.marketing_platform.sensors.display_video import (
 from airflow.utils import dates
 
 # [START howto_display_video_env_variables]
-
 BUCKET = os.environ.get("GMP_DISPLAY_VIDEO_BUCKET", "gs://test-display-video-bucket")
-OBJECT_NAME = os.environ.get("OBJECT_NAME", "file.csv")
+ADVERTISER_ID = os.environ.get("GMP_ADVERTISER_ID", 1234567)
+OBJECT_NAME = os.environ.get("GMP_OBJECT_NAME", "files/report.csv")
+
 REPORT = {
     "kind": "doubleclickbidmanager#query",
     "metadata": {
@@ -55,6 +56,13 @@ REPORT = {
 
 PARAMS = {"dataRange": "LAST_14_DAYS", "timezoneCode": "America/New_York"}
 # [END howto_display_video_env_variables]
+
+# download_line_items variables
+REQUEST_BODY = {
+    "filterType": ADVERTISER_ID,
+    "format": "CSV",
+    "fileSpec": "EWF"
+}
 
 default_args = {"start_date": dates.days_ago(1)}
 
@@ -95,7 +103,17 @@ with models.DAG(
     delete_report = GoogleDisplayVideo360DeleteReportOperator(
         report_id=report_id, task_id="delete_report"
     )
-    # # [END howto_google_display_video_deletequery_report_operator]
+    # [END howto_google_display_video_deletequery_report_operator]
+
+    # [START howto_google_display_video_download_line_items_operator]
+    download_line_items = GoogleDisplayVideo360DownloadLineItemsOperator(
+        task_id="download_line_items",
+        request_body=REQUEST_BODY,
+        bucket_name=BUCKET,
+        object_name=OBJECT_NAME,
+        gzip=False,
+    )
+    # [END howto_google_display_video_download_line_items_operator]
 
     # [START howto_google_display_video_upload_line_items_operator]
     upload_line_items = GoogleDisplayVideo360UploadLineItemsOperator(

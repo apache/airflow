@@ -127,3 +127,7 @@ class TestCliVariables(unittest.TestCase):
         os.remove('variables1.json')
         os.remove('variables2.json')
         os.remove('variables3.json')
+
+    def test_get_missing_variable(self):
+        with self.assertRaises(SystemExit):
+            variable_command.variables_get(self.parser.parse_args(['variables', 'get', 'no-existing-VAR']))

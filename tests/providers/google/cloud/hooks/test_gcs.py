@@ -19,6 +19,7 @@
 import copy
 import io
 import os
+import re
 import tempfile
 import unittest
 from datetime import datetime, timedelta
@@ -29,6 +30,7 @@ from google.cloud import exceptions, storage
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks import gcs
+from airflow.providers.google.cloud.hooks.gcs import _fallback_object_url_to_object_name_and_bucket_name
 from airflow.utils import timezone
 from airflow.version import version
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
@@ -53,6 +55,8 @@ class TestGCSHookHelperFunctions(unittest.TestCase):
         # invalid URI
         self.assertRaises(AirflowException, gcs._parse_gcs_url,
                           'gs:/bucket/path/to/blob')
+        self.assertRaises(AirflowException, gcs._parse_gcs_url,
+                          'http://google.com/aaa')
 
         # trailing slash
         self.assertEqual(
@@ -62,6 +66,54 @@ class TestGCSHookHelperFunctions(unittest.TestCase):
         # bucket only
         self.assertEqual(
             gcs._parse_gcs_url('gs://bucket/'), ('bucket', ''))
+
+
+class TestFallbackObjectUrlToObjectNameAndBucketName(unittest.TestCase):
+    def setUp(self) -> None:
+        self.assertion_on_body = mock.MagicMock()
+
+        @_fallback_object_url_to_object_name_and_bucket_name()
+        def test_method(
+            _,
+            bucket_name=None,
+            object_name=None,
+            object_url=None
+        ):
+            assert object_name == "OBJECT_NAME"
+            assert bucket_name == "BUCKET_NAME"
+            assert object_url is None
+            self.assertion_on_body()
+        self.test_method = test_method
+
+    def test_should_url(self):
+        self.test_method(None, object_url="gs://BUCKET_NAME/OBJECT_NAME")
+        self.assertion_on_body.assert_called_once()
+
+    def test_should_support_bucket_and_object(self):
+        self.test_method(None, bucket_name="BUCKET_NAME", object_name="OBJECT_NAME")
+        self.assertion_on_body.assert_called_once()
+
+    def test_should_raise_exception_on_missing(self):
+        with self.assertRaisesRegex(
+                TypeError,
+                re.escape(
+                    "test_method() missing 2 required positional arguments: 'bucket_name' and 'object_name'"
+                )):
+            self.test_method(None)
+        self.assertion_on_body.assert_not_called()
+
+    def test_should_raise_exception_on_mutually_exclusive(self):
+        with self.assertRaisesRegex(
+            AirflowException,
+            re.escape("The mutually exclusive parameters.")
+        ):
+            self.test_method(
+                None,
+                bucket_name="BUCKET_NAME",
+                object_name="OBJECT_NAME",
+                object_url="gs://BUCKET_NAME/OBJECT_NAME"
+            )
+        self.assertion_on_body.assert_not_called()
 
 
 class TestGCSHook(unittest.TestCase):
@@ -657,6 +709,37 @@ class TestGCSHook(unittest.TestCase):
 
         self.assertEqual(response, test_file)
         download_filename_method.assert_called_once_with(test_file)
+
+    @mock.patch(GCS_STRING.format('NamedTemporaryFile'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
+    def test_provide_file(self, mock_service, mock_temp_file):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+        test_object_bytes = io.BytesIO(b"input")
+        test_file = 'test_file'
+
+        download_filename_method = mock_service.return_value.bucket.return_value \
+            .blob.return_value.download_to_filename
+        download_filename_method.return_value = None
+
+        download_as_a_string_method = mock_service.return_value.bucket.return_value \
+            .blob.return_value.download_as_string
+        download_as_a_string_method.return_value = test_object_bytes
+        mock_temp_file.return_value.__enter__.return_value = mock.MagicMock()
+        mock_temp_file.return_value.__enter__.return_value.name = test_file
+
+        with self.gcs_hook.provide_file(
+                bucket_name=test_bucket,
+                object_name=test_object) as response:
+
+            self.assertEqual(test_file, response.name)
+        download_filename_method.assert_called_once_with(test_file)
+        mock_temp_file.assert_has_calls([
+            mock.call(suffix='test_object'),
+            mock.call().__enter__(),
+            mock.call().__enter__().flush(),
+            mock.call().__exit__(None, None, None)
+        ])
 
 
 class TestGCSHookUpload(unittest.TestCase):

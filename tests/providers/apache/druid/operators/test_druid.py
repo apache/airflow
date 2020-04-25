@@ -74,7 +74,3 @@ class TestDruidOperator(unittest.TestCase):
             }
         '''
         self.assertEqual(expected, getattr(operator, 'json_index_file'))
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -76,7 +76,3 @@ class TestAwsSnsHook(unittest.TestCase):
         response = hook.publish_to_target(target, message)
 
         assert 'MessageId' in response
-
-
-if __name__ == '__main__':
-    unittest.main()

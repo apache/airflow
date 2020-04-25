@@ -195,6 +195,7 @@ exclude_patterns: List[str] = [
     '_api/airflow/providers/index.rst',
     # Packages with subpackages
     "_api/airflow/providers/amazon/index.rst",
+    "_api/airflow/providers/facebook/index.rst",
     "_api/airflow/providers/microsoft/index.rst",
     "_api/airflow/providers/google/index.rst",
     "_api/airflow/providers/apache/index.rst",

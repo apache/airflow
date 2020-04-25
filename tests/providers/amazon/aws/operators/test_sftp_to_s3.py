@@ -122,7 +122,3 @@ class TestSFTPToS3Operator(unittest.TestCase):
         conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)
         conn.delete_bucket(Bucket=self.s3_bucket)
         self.assertFalse(self.s3_hook.check_for_bucket(self.s3_bucket))
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -165,7 +165,3 @@ class SingularityOperatorTestCase(unittest.TestCase):
         client_mock.instance.assert_called_once_with(
             "docker://busybox", options=expected_working_dir, args=None, start=False
         )
-
-
-if __name__ == "__main__":
-    unittest.main()

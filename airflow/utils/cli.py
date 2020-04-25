@@ -234,3 +234,41 @@ def sigquit_handler(sig, frame):  # pylint: disable=unused-argument
             if line:
                 code.append("  {}".format(line.strip()))
     print("\n".join(code))
+
+
+def is_terminal_support_colors() -> bool:
+    """"
+    Try to determine if the current terminal supports colors.
+    """
+    if sys.platform == 'win32':
+        return False
+    if not hasattr(sys.stdout, 'isatty'):
+        return False
+    if not sys.stdout.isatty():
+        return False
+    if 'COLORTERM' in os.environ:
+        return True
+    term = os.environ.get('TERM', 'dumb').lower()
+    if term in ('xterm', 'linux') or 'color' in term:
+        return True
+    return False
+
+
+class ColorMode:
+    """
+    Coloring modes. If `auto` is then automatically detected.
+    """
+    ON = "on"
+    OFF = "off"
+    AUTO = "auto"
+
+
+def should_use_colors(args) -> bool:
+    """
+    Processes arguments and decides whether to enable color in output
+    """
+    if args.color == ColorMode.ON:
+        return True
+    if args.color == ColorMode.OFF:
+        return False
+    return is_terminal_support_colors()

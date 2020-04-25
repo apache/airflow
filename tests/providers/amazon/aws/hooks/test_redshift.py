@@ -104,7 +104,3 @@ class TestRedshiftHook(unittest.TestCase):
         hook = RedshiftHook(aws_conn_id='aws_default')
         status = hook.cluster_status('test_cluster')
         self.assertEqual(status, 'available')
-
-
-if __name__ == '__main__':
-    unittest.main()

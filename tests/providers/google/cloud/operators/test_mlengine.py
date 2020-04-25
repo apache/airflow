@@ -833,7 +833,3 @@ class TestMLEngineDeleteVersion(unittest.TestCase):
                 gcp_conn_id=TEST_GCP_CONN_ID,
                 delegate_to=TEST_DELEGATE_TO,
             )
-
-
-if __name__ == '__main__':
-    unittest.main()

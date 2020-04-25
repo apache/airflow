@@ -77,7 +77,6 @@ from airflow.www.decorators import action_logging, gzipped, has_dag_access
 from airflow.www.forms import (
     ConnectionForm, DagRunForm, DateTimeForm, DateTimeWithNumRunsForm, DateTimeWithNumRunsWithDagRunsForm,
 )
-from airflow.www.utils import get_dag
 from airflow.www.widgets import AirflowModelListWidget
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
@@ -575,9 +574,7 @@ class Airflow(AirflowBaseView):
     @provide_session
     def dag_details(self, session=None):
         dag_id = request.args.get('dag_id')
-        dag_orm = DagModel.get_dagmodel(dag_id, session=session)
-        # FIXME: items needed for this view should move to the database
-        dag = get_dag(dag_orm, STORE_SERIALIZED_DAGS)
+        dag = dagbag.get_dag(dag_id)
         title = "DAG details"
         root = request.args.get('root', '')
 
@@ -603,8 +600,7 @@ class Airflow(AirflowBaseView):
     @has_dag_access(can_dag_read=True)
     @has_access
     @action_logging
-    @provide_session
-    def rendered(self, session=None):
+    def rendered(self):
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
         if dag is None:
@@ -782,8 +778,7 @@ class Airflow(AirflowBaseView):
     @has_dag_access(can_dag_read=True)
     @has_access
     @action_logging
-    @provide_session
-    def elasticsearch(self, session=None):
+    def elasticsearch(self):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
@@ -1061,7 +1056,7 @@ class Airflow(AirflowBaseView):
                     conf=conf
                 )
 
-        dag = get_dag(dag_orm, STORE_SERIALIZED_DAGS)
+        dag = dagbag.get_dag(dag_id)
         dag.create_dagrun(
             run_id=run_id,
             execution_date=execution_date,
@@ -1965,7 +1960,9 @@ class Airflow(AirflowBaseView):
             # https://issues.apache.org/jira/browse/AIRFLOW-2143
             try_count = ti.prev_attempted_tries
             gantt_bar_items.append((ti.task_id, ti.start_date, end_date, ti.state, try_count))
-            tasks.append(alchemy_to_dict(ti))
+            d = alchemy_to_dict(ti)
+            d['extraLinks'] = dag.get_task(ti.task_id).extra_links
+            tasks.append(d)
 
         tf_count = 0
         try_count = 1
@@ -1980,17 +1977,13 @@ class Airflow(AirflowBaseView):
             prev_task_id = tf.task_id
             gantt_bar_items.append((tf.task_id, start_date, end_date, State.FAILED, try_count))
             tf_count = tf_count + 1
+            task = dag.get_task(tf.task_id)
             d = alchemy_to_dict(tf)
             d['state'] = State.FAILED
-            d['operator'] = dag.get_task(tf.task_id).task_type
+            d['operator'] = task.task_type
             d['try_number'] = try_count
+            d['extraLinks'] = task.extra_links
             tasks.append(d)
-
-        task_types = {}
-        extra_links = {}
-        for t in dag.tasks:
-            task_types[t.task_id] = t.task_type
-            extra_links[t.task_id] = t.extra_links
 
         data = {
             'taskNames': [ti.task_id for ti in tis],
@@ -2074,8 +2067,7 @@ class Airflow(AirflowBaseView):
     @has_dag_access(can_dag_read=True)
     @has_access
     @action_logging
-    @provide_session
-    def task_instances(self, session=None):
+    def task_instances(self):
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
 

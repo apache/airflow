@@ -285,7 +285,3 @@ class TestS3ToHiveTransfer(unittest.TestCase):
                     expression=select_expression,
                     input_serialization=input_serialization
                 )
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -31,7 +31,6 @@ from pygments.formatters import HtmlFormatter
 
 from airflow.configuration import conf
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import DagBag, DagModel
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
@@ -425,19 +424,3 @@ FieldConverter.conversion_table = (
     (('is_utcdatetime', DateTimeField, AirflowDateTimePickerWidget),) +
     FieldConverter.conversion_table
 )
-
-
-def get_dag(orm_dag: DagModel, store_serialized_dags=False):
-    """Creates a dagbag to load and return a DAG.
-
-    Calling it from UI should set store_serialized_dags = STORE_SERIALIZED_DAGS.
-    There may be a delay for scheduler to write serialized DAG into database,
-    loads from file in this case.
-    FIXME: remove it when webserver does not access to DAG folder in future.
-    """
-    dag = DagBag(
-        dag_folder=orm_dag.fileloc, store_serialized_dags=store_serialized_dags).get_dag(orm_dag.dag_id)
-    if store_serialized_dags and dag is None:
-        dag = DagBag(
-            dag_folder=orm_dag.fileloc, store_serialized_dags=False).get_dag(orm_dag.dag_id)
-    return dag

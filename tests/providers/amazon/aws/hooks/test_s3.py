@@ -399,3 +399,15 @@ class TestAwsS3Hook:
         s3_hook.check_for_key.assert_called_once_with(key, bucket)
         s3_hook.get_key.assert_called_once_with(key, bucket)
         s3_obj.download_fileobj.assert_called_once_with(mock_temp_file)
+
+    def test_generate_presigned_url(self, s3_bucket):
+        hook = S3Hook()
+        presigned_url = hook.generate_presigned_url(client_method="get_object",
+                                                    params={'Bucket': s3_bucket,
+                                                            'Key': "my_key"})
+
+        url = presigned_url.split("?")[1]
+        params = {x[0]: x[1]
+                  for x in [x.split("=") for x in url[0:].split("&")]}
+
+        assert {"AWSAccessKeyId", "Signature", "Expires"}.issubset(set(params.keys()))

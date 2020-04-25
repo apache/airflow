@@ -24,6 +24,7 @@ import unittest
 from datetime import datetime, time, timedelta
 
 import mock
+import pytest
 import pytz
 
 from airflow import settings
@@ -237,6 +238,7 @@ class TestCliDags(unittest.TestCase):
             verbose=False,
         )
 
+    @pytest.mark.quarantined
     def test_next_execution(self):
         # A scaffolding function
         def reset_dr_db(dag_id):
@@ -319,7 +321,7 @@ class TestCliDags(unittest.TestCase):
         ('core', 'load_examples'): 'true'
     })
     def test_cli_list_dags(self):
-        args = self.parser.parse_args(['dags', 'list'])
+        args = self.parser.parse_args(['dags', 'list', '--output=fancy_grid'])
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_list_dags(args)
             out = temp_stdout.getvalue()
@@ -360,6 +362,7 @@ class TestCliDags(unittest.TestCase):
         dag_command.dag_unpause(args)
         self.assertIn(self.dagbag.dags['example_bash_operator'].get_is_paused(), [False, 0])
 
+    @pytest.mark.quarantined
     def test_trigger_dag(self):
         dag_command.dag_trigger(self.parser.parse_args([
             'dags', 'trigger', 'example_bash_operator',

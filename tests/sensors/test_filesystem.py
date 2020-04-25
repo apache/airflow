@@ -172,7 +172,3 @@ class TestFileSensor(unittest.TestCase):
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                      ignore_ti_state=True)
             shutil.rmtree(temp_dir)
-
-
-if __name__ == '__main__':
-    unittest.main()

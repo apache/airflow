@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,20 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 
-# shellcheck source=scripts/ci/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
+"""This module is deprecated. Please use `airflow.providers.hashicorp.secrets.vault`."""
 
-if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
-    echo
-    echo "Skip tests"
-    echo
-    exit
-fi
+import warnings
 
-prepare_ci_build
+# pylint: disable=unused-import
+from airflow.providers.hashicorp.secrets.vault import VaultBackend  # noqa
 
-rebuild_ci_image_if_needed
-
-pre-commit run --all-files --show-diff-on-failure --verbose
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.hashicorp.secrets.vault`.",
+    DeprecationWarning,
+    stacklevel=2,
+)

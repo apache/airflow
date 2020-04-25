@@ -154,7 +154,3 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
         mock_create_training_job.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
         mock_list_training_jobs.return_value = [{"TrainingJobName": job_name}]
         self.assertRaises(AirflowException, self.sagemaker.execute, None)
-
-
-if __name__ == '__main__':
-    unittest.main()

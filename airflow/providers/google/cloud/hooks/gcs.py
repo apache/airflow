@@ -19,13 +19,16 @@
 """
 This module contains a Google Cloud Storage hook.
 """
+import functools
 import gzip as gz
 import os
 import shutil
 import warnings
+from contextlib import contextmanager
 from io import BytesIO
 from os import path
-from typing import Optional, Set, Tuple, Union
+from tempfile import NamedTemporaryFile
+from typing import Optional, Set, Tuple, TypeVar, Union
 from urllib.parse import urlparse
 
 from google.api_core.exceptions import NotFound
@@ -34,6 +37,70 @@ from google.cloud import storage
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.version import version
+
+RT = TypeVar('RT')  # pylint: disable=invalid-name
+
+
+def _fallback_object_url_to_object_name_and_bucket_name(
+    object_url_keyword_arg_name='object_url',
+    bucket_name_keyword_arg_name='bucket_name',
+    object_name_keyword_arg_name='object_name',
+):
+    """
+    Decorator factory that convert object URL parameter to object name and bucket name parameter.
+
+    :param object_url_keyword_arg_name: Name of the object URL parameter
+    :type object_url_keyword_arg_name: str
+    :param bucket_name_keyword_arg_name: Name of the bucket name parameter
+    :type bucket_name_keyword_arg_name: str
+    :param object_name_keyword_arg_name: Name of the object name parameter
+    :type object_name_keyword_arg_name: str
+    :return: Decorator
+    """
+    def _wrapper(func):
+
+        @functools.wraps(func)
+        def _inner_wrapper(self: "GCSHook", * args, **kwargs) -> RT:
+            if args:
+                raise AirflowException(
+                    "You must use keyword arguments in this methods rather than positional")
+
+            object_url = kwargs.get(object_url_keyword_arg_name)
+            bucket_name = kwargs.get(bucket_name_keyword_arg_name)
+            object_name = kwargs.get(object_name_keyword_arg_name)
+
+            if object_url and bucket_name and object_name:
+                raise AirflowException(
+                    "The mutually exclusive parameters. `object_url`, `bucket_name` together "
+                    "with `object_name` parameters are present. "
+                    "Please provide `object_url` or `bucket_name` and `object_name`."
+                )
+            if object_url:
+                bucket_name, object_name = _parse_gcs_url(object_url)
+                kwargs[bucket_name_keyword_arg_name] = bucket_name
+                kwargs[object_name_keyword_arg_name] = object_name
+                del kwargs[object_url_keyword_arg_name]
+
+            if not object_name or not bucket_name:
+                raise TypeError(
+                    f"{func.__name__}() missing 2 required positional arguments: "
+                    f"'{bucket_name_keyword_arg_name}' and '{object_name_keyword_arg_name}' "
+                    f"or {object_url_keyword_arg_name}"
+                )
+            if not object_name:
+                raise TypeError(
+                    f"{func.__name__}() missing 1 required positional argument: "
+                    f"'{object_name_keyword_arg_name}'"
+                )
+            if not bucket_name:
+                raise TypeError(
+                    f"{func.__name__}() missing 1 required positional argument: "
+                    f"'{bucket_name_keyword_arg_name}'"
+                )
+
+            return func(self, *args, **kwargs)
+        return _inner_wrapper
+    return _wrapper
 
 
 class GCSHook(GoogleBaseHook):
@@ -199,6 +266,36 @@ class GCSHook(GoogleBaseHook):
             return filename
         else:
             return blob.download_as_string()
+
+    @_fallback_object_url_to_object_name_and_bucket_name()
+    @contextmanager
+    def provide_file(
+        self,
+        bucket_name: Optional[str] = None,
+        object_name: Optional[str] = None,
+        object_url: Optional[str] = None
+    ):
+        """
+        Downloads the file to a temporary directory and returns a file handle
+
+        You can use this method by passing the bucket_name and object_name parameters
+        or just object_url parameter.
+
+        :param bucket_name: The bucket to fetch from.
+        :type bucket_name: str
+        :param object_name: The object to fetch.
+        :type object_name: str
+        :param object_url: File reference url. Must start with "gs: //"
+        :type object_url: str
+        :return: File handler
+        """
+        if object_name is None:
+            raise ValueError("Object name can not be empty")
+        _, _, file_name = object_name.rpartition("/")
+        with NamedTemporaryFile(suffix=file_name) as tmp_file:
+            self.download(bucket_name=bucket_name, object_name=object_name, filename=tmp_file.name)
+            tmp_file.flush()
+            yield tmp_file
 
     def upload(self, bucket_name: str, object_name: str, filename: Optional[str] = None,
                data: Optional[Union[str, bytes]] = None, mime_type: Optional[str] = None, gzip: bool = False,
@@ -877,7 +974,7 @@ class GCSHook(GoogleBaseHook):
         return to_copy_blobs, to_delete_blobs, to_rewrite_blobs
 
 
-def _parse_gcs_url(gsurl):
+def _parse_gcs_url(gsurl: str) -> Tuple[str, str]:
     """
     Given a Google Cloud Storage URL (gs://<bucket>/<blob>), returns a
     tuple containing the corresponding bucket and blob.
@@ -886,8 +983,10 @@ def _parse_gcs_url(gsurl):
     parsed_url = urlparse(gsurl)
     if not parsed_url.netloc:
         raise AirflowException('Please provide a bucket name')
-    else:
-        bucket = parsed_url.netloc
-        # Remove leading '/' but NOT trailing one
-        blob = parsed_url.path.lstrip('/')
-        return bucket, blob
+    if parsed_url.scheme.lower() != "gs":
+        raise AirflowException(f"Schema must be to 'gs://': Current schema: '{parsed_url.scheme}://'")
+
+    bucket = parsed_url.netloc
+    # Remove leading '/' but NOT trailing one
+    blob = parsed_url.path.lstrip('/')
+    return bucket, blob

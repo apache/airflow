@@ -114,7 +114,3 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
                 mock.call('gcs-bucket', 'data/TEST3.csv', mock.ANY, gzip=True)
             ], any_order=True
         )
-
-
-if __name__ == '__main__':
-    unittest.main()

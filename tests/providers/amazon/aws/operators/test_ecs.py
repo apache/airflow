@@ -304,7 +304,3 @@ class TestECSOperator(unittest.TestCase):
         self.ecs._check_success_task()
         client_mock.describe_tasks.assert_called_once_with(
             cluster='c', tasks=['arn'])
-
-
-if __name__ == '__main__':
-    unittest.main()

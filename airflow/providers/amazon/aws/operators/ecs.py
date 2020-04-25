@@ -59,11 +59,11 @@ class ECSProtocol(Protocol):
 
 class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     """
-    Execute a task on AWS EC2 Container Service
+    Execute a task on AWS ECS (Elastic Container Service)
 
-    :param task_definition: the task definition name on EC2 Container Service
+    :param task_definition: the task definition name on Elastic Container Service
     :type task_definition: str
-    :param cluster: the cluster name on EC2 Container Service
+    :param cluster: the cluster name on Elastic Container Service
     :type cluster: str
     :param overrides: the same parameter that boto3 will receive (templated):
         http://boto3.readthedocs.org/en/latest/reference/services/ecs.html#ECS.Client.run_task

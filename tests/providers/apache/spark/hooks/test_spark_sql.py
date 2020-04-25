@@ -172,7 +172,3 @@ class TestSparkSqlHook(unittest.TestCase):
                 sql, master, params, status
             )
         )
-
-
-if __name__ == '__main__':
-    unittest.main()

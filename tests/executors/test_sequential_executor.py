@@ -34,7 +34,3 @@ class TestSequentialExecutor(unittest.TestCase):
                  mock.call('executor.queued_tasks', mock.ANY),
                  mock.call('executor.running_tasks', mock.ANY)]
         mock_stats_gauge.assert_has_calls(calls)
-
-
-if __name__ == '__main__':
-    unittest.main()

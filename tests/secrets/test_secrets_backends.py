@@ -103,7 +103,3 @@ class TestBaseSecretsBackend(unittest.TestCase):
         self.assertEqual("World", variable_value)
         self.assertIsNone(metastore_backend.get_variable(key="non_existent_key"))
         self.assertEqual('', metastore_backend.get_variable(key="empty_str"))
-
-
-if __name__ == "__main__":
-    unittest.main()

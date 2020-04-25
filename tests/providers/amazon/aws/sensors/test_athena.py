@@ -57,7 +57,3 @@ class TestAthenaSensor(unittest.TestCase):
         with self.assertRaises(AirflowException) as context:
             self.sensor.poke(None)
         self.assertIn('Athena sensor failed', str(context.exception))
-
-
-if __name__ == '__main__':
-    unittest.main()

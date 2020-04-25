@@ -317,7 +317,8 @@ class DagRun(Base, LoggingMixin):
         duration = (timezone.utcnow() - start_dttm)
         Stats.timing("dagrun.dependency-check.{}".format(self.dag_id), duration)
 
-        leaf_tis = [ti for ti in tis if ti.task_id in {t.task_id for t in dag.leaves}]
+        leaf_task_ids = {t.task_id for t in dag.leaves}
+        leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids]
 
         # if all roots finished and at least one failed, the run failed
         if not unfinished_tasks and any(
