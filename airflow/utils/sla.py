@@ -224,7 +224,7 @@ def create_sla_misses(ti, timestamp, session):
                 log.debug("Task instance %s's expected start of %s hasn't "
                           "happened yet, SLA not yet missed.",
                           ti, expected_start)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             log.exception(
                 "Failed to calculate expected start SLA miss for "
                 "task instance %s",
@@ -264,7 +264,7 @@ def create_sla_misses(ti, timestamp, session):
                 log.debug("Task instance %s's expected finish of %s hasn't "
                           "happened yet, SLA not yet missed.",
                           ti, expected_finish)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             log.exception(
                 "Failed to calculate expected finish SLA miss for "
                 "task instance %s",
@@ -327,7 +327,7 @@ def get_subscribers(task_instances):
                     yield e
 
     unique_emails = list(set(_yield_subscribers(task_instances)))
-    log.debug("Found subscribers: {}".format(", ".join(unique_emails)))
+    log.debug("Found subscribers: %s", ", ".join(unique_emails))
     return unique_emails
 
 
@@ -344,9 +344,9 @@ def get_impacted_downstream_task_instances(task_instance, session=None):
     TI = airflow.models.TaskInstance
     downstream_tasks = task_instance.task.get_flat_relatives(upstream=False)
 
-    log.debug("Downstream task IDs of {ti.task_id}: {downstreams}".format(
-        ti=task_instance,
-        downstreams=", ".join(t.task_id for t in downstream_tasks)))
+    log.debug("Downstream task IDs of %s: %s",
+        task_instance.task_id,
+        ", ".join(t.task_id for t in downstream_tasks)))
 
     # The intent is to capture states that indicate that work was never started
     # on a task, presumably because this task not achieving its SLA prevented
@@ -370,7 +370,7 @@ def get_impacted_downstream_task_instances(task_instance, session=None):
         # State.NONE is actually a None, which is a null, which breaks
         # comparisons without writing them like this.
         .filter(
-            or_(TI.state == None, TI.state.in_(blocked_states))  # noqa E711
+            or_(TI.state is None, TI.state.in_(blocked_states))  # noqa E711
         )
         .order_by(TI.task_id)
     )
