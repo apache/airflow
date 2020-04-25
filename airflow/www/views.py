@@ -604,16 +604,16 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
 
+        dag = dagbag.get_dag(dag_id)
+        if dag is None:
+            flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
+            return redirect(url_for('Airflow.index'))
+
         try:
             validate_key(dag_id)
             validate_key(task_id)
         except Exception as e:
             flash("Error rendering template: " + str(e), "error")
-            return redirect(url_for('Airflow.index'))
-
-        dag = dagbag.get_dag(dag_id)
-        if dag is None:
-            flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
             return redirect(url_for('Airflow.index'))
 
         execution_date = request.args.get('execution_date')
