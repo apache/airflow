@@ -53,7 +53,7 @@ load_csv = GCSToBigQueryOperator(
 
 delete_test_dataset = BashOperator(
     task_id='delete_airflow_test_dataset',
-    bash_command='bq rm -r airflow_test',
+    bash_command='bq rm -r -f airflow_test',
     dag=dag)
 
 create_test_dataset >> load_csv >> delete_test_dataset
