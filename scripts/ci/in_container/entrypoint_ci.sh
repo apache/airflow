@@ -113,7 +113,17 @@ unset AIRFLOW__CORE__UNIT_TEST_MODE
 mkdir -pv "${AIRFLOW_HOME}/logs/"
 cp -f "${MY_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
 
+set +e
 "${MY_DIR}/check_environment.sh"
+ENVIRONMENT_EXIT_CODE=$?
+set -e
+if [[ ${ENVIRONMENT_EXIT_CODE} != 0 ]]; then
+    echo
+    echo "Error: check_environment returned ${ENVIRONMENT_EXIT_CODE}. Exiting."
+    echo
+    exit ${ENVIRONMENT_EXIT_CODE}
+fi
+
 
 if [[ ${INTEGRATION_KERBEROS:="false"} == "true" ]]; then
     set +e
