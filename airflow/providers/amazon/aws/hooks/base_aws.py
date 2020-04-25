@@ -63,7 +63,7 @@ class AwsBaseHook(BaseHook):
 
     def __init__(
             self,
-            aws_conn_id: str = "aws_default",
+            aws_conn_id: Optional[str] = "aws_default",
             verify: Union[bool, str, None] = None,
             region_name: Optional[str] = None,
             client_type: Optional[str] = None,
@@ -253,7 +253,7 @@ class AwsBaseHook(BaseHook):
             assume_role_kwargs["ExternalId"] = extra_config.get(
                 "external_id"
             )
-        role_session_name = "Airflow_" + self.aws_conn_id
+        role_session_name = "Airflow_" + str(self.aws_conn_id)
         self.log.info(
             "Doing sts_client.assume_role to role_arn=%s (role_session_name=%s)",
             role_arn,

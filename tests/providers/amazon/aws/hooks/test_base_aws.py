@@ -210,6 +210,7 @@ class TestAwsBaseHook(unittest.TestCase):
         self.assertEqual(arn, expect_arn)
 
     def test_use_default_boto3_behaviour_without_conn_id(self):
-        hook = AwsBaseHook(aws_conn_id='', client_type='s3')
-        # should cause no exception
-        hook.get_client_type('s3')
+        for conn_id in (None, ''):
+            hook = AwsBaseHook(aws_conn_id=conn_id, client_type='s3')
+            # should cause no exception
+            hook.get_client_type('s3')
