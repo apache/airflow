@@ -37,44 +37,58 @@ def assert_is_value(num: int):
     assert num == VALUE
 
 
-class TestXComArg:
-    def test_xcom_pass_to_op(self):
-        with DAG(dag_id="test_xcom_pass_to_op", default_args=DEFAULT_ARGS):
-            operator = PythonOperator(
-                python_callable=lambda: VALUE,
-                task_id="return_value_1",
-                do_xcom_push=True,
-            )
-            xarg = XComArg(operator)
-            operator2 = PythonOperator(
-                python_callable=assert_is_value,
-                op_args=[xarg],
-                task_id="assert_is_value_1",
-            )
-            operator >> operator2
-        operator.run(ignore_ti_state=True, ignore_first_depends_on_past=True)
-        operator2.run(ignore_ti_state=True, ignore_first_depends_on_past=True)
+def build_python_op():
+    def f(task_id):
+        return f"OP:{task_id}"
 
-    def test_xcom_push_and_pass(self):
-        def push_xcom_value(key, value, **context):
-            ti = context["task_instance"]
-            ti.xcom_push(key, value)
+    with DAG(dag_id="test_xcom_dag", default_args=DEFAULT_ARGS):
+        operator = PythonOperator(
+            python_callable=f,
+            task_id="test_xcom_op",
+            do_xcom_push=True,
+        )
+        return operator
 
-        with DAG(dag_id="test_xcom_push_and_pass", default_args=DEFAULT_ARGS):
-            op1 = PythonOperator(
-                python_callable=push_xcom_value,
-                task_id="push_xcom_value",
-                op_args=["my_key", VALUE],
-            )
-            xarg = XComArg(op1, keys=["my_key"])
-            op2 = PythonOperator(
-                python_callable=assert_is_value,
-                task_id="assert_is_value_1",
-                op_args=[xarg],
-            )
-            op1 >> op2
-        op1.run(ignore_ti_state=True, ignore_first_depends_on_past=True)
-        op2.run(ignore_ti_state=True, ignore_first_depends_on_past=True)
+
+class TestXComArgBuild:
+    def test_xcom_ctor(self):
+        python_op = build_python_op()
+        actual = XComArg(python_op, "test_key")
+        assert actual
+        assert actual.operator == python_op
+        assert actual.key == "test_key"
+        assert actual == actual  # pylint: disable=comparison-with-itself
+        assert str(actual)
+
+    def test_xcom_runtime_access_ctor(self):
+        python_op = build_python_op()
+        actual = XComArg(python_op, "test_key")
+        assert actual.runtime_sub_keys == []
+
+        with_runime_access = actual[0]["a"]
+        assert with_runime_access.runtime_sub_keys == [0, "a"]
+
+    def test_xcom_jinja_repr(self):
+        python_op = build_python_op()
+        actual = XComArg(python_op, "test_key")
+
+        assert str(actual) == "task_instance.xcom_pull(" \
+                              "task_ids='test_xcom_op', " \
+                              "dag_id='test_xcom_dag', " \
+                              "key='test_key')"
+        with_runime_access = actual[0]["a"]
+        assert str(
+            with_runime_access) == "task_instance.xcom_pull(" \
+                                   "task_ids='test_xcom_op', " \
+                                   "dag_id='test_xcom_dag', " \
+                                   "key='test_key')[0]['a']"
+
+    def test_xcom_key_is_empty_str(self):
+        python_op = build_python_op()
+        actual = XComArg(python_op, key="")
+        assert actual.key == ""
+        assert str(actual) == "task_instance.xcom_pull(task_ids='test_xcom_op', " \
+                              "dag_id='test_xcom_dag', key='')"
 
     def test_set_downstream(self):
         with DAG("test_set_downstream", default_args=DEFAULT_ARGS):
@@ -109,3 +123,44 @@ class TestXComArg:
             op_a = BashOperator(task_id="a", bash_command="echo a")
 
         assert op_a.output == XComArg(op_a)
+
+
+class TestXComArgRuntime:
+
+    def test_xcom_pass_to_op(self):
+        with DAG(dag_id="test_xcom_pass_to_op", default_args=DEFAULT_ARGS):
+            operator = PythonOperator(
+                python_callable=lambda: VALUE,
+                task_id="return_value_1",
+                do_xcom_push=True,
+            )
+            xarg = XComArg(operator)
+            operator2 = PythonOperator(
+                python_callable=assert_is_value,
+                op_args=[xarg],
+                task_id="assert_is_value_1",
+            )
+            operator >> operator2
+        operator.run(ignore_ti_state=True, ignore_first_depends_on_past=True)
+        operator2.run(ignore_ti_state=True, ignore_first_depends_on_past=True)
+
+    def test_xcom_push_and_pass(self):
+        def push_xcom_value(key, value, **context):
+            ti = context["task_instance"]
+            ti.xcom_push(key, value)
+
+        with DAG(dag_id="test_xcom_push_and_pass", default_args=DEFAULT_ARGS):
+            op1 = PythonOperator(
+                python_callable=push_xcom_value,
+                task_id="push_xcom_value",
+                op_args=["my_key", VALUE],
+            )
+            xarg = XComArg(op1, key="my_key")
+            op2 = PythonOperator(
+                python_callable=assert_is_value,
+                task_id="assert_is_value_1",
+                op_args=[xarg],
+            )
+            op1 >> op2
+        op1.run(ignore_ti_state=True, ignore_first_depends_on_past=True)
+        op2.run(ignore_ti_state=True, ignore_first_depends_on_past=True)

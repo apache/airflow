@@ -1069,15 +1069,21 @@ class BaseOperator(Operator, LoggingMixin):
         """Sets relatives for the task or task list."""
         from airflow.models.xcom_arg import XComArg
 
-        try:
-            task_list = list(task_or_task_list)  # type: ignore
-        except TypeError:
-            task_list = [task_or_task_list]  # type: ignore
+        if isinstance(task_or_task_list, XComArg):
+            # otherwise we will start to iterate over xcomarg
+            # because of the "list" check below
+            # with current XComArg.__getitem__ implementation
+            task_list = [task_or_task_list.operator]
+        else:
+            try:
+                task_list = list(task_or_task_list)  # type: ignore
+            except TypeError:
+                task_list = [task_or_task_list]  # type: ignore
 
-        task_list = [
-            t.operator if isinstance(t, XComArg) else t  # type: ignore
-            for t in task_list
-        ]
+            task_list = [
+                t.operator if isinstance(t, XComArg) else t  # type: ignore
+                for t in task_list
+            ]
 
         for task in task_list:
             if not isinstance(task, BaseOperator):
