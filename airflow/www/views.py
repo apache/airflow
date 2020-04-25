@@ -68,7 +68,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
-from airflow.utils.helpers import alchemy_to_dict, render_log_filename
+from airflow.utils.helpers import alchemy_to_dict, render_log_filename, validate_key
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.www import utils as wwwutils
@@ -602,12 +602,20 @@ class Airflow(AirflowBaseView):
     @action_logging
     def rendered(self):
         dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+
+        try:
+            validate_key(dag_id)
+            validate_key(task_id)
+        except Exception as e:
+            flash("Error rendering template: " + str(e), "error")
+            return redirect(url_for('Airflow.index'))
+
         dag = dagbag.get_dag(dag_id)
         if dag is None:
             flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
             return redirect(url_for('Airflow.index'))
 
-        task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
         dttm = timezone.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
