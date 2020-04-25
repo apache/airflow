@@ -30,6 +30,7 @@ from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils import timezone
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.module_loading import import_string
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -41,7 +42,7 @@ MAX_XCOM_SIZE = 49344
 XCOM_RETURN_KEY = 'return_value'
 
 
-class XCom(Base, LoggingMixin):
+class BaseXCom(Base, LoggingMixin):
     """
     Base class for XCom objects.
     """
@@ -229,3 +230,20 @@ class XCom(Base, LoggingMixin):
                       "for XCOM, then you need to enable pickle "
                       "support for XCOM in your airflow config.")
             raise
+
+
+def resolve_xcom_class():
+    """Resolves custom XCom class"""
+    path_to_custom_class = conf.get("core", "xcom_class")
+    if path_to_custom_class:
+        clazz = import_string(path_to_custom_class)
+        if not issubclass(clazz, BaseXCom):
+            raise TypeError(
+                f"Your custom XCom class `{clazz.__name__}` is not a subclass of `{BaseXCom.__name__}`."
+            )
+        return clazz
+
+    return BaseXCom
+
+
+XCom = resolve_xcom_class()
