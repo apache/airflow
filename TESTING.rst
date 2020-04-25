@@ -500,7 +500,6 @@ Currently forwarded credentials are:
   * credentials stored in ``${HOME}/.aws``, ``${HOME}/.boto``, and ``${HOME}/.s3`` (for AWS authentication)
   * credentials stored in ``${HOME}/.docker`` for docker
   * credentials stored in ``${HOME}/.kube`` for kubectl
-  * credentials stored in ``${HOME}/.ssh`` for SSH
 
 
 Adding a New System Test
