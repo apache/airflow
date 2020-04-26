@@ -60,29 +60,6 @@ class TestXComArgBuild:
         assert actual == actual  # pylint: disable=comparison-with-itself
         assert str(actual)
 
-    def test_xcom_runtime_access_ctor(self):
-        python_op = build_python_op()
-        actual = XComArg(python_op, "test_key")
-        assert actual.runtime_sub_keys == []
-
-        with_runime_access = actual[0]["a"]
-        assert with_runime_access.runtime_sub_keys == [0, "a"]
-
-    def test_xcom_jinja_repr(self):
-        python_op = build_python_op()
-        actual = XComArg(python_op, "test_key")
-
-        assert str(actual) == "task_instance.xcom_pull(" \
-                              "task_ids='test_xcom_op', " \
-                              "dag_id='test_xcom_dag', " \
-                              "key='test_key')"
-        with_runime_access = actual[0]["a"]
-        assert str(
-            with_runime_access) == "task_instance.xcom_pull(" \
-                                   "task_ids='test_xcom_op', " \
-                                   "dag_id='test_xcom_dag', " \
-                                   "key='test_key')[0]['a']"
-
     def test_xcom_key_is_empty_str(self):
         python_op = build_python_op()
         actual = XComArg(python_op, key="")
@@ -126,7 +103,6 @@ class TestXComArgBuild:
 
 
 class TestXComArgRuntime:
-
     def test_xcom_pass_to_op(self):
         with DAG(dag_id="test_xcom_pass_to_op", default_args=DEFAULT_ARGS):
             operator = PythonOperator(

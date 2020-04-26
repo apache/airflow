@@ -49,19 +49,14 @@ class XComArg:
 
     """
 
-    def __init__(self, operator: BaseOperator, key: Optional[str] = XCOM_RETURN_KEY,
-                 runtime_sub_keys: Optional[List[str]] = None):
+    def __init__(self, operator: BaseOperator, key: Optional[str] = XCOM_RETURN_KEY):
         self._operator = operator
-
-        # _key is used for xcompull (key in the XCom table)
-        # _runtime_sub_keys are used for runtime access of deserialized value from XCom data provider
+        # _key is used for xcom pull (key in the XCom table)
         self._key = key
-        self._runtime_sub_keys = runtime_sub_keys or []
 
     def __eq__(self, other):
         return (self._operator == other.operator
-                and self.key == other.key
-                and self.runtime_sub_keys == other.runtime_sub_keys)
+                and self.key == other.key)
 
     def __lshift__(self, other):
         """
@@ -85,10 +80,6 @@ class XComArg:
     @property
     def key(self):
         return self._key
-
-    @property
-    def runtime_sub_keys(self):
-        return self._runtime_sub_keys
 
     def set_upstream(self, task_or_task_list: Union[BaseOperator, List[BaseOperator]]):
         """
@@ -121,17 +112,7 @@ class XComArg:
                 f'with key="{self.key}"" is not found!')
         resolved_value = resolved_value[0]
 
-        # now we can follow on user defined dereference path
-        if len(self._runtime_sub_keys) > 1:
-            for key in self._runtime_sub_keys:
-                resolved_value = resolved_value[key]
         return resolved_value
-
-    def __getitem__(self, key: Any) -> 'XComArg':
-        """Return an XComArg that will access the following """
-        return XComArg(operator=self._operator,
-                       key=self.key,
-                       runtime_sub_keys=self._runtime_sub_keys + [key])
 
     def __str__(self):
         """
@@ -148,8 +129,4 @@ class XComArg:
 
         xcom_pull_kwargs = ", ".join(xcom_pull_kwargs)
         xcom_pull = f"task_instance.xcom_pull({xcom_pull_kwargs})"
-        if self._runtime_sub_keys:
-            result_access = [f"[{repr(k)}]" for k in self._runtime_sub_keys]
-            result_access = "".join(result_access)
-            xcom_pull += result_access
         return xcom_pull
