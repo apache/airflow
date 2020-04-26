@@ -19,9 +19,16 @@
 Example DAG using GCSToBigQueryOperator.
 """
 from airflow import models
-from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs_to_bigquery import GCSToBigQueryOperator
+from airflow.providers.google.cloud.operators.bigquery import BigQueryCreateEmptyDatasetOperator
+from airflow.providers.google.cloud.operators.bigquery import BigQueryDeleteDatasetOperator
 from airflow.utils.dates import days_ago
+
+import os
+
+DATASET_NAME = os.environ.get("GCP_DATASET_NAME", 'airflow_test')
+TABLE_NAME = os.environ.get("GCP_TABLE_NAME", 'gcs_to_bq_table')
+DATASET_TABLE_ID = f"{DATASET_NAME}.{TABLE_NAME}"
 
 args = {
     'owner': 'airflow',
@@ -32,17 +39,18 @@ dag = models.DAG(
     dag_id='example_gcs_to_bigquery_operator', default_args=args,
     schedule_interval=None, tags=['example'])
 
-create_test_dataset = BashOperator(
+create_test_dataset = BigQueryCreateEmptyDatasetOperator(
     task_id='create_airflow_test_dataset',
-    bash_command='bq mk airflow_test',
-    dag=dag)
+    dataset_id=DATASET_NAME,
+    dag=dag
+)
 
 # [START howto_operator_gcs_to_bq]
 load_csv = GCSToBigQueryOperator(
     task_id='gcs_to_bigquery_example',
     bucket='cloud-samples-data',
     source_objects=['bigquery/us-states/us-states.csv'],
-    destination_project_dataset_table='airflow_test.gcs_to_bq_table',
+    destination_project_dataset_table=DATASET_TABLE_ID,
     schema_fields=[
         {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
         {'name': 'post_abbr', 'type': 'STRING', 'mode': 'NULLABLE'},
@@ -51,9 +59,11 @@ load_csv = GCSToBigQueryOperator(
     dag=dag)
 # [END howto_operator_gcs_to_bq]
 
-delete_test_dataset = BashOperator(
+delete_test_dataset = BigQueryDeleteDatasetOperator(
     task_id='delete_airflow_test_dataset',
-    bash_command='bq rm -r -f airflow_test',
-    dag=dag)
+    dataset_id=DATASET_TABLE_ID,
+    delete_contents=True,
+    dag=dag
+)
 
 create_test_dataset >> load_csv >> delete_test_dataset
