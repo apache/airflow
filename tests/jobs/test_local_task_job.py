@@ -351,6 +351,7 @@ class TestLocalTaskJob(unittest.TestCase):
         self.assertNotIn('reached_end_of_sleep', data,
                          'Task should not have been allowed to run to completion')
 
+    @pytest.mark.quarantined
     def test_mark_success_on_success_callback(self):
         """
         Test that ensures that where a task is marked suceess in the UI
