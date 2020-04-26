@@ -17,7 +17,6 @@
 # under the License.
 #
 import os
-import io
 import unittest.mock
 
 from airflow import models
@@ -84,22 +83,20 @@ class TestCliVariables(unittest.TestCase):
 
         os.remove('variables_types.json')
 
-    @unittest.mock.patch('sys.stdout', new_callable=io.StringIO)
-    def test_variables_get(self, mock_stdout):
+    def test_variables_get(self):
         """"Test variable_get command"""
         # Test conventional get call
         variable_command.variables_set(self.parser.parse_args([
             'variables', 'set', 'foo', '{"foo":"bar"}']))
         variable_command.variables_get(self.parser.parse_args([
             'variables', 'get', 'foo']))
-        self.assertEqual(mock_stdout.getvalue(), '{"foo":"bar"}\n')
-        with self.assertRaises(SystemExit):
-            variable_command.variables_get(self.parser.parse_args(['variables', 'get', 'no-existing-VAR'])
-
-        # Test default functionality for get call
         variable_command.variables_get(self.parser.parse_args([
             'variables', 'get', 'baz', '--default', 'bar']))
-        self.assertEqual(mock_stdout.getvalue(), '{"foo":"bar"}\nbar\n')
+
+        # Test get call with no variable
+        with self.assertRaises(SystemExit):
+            variable_command.variables_get(self.parser.parse_args([
+                'variables', 'get', 'no-existing-VAR']))
 
     def test_variables_list(self):
         """Test variable_list command"""
@@ -156,4 +153,4 @@ class TestCliVariables(unittest.TestCase):
 
         os.remove('variables1.json')
         os.remove('variables2.json')
-        
+
