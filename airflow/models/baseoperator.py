@@ -501,7 +501,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
         # Set SLA parameters, batching invalid type messages into a
         # single exception.
-        sla_param_errs: List<str> = []
+        sla_param_errs: List = []
         if expected_duration and not isinstance(expected_duration, timedelta):
             sla_param_errs.append("expected_duration must be a timedelta, "
                                   "got: {}".format(expected_duration))

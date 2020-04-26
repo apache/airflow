@@ -344,9 +344,8 @@ def get_impacted_downstream_task_instances(task_instance, session=None):
     TI = airflow.models.TaskInstance
     downstream_tasks = task_instance.task.get_flat_relatives(upstream=False)
 
-    log.debug("Downstream task IDs of %s: %s",
-        task_instance.task_id,
-        ", ".join(t.task_id for t in downstream_tasks)))
+    log.debug("Downstream task IDs of %s: %s", task_instance.task_id,
+              ", ".join(t.task_id for t in downstream_tasks))
 
     # The intent is to capture states that indicate that work was never started
     # on a task, presumably because this task not achieving its SLA prevented
