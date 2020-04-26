@@ -171,8 +171,10 @@ class PythonFunctionalOperator(PythonOperator):
         
 
     def __call__(self, *args, **kwargs):
-       self.op_args = args
-       self.op_kwargs = kwargs
+        self.op_args = args
+        self.op_kwargs = kwargs
+        # To add when we get XCom merged
+        # return XComArg(self)
 
     def alias(self, task_id: str):
         return PythonFunctionalOperator(
@@ -192,6 +194,18 @@ class PythonFunctionalOperator(PythonOperator):
                 self.xcom_push(context, str(key), value)
         return return_value
 
+def task(*args, **kwargs):
+    if len(args)>1 and not callable(args[0]):
+        raise Exception('No args allowed to specify arguments for PythonFunctionalOperator')
+
+    def wrapper(f):
+        """Python wrapper to generate PythonFunctionalOperator out of simple python functions.
+        Used for Airflow functional interface
+        """
+        return PythonFunctionalOperator(python_callable=f, task_id=f.__name__, **kwargs)
+    if len(args) == 1 and callable(args[0]):
+        return wrapper(args[0])
+    return wrapper
 
 
 class BranchPythonOperator(PythonOperator, SkipMixin):
