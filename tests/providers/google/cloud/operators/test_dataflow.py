@@ -60,6 +60,7 @@ EXPECTED_ADDITIONAL_OPTIONS = {
 }
 POLL_SLEEP = 30
 GCS_HOOK_STRING = 'airflow.providers.google.cloud.operators.dataflow.{}'
+TEST_LOCATION = "custom-location"
 
 
 class TestDataflowPythonOperator(unittest.TestCase):
@@ -72,7 +73,9 @@ class TestDataflowPythonOperator(unittest.TestCase):
             py_options=PY_OPTIONS,
             dataflow_default_options=DEFAULT_OPTIONS_PYTHON,
             options=ADDITIONAL_OPTIONS,
-            poll_sleep=POLL_SLEEP)
+            poll_sleep=POLL_SLEEP,
+            location=TEST_LOCATION
+        )
 
     def test_init(self):
         """Test DataFlowPythonOperator instance is properly initialized."""
@@ -115,6 +118,7 @@ class TestDataflowPythonOperator(unittest.TestCase):
             py_system_site_packages=False,
             on_new_job_id_callback=mock.ANY,
             project_id=None,
+            location=TEST_LOCATION
         )
         self.assertTrue(self.dataflow.py_file.startswith('/tmp/dataflow'))
 
@@ -129,7 +133,9 @@ class TestDataflowJavaOperator(unittest.TestCase):
             job_class=JOB_CLASS,
             dataflow_default_options=DEFAULT_OPTIONS_JAVA,
             options=ADDITIONAL_OPTIONS,
-            poll_sleep=POLL_SLEEP)
+            poll_sleep=POLL_SLEEP,
+            location=TEST_LOCATION
+        )
 
     def test_init(self):
         """Test DataflowTemplateOperator instance is properly initialized."""
@@ -166,6 +172,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
             multiple_jobs=None,
             on_new_job_id_callback=mock.ANY,
             project_id=None,
+            location=TEST_LOCATION
         )
 
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
@@ -185,7 +192,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
         gcs_provide_file.assert_not_called()
         start_java_hook.assert_not_called()
         dataflow_running.assert_called_once_with(
-            name=JOB_NAME, variables=mock.ANY, project_id=None)
+            name=JOB_NAME, variables=mock.ANY, project_id=None, location=TEST_LOCATION)
 
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.GCSHook')
@@ -211,9 +218,10 @@ class TestDataflowJavaOperator(unittest.TestCase):
             multiple_jobs=None,
             on_new_job_id_callback=mock.ANY,
             project_id=None,
+            location=TEST_LOCATION
         )
         dataflow_running.assert_called_once_with(
-            name=JOB_NAME, variables=mock.ANY, project_id=None)
+            name=JOB_NAME, variables=mock.ANY, project_id=None, location=TEST_LOCATION)
 
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.GCSHook')
@@ -240,9 +248,11 @@ class TestDataflowJavaOperator(unittest.TestCase):
             multiple_jobs=True,
             on_new_job_id_callback=mock.ANY,
             project_id=None,
+            location=TEST_LOCATION
         )
         dataflow_running.assert_called_once_with(
-            name=JOB_NAME, variables=mock.ANY, project_id=None)
+            name=JOB_NAME, variables=mock.ANY, project_id=None, location=TEST_LOCATION
+        )
 
 
 class TestDataflowTemplateOperator(unittest.TestCase):
@@ -254,7 +264,9 @@ class TestDataflowTemplateOperator(unittest.TestCase):
             job_name=JOB_NAME,
             parameters=PARAMETERS,
             dataflow_default_options=DEFAULT_OPTIONS_TEMPLATE,
-            poll_sleep=POLL_SLEEP)
+            poll_sleep=POLL_SLEEP,
+            location=TEST_LOCATION
+        )
 
     def test_init(self):
         """Test DataflowTemplateOperator instance is properly initialized."""
@@ -288,4 +300,5 @@ class TestDataflowTemplateOperator(unittest.TestCase):
             dataflow_template=TEMPLATE,
             on_new_job_id_callback=mock.ANY,
             project_id=None,
+            location=TEST_LOCATION
         )

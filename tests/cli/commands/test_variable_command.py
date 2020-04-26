@@ -93,6 +93,8 @@ class TestCliVariables(unittest.TestCase):
         variable_command.variables_get(self.parser.parse_args([
             'variables', 'get', 'foo']))
         self.assertEqual(mock_stdout.getvalue(), '{"foo":"bar"}\n')
+        with self.assertRaises(SystemExit):
+            variable_command.variables_get(self.parser.parse_args(['variables', 'get', 'no-existing-VAR'])
 
         # Test default functionality for get call
         variable_command.variables_get(self.parser.parse_args([
@@ -154,3 +156,4 @@ class TestCliVariables(unittest.TestCase):
 
         os.remove('variables1.json')
         os.remove('variables2.json')
+        

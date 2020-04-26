@@ -15,29 +15,55 @@
 # specific language governing permissions and limitations
 # under the License.
 """Connection sub-commands"""
-import reprlib
+import sys
+from typing import List
 from urllib.parse import urlunparse
 
 from sqlalchemy.orm import exc
 from tabulate import tabulate
 
+from airflow.hooks.base_hook import BaseHook
 from airflow.models import Connection
 from airflow.utils import cli as cli_utils
 from airflow.utils.session import create_session
 
 
+def _tabulate_connection(conns: List[Connection], tablefmt: str):
+    tabulate_data = [
+        {
+            'Conn Id': conn.conn_id,
+            'Conn Type': conn.conn_type,
+            'Host': conn.host,
+            'Port': conn.port,
+            'Is Encrypted': conn.is_encrypted,
+            'Is Extra Encrypted': conn.is_encrypted,
+            'Extra': conn.extra,
+        } for conn in conns
+    ]
+
+    msg = tabulate(tabulate_data, tablefmt=tablefmt, headers='keys')
+    return msg
+
+
 def connections_list(args):
     """Lists all connections at the command line"""
     with create_session() as session:
-        conns = session.query(Connection.conn_id, Connection.conn_type,
-                              Connection.host, Connection.port,
-                              Connection.is_encrypted,
-                              Connection.is_extra_encrypted,
-                              Connection.extra).all()
-        conns = [map(reprlib.repr, conn) for conn in conns]
-        msg = tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
-                               'Is Encrypted', 'Is Extra Encrypted', 'Extra'],
-                       tablefmt=args.output)
+        if args.include_secrets:
+            if not args.conn_id:
+                print(
+                    "To use the '--include-secrets' option, you must also pass '--conn-id' option.",
+                    file=sys.stderr
+                )
+                sys.exit(1)
+            conns = BaseHook.get_connections(args.conn_id)
+        else:
+            query = session.query(Connection)
+            if args.conn_id:
+                query = query.filter(Connection.conn_id == args.conn_id)
+            conns = query.all()
+
+        tablefmt = args.output
+        msg = _tabulate_connection(conns, tablefmt)
         print(msg)
 
 

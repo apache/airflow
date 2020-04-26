@@ -18,6 +18,7 @@
 import io
 import unittest
 from contextlib import redirect_stdout
+from unittest import mock
 
 from parameterized import parameterized
 
@@ -71,6 +72,43 @@ class TestCliListConnections(unittest.TestCase):
 
         for conn_id, conn_type in self.EXPECTED_CONS:
             self.assertTrue(any(conn_id in line and conn_type in line for line in lines))
+
+    def test_cli_connections_filter_conn_id(self):
+        args = self.parser.parse_args(["connections", "list", "--output", "tsv", '--conn-id', 'http_default'])
+
+        with redirect_stdout(io.StringIO()) as stdout:
+            connection_command.connections_list(args)
+            stdout = stdout.getvalue()
+            lines = stdout.split("\n")
+
+        conn_ids = [line.split("\t", 2)[0].strip() for line in lines[1:] if line]
+        self.assertEqual(conn_ids, ['http_default'])
+
+    @mock.patch('airflow.cli.commands.connection_command.BaseHook.get_connections', return_value=[
+        Connection(conn_id="http_default", host="host1"),
+        Connection(conn_id="http_default", host="host2"),
+    ])
+    def test_cli_connections_filter_conn_id_include_secrets(self, mock_get_connections):
+        args = self.parser.parse_args([
+            "connections", "list", "--output", "tsv", '--conn-id', 'http_default', '--include-secrets'
+        ])
+
+        with redirect_stdout(io.StringIO()) as stdout:
+            connection_command.connections_list(args)
+            stdout = stdout.getvalue()
+            lines = stdout.split("\n")
+
+        conn_ids = [line.split("\t", 2)[0].strip() for line in lines[1:] if line]
+        self.assertEqual(conn_ids, ['http_default', 'http_default'])
+        mock_get_connections.assert_called_once_with('http_default')
+
+    def test_cli_connections_include_secrets(self):
+        args = self.parser.parse_args([
+            "connections", "list", "--output", "tsv", '--include-secrets',
+        ])
+
+        with self.assertRaises(SystemExit):
+            connection_command.connections_list(args)
 
 
 TEST_URL = "postgresql://airflow:airflow@host:5432/airflow"

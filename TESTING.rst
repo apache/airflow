@@ -25,7 +25,7 @@ Airflow Test Infrastructure
   and local virtualenv.
 
 * **Integration tests** are available in the Breeze development environment
-  that is also used for Airflow Travis CI tests. Integration tests are special tests that require
+  that is also used for Airflow CI tests. Integration tests are special tests that require
   additional services running, such as Postgres, MySQL, Kerberos, etc. Currently, these tests are not
   marked as integration tests but soon they will be separated by ``pytest`` annotations.
 
@@ -161,7 +161,7 @@ Enabling Integrations
 ---------------------
 
 Airflow integration tests cannot be run in the local virtualenv. They can only run in the Breeze
-environment with enabled integrations and in Travis CI.
+environment with enabled integrations and in the CI. See `<CI.yml>`_ for details about Airflow CI.
 
 When you are in the Breeze environment, by default all integrations are disabled. This enables only true unit tests
 to be executed in Breeze. You can enable the integration by passing the ``--integration <INTEGRATION>``
@@ -245,30 +245,23 @@ require more than one integration.
 If such a marked test does not have a required integration enabled, it is skipped.
 The skip message clearly says what is needed to use the test.
 
-To run all tests with a certain integration, use the custom pytest flag ``--integrations``,
-where you can pass integrations as comma-separated values. You can also specify ``all`` to start
-tests for all integrations.
+To run all tests with a certain integration, use the custom pytest flag ``--integration``.
+You can pass several integration flags if you want to enable several integrations at once.
 
-**NOTE:** If an integration is not enabled in Breeze or Travis CI,
+**NOTE:** If an integration is not enabled in Breeze or CI,
 the affected test will be skipped.
 
 To run only ``mongo`` integration tests:
 
 .. code-block:: bash
 
-    pytest --integrations mongo
+    pytest --integration mongo
 
 To run integration tests for ``mongo`` and ``rabbitmq``:
 
 .. code-block:: bash
 
-    pytest --integrations mongo,rabbitmq
-
-To runs all integration tests:
-
-.. code-block:: bash
-
-    pytest --integrations all
+    pytest --integration mongo --integration rabbitmq
 
 Note that collecting all tests takes some time. So, if you know where your tests are located, you can
 speed up the test collection significantly by providing the folder where the tests are located.
@@ -277,14 +270,14 @@ Here is an example of the collection limited to the ``providers/apache`` directo
 
 .. code-block:: bash
 
-    pytest --integrations cassandra tests/providers/apache/
+    pytest --integration cassandra tests/providers/apache/
 
 Running Backend-Specific Tests
 ------------------------------
 
 Tests that are using a specific backend are marked with a custom pytest marker ``pytest.mark.backend``.
 The marker has a single parameter - the name of a backend. It corresponds to the ``--backend`` switch of
-the Breeze environment (one of ``mysql``, ``sqlite``, or ``postgres``). Backen-specific tests only run when
+the Breeze environment (one of ``mysql``, ``sqlite``, or ``postgres``). Backend-specific tests only run when
 the Breeze environment is running with the right backend. If you specify more than one backend
 in the marker, the test runs for all specified backends.
 
@@ -312,6 +305,24 @@ Here is an example of running only postgres-specific backend tests:
 .. code-block:: bash
 
     pytest --backend postgres
+
+Running Long running tests
+--------------------------
+
+Some of the tests rung for a long time. Such tests are marked with ``@pytest.mark.long_running`` annotation.
+Those tests are skipped by default. You can enable them with ``--include-long-running`` flag. You
+can also decide to only run tests with ``-m long-running`` flags to run only those tests.
+
+Quarantined tests
+-----------------
+
+Some of our tests are quarantined. This means that this test will be run in isolation and that it will be
+re-run several times. Also when quarantined tests fail, the whole test suite will not fail. The quarantined
+tests are usually flaky tests that need some attention and fix.
+
+Those tests are marked with ``@pytest.mark.quarantined`` annotation.
+Those tests are skipped by default. You can enable them with ``--include-quarantined`` flag. You
+can also decide to only run tests with ``-m quarantined`` flag to run only those tests.
 
 Running Tests with Kubernetes
 -----------------------------
@@ -407,71 +418,6 @@ can speed up the collection of tests by running:
 
     pytest --runtime kubernetes tests/runtime
 
-Travis CI Testing Framework
-===========================
-
-The airflow test suite is based on Travis CI framework as running all of the tests
-locally requires significant setup. You can set up Travis CI in your fork of
-Airflow by following the
-`Travis CI Getting Started guide <https://docs.travis-ci.com/user/getting-started/>`__.
-
-Consider using Travis CI framework if you submit multiple pull requests
-and want to speed up your builds.
-
-There are two different options available for running Travis CI, and they are
-set up on GitHub as separate components:
-
--   **Travis CI GitHub App** (new version)
--   **Travis CI GitHub Services** (legacy version)
-
-Travis CI GitHub App (new version)
-----------------------------------
-
-1.  Once `installed <https://github.com/apps/travis-ci/installations/new/permissions?target_id=47426163>`__,
-    configure the Travis CI GitHub App at
-    `Configure Travis CI <https://github.com/settings/installations>`__.
-
-2.  Set repository access to either "All repositories" for convenience, or "Only
-    select repositories" and choose ``USERNAME/airflow`` in the drop-down menu.
-
-3.   Access Travis CI for your fork at `<https://travis-ci.com/USERNAME/airflow>`__.
-
-Travis CI GitHub Services (legacy version)
-------------------------------------------
-
-**NOTE:** The apache/airflow project is still using the legacy version.
-
-Travis CI GitHub Services version uses an Authorized OAuth App.
-
-1.  Once installed, configure the Travis CI Authorized OAuth App at
-    `Travis CI OAuth APP <https://github.com/settings/connections/applications/88c5b97de2dbfc50f3ac>`__.
-
-2.  If you are a GitHub admin, click the **Grant** button next to your
-    organization; otherwise, click the **Request** button. For the Travis CI
-    Authorized OAuth App, you may have to grant access to the forked
-    ``ORGANIZATION/airflow`` repo even though it is public.
-
-3.  Access Travis CI for your fork at
-    `<https://travis-ci.org/ORGANIZATION/airflow>`_.
-
-Creating New Projects in Travis CI
-----------------------------------
-
-If you need to create a new project in Travis CI, use travis-ci.com for both
-private repos and open source.
-
-The travis-ci.org site for open source projects is now legacy and you should not use it.
-
-..
-    There is a second Authorized OAuth App available called **Travis CI for Open Source** used
-    for the legacy travis-ci.org service. Don't use it for new projects!
-
-More information:
-
--  `Open Source on travis-ci.com <https://docs.travis-ci.com/user/open-source-on-travis-ci-com/>`__.
--  `Legacy GitHub Services to GitHub Apps Migration Guide <https://docs.travis-ci.com/user/legacy-services-to-github-apps-migration-guide/>`__.
--  `Migrating Multiple Repositories to GitHub Apps Guide <https://docs.travis-ci.com/user/travis-migrate-to-apps-gem-guide/>`__.
-
 Airflow System Tests
 ====================
 
@@ -480,7 +426,9 @@ if you have appropriate credentials configured for your tests.
 The system tests derive from the ``tests.test_utils.system_test_class.SystemTests`` class. They should also
 be marked with ``@pytest.marker.system(SYSTEM)`` where ``system`` designates the system
 to be tested (for example, ``google.cloud``). These tests are skipped by default.
-You can execute the system tests by providing the ``--systems SYSTEMS`` flag to ``pytest``.
+
+You can execute the system tests by providing the ``--system SYSTEM`` flag to ``pytest``. You can
+specify several --system flags if you want to execute tests for several systems.
 
 The system tests execute a specified example DAG file that runs the DAG end-to-end.
 
@@ -534,8 +482,8 @@ run Google Cloud system tests.
       pip install /dist/apache_airflow_providers_{google,postgres,mysql}*.whl || true
   fi
 
-To execute system tests, specify the ``--systems SYSTEMS``
-flag where ``SYSTEMS`` is a coma-separated list of systems to run the system tests for.
+To execute system tests, specify the ``--system SYSTEM`
+flag where ``SYSTEM`` is a system to run the system tests for. It can be repeated.
 
 
 Forwarding Authentication from the Host
@@ -552,7 +500,6 @@ Currently forwarded credentials are:
   * credentials stored in ``${HOME}/.aws``, ``${HOME}/.boto``, and ``${HOME}/.s3`` (for AWS authentication)
   * credentials stored in ``${HOME}/.docker`` for docker
   * credentials stored in ``${HOME}/.kube`` for kubectl
-  * credentials stored in ``${HOME}/.ssh`` for SSH
 
 
 Adding a New System Test
@@ -575,7 +522,7 @@ tests whenever an operator/hook/sensor is added/modified in a given system.
   The tests should read the right credentials and authenticate them on their own. The credentials are read
   in Breeze from the ``/files`` directory. The local "files" folder is mounted to the "/files" folder in Breeze.
 
-* If your system tests are long-lasting ones (i.e., require more than 20-30 minutes
+* If your system tests are long-runnin ones (i.e., require more than 20-30 minutes
   to complete), mark them with the ```@pytest.markers.long_running`` marker.
   Such tests are skipped by default unless you specify the ``--long-running`` flag to pytest.
 
@@ -653,7 +600,7 @@ Running system tests for backported packages in Airflow 1.10.* series
 
 Once you installed 1.10.* Airflow version with ``--install-airflow-version`` and prepared and
 installed the required packages via ``variables.env`` it should be as easy as running
-``pytest --systems=<SYSTEM_NAME> TEST_NAME``. Note that we have default timeout for running
+``pytest --system=<SYSTEM_NAME> TEST_NAME``. Note that we have default timeout for running
 system tests set to 8 minutes and some system tests might take much longer to run and you might
 want to add ``-o faulthandler_timeout=2400`` (2400s = 40 minutes for example) to your
 pytest command.
@@ -688,7 +635,8 @@ This will:
 
 .. code-block:: bash
 
-   pytest -o faulthandler_timeout=2400 --systems=google tests/providers/google/cloud/operators/test_compute_system.py
+   pytest -o faulthandler_timeout=2400 \
+      --system=google tests/providers/google/cloud/operators/test_compute_system.py
 
 
 Iteration with System Tests if your resources are slow to create
@@ -757,7 +705,8 @@ The typical session then looks as follows:
 
 .. code-block:: bash
 
-   pytest -o faulthandler_timeout=2400 --systems=google tests/providers/google/cloud/operators/test_compute_system.py
+   pytest -o faulthandler_timeout=2400 \
+      --system=google tests/providers/google/cloud/operators/test_compute_system.py
 
 5. In case you are running backport packages tests you need to rebuild and reinstall a package
    every time you change the operators/hooks or example_dags. The example below shows reinstallation
@@ -812,15 +761,6 @@ your local sources to the ``/opt/airflow`` location of the sources within the co
 .. image:: images/source_code_mapping_ide.png
     :align: center
     :alt: Source code mapping
-
-Remote Debugging on Travis CI
-=============================
-
-You can also connect IDE to Travis CI. To do this, you must pass a public IP address in the ``pydevd.set_trace``
-method. If you do not have a public IP address then you can start the virtual machine at the cloud service
-provider for the time of debugging. You also need to install the appropriate debugger in Travis CI. You
-need to modify the ``scripts/ci/in_container/entrypoint.sh`` file to add a pip install command
-after the license header.
 
 Setup VM on GCP with SSH forwarding
 -----------------------------------

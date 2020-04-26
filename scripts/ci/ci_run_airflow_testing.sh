@@ -27,6 +27,8 @@ if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
     exit
 fi
 
+get_ci_environment
+
 prepare_ci_build
 
 rebuild_ci_image_if_needed
@@ -70,6 +72,15 @@ echo
 INTEGRATIONS=()
 
 ENABLED_INTEGRATIONS=${ENABLED_INTEGRATIONS:=""}
+
+if [[ ${TEST_TYPE:=} == "Integration" ]]; then
+    export ENABLED_INTEGRATIONS="${AVAILABLE_INTEGRATIONS}"
+    export RUN_INTEGRATION_TESTS="${AVAILABLE_INTEGRATIONS}"
+elif [[ ${TEST_TYPE:=} == "Long" ]]; then
+    export ONLY_RUN_LONG_RUNNING_TESTS="true"
+elif [[ ${TEST_TYPE:=} == "Quarantined" ]]; then
+    export ONLY_RUN_QUARANTINED_TESTS="true"
+fi
 
 for _INT in ${ENABLED_INTEGRATIONS}
 do

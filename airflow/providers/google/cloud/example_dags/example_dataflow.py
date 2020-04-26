@@ -30,7 +30,6 @@ from airflow.providers.google.cloud.operators.dataflow import (
 from airflow.providers.google.cloud.operators.gcs import GCSToLocalOperator
 from airflow.utils.dates import days_ago
 
-GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCS_TMP = os.environ.get('GCP_DATAFLOW_GCS_TMP', 'gs://test-dataflow-example/temp/')
 GCS_STAGING = os.environ.get('GCP_DATAFLOW_GCS_STAGING', 'gs://test-dataflow-example/staging/')
 GCS_OUTPUT = os.environ.get('GCP_DATAFLOW_GCS_OUTPUT', 'gs://test-dataflow-example/output')
@@ -44,7 +43,6 @@ GCS_JAR_OBJECT_NAME = GCS_JAR_PARTS.path[1:]
 default_args = {
     "start_date": days_ago(1),
     'dataflow_default_options': {
-        'project': GCP_PROJECT_ID,
         'tempLocation': GCS_TMP,
         'stagingLocation': GCS_STAGING,
     }
@@ -68,6 +66,7 @@ with models.DAG(
         poll_sleep=10,
         job_class='org.apache.beam.examples.WordCount',
         check_if_running=CheckJobRunning.IgnoreJob,
+        location='europe-west3'
     )
     # [END howto_operator_start_java_job]
 
@@ -104,7 +103,8 @@ with models.DAG(
             'apache-beam[gcp]>=2.14.0'
         ],
         py_interpreter='python3',
-        py_system_site_packages=False
+        py_system_site_packages=False,
+        location='europe-west3'
     )
     # [END howto_operator_start_python_job]
 
@@ -130,4 +130,5 @@ with models.DAG(
             'inputFile': "gs://dataflow-samples/shakespeare/kinglear.txt",
             'output': GCS_OUTPUT
         },
+        location='europe-west3'
     )

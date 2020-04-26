@@ -230,6 +230,10 @@
       </div>
     </div>
   </div>
+  <div id="svg-tooltip" class="tooltip top" style="position: fixed; display: none; opacity: 1">
+    <div class="tooltip-arrow"></div>
+    <div class="tooltip-inner"></div>
+  </div>
 {% endblock %}
 
 {% block tail %}
@@ -399,6 +403,8 @@
           .text(function(d){ return d.count > 0 ? d.count : ''; });
 
         g.append('circle')
+          .attr('id', function(d) {return 'run-' + dag_id.replace(/\./g, '_') + d.state || 'none'})
+          .attr('class', 'has-svg-tooltip')
           .attr('stroke-width', function(d) {
             if (d.count > 0)
               return stroke_width;
@@ -447,11 +453,6 @@
       }
       $("#pause_header").tooltip();
       $("#statuses_info").tooltip();
-
-      $("circle").tooltip({
-        html: true,
-        container: "body",
-      });
     }
 
     function taskStatsHandler(error, json) {
@@ -479,6 +480,8 @@
           .text(function(d){ return d.count > 0 ? d.count : ''; });
 
         g.append('circle')
+          .attr('id', function(d) {return 'task-' + dag_id.replace(/\./g, '_') + d.state || 'none'})
+          .attr('class', 'has-svg-tooltip')
           .attr('stroke-width', function(d) {
             if (d.count > 0)
               return stroke_width;
@@ -527,11 +530,6 @@
       }
       $("#pause_header").tooltip();
       $("#statuses_info").tooltip();
-
-      $("circle").tooltip({
-        html: true,
-        container: "body",
-      });
     }
 
     if (encoded_dag_ids.has('dag_ids')) {
@@ -554,5 +552,33 @@
       $(".loading-task-stats").remove();
       $(".loading-dag-stats").remove();
     }
+
+    function showSvgTooltip(text, circ) {
+      var tip = $('#svg-tooltip');
+      tip.children('.tooltip-inner').text(text);
+      var centeringOffset = tip.width() / 2;
+      tip.css({
+        "display": "block",
+        "left": circ.left + 12.5 - centeringOffset + 'px',// 12.5 == half of circle width
+        "top": circ.top - 25 + 'px'// 25 == position above circle
+      });
+    }
+
+    function hideSvgTooltip() {
+      $('#svg-tooltip').css('display', 'none');
+    }
+
+    $(window).on('load', function() {
+      $('body').on('mouseover', '.has-svg-tooltip', function(e) {
+        var elem = e.target;
+        var text = elem.getAttribute('title');
+        var circ = elem.getBoundingClientRect();
+        showSvgTooltip(text, circ);
+      });
+
+      $('body').on('mouseout', '.has-svg-tooltip', function(e) {
+        hideSvgTooltip();
+      });
+    });
   </script>
 {% endblock %}

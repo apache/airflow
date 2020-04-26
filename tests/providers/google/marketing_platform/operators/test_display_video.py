@@ -20,8 +20,8 @@ from unittest import TestCase, mock
 
 from airflow.providers.google.marketing_platform.operators.display_video import (
     GoogleDisplayVideo360CreateReportOperator, GoogleDisplayVideo360DeleteReportOperator,
-    GoogleDisplayVideo360DownloadReportOperator, GoogleDisplayVideo360RunReportOperator,
-    GoogleDisplayVideo360UploadLineItemsOperator,
+    GoogleDisplayVideo360DownloadLineItemsOperator, GoogleDisplayVideo360DownloadReportOperator,
+    GoogleDisplayVideo360RunReportOperator, GoogleDisplayVideo360UploadLineItemsOperator,
 )
 
 API_VERSION = "api_version"
@@ -180,6 +180,65 @@ class TestGoogleDisplayVideo360RunReportOperator(TestCase):
         )
         hook_mock.return_value.run_query.assert_called_once_with(
             query_id=report_id, params=params
+        )
+
+
+class TestGoogleDisplayVideo360DownloadLineItemsOperator(TestCase):
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators."
+        "display_video.GoogleDisplayVideo360Hook"
+    )
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators."
+        "display_video.GCSHook"
+    )
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators."
+        "display_video.tempfile"
+    )
+    def test_execute(self, mock_temp, gcs_hook_mock, hook_mock):
+        request_body = {
+            "filterType": "filter_type",
+            "filterIds": [],
+            "format": "format",
+            "fileSpec": "file_spec"
+        }
+        bucket_name = "bucket_name"
+        object_name = "object_name"
+        filename = "test"
+        mock_temp.NamedTemporaryFile.return_value.__enter__.return_value.name = filename
+        gzip = False
+
+        op = GoogleDisplayVideo360DownloadLineItemsOperator(
+            request_body=request_body,
+            bucket_name=bucket_name,
+            object_name=object_name,
+            gzip=gzip,
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            task_id="test_task",
+        )
+
+        op.execute(context=None)
+
+        gcs_hook_mock.return_value.upload.assert_called_with(
+            bucket_name=bucket_name,
+            object_name=object_name,
+            filename=filename,
+            gzip=gzip,
+            mime_type='text/csv',
+        )
+
+        gcs_hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+        )
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, api_version=API_VERSION, delegate_to=DELEGATE_TO
+        )
+        hook_mock.return_value.download_line_items.assert_called_once_with(
+            request_body=request_body
         )
 
 

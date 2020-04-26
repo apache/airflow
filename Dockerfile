@@ -189,17 +189,17 @@ RUN pip install --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]${AIRFLOW_I
     find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r && \
     find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r
 
-RUN WWW_DIR=""; \
-    AIRFLOW_SITE_PACKAGE=/root/.local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow; \
+RUN \
+    AIRFLOW_SITE_PACKAGE="/root/.local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow"; \
     if [[ -f "${AIRFLOW_SITE_PACKAGE}/www_rbac/package.json" ]]; then \
-        WWW_DIR=$"${AIRFLOW_SITE_PACKAGE}/www_rbac"; \
+        WWW_DIR="${AIRFLOW_SITE_PACKAGE}/www_rbac"; \
     elif [[ -f "${AIRFLOW_SITE_PACKAGE}/www/package.json" ]]; then \
-        WWW_DIR=$"${AIRFLOW_SITE_PACKAGE}/www"; \
+        WWW_DIR="${AIRFLOW_SITE_PACKAGE}/www"; \
     fi; \
-    if [[ ${WWW_DIR} != "" ]]; then \
-        yarn --cwd ${WWW_DIR} install --frozen-lockfile --no-cache; \
-        yarn --cwd ${WWW_DIR} run prod; \
-        rm -rf ${WWW_DIR}/node_modules; \
+    if [[ ${WWW_DIR:=} != "" ]]; then \
+        yarn --cwd "${WWW_DIR}" install --frozen-lockfile --no-cache; \
+        yarn --cwd "${WWW_DIR}" run prod; \
+        rm -rf "${WWW_DIR}/node_modules"; \
     fi
 
 ARG ENTRYPOINT_FILE="entrypoint.sh"
