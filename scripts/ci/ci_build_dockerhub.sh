@@ -20,6 +20,7 @@
 # on CI to potentially rebuild (and refresh layers that
 # are not cached) Docker images that are used to run CI jobs
 export FORCE_ANSWER_TO_QUESTIONS="yes"
+export VERBOSE_COMMANDS="true"
 
 if [[ -z ${DOCKER_REPO} ]]; then
    echo
