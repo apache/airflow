@@ -17,17 +17,18 @@
 
 from __future__ import absolute_import
 
+import logging
+
 from six import string_types
 from sqlalchemy import or_
 
-import airflow.models
+import airflow.models  # pylint: disable=cyclic-import
 from airflow.utils import asciiart
 from airflow.utils.email import send_email
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 def yield_unscheduled_runs(dag, last_scheduled_run, ts):
@@ -369,7 +370,7 @@ def get_impacted_downstream_task_instances(task_instance, session=None):
         # State.NONE is actually a None, which is a null, which breaks
         # comparisons without writing them like this.
         .filter(
-            or_(TI.state is None, TI.state.in_(blocked_states))  # noqa E711
+            or_(TI.state == None, TI.state.in_(blocked_states))  # noqa E711 pylint: disable=C0121
         )
         .order_by(TI.task_id)
     )
