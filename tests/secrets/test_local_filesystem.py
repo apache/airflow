@@ -100,7 +100,7 @@ class TestLoadVariables(unittest.TestCase):
     def test_missing_file(self, mock_exists):
         with self.assertRaisesRegex(
             AirflowException,
-            re.escape("File a.json was not found. Check the configuration of your secret backend."),
+            re.escape("File a.json was not found. Check the configuration of your Secrets backend."),
         ):
             local_filesystem.load_variables("a.json")
 
@@ -189,7 +189,7 @@ class TestLoadConnection(unittest.TestCase):
     def test_missing_file(self, mock_exists):
         with self.assertRaisesRegex(
             AirflowException,
-            re.escape("File a.json was not found. Check the configuration of your secret backend."),
+            re.escape("File a.json was not found. Check the configuration of your Secrets backend."),
         ):
             local_filesystem.load_connections("a.json")
 

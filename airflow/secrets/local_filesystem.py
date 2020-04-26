@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Objects relating to retreiving connections and variables from local file
+Objects relating to retrieving connections and variables from local file
 """
 import json
 import logging
