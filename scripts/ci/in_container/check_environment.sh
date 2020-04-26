@@ -20,7 +20,6 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
 EXIT_CODE=0
-DB_EXIT_CODE=0
 
 DISABLED_INTEGRATIONS=""
 
@@ -116,7 +115,7 @@ function check_db_connection {
         echo
         echo "${LAST_CHECK_RESULT}"
         echo
-        DB_EXIT_CODE=${RES}
+        EXIT_CODE=${RES}
     fi
     echo "-----------------------------------------------------------------------------------------------"
 }
@@ -176,7 +175,7 @@ function check_mysql_logs {
     done
 }
 
-function resetdb() {
+function resetdb_if_requested() {
     if [[ ${DB_RESET:="false"} == "true" ]]; then
         if [[ ${RUN_AIRFLOW_1_10} == "true" ]]; then
                 airflow resetdb -y
@@ -198,8 +197,8 @@ if [[ -n ${BACKEND:=} ]]; then
     fi
 
     check_db_connection 5
-
     set -e
+
     if [[ ${EXIT_CODE} == 0 ]]; then
         echo "==============================================================================================="
         echo "             Backend database is sane"
@@ -224,17 +223,12 @@ if [[ ${EXIT_CODE} != 0 ]]; then
     echo
     echo "Error: some of the CI environment failed to initialize!"
     echo
-    exit ${EXIT_CODE}
+    # Fixed exit code on initialization
+    # If the environment fails to initialize it is re-started several times
+    exit 254
 fi
 
-# Try to reset the database regardless of DB_EXIT_CODE. If this fails, the whole script will fail
-resetdb
-
-if [[ ${DB_EXIT_CODE} != "0" ]]; then
-    echo
-    echo "Test of DB connectivity failed, but then managed to connect and reset the DB. Proceeding.".
-    echo
-fi
+resetdb_if_requested
 
 if [[ ${DISABLED_INTEGRATIONS} != "" ]]; then
     echo
@@ -243,3 +237,5 @@ if [[ ${DISABLED_INTEGRATIONS} != "" ]]; then
     echo "Enable them via --integration <INTEGRATION_NAME> flags (you can use 'all' for all)"
     echo
 fi
+
+exit 0
