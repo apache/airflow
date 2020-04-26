@@ -59,12 +59,11 @@ Local Filesystem Secrets Backend
 
 This backend is especially useful in the following use cases:
 
-* **development**: It ensures data synchronization between all terminal windows (same as databases),
+* **Development**: It ensures data synchronization between all terminal windows (same as databases),
   and at the same time the values are retained after database restart (same as environment variable)
 * **Kubernetes**: It allows you to store secrets in `Kubernetes Secrets <https://kubernetes.io/docs/concepts/configuration/secret/>`__
   or you can synchronize values using the sidecar container and
   `a shared volume <https://kubernetes.io/docs/tasks/access-application-cluster/communicate-containers-same-pod-shared-volume/>`__
-* **JSON**: If you're tired of defining all connections using a URI - creating JSON object is easier than using URI.
 
 To use variable and connection from local file, specify :py:class:`~airflow.secrets.local_filesystem.LocalFilesystemBackend`
 as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg``.
@@ -94,7 +93,7 @@ file ``/files/my_conn.json`` when it looks for connections.
 The file can be defined in ``JSON`` or ``env`` format.
 
 The JSON file must contain an object where the key contains the connection ID and the value contains
-the definitions of one or more connections. The connection can be defined as a URL (string) or object.
+the definitions of one or more connections. The connection can be defined as a URI (string) or JSON object.
 For a guide about defining a connection as a URI, see:: :ref:`generating_connection_uri`.
 For a description of the connection object parameters see :class:`~airflow.models.connection.Connection`.
 The following is a sample JSON file.

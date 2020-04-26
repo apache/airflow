@@ -41,7 +41,7 @@ def get_connection_parameter_names() -> Set[str]:
     return {k for k in signature(Connection.__init__).parameters.keys() if k != "self"}
 
 
-def _parser_env_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSyntaxError]]:
+def _parse_env_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSyntaxError]]:
     """
     Parse a file in the ``.env '' format.
 
@@ -64,7 +64,7 @@ def _parser_env_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSyn
             continue
 
         if COMMENT_PATTERN.match(line):
-            # Ignore comments:
+            # Ignore comments
             continue
 
         var_parts: List[str] = line.split("=", 2)
@@ -108,14 +108,14 @@ def _parse_json_file(file_path: str) -> Tuple[Dict[str, Any], List[FileSyntaxErr
 
 
 FILE_PARSERS = {
-    "env": _parser_env_file,
+    "env": _parse_env_file,
     "json": _parse_json_file,
 }
 
 
 def _parse_secret_file(file_path: str) -> Dict[str, Any]:
     """
-    Based on the file extension format, selects a parser and parse the file.
+    Based on the file extension format, selects a parser, and parses the file.
 
     :param file_path: The location of the file that will be processed.
     :type file_path: str
@@ -123,7 +123,7 @@ def _parse_secret_file(file_path: str) -> Dict[str, Any]:
     """
     if not os.path.exists(file_path):
         raise AirflowException(
-            f"File {file_path} was not found. Check the configuration of your secret backend."
+            f"File {file_path} was not found. Check the configuration of your Secrets backend."
         )
 
     log.debug("Parsing file: %s", file_path)
@@ -149,7 +149,7 @@ def _create_connection(conn_id: str, value: Any):
     """
     Creates a connection based on a URL or JSON object.
     """
-    from airflow.models import Connection
+    from airflow.models.connection import Connection
 
     if isinstance(value, str):
         return Connection(conn_id=conn_id, uri=value)
@@ -179,7 +179,7 @@ def _create_connection(conn_id: str, value: Any):
 
 def load_variables(file_path: str) -> Dict[str, str]:
     """
-    Load variable from a text file.
+    Load variables from a text file.
 
     Both ``JSON`` and ``.env`` files are supported.
 

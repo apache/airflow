@@ -201,7 +201,7 @@ class TestLocalFileBackend(unittest.TestCase):
             tmp_file.flush()
             backend = LocalFilesystemBackend(variables_file_path=tmp_file.name)
             self.assertEqual("VAL_A", backend.get_variable("KEY_A"))
-            self.assertEqual(None, backend.get_variable("KEY_B"))
+            self.assertIsNone(backend.get_variable("KEY_B"))
 
     def test_should_read_connection(self):
         with NamedTemporaryFile(suffix=".env") as tmp_file:
