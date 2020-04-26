@@ -253,7 +253,7 @@ class AwsBaseHook(BaseHook):
             assume_role_kwargs["ExternalId"] = extra_config.get(
                 "external_id"
             )
-        role_session_name = "Airflow_" + str(self.aws_conn_id)
+        role_session_name = f"Airflow_{self.aws_conn_id}"
         self.log.info(
             "Doing sts_client.assume_role to role_arn=%s (role_session_name=%s)",
             role_arn,
