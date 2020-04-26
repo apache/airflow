@@ -142,7 +142,7 @@ do
         echo
         MAX_RETRIES=$(( MAX_RETRIES - 1 ))
         # Cleanup docker containers and images to make sure everything is retried from scratch
-        docker-compose down --remove-orphans -f "${MY_DIR}/docker-compose/base.yml" --timeout 20
+        docker-compose -f "${MY_DIR}/docker-compose/base.yml" down --remove-orphans --timeout 20
         docker system prune --force --volumes
         continue
     fi
