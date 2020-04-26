@@ -8,7 +8,7 @@
 # with the License.  You may obtain a copy of the License at
 #
 #   http://www.apache.org/licenses/LICENSE-2.0
-#
+
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,13 @@
 # under the License.
 
 import unittest
-import pytest
+
 import mock
+import pytest
 
 from airflow.providers.google.cloud.operators.gcs_to_bigquery import GCSToBigQueryOperator
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 TASK_ID = 'test-gcs-to-bq-operator'
 TEST_EXPLICIT_DEST = 'test-project.dataset.table'
