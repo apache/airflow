@@ -43,7 +43,7 @@ create_test_dataset = BigQueryCreateEmptyDatasetOperator(
     dag=dag
 )
 
-# [START howto_operator_gcs_to_bq]
+# [START howto_operator_gcs_to_bigquery]
 load_csv = GCSToBigQueryOperator(
     task_id='gcs_to_bigquery_example',
     bucket='cloud-samples-data',
@@ -55,7 +55,7 @@ load_csv = GCSToBigQueryOperator(
     ],
     write_disposition='WRITE_TRUNCATE',
     dag=dag)
-# [END howto_operator_gcs_to_bq]
+# [END howto_operator_gcs_to_bigquery]
 
 delete_test_dataset = BigQueryDeleteDatasetOperator(
     task_id='delete_airflow_test_dataset',
