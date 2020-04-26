@@ -247,6 +247,7 @@ class TestLocalTaskJob(unittest.TestCase):
 
         session.close()
 
+    @pytest.mark.quarantined
     def test_localtaskjob_maintain_heart_rate(self):
         dagbag = DagBag(
             dag_folder=TEST_DAG_FOLDER,
