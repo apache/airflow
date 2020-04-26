@@ -31,7 +31,6 @@ services:
       - MINICLUSTER_HOME=/opt/minicluster
       - CELERY_BROKER_URLS=amqp://guest:guest@rabbitmq:5672,redis://redis:6379/0
       - BACKEND
-      - SOURCE_BRANCH
       - CI
       - CI_BUILD_ID
       - CI_JOB_ID
