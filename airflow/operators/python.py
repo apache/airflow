@@ -145,6 +145,55 @@ class PythonOperator(BaseOperator):
         return self.python_callable(*self.op_args, **self.op_kwargs)
 
 
+class PythonFunctionalOperator(PythonOperator):
+    """
+    Allows a workflow to "branch" or follow a path following the execution
+    of this task.
+
+    It derives the PythonOperator and expects a Python function that returns
+    a single task_id or list of task_ids to follow. The task_id(s) returned
+    should point to a task directly downstream from {self}. All other "branches"
+    or directly downstream tasks are marked with a state of ``skipped`` so that
+    these paths can't move forward. The ``skipped`` states are propagated
+    downstream to allow for the DAG state to fill up and the DAG run's state
+    to be inferred.
+    """
+
+    @apply_defaults
+    def __init__(
+        self,
+        multiple_outputs: bool = False,
+        *args,
+        **kwargs
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.multiple_outputs = multiple_outputs
+        
+
+    def __call__(self, *args, **kwargs):
+       self.op_args = args
+       self.op_kwargs = kwargs
+
+    def alias(self, task_id: str):
+        return PythonFunctionalOperator(
+            python_callable=self.python_callable, task_id=task_id
+        )
+
+    def execute(self, context: Dict):
+        return_value = self.execute_callable()
+        self.log.info("Done. Returned value was: %s", return_value)
+        if not self.multiple_outputs
+            return return_value
+        if isinstance(return_value, dict):
+            for key, value in return_value.items():
+                self.xcom_push(context, str(key), value)     
+        elif isinstance(return_value, (list, tuple)):
+            for key, value in enumerate(return_value):
+                self.xcom_push(context, str(key), value)
+        return return_value
+
+
+
 class BranchPythonOperator(PythonOperator, SkipMixin):
     """
     Allows a workflow to "branch" or follow a path following the execution
