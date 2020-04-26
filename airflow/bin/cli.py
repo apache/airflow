@@ -1092,6 +1092,7 @@ def worker(args):
 
     # Celery worker
     from airflow.executors.celery_executor import app as celery_app
+    from celery import maybe_patch_concurrency
     from celery.bin import worker
 
     autoscale = args.autoscale
@@ -1112,7 +1113,14 @@ def worker(args):
     }
 
     if conf.has_option("celery", "pool"):
-        options["pool"] = conf.get("celery", "pool")
+        pool = conf.get("celery", "pool")
+        options["pool"] = pool
+        # Celery pools of type eventlet and gevent use greenlets, which
+        # requires monkey patching the app:
+        # https://eventlet.net/doc/patching.html#monkey-patch
+        # Otherwise task instances hang on the workers and are never
+        # executed.
+        maybe_patch_concurrency(['-P', pool])
 
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations("worker",
