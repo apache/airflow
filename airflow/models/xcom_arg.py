@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
@@ -28,30 +28,33 @@ class XComArg:
     Defaults to "return_value" as only key.
 
     Current implementations supports
-      xcomarg >> op
-      xcomarg << op
-      op >> xcomarg   (by BaseOperator code)
-      op << xcomarg   (by BaseOperator code)
+        xcomarg >> op
+        xcomarg << op
+        op >> xcomarg   (by BaseOperator code)
+        op << xcomarg   (by BaseOperator code)
 
-    **Example**:
-        The moment you got result from any op (functional or regular one) you can ::
-            xcomarg = ...
-            my_op = MyOperator()
-            my_op >> xcomarg
+    **Example**: The moment you got result from any op (functional or regular one) you can ::
 
-    This object can be used in legacy Operators via Jinja:
-    **Example**:
-        You can make this result to be part of any generated string ::
-            xcomarg = ...
-            op1 = MyOperator(my_text_message=f"{xcomarg}")
-            op2 = MyOperator(my_text_message=f"{xcomarg['topic']}")
+        xcomarg = ...
+        my_op = MyOperator()
+        my_op >> xcomarg
 
+    This object can be used in legacy Operators via Jinja.
 
+    **Example**: You can make this result to be part of any generated string ::
+
+        xcomarg = ...
+        op1 = MyOperator(my_text_message=f"the value is {xcomarg}")
+        op2 = MyOperator(my_text_message=f"the value is {xcomarg['topic']}")
+
+    :param operator: operator to which the XComArg belongs to
+    :type operator: airflow.models.baseoperator.BaseOperator
+    :param key: key value which is used for xcom_pull (key in the XCom table)
+    :type key: str
     """
 
-    def __init__(self, operator: BaseOperator, key: Optional[str] = XCOM_RETURN_KEY):
+    def __init__(self, operator: BaseOperator, key: str = XCOM_RETURN_KEY):
         self._operator = operator
-        # _key is used for xcom pull (key in the XCom table)
         self._key = key
 
     def __eq__(self, other):
@@ -67,18 +70,39 @@ class XComArg:
 
     def __rshift__(self, other):
         """
-        Implements xcomresult << op
+        Implements xcomresult >> op
         """
         self.set_downstream(other)
         return self
 
+    def __str__(self):
+        """
+        Backward compatibility for old-style jinja used in Airflow Operators
+
+        **Example**: to use XArg at BashOperator::
+
+            BashOperator(cmd=f"... { xcomarg } ...")
+
+        :return:
+        """
+        xcom_pull_kwargs = [f"task_ids='{self._operator.task_id}'",
+                            f"dag_id='{self._operator.dag.dag_id}'",
+                            ]
+        if self.key is not None:
+            xcom_pull_kwargs.append(f"key='{self.key}'")
+
+        xcom_pull_kwargs = ", ".join(xcom_pull_kwargs)
+        xcom_pull = f"task_instance.xcom_pull({xcom_pull_kwargs})"
+        return xcom_pull
+
     @property
     def operator(self) -> BaseOperator:
-        """Operator"""
+        """Returns operator of this XComArg"""
         return self._operator
 
     @property
-    def key(self):
+    def key(self) -> str:
+        """Returns keys of this XComArg"""
         return self._key
 
     def set_upstream(self, task_or_task_list: Union[BaseOperator, List[BaseOperator]]):
@@ -97,8 +121,8 @@ class XComArg:
 
     def resolve(self, context: Dict) -> Any:
         """
-        Pull XCom value for the existing arg.
-        this function likely to run during at op.execute() context
+        Pull XCom value for the existing arg. This method is run during ``op.execute()``
+        in respectable context.
         """
         resolved_value = self._operator.xcom_pull(
             context=context,
@@ -113,20 +137,3 @@ class XComArg:
         resolved_value = resolved_value[0]
 
         return resolved_value
-
-    def __str__(self):
-        """
-        Backward compatibility for old-style jinja used in Airflow Operators
-        **Example**: to use XArg at BashOperator::
-            BashOperator(cmd=f"... { xcomarg } ...")
-        :return:
-        """
-        xcom_pull_kwargs = [f"task_ids='{self._operator.task_id}'",
-                            f"dag_id='{self._operator.dag.dag_id}'",
-                            ]
-        if self.key is not None:
-            xcom_pull_kwargs.append(f"key='{self.key}'")
-
-        xcom_pull_kwargs = ", ".join(xcom_pull_kwargs)
-        xcom_pull = f"task_instance.xcom_pull({xcom_pull_kwargs})"
-        return xcom_pull
