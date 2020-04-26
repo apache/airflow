@@ -33,7 +33,7 @@ class XComArg:
         op >> xcomarg   (by BaseOperator code)
         op << xcomarg   (by BaseOperator code)
 
-    **Example**: The moment you got result from any op (functional or regular one) you can ::
+    **Example**: The moment you get a result from any operator (functional or regular) you can ::
 
         xcomarg = ...
         my_op = MyOperator()
@@ -58,7 +58,7 @@ class XComArg:
         self._key = key
 
     def __eq__(self, other):
-        return (self._operator == other.operator
+        return (self.operator == other.operator
                 and self.key == other.key)
 
     def __lshift__(self, other):
@@ -85,8 +85,8 @@ class XComArg:
 
         :return:
         """
-        xcom_pull_kwargs = [f"task_ids='{self._operator.task_id}'",
-                            f"dag_id='{self._operator.dag.dag_id}'",
+        xcom_pull_kwargs = [f"task_ids='{self.operator.task_id}'",
+                            f"dag_id='{self.operator.dag.dag_id}'",
                             ]
         if self.key is not None:
             xcom_pull_kwargs.append(f"key='{self.key}'")
@@ -109,7 +109,7 @@ class XComArg:
         """
         Proxy to underlying operator set_upstream method
         """
-        self._operator.set_upstream(task_or_task_list)
+        self.operator.set_upstream(task_or_task_list)
 
     def set_downstream(
         self, task_or_task_list: Union[BaseOperator, List[BaseOperator]]
@@ -117,22 +117,22 @@ class XComArg:
         """
         Proxy to underlying operator set_downstream method
         """
-        self._operator.set_downstream(task_or_task_list)
+        self.operator.set_downstream(task_or_task_list)
 
     def resolve(self, context: Dict) -> Any:
         """
         Pull XCom value for the existing arg. This method is run during ``op.execute()``
         in respectable context.
         """
-        resolved_value = self._operator.xcom_pull(
+        resolved_value = self.operator.xcom_pull(
             context=context,
-            task_ids=[self._operator.task_id],
+            task_ids=[self.operator.task_id],
             key=self.key,
-            dag_id=self._operator.dag.dag_id,
+            dag_id=self.operator.dag.dag_id,
         )
         if not resolved_value:
             raise AirflowException(
-                f'XComArg result from {self._operator.task_id} at {self._operator.dag.dag_id} '
+                f'XComArg result from {self.operator.task_id} at {self.operator.dag.dag_id} '
                 f'with key="{self.key}"" is not found!')
         resolved_value = resolved_value[0]
 
