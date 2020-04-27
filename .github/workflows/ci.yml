@@ -40,6 +40,8 @@ env:
   CACHE_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 jobs:
   pull-docker-image:
+    runs-on: ubuntu-latest
+    name: "docker stuff"
     steps:
       - name: pull docker image from github
         run: docker pull docker.pkg.github.com/apache/airflow/master-python3.6:latest
