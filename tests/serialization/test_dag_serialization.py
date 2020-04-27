@@ -781,7 +781,7 @@ class TestStringifiedDAGs(unittest.TestCase):
                           'executor_config': {},
                           'expected_duration': None,
                           'expected_finish': None,
-                          'expecyed_start': None,
+                          'expected_start': None,
                           'inlets': [],
                           'label': '10',
                           'max_retry_delay': None,

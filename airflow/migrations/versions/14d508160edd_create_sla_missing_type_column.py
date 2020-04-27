@@ -1,4 +1,3 @@
-# flake8: noqa
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,22 +16,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add SLA miss type.
+"""Add SLA missing type
 
-Revision ID: 19e9c503bc4e
-Revises: 0e2a74e0fc9f
-Create Date: 2018-07-05 12:19:18.718960
+Revision ID: 14d508160edd
+Revises: 952da73b5eff
+Create Date: 2020-04-27 05:26:46.236705
 
 """
 
-# revision identifiers, used by Alembic.
-revision = '19e9c503bc4e'
-down_revision = '0e2a74e0fc9f'
-branch_labels = None
-depends_on = None
-
 import sqlalchemy as sa
 from alembic import op
+
+# revision identifiers, used by Alembic.
+revision = '14d508160edd'
+down_revision = '952da73b5eff'
+branch_labels = None
+depends_on = None
 
 SLA_MISS_TABLE = "sla_miss"
 NEW_COLUMN = "sla_type"
