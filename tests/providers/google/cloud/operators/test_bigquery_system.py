@@ -29,7 +29,6 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 class BigQueryExampleDagsSystemTest(GoogleSystemTest):
     """
     System tests for Google BigQuery operators
-
     It use a real service.
     """
 
@@ -39,8 +38,12 @@ class BigQueryExampleDagsSystemTest(GoogleSystemTest):
         self.create_gcs_bucket(DATA_EXPORT_BUCKET_NAME)
 
     @provide_gcp_context(GCP_BIGQUERY_KEY)
-    def test_run_example_dag(self):
-        self.run_dag('example_bigquery', CLOUD_DAG_FOLDER)
+    def test_run_example_dag_operations(self):
+        self.run_dag('example_bigquery_operations', CLOUD_DAG_FOLDER)
+
+    @provide_gcp_context(GCP_BIGQUERY_KEY)
+    def test_run_example_dag_transfer(self):
+        self.run_dag('example_bigquery_transfer', CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     def tearDown(self):

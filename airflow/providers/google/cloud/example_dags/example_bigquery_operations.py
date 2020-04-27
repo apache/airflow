@@ -89,8 +89,7 @@ with models.DAG(
 
     # [START howto_operator_bigquery_delete_view]
     delete_view = BigQueryDeleteTableOperator(
-        task_id="delete_view",
-        deletion_dataset_table="{}.test_view".format(DATASET_NAME),
+        task_id="delete_view", deletion_dataset_table=f"{DATASET_NAME}.test_view"
     )
     # [END howto_operator_bigquery_delete_view]
 
