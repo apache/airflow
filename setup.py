@@ -444,7 +444,7 @@ devel = [
     'parameterized',
     'paramiko',
     'pre-commit',
-    'pylint~=2.4',
+    'pylint==2.4.4',
     'pysftp',
     'pytest',
     'pytest-cov',

@@ -1,7 +1,7 @@
 # Editable install with no version control (apache-airflow==2.0.0.dev0)
 Authlib==0.14.1
 Babel==2.8.0
-Flask-AppBuilder==2.3.2
+Flask-AppBuilder==2.3.3
 Flask-Babel==1.0.0
 Flask-Bcrypt==0.7.1
 Flask-Caching==1.3.3
@@ -28,7 +28,7 @@ Pygments==2.6.1
 SQLAlchemy-JSONField==0.9.0
 SQLAlchemy-Utils==0.36.3
 SQLAlchemy==1.3.16
-Sphinx==3.0.2
+Sphinx==3.0.3
 Unidecode==1.1.1
 WTForms==2.2.1
 Werkzeug==0.16.1
@@ -86,7 +86,7 @@ cgroupspy==0.1.6
 chardet==3.0.4
 click==6.7
 cloudant==2.13.0
-cloudpickle==1.3.0
+cloudpickle==1.4.0
 colorama==0.4.3
 colorlog==4.0.2
 coverage==5.1
@@ -110,6 +110,7 @@ ecdsa==0.15
 elasticsearch-dbapi==0.1.0
 elasticsearch-dsl==7.1.0
 elasticsearch==7.5.1
+email-validator==1.0.5
 entrypoints==0.3
 execnet==1.7.1
 facebook-business==6.0.3
@@ -200,7 +201,7 @@ lazy-object-proxy==1.4.3
 ldap3==2.7
 lockfile==0.12.2
 marshmallow-enum==1.5.1
-marshmallow-sqlalchemy==0.22.3
+marshmallow-sqlalchemy==0.23.0
 marshmallow==2.21.0
 mccabe==0.6.1
 mock==4.0.2
@@ -361,7 +362,7 @@ websocket-client==0.57.0
 wrapt==1.12.1
 xmltodict==0.12.0
 yamllint==1.23.0
-yandexcloud==0.33.0
+yandexcloud==0.34.0
 zdesk==2.7.1
 zict==2.0.0
 zipp==3.1.0
