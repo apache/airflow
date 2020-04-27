@@ -124,7 +124,11 @@ class SSHHook(BaseHook):
                         str(extra_options["allow_host_key_change"]).lower() == 'true':
                     self.allow_host_key_change = True
                 if "host_key" in extra_options and self.no_host_key_check is False:
-                    self.host_key = extra_options["host_key"]
+                    try:
+                        encoded_host_key = decodebytes(extra_options["host_key"].encode('utf-8'))
+                        self.host_key = paramiko.RSAKey(data=encoded_host_key)
+                    except Exception:
+                        raise AirflowException('Connection extra host_key is malformed.')
 
         if self.pkey and self.key_file:
             raise AirflowException(
@@ -179,13 +183,8 @@ class SSHHook(BaseHook):
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         else:
             if self.host_key is not None:
-                try:
-                    encoded_host_key = decodebytes(self.host_key.encode('utf-8'))
-                    pkey = paramiko.RSAKey(data=encoded_host_key)
-                except Exception:
-                    raise AirflowException('Connection extra host_key is malformed.')
                 client_host_keys = client.get_host_keys()
-                client_host_keys.add(self.remote_host, 'ssh-rsa', pkey)
+                client_host_keys.add(self.remote_host, 'ssh-rsa', self.host_key)
             else:
                 pass  # will fallback to system host keys if none explicitly specified in conn extra
 
