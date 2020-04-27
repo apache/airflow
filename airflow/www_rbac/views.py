@@ -1524,6 +1524,11 @@ class Airflow(AirflowBaseView):
         external_logs = conf.get('elasticsearch', 'frontend')
         doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
 
+        # avoid spaces to reduce payload size
+        data = htmlsafe_json_dumps(data, separators=(',', ':'))
+        # escape slashes to avoid JSON parse error in JS
+        data = data.replace('\\', '\\\\')
+
         return self.render_template(
             'airflow/tree.html',
             operators=sorted({op.task_type: op for op in dag.tasks}.values(),
@@ -1532,8 +1537,7 @@ class Airflow(AirflowBaseView):
             form=form,
             dag=dag,
             doc_md=doc_md,
-            # avoid spaces to reduce payload size
-            data=htmlsafe_json_dumps(data, separators=(',', ':')),
+            data=data,
             blur=blur, num_runs=num_runs,
             show_external_logs=bool(external_logs))
 
