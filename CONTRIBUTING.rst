@@ -132,12 +132,10 @@ these guidelines:
 -   Include tests, either as doctests, unit tests, or both, to your pull
     request.
 
-    The airflow repo uses `Travis CI <https://travis-ci.org/apache/airflow>`__ to
+    The airflow repo uses `Github Actions <https://help.github.com/en/actions>`__ to
     run the tests and `codecov <https://codecov.io/gh/apache/airflow>`__ to track
-    coverage. You can set up both for free on your fork (see
-    `Travis CI Testing Framework <TESTING.rst#travis-ci-testing-framework>`__ usage guidelines).
-    It will help you make sure you do not break the build with your PR and
-    that you help increase coverage.
+    coverage. You can set up both for free on your fork. It will help you make sure you do not
+    break the build with your PR and that you help increase coverage.
 
 -   Follow our project's `Coding style and best practices`_.
 
@@ -279,8 +277,9 @@ Benefits:
     where all these services are available and can be used by tests
     automatically.
 
--   Breeze environment is almost the same as used in `Travis CI <https://travis-ci.com/>`__ automated builds.
-    So, if the tests run in your Breeze environment, they will work in Travis CI as well.
+-   Breeze environment is almost the same as used in the CI automated builds.
+    So, if the tests run in your Breeze environment, they will work in the CI as well.
+    See `<CI.yml>`_ for details about Airflow CI.
 
 Limitations:
 
@@ -308,7 +307,7 @@ There are a number of extras that can be specified when installing Airflow. Thos
 extras can be specified after the usual pip install - for example
 ``pip install -e .[gcp]``. For development purpose there is a ``devel`` extra that
 installs all development dependencies. There is also ``devel_ci`` that installs
-all dependencies needed in CI envioronment.
+all dependencies needed in the CI environment.
 
 This is the full list of those extras:
 
@@ -387,7 +386,7 @@ There are different set of fixed requirements for different python major/minor v
 use the right requirements file for the right python version.
 
 The ``requirements-python<PYTHON_MAJOR_MINOR_VERSION>.txt`` file MUST be regenerated every time after
-the ``setup.py`` is updated. This is checked automatically in Travis CI build. There are separate
+the ``setup.py`` is updated. This is checked automatically in the CI build. There are separate
 jobs for each python version that checks if the requirements should be updated.
 
 If they are not updated, you should regenerate the requirements locally using Breeze as described below.
@@ -475,7 +474,7 @@ Static code checks
 We check our code quality via static code checks. See
 `STATIC_CODE_CHECKS.rst <STATIC_CODE_CHECKS.rst>`_ for details.
 
-Your code must pass all the static code checks in Travis CI in order to be eligible for Code Review.
+Your code must pass all the static code checks in the CI in order to be eligible for Code Review.
 The easiest way to make sure your code is good before pushing is to use pre-commit checks locally
 as described in the static code checks documentation.
 
@@ -530,7 +529,7 @@ We support the following types of tests:
   and `local virtualenv <LOCAL_VIRTUALENV.rst>`_.
 
 * **Integration tests** are available in the Breeze development environment
-  that is also used for Airflow Travis CI tests. Integration test are special tests that require
+  that is also used for Airflow's CI tests. Integration test are special tests that require
   additional services running, such as Postgres, Mysql, Kerberos, etc.
 
 * **System tests** are automatic tests that use external systems like
@@ -676,8 +675,7 @@ In general, your contribution includes the following stages:
 2. Create a `local virtualenv <LOCAL_VIRTUALENV.rst>`_,
    initialize the `Breeze environment <BREEZE.rst>`__, and
    install `pre-commit framework <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__.
-   If you want to add more changes in the future, set up your own `Travis CI
-   fork <https://github.com/PolideaInternal/airflow/blob/more-gsod-improvements/TESTING.rst#travis-ci-testing-framework>`__.
+   If you want to add more changes in the future, set up your fork and enable Github Actions.
 
 3. Join `devlist <https://lists.apache.org/list.html?dev@airflow.apache.org>`__
    and set up a `Slack account <https://apache-airflow-slack.herokuapp.com>`__.
@@ -859,7 +857,7 @@ Later on
    for example: ``git rebase 5abce471e0690c6b8d06ca25685b0845c5fd270f --onto apache/master``
 
 6. If you have no conflicts - that's cool. You rebased. You can now run ``git push --force-with-lease`` to
-   push your changes to your repository. That should trigger the build in CI if you have a
+   push your changes to your repository. That should trigger the build in our CI if you have a
    Pull Request opened already.
 
 7. While rebasing you might have conflicts. Read carefully what git tells you when it prints information

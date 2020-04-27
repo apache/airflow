@@ -16,6 +16,7 @@
 # under the License.
 """Run ephemeral Docker Swarm services"""
 
+import requests
 from docker import types
 
 from airflow.exceptions import AirflowException
@@ -88,17 +89,22 @@ class DockerSwarmOperator(DockerOperator):
     :param tty: Allocate pseudo-TTY to the container of this service
         This needs to be set see logs of the Docker container / service.
     :type tty: bool
+    :param enable_logging: Show the application's logs in operator's logs.
+        Supported only if the Docker engine is using json-file or journald logging drivers.
+        The `tty` parameter should be set to use this with Python applications.
+    :type enable_logging: bool
     """
 
     @apply_defaults
     def __init__(
             self,
             image,
+            enable_logging=True,
             *args,
             **kwargs):
-
         super().__init__(image=image, *args, **kwargs)
 
+        self.enable_logging = enable_logging
         self.service = None
 
     def _run_image(self):
@@ -122,23 +128,62 @@ class DockerSwarmOperator(DockerOperator):
 
         self.log.info('Service started: %s', str(self.service))
 
-        status = None
         # wait for the service to start the task
         while not self.cli.tasks(filters={'service': self.service['ID']}):
             continue
-        while True:
 
-            status = self.cli.tasks(
-                filters={'service': self.service['ID']}
-            )[0]['Status']['State']
-            if status in ['failed', 'complete']:
-                self.log.info('Service status before exiting: %s', status)
+        if self.enable_logging:
+            self._stream_logs_to_output()
+
+        while True:
+            if self._has_service_terminated():
+                self.log.info('Service status before exiting: %s', self._service_status())
                 break
 
         if self.auto_remove:
             self.cli.remove_service(self.service['ID'])
-        if status == 'failed':
+        if self._service_status() == 'failed':
             raise AirflowException('Service failed: ' + repr(self.service))
+
+    def _service_status(self):
+        return self.cli.tasks(
+            filters={'service': self.service['ID']}
+        )[0]['Status']['State']
+
+    def _has_service_terminated(self):
+        status = self._service_status()
+        return (status in ['failed', 'complete'])
+
+    def _stream_logs_to_output(self):
+        logs = self.cli.service_logs(
+            self.service['ID'], follow=True, stdout=True, stderr=True, is_tty=self.tty
+        )
+        line = ''
+        while True:
+            try:
+                log = next(logs)
+            # TODO: Remove this clause once https://github.com/docker/docker-py/issues/931 is fixed
+            except requests.exceptions.ConnectionError:
+                # If the service log stream stopped sending messages, check if it the service has
+                # terminated.
+                if self._has_service_terminated():
+                    break
+            except StopIteration:
+                # If the service log stream terminated, stop fetching logs further.
+                break
+            else:
+                try:
+                    log = log.decode()
+                except UnicodeDecodeError:
+                    continue
+                if log == '\n':
+                    self.log.info(line)
+                    line = ''
+                else:
+                    line += log
+        # flush any remaining log stream
+        if line:
+            self.log.info(line)
 
     def on_kill(self):
         if self.cli is not None:

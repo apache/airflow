@@ -286,13 +286,11 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     """Watches for Kubernetes jobs"""
 
     def __init__(self,
-                 namespace: str,
                  watcher_queue: 'Queue[KubernetesWatchType]',
                  resource_version: Optional[str],
                  worker_uuid: Optional[str],
                  kube_config: Configuration):
         super().__init__()
-        self.namespace = namespace
         self.worker_uuid = worker_uuid
         self.watcher_queue = watcher_queue
         self.resource_version = resource_version
@@ -337,8 +335,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 kwargs[key] = value
 
         last_resource_version: Optional[str] = None
-        for event in watcher.stream(kube_client.list_namespaced_pod, self.namespace,
-                                    **kwargs):
+        for event in watcher.stream(kube_client.list_pod_for_all_namespaces, **kwargs):
             task = event['object']
             self.log.info(
                 'Event: %s had an event of type %s',
@@ -431,8 +428,10 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     def _make_kube_watcher(self) -> KubernetesJobWatcher:
         resource_version = KubeResourceVersion.get_current_resource_version()
-        watcher = KubernetesJobWatcher(self.namespace, self.watcher_queue,
-                                       resource_version, self.worker_uuid, self.kube_config)
+        watcher = KubernetesJobWatcher(watcher_queue=self.watcher_queue,
+                                       resource_version=resource_version,
+                                       worker_uuid=self.worker_uuid,
+                                       kube_config=self.kube_config)
         watcher.start()
         return watcher
 

@@ -219,10 +219,10 @@ with models.DAG(
     # [START howto_operator_bigquery_create_view]
     create_view = BigQueryCreateEmptyTableOperator(
         task_id="create_view",
-        dataset_id=LOCATION_DATASET_NAME,
+        dataset_id=DATASET_NAME,
         table_id="test_view",
         view={
-            "query": "SELECT * FROM `{}.test_table`".format(DATASET_NAME),
+            "query": f"SELECT * FROM `{PROJECT_ID}.{DATASET_NAME}.test_table`",
             "useLegacySql": False
         }
     )

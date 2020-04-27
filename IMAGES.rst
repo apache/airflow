@@ -121,7 +121,7 @@ url.
 Technical details of Airflow images
 ===================================
 
-The CI image is used by Breeze as shell image but it is also used during CI builds on Travis.
+The CI image is used by Breeze as shell image but it is also used during CI build.
 The image is single segment image that contains Airflow installation with "all" dependencies installed.
 It is optimised for rebuild speed (``AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD`` flag set to "true").
 It installs PIP dependencies from the current branch first - so that any changes in setup.py do not trigger
@@ -414,5 +414,5 @@ signals). This entrypoint works as follows:
 * If ``AIRFLOW__CELERY__BROKER_URL`` variable is passed and scheduler, worker of flower command is used then
   the connection is checked and the script waits until the Celery broker database is reachable.
 
-* If no argument is specified - you are dropped in bash shell.
+* If first argument is equal to "bash" - you are dropped in bash shell.
 * If there are any arguments they are passed to "airflow" command

@@ -62,6 +62,20 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Unify `hostname_callable` option in `core` section
+
+The previous option used a colon(`:`) to split the module from function. Now the dot(`.`) is used.
+
+The change aims to unify the format of all options that refer to objects in the `airflow.cfg` file.
+
+### Changes in BigQueryHook
+- `create_empty_table` method accepts now `table_resource` parameter. If provided all
+other parameters are ignored.
+- `create_empty_dataset` will now use values from `dataset_reference` instead of raising error
+if parameters were passed in `dataset_reference` and as arguments to method. Additionally validation
+of `dataset_reference` is done using `Dataset.from_api_repr`. Exception and log messages has been
+changed.
+
 ### Added mypy plugin to preserve types of decorated functions
 
 Mypy currently doesn't support precise type information for decorated
@@ -147,7 +161,7 @@ dag >> dummy
 This is no longer supported. Instead, we recommend using the DAG as context manager:
 
 ```python
-with DAG('my_dag):
+with DAG('my_dag'):
     dummy = DummyOperator(task_id='dummy')
 ```
 
@@ -1132,6 +1146,10 @@ No change is needed if only the default trigger rule `all_success` is being used
 If the DAG relies on tasks with other trigger rules (i.e. `all_done`) being skipped by the `LatestOnlyOperator`, adjustments to the DAG need to be made to commodate the change in behaviour, i.e. with additional edges from the `LatestOnlyOperator`.
 
 The goal of this change is to achieve a more consistent and configurale cascading behaviour based on the `BaseBranchOperator` (see [AIRFLOW-2923](https://jira.apache.org/jira/browse/AIRFLOW-2923) and [AIRFLOW-1784](https://jira.apache.org/jira/browse/AIRFLOW-1784)).
+
+### Change default snowflake_conn_id for Snowflake hook and operators
+
+When initializing a Snowflake hook or operator, the value used for `snowflake_conn_id` was always `snowflake_conn_id`, regardless of whether or not you specified a value for it. The default `snowflake_conn_id` value is now switched to `snowflake_default` for consistency and will be properly overriden when specified.
 
 ## Airflow 1.10.10
 

@@ -21,14 +21,13 @@ language: python
 os: linux
 env:
   global:
-    - BUILD_ID=${TRAVIS_BUILD_ID}
     - MOUNT_LOCAL_SOURCES="false"
     - MOUNT_HOST_AIRFLOW_VOLUME="true"
     - FORCE_ANSWER_TO_QUESTIONS="yes"
     - SKIP_CHECK_REMOTE_IMAGE="true"
     - DB_RESET="true"
     - VERBOSE="true"
-    - CI="true"
+    - CI_JOB_TYPE="Kubernetes tests"
 python: "3.6"
 stages:
   - test
@@ -58,5 +57,5 @@ jobs:
       stage: test
 install: skip
 before_install:
-  - ./scripts/ci/ci_before_install.sh
+  - ./scripts/ci/ci_prepare_image_on_ci.sh
 script: ./scripts/ci/ci_run_airflow_testing.sh

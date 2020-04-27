@@ -31,17 +31,17 @@
     - name: hostname_callable
       description: |
         Hostname by providing a path to a callable, which will resolve the hostname.
-        The format is "package:function".
+        The format is "package.function".
 
-        For example, default value "socket:getfqdn" means that result from getfqdn() of "socket"
+        For example, default value "socket.getfqdn" means that result from getfqdn() of "socket"
         package will be used as hostname.
 
         No argument should be required in the function specified.
-        If using IP address as hostname is preferred, use value ``airflow.utils.net:get_host_ip_address``
+        If using IP address as hostname is preferred, use value ``airflow.utils.net.get_host_ip_address``
       version_added: ~
       type: string
       example: ~
-      default: "socket:getfqdn"
+      default: "socket.getfqdn"
     - name: default_timezone
       description: |
         Default timezone in case supplied date times are naive

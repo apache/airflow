@@ -22,7 +22,7 @@ import argparse
 import json
 import os
 import textwrap
-from argparse import ArgumentError, RawTextHelpFormatter
+from argparse import Action, ArgumentError, RawTextHelpFormatter
 from typing import Callable, Dict, Iterable, List, NamedTuple, Set, Union
 
 from tabulate import tabulate_formats
@@ -257,10 +257,10 @@ ARG_SHOW_DAGRUN = Arg(
 ARG_IMGCAT_DAGRUN = Arg(
     ("--imgcat-dagrun", ),
     help=(
-        "After completing the backfill, prints a diagram on the screen for the "
+        "After completing the dag run, prints a diagram on the screen for the "
         "current DAG Run using the imgcat tool.\n"
         "\n"
-        "For more information, see: https://www.iterm2.com/documentation-images.html",
+        "For more information, see: https://www.iterm2.com/documentation-images.html"
     ),
     action='store_true')
 ARG_SAVE_DAGRUN = Arg(
@@ -582,6 +582,10 @@ ARG_CONN_ID = Arg(
     ('conn_id',),
     help='Connection id, required to add/delete a connection',
     type=str)
+ARG_CONN_ID_FILTER = Arg(
+    ('--conn-id',),
+    help='If passed, only items with the specified connection ID will be displayed',
+    type=str)
 ARG_CONN_URI = Arg(
     ('--conn-uri',),
     help='Connection URI, required to add a connection without conn_type',
@@ -614,7 +618,15 @@ ARG_CONN_EXTRA = Arg(
     ('--conn-extra',),
     help='Connection `Extra` field, optional when adding a connection',
     type=str)
-
+ARG_INCLUDE_SECRETS = Arg(
+    ('--include-secrets',),
+    help=(
+        "If passed, the connection in the secret backend will also be displayed."
+        "To use this option you must pass `--conn_id` option."
+        ""
+    ),
+    action="store_true",
+    default=False)
 # users
 ARG_USERNAME = Arg(
     ('--username',),
@@ -832,9 +844,9 @@ DAGS_COMMANDS = (
         ),
     ),
     ActionCommand(
-        func=lazy_load_command('airflow.cli.commands.dag_command.dag_test'),
         name='test',
         help="Execute one run of a DAG",
+        func=lazy_load_command('airflow.cli.commands.dag_command.dag_test'),
         args=(
             ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_SHOW_DAGRUN, ARG_IMGCAT_DAGRUN, ARG_SAVE_DAGRUN
         ),
@@ -1028,7 +1040,7 @@ CONNECTIONS_COMMANDS = (
         name='list',
         help='List connections',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_list'),
-        args=(ARG_OUTPUT,),
+        args=(ARG_OUTPUT, ARG_CONN_ID_FILTER, ARG_INCLUDE_SECRETS),
     ),
     ActionCommand(
         name='add',
@@ -1248,11 +1260,44 @@ DAG_CLI_COMMANDS: Set[str] = {
 }
 
 
+class AirflowHelpFormatter(argparse.HelpFormatter):
+    """
+    Custom help formatter to display help message.
+
+    It displays simple commands and groups of commands in separate sections.
+    """
+    def _format_action(self, action: Action):
+        if isinstance(action, argparse._SubParsersAction):  # pylint: disable=protected-access
+            parts = []
+            subactions = action._get_subactions()  # pylint: disable=protected-access
+            action_subcommnads, group_subcommnands = partition(
+                lambda d: isinstance(ALL_COMMANDS_DICT[d.dest], GroupCommand), subactions
+            )
+            parts.append("\n")
+            parts.append('%*s%s:\n' % (self._current_indent, '', "Groups"))
+            self._indent()
+            for subaction in group_subcommnands:
+                parts.append(self._format_action(subaction))
+            self._dedent()
+
+            parts.append("\n")
+            parts.append('%*s%s:\n' % (self._current_indent, '', "Commands"))
+            self._indent()
+
+            for subaction in action_subcommnads:
+                parts.append(self._format_action(subaction))
+            self._dedent()
+
+            # return a single string
+            return self._join_parts(parts)
+
+        return super()._format_action(action)
+
+
 def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
     """Creates and returns command line argument parser"""
-    parser = DefaultHelpParser(prog="airflow")
-    subparsers = parser.add_subparsers(
-        help='sub-command help', dest='subcommand')
+    parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
+    subparsers = parser.add_subparsers(dest='subcommand')
     subparsers.required = True
 
     subparser_list = DAG_CLI_COMMANDS if dag_parser else ALL_COMMANDS_DICT.keys()

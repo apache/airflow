@@ -77,7 +77,6 @@ from airflow.www.decorators import action_logging, gzipped, has_dag_access
 from airflow.www.forms import (
     ConnectionForm, DagRunForm, DateTimeForm, DateTimeWithNumRunsForm, DateTimeWithNumRunsWithDagRunsForm,
 )
-from airflow.www.utils import get_dag
 from airflow.www.widgets import AirflowModelListWidget
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
@@ -575,9 +574,7 @@ class Airflow(AirflowBaseView):
     @provide_session
     def dag_details(self, session=None):
         dag_id = request.args.get('dag_id')
-        dag_orm = DagModel.get_dagmodel(dag_id, session=session)
-        # FIXME: items needed for this view should move to the database
-        dag = get_dag(dag_orm, STORE_SERIALIZED_DAGS)
+        dag = dagbag.get_dag(dag_id)
         title = "DAG details"
         root = request.args.get('root', '')
 
@@ -603,8 +600,7 @@ class Airflow(AirflowBaseView):
     @has_dag_access(can_dag_read=True)
     @has_access
     @action_logging
-    @provide_session
-    def rendered(self, session=None):
+    def rendered(self):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
@@ -778,8 +774,7 @@ class Airflow(AirflowBaseView):
     @has_dag_access(can_dag_read=True)
     @has_access
     @action_logging
-    @provide_session
-    def elasticsearch(self, session=None):
+    def elasticsearch(self):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
@@ -1057,7 +1052,7 @@ class Airflow(AirflowBaseView):
                     conf=conf
                 )
 
-        dag = get_dag(dag_orm, STORE_SERIALIZED_DAGS)
+        dag = dagbag.get_dag(dag_id)
         dag.create_dagrun(
             run_id=run_id,
             execution_date=execution_date,
@@ -2068,8 +2063,7 @@ class Airflow(AirflowBaseView):
     @has_dag_access(can_dag_read=True)
     @has_access
     @action_logging
-    @provide_session
-    def task_instances(self, session=None):
+    def task_instances(self):
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
 

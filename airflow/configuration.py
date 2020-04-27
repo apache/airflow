@@ -34,6 +34,7 @@ import yaml
 from cryptography.fernet import Fernet
 
 from airflow.exceptions import AirflowConfigException
+from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
 
@@ -303,6 +304,27 @@ class AirflowConfigParser(ConfigParser):
 
     def getfloat(self, section, key, **kwargs):
         return float(self.get(section, key, **kwargs))
+
+    def getimport(self, section, key, **kwargs):
+        """
+        Reads options, imports the full qualified name, and returns the object.
+
+        In case of failure, it throws an exception a clear message with the key aad the section names
+
+        :return: The object or None, if the option is empty
+        """
+        full_qualified_path = conf.get(section=section, key=key, **kwargs)
+        if not full_qualified_path:
+            return None
+
+        try:
+            return import_string(full_qualified_path)
+        except ImportError as e:
+            log.error(e)
+            raise AirflowConfigException(
+                f'The object could not be loaded. Please check "{key}" key in "{section}" section. '
+                f'Current value: "{full_qualified_path}".'
+            )
 
     def read(self, filenames, **kwargs):
         super().read(filenames, **kwargs)
