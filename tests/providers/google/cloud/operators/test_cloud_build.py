@@ -15,191 +15,160 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Tests for Google Cloud Build operators """
 
-from copy import deepcopy
-from unittest import TestCase
+# pylint: disable=R0904, C0111
+"""
+This module contains various unit tests for GCP DLP Operators
+"""
 
-import mock
-from parameterized import parameterized
+import unittest
+from unittest import mock
 
-from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.operators.cloud_build import BuildProcessor, CloudBuildCreateOperator
+from airflow.providers.google.cloud.operators.cloud_build import (
+    CloudBuildCancelBuildOperator, CloudBuildCreateBuildOperator, CloudBuildCreateBuildTriggerOperator,
+    CloudBuildDeleteBuildTriggerOperator, CloudBuildGetBuildOperator, CloudBuildGetBuildTriggerOperator,
+    CloudBuildListBuildsOperator, CloudBuildListBuildTriggersOperator, CloudBuildRetryBuildOperator,
+    CloudBuildRunBuildTriggerOperator, CloudBuildUpdateBuildTriggerOperator,
+)
 
-TEST_CREATE_BODY = {
-    "source": {"storageSource": {"bucket": "cloud-build-examples", "object": "node-docker-example.tar.gz"}},
-    "steps": [
-        {"name": "gcr.io/cloud-builders/docker", "args": ["build", "-t", "gcr.io/$PROJECT_ID/my-image", "."]}
-    ],
-    "images": ["gcr.io/$PROJECT_ID/my-image"],
+GCP_CONN_ID = "google_cloud_default"
+PROJECT_ID = "cloud-build-project"
+BUILD_ID = "test-build-id-9832661"
+REPO_SOURCE = {"repo_source": {"repo_name": "test_repo", "branch_name": "master"}}
+BUILD = {
+    "source": REPO_SOURCE,
+    "steps": [{"name": "gcr.io/cloud-builders/gcloud", "entrypoint": "/bin/sh", "args": ["-c", "ls"]}],
+    "status": "SUCCESS",
 }
-TEST_PROJECT_ID = "example-id"
+BUILD_TRIGGER = {
+    "name": "test-cloud-build-trigger",
+    "trigger_template": {"project_id": PROJECT_ID, "repo_name": "test_repo", "branch_name": "master"},
+    "filename": "cloudbuild.yaml",
+}
+OPERATION = {"metadata": {"build": {"id": BUILD_ID}}}
+TRIGGER_ID = "32488e7f-09d6-4fe9-a5fb-4ca1419a6e7a"
 
 
-class TestBuildProcessor(TestCase):
-    def test_verify_source(self):
-        with self.assertRaisesRegex(AirflowException, "The source could not be determined."):
-            BuildProcessor(body={"source": {"storageSource": {}, "repoSource": {}}}).process_body()
-
-    @parameterized.expand(
-        [
-            (
-                "https://source.developers.google.com/p/airflow-project/r/airflow-repo",
-                {"projectId": "airflow-project", "repoName": "airflow-repo", "branchName": "master"},
-            ),
-            (
-                "https://source.developers.google.com/p/airflow-project/r/airflow-repo#branch-name",
-                {"projectId": "airflow-project", "repoName": "airflow-repo", "branchName": "branch-name"},
-            ),
-            (
-                "https://source.developers.google.com/p/airflow-project/r/airflow-repo#feature/branch",
-                {"projectId": "airflow-project", "repoName": "airflow-repo", "branchName": "feature/branch"},
-            ),
-        ]
-    )
-    def test_convert_repo_url_to_dict_valid(self, url, expected_dict):
-        body = {"source": {"repoSource": url}}
-        body = BuildProcessor(body=body).process_body()
-        self.assertEqual(body["source"]["repoSource"], expected_dict)
-
-    @parameterized.expand(
-        [
-            ("https://source.e.com/p/airflow-project/r/airflow-repo#branch-name",),
-            ("httpXs://source.developers.google.com/p/airflow-project/r/airflow-repo",),
-            ("://source.developers.google.com/p/airflow-project/r/airflow-repo",),
-            ("://source.developers.google.com/p/airflow-project/rXXXX/airflow-repo",),
-            ("://source.developers.google.com/pXXX/airflow-project/r/airflow-repo",),
-        ]
-    )
-    def test_convert_repo_url_to_storage_dict_invalid(self, url):
-        body = {"source": {"repoSource": url}}
-        with self.assertRaisesRegex(AirflowException, "Invalid URL."):
-            BuildProcessor(body=body).process_body()
-
-    @parameterized.expand(
-        [
-            (
-                "gs://bucket-name/airflow-object.tar.gz",
-                {"bucket": "bucket-name", "object": "airflow-object.tar.gz"},
-            ),
-            (
-                "gs://bucket-name/airflow-object.tar.gz#1231231",
-                {"bucket": "bucket-name", "object": "airflow-object.tar.gz", "generation": "1231231"},
-            ),
-        ]
-    )
-    def test_convert_storage_url_to_dict_valid(self, url, expected_dict):
-        body = {"source": {"storageSource": url}}
-        body = BuildProcessor(body=body).process_body()
-        self.assertEqual(body["source"]["storageSource"], expected_dict)
-
-    @parameterized.expand(
-        [("///object",), ("gsXXa:///object",), ("gs://bucket-name/",), ("gs://bucket-name",)]
-    )
-    def test_convert_storage_url_to_dict_invalid(self, url):
-        body = {"source": {"storageSource": url}}
-        with self.assertRaisesRegex(AirflowException, "Invalid URL."):
-            BuildProcessor(body=body).process_body()
-
-    @parameterized.expand([("storageSource",), ("repoSource",)])
-    def test_do_nothing(self, source_key):
-        body = {"source": {source_key: {}}}
-        expected_body = deepcopy(body)
-
-        BuildProcessor(body=body).process_body()
-        self.assertEqual(body, expected_body)
-
-
-class TestGcpCloudBuildCreateOperator(TestCase):
+class TestCloudBuildOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
-    def test_minimal_green_path(self, mock_hook):
-        mock_hook.return_value.create_build.return_value = TEST_CREATE_BODY
-        operator = CloudBuildCreateOperator(
-            body=TEST_CREATE_BODY, project_id=TEST_PROJECT_ID, task_id="task-id"
+    def test_cancel_build(self, mock_hook):
+        mock_hook.return_value.cancel_build.return_value = mock.MagicMock()
+        operator = CloudBuildCancelBuildOperator(id_=TRIGGER_ID, task_id="id")
+        operator.execute(context=None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.cancel_build.assert_called_once_with(
+            id_=TRIGGER_ID, project_id=None, retry=None, timeout=None, metadata=None
         )
-        result = operator.execute({})
-        self.assertIs(result, TEST_CREATE_BODY)
-
-    @parameterized.expand([({},), (None,)])
-    def test_missing_input(self, body):
-        with self.assertRaisesRegex(AirflowException, "The required parameter 'body' is missing"):
-            CloudBuildCreateOperator(body=body, project_id=TEST_PROJECT_ID, task_id="task-id")
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
-    def test_storage_source_replace(self, hook_mock):
-        hook_mock.return_value.create_build.return_value = TEST_CREATE_BODY
-        current_body = {
-            # [START howto_operator_gcp_cloud_build_source_gcs_url]
-            "source": {"storageSource": "gs://bucket-name/object-name.tar.gz"},
-            # [END howto_operator_gcp_cloud_build_source_gcs_url]
-            "steps": [
-                {
-                    "name": "gcr.io/cloud-builders/docker",
-                    "args": ["build", "-t", "gcr.io/$PROJECT_ID/docker-image", "."],
-                }
-            ],
-            "images": ["gcr.io/$PROJECT_ID/docker-image"],
-        }
-
-        operator = CloudBuildCreateOperator(
-            body=current_body, project_id=TEST_PROJECT_ID, task_id="task-id"
+    def test_create_build(self, mock_hook):
+        mock_hook.return_value.create_build.return_value = mock.MagicMock()
+        operator = CloudBuildCreateBuildOperator(build=BUILD, task_id="id")
+        operator.execute(context=None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.create_build.assert_called_once_with(
+            build=BUILD, project_id=None, wait=True, retry=None, timeout=None, metadata=None
         )
-        operator.execute({})
 
-        expected_result = {
-            # [START howto_operator_gcp_cloud_build_source_gcs_dict]
-            "source": {"storageSource": {"bucket": "bucket-name", "object": "object-name.tar.gz"}},
-            # [END howto_operator_gcp_cloud_build_source_gcs_dict]
-            "steps": [
-                {
-                    "name": "gcr.io/cloud-builders/docker",
-                    "args": ["build", "-t", "gcr.io/$PROJECT_ID/docker-image", "."],
-                }
-            ],
-            "images": ["gcr.io/$PROJECT_ID/docker-image"],
-        }
-        hook_mock.create_build(body=expected_result, project_id=TEST_PROJECT_ID)
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
+    def test_create_build_trigger(self, mock_hook):
+        mock_hook.return_value.create_build_trigger.return_value = mock.MagicMock()
+        operator = CloudBuildCreateBuildTriggerOperator(trigger=BUILD_TRIGGER, task_id="id")
+        operator.execute(context=None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.create_build_trigger.assert_called_once_with(
+            trigger=BUILD_TRIGGER, project_id=None, retry=None, timeout=None, metadata=None
+        )
 
-    @mock.patch(
-        "airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook",
-    )
-    def test_repo_source_replace(self, hook_mock):
-        hook_mock.return_value.create_build.return_value = TEST_CREATE_BODY
-        current_body = {
-            # [START howto_operator_gcp_cloud_build_source_repo_url]
-            "source": {"repoSource": "https://source.developers.google.com/p/airflow-project/r/airflow-repo"},
-            # [END howto_operator_gcp_cloud_build_source_repo_url]
-            "steps": [
-                {
-                    "name": "gcr.io/cloud-builders/docker",
-                    "args": ["build", "-t", "gcr.io/$PROJECT_ID/docker-image", "."],
-                }
-            ],
-            "images": ["gcr.io/$PROJECT_ID/docker-image"],
-        }
-        operator = CloudBuildCreateOperator(
-            body=current_body, project_id=TEST_PROJECT_ID, task_id="task-id"
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
+    def test_delete_build_trigger(self, mock_hook):
+        mock_hook.return_value.delete_build_trigger.return_value = mock.MagicMock()
+        operator = CloudBuildDeleteBuildTriggerOperator(trigger_id=TRIGGER_ID, task_id="id")
+        operator.execute(context=None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.delete_build_trigger.assert_called_once_with(
+            trigger_id=TRIGGER_ID, project_id=None, retry=None, timeout=None, metadata=None
         )
-        return_value = operator.execute({})
-        expected_body = {
-            # [START howto_operator_gcp_cloud_build_source_repo_dict]
-            "source": {
-                "repoSource": {
-                    "projectId": "airflow-project",
-                    "repoName": "airflow-repo",
-                    "branchName": "master",
-                }
-            },
-            # [END howto_operator_gcp_cloud_build_source_repo_dict]
-            "steps": [
-                {
-                    "name": "gcr.io/cloud-builders/docker",
-                    "args": ["build", "-t", "gcr.io/$PROJECT_ID/docker-image", "."],
-                }
-            ],
-            "images": ["gcr.io/$PROJECT_ID/docker-image"],
-        }
-        hook_mock.return_value.create_build.assert_called_once_with(
-            body=expected_body, project_id=TEST_PROJECT_ID
+
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
+    def test_get_build(self, mock_hook):
+        mock_hook.return_value.get_build.return_value = mock.MagicMock()
+        operator = CloudBuildGetBuildOperator(id_=BUILD_ID, task_id="id")
+        operator.execute(context=None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.get_build.assert_called_once_with(
+            id_=BUILD_ID, project_id=None, retry=None, timeout=None, metadata=None
         )
-        self.assertEqual(return_value, TEST_CREATE_BODY)
+
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
+    def test_get_build_trigger(self, mock_hook):
+        mock_hook.return_value.get_build_trigger.return_value = mock.MagicMock()
+        operator = CloudBuildGetBuildTriggerOperator(trigger_id=TRIGGER_ID, task_id="id")
+        operator.execute(context=None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.get_build_trigger.assert_called_once_with(
+            trigger_id=TRIGGER_ID, project_id=None, retry=None, timeout=None, metadata=None
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
+    def test_list_build_triggers(self, mock_hook):
+        mock_hook.return_value.list_build_triggers.return_value = mock.MagicMock()
+        operator = CloudBuildListBuildTriggersOperator(task_id="id")
+        operator.execute(context=None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.list_build_triggers.assert_called_once_with(
+            project_id=None, page_size=None, page_token=None, retry=None, timeout=None, metadata=None
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
+    def test_list_builds(self, mock_hook):
+        mock_hook.return_value.list_builds.return_value = mock.MagicMock()
+        operator = CloudBuildListBuildsOperator(task_id="id")
+        operator.execute(context=None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.list_builds.assert_called_once_with(
+            project_id=None, page_size=None, filter_=None, retry=None, timeout=None, metadata=None
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
+    def test_retry_build(self, mock_hook):
+        mock_hook.return_value.retry_build.return_value = mock.MagicMock()
+        operator = CloudBuildRetryBuildOperator(id_=BUILD_ID, task_id="id")
+        operator.execute(context=None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.retry_build.assert_called_once_with(
+            id_=BUILD_ID, project_id=None, wait=True, retry=None, timeout=None, metadata=None
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
+    def test_run_build_trigger(self, mock_hook):
+        mock_hook.return_value.run_build_trigger.return_value = mock.MagicMock()
+        operator = CloudBuildRunBuildTriggerOperator(trigger_id=TRIGGER_ID, source=REPO_SOURCE, task_id="id")
+        operator.execute(context=None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.run_build_trigger.assert_called_once_with(
+            trigger_id=TRIGGER_ID,
+            source=REPO_SOURCE,
+            project_id=None,
+            wait=True,
+            retry=None,
+            timeout=None,
+            metadata=None,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
+    def test_update_build_trigger(self, mock_hook):
+        mock_hook.return_value.update_build_trigger.return_value = mock.MagicMock()
+        operator = CloudBuildUpdateBuildTriggerOperator(
+            trigger_id=TRIGGER_ID, trigger=BUILD_TRIGGER, task_id="id"
+        )
+        operator.execute(context=None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.update_build_trigger.assert_called_once_with(
+            trigger_id=TRIGGER_ID,
+            trigger=BUILD_TRIGGER,
+            project_id=None,
+            retry=None,
+            timeout=None,
+            metadata=None,
+        )

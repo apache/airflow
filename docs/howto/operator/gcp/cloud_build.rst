@@ -20,10 +20,10 @@
 Google Cloud Build Operators
 ============================
 
-The `GoogleCloud Build <https://cloud.google.com/cloud-build/>`__ is a service that executes your builds on Google Cloud Platform
+The `Google Cloud Build <https://cloud.google.com/cloud-build/>`__ is a service that executes your builds on Google Cloud Platform
 infrastructure. Cloud Build can import source code from Google Cloud Storage,
 Cloud Source Repositories, execute a build to your specifications, and produce
-artifacts such as Docker containers or Java archives.
+artifacts such as Docker containers or Java archives. 
 
 .. contents::
   :depth: 1
@@ -35,10 +35,45 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
-.. _howto/operator:CloudBuildBuild:
+.. _howto/operator:CloudBuildCancelBuildOperator:
 
-Build configuration overview
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+CloudBuildCancelBuildOperator
+-----------------------------
+
+Cancels a build in progress.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildCancelBuildOperator`
+
+Using the operator
+^^^^^^^^^^^^^^^^^^
+
+Cancel a build in progress with the
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildCancelBuildOperator` operator.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_build.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_cancel_build]
+    :end-before: [END howto_operator_cancel_build]
+
+You can use :ref:`Jinja templating <jinja-templating>` with
+:template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildCancelBuildOperator`
+parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
+to be used by other operators.
+
+.. _howto/operator:CloudBuildCreateBuildOperator:
+
+CloudBuildCreateBuildOperator
+-----------------------------
+
+Starts a build with the specified configuration.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildOperator`
+
+Build configuration
+^^^^^^^^^^^^^^^^^^^
 
 In order to trigger a build, it is necessary to pass the build configuration.
 
@@ -50,46 +85,21 @@ In order to trigger a build, it is necessary to pass the build configuration.
 
 The source code for the build can come from `Google Cloud Build Storage <https://cloud.google.com/storage/>`__:
 
-.. literalinclude:: ../../../../tests/providers/google/cloud/operators/test_cloud_build.py
-    :language: python
-    :dedent: 12
-    :start-after: [START howto_operator_gcp_cloud_build_source_gcs_dict]
-    :end-before: [END howto_operator_gcp_cloud_build_source_gcs_dict]
-
-It is also possible to specify it using the URL:
-
-.. literalinclude:: ../../../../tests/providers/google/cloud/operators/test_cloud_build.py
-    :language: python
-    :dedent: 12
-    :start-after: [START howto_operator_gcp_cloud_build_source_gcs_url]
-    :end-before: [END howto_operator_gcp_cloud_build_source_gcs_url]
-
 In addition, a build can refer to source stored in `Google Cloud Source Repositories <https://cloud.google.com/source-repositories/docs/>`__.
 
-.. literalinclude:: ../../../../tests/providers/google/cloud/operators/test_cloud_build.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_build.py
     :language: python
-    :dedent: 12
-    :start-after: [START howto_operator_gcp_cloud_build_source_repo_dict]
-    :end-before: [END howto_operator_gcp_cloud_build_source_repo_dict]
-
-It is also possible to specify it using the URL:
-
-.. literalinclude:: ../../../../tests/providers/google/cloud/operators/test_cloud_build.py
-    :language: python
-    :dedent: 12
-    :start-after: [START howto_operator_gcp_cloud_build_source_repo_url]
-    :end-before: [END howto_operator_gcp_cloud_build_source_repo_url]
+    :dedent: 0
+    :start-after: [START howto_operator_create_build_from_repo_body]
+    :end-before: [END howto_operator_create_build_from_repo_body]
 
 Read `Build Configuration Overview <https://cloud.google.com/cloud-build/docs/build-config>`__ to understand all the fields you can include in a build config file.
 
-
-.. _howto/operator:CloudBuildCreateOperator:
-
-Trigger a build
-^^^^^^^^^^^^^^^
+Using the operator
+^^^^^^^^^^^^^^^^^^
 
 Trigger a build is performed with the
-:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateOperator` operator.
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildOperator` operator.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_build.py
     :language: python
@@ -98,7 +108,7 @@ Trigger a build is performed with the
     :end-before: [END howto_operator_create_build_from_storage]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateOperator`
+:template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
 
@@ -108,10 +118,263 @@ to be used by other operators.
     :start-after: [START howto_operator_create_build_from_storage_result]
     :end-before: [END howto_operator_create_build_from_storage_result]
 
+By default, after the build is created, it will wait for the build operation to complete. If there is no need to wait for complete,
+you can pass wait=False as example shown below.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_build.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_create_build_without_wait]
+    :end-before: [END howto_operator_create_build_without_wait]
+
+.. _howto/operator:CloudBuildCreateBuildTriggerOperator:
+
+CloudBuildCreateBuildTriggerOperator
+------------------------------------
+
+Creates a new Cloud Build trigger.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildTriggerOperator`
+
+Using the operator
+^^^^^^^^^^^^^^^^^^
+
+Creates a new Cloud Build trigger with the
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildTriggerOperator` operator.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_build.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_create_build_trigger]
+    :end-before: [END howto_operator_create_build_trigger]
+
+You can use :ref:`Jinja templating <jinja-templating>` with
+:template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildTriggerOperator`
+parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
+to be used by other operators.
+
+.. _howto/operator:CloudBuildDeleteBuildTriggerOperator:
+
+CloudBuildDeleteBuildTriggerOperator
+------------------------------------
+
+Deletes a Cloud Build trigger by its project ID and trigger ID.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildDeleteBuildTriggerOperator`
+
+Using the operator
+^^^^^^^^^^^^^^^^^^
+
+Deletes a new Cloud Build trigger with the
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildDeleteBuildTriggerOperator` operator.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_build.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_delete_build_trigger]
+    :end-before: [END howto_operator_delete_build_trigger]
+
+You can use :ref:`Jinja templating <jinja-templating>` with
+:template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildDeleteBuildTriggerOperator`
+parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
+to be used by other operators.
+
+.. _howto/operator:CloudBuildGetBuildOperator:
+
+CloudBuildGetBuildOperator
+--------------------------
+
+Returns information about a previously requested build.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildGetBuildOperator`
+
+Using the operator
+^^^^^^^^^^^^^^^^^^
+
+Returns information about a previously requested build with the
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildGetBuildOperator` operator.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_build.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_get_build]
+    :end-before: [END howto_operator_get_build]
+
+You can use :ref:`Jinja templating <jinja-templating>` with
+:template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildGetBuildOperator`
+parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
+to be used by other operators.
+
+.. _howto/operator:CloudBuildGetBuildTriggerOperator:
+
+CloudBuildGetBuildTriggerOperator
+---------------------------------
+
+Returns information about a Cloud Build trigger.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildGetBuildTriggerOperator`
+
+Using the operator
+^^^^^^^^^^^^^^^^^^
+
+Returns information about a Cloud Build trigger with the
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildGetBuildTriggerOperator` operator.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_build.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_get_build_trigger]
+    :end-before: [END howto_operator_get_build_trigger]
+
+You can use :ref:`Jinja templating <jinja-templating>` with
+:template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildGetBuildTriggerOperator`
+parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
+to be used by other operators.
+
+.. _howto/operator:CloudBuildListBuildTriggersOperator:
+
+CloudBuildListBuildTriggersOperator
+-----------------------------------
+
+Lists all the existing Cloud Build triggers.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildListBuildTriggersOperator`
+
+Using the operator
+^^^^^^^^^^^^^^^^^^
+
+Lists all the existing Cloud Build triggers with the
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildListBuildTriggersOperator` operator.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_build.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_list_build_triggers]
+    :end-before: [END howto_operator_list_build_triggers]
+
+You can use :ref:`Jinja templating <jinja-templating>` with
+:template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildListBuildTriggersOperator`
+parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
+to be used by other operators.
+
+.. _howto/operator:CloudBuildListBuildsOperator:
+
+CloudBuildListBuildsOperator
+----------------------------
+
+Lists previously requested builds.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildListBuildsOperator`
+
+Using the operator
+^^^^^^^^^^^^^^^^^^
+
+Lists previously requested builds with the
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildListBuildsOperator` operator.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_build.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_list_builds]
+    :end-before: [END howto_operator_list_builds]
+
+You can use :ref:`Jinja templating <jinja-templating>` with
+:template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildListBuildsOperator`
+parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
+to be used by other operators.
+
+.. _howto/operator:CloudBuildRetryBuildOperator:
+
+CloudBuildRetryBuildOperator
+----------------------------
+
+Creates a new build based on the specified build. This method creates a new build
+using the original build request, which may or may not result in an identical build.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildRetryBuildOperator`
+
+Using the operator
+^^^^^^^^^^^^^^^^^^
+
+Creates a new build based on the specified build with the
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildRetryBuildOperator` operator.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_build.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_retry_build]
+    :end-before: [END howto_operator_retry_build]
+
+You can use :ref:`Jinja templating <jinja-templating>` with
+:template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildRetryBuildOperator`
+parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
+to be used by other operators.
+
+.. _howto/operator:CloudBuildRunBuildTriggerOperator:
+
+CloudBuildRunBuildTriggerOperator
+---------------------------------
+
+Runs a trigger at a particular source revision.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildRunBuildTriggerOperator`
+
+Using the operator
+^^^^^^^^^^^^^^^^^^
+
+Runs a trigger at a particular source revision with the
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildRunBuildTriggerOperator` operator.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_build.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_run_build_trigger]
+    :end-before: [END howto_operator_run_build_trigger]
+
+You can use :ref:`Jinja templating <jinja-templating>` with
+:template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildRunBuildTriggerOperator`
+parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
+to be used by other operators.
+
+.. _howto/operator:CloudBuildUpdateBuildTriggerOperator:
+
+CloudBuildUpdateBuildTriggerOperator
+------------------------------------
+
+Updates a Cloud Build trigger by its project ID and trigger ID.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildUpdateBuildTriggerOperator`
+
+Using the operator
+^^^^^^^^^^^^^^^^^^
+
+Updates a Cloud Build trigger with the
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildUpdateBuildTriggerOperator` operator.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_build.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_create_build_trigger]
+    :end-before: [END howto_operator_create_build_trigger]
+
+You can use :ref:`Jinja templating <jinja-templating>` with
+:template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildUpdateBuildTriggerOperator`
+parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
+to be used by other operators.
+
 Reference
 ^^^^^^^^^
 
 For further information, look at:
 
-* `Client Library Documentation <https://developers.google.com/resources/api-libraries/documentation/cloudbuild/v1/python/latest/index.html>`__
+* `Client Library Documentation <https://googleapis.dev/python/cloudbuild/latest/index.html>`__
 * `Product Documentation <https://cloud.google.com/natural-language/docs/>`__

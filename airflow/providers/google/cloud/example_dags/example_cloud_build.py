@@ -34,7 +34,12 @@ from future.backports.urllib.parse import urlparse
 
 from airflow import models
 from airflow.operators.bash import BashOperator
-from airflow.providers.google.cloud.operators.cloud_build import CloudBuildCreateOperator
+from airflow.providers.google.cloud.operators.cloud_build import (
+    CloudBuildCancelBuildOperator, CloudBuildCreateBuildOperator, CloudBuildCreateBuildTriggerOperator,
+    CloudBuildDeleteBuildTriggerOperator, CloudBuildGetBuildOperator, CloudBuildGetBuildTriggerOperator,
+    CloudBuildListBuildsOperator, CloudBuildListBuildTriggersOperator, CloudBuildRetryBuildOperator,
+    CloudBuildRunBuildTriggerOperator, CloudBuildUpdateBuildTriggerOperator,
+)
 from airflow.utils import dates
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
@@ -45,9 +50,31 @@ GCP_SOURCE_REPOSITORY_NAME = os.environ.get("GCP_CLOUD_BUILD_REPOSITORY_NAME", "
 GCP_SOURCE_ARCHIVE_URL_PARTS = urlparse(GCP_SOURCE_ARCHIVE_URL)
 GCP_SOURCE_BUCKET_NAME = GCP_SOURCE_ARCHIVE_URL_PARTS.netloc
 
+# [START howto_operator_gcp_create_build_trigger_body]
+create_build_trigger_body = {
+    "name": "test-cloud-build-trigger",
+    "trigger_template": {
+        "project_id": GCP_PROJECT_ID,
+        "repo_name": GCP_SOURCE_REPOSITORY_NAME,
+        "branch_name": "master",
+    },
+    "filename": "cloudbuild.yaml",
+}
+# [END howto_operator_gcp_create_build_trigger_body]
+
+update_build_trigger_body = {
+    "name": "test-cloud-build-trigger",
+    "trigger_template": {
+        "project_id": GCP_PROJECT_ID,
+        "repo_name": GCP_SOURCE_REPOSITORY_NAME,
+        "branch_name": "dev",
+    },
+    "filename": "cloudbuild.yaml",
+}
+
 # [START howto_operator_gcp_create_build_from_storage_body]
 create_build_from_storage_body = {
-    "source": {"storageSource": GCP_SOURCE_ARCHIVE_URL},
+    "source": {"storage_source": GCP_SOURCE_ARCHIVE_URL},
     "steps": [
         {
             "name": "gcr.io/cloud-builders/docker",
@@ -60,7 +87,7 @@ create_build_from_storage_body = {
 
 # [START howto_operator_create_build_from_repo_body]
 create_build_from_repo_body = {
-    "source": {"repoSource": {"repoName": GCP_SOURCE_REPOSITORY_NAME, "branchName": "master"}},
+    "source": {"repo_source": {"repo_ name": GCP_SOURCE_REPOSITORY_NAME, "branch_name": "master"}},
     "steps": [
         {
             "name": "gcr.io/cloud-builders/docker",
@@ -71,34 +98,138 @@ create_build_from_repo_body = {
 }
 # [END howto_operator_create_build_from_repo_body]
 
+
 with models.DAG(
     "example_gcp_cloud_build",
     default_args=dict(start_date=dates.days_ago(1)),
     schedule_interval=None,
-    tags=['example'],
-) as dag:
+    tags=["example"],
+) as build_dag:
+
     # [START howto_operator_create_build_from_storage]
-    create_build_from_storage = CloudBuildCreateOperator(
-        task_id="create_build_from_storage", project_id=GCP_PROJECT_ID, body=create_build_from_storage_body
+    create_build_from_storage = CloudBuildCreateBuildOperator(
+        task_id="create_build_from_storage", project_id=GCP_PROJECT_ID, build=create_build_from_storage_body
     )
     # [END howto_operator_create_build_from_storage]
 
     # [START howto_operator_create_build_from_storage_result]
     create_build_from_storage_result = BashOperator(
-        bash_command="echo '{{ task_instance.xcom_pull('create_build_from_storage')['images'][0] }}'",
+        bash_command="echo '{{ task_instance.xcom_pull('create_build_from_storage')['results'] }}'",
         task_id="create_build_from_storage_result",
     )
     # [END howto_operator_create_build_from_storage_result]
 
-    create_build_from_repo = CloudBuildCreateOperator(
-        task_id="create_build_from_repo", project_id=GCP_PROJECT_ID, body=create_build_from_repo_body
+    # [START howto_operator_create_build_from_repo]
+    create_build_from_repo = CloudBuildCreateBuildOperator(
+        task_id="create_build_from_repo", project_id=GCP_PROJECT_ID, build=create_build_from_repo_body
     )
+    # [END howto_operator_create_build_from_repo]
 
+    # [START howto_operator_create_build_from_repo_result]
     create_build_from_repo_result = BashOperator(
-        bash_command="echo '{{ task_instance.xcom_pull('create_build_from_repo')['images'][0] }}'",
+        bash_command="echo '{{ task_instance.xcom_pull('create_build_from_repo')['results'] }}'",
         task_id="create_build_from_repo_result",
     )
+    # [END howto_operator_create_build_from_repo_result]
+
+    # [START howto_operator_list_builds]
+    list_builds = CloudBuildListBuildsOperator(task_id="list_builds", project_id=GCP_PROJECT_ID)
+    # [END howto_operator_list_builds]
+
+    # [START howto_operator_create_build_without_wait]
+    create_build_without_wait = CloudBuildCreateBuildOperator(
+        task_id="create_build_without_wait",
+        project_id=GCP_PROJECT_ID,
+        build=create_build_from_repo_body,
+        wait=False,
+    )
+    # [END howto_operator_create_build_without_wait]
+
+    # [START howto_operator_cancel_build]
+    cancel_build = CloudBuildCancelBuildOperator(
+        task_id="cancel_build",
+        id_="{{ task_instance.xcom_pull('create_build_without_wait')['id'] }}",
+        project_id=GCP_PROJECT_ID,
+    )
+    # [END howto_operator_cancel_build]
+
+    # [START howto_operator_get_build]
+    get_build = CloudBuildGetBuildOperator(
+        task_id="get_build",
+        id_="{{ task_instance.xcom_pull('create_build_without_wait')['id'] }}",
+        project_id=GCP_PROJECT_ID,
+    )
+    # [END howto_operator_get_build]
+
+    # [START howto_operator_retry_build]
+    retry_build = CloudBuildRetryBuildOperator(
+        task_id="retry_build",
+        id_="{{ task_instance.xcom_pull('create_build_without_wait')['id'] }}",
+        project_id=GCP_PROJECT_ID,
+    )
+    # [END howto_operator_retry_build]
 
     create_build_from_storage >> create_build_from_storage_result  # pylint: disable=pointless-statement
-
+    create_build_from_storage_result >> list_builds  # pylint: disable=pointless-statement
     create_build_from_repo >> create_build_from_repo_result  # pylint: disable=pointless-statement
+    create_build_from_repo_result >> list_builds  # pylint: disable=pointless-statement
+    list_builds >> create_build_without_wait >> cancel_build  # pylint: disable=pointless-statement
+    cancel_build >> retry_build >> get_build  # pylint: disable=pointless-statement
+
+with models.DAG(
+    "example_gcp_cloud_build_trigger",
+    default_args=dict(start_date=dates.days_ago(1)),
+    schedule_interval=None,
+    tags=["example"],
+) as build_trigger_dag:
+
+    # [START howto_operator_create_build_trigger]
+    create_build_trigger = CloudBuildCreateBuildTriggerOperator(
+        task_id="create_build_trigger", project_id=GCP_PROJECT_ID, trigger=create_build_trigger_body
+    )
+    # [END howto_operator_create_build_trigger]
+
+    # [START howto_operator_run_build_trigger]
+    run_build_trigger = CloudBuildRunBuildTriggerOperator(
+        task_id="run_build_trigger",
+        project_id=GCP_PROJECT_ID,
+        trigger_id="{{ task_instance.xcom_pull('create_build_trigger')['id'] }}",
+        source=create_build_from_repo_body['source'],
+    )
+    # [END howto_operator_run_build_trigger]
+
+    # [START howto_operator_create_build_trigger]
+    update_build_trigger = CloudBuildUpdateBuildTriggerOperator(
+        task_id="update_build_trigger",
+        project_id=GCP_PROJECT_ID,
+        trigger_id="{{ task_instance.xcom_pull('create_build_trigger')['id'] }}",
+        trigger=update_build_trigger_body,
+    )
+    # [END howto_operator_create_build_trigger]
+
+    # [START howto_operator_get_build_trigger]
+    get_build_trigger = CloudBuildGetBuildTriggerOperator(
+        task_id="update_build_trigger",
+        project_id=GCP_PROJECT_ID,
+        trigger_id="{{ task_instance.xcom_pull('create_build_trigger')['id'] }}",
+    )
+    # [END howto_operator_get_build_trigger]
+
+    # [START howto_operator_delete_build_trigger]
+    delete_build_trigger = CloudBuildDeleteBuildTriggerOperator(
+        task_id="delete_build_trigger",
+        project_id=GCP_PROJECT_ID,
+        trigger_id="{{ task_instance.xcom_pull('create_build_trigger')['id'] }}",
+    )
+    # [END howto_operator_delete_build_trigger]
+
+    # [START howto_operator_list_build_triggers]
+    list_build_triggers = CloudBuildListBuildTriggersOperator(
+        task_id="list_build_triggers",
+        project_id=GCP_PROJECT_ID,
+    )
+    # [END howto_operator_list_build_triggers]
+
+    create_build_trigger >> run_build_trigger >> update_build_trigger  # pylint: disable=pointless-statement
+    update_build_trigger >> get_build_trigger >> delete_build_trigger  # pylint: disable=pointless-statement
+    delete_build_trigger >> list_build_triggers  # pylint: disable=pointless-statement
