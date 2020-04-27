@@ -24,7 +24,8 @@ import os
 from airflow import models
 from airflow.providers.google.cloud.operators.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCreateEmptyDatasetOperator, BigQueryDeleteDatasetOperator)
+    BigQueryCreateEmptyDatasetOperator, BigQueryDeleteDatasetOperator,
+)
 from airflow.utils.dates import days_ago
 
 
