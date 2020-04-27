@@ -385,7 +385,7 @@ class BaseOperator(Operator, LoggingMixin):
 
         self.retries = retries
         self.queue = queue
-        self.pool = Pool.DEFAULT_POOL_NAME if Pool is None else pool
+        self.pool = Pool.DEFAULT_POOL_NAME if pool is None else pool
         self.pool_slots = pool_slots
         if self.pool_slots < 1:
             raise AirflowException("pool slots for %s in dag %s cannot be less than 1"
