@@ -195,9 +195,10 @@ class BackfillJob(BaseJob):
         if filter_for_tis is not None:
             refreshed_tis = session.query(TI).filter(filter_for_tis).all()
 
+        key_map = {key[:3]: key for key in ti_status.running.keys()}
+
         for ti in refreshed_tis:
-            # Here we remake the key by subtracting 1 to match in memory information
-            key = (ti.dag_id, ti.task_id, ti.execution_date, max(1, ti.try_number - 1))
+            key = key_map[ti.key[:3]]
             if ti.state == State.SUCCESS:
                 ti_status.succeeded.add(key)
                 self.log.debug("Task instance %s succeeded. Don't rerun.", ti)
