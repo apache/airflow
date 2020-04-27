@@ -20,7 +20,7 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.google.cloud.operators.cloud_build import CloudBuildCreateBuildOperator # noqa
+from airflow.providers.google.cloud.operators.cloud_build import CloudBuildCreateBuildOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.cloud_build`.",
