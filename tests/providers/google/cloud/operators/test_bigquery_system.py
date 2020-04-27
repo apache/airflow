@@ -18,7 +18,7 @@
 """System tests for Google Cloud Build operators"""
 import pytest
 
-from airflow.providers.google.cloud.example_dags.example_bigquery import DATA_EXPORT_BUCKET_NAME
+from airflow.providers.google.cloud.example_dags.example_bigquery_transfer import DATA_EXPORT_BUCKET_NAME
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
@@ -44,6 +44,10 @@ class BigQueryExampleDagsSystemTest(GoogleSystemTest):
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     def test_run_example_dag_transfer(self):
         self.run_dag('example_bigquery_transfer', CLOUD_DAG_FOLDER)
+
+    @provide_gcp_context(GCP_BIGQUERY_KEY)
+    def test_run_example_dag_queries(self):
+        self.run_dag('example_bigquery_queries', CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     def tearDown(self):
