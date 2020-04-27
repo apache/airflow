@@ -383,12 +383,12 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         Delete a dataset of Big query in your project.
 
-        :param project_id: The name of the project where we have the dataset .
+        :param project_id: The name of the project where we have the dataset.
         :type project_id: str
         :param dataset_id: The dataset to be delete.
         :type dataset_id: str
-        :param delete_contents: If True, delete all the tables in the dataset. If
-            False and the dataset contains tables, the request will fail.
+        :param delete_contents: If True, delete all the tables in the dataset.
+            If False and the dataset contains tables, the request will fail.
         :type delete_contents: bool
         :param retry: How to retry the RPC.
         :type retry: google.api_core.retry.Retry
@@ -818,7 +818,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             in request body.
             https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
         :type dataset_resource: dict
-        :param dataset_id: The id of the dataset
+        :param dataset_id: The id of the dataset.
         :type dataset_id: str
         :param fields: The properties of ``dataset`` to change (e.g. "friendly_name").
         :type fields: Sequence[str]
