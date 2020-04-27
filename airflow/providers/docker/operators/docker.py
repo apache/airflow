@@ -265,7 +265,7 @@ class DockerOperator(BaseOperator):
                 return None
 
     def execute(self, context):
-        self._set_cli()
+        self.cli = self._get_cli()
 
         # Pull the docker image if `force_pull` is set or image does not exist locally
         if self.force_pull or not self.cli.images(name=self.image):
@@ -279,13 +279,12 @@ class DockerOperator(BaseOperator):
 
         return self._run_image()
 
-    def _set_cli(self):
-        tls_config = self.__get_tls_config()
-
+    def _get_cli(self):
         if self.docker_conn_id:
-            self.cli = self.get_hook().get_conn()
+            return self.get_hook().get_conn()
         else:
-            self.cli = APIClient(
+            tls_config = self.__get_tls_config()
+            return APIClient(
                 base_url=self.docker_url,
                 version=self.api_version,
                 tls=tls_config

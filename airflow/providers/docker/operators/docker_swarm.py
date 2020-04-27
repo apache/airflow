@@ -102,7 +102,7 @@ class DockerSwarmOperator(DockerOperator):
         self.service = None
 
     def execute(self, context):
-        self._set_cli()
+        self.cli = self._get_cli()
 
         self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
 
