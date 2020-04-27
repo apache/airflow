@@ -22,12 +22,11 @@ Example DAG using GCSToBigQueryOperator.
 import os
 
 from airflow import models
-from airflow.providers.google.cloud.operators.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator, BigQueryDeleteDatasetOperator,
 )
+from airflow.providers.google.cloud.operators.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.utils.dates import days_ago
-
 
 DATASET_NAME = os.environ.get("GCP_DATASET_NAME", 'airflow_test')
 TABLE_NAME = os.environ.get("GCP_TABLE_NAME", 'gcs_to_bq_table')
