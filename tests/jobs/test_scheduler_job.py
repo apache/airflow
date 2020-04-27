@@ -888,9 +888,8 @@ class TestDagFileProcessor(unittest.TestCase):
         processor._process_dags([dag])
         mock_manage_slas.assert_called_once()
         mock_log.exception.assert_called_once_with(
-            "DAG {} was unable to successfully manage SLAs; continuing"
-            " with scheduling rather than raising exception."
-            .format(dag))
+            "DAG %s was unable to successfully manage SLAs; continuing"
+            " with scheduling rather than raising exception.", dag)
 
     @patch.object(TaskInstance, 'handle_failure')
     def test_execute_on_failure_callbacks(self, mock_ti_handle_failure):

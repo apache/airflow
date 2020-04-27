@@ -20,10 +20,10 @@ import multiprocessing
 import os
 import signal
 import unittest
-import warnings
 from datetime import timedelta
 from time import sleep
 
+import pytest
 from dateutil.relativedelta import relativedelta
 from numpy.testing import assert_array_almost_equal
 
@@ -94,7 +94,6 @@ class TestCore(unittest.TestCase):
     def test_check_operators(self):
 
         conn_id = "sqlite_default"
-
         captain_hook = BaseHook.get_hook(conn_id=conn_id)  # quite funny :D
         captain_hook.run("CREATE TABLE operator_test_table (a, b)")
         captain_hook.run("insert into operator_test_table values (1,2)")
@@ -156,33 +155,22 @@ class TestCore(unittest.TestCase):
             str(ctx.exception))
 
     def test_sla_deprecated_arg_warning(self):
-        with warnings.catch_warnings(record=True) as warning:
+        with pytest.warns(PendingDeprecationWarning, match="sla is deprecated as a task parameter"):
             DummyOperator(
                 task_id="test_sla_deprecated_arg_warning",
                 sla=timedelta(hours=1)
             )
 
-        self.assertTrue(
-            issubclass(warning[0].category, PendingDeprecationWarning))
-        self.assertIn(
-            "sla is deprecated as a task parameter",
-            warning[0].message.args[0])
-
     def test_sla_redundant_arg_warning(self):
-        with warnings.catch_warnings(record=True) as warning:
+        with pytest.warns(PendingDeprecationWarning,
+                          match="Both sla and expected_finish provided as task parameters"):
             expected_finish = timedelta(hours=2)
             op = DummyOperator(
                 task_id="test_sla_redundant_arg_warning",
                 sla=timedelta(hours=1),
                 expected_finish=expected_finish
             )
-
-        self.assertEqual(op.expected_finish, expected_finish)
-        self.assertTrue(
-            issubclass(warning[0].category, PendingDeprecationWarning))
-        self.assertIn(
-            "Both sla and expected_finish provided as task parameters",
-            warning[0].message.args[0])
+            self.assertEqual(op.expected_finish, expected_finish)
 
     def test_sla_invalid_arg_exception(self):
         msg = (
