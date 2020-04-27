@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
+export MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
 export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 
 # shellcheck source=scripts/ci/_script_init.sh

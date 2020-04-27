@@ -72,6 +72,19 @@ sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: slot_
 ```
 Fix for this, https://github.com/apache/airflow/pull/8587
 
+### Unify `hostname_callable` option in `core` section
+
+The previous option used a colon(`:`) to split the module from function. Now the dot(`.`) is used.
+
+The change aims to unify the format of all options that refer to objects in the `airflow.cfg` file.
+
+### Changes in BigQueryHook
+- `create_empty_table` method accepts now `table_resource` parameter. If provided all
+other parameters are ignored.
+- `create_empty_dataset` will now use values from `dataset_reference` instead of raising error
+if parameters were passed in `dataset_reference` and as arguments to method. Additionally validation
+of `dataset_reference` is done using `Dataset.from_api_repr`. Exception and log messages has been
+changed.
 
 ### Added mypy plugin to preserve types of decorated functions
 

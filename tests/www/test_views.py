@@ -2156,6 +2156,7 @@ class TestRenderedView(TestBase):
         )
 
 
+@pytest.mark.quarantined
 class TestTriggerDag(TestBase):
 
     def setUp(self):

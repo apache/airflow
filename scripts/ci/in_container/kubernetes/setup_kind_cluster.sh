@@ -39,7 +39,7 @@ echo "Kubernetes version = ${KUBERNETES_VERSION}"
 echo
 
 function create_cluster() {
-    if [[ "${TRAVIS:="false"}" == "true" ]]; then
+    if [[ "${CI:="false"}" == "true" ]]; then
         # Travis CI does not handle the nice output of Kind well, so we need to capture it
         # And display only if kind fails to start
         start_output_heartbeat "Creating kubernetes cluster" 10

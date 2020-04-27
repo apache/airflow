@@ -42,7 +42,7 @@ from datetime import datetime, timedelta
 from airflow import models
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ALREADY_EXISTING_IN_SINK, AWS_S3_DATA_SOURCE, BUCKET_NAME, DESCRIPTION, FILTER_JOB_NAMES,
-    FILTER_PROJECT_ID, GCS_DATA_SINK, PROJECT_ID, SCHEDULE, SCHEDULE_END_DATE, SCHEDULE_START_DATE,
+    FILTER_PROJECT_ID, GCS_DATA_SINK, JOB_NAME, PROJECT_ID, SCHEDULE, SCHEDULE_END_DATE, SCHEDULE_START_DATE,
     START_TIME_OF_DAY, STATUS, TRANSFER_OPTIONS, TRANSFER_SPEC, GcpTransferJobsStatus,
     GcpTransferOperationStatus,
 )
@@ -67,11 +67,16 @@ GCP_TRANSFER_FIRST_TARGET_BUCKET = os.environ.get(
     'GCP_TRANSFER_FIRST_TARGET_BUCKET', 'gcp-transfer-first-target'
 )
 
+GCP_TRANSFER_JOB_NAME = os.environ.get(
+    'GCP_TRANSFER_JOB_NAME', 'transferJobs/sampleJob'
+)
+
 # [START howto_operator_gcp_transfer_create_job_body_aws]
 aws_to_gcs_transfer_body = {
     DESCRIPTION: GCP_DESCRIPTION,
     STATUS: GcpTransferJobsStatus.ENABLED,
     PROJECT_ID: GCP_PROJECT_ID,
+    JOB_NAME: GCP_TRANSFER_JOB_NAME,
     SCHEDULE: {
         SCHEDULE_START_DATE: datetime(2015, 1, 1).date(),
         SCHEDULE_END_DATE: datetime(2030, 1, 1).date(),

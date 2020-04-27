@@ -257,10 +257,10 @@ ARG_SHOW_DAGRUN = Arg(
 ARG_IMGCAT_DAGRUN = Arg(
     ("--imgcat-dagrun", ),
     help=(
-        "After completing the backfill, prints a diagram on the screen for the "
+        "After completing the dag run, prints a diagram on the screen for the "
         "current DAG Run using the imgcat tool.\n"
         "\n"
-        "For more information, see: https://www.iterm2.com/documentation-images.html",
+        "For more information, see: https://www.iterm2.com/documentation-images.html"
     ),
     action='store_true')
 ARG_SAVE_DAGRUN = Arg(
@@ -844,9 +844,9 @@ DAGS_COMMANDS = (
         ),
     ),
     ActionCommand(
-        func=lazy_load_command('airflow.cli.commands.dag_command.dag_test'),
         name='test',
         help="Execute one run of a DAG",
+        func=lazy_load_command('airflow.cli.commands.dag_command.dag_test'),
         args=(
             ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_SHOW_DAGRUN, ARG_IMGCAT_DAGRUN, ARG_SAVE_DAGRUN
         ),

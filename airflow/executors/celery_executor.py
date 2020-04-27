@@ -38,7 +38,6 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor, CommandType
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType, TaskInstanceStateType
-from airflow.utils.module_loading import import_string
 from airflow.utils.timeout import timeout
 
 log = logging.getLogger(__name__)
@@ -56,9 +55,7 @@ airflow celery worker
 '''
 
 if conf.has_option('celery', 'celery_config_options'):
-    celery_configuration = import_string(
-        conf.get('celery', 'celery_config_options')
-    )
+    celery_configuration = conf.getimport('celery', 'celery_config_options')
 else:
     celery_configuration = DEFAULT_CELERY_CONFIG
 

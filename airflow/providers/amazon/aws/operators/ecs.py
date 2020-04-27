@@ -66,7 +66,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     :param cluster: the cluster name on Elastic Container Service
     :type cluster: str
     :param overrides: the same parameter that boto3 will receive (templated):
-        http://boto3.readthedocs.org/en/latest/reference/services/ecs.html#ECS.Client.run_task
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
     :type overrides: dict
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
         credential boto3 strategy will be used

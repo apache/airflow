@@ -15,24 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -x
+export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-export UPGRADE_TO_LATEST_REQUIREMENTS="false"
+prepare_ci_build
 
-# In case of CRON jobs on Travis we run builds without cache
-if [[ "${TRAVIS_EVENT_TYPE:=}" == "cron" ]]; then
-    echo
-    echo "Disabling cache for CRON jobs"
-    echo
-    export DOCKER_CACHE="no-cache"
-    export UPGRADE_TO_LATEST_REQUIREMENTS="true"
-fi
-
-build_ci_image_on_ci
-
-# We need newer version of six for Travis as they bundle 1.11.0 version
-# Bowler is installed for backport packages build
-pip install pre-commit bowler 'six~=1.14'
+push_ci_image
