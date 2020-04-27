@@ -231,7 +231,7 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
     :type bigquery_conn_id: str
     """
 
-    template_fields = ('table', 'gcp_conn_id',)
+    template_fields = ('table', 'gcp_conn_id', 'sql1', 'sql2')
     ui_color = BigQueryUIColors.CHECK.value
 
     @apply_defaults
