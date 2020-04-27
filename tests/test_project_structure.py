@@ -130,7 +130,6 @@ class TestProjectStructure(unittest.TestCase):
 class TestGoogleProviderProjectStructure(unittest.TestCase):
     MISSING_EXAMPLE_DAGS = {
         ('cloud', 'text_to_speech'),
-        ('cloud', 'gcs_to_bigquery'),
         ('cloud', 'adls_to_gcs'),
         ('cloud', 'sql_to_gcs'),
         ('cloud', 's3_to_gcs'),
