@@ -30,7 +30,7 @@ SQLAlchemy-Utils==0.36.3
 SQLAlchemy==1.3.16
 Sphinx==3.0.3
 Unidecode==1.1.1
-WTForms==2.2.1
+WTForms==2.3.1
 Werkzeug==0.16.1
 adal==1.2.2
 alabaster==0.7.12
@@ -43,7 +43,7 @@ apispec==1.3.3
 appdirs==1.4.3
 argcomplete==1.11.1
 asn1crypto==1.3.0
-astroid==2.3.3
+astroid==2.4.0
 async-generator==1.10
 atlasclient==1.0.0
 attrs==19.3.0
@@ -262,7 +262,7 @@ pydruid==0.5.8
 pyexasol==0.12.0
 pyflakes==2.1.1
 pykerberos==1.2.1
-pylint==2.4.4
+pylint==2.5.0
 pymongo==3.10.1
 pymssql==2.1.4
 pyodbc==4.0.30
