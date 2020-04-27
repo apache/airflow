@@ -1036,7 +1036,7 @@ class TaskInstance(Base, LoggingMixin):
                     self.log.error("Failed when executing execute callback")
                     self.log.exception(e3)
 
-                with set_current_context(context):
+                with set_current_context(context, task_copy):
                     result = self._execute_task(task_copy, context)
 
                 # If the task returns a result, push an XCom containing it

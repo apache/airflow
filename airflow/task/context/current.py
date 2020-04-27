@@ -19,21 +19,63 @@ import contextlib
 import logging
 from typing import Any, Dict
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.models import BaseOperator
 
 _CURRENT_CONTEXT = []
 log = logging.getLogger(__name__)
 
 
+def get_additional_execution_contextmanager(task_instance, execution_context):
+    """
+    Retrieves the user defined execution context callback from the configuration,
+    and validates that it is indeed a context manager
+
+    :param execution_context: the current execution context to be passed to user ctx
+    """
+    additional_execution_contextmanager = conf.getimport(
+        "core", "additional_execute_contextmanager"
+    )
+    if additional_execution_contextmanager:
+        try:
+            user_ctx_obj = additional_execution_contextmanager(
+                task_instance, execution_context
+            )
+            if hasattr(user_ctx_obj, "__enter__") and hasattr(user_ctx_obj, "__exit__"):
+                return user_ctx_obj
+            else:
+                raise AirflowException(
+                    f"Loaded function {additional_execution_contextmanager} "
+                    f"as additional execution contextmanager, but it does not have "
+                    f"__enter__ or __exit__ method!"
+                )
+        except ImportError as e:
+            raise AirflowException(
+                f"Could not import additional execution contextmanager "
+                f"{additional_execution_contextmanager}!",
+                e,
+            )
+
+
 @contextlib.contextmanager
-def set_current_context(context: Dict[str, Any]):
+def set_current_context(context: Dict[str, Any], task_instance: BaseOperator):
     """
     Sets the current execution context to the provided context object.
     This method should be called once per Task execution, before calling operator.execute
     """
     _CURRENT_CONTEXT.append(context)
+
+    user_defined_exec_context = get_additional_execution_contextmanager(
+        context, task_instance
+    )
+
     try:
-        yield context
+        if user_defined_exec_context is not None:
+            with user_defined_exec_context:
+                yield context
+        else:
+            yield context
     finally:
         expected_state = _CURRENT_CONTEXT.pop()
         if expected_state != context:
