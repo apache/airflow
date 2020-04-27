@@ -124,12 +124,8 @@ class SSHHook(BaseHook):
                         str(extra_options["allow_host_key_change"]).lower() == 'true':
                     self.allow_host_key_change = True
                 if "host_key" in extra_options and self.no_host_key_check is False:
-                    try:
-                        encoded_host_key = decodebytes(extra_options["host_key"].encode('utf-8'))
-                        self.host_key = paramiko.RSAKey(data=encoded_host_key)
-                    except Exception:
-                        raise AirflowException('Connection extra host_key is malformed.')
-
+                    encoded_host_key = decodebytes(extra_options["host_key"].encode('utf-8'))
+                    self.host_key = paramiko.RSAKey(data=encoded_host_key)
         if self.pkey and self.key_file:
             raise AirflowException(
                 "Params key_file and private_key both provided.  Must provide no more than one.")
