@@ -75,6 +75,9 @@ other parameters are ignored.
 if parameters were passed in `dataset_reference` and as arguments to method. Additionally validation
 of `dataset_reference` is done using `Dataset.from_api_repr`. Exception and log messages has been
 changed.
+- `update_dataset` requires now new `fields` argument (breaking change)
+- `delete_dataset` has new signature (dataset_id, project_id, ...)
+previous one was (project_id, dataset_id, ...) (breaking change)
 
 ### Added mypy plugin to preserve types of decorated functions
 

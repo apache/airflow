@@ -393,8 +393,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param retry: How to retry the RPC.
         :type retry: google.api_core.retry.Retry
         """
-        self.log.info('Deleting from project: %s  Dataset:%s', project_id, dataset_id)
         project_id = project_id or self.project_id
+        self.log.info('Deleting from project: %s  Dataset:%s', project_id, dataset_id)
         Client(client_info=self.client_info, project=project_id).delete_dataset(
             dataset=DatasetReference(project=project_id, dataset_id=dataset_id),
             delete_contents=delete_contents,
