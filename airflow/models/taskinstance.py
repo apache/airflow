@@ -51,6 +51,7 @@ from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.sentry import Sentry
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.stats import Stats
+from airflow.task.context.current import set_current_context
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.utils import timezone
@@ -1132,7 +1133,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         self._run_execute_callback(context, task)
 
         # Execute the task
-        result = self._execute_task(context, task_copy)
+        with set_current_context(context):
+            result = self._execute_task(context, task_copy)
 
         # Run post_execute callback
         task_copy.post_execute(context=context, result=result)
