@@ -359,7 +359,7 @@
       type: string
       example: ~
       default: "True"
-    - name: xcom_class
+    - name: xcom_backend
       description: |
         Path to custom XCom class that will be used to store and resolve operators results
       version_added: 2.0.0

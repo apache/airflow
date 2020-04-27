@@ -232,9 +232,9 @@ class BaseXCom(Base, LoggingMixin):
             raise
 
 
-def resolve_xcom_class():
+def resolve_xcom_backend():
     """Resolves custom XCom class"""
-    path_to_custom_class = conf.get("core", "xcom_class")
+    path_to_custom_class = conf.get("core", "xcom_backend")
     if path_to_custom_class:
         clazz = import_string(path_to_custom_class)
         if not issubclass(clazz, BaseXCom):
@@ -246,4 +246,4 @@ def resolve_xcom_class():
     return BaseXCom
 
 
-XCom = resolve_xcom_class()
+XCom = resolve_xcom_backend()

@@ -16,7 +16,7 @@
 # under the License.
 
 from airflow.models import XCom
-from airflow.models.xcom import resolve_xcom_class
+from airflow.models.xcom import resolve_xcom_backend
 from tests.test_utils.config import conf_vars
 
 
@@ -29,8 +29,8 @@ class CustomXCom(XCom):
 class TestXCom:
     def test_resolve_xcom_class(self):
         with conf_vars(
-            {("core", "xcom_class"): "tests.models.test_xcom.CustomXCom"}
+            {("core", "xcom_backend"): "tests.models.test_xcom.CustomXCom"}
         ):
-            cls = resolve_xcom_class()
+            cls = resolve_xcom_backend()
             assert issubclass(cls, CustomXCom)
             assert cls().serialize_value(None) == "custom_value"
