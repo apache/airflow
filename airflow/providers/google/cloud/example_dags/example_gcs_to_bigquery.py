@@ -19,6 +19,7 @@
 """
 Example DAG using GCSToBigQueryOperator.
 """
+
 import os
 
 from airflow import models
