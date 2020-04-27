@@ -62,6 +62,16 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Change signature of BigQueryGetDatasetTablesOperator
+Was:
+```python
+BigQueryGetDatasetTablesOperator(dataset_id: str, dataset_resource: dict, ...)
+```
+and now it is:
+```python
+BigQueryGetDatasetTablesOperator(dataset_resource: dict, dataset_id: Optional[str] = None, ...)
+```
+
 ### Unify `hostname_callable` option in `core` section
 
 The previous option used a colon(`:`) to split the module from function. Now the dot(`.`) is used.
