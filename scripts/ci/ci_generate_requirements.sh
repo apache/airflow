@@ -22,8 +22,6 @@ export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 
 get_ci_environment
 
-prepare_ci_build
-
 rebuild_ci_image_if_needed
 
 run_generate_requirements

@@ -35,8 +35,6 @@ function refresh_pylint_todo() {
 
 get_ci_environment
 
-prepare_ci_build
-
 rebuild_ci_image_if_needed
 
 refresh_pylint_todo

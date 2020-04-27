@@ -40,8 +40,6 @@ function run_test_package_installation() {
 
 get_ci_environment
 
-prepare_ci_build
-
 rebuild_ci_image_if_needed
 
 run_test_package_installation

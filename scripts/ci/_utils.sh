@@ -717,6 +717,8 @@ function compare_layers() {
 }
 
 function rebuild_ci_image_if_needed() {
+    prepare_ci_build
+
     if [[ ${SKIP_CI_IMAGE_CHECK:="false"} == "true" ]]; then
         echo
         echo "Skip checking CI image"

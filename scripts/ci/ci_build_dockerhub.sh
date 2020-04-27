@@ -72,7 +72,6 @@ if [[ ${DOCKER_TAG} == *python*-ci ]]; then
     echo "Building CI image"
     echo
     rm -rf "${BUILD_CACHE_DIR}"
-    prepare_ci_build
     rebuild_ci_image_if_needed
     push_ci_image
 elif [[ ${DOCKER_TAG} == *python* ]]; then
