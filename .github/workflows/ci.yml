@@ -39,7 +39,10 @@ env:
   CACHE_REGISTRY_USERNAME: ${{ github.actor }}
   CACHE_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 jobs:
-
+  pull-docker-image:
+    steps:
+      - name: pull docker image from github
+        run: docker pull docker.pkg.github.com/apache/airflow/master-python3.6:latest
   static-checks-1:
     timeout-minutes: 60
     name: "Checks: some checks"
