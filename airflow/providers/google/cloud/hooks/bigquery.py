@@ -101,6 +101,23 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return build(
             'bigquery', 'v2', http=http_authorized, cache_discovery=False)
 
+    def get_client(self, project_id: Optional[str] = None, location: Optional[str] = None) -> Client:
+        """
+        Returns authenticated BigQuery Client.
+
+        :param project_id: Project ID for the project which the client acts on behalf of.
+        :type project_id: str
+        :param location: Default location for jobs / datasets / tables.
+        :type location: str
+        :return:
+        """
+        return Client(
+            client_info=self.client_info,
+            project=project_id,
+            location=location,
+            credentials=self._get_credentials()
+        )
+
     def insert_rows(
         self, table: Any, rows: Any, target_fields: Any = None, commit_every: Any = 1000, replace: Any = False
     ) -> NoReturn:
@@ -159,7 +176,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         table_reference = TableReference(DatasetReference(project_id, dataset_id), table_id)
         try:
-            Client(client_info=self.client_info).get_table(table_reference)
+            self.get_client().get_table(table_reference)
             return True
         except NotFound:
             return False
@@ -277,7 +294,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         table_resource = table_resource or _table_resource
         table = Table.from_api_repr(table_resource)
-        Client(client_info=self.client_info).create_table(table=table, exists_ok=True, retry=retry)
+        self.get_client().create_table(table=table, exists_ok=True, retry=retry)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_empty_dataset(self,
@@ -331,7 +348,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             dataset_reference["location"] = dataset_reference.get("location", location)
 
         dataset = Dataset.from_api_repr(dataset_reference)
-        Client(client_info=self.client_info).create_dataset(dataset=dataset, exists_ok=True)
+        self.get_client().create_dataset(dataset=dataset, exists_ok=True)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_dataset_tables(
@@ -364,7 +381,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         project_id = project_id or self.project_id
 
-        tables = Client(client_info=self.client_info).list_tables(
+        tables = self.get_client().list_tables(
             dataset=DatasetReference(project=project_id, dataset_id=dataset_id),
             max_results=max_results,
             page_token=page_token,
@@ -395,7 +412,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         project_id = project_id or self.project_id
         self.log.info('Deleting from project: %s  Dataset:%s', project_id, dataset_id)
-        Client(client_info=self.client_info, project=project_id).delete_dataset(
+        self.get_client(project_id=project_id).delete_dataset(
             dataset=DatasetReference(project=project_id, dataset_id=dataset_id),
             delete_contents=delete_contents,
             retry=retry,
@@ -836,7 +853,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             if value and not spec_value:
                 dataset_resource["datasetReference"][key] = value
 
-        dataset = Client(client_info=self.client_info, project=project_id).update_dataset(
+        dataset = self.get_client(project_id=project_id).update_dataset(
             dataset=Dataset.from_api_repr(dataset_resource),
             fields=fields,
             retry=retry,
@@ -921,7 +938,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             "This method is deprecated. Please use ``get_dataset_tables``.",
             DeprecationWarning
         )
-        tables = Client(client_info=self.client_info).list_tables(
+        tables = self.get_client().list_tables(
             dataset=DatasetReference(project=project_id, dataset_id=dataset_id),
             max_results=max_results,
         )
@@ -967,7 +984,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type retry: google.api_core.retry.Retry
         """
         project_id = project_id or self.project_id
-        datasets = Client(client_info=self.client_info, project=project_id).list_datasets(
+        datasets = self.get_client(project_id=project_id).list_datasets(
             project=project_id,
             include_all=include_all,
             filter=filter_,
@@ -996,7 +1013,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
         """
         project_id = project_id or self.project_id
-        dataset = Client(client_info=self.client_info, project=project_id).get_dataset(
+        dataset = self.get_client(project_id=project_id).get_dataset(
             dataset_ref=DatasetReference(project_id, dataset_id)
         )
         self.log.info("Dataset Resource: %s", dataset)
@@ -2098,7 +2115,7 @@ class BigQueryBaseCursor(LoggingMixin):
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables`",
             DeprecationWarning, stacklevel=3)
-        return self.hook.get_dataset_tables(*args, **kwargs)
+        return [t.reference.to_api_repr() for t in self.hook.get_dataset_tables(*args, **kwargs)]
 
     def delete_dataset(self, *args, **kwargs) -> None:
         """
@@ -2153,7 +2170,7 @@ class BigQueryBaseCursor(LoggingMixin):
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_dataset`",
             DeprecationWarning, stacklevel=3)
-        return self.hook.update_dataset(*args, **kwargs)
+        return Dataset.to_api_repr(self.hook.update_dataset(*args, **kwargs))
 
     def patch_dataset(self, *args, **kwargs) -> Dict:
         """
@@ -2166,7 +2183,7 @@ class BigQueryBaseCursor(LoggingMixin):
             DeprecationWarning, stacklevel=3)
         return self.hook.patch_dataset(*args, **kwargs)
 
-    def get_dataset_tables_list(self, *args, **kwargs) -> List:
+    def get_dataset_tables_list(self, *args, **kwargs) -> List[Dict[str, Any]]:
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables_list`

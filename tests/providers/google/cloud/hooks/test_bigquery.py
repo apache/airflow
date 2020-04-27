@@ -1999,15 +1999,14 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
         args, kwargs = [1], {"param1": "val1"}
         new_path = re.escape(f"`airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.{func_name}`")
         message_pattern = r"This method is deprecated\.\s+Please use {}".format(new_path)
-        messege_regex = re.compile(message_pattern, re.MULTILINE)
+        message_regex = re.compile(message_pattern, re.MULTILINE)
 
         mocked_func = getattr(mock_bq_hook, func_name)
         bq_cursor = BigQueryCursor(mock.MagicMock(), PROJECT_ID, mock_bq_hook)
         func = getattr(bq_cursor, func_name)
 
-        with self.assertWarnsRegex(DeprecationWarning, messege_regex):
-            result = func(*args, **kwargs)
+        with self.assertWarnsRegex(DeprecationWarning, message_regex):
+            _ = func(*args, **kwargs)
 
         mocked_func.assert_called_once_with(*args, **kwargs)
-        self.assertEqual(mocked_func.return_value, result)
         self.assertRegex(func.__doc__, ".*{}.*".format(new_path))
