@@ -44,8 +44,7 @@ class TestMySqlToS3Operator(unittest.TestCase):
                                mysql_conn_id="mysql_conn_id",
                                aws_conn_id="aws_conn_id",
                                task_id="task_id",
-                               header=False,
-                               index=False,
+                               pd_csv_kwargs={'index': False, 'header': False},
                                dag=None
                                )
         op.execute(None)

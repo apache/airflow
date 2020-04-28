@@ -56,10 +56,8 @@ class MySQLToS3Operator(BaseOperator):
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
     :type verify: bool or str
-    :param header: whether to include header or not into the S3 file
-    :type header: bool
-    :param index: whether to include index or not into the S3 file
-    :type index: bool
+    :param pd_csv_kwargs: arguments to include in pd.to_csv (header, index, columns...)
+    :type pd_csv_kwargs: dict
     """
 
     @apply_defaults
@@ -71,8 +69,7 @@ class MySQLToS3Operator(BaseOperator):
             mysql_conn_id: str = 'mysql_default',
             aws_conn_id: str = 'aws_default',
             verify: Optional[Union[bool, str]] = None,
-            header: Optional[bool] = False,
-            index: Optional[bool] = False,
+            pd_csv_kwargs: dict = None,
             *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.query = query
@@ -81,8 +78,13 @@ class MySQLToS3Operator(BaseOperator):
         self.mysql_conn_id = mysql_conn_id
         self.aws_conn_id = aws_conn_id
         self.verify = verify
-        self.header = header
-        self.index = index
+        self.pd_csv_kwargs = pd_csv_kwargs
+
+        if not self.pd_csv_kwargs:
+            self.pd_csv_kwargs = {}
+
+        if "index" not in self.pd_csv_kwargs:
+            self.pd_csv_kwargs["index"] = index
 
     def _fix_int_dtypes(self, df):
         """
@@ -104,7 +106,7 @@ class MySQLToS3Operator(BaseOperator):
 
         self._fix_int_dtypes(data_df)
         with tempfile.NamedTemporaryFile(mode='r+', suffix='.csv') as tmp_csv:
-            tmp_csv.file.write(data_df.to_csv(index=self.index, header=self.header))
+            tmp_csv.file.write(data_df.to_csv(**self.pd_csv_kwargs))
             tmp_csv.file.seek(0)
             s3_conn.load_file(filename=tmp_csv.name,
                               key=self.s3_key,
