@@ -27,9 +27,9 @@ from copy import deepcopy
 from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Optional, Sequence, Tuple, Type, Union
 
 from google.api_core.retry import Retry
-from google.cloud.bigquery import DEFAULT_RETRY, Client
+from google.cloud.bigquery import DEFAULT_RETRY, Client, ExternalConfig, SchemaField
 from google.cloud.bigquery.dataset import Dataset, DatasetListItem, DatasetReference
-from google.cloud.bigquery.table import Table, TableListItem, TableReference
+from google.cloud.bigquery.table import Table, TableListItem, TableReference, EncryptionConfiguration
 from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -359,7 +359,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         max_results: Optional[int] = None,
         page_token: Optional[str] = None,
         retry: Retry = DEFAULT_RETRY,
-    ) -> List[TableListItem]:
+    ) -> Dict[str, Any]:
         """
         Get the list of tables for a given dataset.
 
@@ -388,7 +388,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             page_token=page_token,
             retry=retry,
         )
-        return list(tables)
+        return [t.reference.to_api_repr() for t in tables]
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_dataset(
@@ -420,6 +420,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             not_found_ok=True
         )
 
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_external_table(self,  # pylint: disable=too-many-locals,too-many-arguments
                               external_project_dataset_table: str,
                               schema_fields: List,
@@ -437,7 +438,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                               encoding: str = "UTF-8",
                               src_fmt_configs: Optional[Dict] = None,
                               labels: Optional[Dict] = None,
-                              encryption_configuration: Optional[Dict] = None
+                              encryption_configuration: Optional[Dict] = None,
+                              location: Optional[str] = None,
+                              project_id: Optional[str] = None,
                               ) -> None:
         """
         Creates a new external table in the dataset with the data in Google
@@ -513,84 +516,40 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 }
         :type encryption_configuration: dict
         """
-        if not self.project_id:
-            raise ValueError("The project_id should be set")
-        service = self.get_service()
 
-        if src_fmt_configs is None:
-            src_fmt_configs = {}
-        project_id, dataset_id, external_table_id = \
-            _split_tablename(table_input=external_project_dataset_table,
-                             default_project_id=self.project_id,
-                             var_name='external_project_dataset_table')
-
-        # bigquery only allows certain source formats
-        # we check to make sure the passed source format is valid
-        # if it's not, we raise a ValueError
-        # Refer to this link for more details:
-        #   https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#externalDataConfiguration.sourceFormat # noqa # pylint: disable=line-too-long
-
+        warnings.warn(
+            "This method is deprecated. Please use `BigQueryHook.create_empty_table` method with"
+            "pass passing the `table_resource` object. This gives more flexibility than this method.",
+            DeprecationWarning,
+        )
+        project_id = project_id or self.project_id
+        location = location or self.location
+        src_fmt_configs = src_fmt_configs or {}
         source_format = source_format.upper()
-        allowed_formats = [
-            "CSV", "NEWLINE_DELIMITED_JSON", "AVRO", "GOOGLE_SHEETS",
-            "DATASTORE_BACKUP", "PARQUET"
-        ]  # type: List[str]
-        if source_format not in allowed_formats:
-            raise ValueError("{0} is not a valid source format. "
-                             "Please use one of the following types: {1}"
-                             .format(source_format, allowed_formats))
-
         compression = compression.upper()
-        allowed_compressions = ['NONE', 'GZIP']  # type: List[str]
-        if compression not in allowed_compressions:
-            raise ValueError("{0} is not a valid compression format. "
-                             "Please use one of the following types: {1}"
-                             .format(compression, allowed_compressions))
 
-        table_resource = {
-            'externalDataConfiguration': {
-                'autodetect': autodetect,
-                'sourceFormat': source_format,
-                'sourceUris': source_uris,
-                'compression': compression,
-                'ignoreUnknownValues': ignore_unknown_values
-            },
-            'tableReference': {
-                'projectId': project_id,
-                'datasetId': dataset_id,
-                'tableId': external_table_id,
-            }
-        }  # type: Dict[str, Any]
-
-        if self.location:
-            table_resource['location'] = self.location
-
-        if schema_fields:
-            table_resource['externalDataConfiguration'].update({
-                'schema': {
-                    'fields': schema_fields
-                }
-            })
-
-        self.log.info('Creating external table: %s', external_project_dataset_table)
-
-        if max_bad_records:
-            table_resource['externalDataConfiguration']['maxBadRecords'] = max_bad_records
+        external_config_api_repr = {
+            'autodetect': autodetect,
+            'sourceFormat': source_format,
+            'sourceUris': source_uris,
+            'compression': compression,
+            'ignoreUnknownValues': ignore_unknown_values
+        }
 
         # if following fields are not specified in src_fmt_configs,
         # honor the top-level params for backward-compatibility
-        backward_compatibility_configs = {'skipLeadingRows': skip_leading_rows,
-                                          'fieldDelimiter': field_delimiter,
-                                          'quote': quote_character,
-                                          'allowQuotedNewlines': allow_quoted_newlines,
-                                          'allowJaggedRows': allow_jagged_rows,
-                                          'encoding': encoding}
-
+        backward_compatibility_configs = {
+            'skipLeadingRows': skip_leading_rows,
+            'fieldDelimiter': field_delimiter,
+            'quote': quote_character,
+            'allowQuotedNewlines': allow_quoted_newlines,
+            'allowJaggedRows': allow_jagged_rows,
+            'encoding': encoding
+        }
         src_fmt_to_param_mapping = {
             'CSV': 'csvOptions',
             'GOOGLE_SHEETS': 'googleSheetsOptions'
         }
-
         src_fmt_to_configs_mapping = {
             'csvOptions': [
                 'allowJaggedRows', 'allowQuotedNewlines',
@@ -599,33 +558,38 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             ],
             'googleSheetsOptions': ['skipLeadingRows']
         }
-
         if source_format in src_fmt_to_param_mapping.keys():
-            valid_configs = src_fmt_to_configs_mapping[
-                src_fmt_to_param_mapping[source_format]
-            ]
-
+            valid_configs = src_fmt_to_configs_mapping[src_fmt_to_param_mapping[source_format]]
             src_fmt_configs = _validate_src_fmt_configs(source_format, src_fmt_configs, valid_configs,
                                                         backward_compatibility_configs)
+            external_config_api_repr[src_fmt_to_param_mapping[source_format]] = src_fmt_configs
 
-            table_resource['externalDataConfiguration'][src_fmt_to_param_mapping[
-                source_format]] = src_fmt_configs
+        # build external config
+        external_config = ExternalConfig.from_api_repr(external_config_api_repr)
+        if schema_fields:
+            external_config.schema = [SchemaField.from_api_repr(f) for f in schema_fields]
+        if max_bad_records:
+            external_config.max_bad_records = max_bad_records
 
+        # build table definition
+        table = Table(
+            table_ref=TableReference.from_string(external_project_dataset_table, project_id)
+        )
+        table.external_data_configuration = external_config
         if labels:
-            table_resource['labels'] = labels
+            table.labels = labels
 
         if encryption_configuration:
-            table_resource["encryptionConfiguration"] = encryption_configuration
+            table.encryption_configuration = EncryptionConfiguration.from_api_repr(encryption_configuration)
 
-        service.tables().insert(  # pylint: disable=no-member
-            projectId=project_id,
-            datasetId=dataset_id,
-            body=table_resource
-        ).execute(num_retries=self.num_retries)
+        if location:
+            table._properties['location'] = location
 
-        self.log.info('External table created successfully: %s',
-                      external_project_dataset_table)
+        self.log.info('Creating external table: %s', external_project_dataset_table)
+        self.get_client(project_id=project_id).create_table(table=table, exists_ok=True)
+        self.log.info('External table created successfully: %s', external_project_dataset_table)
 
+    @GoogleBaseHook.fallback_to_default_project_id
     def patch_table(self,  # pylint: disable=too-many-arguments
                     dataset_id: str,
                     table_id: str,
@@ -701,7 +665,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         """
         service = self.get_service()
-        project_id = project_id if project_id is not None else self.project_id
+        project_id = project_id or self.project_id
 
         table_resource = {}  # type: Dict[str, Any]
 
@@ -726,8 +690,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if encryption_configuration:
             table_resource["encryptionConfiguration"] = encryption_configuration
 
-        self.log.info('Patching Table %s:%s.%s',
-                      project_id, dataset_id, table_id)
+        self.log.info('Patching Table %s:%s.%s', project_id, dataset_id, table_id)
 
         service.tables().patch(  # pylint: disable=no-member
             projectId=project_id,
@@ -735,8 +698,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             tableId=table_id,
             body=table_resource).execute(num_retries=self.num_retries)
 
-        self.log.info('Table patched successfully: %s:%s.%s',
-                      project_id, dataset_id, table_id)
+        self.log.info('Table patched successfully: %s:%s.%s', project_id, dataset_id, table_id)
 
     def insert_all(self, project_id: str, dataset_id: str, table_id: str,
                    rows: List, ignore_unknown_values: bool = False,
@@ -2116,7 +2078,7 @@ class BigQueryBaseCursor(LoggingMixin):
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables`",
             DeprecationWarning, stacklevel=3)
-        return [t.reference.to_api_repr() for t in self.hook.get_dataset_tables(*args, **kwargs)]
+        return self.hook.get_dataset_tables(*args, **kwargs)
 
     def delete_dataset(self, *args, **kwargs) -> None:
         """
