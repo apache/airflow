@@ -43,10 +43,10 @@ jobs:
     runs-on: ubuntu-latest
     name: "docker stuff"
     steps:
+      - name: create docker token
+        run: cat ~/TOKEN.txt | docker login docker.pkg.github.com -u dimberan --password ${{ secrets.GITHUB_TOKEN }}
       - name: pull docker image from github
         run: docker pull docker.pkg.github.com/apache/airflow/master-python3.6:latest
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
 #  static-checks-1:
 #    timeout-minutes: 60
 #    name: "Checks: some checks"
