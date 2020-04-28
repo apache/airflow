@@ -55,7 +55,22 @@ SPARK_TEST_STEPS = [
 ]
 
 JOB_FLOW_OVERRIDES = {
-    'Name': 'PiCalc'
+    'Name': 'PiCalc',
+    'Instances': {
+        'InstanceGroups': [
+            {
+                'Name': "Master node",
+                'Market': 'SPOT',
+                'InstanceRole': 'MASTER',
+                'InstanceType': 'm1.medium',
+                'InstanceCount': 1,
+            }
+        ],
+        'KeepJobFlowAliveWhenNoSteps': True,
+        'TerminationProtected': False,
+    },
+    'JobFlowRole': 'EMR_EC2_DefaultRole',
+    'ServiceRole': 'EMR_DefaultRole',
 }
 
 with DAG(
