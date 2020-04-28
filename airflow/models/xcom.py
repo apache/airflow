@@ -234,11 +234,13 @@ class BaseXCom(Base, LoggingMixin):
 def resolve_xcom_backend():
     """Resolves custom XCom class"""
     clazz = conf.getimport("core", "xcom_backend")
-    if not issubclass(clazz, BaseXCom):
-        raise TypeError(
-            f"Your custom XCom class `{clazz.__name__}` is not a subclass of `{BaseXCom.__name__}`."
-        )
-    return clazz
+    if clazz:
+        if not issubclass(clazz, BaseXCom):
+            raise TypeError(
+                f"Your custom XCom class `{clazz.__name__}` is not a subclass of `{BaseXCom.__name__}`."
+            )
+        return clazz
+    return BaseXCom
 
 
 XCom = resolve_xcom_backend()
