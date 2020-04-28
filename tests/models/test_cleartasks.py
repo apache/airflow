@@ -28,6 +28,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.models import DEFAULT_DATE
+from tests.test_utils.config import conf_vars
 
 
 class TestClearTasks(unittest.TestCase):
@@ -237,15 +238,13 @@ class TestClearTasks(unittest.TestCase):
         # try_number (0) + retries(1)
         self.assertEqual(ti2.max_tries, 1)
 
+    @conf_vars({("core", "enable_xcom_pickling"): "False"})
     def test_xcom_disable_pickle_type(self):
         json_obj = {"key": "value"}
         execution_date = timezone.utcnow()
         key = "xcom_test1"
         dag_id = "test_dag1"
         task_id = "test_task1"
-
-        conf.set("core", "enable_xcom_pickling", "False")
-
         XCom.set(key=key,
                  value=json_obj,
                  dag_id=dag_id,
@@ -267,15 +266,13 @@ class TestClearTasks(unittest.TestCase):
 
         self.assertEqual(ret_value, json_obj)
 
+    @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_xcom_enable_pickle_type(self):
         json_obj = {"key": "value"}
         execution_date = timezone.utcnow()
         key = "xcom_test2"
         dag_id = "test_dag2"
         task_id = "test_task2"
-
-        conf.set("core", "enable_xcom_pickling", "True")
-
         XCom.set(key=key,
                  value=json_obj,
                  dag_id=dag_id,
