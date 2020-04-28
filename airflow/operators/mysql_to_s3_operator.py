@@ -58,6 +58,8 @@ class MySQLToS3Operator(BaseOperator):
     :type verify: bool or str
     :param pd_csv_kwargs: arguments to include in pd.to_csv (header, index, columns...)
     :type pd_csv_kwargs: dict
+    :param index: wheter to have the index or not in the dataframe
+    :type index: str
     """
 
     @apply_defaults
@@ -70,6 +72,7 @@ class MySQLToS3Operator(BaseOperator):
             aws_conn_id: str = 'aws_default',
             verify: Optional[Union[bool, str]] = None,
             pd_csv_kwargs: dict = None,
+            index: Optional[bool] = False,
             *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.query = query
