@@ -685,6 +685,7 @@ class HiveMetastoreHook(BaseHook):
                            pairs will be considered as candidates of max partition.
         :type filter_map: map
         :return: Max partition or None if part_specs is empty.
+        :rtype: basestring
         """
         if not part_specs:
             return None
@@ -708,7 +709,7 @@ class HiveMetastoreHook(BaseHook):
         if not candidates:
             return None
         else:
-            return max(candidates).encode('utf-8')
+            return max(candidates)
 
     def max_partition(self, schema, table_name, field=None, filter_map=None):
         """
