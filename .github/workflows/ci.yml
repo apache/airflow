@@ -76,8 +76,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CI_JOB_TYPE: "Documentation"
+      PYTHON_MAJOR_MINOR_VERSION: 3.6
     steps:
       - uses: actions/checkout@master
+      - uses: actions/setup-python@v1
+        with:
+          python-version: '3.6'
       - name: "Build CI image ${{ matrix.python-version }}"
         run: ./scripts/ci/ci_prepare_image_on_ci.sh
       - name: "Build docs"
