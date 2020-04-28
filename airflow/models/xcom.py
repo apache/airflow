@@ -233,7 +233,7 @@ class BaseXCom(Base, LoggingMixin):
 
 def resolve_xcom_backend():
     """Resolves custom XCom class"""
-    clazz = conf.getimport("core", "xcom_backend")
+    clazz = conf.getimport("core", "xcom_backend", fallback=f"airflow.models.xcom.{BaseXCom.__name__}")
     if clazz:
         if not issubclass(clazz, BaseXCom):
             raise TypeError(
