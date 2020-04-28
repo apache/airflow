@@ -130,6 +130,7 @@ file_syntax_error = namedtuple('FileSyntaxError', 'line_no message')
 class AirflowFileParseException(AirflowException):
     """
     Raises when connection or variable file can not be parsed
+
     :param msg: The human-readable description of the exception
     :param file_path: A processed file that contains errors
     :param parse_errors: File syntax errors
