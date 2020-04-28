@@ -46,6 +46,7 @@ def _parse_env_file(file_path):
     Parse a file in the ``.env '' format.
 
    .. code-block:: text
+
         MY_CONN_ID=my-conn-type://my-login:my-pa%2Fssword@my-host:5432/my-schema?param1=val1&param2=val2
 
     :param file_path: The location of the file that will be processed.
