@@ -664,10 +664,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type encryption_configuration: dict
 
         """
-        service = self.get_service()
         project_id = project_id or self.project_id
-
-        table_resource = {}  # type: Dict[str, Any]
+        table_resource: Dict[str, Any] = {}
 
         if description is not None:
             table_resource['description'] = description
@@ -690,15 +688,70 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if encryption_configuration:
             table_resource["encryptionConfiguration"] = encryption_configuration
 
-        self.log.info('Patching Table %s:%s.%s', project_id, dataset_id, table_id)
+        self.update_table(
+            table_resource=table_resource,
+            fields=list(table_resource.keys()),
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id
+        )
 
-        service.tables().patch(  # pylint: disable=no-member
-            projectId=project_id,
-            datasetId=dataset_id,
-            tableId=table_id,
-            body=table_resource).execute(num_retries=self.num_retries)
+    @GoogleBaseHook.fallback_to_default_project_id
+    def update_table(
+        self,
+        table_resource: Dict[str, Any],
+        fields: Optional[List[str]] = None,
+        dataset_id: Optional[str] = None,
+        table_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+    ) -> None:
+        """
+        Change some fields of a table.
 
-        self.log.info('Table patched successfully: %s:%s.%s', project_id, dataset_id, table_id)
+        Use ``fields`` to specify which fields to update. At least one field
+        must be provided. If a field is listed in ``fields`` and is ``None``
+        in ``table``, the field value will be deleted.
+
+        If ``table.etag`` is not ``None``, the update will only succeed if
+        the table on the server has the same ETag. Thus reading a table with
+        ``get_table``, changing its fields, and then passing it to
+        ``update_table`` will ensure that the changes will only be saved if
+        no modifications to the table occurred since the read.
+
+        :param project_id: The project to create the table into.
+        :type project_id: str
+        :param dataset_id: The dataset to create the table into.
+        :type dataset_id: str
+        :param table_id: The Name of the table to be created.
+        :type table_id: str
+        :param table_resource: Table resource as described in documentation:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
+            The table has to contain ``tableReference`` or ``project_id``, ``datset_id`` and ``table_id``
+            have to be provided.
+        :type table_resource: Dict[str, Any]
+        :param fields: The fields of ``table`` to change, spelled as the Table properties (e.g. "friendly_name").
+        :type fields: List[str]
+        """
+        try:
+            # Check if tableReference is present
+            TableReference.from_api_repr(table_resource["tableReference"])
+        except KeyError:
+            # Check if it can be build from parameters
+            if not all([dataset_id, project_id, table_id]):
+                raise AirflowException(
+                    "Table resource is missing proper `tableReference` and `project_id`"
+                    "`dataset_id` and `table_id` were not provided."
+                )
+            table_resource["tableReference"] = {
+                "projectId": project_id,
+                "tableId": table_id,
+                "datasetId": dataset_id
+            }
+
+        table = Table.from_api_repr(table_resource)
+        self.log.info('Updating table %s.%s.%s', project_id, dataset_id, table_id)
+        self.get_client().update_table(table, fields=fields)
+        self.log.info('Table %s.%s.%s updated successfully', project_id, dataset_id, table_id)
 
     def insert_all(self, project_id: str, dataset_id: str, table_id: str,
                    rows: List, ignore_unknown_values: bool = False,
