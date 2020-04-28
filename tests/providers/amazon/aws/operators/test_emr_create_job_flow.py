@@ -115,7 +115,7 @@ class TestEmrCreateJobFlowOperator(unittest.TestCase):
         self.assertDictEqual(self.operator.job_flow_overrides, expected_args)
 
     def test_render_template_from_file(self):
-        self.operator.job_flow_overrides = 'job.json.jinja2'
+        self.operator.job_flow_overrides = 'job.j2.json'
         self.operator.params = {'releaseLabel': '5.11.0'}
 
         ti = TaskInstance(self.operator, DEFAULT_DATE)

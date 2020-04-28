@@ -70,7 +70,6 @@ git_version
 flake8_diff.sh
 coverage.xml
 _sources/*
-.*jinja2
 
 rat-results.txt
 apache-airflow-.*\+source.tar.gz.*

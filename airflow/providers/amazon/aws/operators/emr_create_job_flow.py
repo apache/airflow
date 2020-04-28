@@ -34,11 +34,11 @@ class EmrCreateJobFlowOperator(BaseOperator):
     :param emr_conn_id: emr connection to use
     :type emr_conn_id: str
     :param job_flow_overrides: boto3 style arguments or reference to an arguments file
-        (must be '.json' or '.jinja2') to override emr_connection extra. (templated)
+        (must be '.json') to override emr_connection extra. (templated)
     :type job_flow_overrides: dict|str
     """
     template_fields = ['job_flow_overrides']
-    template_ext = ('.json', '.jinja2')
+    template_ext = ('.json')
     ui_color = '#f9c915'
 
     @apply_defaults

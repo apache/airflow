@@ -185,7 +185,7 @@ class TestEmrAddStepsOperator(unittest.TestCase):
             task_id='test_task',
             job_flow_id='j-8989898989',
             aws_conn_id='aws_default',
-            steps='steps.json.jinja2',
+            steps='steps.j2.json',
             dag=dag)
 
         with patch('boto3.session.Session', self.boto3_session_mock):
