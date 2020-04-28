@@ -18,14 +18,14 @@
 
 import pytest
 
-from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
+from tests.providers.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 
 @pytest.mark.backend("mysql", "postgres")
-@pytest.mark.credential_file(GCP_GCS_KEY)
+@pytest.mark.credential_file(GCP_BIGQUERY_KEY)
 class TestGoogleCloudStorageToBigQueryExample(GoogleSystemTest):
 
-    @provide_gcp_context(GCP_GCS_KEY)
+    @provide_gcp_context(GCP_BIGQUERY_KEY)
     def test_run_example_dag_gcs_to_bigquery_operator(self):
         self.run_dag('example_gcs_to_bigquery_operator', CLOUD_DAG_FOLDER)
