@@ -209,7 +209,7 @@ with models.DAG(
 
     # [START howto_operator_get_build_trigger]
     get_build_trigger = CloudBuildGetBuildTriggerOperator(
-        task_id="update_build_trigger",
+        task_id="get_build_trigger",
         project_id=GCP_PROJECT_ID,
         trigger_id="{{ task_instance.xcom_pull('create_build_trigger')['id'] }}",
     )
