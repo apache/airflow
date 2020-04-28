@@ -19,26 +19,14 @@
 import unittest
 
 import mock
-import pytest
 
 from airflow.providers.google.cloud.operators.gcs_to_bigquery import GCSToBigQueryOperator
-from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 TASK_ID = 'test-gcs-to-bq-operator'
 TEST_EXPLICIT_DEST = 'test-project.dataset.table'
 TEST_BUCKET = 'test-bucket'
 MAX_ID_KEY = 'id'
 TEST_SOURCE_OBJECTS = ['test/objects/*']
-
-
-@pytest.mark.backend("mysql", "postgres")
-@pytest.mark.credential_file(GCP_GCS_KEY)
-class TestGoogleCloudStorageToBigQueryExample(GoogleSystemTest):
-
-    @provide_gcp_context(GCP_GCS_KEY)
-    def test_run_example_dag_gcs_to_bigquery_operator(self):
-        self.run_dag('example_gcs_to_bigquery_operator', CLOUD_DAG_FOLDER)
 
 
 class TestGoogleCloudStorageToBigQueryOperator(unittest.TestCase):
