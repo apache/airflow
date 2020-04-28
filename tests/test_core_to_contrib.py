@@ -1436,6 +1436,25 @@ OPERATOR = [
     ),
 ]
 
+SECRETS = [
+    (
+        "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend",
+        "airflow.contrib.secrets.aws_secrets_manager.SecretsManagerBackend",
+    ),
+    (
+        "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+        "airflow.contrib.secrets.aws_systems_manager.SystemsManagerParameterStoreBackend",
+    ),
+    (
+        "airflow.providers.google.cloud.secrets.secrets_manager.CloudSecretsManagerBackend",
+        "airflow.contrib.secrets.gcp_secrets_manager.CloudSecretsManagerBackend",
+    ),
+    (
+        "airflow.providers.hashicorp.secrets.vault.VaultBackend",
+        "airflow.contrib.secrets.hashicorp_vault.VaultBackend",
+    ),
+]
+
 SENSOR = [
     (
         "airflow.providers.google.cloud.sensors.bigtable.BigtableTableReplicationCompletedSensor",
@@ -1641,11 +1660,11 @@ PROTOCOLS = [
     ),
 ]
 
-ALL = HOOK + OPERATOR + SENSOR + PROTOCOLS
+ALL = HOOK + OPERATOR + SECRETS + SENSOR + PROTOCOLS
 
 RENAMED_HOOKS = [
     (old_class, new_class)
-    for old_class, new_class in HOOK + OPERATOR + SENSOR
+    for old_class, new_class in HOOK + OPERATOR + SECRETS + SENSOR
     if old_class.rpartition(".")[2] != new_class.rpartition(".")[2]
 ]
 

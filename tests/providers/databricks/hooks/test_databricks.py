@@ -252,6 +252,24 @@ class TestDatabricksHook(unittest.TestCase):
                     mock_sleep.assert_has_calls(calls)
 
     @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_do_api_call_patch(self, mock_requests):
+        mock_requests.patch.return_value.json.return_value = {'cluster_name': 'new_name'}
+        data = {
+            'cluster_name': 'new_name'
+        }
+        patched_cluster_name = self.hook._do_api_call(('PATCH', 'api/2.0/jobs/runs/submit'), data)
+
+        self.assertEqual(patched_cluster_name['cluster_name'], 'new_name')
+        mock_requests.patch.assert_called_once_with(
+            submit_run_endpoint(HOST),
+            json={
+                'cluster_name': 'new_name'
+            },
+            auth=(LOGIN, PASSWORD),
+            headers=USER_AGENT_HEADER,
+            timeout=self.hook.timeout_seconds)
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
     def test_submit_run(self, mock_requests):
         mock_requests.post.return_value.json.return_value = {'run_id': '1'}
         data = {

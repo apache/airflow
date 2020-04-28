@@ -241,7 +241,7 @@ def skip_if_not_marked_with_system(selected_systems, item):
 def skip_system_test(item):
     for marker in item.iter_markers(name="system"):
         pytest.skip("The test is skipped because it has system marker. "
-                    "System tests are only run when --systems flag "
+                    "System tests are only run when --system flag "
                     "with the right system ({system}) is passed to pytest. {item}".
                     format(system=marker.args[0], item=item))
 

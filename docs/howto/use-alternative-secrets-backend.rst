@@ -52,7 +52,104 @@ Set ``backend`` to the fully qualified class name of the backend you want to ena
 You can provide ``backend_kwargs`` with json and it will be passed as kwargs to the ``__init__`` method of
 your secrets backend.
 
-See :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>` for an example configuration.
+.. _local_filesystem_secrets:
+
+Local Filesystem Secrets Backend
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This backend is especially useful in the following use cases:
+
+* **Development**: It ensures data synchronization between all terminal windows (same as databases),
+  and at the same time the values are retained after database restart (same as environment variable)
+* **Kubernetes**: It allows you to store secrets in `Kubernetes Secrets <https://kubernetes.io/docs/concepts/configuration/secret/>`__
+  or you can synchronize values using the sidecar container and
+  `a shared volume <https://kubernetes.io/docs/tasks/access-application-cluster/communicate-containers-same-pod-shared-volume/>`__
+
+To use variable and connection from local file, specify :py:class:`~airflow.secrets.local_filesystem.LocalFilesystemBackend`
+as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg``.
+
+Available parameters to ``backend_kwargs``:
+
+* ``variables_file_path``: File location with variables data.
+* ``connections_file_path``: File location with connections data.
+
+Here is a sample configuration:
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.secrets.local_filesystem.LocalFilesystemBackend
+    backend_kwargs = {"variable_file_path": "/files/var.json", "connection_file_path": "/files/conn.json"}
+
+Both ``JSON`` and ``.env`` files are supported. All parameters are optional. If the file path is not passed,
+the backend returns an empty collection.
+
+Storing and Retrieving Connections
+""""""""""""""""""""""""""""""""""
+
+If you have set ``connections_file_path`` as ``/files/my_conn.json``, then the backend will read the
+file ``/files/my_conn.json`` when it looks for connections.
+
+The file can be defined in ``JSON`` or ``env`` format.
+
+The JSON file must contain an object where the key contains the connection ID and the value contains
+the definitions of one or more connections. The connection can be defined as a URI (string) or JSON object.
+For a guide about defining a connection as a URI, see:: :ref:`generating_connection_uri`.
+For a description of the connection object parameters see :class:`~airflow.models.connection.Connection`.
+The following is a sample JSON file.
+
+.. code-block:: json
+
+    {
+        "CONN_A": "mysq://host_a",
+        "CONN_B": [
+            "mysq://host_a",
+            "mysq://host_a"
+        ],
+        "CONN_C": {
+            "conn_type": "scheme",
+            "host": "host",
+            "schema": "lschema",
+            "login": "Login",
+            "password": "None",
+            "port": "1234"
+        }
+    }
+
+You can also define connections using a ``.env`` file. Then the key is the connection ID, and
+the value should describe the connection using the URI. If the connection ID is repeated, all values will
+be returned. The following is a sample file.
+
+  .. code-block:: text
+
+    mysql_conn_id=mysql://log:password@13.1.21.1:3306/mysqldbrd
+    google_custom_key=google-cloud-platform://?extra__google_cloud_platform__key_path=%2Fkeys%2Fkey.json
+
+Storing and Retrieving Variables
+""""""""""""""""""""""""""""""""
+
+If you have set ``variables_file_path`` as ``/files/my_var.json``, then the backend will read the
+file ``/files/my_var.json`` when it looks for variables.
+
+The file can be defined in ``JSON`` or ``env`` format.
+
+The JSON file must contain an object where the key contains the variable key and the value contains
+the variable value. The following is a sample JSON file.
+
+  .. code-block:: json
+
+    {
+        "VAR_A": "some_value",
+        "var_b": "differnet_value"
+    }
+
+You can also define variable using a ``.env`` file. Then the key is the variable key, and variable should
+describe the variable value. The following is a sample file.
+
+  .. code-block:: text
+
+    VAR_A=some_value
+    var_B=different_value
 
 .. _ssm_parameter_store_secrets:
 

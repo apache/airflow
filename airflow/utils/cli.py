@@ -38,6 +38,7 @@ from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagBag, DagModel, DagPickle, Log
 from airflow.utils import cli_action_loggers
+from airflow.utils.platform import is_terminal_support_colors
 from airflow.utils.session import provide_session
 
 
@@ -234,24 +235,6 @@ def sigquit_handler(sig, frame):  # pylint: disable=unused-argument
             if line:
                 code.append("  {}".format(line.strip()))
     print("\n".join(code))
-
-
-def is_terminal_support_colors() -> bool:
-    """"
-    Try to determine if the current terminal supports colors.
-    """
-    if sys.platform == 'win32':
-        return False
-    if not hasattr(sys.stdout, 'isatty'):
-        return False
-    if not sys.stdout.isatty():
-        return False
-    if 'COLORTERM' in os.environ:
-        return True
-    term = os.environ.get('TERM', 'dumb').lower()
-    if term in ('xterm', 'linux') or 'color' in term:
-        return True
-    return False
 
 
 class ColorMode:
