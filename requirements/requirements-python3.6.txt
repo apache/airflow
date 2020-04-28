@@ -110,6 +110,7 @@ ecdsa==0.15
 elasticsearch-dbapi==0.1.0
 elasticsearch-dsl==7.1.0
 elasticsearch==7.5.1
+email-validator==1.0.5
 entrypoints==0.3
 execnet==1.7.1
 facebook-business==6.0.3
