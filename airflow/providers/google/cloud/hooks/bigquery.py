@@ -118,6 +118,35 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             credentials=self._get_credentials()
         )
 
+    @staticmethod
+    def _resolve_table_reference(
+        table_resource: Dict[str, Any],
+        project_id: Optional[str] = None,
+        dataset_id: Optional[str] = None,
+        table_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        try:
+            # Check if tableReference is present and is valid
+            TableReference.from_api_repr(table_resource["tableReference"])
+        except KeyError:
+            # Something is wrong so we try to build the reference
+            table_resource["tableReference"] = table_resource.get("tableReference", {})
+            values = [
+                ("projectId", project_id),
+                ("tableId", table_id),
+                ("datasetId", dataset_id)
+            ]
+            for key, value in values:
+                # Check if value is already present if no use the provided one
+                resolved_value = table_resource["tableReference"].get(key, value)
+                if not resolved_value:
+                    # If there's no value in tableReference and provided one is None raise error
+                    raise AirflowException(
+                        f"Table resource is missing proper `tableReference` and `{key}` is None"
+                    )
+                table_resource["tableReference"][key] = resolved_value
+        return table_resource
+
     def insert_rows(
         self, table: Any, rows: Any, target_fields: Any = None, commit_every: Any = 1000,
         replace: Any = False, **kwargs
@@ -185,9 +214,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def create_empty_table(  # pylint: disable=too-many-arguments
         self,
-        project_id: str,
-        dataset_id: str,
-        table_id: str,
+        project_id: Optional[str] = None,
+        dataset_id: Optional[str] = None,
+        table_id: Optional[str] = None,
         table_resource: Optional[Dict[str, Any]] = None,
         schema_fields: Optional[List] = None,
         time_partitioning: Optional[Dict] = None,
@@ -197,7 +226,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         encryption_configuration: Optional[Dict] = None,
         retry: Optional[Retry] = DEFAULT_RETRY,
         num_retries: Optional[int] = None
-    ) -> None:
+    ) -> Table:
         """
         Creates a new, empty table in the dataset.
         To create a view, which is defined by a SQL query, parse a dictionary to 'view' kwarg
@@ -257,18 +286,12 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type encryption_configuration: dict
         :param num_retries: Maximum number of retries in case of connection problems.
         :type num_retries: int
-        :return: None
+        :return: Created table
         """
         if num_retries:
             warnings.warn("Parameter `num_retries` is deprecated", DeprecationWarning)
 
-        _table_resource: Dict[str, Any] = {
-            'tableReference': {
-                'tableId': table_id,
-                'projectId': project_id,
-                'datasetId': dataset_id,
-            }
-        }
+        _table_resource: Dict[str, Any] = {}
 
         if self.location:
             _table_resource['location'] = self.location
@@ -294,8 +317,14 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             _table_resource["encryptionConfiguration"] = encryption_configuration
 
         table_resource = table_resource or _table_resource
+        table_resource = self._resolve_table_reference(
+            table_resource=table_resource,
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+        )
         table = Table.from_api_repr(table_resource)
-        self.get_client().create_table(table=table, exists_ok=True, retry=retry)
+        return self.get_client().create_table(table=table, exists_ok=True, retry=retry)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_empty_dataset(self,
@@ -359,7 +388,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         max_results: Optional[int] = None,
         page_token: Optional[str] = None,
         retry: Retry = DEFAULT_RETRY,
-    ) -> Dict[str, Any]:
+    ) -> List[Dict[str, Any]]:
         """
         Get the list of tables for a given dataset.
 
@@ -590,6 +619,56 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.log.info('External table created successfully: %s', external_project_dataset_table)
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def update_table(
+        self,
+        table_resource: Dict[str, Any],
+        fields: Optional[List[str]] = None,
+        dataset_id: Optional[str] = None,
+        table_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Change some fields of a table.
+
+        Use ``fields`` to specify which fields to update. At least one field
+        must be provided. If a field is listed in ``fields`` and is ``None``
+        in ``table``, the field value will be deleted.
+
+        If ``table.etag`` is not ``None``, the update will only succeed if
+        the table on the server has the same ETag. Thus reading a table with
+        ``get_table``, changing its fields, and then passing it to
+        ``update_table`` will ensure that the changes will only be saved if
+        no modifications to the table occurred since the read.
+
+        :param project_id: The project to create the table into.
+        :type project_id: str
+        :param dataset_id: The dataset to create the table into.
+        :type dataset_id: str
+        :param table_id: The Name of the table to be created.
+        :type table_id: str
+        :param table_resource: Table resource as described in documentation:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
+            The table has to contain ``tableReference`` or ``project_id``, ``datset_id`` and ``table_id``
+            have to be provided.
+        :type table_resource: Dict[str, Any]
+        :param fields: The fields of ``table`` to change, spelled as the Table properties (e.g. "friendly_name").
+        :type fields: List[str]
+        """
+        fields = fields or list(table_resource.keys())
+        table_resource = self._resolve_table_reference(
+            table_resource=table_resource,
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id
+        )
+
+        table = Table.from_api_repr(table_resource)
+        self.log.info('Updating table %s.%s.%s', project_id, dataset_id, table_id)
+        table_object = self.get_client().update_table(table, fields=fields)
+        self.log.info('Table %s.%s.%s updated successfully', project_id, dataset_id, table_id)
+        return table_object.to_api_repr()
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def patch_table(self,  # pylint: disable=too-many-arguments
                     dataset_id: str,
                     table_id: str,
@@ -699,63 +778,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             dataset_id=dataset_id,
             table_id=table_id
         )
-
-    @GoogleBaseHook.fallback_to_default_project_id
-    def update_table(
-        self,
-        table_resource: Dict[str, Any],
-        fields: Optional[List[str]] = None,
-        dataset_id: Optional[str] = None,
-        table_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-    ) -> None:
-        """
-        Change some fields of a table.
-
-        Use ``fields`` to specify which fields to update. At least one field
-        must be provided. If a field is listed in ``fields`` and is ``None``
-        in ``table``, the field value will be deleted.
-
-        If ``table.etag`` is not ``None``, the update will only succeed if
-        the table on the server has the same ETag. Thus reading a table with
-        ``get_table``, changing its fields, and then passing it to
-        ``update_table`` will ensure that the changes will only be saved if
-        no modifications to the table occurred since the read.
-
-        :param project_id: The project to create the table into.
-        :type project_id: str
-        :param dataset_id: The dataset to create the table into.
-        :type dataset_id: str
-        :param table_id: The Name of the table to be created.
-        :type table_id: str
-        :param table_resource: Table resource as described in documentation:
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
-            The table has to contain ``tableReference`` or ``project_id``, ``datset_id`` and ``table_id``
-            have to be provided.
-        :type table_resource: Dict[str, Any]
-        :param fields: The fields of ``table`` to change, spelled as the Table properties (e.g. "friendly_name").
-        :type fields: List[str]
-        """
-        try:
-            # Check if tableReference is present
-            TableReference.from_api_repr(table_resource["tableReference"])
-        except KeyError:
-            # Check if it can be build from parameters
-            if not all([dataset_id, project_id, table_id]):
-                raise AirflowException(
-                    "Table resource is missing proper `tableReference` and `project_id`"
-                    "`dataset_id` and `table_id` were not provided."
-                )
-            table_resource["tableReference"] = {
-                "projectId": project_id,
-                "tableId": table_id,
-                "datasetId": dataset_id
-            }
-
-        table = Table.from_api_repr(table_resource)
-        self.log.info('Updating table %s.%s.%s', project_id, dataset_id, table_id)
-        self.get_client().update_table(table, fields=fields)
-        self.log.info('Table %s.%s.%s updated successfully', project_id, dataset_id, table_id)
 
     def insert_all(self, project_id: str, dataset_id: str, table_id: str,
                    rows: List, ignore_unknown_values: bool = False,
@@ -1107,11 +1129,15 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             )
         return dataset.to_api_repr()
 
-    def run_table_upsert(self, dataset_id: str, table_resource: Dict,
-                         project_id: Optional[str] = None) -> Dict:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def run_table_upsert(
+        self,
+        dataset_id: str,
+        table_resource: Dict[str, Any],
+        project_id: Optional[str] = None
+    ) -> Dict:
         """
-        creates a new, empty table in the dataset;
-        If the table already exists, update the existing table.
+        If the table already exists, update the existing table if not create new.
         Since BigQuery does not natively allow table upserts, this is not an
         atomic operation.
 
@@ -1124,39 +1150,26 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             project will be self.project_id.
         :return:
         """
-        service = self.get_service()
-        # check to see if the table exists
+        project_id = project_id or self.project_id
         table_id = table_resource['tableReference']['tableId']
-        project_id = project_id if project_id is not None else self.project_id
-        tables_list_resp = service.tables().list(  # pylint: disable=no-member
-            projectId=project_id, datasetId=dataset_id).execute(num_retries=self.num_retries)
-        while True:
-            for table in tables_list_resp.get('tables', []):
-                if table['tableReference']['tableId'] == table_id:
-                    # found the table, do update
-                    self.log.info('Table %s:%s.%s exists, updating.',
-                                  project_id, dataset_id, table_id)
-                    return service.tables().update(  # pylint: disable=no-member
-                        projectId=project_id,
-                        datasetId=dataset_id,
-                        tableId=table_id,
-                        body=table_resource).execute(num_retries=self.num_retries)
-            # If there is a next page, we need to check the next page.
-            if 'nextPageToken' in tables_list_resp:
-                tables_list_resp = service.tables()\
-                    .list(projectId=project_id,  # pylint: disable=no-member
-                          datasetId=dataset_id,
-                          pageToken=tables_list_resp['nextPageToken'])\
-                    .execute(num_retries=self.num_retries)
-            # If there is no next page, then the table doesn't exist.
-            else:
-                # do insert
-                self.log.info('Table %s:%s.%s does not exist. creating.',
-                              project_id, dataset_id, table_id)
-                return service.tables().insert(  # pylint: disable=no-member
-                    projectId=project_id,
-                    datasetId=dataset_id,
-                    body=table_resource).execute(num_retries=self.num_retries)
+        table_resource = self._resolve_table_reference(
+            table_resource=table_resource,
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id
+        )
+
+        tables_list_resp = self.get_dataset_tables(dataset_id=dataset_id, project_id=project_id)
+        for table in tables_list_resp:
+            if table['tableId'] == table_id:
+                self.log.info('Table %s:%s.%s exists, updating.', project_id, dataset_id, table_id)
+                return self.update_table(table_resource=table_resource)
+
+        self.log.info('Table %s:%s.%s does not exist. creating.', project_id, dataset_id, table_id)
+        table = self.create_empty_table(
+            table_resource=table_resource, project_id=project_id
+        )
+        return table.to_api_repr()
 
     def run_table_delete(self, deletion_dataset_table: str,
                          ignore_if_missing: bool = False) -> None:
