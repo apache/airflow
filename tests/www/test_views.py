@@ -2497,10 +2497,14 @@ class TestExtraLinks(TestBase):
 
 
 class TestDagRunModelView(TestBase):
+    EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
+    run_id = f"test_{DagRunType.SCHEDULED.value}__{EXAMPLE_DAG_DEFAULT_DATE.isoformat()}"
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        models.DagBag().get_dag("example_bash_operator").sync_to_db(session=cls.session)
+        cls.dagbag = models.DagBag(include_examples=True)
+        cls.dagbag.get_dag("example_bash_operator").sync_to_db(session=cls.session)
         cls.clear_table(models.DagRun)
 
     def tearDown(self):
@@ -2554,6 +2558,18 @@ class TestDagRunModelView(TestBase):
         self.check_content_in_response('JSON Validation Error:', resp)
         dr = self.session.query(models.DagRun).all()
         self.assertFalse(dr)
+
+    def test_list_dagrun_includes_conf(self):
+        bash_dag = self.dagbag.dags['example_bash_operator']
+        bash_dag.create_dagrun(
+            run_id=self.run_id,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+            conf={'include': 'me'})
+
+        resp = self.client.get('/dagrun/list', follow_redirects=True)
+        self.check_content_in_response("{'include': 'me'}", resp)
 
 
 class TestDecorators(TestBase):
