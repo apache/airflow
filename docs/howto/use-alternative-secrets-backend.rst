@@ -79,7 +79,7 @@ Here is a sample configuration:
 
     [secrets]
     backend = airflow.secrets.local_filesystem.LocalFilesystemBackend
-    backend_kwargs = {"variable_file_path": "/files/var.json", "connection_file_path": "/files/conn.json"}
+    backend_kwargs = {"variables_file_path": "/files/var.json", "connections_file_path": "/files/conn.json"}
 
 Both ``JSON`` and ``.env`` files are supported. All parameters are optional. If the file path is not passed,
 the backend returns an empty collection.
