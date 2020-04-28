@@ -28,7 +28,7 @@ from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Optional, Seque
 
 from google.api_core.retry import Retry
 from google.cloud.bigquery import DEFAULT_RETRY, Client, ExternalConfig, SchemaField
-from google.cloud.bigquery.dataset import Dataset, DatasetListItem, DatasetReference
+from google.cloud.bigquery.dataset import Dataset, DatasetListItem, DatasetReference, AccessEntry
 from google.cloud.bigquery.table import Table, TableListItem, TableReference, EncryptionConfiguration
 from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import build
@@ -664,6 +664,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type encryption_configuration: dict
 
         """
+        warnings.warn(
+            "This method is deprecated, please use ``BigQueryHook.update_table`` method.",
+            DeprecationWarning,
+        )
         project_id = project_id or self.project_id
         table_resource: Dict[str, Any] = {}
 
@@ -828,7 +832,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     def update_dataset(
         self,
         fields: Sequence[str],
-        dataset_resource: Dict,
+        dataset_resource: Dict[str, Any],
         dataset_id: Optional[str] = None,
         project_id: Optional[str] = None,
         retry: Retry = DEFAULT_RETRY,
@@ -1035,12 +1039,16 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.log.info("Dataset Resource: %s", dataset)
         return dataset
 
-    def run_grant_dataset_view_access(self,
-                                      source_dataset: str,
-                                      view_dataset: str,
-                                      view_table: str,
-                                      source_project: Optional[str] = None,
-                                      view_project: Optional[str] = None) -> Dict:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def run_grant_dataset_view_access(
+        self,
+        source_dataset: str,
+        view_dataset: str,
+        view_table: str,
+        source_project: Optional[str] = None,
+        view_project: Optional[str] = None,
+        project_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Grant authorized view access of a dataset to a view table.
         If this view has already been granted access to the dataset, do nothing.
@@ -1052,52 +1060,52 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type view_dataset: str
         :param view_table: the table of the view
         :type view_table: str
-        :param source_project: the project of the source dataset. If None,
+        :param project_id: the project of the source dataset. If None,
             self.project_id will be used.
-        :type source_project: str
+        :type project_id: str
         :param view_project: the project that the view is in. If None,
             self.project_id will be used.
         :type view_project: str
         :return: the datasets resource of the source dataset.
         """
-        service = self.get_service()
-
-        # Apply default values to projects
-        source_project = source_project if source_project else self.project_id
+        if source_project:
+            project_id = source_project
+            warnings.warn(
+                "Parameter ``source_project`` is deprecated. Use ``project_id``.",
+                DeprecationWarning,
+            )
+        project_id = project_id or self.project_id
         view_project = view_project if view_project else self.project_id
-
-        # we don't want to clobber any existing accesses, so we have to get
-        # info on the dataset before we can add view access
-        source_dataset_resource = service.datasets().get(  # pylint: disable=no-member
-            projectId=source_project, datasetId=source_dataset).execute(num_retries=self.num_retries)
-        access = source_dataset_resource[
-            'access'] if 'access' in source_dataset_resource else []
-        view_access = {
-            'view': {
+        view_access = AccessEntry(
+            role=None,
+            entity_type="view",
+            entity_id={
                 'projectId': view_project,
                 'datasetId': view_dataset,
                 'tableId': view_table
             }
-        }
-        # check to see if the view we want to add already exists.
-        if view_access not in access:
+        )
+
+        dataset = self.get_dataset(project_id=project_id, dataset_id=source_dataset)
+
+        # Check to see if the view we want to add already exists.
+        if view_access not in dataset.access_entries:
             self.log.info(
                 'Granting table %s:%s.%s authorized view access to %s:%s dataset.',
-                view_project, view_dataset, view_table, source_project,
-                source_dataset)
-            access.append(view_access)
-            return service.datasets().patch(  # pylint: disable=no-member
-                projectId=source_project,
-                datasetId=source_dataset,
-                body={
-                    'access': access
-                }).execute(num_retries=self.num_retries)
+                view_project, view_dataset, view_table, project_id, source_dataset
+            )
+            dataset.access_entries = dataset.access_entries + [view_access]
+            dataset = self.update_dataset(
+                fields=["access"],
+                dataset_resource=dataset.to_api_repr(),
+                project_id=project_id
+            )
         else:
-            # if view is already in access, do nothing.
             self.log.info(
                 'Table %s:%s.%s already has authorized view access to %s:%s dataset.',
-                view_project, view_dataset, view_table, source_project, source_dataset)
-            return source_dataset_resource
+                view_project, view_dataset, view_table, project_id, source_dataset
+            )
+        return dataset.to_api_repr()
 
     def run_table_upsert(self, dataset_id: str, table_resource: Dict,
                          project_id: Optional[str] = None) -> Dict:
