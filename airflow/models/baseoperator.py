@@ -20,6 +20,7 @@ Base operator for all operators.
 """
 import copy
 import functools
+import itertools
 import logging
 import sys
 import warnings
@@ -248,6 +249,8 @@ class BaseOperator(Operator, LoggingMixin):
     template_fields: Iterable[str] = []
     # Defines which files extensions to look for in the templated fields
     template_ext: Iterable[str] = []
+    # Adds an extra standard Jinja extension
+    extra_jinja_ext: Iterable[str] = ['.jinja2']
     # Defines the color in the UI
     ui_color = '#fff'  # type: str
     ui_fgcolor = '#000'  # type: str
@@ -805,7 +808,9 @@ class BaseOperator(Operator, LoggingMixin):
             jinja_env = self.get_template_env()
 
         if isinstance(content, str):
-            if any(content.endswith(ext) for ext in self.template_ext):
+            extensions = self._get_effective_template_ext()
+
+            if any(content.endswith(ext) for ext in extensions):
                 # Content contains a filepath
                 return jinja_env.get_template(content).render(**context)
             else:
@@ -863,12 +868,13 @@ class BaseOperator(Operator, LoggingMixin):
     def resolve_template_files(self) -> None:
         """Getting the content of files for template_field / template_ext"""
         if self.template_ext:  # pylint: disable=too-many-nested-blocks
+            extensions = self._get_effective_template_ext()
             for field in self.template_fields:
                 content = getattr(self, field, None)
                 if content is None:  # pylint: disable=no-else-continue
                     continue
                 elif isinstance(content, str) and \
-                        any([content.endswith(ext) for ext in self.template_ext]):
+                        any([content.endswith(ext) for ext in extensions]):
                     env = self.get_template_env()
                     try:
                         setattr(self, field, env.loader.get_source(env, content)[0])
@@ -878,7 +884,7 @@ class BaseOperator(Operator, LoggingMixin):
                     env = self.dag.get_template_env()
                     for i in range(len(content)):  # pylint: disable=consider-using-enumerate
                         if isinstance(content[i], str) and \
-                                any([content[i].endswith(ext) for ext in self.template_ext]):
+                                any([content[i].endswith(ext) for ext in extensions]):
                             try:
                                 content[i] = env.loader.get_source(env, content[i])[0]
                             except Exception as e:  # pylint: disable=broad-except
@@ -1120,6 +1126,9 @@ class BaseOperator(Operator, LoggingMixin):
         task.
         """
         self._set_relatives(task_or_task_list, upstream=True)
+
+    def _get_effective_template_ext(self):
+        return itertools.chain(self.template_ext, self.extra_jinja_ext)
 
     @staticmethod
     def xcom_push(

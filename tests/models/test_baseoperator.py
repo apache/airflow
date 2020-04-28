@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import os
 import unittest
 import uuid
 from datetime import date, datetime
@@ -30,7 +30,10 @@ from airflow.models import DAG
 from airflow.models.baseoperator import chain, cross_downstream
 from airflow.operators.dummy_operator import DummyOperator
 from tests.models import DEFAULT_DATE
+from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.mock_operators import MockNamedTuple, MockOperator
+
+TEMPLATE_SEARCHPATH = os.path.join(AIRFLOW_MAIN_FOLDER, 'tests', 'models', 'config_templates')
 
 
 class ClassWithCustomAttributes:
@@ -201,6 +204,19 @@ class TestBaseOperator(unittest.TestCase):
 
         self.assertEqual("'ClassWithCustomAttributes' object has no attribute 'missing_field'",
                          str(e.exception))
+
+    @parameterized.expand([
+        ('file1.txt', {'foo': 'bar'}, tuple('.txt'), 'bar'),
+        ('file2.txt.jinja2', {}, tuple('.txt'), 'bar'),
+        ('file4.jinja2', {'foo': 'bar'}, tuple('.txt'), 'bar'),
+    ])
+    def test_render_template_from_file(self, filename, context, template_ext, expected_output):
+        with DAG("test-dag", start_date=DEFAULT_DATE, template_searchpath=TEMPLATE_SEARCHPATH):
+            task = DummyOperator(task_id="op1")
+            task.template_ext = template_ext
+
+        result = task.render_template(filename, context)
+        self.assertEqual(expected_output, result)
 
     def test_jinja_invalid_expression_is_just_propagated(self):
         """Test render_template propagates Jinja invalid expression errors."""
