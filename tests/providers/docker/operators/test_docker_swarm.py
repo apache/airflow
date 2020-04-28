@@ -43,31 +43,52 @@ class TestDockerSwarmOperator(unittest.TestCase):
         def _client_service_logs_effect():
             yield b'Testing is awesome.'
 
+        cli_config_val = [{"ID": "c1", "Spec": {"Name": "conf"}}]
+        cli_secret_val = [{"ID": "s1", "Spec": {"Name": "secr"}}]
+
         client_mock = mock.Mock(spec=APIClient)
         client_mock.create_service.return_value = {'ID': 'some_id'}
         client_mock.service_logs.return_value = _client_service_logs_effect()
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
+        client_mock.configs.return_value = cli_config_val
+        client_mock.secrets.return_value = cli_secret_val
         client_mock.tasks.side_effect = _client_tasks_side_effect()
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
+        types_mock.ConfigReference.return_value = mock_obj
+        types_mock.SecretReference.return_value = mock_obj
         types_mock.Resources.return_value = mock_obj
 
         client_class_mock.return_value = client_mock
 
+        configs = [{'source': 'conf', 'target': '/conf'}]
+        secrets = [{'source': 'secr', 'target': '/secr'}]
+
         operator = DockerSwarmOperator(
             api_version='1.19', command='env', environment={'UNIT': 'TEST'}, image='ubuntu:latest',
             mem_limit='128m', user='unittest', task_id='unittest', auto_remove=True, tty=True,
+            networks=['net1','net2'], configs=configs, secrets=secrets
         )
         operator.execute(None)
 
         types_mock.TaskTemplate.assert_called_once_with(
-            container_spec=mock_obj, restart_policy=mock_obj, resources=mock_obj
+            container_spec=mock_obj, restart_policy=mock_obj, resources=mock_obj, networks=['net1', 'net2']
         )
+
+        types_mock.ConfigReference.assert_called_once_with(
+            cli_config_val[0]["ID"], cli_config_val[0]["Spec"]["Name"], configs[0]["target"]
+        )
+
+        types_mock.SecretReference.assert_called_once_with(
+            cli_secret_val[0]["ID"], cli_secret_val[0]["Spec"]["Name"], secrets[0]["target"]
+        )
+
         types_mock.ContainerSpec.assert_called_once_with(
             image='ubuntu:latest', command='env', user='unittest', tty=True,
-            env={'UNIT': 'TEST', 'AIRFLOW_TMP_DIR': '/tmp/airflow'}
+            env={'UNIT': 'TEST', 'AIRFLOW_TMP_DIR': '/tmp/airflow'}, 
+            configs=[mock_obj], secrets=[mock_obj]
         )
         types_mock.RestartPolicy.assert_called_once_with(condition='none')
         types_mock.Resources.assert_called_once_with(mem_limit='128m')
@@ -101,6 +122,8 @@ class TestDockerSwarmOperator(unittest.TestCase):
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
         client_mock.tasks.return_value = [{'Status': {'State': 'complete'}}]
+        client_mock.configs.return_value = []
+        client_mock.secrets.return_value = []
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
@@ -127,6 +150,8 @@ class TestDockerSwarmOperator(unittest.TestCase):
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
         client_mock.tasks.return_value = [{'Status': {'State': 'failed'}}]
+        client_mock.configs.return_value = []
+        client_mock.secrets.return_value = []
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
@@ -162,6 +187,8 @@ class TestDockerSwarmOperator(unittest.TestCase):
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
         client_mock.tasks.side_effect = _client_tasks_side_effect()
+        client_mock.configs.return_value = []
+        client_mock.secrets.return_value = []
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj

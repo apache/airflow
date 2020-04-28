@@ -93,6 +93,13 @@ class DockerSwarmOperator(DockerOperator):
         Supported only if the Docker engine is using json-file or journald logging drivers.
         The `tty` parameter should be set to use this with Python applications.
     :type enable_logging: bool
+    :param configs: List of ConfigReferences that will be exposed to the service
+    :type configs: list
+       Example: [{'source': my-conf, 'target': where/config/should/be/.env}]
+    :param secrets: List of SecretReference to be made available inside the containers
+    :type secrets: list
+    :param networks: List of network names or IDs to attach the service to
+    :type networks: list
     """
 
     @apply_defaults
@@ -100,11 +107,17 @@ class DockerSwarmOperator(DockerOperator):
             self,
             image,
             enable_logging=True,
+            networks=None,
+            configs=None,
+            secrets=None,
             *args,
             **kwargs):
         super().__init__(image=image, *args, **kwargs)
 
         self.enable_logging = enable_logging
+        self.networks = networks
+        self.configs = configs
+        self.secrets = secrets
         self.service = None
 
     def execute(self, context):
@@ -125,9 +138,12 @@ class DockerSwarmOperator(DockerOperator):
                     env=self.environment,
                     user=self.user,
                     tty=self.tty,
+                    configs=self._get_configs(),
+                    secrets=self._get_secrets(),
                 ),
                 restart_policy=types.RestartPolicy(condition='none'),
-                resources=types.Resources(mem_limit=self.mem_limit)
+                resources=types.Resources(mem_limit=self.mem_limit),
+                networks=self.networks,
             ),
             name='airflow-%s' % get_random_string(),
             labels={'name': 'airflow__%s__%s' % (self.dag_id, self.task_id)}
@@ -151,6 +167,36 @@ class DockerSwarmOperator(DockerOperator):
             self.cli.remove_service(self.service['ID'])
         if self._service_status() == 'failed':
             raise AirflowException('Service failed: ' + repr(self.service))
+
+    def _get_configs(self):
+        if self.configs is None:
+            return []
+
+        target_configs = {conf['source']: conf['target']
+                          for conf in self.configs}
+        docker_configs = self.cli.configs(
+            filters={'name': list(target_configs.keys())})
+
+        return [
+            types.ConfigReference(
+                conf['ID'], conf['Spec']['Name'], target_configs.get(conf['Spec']['Name']))
+            for conf in docker_configs
+        ]
+
+    def _get_secrets(self):
+        if self.secrets is None:
+            return []
+
+        target_secrets = {secret['source']: secret['target']
+                          for secret in self.secrets}
+        docker_secrets = self.cli.secrets(
+            filters={'name': list(target_secrets.keys())})
+
+        return [
+            types.SecretReference(
+                secret['ID'], secret['Spec']['Name'], target_secrets.get(secret['Spec']['Name']))
+            for secret in docker_secrets
+        ]
 
     def _service_status(self):
         return self.cli.tasks(
