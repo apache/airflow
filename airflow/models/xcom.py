@@ -40,7 +40,7 @@ MAX_XCOM_SIZE = 49344
 XCOM_RETURN_KEY = 'return_value'
 
 
-class XCom(Base, LoggingMixin):
+class BaseXCom(Base, LoggingMixin):
     """
     Base class for XCom objects.
     """
@@ -232,3 +232,20 @@ class XCom(Base, LoggingMixin):
                       "for XCOM, then you need to enable pickle "
                       "support for XCOM in your airflow config.")
             raise
+
+
+def resolve_xcom_backend():
+    """Resolves custom XCom class"""
+    clazz = conf.getimport("core", "xcom_backend", fallback="airflow.models.xcom.{}"
+                           .format(BaseXCom.__name__))
+    if clazz:
+        if not issubclass(clazz, BaseXCom):
+            raise TypeError(
+                "Your custom XCom class `{class_name}` is not a subclass of `{base_name}`."
+                .format(class_name=clazz.__name__, base_name=BaseXCom.__name__)
+            )
+        return clazz
+    return BaseXCom
+
+
+XCom = resolve_xcom_backend()
