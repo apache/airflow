@@ -26,8 +26,8 @@ from airflow import models
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryExecuteQueryOperator,
 )
+from airflow.providers.google.cloud.operators.facebook_ads_to_gcs import FacebookAdsReportToGcsOperator
 from airflow.providers.google.cloud.operators.gcs_to_bigquery import GCSToBigQueryOperator
-from airflow.providers.google.facebook_ads_to_gcs.operators.ads import FacebookAdsReportToGcsOperator
 from airflow.utils.dates import days_ago
 
 # [START howto_GCS_env_variables]
@@ -56,7 +56,7 @@ PARAMS = {
 default_args = {"start_date": days_ago(1)}
 
 with models.DAG(
-    "example_fb_operator",
+    "example_facebook_ads_to_gcs",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
 ) as dag:
