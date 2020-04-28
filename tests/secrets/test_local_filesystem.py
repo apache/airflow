@@ -20,7 +20,7 @@ import re
 import unittest
 from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
-from unittest import mock
+import mock
 
 import six
 from parameterized import parameterized
@@ -32,8 +32,9 @@ from airflow.secrets.local_filesystem import LocalFilesystemBackend
 
 @contextmanager
 def mock_local_file(content):
+    module_to_mock = "__builtin__" if six.PY2 else "airflow.secrets.local_filesystem"
     with mock.patch(
-        "airflow.secrets.local_filesystem.open", mock.mock_open(read_data=content)
+        "{}.open".format(module_to_mock), mock.mock_open(read_data=content)
     ) as file_mock, mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=True):
         yield file_mock
 
@@ -47,19 +48,24 @@ class FileParsers(unittest.TestCase):
     )
     def test_env_file_invalid_format(self, content, expected_message):
         with mock_local_file(content):
-            with self.assertRaisesRegex(AirflowFileParseException, re.escape(expected_message)):
+            with self.assertRaisesRegexp(AirflowFileParseException, re.escape(expected_message)):
                 local_filesystem.load_variables("a.env")
 
     @parameterized.expand(
         (
             ("[]", "The file should contain the object."),
-            ("{AAAAA}", "Expecting property name enclosed in double quotes"),
+            (
+                "{AAAAA}",
+                "Expecting property name enclosed in double quotes"
+                if six.PY3
+                else "Expecting property name"
+            ),
             ("", "The file is empty."),
         )
     )
     def test_json_file_invalid_format(self, content, expected_message):
         with mock_local_file(content):
-            with self.assertRaisesRegex(AirflowFileParseException, re.escape(expected_message)):
+            with self.assertRaisesRegexp(AirflowFileParseException, re.escape(expected_message)):
                 local_filesystem.load_variables("a.json")
 
 
@@ -81,7 +87,7 @@ class TestLoadVariables(unittest.TestCase):
     @parameterized.expand((("AA=A\nAA=B", "The \"a.env\" file contains multiple values for keys: ['AA']"),))
     def test_env_file_invalid_logic(self, content, expected_message):
         with mock_local_file(content):
-            with self.assertRaisesRegex(AirflowException, re.escape(expected_message)):
+            with self.assertRaisesRegexp(AirflowException, re.escape(expected_message)):
                 local_filesystem.load_variables("a.env")
 
     @parameterized.expand(
@@ -99,7 +105,7 @@ class TestLoadVariables(unittest.TestCase):
 
     @mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=False)
     def test_missing_file(self, mock_exists):
-        with self.assertRaisesRegex(
+        with self.assertRaisesRegexp(
             AirflowException,
             re.escape("File a.json was not found. Check the configuration of your Secrets backend."),
         ):
@@ -142,7 +148,7 @@ class TestLoadConnection(unittest.TestCase):
     )
     def test_env_file_invalid_format(self, content, expected_message):
         with mock_local_file(content):
-            with self.assertRaisesRegex(AirflowFileParseException, re.escape(expected_message)):
+            with self.assertRaisesRegexp(AirflowFileParseException, re.escape(expected_message)):
                 local_filesystem.load_connections("a.env")
 
     @parameterized.expand(
@@ -173,22 +179,22 @@ class TestLoadConnection(unittest.TestCase):
 
     @parameterized.expand(
         (
-            ({"CONN_ID": None}, "Unexpected value type: <class 'NoneType'>."),
-            ({"CONN_ID": 1}, "Unexpected value type: <class 'int'>."),
-            ({"CONN_ID": [2]}, "Unexpected value type: <class 'int'>."),
-            ({"CONN_ID": ["mysql://host_1", None]}, "Unexpected value type: <class 'NoneType'>."),
+            ({"CONN_ID": None}, "Unexpected value type:"),
+            ({"CONN_ID": 1}, "Unexpected value type:"),
+            ({"CONN_ID": [2]}, "Unexpected value type:"),
+            ({"CONN_ID": ["mysql://host_1", None]}, "Unexpected value type:"),
             ({"CONN_ID": {"AAA": "mysql://host_1"}}, "The object have illegal keys: AAA."),
             ({"CONN_ID": {"conn_id": "BBBB"}}, "Mismatch conn_id."),
         )
     )
     def test_env_file_invalid_input(self, file_content, expected_connection_uris):
         with mock_local_file(json.dumps(file_content)):
-            with self.assertRaisesRegex(AirflowException, re.escape(expected_connection_uris)):
+            with self.assertRaisesRegexp(AirflowException, re.escape(expected_connection_uris)):
                 local_filesystem.load_connections("a.json")
 
     @mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=False)
     def test_missing_file(self, mock_exists):
-        with self.assertRaisesRegex(
+        with self.assertRaisesRegexp(
             AirflowException,
             re.escape("File a.json was not found. Check the configuration of your Secrets backend."),
         ):

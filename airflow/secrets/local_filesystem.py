@@ -24,6 +24,7 @@ import os
 from collections import defaultdict
 
 import funcsigs
+import six
 
 from airflow.exceptions import AirflowException, AirflowFileParseException, file_syntax_error
 from airflow.secrets.base_secrets import BaseSecretsBackend
@@ -111,6 +112,7 @@ FILE_PARSERS = {
 def _parse_secret_file(file_path):
     """
     Based on the file extension format, selects a parser, and parses the file.
+
     :param file_path: The location of the file that will be processed.
     :type file_path: str
     :return: Map of secret key (e.g. connection ID) and value.
@@ -145,7 +147,7 @@ def _create_connection(conn_id, value):
     """
     from airflow.models.connection import Connection
 
-    if isinstance(value, str):
+    if isinstance(value, six.string_types):
         return Connection(conn_id=conn_id, uri=value)
     if isinstance(value, dict):
         connection_parameter_names = get_connection_parameter_names()
@@ -178,6 +180,7 @@ def load_variables(file_path):
     """
     Load variables from a text file.
     Both ``JSON`` and ``.env`` files are supported.
+
     :param file_path: The location of the file that will be processed.
     :type file_path: str
     :rtype: dict[str, list[str]]
@@ -199,6 +202,7 @@ def load_connections(file_path):
     """
     Load connection from text file.
     Both ``JSON`` and ``.env`` files are supported.
+
     :return: A dictionary where the key contains a connection ID and the value contains a list of connections.
     :rtype: list[str, list[airflow.models.connection.Connection]]
     """
@@ -222,6 +226,7 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
     """
     Retrieves Connection objects and Variables from local files
     Both ``JSON`` and ``.env`` files are supported.
+
     :param variables_file_path: File location with variables data.
     :type variables_file_path: str
     :param connections_file_path: File location with connection data.
