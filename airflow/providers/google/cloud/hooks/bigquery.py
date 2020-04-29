@@ -28,8 +28,8 @@ from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Optional, Seque
 
 from google.api_core.retry import Retry
 from google.cloud.bigquery import DEFAULT_RETRY, Client, ExternalConfig, SchemaField
-from google.cloud.bigquery.dataset import Dataset, DatasetListItem, DatasetReference, AccessEntry
-from google.cloud.bigquery.table import Table, TableListItem, TableReference, EncryptionConfiguration
+from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
+from google.cloud.bigquery.table import EncryptionConfiguration, Row, Table, TableReference
 from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -615,11 +615,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if encryption_configuration:
             table.encryption_configuration = EncryptionConfiguration.from_api_repr(encryption_configuration)
 
-        if location:
-            table._properties['location'] = location
-
         self.log.info('Creating external table: %s', external_project_dataset_table)
-        self.get_client(project_id=project_id).create_table(table=table, exists_ok=True)
+        self.get_client(project_id=project_id, location=location).create_table(table=table, exists_ok=True)
         self.log.info('External table created successfully: %s', external_project_dataset_table)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -655,7 +652,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             The table has to contain ``tableReference`` or ``project_id``, ``datset_id`` and ``table_id``
             have to be provided.
         :type table_resource: Dict[str, Any]
-        :param fields: The fields of ``table`` to change, spelled as the Table properties (e.g. "friendly_name").
+        :param fields: The fields of ``table`` to change, spelled as the Table
+            properties (e.g. "friendly_name").
         :type fields: List[str]
         """
         fields = fields or list(table_resource.keys())
@@ -1138,7 +1136,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         dataset_id: str,
         table_resource: Dict[str, Any],
         project_id: Optional[str] = None
-    ) -> Dict:
+    ) -> Dict[str, Any]:
         """
         If the table already exists, update the existing table if not create new.
         Since BigQuery does not natively allow table upserts, this is not an
@@ -1221,9 +1219,15 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         )
         self.log.info('Deleted table %s', table_id)
 
-    def get_tabledata(self, dataset_id: str, table_id: str,
-                      max_results: Optional[int] = None, selected_fields: Optional[str] = None,
-                      page_token: Optional[str] = None, start_index: Optional[int] = None) -> Dict:
+    def get_tabledata(
+        self,
+        dataset_id: str,
+        table_id: str,
+        max_results: Optional[int] = None,
+        selected_fields: Optional[str] = None,
+        page_token: Optional[str] = None,
+        start_index: Optional[int] = None
+    ) -> List[Row]:
         """
         Get the data of a given dataset.table and optionally with selected columns.
         see https://cloud.google.com/bigquery/docs/reference/v2/tabledata/list
@@ -1236,25 +1240,59 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param page_token: page token, returned from a previous call,
             identifying the result set.
         :param start_index: zero based index of the starting row to read.
-        :return: map containing the requested rows.
+        :return: list of rows
         """
-        service = self.get_service()
-        optional_params = {}  # type: Dict[str, Any]
-        if self.location:
-            optional_params['location'] = self.location
-        if max_results:
-            optional_params['maxResults'] = max_results
-        if selected_fields:
-            optional_params['selectedFields'] = selected_fields
-        if page_token:
-            optional_params['pageToken'] = page_token
-        if start_index:
-            optional_params['startIndex'] = start_index
-        return (service.tabledata().list(  # pylint: disable=no-member
-            projectId=self.project_id,
-            datasetId=dataset_id,
-            tableId=table_id,
-            **optional_params).execute(num_retries=self.num_retries))
+        warnings.warn("This method is deprecated. Please use `list_rows`.", DeprecationWarning)
+        return self.list_rows(
+            dataset_id, table_id, max_results, selected_fields, page_token, start_index
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def list_rows(
+        self,
+        dataset_id: str,
+        table_id: str,
+        max_results: Optional[int] = None,
+        selected_fields: Optional[Union[List[str], str]] = None,
+        page_token: Optional[str] = None,
+        start_index: Optional[int] = None,
+        project_id: Optional[str] = None,
+        location: Optional[str] = None,
+    ) -> List[Row]:
+        """
+        List the rows of the table.
+        See https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/list
+
+        :param dataset_id: the dataset ID of the requested table.
+        :param table_id: the table ID of the requested table.
+        :param max_results: the maximum results to return.
+        :param selected_fields: List of fields to return (comma-separated). If
+            unspecified, all fields are returned.
+        :param page_token: page token, returned from a previous call,
+            identifying the result set.
+        :param start_index: zero based index of the starting row to read.
+        :param project_id: Project ID for the project which the client acts on behalf of.
+        :param location: Default location for job.
+        :return: list of rows
+        """
+        project_id = project_id or self.project_id
+        location = location or self.location
+        selected_fields = selected_fields or []
+        if isinstance(selected_fields, str):
+            selected_fields = selected_fields.split(",")
+
+        table = self._resolve_table_reference(
+            table_resource={}, project_id=project_id, dataset_id=dataset_id, table_id=table_id,
+        )
+
+        result = self.get_client(project_id=project_id, location=location).list_rows(
+            table=Table.from_api_repr(table),
+            selected_fields=[SchemaField(n, "") for n in selected_fields],
+            max_results=max_results,
+            page_token=page_token,
+            start_index=start_index,
+        )
+        return list(result)
 
     def get_schema(self, dataset_id: str, table_id: str, project_id: Optional[str] = None) -> Dict:
         """

@@ -327,7 +327,7 @@ class BigQueryGetDataOperator(BaseOperator):
     :type table_id: str
     :param max_results: The maximum number of records (rows) to be fetched
         from the table. (templated)
-    :type max_results: str
+    :type max_results: int
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.
     :type selected_fields: str
@@ -350,7 +350,7 @@ class BigQueryGetDataOperator(BaseOperator):
     def __init__(self,
                  dataset_id: str,
                  table_id: str,
-                 max_results: str = '100',
+                 max_results: int = 100,
                  selected_fields: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  bigquery_conn_id: Optional[str] = None,
@@ -368,7 +368,7 @@ class BigQueryGetDataOperator(BaseOperator):
 
         self.dataset_id = dataset_id
         self.table_id = table_id
-        self.max_results = max_results
+        self.max_results = int(max_results)
         self.selected_fields = selected_fields
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
@@ -379,29 +379,22 @@ class BigQueryGetDataOperator(BaseOperator):
         self.log.info('Dataset: %s ; Table: %s ; Max Results: %s',
                       self.dataset_id, self.table_id, self.max_results)
 
-        hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to,
-                            location=self.location)
+        hook = BigQueryHook(
+            bigquery_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to
+        )
 
-        response = hook.get_tabledata(dataset_id=self.dataset_id,
-                                      table_id=self.table_id,
-                                      max_results=self.max_results,
-                                      selected_fields=self.selected_fields)
+        rows = hook.list_rows(
+            dataset_id=self.dataset_id,
+            table_id=self.table_id,
+            max_results=self.max_results,
+            selected_fields=self.selected_fields,
+            location=self.location
+        )
 
-        total_rows = int(response['totalRows'])
-        self.log.info('Total Extracted rows: %s', total_rows)
+        self.log.info('Total Extracted rows: %s', len(rows))
 
-        table_data = []
-        if total_rows == 0:
-            return table_data
-
-        rows = response['rows']
-        for dict_row in rows:
-            single_row = []
-            for fields in dict_row['f']:
-                single_row.append(fields['v'])
-            table_data.append(single_row)
-
+        table_data = [row.values() for row in rows]
         return table_data
 
 
