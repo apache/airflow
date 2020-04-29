@@ -107,6 +107,25 @@ class FileTaskHandler(logging.Handler):
             except Exception as e:  # pylint: disable=broad-except
                 log = "*** Failed to load local log file: {}\n".format(location)
                 log += "*** {}\n".format(str(e))
+        elif conf.get('core', 'executor') == 'KubernetesExecutor':
+            log += '*** Trying to get logs from worker pod {} ***\n'.format(ti.hostname)
+
+            try:
+                from airflow.kubernetes.pod_launcher import read_pod_logs
+                from kubernetes.client.models import V1Pod, V1ObjectMeta
+
+                pod = V1Pod()
+                pod.metadata = V1ObjectMeta()
+                pod.metadata.name = ti.hostname
+                pod.metadata.namespace = conf.get('kubernetes', 'namespace')
+
+                for l in read_pod_logs(pod, 100):
+                    log += l.decode()
+
+            except Exception as f:
+                log += '*** Unable to fetch logs from worker pod {} ***\n{}\n\n'.format(
+                    ti.hostname, str(f)
+                )
         else:
             url = os.path.join(
                 "http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path
