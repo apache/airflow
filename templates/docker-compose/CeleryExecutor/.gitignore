@@ -1,0 +1,5 @@
+# Created by .ignore support plugin (hsz.mobi)
+.idea
+airflow-data/logs
+airflow-data/dags/__pycache__/
+
