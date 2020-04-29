@@ -211,7 +211,10 @@ class TestBaseOperator(unittest.TestCase):
         ('file4.jinja2', {'foo': 'bar'}, tuple('.txt'), 'bar'),
     ])
     def test_render_template_from_file(self, filename, context, template_ext, expected_output):
-        with DAG("test-dag", start_date=DEFAULT_DATE, template_searchpath=TEMPLATE_SEARCHPATH):
+        with DAG(
+            "test-dag", start_date=DEFAULT_DATE, template_searchpath=TEMPLATE_SEARCHPATH,
+            jinja_environment_kwargs={'trim_blocks': True, 'lstrip_blocks': True}
+        ):
             task = DummyOperator(task_id="op1")
             task.template_ext = template_ext
 
