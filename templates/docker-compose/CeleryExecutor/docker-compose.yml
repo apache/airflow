@@ -22,7 +22,7 @@ services:
     image: apache/airflow:1.10.10
     container_name: airflow_cont
     env_file:
-      - .env
+      - airflow-env-variables.env
     restart: always
     command:  webserver
     ports:
@@ -36,7 +36,7 @@ services:
     image: apache/airflow:1.10.10
     container_name: airflow_scheduler_cont
     env_file:
-      - .env
+      - airflow-env-variables.env
     restart: always
     command: scheduler
     volumes:
@@ -48,7 +48,7 @@ services:
     image: apache/airflow:1.10.10
     container_name: airflow_worker1_cont
     env_file:
-      - .env
+      - airflow-env-variables.env
     restart: always
     command: worker
     volumes:
@@ -60,7 +60,7 @@ services:
     image: apache/airflow:1.10.10
     container_name: airflow_worker2_cont
     env_file:
-      - .env
+      - airflow-env-variables.env
     restart: always
     command: worker
     volumes:
@@ -73,7 +73,7 @@ services:
     image: apache/airflow:1.10.10
     container_name: airflow_worker3_cont
     env_file:
-      - .env
+      - airflow-env-variables.env
     command: worker
     restart: always
     volumes:
@@ -90,7 +90,7 @@ services:
       - ./airflow-data/logs:/opt/airflow/logs
       - ./airflow-data/plugins:/opt/airflow/plugins
     env_file:
-      - .env
+      - airflow-env-variables.env
     command: flower
     ports:
       - 5555:5555
