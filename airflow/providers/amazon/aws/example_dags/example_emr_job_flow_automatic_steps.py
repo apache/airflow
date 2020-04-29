@@ -51,6 +51,7 @@ SPARK_TEST_STEPS = [
 
 JOB_FLOW_OVERRIDES = {
     'Name': 'PiCalc',
+    'ReleaseLabel': 'emr-5.29.0',
     'Instances': {
         'InstanceGroups': [
             {
