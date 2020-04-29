@@ -531,24 +531,34 @@ Please note that this library is in maintenance mode hence it won't fully suppor
 Therefore it is recommended that you use the custom GCP Service Operators for working with the Google
 Cloud Platform.
 
+.. _Google:
+
+Google
+------
+
+Airflow has support for the `Google service <https://developer.google.com/>`__.
+
+All hooks are based on :class:`airflow.providers.google.common.hooks.base.GoogleBaseHook`. Some integration
+also use :mod:`airflow.providers.google.common.hooks.discovery_api`.
+
+See the :doc:`GCP connection type <howto/connection/gcp>` documentation to
+configure connections to Google services.
+
 .. _GCP:
 
 GCP: Google Cloud Platform
---------------------------
+''''''''''''''''''''''''''
 
 Airflow has extensive support for the `Google Cloud Platform <https://cloud.google.com/>`__.
 
-See the :doc:`GCP connection type <howto/connection/gcp>` documentation to
-configure connections to GCP.
-
-All hooks are based on :class:`airflow.providers.google.common.hooks.base.GoogleBaseHook`.
-
 .. note::
-    You can learn how to use GCP integrations by analyzing the
-    `source code <https://github.com/apache/airflow/tree/master/airflow/providers/google/cloud/example_dags/>`_ of the particular example DAGs.
+    You can learn how to use Google Cloud Platform integrations by analyzing the
+    `source code of the Google Cloud Platform example DAGs
+    <https://github.com/apache/airflow/tree/master/airflow/providers/google/cloud/example_dags/>`_
+
 
 Service operators and hooks
-'''''''''''''''''''''''''''
+"""""""""""""""""""""""""""
 
 These integrations allow you to perform various operations within the Google Cloud Platform.
 
@@ -564,11 +574,6 @@ These integrations allow you to perform various operations within the Google Clo
      - Operators
      - Sensors
 
-   * - `Analytics360 <https://analytics.google.com/>`__
-     - :doc:`How to use <howto/operator/gcp/analytics>`
-     - :mod:`airflow.providers.google.marketing_platform.hooks.analytics`
-     - :mod:`airflow.providers.google.marketing_platform.operators.analytics`
-     -
 
    * - `AutoML <https://cloud.google.com/automl/>`__
      - :doc:`How to use <howto/operator/gcp/automl>`
@@ -763,7 +768,7 @@ These integrations allow you to perform various operations within the Google Clo
 
 
 Transfer operators and hooks
-''''''''''''''''''''''''''''
+""""""""""""""""""""""""""""
 
 These integrations allow you to copy data from/to Google Cloud Platform.
 
@@ -810,7 +815,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      - :mod:`airflow.providers.google.cloud.operators.bigquery_to_mysql`
 
    * - `Google BigQuery <https://cloud.google.com/bigquery/>`__
-     - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
      - :mod:`airflow.providers.google.cloud.operators.bigquery_to_gcs`
 
@@ -882,16 +887,16 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      - :mod:`airflow.providers.google.cloud.operators.sftp_to_gcs`
 
    * - SQL
-     - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
      - :mod:`airflow.providers.google.cloud.operators.sql_to_gcs`
 
    * - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
-     - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
      - :mod:`airflow.providers.google.cloud.operators.sheets_to_gcs`
 
-   * - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+   * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
      -
      - :mod:`airflow.providers.google.suite.operators.gcs_to_sheets`
@@ -901,12 +906,12 @@ These integrations allow you to copy data from/to Google Cloud Platform.
 :ref:`[1] <integration:GCP-Discovery-ref>` Those discovery-based operators use
 :class:`airflow.providers.google.cloud.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
 Services via the `Google API Python Client <https://github.com/googleapis/google-api-python-client>`__.
-Please note that this library is in maintenance mode hence it won't fully support GCP in the future.
-Therefore it is recommended that you use the custom GCP Service Operators for working with the Google
-Cloud Platform.
+Please note that this library is in maintenance mode hence it won't fully support Google in the future.
+Therefore it is recommended that you use the custom Google Service Operators for working with the Google
+services.
 
 Other operators and hooks
-'''''''''''''''''''''''''
+"""""""""""""""""""""""""
 
 .. list-table::
    :header-rows: 1
@@ -919,12 +924,75 @@ Other operators and hooks
      - :mod:`airflow.providers.google.cloud.operators.translate_speech`
      -
 
-   * -
+Google Marketing Platform
+'''''''''''''''''''''''''
+
+.. note::
+    You can learn how to use Google Marketing Platform integrations by analyzing the
+    `source code <https://github.com/apache/airflow/tree/master/airflow/providers/google/marketing_platform/example_dags/>`_
+    of the example DAGs.
+
+
+.. list-table::
+   :header-rows: 1
+
+   * - Source
+     - Destination
+     - Guide
+     - Operators
+     - Senssors
+
+   * - `Analytics360 <https://analytics.google.com/>`__
+     - :doc:`How to use <howto/operator/gcp/analytics>`
+     - :mod:`airflow.providers.google.marketing_platform.hooks.analytics`
+     - :mod:`airflow.providers.google.marketing_platform.operators.analytics`
      -
-     - :mod:`airflow.providers.google.common.hooks.discovery_api`
 
-.. _service:
+   * - `Google Campaign Manager <https://developers.google.com/doubleclick-advertisers>`__
+     - :doc:`How to use <howto/operator/gcp/campaign_manager>`
+     - :mod:`airflow.providers.google.marketing_platform.hooks.campaign_manager`
+     - :mod:`airflow.providers.google.marketing_platform.operators.campaign_manager`
+     - :mod:`airflow.providers.google.marketing_platform.sensors.campaign_manager`
 
+   * - `Google Display&Video 360 <https://marketingplatform.google.com/about/display-video-360/>`__
+     - :doc:`How to use <howto/operator/gcp/display_video>`
+     - :mod:`airflow.providers.google.marketing_platform.hooks.display_video`
+     - :mod:`airflow.providers.google.marketing_platform.operators.display_video`
+     - :mod:`airflow.providers.google.marketing_platform.sensors.display_video`
+
+   * - `Google Search Ads 360 <https://marketingplatform.google.com/about/search-ads-360/>`__
+     - :doc:`How to use <howto/operator/gcp/search_ads>`
+     - :mod:`airflow.providers.google.marketing_platform.hooks.search_ads`
+     - :mod:`airflow.providers.google.marketing_platform.operators.search_ads`
+     - :mod:`airflow.providers.google.marketing_platform.sensors.search_ads`
+
+Other Google operators and hooks
+''''''''''''''''''''''''''''''''
+
+.. list-table::
+   :header-rows: 1
+
+   * - Service name
+     - Guide
+     - Hook
+     - Operators
+
+   * - `Google Ads <https://ads.google.com/home/>`__
+     - :doc:`How to use <howto/operator/gcp/ads>`
+     - :mod:`airflow.providers.google.ads.hooks.ads`
+     - :mod:`airflow.providers.google.ads.operators.ads`
+
+   * - `Cloud Firestore <https://firebase.google.com/docs/firestore>`__
+     - :doc:`How to use <howto/operator/gcp/firestore>`
+     - :mod:`airflow.providers.google.firebase.hooks.firestore`
+     - :mod:`airflow.providers.google.firebase.operators.firestore`
+
+   * - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
+     - :doc:`How to use <howto/operator/gcp/sheets>`
+     - :mod:`airflow.providers.google.suite.hooks.sheets`
+     - :mod:`airflow.providers.google.suite.operators.sheets`
+
+.. _yc_service:
 
 Yandex.Cloud
 --------------------------
@@ -969,7 +1037,8 @@ These integrations allow you to perform various operations within the Yandex.Clo
      - :mod:`airflow.providers.yandex.operators.yandexcloud_dataproc`
      -
 
-.. _yc_service:
+
+.. _service:
 
 Service integrations
 --------------------
@@ -1030,40 +1099,10 @@ These integrations allow you to perform various operations within various servic
      -
      -
 
-   * - `Google Ads <https://ads.google.com/home/>`__
-     - :doc:`How to use <howto/operator/gcp/ads>`
-     - :mod:`airflow.providers.google.ads.hooks.ads`
-     - :mod:`airflow.providers.google.ads.operators.ads`
-     -
-
-   * - `Google Campaign Manager <https://developers.google.com/doubleclick-advertisers>`__
-     - :doc:`How to use <howto/operator/gcp/campaign_manager>`
-     - :mod:`airflow.providers.google.marketing_platform.hooks.campaign_manager`
-     - :mod:`airflow.providers.google.marketing_platform.operators.campaign_manager`
-     - :mod:`airflow.providers.google.marketing_platform.sensors.campaign_manager`
-
-   * - `Google Display&Video 360 <https://marketingplatform.google.com/about/display-video-360/>`__
-     - :doc:`How to use <howto/operator/gcp/display_video>`
-     - :mod:`airflow.providers.google.marketing_platform.hooks.display_video`
-     - :mod:`airflow.providers.google.marketing_platform.operators.display_video`
-     - :mod:`airflow.providers.google.marketing_platform.sensors.display_video`
-
    * - `Google Drive <https://www.google.com/drive/>`__
      -
      - :mod:`airflow.providers.google.suite.hooks.drive`
      -
-     -
-
-   * - `Google Search Ads 360 <https://marketingplatform.google.com/about/search-ads-360/>`__
-     - :doc:`How to use <howto/operator/gcp/search_ads>`
-     - :mod:`airflow.providers.google.marketing_platform.hooks.search_ads`
-     - :mod:`airflow.providers.google.marketing_platform.operators.search_ads`
-     - :mod:`airflow.providers.google.marketing_platform.sensors.search_ads`
-
-   * - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
-     - :doc:`How to use <howto/operator/gcp/sheets>`
-     - :mod:`airflow.providers.google.suite.hooks.sheets`
-     - :mod:`airflow.providers.google.suite.operators.sheets`
      -
 
    * - `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
@@ -1375,7 +1414,7 @@ These integrations allow you to copy data.
      - :mod:`airflow.providers.mysql.operators.presto_to_mysql`
 
    * - SQL
-     - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
      - :mod:`airflow.providers.google.cloud.operators.sql_to_gcs`
 
