@@ -207,6 +207,36 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /dags/{dag_id}/clearTaskInstanaces:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+
+    patch:
+      summary: Clears a set of task instances associated with the DAAG for a specified date range.
+      operationId: clearTaskInstaance
+      tags: [DAG]
+      requestBody:
+        description: Parameters of action
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClearTaskInstance'
+
+      responses:
+        '200':
+          description: A list of cleared tasks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstanceCollection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /dags/{dag_id}/dagRuns:
     parameters:
       - $ref: '#/components/parameters/DAGID'
@@ -555,36 +585,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TaskInstance'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-    patch:
-      summary: Update a task instance
-      operationId: updateTaskInstance
-      tags: [TaskInstance]
-      parameters:
-        - $ref: '#/components/parameters/UpdateMask'
-      requestBody:
-        required: true
-
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TaskInstance'
-
-      responses:
-        '200':
-          description: Successful response.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TaskInstance'
-        '400':
-          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -1605,6 +1605,48 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ConfigSection'
+
+    # From
+    ClearTaskInstance:
+      type: object
+      properties:
+        dry_run:
+          description: >
+            If set, don't actually run this operation. The response will contain a list of task instances
+            planned to be cleaned, but not modified in any way.
+          type: boolean
+
+        start_date:
+          description: The minimum execution date to clear.
+          type: string
+          format: datetime
+
+        end_date:
+          description: The maximum execution date to clear.
+          type: string
+          format: datetime
+
+        only_failed:
+          description: Only clear failed tasks.
+          type: string
+          format: datetime
+
+        only_running:
+          description: Only clear running tasks.
+          type: string
+          format: datetime
+
+        include_subdags:
+          description: Clear tasks in subdags and clear external tasks indicated by ExternalTaskMarker.
+          type: boolean
+
+        include_parentdag:
+          description: Clear tasks in the parent dag of the subdag.
+          type: boolean
+
+        reset_dag_runs:
+          description: Set state of DAG Runs to RUNNING.
+          type: boolean
 
     # Common data type
     ScheduleInterval:
