@@ -52,13 +52,13 @@ class ShortCircuitExecutorMixin:
             ) for dag_id in dag_ids_to_watch
         }
 
-    def change_state(self, key, state):
+    def change_state(self, key, state, info=None):
         '''
         Change the state of scheduler by waiting till the tasks is complete
         and then shut down the scheduler after the task is complete
         '''
         from airflow.utils.state import State
-        super().change_state(key, state)
+        super().change_state(key, state, info=info)
 
         dag_id, _, execution_date, __ = key
         if dag_id not in self.dags_to_watch:

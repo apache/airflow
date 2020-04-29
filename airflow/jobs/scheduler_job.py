@@ -1490,8 +1490,9 @@ class SchedulerJob(BaseJob):
 
         TI = models.TaskInstance
         # pylint: disable=too-many-nested-blocks
-        for key, state in list(self.executor.get_event_buffer(simple_dag_bag.dag_ids)
+        for key, value in list(self.executor.get_event_buffer(simple_dag_bag.dag_ids)
                                    .items()):
+            state, info = value
             dag_id, task_id, execution_date, try_number = key
             self.log.info(
                 "Executor reports execution of %s.%s execution_date=%s "
@@ -1512,15 +1513,15 @@ class SchedulerJob(BaseJob):
                     Stats.incr('scheduler.tasks.killed_externally')
                     self.log.error(
                         "Executor reports task instance %s finished (%s) although the task says its %s. "
-                        "Was the task killed externally?",
-                        ti, state, ti.state
+                        "(Info: %s) Was the task killed externally?",
+                        ti, state, ti.state, info
                     )
                     simple_dag = simple_dag_bag.get_dag(dag_id)
                     self.processor_agent.send_callback_to_execute(
                         full_filepath=simple_dag.full_filepath,
                         task_instance=ti,
                         msg="Executor reports task instance finished ({}) although the task says its {}. "
-                            "Was the task killed externally?".format(state, ti.state)
+                            "(Info: {}) Was the task killed externally?".format(state, ti.state, info)
                     )
 
     def _execute(self):

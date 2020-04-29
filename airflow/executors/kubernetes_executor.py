@@ -884,7 +884,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 self.running.remove(key)
             except KeyError:
                 self.log.debug('Could not find key: %s', str(key))
-        self.event_buffer[key] = state
+        self.event_buffer[key] = state, None
 
     def _flush_task_queue(self) -> None:
         if not self.task_queue:

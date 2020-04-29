@@ -79,11 +79,11 @@ class MockExecutor(BaseExecutor):
     def end(self):
         self.sync()
 
-    def change_state(self, key, state):
-        super().change_state(key, state)
+    def change_state(self, key, state, info=None):
+        super().change_state(key, state, info=info)
         # The normal event buffer is cleared after reading, we want to keep
         # a list of all events for testing
-        self.sorted_tasks.append((key, state))
+        self.sorted_tasks.append((key, (state, info)))
 
     def mock_task_fail(self, dag_id, task_id, date, try_number=1):
         """
