@@ -1971,8 +1971,8 @@ components:
         type: string
       required: true
       description: >
-        The key containing the encrypted path to the file. Encryption and encryption takes place
-        only on the server side. This prevents the client from reading an non-DAG file. This also ensures API
+        The key containing the encrypted path to the file. Encryption and decryption take place only on
+        the server. This prevents the client from reading an non-DAG file. This also ensures API
         extensibility, because the format of encrypted data may change.
 
     UpdateMask:
