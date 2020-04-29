@@ -1190,26 +1190,36 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type ignore_if_missing: bool
         :return:
         """
-        if not self.project_id:
-            raise ValueError("The project_id should be set")
-        service = self.get_service()
-        deletion_project, deletion_dataset, deletion_table = \
-            _split_tablename(table_input=deletion_dataset_table,
-                             default_project_id=self.project_id)
+        warnings.warn("This method is deprecated. Please use `delete_table`.", DeprecationWarning)
+        return self.delete_table(deletion_dataset_table, ignore_if_missing)
 
-        try:
-            service.tables() \
-                .delete(projectId=deletion_project,  # pylint: disable=no-member
-                        datasetId=deletion_dataset,
-                        tableId=deletion_table) \
-                .execute(num_retries=self.num_retries)
-            self.log.info('Deleted table %s:%s.%s.', deletion_project,
-                          deletion_dataset, deletion_table)
-        except HttpError as e:
-            if e.resp.status == 404 and ignore_if_missing:
-                self.log.info('Table does not exist. Skipping.')
-            else:
-                raise e
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_table(
+        self,
+        table_id: str,
+        ignore_if_missing: bool = True,
+        project_id: Optional[str] = None,
+    ) -> None:
+        """
+        Delete an existing table from the dataset;
+        If the table does not exist, return an error unless ignore_if_missing
+        is set to True.
+
+        :param table_id: A dotted ``(<project>.|<project>:)<dataset>.<table>``
+            that indicates which table will be deleted.
+        :type table_id: str
+        :param ignore_if_missing: if True, then return success even if the
+            requested table does not exist.
+        :type ignore_if_missing: bool
+        :param project_id: the project used to perform the request
+        :type project_id: str
+        """
+        project_id = project_id or self.project_id
+        self.get_client(project_id=project_id).delete_table(
+            table=Table.from_string(table_id),
+            not_found_ok=ignore_if_missing,
+        )
+        self.log.info('Deleted table %s', table_id)
 
     def get_tabledata(self, dataset_id: str, table_id: str,
                       max_results: Optional[int] = None, selected_fields: Optional[str] = None,
