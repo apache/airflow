@@ -45,7 +45,7 @@ class EmrAddStepsOperator(BaseOperator):
     :type do_xcom_push: bool
     """
     template_fields = ['job_flow_id', 'job_flow_name', 'cluster_states', 'steps']
-    template_ext = ('.json')
+    template_ext = ('.json',)
     ui_color = '#f9c915'
 
     @apply_defaults

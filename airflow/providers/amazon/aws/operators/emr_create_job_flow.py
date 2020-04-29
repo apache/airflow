@@ -38,7 +38,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
     :type job_flow_overrides: dict|str
     """
     template_fields = ['job_flow_overrides']
-    template_ext = ('.json')
+    template_ext = ('.json',)
     ui_color = '#f9c915'
 
     @apply_defaults
