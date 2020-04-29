@@ -111,16 +111,16 @@ class FileTaskHandler(logging.Handler):
             log += '*** Trying to get logs from worker pod {} ***\n'.format(ti.hostname)
 
             try:
-                from airflow.kubernetes.pod_launcher import read_pod_logs
                 from kubernetes.client.models import V1Pod, V1ObjectMeta
+                from airflow.kubernetes.pod_launcher import PodLauncher
 
                 pod = V1Pod()
                 pod.metadata = V1ObjectMeta()
                 pod.metadata.name = ti.hostname
                 pod.metadata.namespace = conf.get('kubernetes', 'namespace')
 
-                for l in read_pod_logs(pod, 100):
-                    log += l.decode()
+                for line in PodLauncher.read_pod_logs(pod, 100):
+                    log += line.decode()
 
             except Exception as f:
                 log += '*** Unable to fetch logs from worker pod {} ***\n{}\n\n'.format(
