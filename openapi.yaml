@@ -232,10 +232,10 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthenticated'
 
-  /dags/{dag_id}/dagRuns/{dag_run_id}:
+  /dags/{dag_id}/dagRuns/{execution_date}:
     parameters:
       - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/DAGRunID'
+      - $ref: '#/components/parameters/ExecutionDate'
 
     get:
       summary: Get a DAG Run
