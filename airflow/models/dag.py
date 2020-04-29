@@ -328,7 +328,7 @@ class DAG(BaseDag, LoggingMixin):
         self.tags = tags
 
     def __repr__(self):
-        return "<DAG: {self.dag_id}>".format(self=self)
+        return f"<{self.__class__.__name__}: {self.dag_id}>"
 
     def __eq__(self, other):
         if (type(self) == type(other) and
@@ -1757,7 +1757,7 @@ class DagModel(Base):
     )
 
     def __repr__(self):
-        return "<DAG: {self.dag_id}>".format(self=self)
+        return f"<{self.__class__.__name__}: {self.dag_id}>"
 
     @property
     def timezone(self):

@@ -309,7 +309,7 @@ class Connection(Base, LoggingMixin):
         return hook_class(**{conn_id_param: self.conn_id})
 
     def __repr__(self):
-        return self.conn_id
+        return f"<{self.__class__.__name__}: {self.conn_id}>"
 
     def log_info(self):
         return ("id: {}. Host: {}, Port: {}, Schema: {}, "

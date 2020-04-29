@@ -48,7 +48,7 @@ class Pool(Base):
     DEFAULT_POOL_NAME = 'default_pool'
 
     def __repr__(self):
-        return self.pool
+        return f"<{self.__class__.__name__}: {self.pool}>"
 
     @staticmethod
     @provide_session

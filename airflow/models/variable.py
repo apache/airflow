@@ -41,8 +41,7 @@ class Variable(Base, LoggingMixin):
     is_encrypted = Column(Boolean, unique=False, default=False)
 
     def __repr__(self):
-        # Hiding the value
-        return '{} : {}'.format(self.key, self._val)
+        return f"<{self.__class__.__name__}({self.key}: {self._val})>"
 
     def get_val(self):
         if self._val is not None and self.is_encrypted:

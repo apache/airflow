@@ -47,7 +47,7 @@ class BaseTIDep:
         return hash(type(self))
 
     def __repr__(self):
-        return "<TIDep({self.name})>".format(self=self)
+        return f"<TIDep({self.name})>"
 
     @property
     def name(self):

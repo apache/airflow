@@ -58,7 +58,7 @@ class RenderedTaskInstanceFields(Base):
         }
 
     def __repr__(self):
-        return f"<{self.__class__.__name__}: {self.dag_id}.{self.task_id} {self.execution_date}"
+        return f"<{self.__class__.__name__}: {self.dag_id}.{self.task_id} {self.execution_date}>"
 
     @classmethod
     @provide_session

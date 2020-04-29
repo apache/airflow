@@ -54,7 +54,7 @@ class Resource:
         return self.__dict__ == other.__dict__
 
     def __repr__(self):
-        return str(self.__dict__)
+        return f"{self.__class__.__name__}({self.name}: {self.qty} {self.units_str})"
 
     @property
     def name(self):
@@ -140,4 +140,4 @@ class Resources:
         return self.__dict__ == other.__dict__
 
     def __repr__(self):
-        return str(self.__dict__)
+        return str(list(self.__dict__.values()))

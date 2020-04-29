@@ -43,5 +43,4 @@ class SlaMiss(Base):
     )
 
     def __repr__(self):
-        return str((
-            self.dag_id, self.task_id, self.execution_date.isoformat()))
+        return f"<{self.__class__.__name__}: {self.dag_id}.{self.task_id} {self.execution_date}>"

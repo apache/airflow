@@ -1048,8 +1048,7 @@ class BaseOperator(Operator, LoggingMixin):
             return self.downstream_list
 
     def __repr__(self):
-        return "<Task({self.__class__.__name__}): {self.task_id}>".format(
-            self=self)
+        return f"<Task({self.__class__.__name__}): {self.task_id}>"
 
     @property
     def task_type(self) -> str:

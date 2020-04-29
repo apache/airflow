@@ -742,9 +742,8 @@ class TaskInstance(Base, LoggingMixin):
 
     def __repr__(self):
         return (
-            "<TaskInstance: {ti.dag_id}.{ti.task_id} "
-            "{ti.execution_date} [{ti.state}]>"
-        ).format(ti=self)
+            f"<{self.__class__.__name__}: {self.dag_id}.{self.task_id} {self.execution_date} [{self.state}]>"
+        )
 
     def next_retry_datetime(self):
         """
@@ -1353,7 +1352,7 @@ class TaskInstance(Base, LoggingMixin):
                 return self.var
 
             def __repr__(self):
-                return str(self.var)
+                return f"<{self.__class__.__name__}: {self.var}>"
 
             @staticmethod
             def get(
@@ -1379,7 +1378,7 @@ class TaskInstance(Base, LoggingMixin):
                 return self.var
 
             def __repr__(self):
-                return str(self.var)
+                return f"<{self.__class__.__name__}: {self.var}>"
 
             @staticmethod
             def get(

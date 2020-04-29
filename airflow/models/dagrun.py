@@ -80,13 +80,9 @@ class DagRun(Base, LoggingMixin):
 
     def __repr__(self):
         return (
-            '<DagRun {dag_id} @ {execution_date}: {run_id}, '
-            'externally triggered: {external_trigger}>'
-        ).format(
-            dag_id=self.dag_id,
-            execution_date=self.execution_date,
-            run_id=self.run_id,
-            external_trigger=self.external_trigger)
+            f'<{self.__class__.__name__} {self.dag_id} {self.execution_date}: '
+            f'{self.run_id}, externally triggered: {self.external_trigger}>'
+        )
 
     def get_state(self):
         return self._state

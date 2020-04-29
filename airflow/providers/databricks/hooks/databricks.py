@@ -75,7 +75,7 @@ class RunState:
             self.state_message == other.state_message
 
     def __repr__(self):
-        return str(self.__dict__)
+        return f"{self.__class__.__name__}({self.__dict__})"
 
 
 # noinspection PyAbstractClass
