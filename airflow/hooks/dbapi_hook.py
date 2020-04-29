@@ -227,7 +227,7 @@ class DbApiHook(BaseHook):
         return self.get_conn().cursor()
 
     @staticmethod
-    def _generate_insert_sql(table, values, target_fields, replace):
+    def _generate_insert_sql(table, values, target_fields, replace, **kwargs):
         """
         Static helper method that generate the INSERT SQL statement.
         The REPLACE variant is specific to MySQL syntax.
@@ -262,7 +262,7 @@ class DbApiHook(BaseHook):
         return sql
 
     def insert_rows(self, table, rows, target_fields=None, commit_every=1000,
-                    replace=False):
+                    replace=False, **kwargs):
         """
         A generic way to insert a set of tuples into a table,
         a new transaction is created every commit_every rows
@@ -293,7 +293,7 @@ class DbApiHook(BaseHook):
                         lst.append(self._serialize_cell(cell, conn))
                     values = tuple(lst)
                     sql = self._generate_insert_sql(
-                        table, values, target_fields, replace
+                        table, values, target_fields, replace, **kwargs
                     )
                     cur.execute(sql, values)
                     if commit_every and i % commit_every == 0:
