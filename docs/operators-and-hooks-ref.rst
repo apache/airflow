@@ -982,6 +982,11 @@ Other Google operators and hooks
      - :mod:`airflow.providers.google.ads.hooks.ads`
      - :mod:`airflow.providers.google.ads.operators.ads`
 
+   * - `Google Drive <https://www.google.com/drive/>`__
+     -
+     - :mod:`airflow.providers.google.suite.hooks.drive`
+     -
+
    * - `Cloud Firestore <https://firebase.google.com/docs/firestore>`__
      - :doc:`How to use <howto/operator/gcp/firestore>`
      - :mod:`airflow.providers.google.firebase.hooks.firestore`
@@ -1096,12 +1101,6 @@ These integrations allow you to perform various operations within various servic
    * - `Facebook Ads <http://business.facebook.com>`__
      -
      - :mod:`airflow.providers.facebook.ads.hooks.ads`
-     -
-     -
-
-   * - `Google Drive <https://www.google.com/drive/>`__
-     -
-     - :mod:`airflow.providers.google.suite.hooks.drive`
      -
      -
 
