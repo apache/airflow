@@ -297,10 +297,10 @@ class TestPoolModelView(TestBase):
 
 class TestMountPoint(unittest.TestCase):
     @classmethod
+    @conf_vars({("webserver", "base_url"): "http://localhost/test"})
     def setUpClass(cls):
         application.app = None
         application.appbuilder = None
-        conf.set("webserver", "base_url", "http://localhost/test")
         app = application.cached_app(config={'WTF_CSRF_ENABLED': False}, session=Session, testing=True)
         cls.client = Client(app, BaseResponse)
 
@@ -523,9 +523,9 @@ class TestAirflowBaseViews(TestBase):
         self.assertEqual(resp.status_code, 200)
 
     def test_task_stats_only_noncompleted(self):
-        conf.set("webserver", "show_recent_stats_for_completed_runs", "False")
-        resp = self.client.post('task_stats', follow_redirects=True)
-        self.assertEqual(resp.status_code, 200)
+        with conf_vars({("webserver", "show_recent_stats_for_completed_runs"): "False"}):
+            resp = self.client.post('task_stats', follow_redirects=True)
+            self.assertEqual(resp.status_code, 200)
 
     def test_dag_details(self):
         url = 'dag_details?dag_id=example_bash_operator'
@@ -969,34 +969,34 @@ class TestLogView(TestBase):
         with open(settings_file, 'w') as handle:
             handle.writelines(new_logging_file)
         sys.path.append(self.settings_folder)
-        conf.set('logging', 'logging_config_class', 'airflow_local_settings.LOGGING_CONFIG')
 
-        self.app, self.appbuilder = application.create_app(session=Session, testing=True)
-        self.app.config['WTF_CSRF_ENABLED'] = False
-        self.client = self.app.test_client()
-        settings.configure_orm()
-        self.login()
+        with conf_vars({('logging', 'logging_config_class'): 'airflow_local_settings.LOGGING_CONFIG'}):
+            self.app, self.appbuilder = application.create_app(session=Session, testing=True)
+            self.app.config['WTF_CSRF_ENABLED'] = False
+            self.client = self.app.test_client()
+            settings.configure_orm()
+            self.login()
 
-        from airflow.www.views import dagbag
-        dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
-        dag.sync_to_db()
-        dag_removed = DAG(self.DAG_ID_REMOVED, start_date=self.DEFAULT_DATE)
-        dag_removed.sync_to_db()
-        dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
-        with create_session() as session:
-            self.ti = TaskInstance(
-                task=DummyOperator(task_id=self.TASK_ID, dag=dag),
-                execution_date=self.DEFAULT_DATE
-            )
-            self.ti.try_number = 1
-            self.ti_removed_dag = TaskInstance(
-                task=DummyOperator(task_id=self.TASK_ID, dag=dag_removed),
-                execution_date=self.DEFAULT_DATE
-            )
-            self.ti_removed_dag.try_number = 1
+            from airflow.www.views import dagbag
+            dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
+            dag.sync_to_db()
+            dag_removed = DAG(self.DAG_ID_REMOVED, start_date=self.DEFAULT_DATE)
+            dag_removed.sync_to_db()
+            dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
+            with create_session() as session:
+                self.ti = TaskInstance(
+                    task=DummyOperator(task_id=self.TASK_ID, dag=dag),
+                    execution_date=self.DEFAULT_DATE
+                )
+                self.ti.try_number = 1
+                self.ti_removed_dag = TaskInstance(
+                    task=DummyOperator(task_id=self.TASK_ID, dag=dag_removed),
+                    execution_date=self.DEFAULT_DATE
+                )
+                self.ti_removed_dag.try_number = 1
 
-            session.merge(self.ti)
-            session.merge(self.ti_removed_dag)
+                session.merge(self.ti)
+                session.merge(self.ti_removed_dag)
 
     def tearDown(self):
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
@@ -1009,8 +1009,6 @@ class TestLogView(TestBase):
 
         sys.path.remove(self.settings_folder)
         shutil.rmtree(self.settings_folder)
-        conf.set('logging', 'logging_config_class', '')
-
         self.logout()
         super().tearDown()
 
