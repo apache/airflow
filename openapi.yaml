@@ -696,7 +696,7 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
 
     post:
-      summary: Create a variables
+      summary: Create a variable
       operationId: createVariable
       tags: [Variable]
       requestBody:
@@ -724,7 +724,7 @@ paths:
       - $ref: '#/components/parameters/VariableID'
 
     get:
-      summary: Get a variables by id
+      summary: Get a variable by id
       operationId: getVariable
       description: The collection does not contain data. To get data, you must get a single entity.
       tags: [Variable]
