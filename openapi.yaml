@@ -320,30 +320,6 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-    post:
-      summary: Create event log
-      operationId: createEventLog
-      tags: [EventLog]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/EventLog'
-      responses:
-        '200':
-          description: Successful response.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/EventLog'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-
   /eventLogs/{event_log_id}:
     parameters:
       - $ref: '#/components/parameters/EventLogID'
@@ -365,49 +341,6 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/NotFound'
-
-    patch:
-      summary: Update a log entry
-      operationId: updateEventLogEntry
-      tags: [EventLog]
-      parameters:
-        - $ref: '#/components/parameters/UpdateMask'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/EventLog'
-
-      responses:
-        '200':
-          description: Successful response.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/EventLog'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-    delete:
-      summary: Delete a log entry
-      operationId: deleteEventLogEntry
-      tags: [EventLog]
-      responses:
-        '204':
-          description: No content.
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
 
   /importErrors:
     get:
