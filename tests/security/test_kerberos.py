@@ -24,21 +24,20 @@ from airflow.security import kerberos
 from airflow.security.kerberos import renew_from_kt
 from tests.test_utils.config import conf_vars
 
+KRB5_KTNAME = os.environ.get('KRB5_KTNAME')
 
-@unittest.skipIf('KRB5_KTNAME' not in os.environ,
-                 'Skipping Kerberos API tests due to missing KRB5_KTNAME')
+
+@unittest.skipIf(KRB5_KTNAME is None, 'Skipping Kerberos API tests due to missing KRB5_KTNAME')
 class TestKerberos(unittest.TestCase):
     def setUp(self):
-        keytab_from_cfg = os.environ['KRB5_KTNAME']
-        self.args = Namespace(keytab=keytab_from_cfg, principal=None, pid=None,
+        self.args = Namespace(keytab=KRB5_KTNAME, principal=None, pid=None,
                               daemon=None, stdout=None, stderr=None, log_file=None)
 
-    @conf_vars({('kerberos', 'keytab'): os.environ['KRB5_KTNAME']})
+    @conf_vars({('kerberos', 'keytab'): KRB5_KTNAME})
     def test_renew_from_kt(self):
         """
         We expect no result, but a successful run. No more TypeError
         """
-        import ipdb; ipdb.set_trace()
         self.assertIsNone(renew_from_kt(principal=self.args.principal,  # pylint: disable=no-member
                                         keytab=self.args.keytab))
 

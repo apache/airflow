@@ -105,7 +105,6 @@ def settings_context(content, directory=None, name='LOGGING_CONFIG'):
     :param content:
           The content of the settings file
     """
-    content = content
     settings_root = tempfile.mkdtemp()
     filename = f"{SETTINGS_DEFAULT_NAME}.py"
 

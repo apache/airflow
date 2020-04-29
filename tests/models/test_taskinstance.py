@@ -29,7 +29,6 @@ import pytest
 from freezegun import freeze_time
 from parameterized import param, parameterized
 from sqlalchemy.orm.session import Session
-from tests.test_utils.config import conf_vars
 
 from airflow import models, settings
 from airflow.exceptions import AirflowException, AirflowSkipException
@@ -50,6 +49,7 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from tests.models import DEFAULT_DATE
 from tests.test_utils import db
+from tests.test_utils.config import conf_vars
 
 
 class CallbackWrapper:

@@ -21,11 +21,11 @@ from datetime import timedelta
 from unittest import mock
 
 import pytest
-from tests.test_utils.config import conf_vars
 
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.models import DagBag
 from airflow.utils import timezone
+from tests.test_utils.config import conf_vars
 
 try:
     from airflow.executors.dask_executor import DaskExecutor
