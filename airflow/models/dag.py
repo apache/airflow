@@ -57,6 +57,7 @@ from airflow.utils import timezone
 from airflow.utils.dag_processing import correct_maybe_zipped
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.db import provide_session
+from airflow.utils.email import send_email
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime, Interval
@@ -1894,6 +1895,15 @@ class DagModel(Base):
         try:
             for dag_model in dag_models:
                 dag_model.is_paused = is_paused
+            if is_paused:
+                send_email(
+                    self.default_args['email'],
+                    'Airflow DAG {} Paused'.format(self.dag_id),
+                    (
+                        'This is a notification that Airflow DAG: <b>{}</b> has been paused.<br>'
+                        'If this was intentional, feel free to ignore this email.'
+                    ).format(self.dag_id)
+                )
             session.commit()
         except Exception:
             session.rollback()
