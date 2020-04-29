@@ -20,6 +20,10 @@
 # Note: Any AirflowException raised is expected to cause the TaskInstance
 #       to be marked in an ERROR state
 """Exceptions used by Airflow"""
+from collections import namedtuple
+
+from airflow.utils.code_utils import prepare_code_snippet
+from airflow.utils.platform import is_tty
 
 
 class AirflowException(Exception):
@@ -117,3 +121,35 @@ class DagConcurrencyLimitReached(AirflowException):
 
 class TaskConcurrencyLimitReached(AirflowException):
     """Raise when task concurrency limit is reached"""
+
+
+file_syntax_error = namedtuple('FileSyntaxError', 'line_no message')
+"""Information about a single error in a file."""
+
+
+class AirflowFileParseException(AirflowException):
+    """
+    Raises when connection or variable file can not be parsed
+
+    :param msg: The human-readable description of the exception
+    :param file_path: A processed file that contains errors
+    :param parse_errors: File syntax errors
+    """
+    def __init__(self, msg, file_path, parse_errors):
+        super(AirflowException, self).__init__(msg)
+        self.msg = msg
+        self.file_path = file_path
+        self.parse_errors = parse_errors
+
+    def __str__(self):
+        result = self.msg + "\nFilename: " + self.file_path + "\n\n"
+
+        for error_no, parse_error in enumerate(self.parse_errors, 1):
+            result += "=" * 20 + " Parse error {error_no:3} ".format(error_no=error_no) + "=" * 20 + "\n"
+            result += parse_error.message + "\n"
+            if parse_error.line_no:
+                result += "Line number:  {}\n".format(parse_error.line_no)
+                if parse_error.line_no and is_tty():
+                    result += "\n" + prepare_code_snippet(self.file_path, parse_error.line_no) + "\n"
+
+        return result
