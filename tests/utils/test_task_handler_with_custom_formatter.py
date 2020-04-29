@@ -19,6 +19,8 @@
 import logging
 import unittest
 
+from tests.test_utils.config import conf_vars
+
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.configuration import conf
 from airflow.models import DAG, TaskInstance
@@ -42,7 +44,6 @@ class TestTaskHandlerWithCustomFormatter(unittest.TestCase):
             'formatter': 'airflow',
             'stream': 'sys.stdout'
         }
-        conf.set('logging', 'task_log_prefix_template', "{{ti.dag_id}}-{{ti.task_id}}")
 
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         logging.root.disabled = False
@@ -51,6 +52,7 @@ class TestTaskHandlerWithCustomFormatter(unittest.TestCase):
         super().tearDown()
         DEFAULT_LOGGING_CONFIG['handlers']['task'] = PREV_TASK_HANDLER
 
+    @conf_vars({('logging', 'task_log_prefix_template'): "{{ti.dag_id}}-{{ti.task_id}}"})
     def test_formatter(self):
         dag = DAG('test_dag', start_date=DEFAULT_DATE)
         task = DummyOperator(task_id='test_task', dag=dag)
