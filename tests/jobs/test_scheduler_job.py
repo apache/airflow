@@ -77,6 +77,13 @@ UNPARSEABLE_DAG_FILE_CONTENTS = 'airflow DAG'
 TEMP_DAG_FILENAME = "temp_dag.py"
 
 
+@pytest.fixture(scope="class")
+def disable_load_example():
+    with conf_vars({('core', 'load_examples'): 'false'}):
+        yield
+
+
+@pytest.mark.usefixtures("disable_load_example")
 class TestDagFileProcessor(unittest.TestCase):
     def setUp(self):
         clear_db_runs()
@@ -107,17 +114,6 @@ class TestDagFileProcessor(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = DagBag()
-        cls.old_val = None
-        if conf.has_option('core', 'load_examples'):
-            cls.old_val = conf.get('core', 'load_examples')
-        conf.set('core', 'load_examples', 'false')
-
-    @classmethod
-    def tearDownClass(cls):
-        if cls.old_val is not None:
-            conf.set('core', 'load_examples', cls.old_val)
-        else:
-            conf.remove_option('core', 'load_examples')
 
     def test_dag_file_processor_sla_miss_callback(self):
         """
@@ -1242,6 +1238,7 @@ class TestDagFileProcessorQueriesCount(unittest.TestCase):
             processor.process_file(ELASTIC_DAG_FILE, [])
 
 
+@pytest.mark.usefixtures("disable_load_example")
 class TestSchedulerJob(unittest.TestCase):
 
     def setUp(self):
@@ -1258,17 +1255,6 @@ class TestSchedulerJob(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = DagBag()
-        cls.old_val = None
-        if conf.has_option('core', 'load_examples'):
-            cls.old_val = conf.get('core', 'load_examples')
-        conf.set('core', 'load_examples', 'false')
-
-    @classmethod
-    def tearDownClass(cls):
-        if cls.old_val is not None:
-            conf.set('core', 'load_examples', cls.old_val)
-        else:
-            conf.remove_option('core', 'load_examples')
 
     def test_is_alive(self):
         job = SchedulerJob(None, heartrate=10, state=State.RUNNING)
