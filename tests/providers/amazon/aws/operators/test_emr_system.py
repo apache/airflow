@@ -34,7 +34,7 @@ def create_emr_default_roles():
     executor.execute_cmd(["aws", "emr", "create-default-roles"])
 
 
-@pytest.mark.system("amazon.aws")
+@pytest.mark.system("amazon")
 @pytest.mark.usefixtures("create_emr_default_roles")
 class TestSystemAwsEmr(SystemTest):
     """
