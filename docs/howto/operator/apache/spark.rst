@@ -26,7 +26,7 @@ Apache Spark Operators
 Prerequisite
 ------------
 
-To use ``SparkJDBCOperator`` and ``SparkSubmitOperator``, you must configure a :doc:`Spark Connection <../../connection/spark>`. For ``SparkJDBCOperator``, you must also `configure a JDBC connection`_.
+To use ``SparkJDBCOperator`` and ``SparkSubmitOperator``, you must configure a :doc:`Spark Connection <../../connection/spark>`. For ``SparkJDBCOperator``, you must also configure a :doc:`JDBC connection <../../connection/jdbc>`.
 
 ``SparkSqlOperator`` gets all the configurations from operator parameters.
 
@@ -38,29 +38,6 @@ SparkJDBCOperator
 Launches applications on a Apache Spark server, it uses ``SparkSubmitOperator`` to perform data transfers to/from JDBC-based databases.
 
 For parameter definition take a look at :class:`~airflow.providers.apache.spark.operators.spark_jdbc.SparkJDBCOperator`.
-
-Configure a JDBC connection
-"""""""""""""""""""""""""""
-
-Host (required)
-    The host to connect to.
-
-Schema (required)
-    Specify the database name to be used in.
-
-Login (optional)
-    Specify the user name to connect to. Default ``root``.
-
-Password (optional)
-    Specify the password to connect to. Default ``root``.
-
-Port (optional)
-    Port of host to connect to.
-
-Extra (optional)
-    Specify the extra parameters (as json dictionary) that can be used in JDBC connection. The following parameters out of the standard python parameters are supported:
-
-    * ``conn_prefix`` - Used to build the connection url, added in front of host (``conn_prefix`` ``host`` [: ``port`` ] / ``schema``)
 
 Using the operator
 """"""""""""""""""

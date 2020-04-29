@@ -18,7 +18,7 @@
 Apache Spark Connection
 =======================
 
-The Apache Spark Connection type enables connection to Apache Spark.
+The Apache Spark connection type enables connection to Apache Spark.
 
 Default Connection IDs
 ----------------------
