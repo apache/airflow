@@ -593,7 +593,7 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     delete:
-      summary: Delete DAG Run
+      summary: Delete a task insstance
       operationId: deleteTaskInstance
       tags: [TaskInstance]
       responses:
