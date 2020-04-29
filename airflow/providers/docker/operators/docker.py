@@ -265,17 +265,7 @@ class DockerOperator(BaseOperator):
                 return None
 
     def execute(self, context):
-
-        tls_config = self.__get_tls_config()
-
-        if self.docker_conn_id:
-            self.cli = self.get_hook().get_conn()
-        else:
-            self.cli = APIClient(
-                base_url=self.docker_url,
-                version=self.api_version,
-                tls=tls_config
-            )
+        self.cli = self._get_cli()
 
         # Pull the docker image if `force_pull` is set or image does not exist locally
         if self.force_pull or not self.cli.images(name=self.image):
@@ -288,6 +278,17 @@ class DockerOperator(BaseOperator):
         self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
 
         return self._run_image()
+
+    def _get_cli(self):
+        if self.docker_conn_id:
+            return self.get_hook().get_conn()
+        else:
+            tls_config = self.__get_tls_config()
+            return APIClient(
+                base_url=self.docker_url,
+                version=self.api_version,
+                tls=tls_config
+            )
 
     def get_command(self):
         """

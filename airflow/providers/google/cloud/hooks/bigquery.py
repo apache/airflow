@@ -24,10 +24,12 @@ import logging
 import time
 import warnings
 from copy import deepcopy
-from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Optional, Tuple, Type, Union
+from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Optional, Sequence, Tuple, Type, Union
 
 from google.api_core.retry import Retry
-from google.cloud.bigquery import DEFAULT_RETRY, Client, Dataset, Table
+from google.cloud.bigquery import DEFAULT_RETRY, Client
+from google.cloud.bigquery.dataset import Dataset, DatasetListItem, DatasetReference
+from google.cloud.bigquery.table import Table, TableListItem, TableReference
 from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -99,6 +101,23 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return build(
             'bigquery', 'v2', http=http_authorized, cache_discovery=False)
 
+    def get_client(self, project_id: Optional[str] = None, location: Optional[str] = None) -> Client:
+        """
+        Returns authenticated BigQuery Client.
+
+        :param project_id: Project ID for the project which the client acts on behalf of.
+        :type project_id: str
+        :param location: Default location for jobs / datasets / tables.
+        :type location: str
+        :return:
+        """
+        return Client(
+            client_info=self.client_info,
+            project=project_id,
+            location=location,
+            credentials=self._get_credentials()
+        )
+
     def insert_rows(
         self, table: Any, rows: Any, target_fields: Any = None, commit_every: Any = 1000, replace: Any = False
     ) -> NoReturn:
@@ -155,10 +174,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param table_id: The name of the table to check the existence of.
         :type table_id: str
         """
-        table_reference = f"{project_id}.{dataset_id}.{table_id}"
-
+        table_reference = TableReference(DatasetReference(project_id, dataset_id), table_id)
         try:
-            Client(client_info=self.client_info).get_table(table_reference)
+            self.get_client().get_table(table_reference)
             return True
         except NotFound:
             return False
@@ -276,7 +294,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         table_resource = table_resource or _table_resource
         table = Table.from_api_repr(table_resource)
-        Client(client_info=self.client_info).create_table(table=table, exists_ok=True, retry=retry)
+        self.get_client().create_table(table=table, exists_ok=True, retry=retry)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_empty_dataset(self,
@@ -330,14 +348,22 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             dataset_reference["location"] = dataset_reference.get("location", location)
 
         dataset = Dataset.from_api_repr(dataset_reference)
-        Client(client_info=self.client_info).create_dataset(dataset=dataset, exists_ok=True)
+        self.get_client().create_dataset(dataset=dataset, exists_ok=True)
 
-    def get_dataset_tables(self, dataset_id: str, project_id: Optional[str] = None,
-                           max_results: Optional[int] = None,
-                           page_token: Optional[str] = None) -> Dict[str, Union[str, int, List]]:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_dataset_tables(
+        self,
+        dataset_id: str,
+        project_id: Optional[str] = None,
+        max_results: Optional[int] = None,
+        page_token: Optional[str] = None,
+        retry: Retry = DEFAULT_RETRY,
+    ) -> List[TableListItem]:
         """
         Get the list of tables for a given dataset.
-        .. seealso:: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/list
+
+        For more information, see:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/list
 
         :param dataset_id: the dataset ID of the requested dataset.
         :type dataset_id: str
@@ -349,56 +375,49 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param page_token: (Optional) page token, returned from a previous call,
             identifying the result set.
         :type page_token: str
-
-        :return: map containing the list of tables + metadata.
+        :param retry: How to retry the RPC.
+        :type retry: google.api_core.retry.Retry
+        :return: List of tables associated with the dataset.
         """
-        service = self.get_service()
+        project_id = project_id or self.project_id
 
-        optional_params = {}  # type: Dict[str, Union[str, int]]
-        if max_results:
-            optional_params['maxResults'] = max_results
-        if page_token:
-            optional_params['pageToken'] = page_token
+        tables = self.get_client().list_tables(
+            dataset=DatasetReference(project=project_id, dataset_id=dataset_id),
+            max_results=max_results,
+            page_token=page_token,
+            retry=retry,
+        )
+        return list(tables)
 
-        dataset_project_id = project_id or self.project_id
-
-        return (service.tables().list(  # pylint: disable=no-member
-            projectId=dataset_project_id,
-            datasetId=dataset_id,
-            **optional_params).execute(num_retries=self.num_retries))
-
-    def delete_dataset(self, project_id: str, dataset_id: str, delete_contents: bool = False) -> None:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_dataset(
+        self,
+        dataset_id: str,
+        project_id: Optional[str] = None,
+        delete_contents: bool = False,
+        retry: Retry = DEFAULT_RETRY,
+    ) -> None:
         """
         Delete a dataset of Big query in your project.
 
-        :param project_id: The name of the project where we have the dataset .
+        :param project_id: The name of the project where we have the dataset.
         :type project_id: str
         :param dataset_id: The dataset to be delete.
         :type dataset_id: str
-        :param delete_contents: [Optional] Whether to force the deletion even if the dataset is not empty.
-            Will delete all tables (if any) in the dataset if set to True.
-            Will raise HttpError 400: "{dataset_id} is still in use" if set to False and dataset is not empty.
-            The default value is False.
+        :param delete_contents: If True, delete all the tables in the dataset.
+            If False and the dataset contains tables, the request will fail.
         :type delete_contents: bool
-        :return:
+        :param retry: How to retry the RPC.
+        :type retry: google.api_core.retry.Retry
         """
-        service = self.get_service()
-        project_id = project_id if project_id is not None else self.project_id
-        self.log.info('Deleting from project: %s  Dataset:%s',
-                      project_id, dataset_id)
-
-        try:
-            service.datasets().delete(  # pylint: disable=no-member
-                projectId=project_id,
-                datasetId=dataset_id,
-                deleteContents=delete_contents).execute(num_retries=self.num_retries)
-            self.log.info('Dataset deleted successfully: In project %s '
-                          'Dataset %s', project_id, dataset_id)
-
-        except HttpError as err:
-            raise AirflowException(
-                'BigQuery job failed. Error was: {}'.format(err.content)
-            )
+        project_id = project_id or self.project_id
+        self.log.info('Deleting from project: %s  Dataset:%s', project_id, dataset_id)
+        self.get_client(project_id=project_id).delete_dataset(
+            dataset=DatasetReference(project=project_id, dataset_id=dataset_id),
+            delete_contents=delete_contents,
+            retry=retry,
+            not_found_ok=True
+        )
 
     def create_external_table(self,  # pylint: disable=too-many-locals,too-many-arguments
                               external_project_dataset_table: str,
@@ -789,49 +808,62 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 )
             self.log.error(error_msg)
 
-    def update_dataset(self, dataset_id: str,
-                       dataset_resource: Dict, project_id: Optional[str] = None) -> Dict:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def update_dataset(
+        self,
+        fields: Sequence[str],
+        dataset_resource: Dict,
+        dataset_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        retry: Retry = DEFAULT_RETRY,
+    ) -> Dataset:
         """
-        Updates information in an existing dataset. The update method replaces the entire
-        dataset resource, whereas the patch method only replaces fields that are provided
-        in the submitted dataset resource.
-        More info:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/update
+        Change some fields of a dataset.
 
-        :param dataset_id: The BigQuery Dataset ID
-        :type dataset_id: str
+        Use ``fields`` to specify which fields to update. At least one field
+        must be provided. If a field is listed in ``fields`` and is ``None`` in
+        ``dataset``, it will be deleted.
+
+        If ``dataset.etag`` is not ``None``, the update will only
+        succeed if the dataset on the server has the same ETag. Thus
+        reading a dataset with ``get_dataset``, changing its fields,
+        and then passing it to ``update_dataset`` will ensure that the changes
+        will only be saved if no modifications to the dataset occurred
+        since the read.
+
         :param dataset_resource: Dataset resource that will be provided
             in request body.
             https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
         :type dataset_resource: dict
+        :param dataset_id: The id of the dataset.
+        :type dataset_id: str
+        :param fields: The properties of ``dataset`` to change (e.g. "friendly_name").
+        :type fields: Sequence[str]
         :param project_id: The GCP Project ID
         :type project_id: str
-        :rtype: dataset
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+        :param retry: How to retry the RPC.
+        :type retry: google.api_core.retry.Retry
         """
-        if not dataset_id or not isinstance(dataset_id, str):
-            raise ValueError(
-                "dataset_id argument must be provided and has "
-                "a type 'str'. You provided: {}".format(dataset_id)
-            )
+        project_id = project_id or self.project_id
 
-        service = self.get_service()
-        dataset_project_id = project_id if project_id else self.project_id
+        dataset_resource["datasetReference"] = dataset_resource.get("datasetReference", {})
 
-        dataset = (
-            service.datasets()  # pylint: disable=no-member
-            .update(
-                datasetId=dataset_id,
-                projectId=dataset_project_id,
-                body=dataset_resource,
-            )
-            .execute(num_retries=self.num_retries)
+        for key, value in zip(["datasetId", "projectId"], [dataset_id, project_id]):
+            spec_value = dataset_resource["datasetReference"].get(key)
+            if value and not spec_value:
+                dataset_resource["datasetReference"][key] = value
+
+        dataset = self.get_client(project_id=project_id).update_dataset(
+            dataset=Dataset.from_api_repr(dataset_resource),
+            fields=fields,
+            retry=retry,
         )
         self.log.info("Dataset successfully updated: %s", dataset)
-
         return dataset
 
-    def patch_dataset(self, dataset_id: str, dataset_resource: str, project_id: Optional[str] = None) -> Dict:
+    def patch_dataset(
+        self, dataset_id: str, dataset_resource: Dict, project_id: Optional[str] = None
+    ) -> Dict:
         """
         Patches information in an existing dataset.
         It only replaces fields that are provided in the submitted dataset resource.
@@ -849,6 +881,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :rtype: dataset
             https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
         """
+
+        warnings.warn(
+            "This method is deprecated. Please use ``update_dataset``.",
+            DeprecationWarning
+        )
 
         if not dataset_id or not isinstance(dataset_id, str):
             raise ValueError(
@@ -872,14 +909,19 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         return dataset
 
-    def get_dataset_tables_list(self, dataset_id, project_id=None, table_prefix=None, max_results=None):
+    def get_dataset_tables_list(
+        self,
+        dataset_id: str,
+        project_id: Optional[str] = None,
+        table_prefix: Optional[str] = None,
+        max_results: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
         """
-        Method returns tables list of a BigQuery dataset. If table prefix is specified,
+        Method returns tables list of a BigQuery tables. If table prefix is specified,
         only tables beginning by it are returned.
 
-        .. seealso::
-            For more information, see:
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/list
+        For more information, see:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/list
 
         :param dataset_id: The BigQuery Dataset ID
         :type dataset_id: str
@@ -890,98 +932,75 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param max_results: The maximum number of results to return in a single response page.
             Leverage the page tokens to iterate through the entire collection.
         :type max_results: int
-        :return: dataset_tables_list
-
-            Example of returned dataset_tables_list: ::
-
-                    [
-                       {
-                          "projectId": "your-project",
-                          "datasetId": "dataset",
-                          "tableId": "table1"
-                        },
-                        {
-                          "projectId": "your-project",
-                          "datasetId": "dataset",
-                          "tableId": "table2"
-                        }
-                    ]
+        :return: List of tables associated with the dataset
         """
-        service = self.get_service()
-        dataset_project_id = project_id if project_id else self.project_id
+        warnings.warn(
+            "This method is deprecated. Please use ``get_dataset_tables``.",
+            DeprecationWarning
+        )
+        tables = self.get_client().list_tables(
+            dataset=DatasetReference(project=project_id, dataset_id=dataset_id),
+            max_results=max_results,
+        )
 
-        optional_params = {}
-        if max_results:
-            optional_params['maxResults'] = max_results
+        if table_prefix:
+            result = [t.reference.to_api_repr() for t in tables if t.table_id.startswith(table_prefix)]
+        else:
+            result = [t.reference.to_api_repr() for t in tables]
 
-        request = service.tables().list(projectId=dataset_project_id,  # pylint: disable=no-member
-                                        datasetId=dataset_id,
-                                        **optional_params)
-        dataset_tables_list = []
-        while request is not None:
-            response = request.execute(num_retries=self.num_retries)
+        self.log.info("%s tables found", len(result))
+        return result
 
-            for table in response.get('tables', []):
-                table_ref = table.get('tableReference')
-                table_id = table_ref.get('tableId')
-                if table_id and (not table_prefix or table_id.startswith(table_prefix)):
-                    dataset_tables_list.append(table_ref)
-
-            request = service.tables().list_next(previous_request=request,   # pylint: disable=no-member
-                                                 previous_response=response)
-
-        self.log.info("%s tables found", len(dataset_tables_list))
-
-        return dataset_tables_list
-
-    def get_datasets_list(self, project_id: Optional[str] = None) -> List:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_datasets_list(
+        self,
+        project_id: Optional[str] = None,
+        include_all: bool = False,
+        filter_: Optional[str] = None,
+        max_results: Optional[int] = None,
+        page_token: Optional[str] = None,
+        retry: Retry = DEFAULT_RETRY,
+    ) -> List[DatasetListItem]:
         """
         Method returns full list of BigQuery datasets in the current project
 
-        .. seealso::
-            For more information, see:
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/list
+        For more information, see:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/list
 
-        :param project_id: Google Cloud Project for which you
-            try to get all datasets
+        :param project_id: Google Cloud Project for which you try to get all datasets
         :type project_id: str
-        :return: datasets_list
-
-            Example of returned datasets_list: ::
-
-                   {
-                      "kind":"bigquery#dataset",
-                      "location":"US",
-                      "id":"your-project:dataset_2_test",
-                      "datasetReference":{
-                         "projectId":"your-project",
-                         "datasetId":"dataset_2_test"
-                      }
-                   },
-                   {
-                      "kind":"bigquery#dataset",
-                      "location":"US",
-                      "id":"your-project:dataset_1_test",
-                      "datasetReference":{
-                         "projectId":"your-project",
-                         "datasetId":"dataset_1_test"
-                      }
-                   }
-                ]
+        :param include_all: True if results include hidden datasets. Defaults to False.
+        :param filter_: An expression for filtering the results by label. For syntax, see
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/list#filter.
+        :param filter_: str
+        :param max_results: Maximum number of datasets to return.
+        :param max_results: int
+        :param page_token: Token representing a cursor into the datasets. If not passed,
+            the API will return the first page of datasets. The token marks the beginning of the
+            iterator to be returned and the value of the ``page_token`` can be accessed at
+            ``next_page_token`` of the :class:`~google.api_core.page_iterator.HTTPIterator`.
+        :param page_token: str
+        :param retry: How to retry the RPC.
+        :type retry: google.api_core.retry.Retry
         """
-        service = self.get_service()
-        dataset_project_id = project_id if project_id else self.project_id
+        project_id = project_id or self.project_id
+        datasets = self.get_client(project_id=project_id).list_datasets(
+            project=project_id,
+            include_all=include_all,
+            filter=filter_,
+            max_results=max_results,
+            page_token=page_token,
+            retry=retry,
+        )
+        datasets_list = list(datasets)
 
-        datasets_list = service.datasets().list(  # pylint: disable=no-member
-            projectId=dataset_project_id).execute(num_retries=self.num_retries)['datasets']
-        self.log.info("Datasets List: %s", datasets_list)
-
+        self.log.info("Datasets List: %s", len(datasets_list))
         return datasets_list
 
-    def get_dataset(self, dataset_id: str, project_id: Optional[str] = None) -> Dict:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_dataset(self, dataset_id: str, project_id: Optional[str] = None) -> Dataset:
         """
-        Method returns dataset_resource if dataset exist
-        and raised 404 error if dataset does not exist
+        Fetch the dataset referenced by dataset_id.
 
         :param dataset_id: The BigQuery Dataset ID
         :type dataset_id: str
@@ -993,18 +1012,12 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 For more information, see Dataset Resource content:
                 https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
         """
-        service = self.get_service()
-        if not dataset_id or not isinstance(dataset_id, str):
-            raise ValueError("dataset_id argument must be provided and has "
-                             "a type 'str'. You provided: {}".format(dataset_id))
-
-        dataset_project_id = project_id if project_id else self.project_id
-
-        dataset_resource = service.datasets().get(  # pylint: disable=no-member
-            datasetId=dataset_id, projectId=dataset_project_id).execute(num_retries=self.num_retries)
-        self.log.info("Dataset Resource: %s", dataset_resource)
-
-        return dataset_resource
+        project_id = project_id or self.project_id
+        dataset = self.get_client(project_id=project_id).get_dataset(
+            dataset_ref=DatasetReference(project_id, dataset_id)
+        )
+        self.log.info("Dataset Resource: %s", dataset)
+        return dataset
 
     def run_grant_dataset_view_access(self,
                                       source_dataset: str,
@@ -2093,7 +2106,7 @@ class BigQueryBaseCursor(LoggingMixin):
             DeprecationWarning, stacklevel=3)
         return self.hook.create_empty_dataset(*args, **kwargs)
 
-    def get_dataset_tables(self, *args, **kwargs) -> Dict[str, Union[str, int, List]]:
+    def get_dataset_tables(self, *args, **kwargs) -> List[Dict[str, Any]]:
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables`
@@ -2102,7 +2115,7 @@ class BigQueryBaseCursor(LoggingMixin):
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables`",
             DeprecationWarning, stacklevel=3)
-        return self.hook.get_dataset_tables(*args, **kwargs)
+        return [t.reference.to_api_repr() for t in self.hook.get_dataset_tables(*args, **kwargs)]
 
     def delete_dataset(self, *args, **kwargs) -> None:
         """
@@ -2157,7 +2170,7 @@ class BigQueryBaseCursor(LoggingMixin):
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_dataset`",
             DeprecationWarning, stacklevel=3)
-        return self.hook.update_dataset(*args, **kwargs)
+        return Dataset.to_api_repr(self.hook.update_dataset(*args, **kwargs))
 
     def patch_dataset(self, *args, **kwargs) -> Dict:
         """
@@ -2170,7 +2183,7 @@ class BigQueryBaseCursor(LoggingMixin):
             DeprecationWarning, stacklevel=3)
         return self.hook.patch_dataset(*args, **kwargs)
 
-    def get_dataset_tables_list(self, *args, **kwargs) -> Dict:
+    def get_dataset_tables_list(self, *args, **kwargs) -> List[Dict[str, Any]]:
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables_list`

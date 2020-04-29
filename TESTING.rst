@@ -161,7 +161,7 @@ Enabling Integrations
 ---------------------
 
 Airflow integration tests cannot be run in the local virtualenv. They can only run in the Breeze
-environment with enabled integrations and in the CI.
+environment with enabled integrations and in the CI. See `<CI.yml>`_ for details about Airflow CI.
 
 When you are in the Breeze environment, by default all integrations are disabled. This enables only true unit tests
 to be executed in Breeze. You can enable the integration by passing the ``--integration <INTEGRATION>``
@@ -500,7 +500,6 @@ Currently forwarded credentials are:
   * credentials stored in ``${HOME}/.aws``, ``${HOME}/.boto``, and ``${HOME}/.s3`` (for AWS authentication)
   * credentials stored in ``${HOME}/.docker`` for docker
   * credentials stored in ``${HOME}/.kube`` for kubectl
-  * credentials stored in ``${HOME}/.ssh`` for SSH
 
 
 Adding a New System Test
@@ -762,15 +761,6 @@ your local sources to the ``/opt/airflow`` location of the sources within the co
 .. image:: images/source_code_mapping_ide.png
     :align: center
     :alt: Source code mapping
-
-Remote Debugging on Travis CI
-=============================
-
-You can also connect IDE to Travis CI. To do this, you must pass a public IP address in the ``pydevd.set_trace``
-method. If you do not have a public IP address then you can start the virtual machine at the cloud service
-provider for the time of debugging. You also need to install the appropriate debugger in Travis CI. You
-need to modify the ``scripts/ci/in_container/entrypoint.sh`` file to add a pip install command
-after the license header.
 
 Setup VM on GCP with SSH forwarding
 -----------------------------------

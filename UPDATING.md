@@ -62,6 +62,22 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Change signature of BigQueryGetDatasetTablesOperator
+Was:
+```python
+BigQueryGetDatasetTablesOperator(dataset_id: str, dataset_resource: dict, ...)
+```
+and now it is:
+```python
+BigQueryGetDatasetTablesOperator(dataset_resource: dict, dataset_id: Optional[str] = None, ...)
+```
+
+### Unify `hostname_callable` option in `core` section
+
+The previous option used a colon(`:`) to split the module from function. Now the dot(`.`) is used.
+
+The change aims to unify the format of all options that refer to objects in the `airflow.cfg` file.
+
 ### Changes in BigQueryHook
 - `create_empty_table` method accepts now `table_resource` parameter. If provided all
 other parameters are ignored.
@@ -69,6 +85,9 @@ other parameters are ignored.
 if parameters were passed in `dataset_reference` and as arguments to method. Additionally validation
 of `dataset_reference` is done using `Dataset.from_api_repr`. Exception and log messages has been
 changed.
+- `update_dataset` requires now new `fields` argument (breaking change)
+- `delete_dataset` has new signature (dataset_id, project_id, ...)
+previous one was (project_id, dataset_id, ...) (breaking change)
 
 ### Added mypy plugin to preserve types of decorated functions
 

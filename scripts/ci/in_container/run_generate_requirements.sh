@@ -76,13 +76,28 @@ set +e
 diff --color=always "${OLD_REQUIREMENTS_FILE}" "${GENERATED_REQUIREMENTS_FILE}"
 RES=$?
 
-if [[ ${RES} != "0" && ${SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS:=} == "true" ]]; then
-    echo
-    echo " ERROR! Requirements need to be updated!"
-    echo
-    echo "     Please generate requirements with:"
-    echo
-    echo "           breeze generate-requirements --python ${PYTHON_MAJOR_MINOR_VERSION}"
-    echo
+if [[ ${FAIL_WHEN_REQUIREMENTS_UPDATED:="true"} == "true" ]]; then
+    if [[ ${RES} != "0" && ${SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS:=} == "true" ]]; then
+        echo
+        echo " ERROR! Requirements need to be updated!"
+        echo
+        echo "     Please generate requirements with:"
+        echo
+        echo "           breeze generate-requirements --python ${PYTHON_MAJOR_MINOR_VERSION}"
+        echo
+    fi
     exit "${RES}"
+else
+    if [[ ${RES} != "0"  && ${SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS:=} == "true" ]]; then
+        echo
+        echo " WARNING! Above are the updated requirements for Airflow "
+        echo
+        echo "     Next time when you update setup.py, you will need to run"
+        echo
+        echo "           breeze generate-requirements --python ${PYTHON_MAJOR_MINOR_VERSION}"
+        echo
+        echo " Or you can run it now and make a separate 'requirements update' commit."
+        echo
+    fi
+    exit 0
 fi

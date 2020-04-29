@@ -156,3 +156,21 @@ class TestCli(TestCase):
             stdout = stdout.getvalue()
         self.assertIn("Commands", stdout)
         self.assertIn("Groups", stdout)
+
+    def test_should_display_helps(self):
+        parser = cli_parser.get_parser()
+
+        all_command_as_args = [
+            command_as_args
+            for top_commaand in cli_parser.airflow_commands
+            for command_as_args in (
+                [[top_commaand.name]]
+                if isinstance(top_commaand, cli_parser.ActionCommand)
+                else [
+                    [top_commaand.name, nested_command.name] for nested_command in top_commaand.subcommands
+                ]
+            )
+        ]
+        for cmd_args in all_command_as_args:
+            with self.assertRaises(SystemExit):
+                parser.parse_args([*cmd_args, '--help'])

@@ -53,6 +53,7 @@ RUN_PAGE_URL = 'https://XX.cloud.databricks.com/#jobs/1/runs/1'
 LIFE_CYCLE_STATE = 'PENDING'
 STATE_MESSAGE = 'Waiting for cluster'
 GET_RUN_RESPONSE = {
+    'job_id': JOB_ID,
     'run_page_url': RUN_PAGE_URL,
     'state': {
         'life_cycle_state': LIFE_CYCLE_STATE,
@@ -251,6 +252,24 @@ class TestDatabricksHook(unittest.TestCase):
                     mock_sleep.assert_has_calls(calls)
 
     @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_do_api_call_patch(self, mock_requests):
+        mock_requests.patch.return_value.json.return_value = {'cluster_name': 'new_name'}
+        data = {
+            'cluster_name': 'new_name'
+        }
+        patched_cluster_name = self.hook._do_api_call(('PATCH', 'api/2.0/jobs/runs/submit'), data)
+
+        self.assertEqual(patched_cluster_name['cluster_name'], 'new_name')
+        mock_requests.patch.assert_called_once_with(
+            submit_run_endpoint(HOST),
+            json={
+                'cluster_name': 'new_name'
+            },
+            auth=(LOGIN, PASSWORD),
+            headers=USER_AGENT_HEADER,
+            timeout=self.hook.timeout_seconds)
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
     def test_submit_run(self, mock_requests):
         mock_requests.post.return_value.json.return_value = {'run_id': '1'}
         data = {
@@ -303,6 +322,20 @@ class TestDatabricksHook(unittest.TestCase):
         run_page_url = self.hook.get_run_page_url(RUN_ID)
 
         self.assertEqual(run_page_url, RUN_PAGE_URL)
+        mock_requests.get.assert_called_once_with(
+            get_run_endpoint(HOST),
+            json={'run_id': RUN_ID},
+            auth=(LOGIN, PASSWORD),
+            headers=USER_AGENT_HEADER,
+            timeout=self.hook.timeout_seconds)
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_get_job_id(self, mock_requests):
+        mock_requests.get.return_value.json.return_value = GET_RUN_RESPONSE
+
+        job_id = self.hook.get_job_id(RUN_ID)
+
+        self.assertEqual(job_id, JOB_ID)
         mock_requests.get.assert_called_once_with(
             get_run_endpoint(HOST),
             json={'run_id': RUN_ID},

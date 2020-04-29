@@ -47,7 +47,7 @@ class TransferJobPreprocessor:
 
     def _inject_aws_credentials(self):
         if TRANSFER_SPEC in self.body and AWS_S3_DATA_SOURCE in self.body[TRANSFER_SPEC]:
-            aws_hook = AwsBaseHook(self.aws_conn_id)
+            aws_hook = AwsBaseHook(self.aws_conn_id, resource_type="s3")
             aws_credentials = aws_hook.get_credentials()
             aws_access_key_id = aws_credentials.access_key
             aws_secret_access_key = aws_credentials.secret_key
@@ -160,15 +160,20 @@ class CloudDataTransferServiceCreateJobOperator(BaseOperator):
 
     .. warning::
 
-        This operator is NOT idempotent. If you run it many times, many transfer
-        jobs will be created in the Google Cloud Platform.
+        This operator is NOT idempotent in the following cases:
+
+        * `name` is not passed in body param
+        * transfer job `name` has been soft deleted. In this case,
+          each new task will receive a unique suffix
+
+        If you run it many times, many transfer jobs will be created in the Google Cloud Platform.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudDataTransferServiceCreateJobOperator`
 
     :param body: (Required) The request body, as described in
-        https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/create#request-body
+        https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs#TransferJob
         With three additional improvements:
 
         * dates can be given in the form :class:`datetime.date`

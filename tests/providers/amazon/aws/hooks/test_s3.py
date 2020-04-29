@@ -18,6 +18,7 @@
 #
 
 import gzip as gz
+import os
 import tempfile
 from unittest.mock import Mock
 
@@ -277,25 +278,27 @@ class TestAwsS3Hook:
 
     def test_load_file_gzip(self, s3_bucket):
         hook = S3Hook()
-        with tempfile.NamedTemporaryFile() as temp_file:
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             temp_file.write(b"Content")
             temp_file.seek(0)
-            hook.load_file(temp_file, "my_key", s3_bucket, gzip=True)
+            hook.load_file(temp_file.name, "my_key", s3_bucket, gzip=True)
             resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
             assert gz.decompress(resource.get()['Body'].read()) == b'Content'
+            os.unlink(temp_file.name)
 
     def test_load_file_acl(self, s3_bucket):
         hook = S3Hook()
-        with tempfile.NamedTemporaryFile() as temp_file:
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             temp_file.write(b"Content")
             temp_file.seek(0)
-            hook.load_file(temp_file, "my_key", s3_bucket, gzip=True,
+            hook.load_file(temp_file.name, "my_key", s3_bucket, gzip=True,
                            acl_policy='public-read')
             response = boto3.client('s3').get_object_acl(Bucket=s3_bucket,
                                                          Key="my_key",
                                                          RequestPayer='requester')  # pylint: disable=no-member # noqa: E501 # pylint: disable=C0301
             assert ((response['Grants'][1]['Permission'] == 'READ') and
                     (response['Grants'][0]['Permission'] == 'FULL_CONTROL'))
+            os.unlink(temp_file.name)
 
     def test_copy_object_acl(self, s3_bucket):
         hook = S3Hook()
@@ -399,3 +402,15 @@ class TestAwsS3Hook:
         s3_hook.check_for_key.assert_called_once_with(key, bucket)
         s3_hook.get_key.assert_called_once_with(key, bucket)
         s3_obj.download_fileobj.assert_called_once_with(mock_temp_file)
+
+    def test_generate_presigned_url(self, s3_bucket):
+        hook = S3Hook()
+        presigned_url = hook.generate_presigned_url(client_method="get_object",
+                                                    params={'Bucket': s3_bucket,
+                                                            'Key': "my_key"})
+
+        url = presigned_url.split("?")[1]
+        params = {x[0]: x[1]
+                  for x in [x.split("=") for x in url[0:].split("&")]}
+
+        assert {"AWSAccessKeyId", "Signature", "Expires"}.issubset(set(params.keys()))
