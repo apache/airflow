@@ -180,7 +180,10 @@ In this example, Jinja looks for the ``name`` parameter and substitutes ``{{ tas
 The parameter can also contain a file name, for example, a bash script or a SQL file. You need to add
 the extension of your file in ``template_ext``. If a ``template_field`` contains a string ending with
 the extension mentioned in ``template_ext``, Jinja reads the content of the file and replace the templates
-with actual value. Note that Jinja substitutes the operator attributes and not the args.
+with actual value. The file name specified can also end with any of the ``template_ext`` extensions
+followed by ``.jinja2``, e.g. if ``template_ext`` is ``[.sh]`` and the file name provided is
+``….sh.jinja2``, then this file will be read even though ``.jinja2`` extension is not mentioned in
+``template_ext``. Note that Jinja substitutes the operator attributes and not the args.
 
 .. code:: python
 
