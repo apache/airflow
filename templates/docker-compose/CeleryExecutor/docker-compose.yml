@@ -68,6 +68,7 @@ services:
       - ./airflow-data/logs:/opt/airflow/logs
       - ./airflow-data/plugins:/opt/airflow/plugins
 
+
   airflow-worker3:
     image: apache/airflow:1.10.10
     container_name: airflow_worker3_cont
