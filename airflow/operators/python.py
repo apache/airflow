@@ -145,12 +145,9 @@ class PythonOperator(BaseOperator):
         return self.python_callable(*self.op_args, **self.op_kwargs)
 
 
-class PythonFunctionalOperator(BaseOperator):
+class _PythonFunctionalOperator(BaseOperator):
     """
     Wraps a Python callable and captures args/kwargs when called for execution.
-
-    .. seealso::
-        TBD
 
     :param python_callable: A reference to an object that is callable
     :type python_callable: python callable
@@ -177,6 +174,8 @@ class PythonFunctionalOperator(BaseOperator):
         *args,
         **kwargs
     ) -> None:
+        if not kwargs.get('do_xcom_push', True) and not multiple_outputs:
+            raise AirflowException('PythonFunctionalOperator needs to have either do_xcom_push=True or multiple_outputs=True.')
         super().__init__(*args, **kwargs)
         if not callable(python_callable):
             raise AirflowException('`python_callable` param must be callable')
@@ -212,7 +211,7 @@ class PythonFunctionalOperator(BaseOperator):
         :param task_id: Task id for the new operator
         :type task_id: str
         """
-        return PythonFunctionalOperator(
+        return _PythonFunctionalOperator(
             python_callable=self.python_callable, multiple_outputs=self.multiple_outputs, task_id=task_id, **{**kwarg, **self._kwargs}
         )
 
@@ -230,14 +229,28 @@ class PythonFunctionalOperator(BaseOperator):
         return return_value
 
 def task(*args, **kwargs):
+    """
+    Python task decorator. Wraps a function into an Airflow operator. 
+    Accepts kwargs for operator kwarg. Will try to wrap operator into DAG at declaration or
+    on function invocation. Use alias to reuse function in the DAG.
+
+    :param multiple_outputs: if set, function return value will be 
+        unrolled to multiple XCom values. List will unroll to xcom values 
+        with index as key. Dict will unroll to xcom values with keys as keys. 
+        Defaults to False.
+    :type multiple_outputs: bool
+
+    .. seealso::
+        TBD
+    """
     if len(args)>0 and not (len(args) == 1 and callable(args[0])):
-        raise Exception('No args allowed to specify arguments for PythonFunctionalOperator')
+        raise AirflowException('No args allowed to specify arguments for PythonFunctionalOperator')
 
     def wrapper(f):
         """Python wrapper to generate PythonFunctionalOperator out of simple python functions.
         Used for Airflow functional interface
         """
-        return PythonFunctionalOperator(python_callable=f, task_id=f.__name__, **kwargs)
+        return _PythonFunctionalOperator(python_callable=f, task_id=f.__name__, **kwargs)
     if len(args) == 1 and callable(args[0]):
         return wrapper(args[0])
     return wrapper
