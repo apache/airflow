@@ -1854,7 +1854,7 @@ components:
       in: path
       name: dag_id
       schema:
-        type: integer
+        type: string
       required: true
       description: The DAG ID.
 
@@ -1862,7 +1862,7 @@ components:
       in: path
       name: dag_run_id
       schema:
-        type: integer
+        type: string
       required: true
       description: The DAG Run ID.
 
@@ -1870,7 +1870,7 @@ components:
       in: path
       name: task_id
       schema:
-        type: integer
+        type: string
       required: true
       description: The Task ID.
 
