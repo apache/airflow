@@ -145,44 +145,79 @@ class PythonOperator(BaseOperator):
         return self.python_callable(*self.op_args, **self.op_kwargs)
 
 
-class PythonFunctionalOperator(PythonOperator):
+class PythonFunctionalOperator(BaseOperator):
     """
-    Allows a workflow to "branch" or follow a path following the execution
-    of this task.
+    Wraps a Python callable and captures args/kwargs when called for execution.
 
-    It derives the PythonOperator and expects a Python function that returns
-    a single task_id or list of task_ids to follow. The task_id(s) returned
-    should point to a task directly downstream from {self}. All other "branches"
-    or directly downstream tasks are marked with a state of ``skipped`` so that
-    these paths can't move forward. The ``skipped`` states are propagated
-    downstream to allow for the DAG state to fill up and the DAG run's state
-    to be inferred.
+    .. seealso::
+        TBD
+
+    :param python_callable: A reference to an object that is callable
+    :type python_callable: python callable
+    :param multiple_outputs: if set, function return value will be 
+        unrolled to multiple XCom values. List will unroll to xcom values 
+        with index as key. Dict will unroll to xcom values with keys as keys. 
+        Defaults to False.
+    :type multiple_outputs: bool
     """
+
+    template_fields = ('_op_args', '_op_kwargs')
+    ui_color = '#ffefeb'
+
+    # since we won't mutate the arguments, we should just do the shallow copy
+    # there are some cases we can't deepcopy the objects(e.g protobuf).
+    shallow_copy_attrs = ('python_callable',)
+
 
     @apply_defaults
     def __init__(
         self,
+        python_callable: Callable,
         multiple_outputs: bool = False,
         *args,
         **kwargs
     ) -> None:
         super().__init__(*args, **kwargs)
+        if not callable(python_callable):
+            raise AirflowException('`python_callable` param must be callable')
+        self.python_callable = python_callable
         self.multiple_outputs = multiple_outputs
-        
-
+        self._kwargs = kwargs
+        self._op_args = None
+        self._op_kwargs = None
+    
+    
     def __call__(self, *args, **kwargs):
-        self.op_args = args
-        self.op_kwargs = kwargs
+        # If args/kwargs are set, then operator has been called. Raise exception
+        if self._op_args is not None or self._op_kwargs is not None:
+            raise AirflowException('PythonFunctionalOperator can only be called once. If you need to reuse it several times in a DAG, use the `alias` method.')
+        
+        # If we have no DAG, reinitialize class to capture DAGContext and DAG default args.
+        if not self.has_dag:
+            self.__init__(self.python_callable, multiple_outputs=self.multiple_outputs, **self._kwargs)
+
+        # Capture args/kwargs
+        self._op_args = args
+        self._op_kwargs = kwargs
         # To add when we get XCom merged
         # return XComArg(self)
 
-    def alias(self, task_id: str):
+    @apply_defaults
+    def alias(self, task_id: str, **kwargs):
+        """
+        Create a copy of the PythonFunctionalOperator, allow to overwrite ctor kwargs if needed.
+
+        If alias is created a new DAGContext, apply defaults and set new DAG as the operator DAG.
+  
+        :param task_id: Task id for the new operator
+        :type task_id: str
+        """
         return PythonFunctionalOperator(
-            python_callable=self.python_callable, task_id=task_id
+            python_callable=self.python_callable, multiple_outputs=self.multiple_outputs, task_id=task_id, **{**kwarg, **self._kwargs}
         )
 
     def execute(self, context: Dict):
-        return_value = self.execute_callable()
+        return_value = self.python_callable(*self._op_args, **self._op_kwargs)
         self.log.info("Done. Returned value was: %s", return_value)
         if not self.multiple_outputs
             return return_value
@@ -195,7 +230,7 @@ class PythonFunctionalOperator(PythonOperator):
         return return_value
 
 def task(*args, **kwargs):
-    if len(args)>1 and not callable(args[0]):
+    if len(args)>0 and not (len(args) == 1 and callable(args[0])):
         raise Exception('No args allowed to specify arguments for PythonFunctionalOperator')
 
     def wrapper(f):
