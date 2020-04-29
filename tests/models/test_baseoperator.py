@@ -208,7 +208,7 @@ class TestBaseOperator(unittest.TestCase):
     @parameterized.expand([
         ('file1.txt', {'foo': 'bar'}, tuple('.txt'), 'bar'),
         ('file2.txt.jinja2', {}, tuple('.txt'), 'bar'),
-        ('file4.jinja2', {'foo': 'bar'}, tuple('.txt'), 'bar'),
+        ('file4.jinja2', {}, tuple('.txt'), 'file4.jinja2')
     ])
     def test_render_template_from_file(self, filename, context, template_ext, expected_output):
         with DAG(

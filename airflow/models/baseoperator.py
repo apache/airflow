@@ -1128,7 +1128,10 @@ class BaseOperator(Operator, LoggingMixin):
         self._set_relatives(task_or_task_list, upstream=True)
 
     def _get_effective_template_ext(self):
-        return itertools.chain(self.template_ext, self.extra_jinja_ext)
+        return itertools.chain(
+            self.template_ext,
+            [f'{ext}{jinja}' for ext in self.template_ext for jinja in self.extra_jinja_ext]
+        )
 
     @staticmethod
     def xcom_push(
