@@ -19,46 +19,37 @@
 import json
 import os
 import socket
-import unittest
 from datetime import datetime
 from unittest import mock
 
 import pytest
+from tests.test_utils.config import conf_vars
 
 from airflow.api.auth.backend.kerberos_auth import CLIENT_AUTH
-from airflow.configuration import conf
 from airflow.www import app as application
 
 
+@pytest.fixture(scope="class")
+def app():
+    with conf_vars({
+        ("api", "auth_backend"): "airflow.api.auth.backend.kerberos_auth",
+        ("kerberos", "keytab"): os.environ['KRB5_KTNAME'],
+    }):
+        app_, _ = application.create_app(testing=True)
+        yield app_
+
+
 @pytest.mark.integration("kerberos")
-class TestApiKerberos(unittest.TestCase):
-    def setUp(self):
-        try:
-            conf.add_section("api")
-        except Exception:  # pylint: disable=broad-except
-            pass
-        conf.set("api",
-                 "auth_backend",
-                 "airflow.api.auth.backend.kerberos_auth")
-        try:
-            conf.add_section("kerberos")
-        except Exception:  # pylint: disable=broad-except
-            pass
-        conf.set("kerberos",
-                 "keytab",
-                 os.environ['KRB5_KTNAME'])
-
-        self.app, _ = application.create_app(testing=True)
-
-    def test_trigger_dag(self):
-        with self.app.test_client() as client:
+class TestApiKerberos:
+    def test_trigger_dag(self, app):
+        with app.test_client() as client:
             url_template = '/api/experimental/dags/{}/dag_runs'
             response = client.post(
                 url_template.format('example_bash_operator'),
                 data=json.dumps(dict(run_id='my_run' + datetime.now().isoformat())),
                 content_type="application/json"
             )
-            self.assertEqual(401, response.status_code)
+            assert 401, response.status_code
 
             response.url = 'http://{}'.format(socket.getfqdn())
 
@@ -78,7 +69,7 @@ class TestApiKerberos(unittest.TestCase):
             CLIENT_AUTH.hostname_override = socket.getfqdn()
 
             CLIENT_AUTH.handle_response(response)
-            self.assertIn('Authorization', response.request.headers)
+            assert 'Authorization' in response.request.headers
 
             response2 = client.post(
                 url_template.format('example_bash_operator'),
@@ -86,10 +77,10 @@ class TestApiKerberos(unittest.TestCase):
                 content_type="application/json",
                 headers=response.request.headers
             )
-            self.assertEqual(200, response2.status_code)
+            assert 200 == response2.status_code
 
-    def test_unauthorized(self):
-        with self.app.test_client() as client:
+    def test_unauthorized(self, app):
+        with app.test_client() as client:
             url_template = '/api/experimental/dags/{}/dag_runs'
             response = client.post(
                 url_template.format('example_bash_operator'),
@@ -97,4 +88,4 @@ class TestApiKerberos(unittest.TestCase):
                 content_type="application/json"
             )
 
-            self.assertEqual(401, response.status_code)
+            assert 401 == response.status_code
