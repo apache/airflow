@@ -81,20 +81,21 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.failed_states = failed_states or []
 
         total_states = self.allowed_states + self.failed_states
+        total_states = set(total_states)
 
-        if len(list(set(total_states))) < (len(self.failed_states) + len(self.allowed_states)):
+        if len(list(total_states)) < (len(self.failed_states) + len(self.allowed_states)):
             raise AirflowException("Duplicate values provided as allowed "
                                    "`{}` and failed states `{}`"
                                    .format(self.allowed_states, self.failed_states))
 
         if external_task_id:
-            if not set(total_states) <= set(State.task_states):
+            if not total_states <= set(State.task_states):
                 raise ValueError(
                     'Valid values for `allowed_states` and `failed_states` '
                     'when `external_task_id` is not `None`: {}'.format(State.task_states)
                 )
         else:
-            if not set(total_states) <= set(State.dag_states):
+            if not total_states <= set(State.dag_states):
                 raise ValueError(
                     'Valid values for `allowed_states` and `failed_states` '
                     'when `external_task_id` is `None`: {}'.format(State.dag_states)
