@@ -108,7 +108,8 @@ class FileTaskHandler(logging.Handler):
                 log = "*** Failed to load local log file: {}\n".format(location)
                 log += "*** {}\n".format(str(e))
         elif conf.get('core', 'executor') == 'KubernetesExecutor':
-            log += '*** Trying to get logs from worker pod {} ***\n'.format(ti.hostname)
+            log += '*** Trying to get logs (last 100 lines) from worker pod {} ***\n'\
+                .format(ti.hostname)
 
             try:
                 from kubernetes.client.models import V1Pod, V1ObjectMeta
