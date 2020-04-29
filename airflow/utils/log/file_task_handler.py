@@ -122,7 +122,7 @@ class FileTaskHandler(logging.Handler):
                 for line in PodLauncher.read_pod_logs(pod, 100):
                     log += line.decode()
 
-            except Exception as f:
+            except Exception as f:  # pylint: disable=broad-except
                 log += '*** Unable to fetch logs from worker pod {} ***\n{}\n\n'.format(
                     ti.hostname, str(f)
                 )
