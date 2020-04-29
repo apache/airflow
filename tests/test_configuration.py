@@ -381,10 +381,8 @@ AIRFLOW_HOME = /root/airflow
             with mock.patch.dict('os.environ', AIRFLOW__CELERY__CELERYD_CONCURRENCY="99"):
                 self.assertEqual(conf.getint('celery', 'worker_concurrency'), 99)
 
-        with self.assertWarns(DeprecationWarning):
-            conf.set('celery', 'celeryd_concurrency', '99')
+        with self.assertWarns(DeprecationWarning), conf_vars({('celery', 'celeryd_concurrency'): '99'}):
             self.assertEqual(conf.getint('celery', 'worker_concurrency'), 99)
-            conf.remove_option('celery', 'celeryd_concurrency')
 
     @conf_vars({
         ('logging', 'logging_level'): None,
@@ -405,10 +403,8 @@ AIRFLOW_HOME = /root/airflow
             with mock.patch.dict('os.environ', AIRFLOW__CORE__LOGGING_LEVEL="VALUE"):
                 self.assertEqual(conf.get('logging', 'logging_level'), "VALUE")
 
-        with self.assertWarns(DeprecationWarning):
-            conf.set('core', 'logging_level', 'VALUE')
+        with self.assertWarns(DeprecationWarning), conf_vars({('core', 'logging_level'): 'VALUE'}):
             self.assertEqual(conf.get('logging', 'logging_level'), "VALUE")
-            conf.remove_option('core', 'logging_level')
 
     @conf_vars({
         ("celery", "result_backend"): None,
@@ -422,15 +418,14 @@ AIRFLOW_HOME = /root/airflow
         conf.as_command_stdout.add(('celery', 'celery_result_backend'))
 
         conf.remove_option('celery', 'result_backend')
-        conf.set('celery', 'celery_result_backend_cmd', '/bin/echo 99')
-
-        with self.assertWarns(DeprecationWarning):
-            tmp = None
-            if 'AIRFLOW__CELERY__RESULT_BACKEND' in os.environ:
-                tmp = os.environ.pop('AIRFLOW__CELERY__RESULT_BACKEND')
-            self.assertEqual(conf.getint('celery', 'result_backend'), 99)
-            if tmp:
-                os.environ['AIRFLOW__CELERY__RESULT_BACKEND'] = tmp
+        with conf_vars({('celery', 'celery_result_backend_cmd'): '/bin/echo 99'}):
+            with self.assertWarns(DeprecationWarning):
+                tmp = None
+                if 'AIRFLOW__CELERY__RESULT_BACKEND' in os.environ:
+                    tmp = os.environ.pop('AIRFLOW__CELERY__RESULT_BACKEND')
+                self.assertEqual(conf.getint('celery', 'result_backend'), 99)
+                if tmp:
+                    os.environ['AIRFLOW__CELERY__RESULT_BACKEND'] = tmp
 
     def test_deprecated_values(self):
         def make_config():
