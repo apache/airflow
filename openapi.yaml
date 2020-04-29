@@ -490,7 +490,7 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
 
     post:
-      summary: Create aa pool
+      summary: Create a pool
       operationId: createPool
       tags: [Pool]
       requestBody:
