@@ -40,10 +40,6 @@ from tests.test_utils.reset_warning_registry import reset_warning_registry
 })
 class TestConf(unittest.TestCase):
 
-    @classmethod
-    def setUpClass(cls):
-        conf.set('core', 'percent', 'with%%inside')
-
     def test_airflow_home_default(self):
         with unittest.mock.patch.dict('os.environ'):
             if 'AIRFLOW_HOME' in os.environ:
@@ -72,6 +68,7 @@ class TestConf(unittest.TestCase):
                 get_airflow_config('/home//airflow'),
                 '/path/to/airflow/airflow.cfg')
 
+    @conf_vars({("core", "percent"): "with%%inside"})
     def test_case_sensitivity(self):
         # section and key are case insensitive for get method
         # note: this is not the case for as_dict method
@@ -99,6 +96,7 @@ class TestConf(unittest.TestCase):
         'os.environ',
         AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY='nested'
     )
+    @conf_vars({("core", "percent"): "with%%inside"})
     def test_conf_as_dict(self):
         cfg_dict = conf.as_dict()
 
@@ -134,6 +132,7 @@ class TestConf(unittest.TestCase):
         self.assertEqual(
             cfg_dict['testsection']['testkey'], ('testvalue', 'env var'))
 
+    @conf_vars({("core", "percent"): "with%%inside"})
     def test_conf_as_dict_raw(self):
         # test display_sensitive
         cfg_dict = conf.as_dict(raw=True, display_sensitive=True)
