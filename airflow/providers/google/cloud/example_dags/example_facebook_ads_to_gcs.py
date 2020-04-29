@@ -87,6 +87,7 @@ with models.DAG(
         ],
     )
 
+    # [START howto_operator_facebook_ads_to_gcs]
     run_operator = FacebookAdsReportToGcsOperator(
         task_id='run_fetch_data',
         start_date=days_ago(2),
@@ -97,6 +98,7 @@ with models.DAG(
         gcp_conn_id=GCS_CONN_ID,
         object_name=GCS_OBJ_PATH,
     )
+    # [END howto_operator_facebook_ads_to_gcs]
 
     load_csv = GCSToBigQueryOperator(
         task_id='gcs_to_bq_example',
