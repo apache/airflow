@@ -97,6 +97,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         Returns a BigQuery service object.
         """
+        warnings.warn(
+            "This method will be deprecated. Please use `BigQueryHook.get_client` method",
+            DeprecationWarning
+        )
         http_authorized = self._authorize()
         return build(
             'bigquery', 'v2', http=http_authorized, cache_discovery=False)
@@ -779,9 +783,17 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table_id=table_id
         )
 
-    def insert_all(self, project_id: str, dataset_id: str, table_id: str,
-                   rows: List, ignore_unknown_values: bool = False,
-                   skip_invalid_rows: bool = False, fail_on_error: bool = False) -> None:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def insert_all(
+        self,
+        project_id: str,
+        dataset_id: str,
+        table_id: str,
+        rows: List,
+        ignore_unknown_values: bool = False,
+        skip_invalid_rows: bool = False,
+        fail_on_error: bool = False
+    ) -> None:
         """
         Method to stream data into BigQuery one record at a time without needing
         to run a load job
@@ -815,40 +827,31 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             even if any insertion errors occur.
         :type fail_on_error: bool
         """
-        service = self.get_service()
-        dataset_project_id = project_id if project_id else self.project_id
-
-        body = {
-            "rows": rows,
-            "ignoreUnknownValues": ignore_unknown_values,
-            "kind": "bigquery#tableDataInsertAllRequest",
-            "skipInvalidRows": skip_invalid_rows,
-        }
+        dataset_project_id = project_id or self.project_id
 
         self.log.info(
-            'Inserting %s row(s) into Table %s:%s.%s',
-            len(rows), dataset_project_id, dataset_id, table_id
+            'Inserting %s row(s) into table %s:%s.%s', len(rows), dataset_project_id, dataset_id, table_id
         )
 
-        resp = service.tabledata().insertAll(  # pylint: disable=no-member
-            projectId=dataset_project_id, datasetId=dataset_id,
-            tableId=table_id, body=body
-        ).execute(num_retries=self.num_retries)
-
-        if 'insertErrors' not in resp:
+        table = self._resolve_table_reference(
+            table_resource={}, project_id=project_id, dataset_id=dataset_id, table_id=table_id
+        )
+        errors = self.get_client().insert_rows(
+            table=Table.from_api_repr(table),
+            rows=rows,
+            ignore_unknown_values=ignore_unknown_values,
+            skip_invalid_rows=skip_invalid_rows
+        )
+        if errors:
+            error_msg = f"{len(errors)} insert error(s) occurred. Details: {errors}"
+            self.log.error(error_msg)
+            if fail_on_error:
+                raise AirflowException(f'BigQuery job failed. Error was: {error_msg}')
+        else:
             self.log.info(
                 'All row(s) inserted successfully: %s:%s.%s',
                 dataset_project_id, dataset_id, table_id
             )
-        else:
-            error_msg = '{} insert error(s) occurred: {}:{}.{}. Details: {}'.format(
-                len(resp['insertErrors']),
-                dataset_project_id, dataset_id, table_id, resp['insertErrors'])
-            if fail_on_error:
-                raise AirflowException(
-                    'BigQuery job failed. Error was: {}'.format(error_msg)
-                )
-            self.log.error(error_msg)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def update_dataset(
