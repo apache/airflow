@@ -940,7 +940,7 @@ Google Marketing Platform
      - Destination
      - Guide
      - Operators
-     - Senssors
+     - Sensors
 
    * - `Analytics360 <https://analytics.google.com/>`__
      - :doc:`How to use <howto/operator/gcp/analytics>`
