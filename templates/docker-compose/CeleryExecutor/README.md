@@ -3,6 +3,8 @@ Docker Compose Apache Airflow (Official Docker Images) with CeleryExecutor, Init
 
 Ideal for local development or small scale personal deployments.
 
+Prerequisites: Docker and docker-compose
+
 ### How to deploy:
 
 **Step 1:** Clone this Repo and open terminal
