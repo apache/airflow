@@ -106,7 +106,6 @@ def default_config_yaml() -> dict:
     with open(file_path) as config_file:
         return yaml.safe_load(config_file)
 
-
 class AirflowConfigParser(ConfigParser):
 
     # These configuration elements can be fetched as the stdout of commands
