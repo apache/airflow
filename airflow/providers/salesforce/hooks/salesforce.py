@@ -237,7 +237,7 @@ class SalesforceHook(BaseHook):
             raise ValueError("Format value is not recognized: {}".format(fmt))
 
         if filename is None:
-            raise ValueError("Format value is not recognized: {}".format(fmt))
+            raise ValueError("Filename cannot be None.")
 
         df = self.object_to_df(query_results=query_results, coerce_to_timestamp=coerce_to_timestamp,
                                record_time_added=record_time_added)
