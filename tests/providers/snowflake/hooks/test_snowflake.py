@@ -90,7 +90,8 @@ class TestSnowflakeHook(unittest.TestCase):
         os.remove(self.non_encrypted_private_key)
 
     def test_get_uri(self):
-        uri_shouldbe = 'snowflake://user:pw@airflow/db/public?warehouse=af_wh&role=af_role'
+        uri_shouldbe = 'snowflake://user:pw@airflow/db/public?warehouse=af_wh&role=af_role' \
+                       '&authenticator=snowflake'
         self.assertEqual(uri_shouldbe, self.db_hook.get_uri())
 
     def test_get_conn_params(self):
@@ -101,7 +102,8 @@ class TestSnowflakeHook(unittest.TestCase):
                                 'account': 'airflow',
                                 'warehouse': 'af_wh',
                                 'region': 'af_region',
-                                'role': 'af_role'}
+                                'role': 'af_role',
+                                'authenticator': 'snowflake'}
         self.assertEqual(self.db_hook.snowflake_conn_id, 'snowflake_default')  # pylint: disable=no-member
         self.assertEqual(conn_params_shouldbe, self.db_hook._get_conn_params())
 
@@ -134,3 +136,16 @@ class TestSnowflakeHook(unittest.TestCase):
         self.conn.password = None
         params = self.db_hook._get_conn_params()
         self.assertTrue('private_key' in params)
+
+    def test_authenticator(self):
+        self.conn.extra_dejson = {'database': 'db',
+                                  'account': 'airflow',
+                                  'warehouse': 'af_wh',
+                                  'region': 'af_region',
+                                  'role': 'af_role',
+                                  'authenticator': 'externalbrowser'}
+
+
+        uri_shouldbe = 'snowflake://user:pw@airflow/db/public?warehouse=af_wh&role=af_role' \
+                       '&authenticator=externalbrowser'
+        self.assertEqual(uri_shouldbe, self.db_hook.get_uri())
