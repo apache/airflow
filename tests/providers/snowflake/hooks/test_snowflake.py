@@ -145,7 +145,6 @@ class TestSnowflakeHook(unittest.TestCase):
                                   'role': 'af_role',
                                   'authenticator': 'externalbrowser'}
 
-
         uri_shouldbe = 'snowflake://user:pw@airflow/db/public?warehouse=af_wh&role=af_role' \
                        '&authenticator=externalbrowser'
         self.assertEqual(uri_shouldbe, self.db_hook.get_uri())
