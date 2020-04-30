@@ -29,12 +29,14 @@ from airflow.api.auth.backend.kerberos_auth import CLIENT_AUTH
 from airflow.www import app as application
 from tests.test_utils.config import conf_vars
 
+KRB5_KTNAME = os.environ.get("KRB5_KTNAME")
+
 
 @pytest.mark.integration("kerberos")
 class TestApiKerberos(unittest.TestCase):
     @conf_vars({
         ("api", "auth_backend"): "airflow.api.auth.backend.kerberos_auth",
-        ("kerberos", "keytab"): os.environ['KRB5_KTNAME'],
+        ("kerberos", "keytab"): KRB5_KTNAME,
     })
     def setUp(self):
         self.app, _ = application.create_app(testing=True)
