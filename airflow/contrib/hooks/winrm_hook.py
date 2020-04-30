@@ -37,7 +37,7 @@ class WinRMHook(BaseHook):
         Thought the priority is given to the param passed during init
     :type ssh_conn_id: str
     :param endpoint: When not set, endpoint will be constructed like this:
-        'http://{remote_host}:{remote_port}/wsman'
+        '{service}://{remote_host}:{remote_port}/wsman'
     :type endpoint: str
     :param remote_host: Remote host to connect to. Ignored if `endpoint` is set.
     :type remote_host: str
@@ -199,7 +199,7 @@ class WinRMHook(BaseHook):
 
         # If endpoint is not set, then build a standard wsman endpoint from host and port.
         if not self.endpoint:
-            self.endpoint = 'http://{0}:{1}/wsman'.format(self.remote_host, self.remote_port)
+            self.endpoint = '{0}://{1}:{2}/wsman'.format(self.service, self.remote_host, self.remote_port)
 
         try:
             if self.password and self.password.strip():
