@@ -128,7 +128,12 @@ class GCSToBigQueryOperator(BaseOperator):
         partition by field, type and  expiration as per API specifications.
         Note that 'field' is not available in concurrency with
         dataset.table$partition.
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timepartitioning
     :type time_partitioning: dict
+    :param integer_range_partitioning: configure optional integer range partitioning.
+        Provide field and range definitions per API specifications.
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#RangePartitioning
+    :type integer_range_partitioning: dict
     :param cluster_fields: Request that the result of this load be stored sorted
         by one or more columns. This is only available in conjunction with
         time_partitioning. The order of columns given determines the sort order.
@@ -183,6 +188,7 @@ class GCSToBigQueryOperator(BaseOperator):
                  src_fmt_configs=None,
                  external_table=False,
                  time_partitioning=None,
+                 integer_range_partitioning=None,
                  cluster_fields=None,
                  autodetect=True,
                  encryption_configuration=None,
@@ -196,6 +202,8 @@ class GCSToBigQueryOperator(BaseOperator):
             src_fmt_configs = {}
         if time_partitioning is None:
             time_partitioning = {}
+        if integer_range_partitioning is None:
+            integer_range_partitioning = {}
         self.bucket = bucket
         self.source_objects = source_objects
         self.schema_object = schema_object
@@ -225,6 +233,7 @@ class GCSToBigQueryOperator(BaseOperator):
         self.schema_update_options = schema_update_options
         self.src_fmt_configs = src_fmt_configs
         self.time_partitioning = time_partitioning
+        self.integer_range_partitioning = integer_range_partitioning
         self.cluster_fields = cluster_fields
         self.autodetect = autodetect
         self.encryption_configuration = encryption_configuration
@@ -295,6 +304,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 schema_update_options=self.schema_update_options,
                 src_fmt_configs=self.src_fmt_configs,
                 time_partitioning=self.time_partitioning,
+                integer_range_partitioning=self.integer_range_partitioning,
                 cluster_fields=self.cluster_fields,
                 encryption_configuration=self.encryption_configuration)
 

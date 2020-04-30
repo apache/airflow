@@ -79,6 +79,7 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
                 table_id=TEST_TABLE_ID,
                 schema_fields=None,
                 time_partitioning={},
+                integer_range_partitioning=None,
                 cluster_fields=None,
                 labels=None,
                 view=None,
@@ -102,6 +103,7 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
                 table_id=TEST_TABLE_ID,
                 schema_fields=None,
                 time_partitioning={},
+                integer_range_partitioning=None,
                 cluster_fields=None,
                 labels=None,
                 view=VIEW_DEFINITION,
@@ -151,6 +153,56 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
                 table_id=TEST_TABLE_ID,
                 schema_fields=schema_fields,
                 time_partitioning=time_partitioning,
+                integer_range_partitioning=None,
+                cluster_fields=cluster_fields,
+                labels=None,
+                view=None,
+                encryption_configuration=None
+            )
+
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
+    def test_create_integer_range_partitioned_table(self, mock_hook):
+
+        schema_fields = [
+            {
+                "name": "emp_name",
+                "type": "STRING",
+                "mode": "REQUIRED"
+            },
+            {
+                "name": "emp_division",
+                "type": "INTEGER",
+                "mode": "REQUIRED"
+            },
+        ]
+        integer_range_partitioning = {
+            "field": "emp_division",
+            "range": {
+                "end": "100",
+                "interval": "10",
+                "start": "0"
+            }
+        }
+        cluster_fields = ["date_birth"]
+        operator = BigQueryCreateEmptyTableOperator(task_id=TASK_ID,
+                                                    dataset_id=TEST_DATASET,
+                                                    project_id=TEST_GCP_PROJECT_ID,
+                                                    table_id=TEST_TABLE_ID,
+                                                    schema_fields=schema_fields,
+                                                    integer_range_partitioning=integer_range_partitioning,
+                                                    cluster_fields=cluster_fields
+                                                    )
+
+        operator.execute(None)
+        mock_hook.return_value \
+            .create_empty_table \
+            .assert_called_once_with(
+                dataset_id=TEST_DATASET,
+                project_id=TEST_GCP_PROJECT_ID,
+                table_id=TEST_TABLE_ID,
+                schema_fields=schema_fields,
+                time_partitioning={},
+                integer_range_partitioning=integer_range_partitioning,
                 cluster_fields=cluster_fields,
                 labels=None,
                 view=None,
@@ -337,6 +389,7 @@ class TestBigQueryOperator(unittest.TestCase):
             labels=None,
             priority='INTERACTIVE',
             time_partitioning=None,
+            integer_range_partitioning=None,
             api_resource_configs=None,
             cluster_fields=None,
             encryption_configuration=encryption_configuration
@@ -360,6 +413,7 @@ class TestBigQueryOperator(unittest.TestCase):
                 labels=None,
                 priority='INTERACTIVE',
                 time_partitioning=None,
+                integer_range_partitioning=None,
                 api_resource_configs=None,
                 cluster_fields=None,
                 encryption_configuration=encryption_configuration
@@ -388,6 +442,7 @@ class TestBigQueryOperator(unittest.TestCase):
             labels=None,
             priority='INTERACTIVE',
             time_partitioning=None,
+            integer_range_partitioning=None,
             api_resource_configs=None,
             cluster_fields=None,
             encryption_configuration=None,
@@ -412,6 +467,7 @@ class TestBigQueryOperator(unittest.TestCase):
                     labels=None,
                     priority='INTERACTIVE',
                     time_partitioning=None,
+                    integer_range_partitioning=None,
                     api_resource_configs=None,
                     cluster_fields=None,
                     encryption_configuration=None,
@@ -431,6 +487,7 @@ class TestBigQueryOperator(unittest.TestCase):
                     labels=None,
                     priority='INTERACTIVE',
                     time_partitioning=None,
+                    integer_range_partitioning=None,
                     api_resource_configs=None,
                     cluster_fields=None,
                     encryption_configuration=None,
@@ -492,6 +549,7 @@ class TestBigQueryOperator(unittest.TestCase):
                 labels=None,
                 priority='INTERACTIVE',
                 time_partitioning=None,
+                integer_range_partitioning=None,
                 api_resource_configs=None,
                 cluster_fields=None,
                 encryption_configuration=None

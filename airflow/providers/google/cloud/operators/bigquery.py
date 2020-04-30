@@ -451,8 +451,13 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         The default value is INTERACTIVE.
     :type priority: str
     :param time_partitioning: configure optional time partitioning fields i.e.
-        partition by field, type and expiration as per API specifications.
+        partition by field, type and  expiration as per API specifications.
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timepartitioning
     :type time_partitioning: dict
+    :param integer_range_partitioning: configure optional integer range partitioning.
+        Provide field and range definitions per API specifications.
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#RangePartitioning
+    :type integer_range_partitioning: dict
     :param cluster_fields: Request that the result of this query be stored sorted
         by one or more columns. This is only available in conjunction with
         time_partitioning. The order of columns given determines the sort order.
@@ -508,6 +513,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
                  labels: Optional[dict] = None,
                  priority: Optional[str] = 'INTERACTIVE',
                  time_partitioning: Optional[dict] = None,
+                 integer_range_partitioning: Optional[dict] = None,
                  api_resource_configs: Optional[dict] = None,
                  cluster_fields: Optional[List[str]] = None,
                  location: Optional[str] = None,
@@ -539,6 +545,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         self.labels = labels
         self.priority = priority
         self.time_partitioning = time_partitioning
+        self.integer_range_partitioning = integer_range_partitioning
         self.api_resource_configs = api_resource_configs
         self.cluster_fields = cluster_fields
         self.location = location
@@ -570,6 +577,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
                 schema_update_options=self.schema_update_options,
                 priority=self.priority,
                 time_partitioning=self.time_partitioning,
+                integer_range_partitioning=self.integer_range_partitioning,
                 api_resource_configs=self.api_resource_configs,
                 cluster_fields=self.cluster_fields,
                 encryption_configuration=self.encryption_configuration
@@ -591,6 +599,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
                     schema_update_options=self.schema_update_options,
                     priority=self.priority,
                     time_partitioning=self.time_partitioning,
+                    integer_range_partitioning=self.integer_range_partitioning,
                     api_resource_configs=self.api_resource_configs,
                     cluster_fields=self.cluster_fields,
                     encryption_configuration=self.encryption_configuration
@@ -644,6 +653,10 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         .. seealso::
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timePartitioning
     :type time_partitioning: dict
+    :param integer_range_partitioning: configure optional integer range partitioning.
+        Provide field and range definitions per API specifications.
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#RangePartitioning
+    :type integer_range_partitioning: dict
     :param bigquery_conn_id: [Optional] The connection ID used to connect to Google Cloud Platform and
         interact with the Bigquery service.
     :type bigquery_conn_id: str
@@ -732,6 +745,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                  schema_fields: Optional[List] = None,
                  gcs_schema_object: Optional[str] = None,
                  time_partitioning: Optional[Dict] = None,
+                 integer_range_partitioning: Optional[Dict] = None,
                  bigquery_conn_id: str = 'google_cloud_default',
                  google_cloud_storage_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
@@ -752,6 +766,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
         self.time_partitioning = {} if time_partitioning is None else time_partitioning
+        self.integer_range_partitioning = integer_range_partitioning
         self.labels = labels
         self.view = view
         self.encryption_configuration = encryption_configuration
@@ -785,6 +800,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 table_id=self.table_id,
                 schema_fields=schema_fields,
                 time_partitioning=self.time_partitioning,
+                integer_range_partitioning=self.integer_range_partitioning,
                 cluster_fields=self.cluster_fields,
                 labels=self.labels,
                 view=self.view,

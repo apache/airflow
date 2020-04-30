@@ -1648,6 +1648,91 @@ class TestTimePartitioningInRunJob(_BigQueryBaseTestClass):
         self.assertEqual(tp_out, expect)
 
 
+class TestIntegerRangePartitioningInRunJob(_BigQueryBaseTestClass):
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration")
+    def test_run_load_default(self, mocked_rwc, mock_get_service):
+        def run_with_config(config):
+            self.assertIsNone(config['load'].get('rangePartitioning'))
+
+        mocked_rwc.side_effect = run_with_config
+
+        self.hook.run_load(
+            destination_project_dataset_table='my_dataset.my_table',
+            schema_fields=[],
+            source_uris=[],
+        )
+
+        assert mocked_rwc.call_count == 1
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration")
+    def test_run_load_with_arg(self, mocked_rwc, mock_get_service):
+        def run_with_config(config):
+            self.assertEqual(
+                config['load']['rangePartitioning'],
+                {
+                    'field': 'test_field',
+                    'range': {
+                        'end': '100',
+                        'interval': '10',
+                        'start': '0'
+                    }
+                }
+            )
+
+        mocked_rwc.side_effect = run_with_config
+
+        self.hook.run_load(
+            destination_project_dataset_table='my_dataset.my_table',
+            schema_fields=[],
+            source_uris=[],
+            integer_range_partitioning={
+                'field': 'test_field',
+                'range': {
+                    'end': '100',
+                    'interval': '10',
+                    'start': '0'
+                }
+            }
+        )
+
+        assert mocked_rwc.call_count == 1
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration")
+    def test_run_query_with_arg(self, mocked_rwc, mock_get_service):
+        def run_with_config(config):
+            self.assertEqual(
+                config['query']['rangePartitioning'],
+                {
+                    'field': 'test_field',
+                    'range': {
+                        'end': '100',
+                        'interval': '10',
+                        'start': '0'
+                    }
+                }
+            )
+
+        mocked_rwc.side_effect = run_with_config
+
+        self.hook.run_query(
+            sql='select 1',
+            destination_dataset_table='my_dataset.my_table',
+            integer_range_partitioning={
+                'field': 'test_field',
+                'range': {
+                    'end': '100',
+                    'interval': '10',
+                    'start': '0'
+                }
+            }
+        )
+
+        assert mocked_rwc.call_count == 1
+
+
 class TestClusteringInRunJob(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration")

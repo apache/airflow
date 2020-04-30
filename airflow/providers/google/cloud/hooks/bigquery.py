@@ -191,6 +191,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         table_resource: Optional[Dict[str, Any]] = None,
         schema_fields: Optional[List] = None,
         time_partitioning: Optional[Dict] = None,
+        integer_range_partitioning: Optional[Dict] = None,
         cluster_fields: Optional[List[str]] = None,
         labels: Optional[Dict] = None,
         view: Optional[Dict] = None,
@@ -231,6 +232,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             .. seealso::
                 https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timePartitioning
         :type time_partitioning: dict
+        :param integer_range_partitioning: configure optional integer range partitioning.
+            Provide field and range definitions per API specifications.
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#RangePartitioning
+        :type integer_range_partitioning: dict
         :param cluster_fields: [Optional] The fields used for clustering.
             Must be specified with time_partitioning, data in the table will be first
             partitioned and subsequently clustered.
@@ -278,6 +283,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         if time_partitioning:
             _table_resource['timePartitioning'] = time_partitioning
+
+        if integer_range_partitioning:
+            _table_resource['rangePartitioning'] = integer_range_partitioning
 
         if cluster_fields:
             _table_resource['clustering'] = {
@@ -637,6 +645,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                     labels: Optional[Dict] = None,
                     schema: Optional[List] = None,
                     time_partitioning: Optional[Dict] = None,
+                    integer_range_partitioning: Optional[Dict] = None,
                     view: Optional[Dict] = None,
                     require_partition_filter: Optional[bool] = None,
                     encryption_configuration: Optional[Dict] = None) -> None:
@@ -674,9 +683,16 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                                {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}]
 
         :type schema: list
-        :param time_partitioning: [Optional] A dictionary containing time-based partitioning
-             definition for the table.
+        :param time_partitioning: [Optional] configure time partitioning fields i.e.
+            partition by field, type and  expiration as per API specifications.
+            Note that 'field' is not available in concurrency with
+            dataset.table$partition.
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timepartitioning
         :type time_partitioning: dict
+        :param integer_range_partitioning: [Optional] configure integer range partitioning.
+            Provide field and range definitions per API specifications.
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#RangePartitioning
+        :type integer_range_partitioning: dict
         :param view: [Optional] A dictionary containing definition for the view.
             If set, it will patch a view instead of a table:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ViewDefinition
@@ -719,6 +735,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table_resource['schema'] = {'fields': schema}
         if time_partitioning:
             table_resource['timePartitioning'] = time_partitioning
+        if integer_range_partitioning:
+            table_resource['rangePartitioning'] = integer_range_partitioning
         if view:
             table_resource['view'] = view
         if require_partition_filter is not None:
@@ -1389,6 +1407,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                  schema_update_options: Optional[Iterable] = None,
                  src_fmt_configs: Optional[Dict] = None,
                  time_partitioning: Optional[Dict] = None,
+                 integer_range_partitioning: Optional[Dict] = None,
                  cluster_fields: Optional[List] = None,
                  autodetect: bool = False,
                  encryption_configuration: Optional[Dict] = None) -> str:
@@ -1461,7 +1480,14 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type src_fmt_configs: dict
         :param time_partitioning: configure optional time partitioning fields i.e.
             partition by field, type and  expiration as per API specifications.
+            Note that 'field' is not available in concurrency with
+            dataset.table$partition.
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timepartitioning
         :type time_partitioning: dict
+        :param integer_range_partitioning: configure optional integer range partitioning.
+            Provide field and range definitions per API specifications.
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#RangePartitioning
+        :type integer_range_partitioning: dict
         :param cluster_fields: Request that the result of this load be stored sorted
             by one or more columns. This is only available in combination with
             time_partitioning. The order of columns given determines the sort order.
@@ -1546,6 +1572,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             configuration['load'].update({
                 'timePartitioning': time_partitioning
             })
+
+        if integer_range_partitioning:
+            configuration['load'].update({'rangePartitioning': integer_range_partitioning})
 
         if cluster_fields:
             configuration['load'].update({'clustering': {'fields': cluster_fields}})
@@ -1783,6 +1812,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                   schema_update_options: Optional[Iterable] = None,
                   priority: str = 'INTERACTIVE',
                   time_partitioning: Optional[Dict] = None,
+                  integer_range_partitioning: Optional[Dict] = None,
                   api_resource_configs: Optional[Dict] = None,
                   cluster_fields: Optional[List[str]] = None,
                   location: Optional[str] = None,
@@ -1848,8 +1878,15 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             The default value is INTERACTIVE.
         :type priority: str
         :param time_partitioning: configure optional time partitioning fields i.e.
-            partition by field, type and expiration as per API specifications.
+            partition by field, type and  expiration as per API specifications.
+            Note that 'field' is not available in concurrency with
+            dataset.table$partition.
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timepartitioning
         :type time_partitioning: dict
+        :param integer_range_partitioning: configure optional integer range partitioning.
+            Provide field and range definitions per API specifications.
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#RangePartitioning
+        :type integer_range_partitioning: dict
         :param cluster_fields: Request that the result of this query be stored sorted
             by one or more columns. This is only available in combination with
             time_partitioning. The order of columns given determines the sort order.
@@ -1873,6 +1910,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         if time_partitioning is None:
             time_partitioning = {}
+
+        if integer_range_partitioning is None:
+            integer_range_partitioning = {}
 
         if location:
             self.location = location
@@ -1940,6 +1980,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             (maximum_billing_tier, 'maximumBillingTier', None, int),
             (maximum_bytes_billed, 'maximumBytesBilled', None, float),
             (time_partitioning, 'timePartitioning', {}, dict),
+            (integer_range_partitioning, 'rangePartitioning', {}, dict),
             (schema_update_options, 'schemaUpdateOptions', None, list),
             (destination_dataset_table, 'destinationTable', None, dict),
             (cluster_fields, 'clustering', None, dict),
