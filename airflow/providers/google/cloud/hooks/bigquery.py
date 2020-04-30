@@ -119,7 +119,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         )
 
     def insert_rows(
-        self, table: Any, rows: Any, target_fields: Any = None, commit_every: Any = 1000, replace: Any = False
+        self, table: Any, rows: Any, target_fields: Any = None, commit_every: Any = 1000,
+        replace: Any = False, **kwargs
     ) -> NoReturn:
         """
         Insertion is currently unsupported. Theoretically, you could use
