@@ -108,19 +108,23 @@ class FileTaskHandler(logging.Handler):
                 log = "*** Failed to load local log file: {}\n".format(location)
                 log += "*** {}\n".format(str(e))
         elif conf.get('core', 'executor') == 'KubernetesExecutor':
-            log += '*** Trying to get logs (last 100 lines) from worker pod {} ***\n'\
+            log += '*** Trying to get logs (last 100 lines) from worker pod {} ***\n\n'\
                 .format(ti.hostname)
 
             try:
-                from kubernetes.client.models import V1Pod, V1ObjectMeta
-                from airflow.kubernetes.pod_launcher import PodLauncher
+                from airflow.kubernetes.kube_client import get_kube_client
 
-                pod = V1Pod()
-                pod.metadata = V1ObjectMeta()
-                pod.metadata.name = ti.hostname
-                pod.metadata.namespace = conf.get('kubernetes', 'namespace')
+                kube_client = get_kube_client()
+                res = kube_client.read_namespaced_pod_log(
+                    name=ti.hostname,
+                    namespace=conf.get('kubernetes', 'namespace'),
+                    container='base',
+                    follow=False,
+                    tail_lines=100,
+                    _preload_content=False
+                )
 
-                for line in PodLauncher.read_pod_logs(pod, 100):
+                for line in res:
                     log += line.decode()
 
             except Exception as f:  # pylint: disable=broad-except
