@@ -631,6 +631,8 @@ class DagFileProcessor(LoggingMixin):
                     try:
                         dag.manage_slas()
                     except Exception:  # pylint: disable=broad-except
+                        Stats.incr(
+                            'dagrun.sla_manage_failure.{dag_id}'.format(dag_id=dag.dag_id))
                         self.log.exception(
                             "DAG %s was unable to successfully manage SLAs; continuing"
                             " with scheduling rather than raising exception.", dag)
