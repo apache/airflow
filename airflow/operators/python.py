@@ -174,6 +174,13 @@ class _PythonFunctionalOperator(BaseOperator):
         *args,
         **kwargs
     ) -> None:
+        # Check if we need to generate a new task_id
+        task_id = kwargs.get('task_id', None)
+        dag = kwargs.get('dag', None)
+        if task_id and dag and task_id in dag.task_ids:
+            num = task_id[-1] if '__' in task_id else '1'
+            kwargs['task_id'] = f'{task_id.rsplit('__', 1)[0]}__{num}'
+
         if not kwargs.get('do_xcom_push', True) and not multiple_outputs:
             raise AirflowException('PythonFunctionalOperator needs to have either do_xcom_push=True or multiple_outputs=True.')
         super().__init__(*args, **kwargs)
@@ -189,7 +196,7 @@ class _PythonFunctionalOperator(BaseOperator):
     def __call__(self, *args, **kwargs):
         # If args/kwargs are set, then operator has been called. Raise exception
         if self._op_args is not None or self._op_kwargs is not None:
-            raise AirflowException('PythonFunctionalOperator can only be called once. If you need to reuse it several times in a DAG, use the `alias` method.')
+            raise AirflowException('PythonFunctionalOperator can only be called once. If you need to reuse it several times in a DAG, use the `copy` method.')
         
         # If we have no DAG, reinitialize class to capture DAGContext and DAG default args.
         if not self.has_dag:
@@ -201,18 +208,20 @@ class _PythonFunctionalOperator(BaseOperator):
         # To add when we get XCom merged
         # return XComArg(self)
 
-    @apply_defaults
-    def alias(self, task_id: str, **kwargs):
+    def copy(self, task_id: Optional[str] = None, **kwargs):
         """
         Create a copy of the PythonFunctionalOperator, allow to overwrite ctor kwargs if needed.
 
         If alias is created a new DAGContext, apply defaults and set new DAG as the operator DAG.
   
         :param task_id: Task id for the new operator
-        :type task_id: str
+        :type task_id: Optional[str]
         """
         return _PythonFunctionalOperator(
-            python_callable=self.python_callable, multiple_outputs=self.multiple_outputs, task_id=task_id, **{**kwarg, **self._kwargs}
+            python_callable=self.python_callable, 
+            multiple_outputs=self.multiple_outputs, 
+            task_id=task_id or self.task_id, 
+            **{**kwarg, **self._kwargs}
         )
 
     def execute(self, context: Dict):
