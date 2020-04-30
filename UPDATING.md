@@ -1212,7 +1212,6 @@ Now the `dag_id` will not appear repeated in the payload, and the response forma
 }
 ```
 
-
 ## Airflow 1.10.10
 
 ### Setting Empty string to a Airflow Variable will return an empty string
