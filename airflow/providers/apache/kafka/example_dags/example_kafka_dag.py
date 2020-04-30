@@ -16,11 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow import DAG
 from datetime import timedelta
 
-from airflow.utils.timezone import datetime
+from airflow import DAG
 from airflow.providers.apache.kafka.sensors.kafka_sensor import KafkaSensor
+from airflow.utils.timezone import datetime
 
 DAG_ID = "example_kafka_dag"
 dag_start_date = datetime(2015, 6, 1, hour=20, tzinfo=None)

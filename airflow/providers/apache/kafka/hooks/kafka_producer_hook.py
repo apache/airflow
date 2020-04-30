@@ -17,6 +17,7 @@
 # under the License.
 
 from kafka import KafkaProducer
+
 from airflow.hooks.base_hook import BaseHook
 
 
