@@ -25,7 +25,8 @@ import unittest.mock
 from collections import namedtuple
 from datetime import date, timedelta
 from subprocess import CalledProcessError
-from typing import List
+from typing import List, Optional
+from airflow.models.xcom_arg import XComArg
 
 import funcsigs
 
@@ -34,7 +35,7 @@ from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.models.taskinstance import clear_task_instances
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import (
-    BranchPythonOperator, PythonOperator, PythonVirtualenvOperator, ShortCircuitOperator,
+    BranchPythonOperator, PythonOperator, task, PythonVirtualenvOperator, ShortCircuitOperator,
 )
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -130,12 +131,12 @@ class TestPythonOperator(TestPythonBase):
 
     def test_python_operator_run(self):
         """Tests that the python callable is invoked on task run."""
-        task = PythonOperator(
+        task_op = PythonOperator(
             python_callable=self.do_run,
             task_id='python_operator',
             dag=self.dag)
         self.assertFalse(self.is_run())
-        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        task_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         self.assertTrue(self.is_run())
 
     def test_python_operator_python_callable_is_callable(self):
@@ -163,7 +164,7 @@ class TestPythonOperator(TestPythonBase):
         Named = namedtuple('Named', ['var1', 'var2'])
         named_tuple = Named('{{ ds }}', 'unchanged')
 
-        task = PythonOperator(
+        task_op = PythonOperator(
             task_id='python_operator',
             # a Mock instance cannot be used as a callable function or test fails with a
             # TypeError: Object of type Mock is not JSON serializable
@@ -182,7 +183,7 @@ class TestPythonOperator(TestPythonBase):
             start_date=DEFAULT_DATE,
             state=State.RUNNING
         )
-        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        task_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         ds_templated = DEFAULT_DATE.date().isoformat()
         self.assertEqual(1, len(recorded_calls))
@@ -198,7 +199,7 @@ class TestPythonOperator(TestPythonBase):
         """Test PythonOperator op_kwargs are templatized"""
         recorded_calls = []
 
-        task = PythonOperator(
+        task_op = PythonOperator(
             task_id='python_operator',
             # a Mock instance cannot be used as a callable function or test fails with a
             # TypeError: Object of type Mock is not JSON serializable
@@ -216,7 +217,7 @@ class TestPythonOperator(TestPythonBase):
             start_date=DEFAULT_DATE,
             state=State.RUNNING
         )
-        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        task_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         self.assertEqual(1, len(recorded_calls))
         self._assert_calls_equal(
@@ -310,6 +311,264 @@ class TestPythonOperator(TestPythonBase):
             dag=self.dag
         )
         python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+
+class TestAirflowTask(TestPythonBase):
+
+    def setUp(self):
+        super(TestAirflowTask, self).setUp()
+
+        # Methods need self and we don't support that.
+        @task
+        def do_run():
+            self.run = True
+
+        self.do_run = do_run
+
+    def is_run(self):
+        return self.run
+
+    def test_task_run(self):
+        """Tests that the python callable is invoked on task run."""
+
+        with self.dag:
+            self.do_run()
+        self.assertFalse(self.is_run())
+        self.do_run.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        self.assertTrue(self.is_run())
+        self.assertEquals(self.do_run.task_id, 'do_run')
+
+    def test_python_operator_python_callable_is_callable(self):
+        """Tests that PythonOperator will only instantiate if
+        the python_callable argument is callable."""
+        not_callable = {}
+        with self.assertRaises(AirflowException):
+            task(not_callable, dag=self.dag)
+
+    def test_python_callable_arguments_are_templatized(self):
+        """Test PythonOperator op_args are templatized"""
+        recorded_calls = []
+
+        # Create a named tuple and ensure it is still preserved
+        # after the rendering is done
+        Named = namedtuple('Named', ['var1', 'var2'])
+        named_tuple = Named('{{ ds }}', 'unchanged')
+
+        f = task(
+            # a Mock instance cannot be used as a callable function or test fails with a
+            # TypeError: Object of type Mock is not JSON serializable
+            build_recording_function(recorded_calls),
+            dag=self.dag)
+        f(4, date(2019, 1, 1), "dag {{dag.dag_id}} ran on {{ds}}.", named_tuple)
+
+        self.dag.create_dagrun(
+            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+        f.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        ds_templated = DEFAULT_DATE.date().isoformat()
+        self.assertEqual(1, len(recorded_calls))
+        self._assert_calls_equal(
+            recorded_calls[0],
+            Call(4,
+                 date(2019, 1, 1),
+                 "dag {} ran on {}.".format(self.dag.dag_id, ds_templated),
+                 Named(ds_templated, 'unchanged'))
+        )
+
+    def test_python_callable_keyword_arguments_are_templatized(self):
+        """Test PythonOperator op_kwargs are templatized"""
+        recorded_calls = []
+
+        task_op = task(
+            # a Mock instance cannot be used as a callable function or test fails with a
+            # TypeError: Object of type Mock is not JSON serializable
+            build_recording_function(recorded_calls),
+            dag=self.dag
+        )
+        task_op(an_int=4, a_date=date(2019, 1, 1), a_templated_string="dag {{dag.dag_id}} ran on {{ds}}.")
+        self.dag.create_dagrun(
+            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+        task_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        self.assertEqual(1, len(recorded_calls))
+        self._assert_calls_equal(
+            recorded_calls[0],
+            Call(an_int=4,
+                 a_date=date(2019, 1, 1),
+                 a_templated_string="dag {} ran on {}.".format(
+                     self.dag.dag_id, DEFAULT_DATE.date().isoformat()))
+        )
+
+    def test_copy_in_dag(self):
+        with self.dag:
+            self.do_run()
+            self.assertListEqual(['do_run'], self.dag.task_ids)
+            do_run_1 = self.do_run.copy()
+            do_run_2 = self.do_run.copy()
+        self.assertEqual(do_run_1.task_id, 'do_run__1')
+        self.assertEqual(do_run_2.task_id, 'do_run__2')
+
+    def test_copy(self):
+        do_run_1 = self.do_run.copy()
+        do_run_2 = self.do_run.copy()
+        with self.dag:
+            self.do_run()
+            self.assertListEqual(['do_run'], self.dag.task_ids)
+            do_run_1()
+            do_run_2()
+
+        self.assertEqual('do_run__1', do_run_1.task_id)
+        self.assertEqual('do_run__2', do_run_2.task_id)
+
+    def test_dict_outputs(self):
+        @task(multiple_outputs=True)
+        def return_dict(number: int):
+            return {
+                'number': number + 1,
+                43: 43
+            }
+
+        test_number = 10
+        with self.dag:
+            return_dict(test_number)
+
+        dr = self.dag.create_dagrun(
+            run_id="manual__",
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+
+        return_dict.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        tis = dr.get_task_instances()
+        for ti in tis:
+            if ti.task_id == 'return_dict':
+                self.assertEqual(
+                    test_number + 1,
+                    ti.xcom_pull(key='number')
+                )
+                self.assertEqual(
+                    43,
+                    ti.xcom_pull(key='43')
+                )
+                self.assertDictEqual(
+                    {
+                        'number': test_number + 1,
+                        '43': 43
+                    },
+                    ti.xcom_pull()
+                )
+
+    def test_tuple_outputs(self):
+        @task(multiple_outputs=True)
+        def return_tuple(number: int):
+            return number + 1, 43
+
+        test_number = 10
+        with self.dag:
+            return_tuple(test_number)
+
+        dr = self.dag.create_dagrun(
+            run_id="manual__",
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+
+        return_tuple.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        tis = dr.get_task_instances()
+        for ti in tis:
+            if ti.task_id == 'return_tuple':
+                self.assertEqual(
+                    test_number + 1,
+                    ti.xcom_pull(key='0')
+                )
+                self.assertEqual(
+                    43,
+                    ti.xcom_pull(key='1')
+                )
+                self.assertListEqual(
+                    [test_number + 1, 43],
+                    ti.xcom_pull()
+                )
+
+    def test_list_outputs(self):
+        @task(multiple_outputs=True)
+        def return_tuple(number: int):
+            return [number + 1, 43]
+
+        test_number = 10
+        with self.dag:
+            return_tuple(test_number)
+
+        dr = self.dag.create_dagrun(
+            run_id="manual__",
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+
+        return_tuple.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        tis = dr.get_task_instances()
+        for ti in tis:
+            if ti.task_id == 'return_tuple':
+                self.assertEqual(
+                    test_number + 1,
+                    ti.xcom_pull(key='0')
+                )
+                self.assertEqual(
+                    43,
+                    ti.xcom_pull(key='1')
+                )
+                self.assertListEqual(
+                    [test_number + 1, 43],
+                    ti.xcom_pull()
+                )
+
+    def test_xcom_arg(self):
+        @task
+        def add_2(number: int):
+            return number + 2
+
+        @task
+        def add_num(number: int, num2: Optional[int] = 2):
+            return number + num2
+
+        test_number = 10
+
+        with self.dag:
+            bigger_number = add_2(test_number)
+            r = add_num(bigger_number, XComArg(add_2))
+
+        dr = self.dag.create_dagrun(
+            run_id="manual__",
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+
+        add_2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        add_num.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        from inspect import signature
+        signature(add_2)
+        tis = dr.get_task_instances()
+        for ti in tis:
+            if ti.task_id == 'add_5':
+                self.assertEqual(
+                    (test_number + 2) * 2,
+                    ti.xcom_pull(key=r.key)
+                )
 
 
 class TestBranchOperator(unittest.TestCase):
@@ -531,8 +790,8 @@ class TestBranchOperator(unittest.TestCase):
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        for task in branches:
-            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        for task_op in branches:
+            task_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         tis = dr.get_task_instances()
         for ti in tis:
@@ -552,8 +811,8 @@ class TestBranchOperator(unittest.TestCase):
             clear_task_instances(children_tis, session=session, dag=self.dag)
 
         # Run the cleared tasks again.
-        for task in branches:
-            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        for task_op in branches:
+            task_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         # Check if the states are correct after children tasks are cleared.
         for ti in dr.get_task_instances():
@@ -772,13 +1031,13 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         self.addCleanup(self.dag.clear)
 
     def _run_as_operator(self, fn, python_version=sys.version_info[0], **kwargs):
-        task = PythonVirtualenvOperator(
+        task_op = PythonVirtualenvOperator(
             python_callable=fn,
             python_version=python_version,
             task_id='task',
             dag=self.dag,
             **kwargs)
-        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        task_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_dill_warning(self):
         def f():

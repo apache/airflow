@@ -25,12 +25,14 @@ from inspect import signature
 from itertools import islice
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Callable, Dict, Iterable, List, Optional
+from typing import Callable, Dict, Iterable, List, Optional, Union
 
 import dill
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, SkipMixin
+from airflow.models.dag import DagContext
+from airflow.models.xcom_arg import XComArg
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv
@@ -151,9 +153,9 @@ class _PythonFunctionalOperator(BaseOperator):
 
     :param python_callable: A reference to an object that is callable
     :type python_callable: python callable
-    :param multiple_outputs: if set, function return value will be 
-        unrolled to multiple XCom values. List will unroll to xcom values 
-        with index as key. Dict will unroll to xcom values with keys as keys. 
+    :param multiple_outputs: if set, function return value will be
+        unrolled to multiple XCom values. List will unroll to xcom values
+        with index as key. Dict will unroll to xcom values with keys as keys.
         Defaults to False.
     :type multiple_outputs: bool
     """
@@ -165,7 +167,6 @@ class _PythonFunctionalOperator(BaseOperator):
     # there are some cases we can't deepcopy the objects(e.g protobuf).
     shallow_copy_attrs = ('python_callable',)
 
-
     @apply_defaults
     def __init__(
         self,
@@ -176,92 +177,104 @@ class _PythonFunctionalOperator(BaseOperator):
     ) -> None:
         # Check if we need to generate a new task_id
         task_id = kwargs.get('task_id', None)
-        dag = kwargs.get('dag', None)
+        dag = kwargs.get('dag', None) or DagContext.get_current_dag()
         if task_id and dag and task_id in dag.task_ids:
-            num = task_id[-1] if '__' in task_id else '1'
-            kwargs['task_id'] = f'{task_id.rsplit('__', 1)[0]}__{num}'
+            prefix = task_id.rsplit("__", 1)[0]
+            task_id = sorted(
+                filter(lambda x: x.startswith(prefix), dag.task_ids),
+                reverse=True
+            )[0]
+            num = int(task_id[-1] if '__' in task_id else '0') + 1
+            kwargs['task_id'] = f'{prefix}__{num}'
 
         if not kwargs.get('do_xcom_push', True) and not multiple_outputs:
-            raise AirflowException('PythonFunctionalOperator needs to have either do_xcom_push=True or multiple_outputs=True.')
-        super().__init__(*args, **kwargs)
+            raise AirflowException('PythonFunctionalOperator needs to have either do_xcom_push=True or '
+                                   'multiple_outputs=True.')
         if not callable(python_callable):
             raise AirflowException('`python_callable` param must be callable')
+        self._fail_if_method(python_callable)
+        super().__init__(*args, **kwargs)
         self.python_callable = python_callable
         self.multiple_outputs = multiple_outputs
         self._kwargs = kwargs
         self._op_args = None
         self._op_kwargs = None
-    
-    
+
+    @staticmethod
+    def _fail_if_method(python_callable):
+        if 'self' in signature(python_callable).parameters.keys():
+            raise AirflowException('@task does not support methods')
+
     def __call__(self, *args, **kwargs):
         # If args/kwargs are set, then operator has been called. Raise exception
         if self._op_args is not None or self._op_kwargs is not None:
-            raise AirflowException('PythonFunctionalOperator can only be called once. If you need to reuse it several times in a DAG, use the `copy` method.')
-        
+            raise AirflowException('PythonFunctionalOperator can only be called once. If you need to reuse it several '
+                                   'times in a DAG, use the `copy` method.')
+
         # If we have no DAG, reinitialize class to capture DAGContext and DAG default args.
-        if not self.has_dag:
-            self.__init__(self.python_callable, multiple_outputs=self.multiple_outputs, **self._kwargs)
+        if not self.has_dag():
+            self.__init__(python_callable=self.python_callable, multiple_outputs=self.multiple_outputs, **self._kwargs)
 
         # Capture args/kwargs
         self._op_args = args
         self._op_kwargs = kwargs
-        # To add when we get XCom merged
-        # return XComArg(self)
+        return XComArg(self)
 
     def copy(self, task_id: Optional[str] = None, **kwargs):
         """
         Create a copy of the PythonFunctionalOperator, allow to overwrite ctor kwargs if needed.
 
         If alias is created a new DAGContext, apply defaults and set new DAG as the operator DAG.
-  
+
         :param task_id: Task id for the new operator
         :type task_id: Optional[str]
         """
+        if task_id:
+            self._kwargs['task_id'] = task_id
         return _PythonFunctionalOperator(
-            python_callable=self.python_callable, 
-            multiple_outputs=self.multiple_outputs, 
-            task_id=task_id or self.task_id, 
-            **{**kwarg, **self._kwargs}
+            python_callable=self.python_callable,
+            multiple_outputs=self.multiple_outputs,
+            **{**kwargs, **self._kwargs}
         )
 
     def execute(self, context: Dict):
         return_value = self.python_callable(*self._op_args, **self._op_kwargs)
         self.log.info("Done. Returned value was: %s", return_value)
-        if not self.multiple_outputs
+        if not self.multiple_outputs:
             return return_value
         if isinstance(return_value, dict):
             for key, value in return_value.items():
-                self.xcom_push(context, str(key), value)     
+                self.xcom_push(context, str(key), value)
         elif isinstance(return_value, (list, tuple)):
             for key, value in enumerate(return_value):
                 self.xcom_push(context, str(key), value)
         return return_value
 
-def task(*args, **kwargs):
+
+def task(python_callable: Optional[Callable] = None, **kwargs):
     """
-    Python task decorator. Wraps a function into an Airflow operator. 
+    Python task decorator. Wraps a function into an Airflow operator.
     Accepts kwargs for operator kwarg. Will try to wrap operator into DAG at declaration or
     on function invocation. Use alias to reuse function in the DAG.
 
-    :param multiple_outputs: if set, function return value will be 
-        unrolled to multiple XCom values. List will unroll to xcom values 
-        with index as key. Dict will unroll to xcom values with keys as keys. 
+    :param python_callable: Function to decorate
+    :type python_callable: Optional[Callable]
+    :param multiple_outputs: if set, function return value will be
+        unrolled to multiple XCom values. List will unroll to xcom values
+        with index as key. Dict will unroll to xcom values with keys as keys.
         Defaults to False.
     :type multiple_outputs: bool
 
-    .. seealso::
-        TBD
     """
-    if len(args)>0 and not (len(args) == 1 and callable(args[0])):
-        raise AirflowException('No args allowed to specify arguments for PythonFunctionalOperator')
-
     def wrapper(f):
         """Python wrapper to generate PythonFunctionalOperator out of simple python functions.
         Used for Airflow functional interface
         """
         return _PythonFunctionalOperator(python_callable=f, task_id=f.__name__, **kwargs)
-    if len(args) == 1 and callable(args[0]):
-        return wrapper(args[0])
+    if callable(python_callable):
+        return wrapper(python_callable)
+    elif python_callable is not None:
+        raise AirflowException('No args allowed while using @task, use kwargs instead')
     return wrapper
 
 
