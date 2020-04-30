@@ -85,7 +85,7 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
         return build(
             'bigquery', 'v2', http=http_authorized, cache_discovery=False)
 
-    def insert_rows(self, table, rows, target_fields=None, commit_every=1000):
+    def insert_rows(self, table, rows, target_fields=None, commit_every=1000, **kwargs):
         """
         Insertion is currently unsupported. Theoretically, you could use
         BigQuery's streaming API to insert rows into a table, but this hasn't
