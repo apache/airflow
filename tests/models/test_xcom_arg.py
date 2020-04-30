@@ -100,6 +100,13 @@ class TestXComArgBuild:
 
         assert op_a.output == XComArg(op_a)
 
+    def test_xcom_key_getitem(self):
+        python_op = build_python_op()
+        actual = XComArg(python_op, key="another_key")
+        assert actual.key == "another_key"
+        actual_new_key = actual["another_key_2"]
+        assert actual_new_key.key == "another_key_2"
+
 
 class TestXComArgRuntime:
     def test_xcom_pass_to_op(self):

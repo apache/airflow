@@ -75,6 +75,12 @@ class XComArg:
         self.set_downstream(other)
         return self
 
+    def __getitem__(self, item):
+        """
+        Implements xcomresult['some_result_key']
+        """
+        return XComArg(operator=self.operator, key=item)
+
     def __str__(self):
         """
         Backward compatibility for old-style jinja used in Airflow Operators
@@ -127,7 +133,7 @@ class XComArg:
         resolved_value = self.operator.xcom_pull(
             context=context,
             task_ids=[self.operator.task_id],
-            key=self.key,
+            key=str(self.key),  # xcom_pull supports only key as str
             dag_id=self.operator.dag.dag_id,
         )
         if not resolved_value:
