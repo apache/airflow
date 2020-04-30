@@ -120,7 +120,7 @@ Its tag follows the pattern of ``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>-ci`
 The image is built using the `<Dockerfile.ci>`_ Dockerfile.
 
 For testing production image, the **Production image** is used and maintained on the DockerHub in the
-```apache/airflow`` repository. This Docker image contains only size-optimised Airflow with selected
+``apache/airflow`` repository. This Docker image contains only size-optimised Airflow with selected
 extras and dependencies. Its tag follows the pattern of ``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>``
 (for example, ``apache/airflow:master-python3.6`` or ``apache/airflow:v1-10-test-python3.6``).
 
