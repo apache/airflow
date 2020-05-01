@@ -121,7 +121,7 @@ class settings_context:  # pylint: disable=invalid-name
     def __enter__(self):
         with open(self.settings_file, 'w') as handle:
             handle.writelines(self.content)
-        sys.path.push(self.settings_root, 0)
+        sys.path.append(self.settings_root)
         conf.set(
             'logging',
             'logging_config_class',
