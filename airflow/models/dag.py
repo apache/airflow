@@ -36,7 +36,7 @@ import jinja2
 import pendulum
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
-from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, and_, asc, desc, func, not_, or_
+from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, and_, asc, func, not_, or_
 from sqlalchemy.orm import backref, joinedload, relationship
 from sqlalchemy.orm.session import Session
 
@@ -1707,21 +1707,19 @@ class DAG(BaseDag, LoggingMixin):
         TI = TaskInstance
         DR = DagRun
 
-        # Get all current DagRuns.
-        scheduled_dagruns = (
-            session.query(DR)
-            .filter(DR.dag_id == self.dag_id)
-            .filter(DR.sla_checked == False)
+        # Get all current DagRuns that haven't been checked for SLA
+        scheduled_dagruns = DagRun.find(
+            dag_id=self.dag_id,
             # TODO related to AIRFLOW-2236: determine how SLA misses should
             # work for backfills and externally triggered
             # DAG runs. At minimum they could have duration SLA misses.
-            .filter(DR.external_trigger == False)
-            .filter(DR.run_id.notlike(f"{DagRunType.BACKFILL_JOB.value}__%"))
+            external_trigger=False,
+            no_backfills=True,
+            sla_checked=False,
             # We aren't passing in the "state" parameter because we care about
             # checking for SLAs whether the DAG run has failed, succeeded, or
             # is still running.
-            .order_by(desc(DR.execution_date))
-            .all()
+            session=session
         )
 
         scheduled_dagrun_ids = [d.id for d in scheduled_dagruns]
@@ -1778,6 +1776,12 @@ class DAG(BaseDag, LoggingMixin):
             # future task instances.
             if ti.task.has_slas():
                 create_sla_misses(ti, ts, session=session)
+
+        # Mark existing dagruns to be sla checked. Uncreated DRs are not marked
+        # because they need to be checked again.
+        for dr in scheduled_dagruns:
+            dr.sla_checked = True
+            session.merge(dr)
 
         # Save any SlaMisses that were created in `create_sla_misses()`
         session.commit()
