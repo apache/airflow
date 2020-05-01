@@ -196,7 +196,6 @@ class SSHHook(BaseHook):
         if self.password:
             password = self.password.strip()
             connect_kwargs.update(password=password)
-            connect_kwargs.update(look_for_keys=False)
 
         if self.pkey:
             connect_kwargs.update(pkey=self.pkey)

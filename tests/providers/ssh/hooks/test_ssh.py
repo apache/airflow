@@ -179,7 +179,6 @@ class TestSSHHook(unittest.TestCase):
                 port='port',
                 sock=None,
                 password='password',
-                look_for_keys=False,
                 key_filename='fake.file',
             )
 
