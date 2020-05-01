@@ -1072,7 +1072,7 @@ object and can alter it where needed.
 
 Please note, cluster policy currently applies to task only though you can access DAG via ``task.dag`` property.
 Also, cluster policy will have precedence over task attributes defined in DAG
-meaning if task.sla is defined in dag and also mutated via cluster policy then later will have precedence.
+meaning if ``task.sla`` is defined in dag and also mutated via cluster policy then later will have precedence.
 
 Documentation & Notes
 =====================
