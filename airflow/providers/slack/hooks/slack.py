@@ -29,11 +29,8 @@ from airflow.hooks.base_hook import BaseHook
 class SlackHook(BaseHook):
     """
     Creates a Slack connection, to be used for calls.
-
     Takes both Slack API token directly and connection that has Slack API token.
-
     If both supplied, Slack API token will be used.
-
     Exposes also the rest of slack.WebClient args.
 
     :param token: Slack API token
@@ -41,10 +38,10 @@ class SlackHook(BaseHook):
     :param slack_conn_id: connection that has Slack API token in the password field
     :type slack_conn_id: str
     :param use_session: A boolean specifying if the client should take advantage of
-    connection pooling. Default is True.
+        connection pooling. Default is True.
     :type base_url: bool
     :param base_url: A string representing the Slack API base URL. Default is
-    `https://www.slack.com/api/`
+        `https://www.slack.com/api/`
     :type base_url: str
     :param timeout: The maximum number of seconds the client will wait
         to connect and receive a response from Slack.
