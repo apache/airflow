@@ -27,9 +27,5 @@ export DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
 # own docker images. In this case you can build images locally and push them
 export DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
 
-# if BRANCH_NAME is not set it will be set to either SOURCE_BRANCH
-# (if overridden by configuration) or default branch configured in /common/_default_branch.sh
-export SOURCE_BRANCH=${SOURCE_BRANCH:=${DEFAULT_BRANCH}}
-
 # read branch name from what has been set from sources (It can also be overridden)
-export BRANCH_NAME=${BRANCH_NAME:=${SOURCE_BRANCH}}
+export BRANCH_NAME=${BRANCH_NAME:=${DEFAULT_BRANCH}}

@@ -346,7 +346,7 @@ def do_setup_package_providers(provider_package: str, deps: List[str], extras: D
         long_description=get_long_description(provider_package),
         long_description_content_type='text/markdown',
         license='Apache License 2.0',
-        version='0.0.1',
+        version='2020.04.27.rc1',
         packages=found_packages,
         package_data={
             '': ["airflow/providers/cncf/kubernetes/example_dags/*.yaml"],
@@ -365,6 +365,13 @@ def do_setup_package_providers(provider_package: str, deps: List[str], extras: D
             'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: 3.7',
             'Topic :: System :: Monitoring',
+        ],
+        setup_requires=[
+            'bowler',
+            'docutils',
+            'gitpython',
+            'setuptools',
+            'wheel',
         ],
         python_requires='>=3.6',
     )

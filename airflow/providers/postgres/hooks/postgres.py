@@ -180,3 +180,57 @@ class PostgresHook(DbApiHook):
         else:
             token = aws_hook.conn.generate_db_auth_token(conn.host, port, conn.login)
         return login, token, port
+
+    @staticmethod
+    def _generate_insert_sql(table, values, target_fields, replace, **kwargs):
+        """
+        Static helper method that generate the INSERT SQL statement.
+        The REPLACE variant is specific to MySQL syntax.
+
+        :param table: Name of the target table
+        :type table: str
+        :param values: The row to insert into the table
+        :type values: tuple of cell values
+        :param target_fields: The names of the columns to fill in the table
+        :type target_fields: iterable of strings
+        :param replace: Whether to replace instead of insert
+        :type replace: bool
+        :param replace_index: the column or list of column names to act as
+            index for the ON CONFLICT clause
+        :type replace_index: str or list
+        :return: The generated INSERT or REPLACE SQL statement
+        :rtype: str
+        """
+        placeholders = ["%s", ] * len(values)
+        replace_index = kwargs.get("replace_index", None)
+
+        if target_fields:
+            target_fields_fragment = ", ".join(target_fields)
+            target_fields_fragment = "({})".format(target_fields_fragment)
+        else:
+            target_fields_fragment = ''
+
+        sql = "INSERT INTO {0} {1} VALUES ({2})".format(
+            table,
+            target_fields_fragment,
+            ",".join(placeholders))
+
+        if replace:
+            if target_fields is None:
+                raise ValueError("PostgreSQL ON CONFLICT upsert syntax requires column names")
+            if replace_index is None:
+                raise ValueError("PostgreSQL ON CONFLICT upsert syntax requires an unique index")
+            if isinstance(replace_index, str):
+                replace_index = [replace_index]
+            replace_index_set = set(replace_index)
+
+            replace_target = [
+                "{0} = excluded.{0}".format(col)
+                for col in target_fields
+                if col not in replace_index_set
+            ]
+            sql += " ON CONFLICT ({0}) DO UPDATE SET {1}".format(
+                ", ".join(replace_index),
+                ", ".join(replace_target),
+            )
+        return sql

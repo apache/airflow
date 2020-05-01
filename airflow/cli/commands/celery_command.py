@@ -22,6 +22,7 @@ from typing import Optional
 
 import daemon
 import psutil
+from celery import maybe_patch_concurrency
 from celery.bin import worker as worker_bin
 from daemon.pidfile import TimeoutPIDLockFile
 from flower.command import FlowerCommand
@@ -125,7 +126,14 @@ def worker(args):
     }
 
     if conf.has_option("celery", "pool"):
-        options["pool"] = conf.get("celery", "pool")
+        pool = conf.get("celery", "pool")
+        options["pool"] = pool
+        # Celery pools of type eventlet and gevent use greenlets, which
+        # requires monkey patching the app:
+        # https://eventlet.net/doc/patching.html#monkey-patch
+        # Otherwise task instances hang on the workers and are never
+        # executed.
+        maybe_patch_concurrency(['-P', pool])
 
     if args.daemon:
         # Run Celery worker as daemon

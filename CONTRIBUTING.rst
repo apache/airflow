@@ -279,6 +279,7 @@ Benefits:
 
 -   Breeze environment is almost the same as used in the CI automated builds.
     So, if the tests run in your Breeze environment, they will work in the CI as well.
+    See `<CI.yml>`_ for details about Airflow CI.
 
 Limitations:
 

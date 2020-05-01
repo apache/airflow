@@ -19,6 +19,8 @@ import time
 import unittest
 from datetime import timedelta
 
+import pytest
+
 from airflow.exceptions import AirflowSensorTimeout, AirflowSkipException
 from airflow.models.dag import DAG
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -72,6 +74,7 @@ class TestSensorTimeout(unittest.TestCase):
         }
         self.dag = DAG(TEST_DAG_ID, default_args=args)
 
+    @pytest.mark.quarantined
     def test_timeout(self):
         op = TimeoutTestSensor(
             task_id='test_timeout',

@@ -17,18 +17,20 @@
 # under the License.
 #
 import json
+import re
 import unittest
 from copy import deepcopy
 
 import mock
-from mock import PropertyMock
+from googleapiclient.errors import HttpError
+from mock import MagicMock, PropertyMock
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     DESCRIPTION, FILTER_JOB_NAMES, FILTER_PROJECT_ID, METADATA, OPERATIONS, PROJECT_ID, STATUS,
     TIME_TO_SLEEP_IN_SECONDS, TRANSFER_JOB, TRANSFER_JOB_FIELD_MASK, TRANSFER_JOBS,
-    CloudDataTransferServiceHook, GcpTransferJobsStatus, GcpTransferOperationStatus,
+    CloudDataTransferServiceHook, GcpTransferJobsStatus, GcpTransferOperationStatus, gen_job_name,
 )
 from tests.providers.google.cloud.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST, mock_base_gcp_hook_default_project_id,
@@ -38,9 +40,11 @@ from tests.providers.google.cloud.utils.base_gcp_mock import (
 NAME = "name"
 
 TEST_PROJECT_ID = 'project-id'
+TEST_TRANSFER_JOB_NAME = "transfer-job"
+TEST_CLEAR_JOB_NAME = "jobNames/transfer-job-clear"
+
 TEST_BODY = {DESCRIPTION: 'AAA', PROJECT_ID: TEST_PROJECT_ID}
 
-TEST_TRANSFER_JOB_NAME = "transfer-job"
 TEST_TRANSFER_OPERATION_NAME = "transfer-operation"
 
 TEST_TRANSFER_JOB = {NAME: TEST_TRANSFER_JOB_NAME}
@@ -57,11 +61,94 @@ TEST_UPDATE_TRANSFER_JOB_BODY = {
     TRANSFER_JOB_FIELD_MASK: 'description',
 }
 
+TEST_HTTP_ERR_CODE = 409
+TEST_HTTP_ERR_CONTENT = b'Conflict'
+
+TEST_RESULT_STATUS_ENABLED = {STATUS: GcpTransferJobsStatus.ENABLED}
+TEST_RESULT_STATUS_DISABLED = {STATUS: GcpTransferJobsStatus.DISABLED}
+TEST_RESULT_STATUS_DELETED = {STATUS: GcpTransferJobsStatus.DELETED}
+
 
 def _without_key(body, key):
     obj = deepcopy(body)
     del obj[key]
     return obj
+
+
+def _with_name(body, job_name):
+    obj = deepcopy(body)
+    obj[NAME] = job_name
+    return obj
+
+
+class GCPRequestMock:
+
+    status = TEST_HTTP_ERR_CODE
+
+
+class TestGCPTransferServiceHookWithPassedName(unittest.TestCase):
+
+    def setUp(self):
+        with mock.patch(
+            'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__',
+            new=mock_base_gcp_hook_no_default_project_id,
+        ):
+            self.gct_hook = CloudDataTransferServiceHook(gcp_conn_id='test')
+
+    @mock.patch(
+        'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
+        '.CloudDataTransferServiceHook.enable_transfer_job'
+    )
+    @mock.patch(
+        'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
+        '.CloudDataTransferServiceHook.get_transfer_job'
+    )
+    @mock.patch(
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None
+    )
+    @mock.patch(
+        'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
+        '.CloudDataTransferServiceHook.get_conn'
+    )
+    # pylint: disable=unused-argument
+    def test_pass_name_on_create_job(self,
+                                     get_conn: MagicMock,
+                                     project_id: PropertyMock,
+                                     get_transfer_job: MagicMock,
+                                     enable_transfer_job: MagicMock
+                                     ):
+        body = _with_name(TEST_BODY, TEST_CLEAR_JOB_NAME)
+        get_conn.side_effect \
+            = HttpError(GCPRequestMock(), TEST_HTTP_ERR_CONTENT)
+
+        with self.assertRaises(HttpError):
+
+            # check status DELETED generates new job name
+            get_transfer_job.return_value = TEST_RESULT_STATUS_DELETED
+            self.gct_hook.create_transfer_job(body=body)
+
+        # check status DISABLED changes to status ENABLED
+        get_transfer_job.return_value = TEST_RESULT_STATUS_DISABLED
+        enable_transfer_job.return_value = TEST_RESULT_STATUS_ENABLED
+
+        res = self.gct_hook.create_transfer_job(body=body)
+        self.assertEqual(res, TEST_RESULT_STATUS_ENABLED)
+
+
+class TestJobNames(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.re_suffix = re.compile("^[0-9]{10}$")
+
+    def test_new_suffix(self):
+        for job_name in ["jobNames/new_job",
+                         "jobNames/new_job_h",
+                         "jobNames/newJob"]:
+            self.assertIsNotNone(
+                self.re_suffix.match(gen_job_name(job_name).split("_")[-1])
+            )
 
 
 class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
@@ -652,7 +739,8 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
             self.gct_hook.create_transfer_job(body=_without_key(TEST_BODY, PROJECT_ID))
 
         self.assertEqual(
-            'The project id must be passed either as `projectId` key in `body` parameter or as project_id '
+            'The project id must be passed either as `projectId` key in `body` '
+            'parameter or as project_id '
             'extra in GCP connection definition. Both are not set!',
             str(e.exception),
         )

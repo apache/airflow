@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import importlib
+import re
 import unittest
 from unittest import mock
 from unittest.mock import Mock
@@ -23,7 +24,7 @@ from unittest.mock import Mock
 import statsd
 
 import airflow
-from airflow.exceptions import InvalidStatsNameException
+from airflow.exceptions import AirflowConfigException, InvalidStatsNameException
 from airflow.stats import AllowListValidator, SafeDogStatsdLogger, SafeStatsdLogger
 from tests.test_utils.config import conf_vars
 
@@ -124,9 +125,14 @@ class TestStats(unittest.TestCase):
         ("scheduler", "statsd_custom_client_path"): "tests.test_stats.InvalidCustomStatsd",
     })
     def test_load_invalid_custom_stats_client(self):
-        importlib.reload(airflow.stats)
-        airflow.stats.Stats.incr("dummy_key")
-        assert InvalidCustomStatsd.incr_calls == 0
+        with self.assertRaisesRegex(
+            AirflowConfigException,
+            re.escape(
+                'Your custom Statsd client must extend the statsd.'
+                'StatsClient in order to ensure backwards compatibility.'
+            )
+        ):
+            importlib.reload(airflow.stats)
 
     def tearDown(self) -> None:
         # To avoid side-effect

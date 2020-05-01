@@ -293,6 +293,12 @@ repos:
         entry: "(airflow\\.){0,1}utils\\.dates\\.days_ago"
         files: \.py$
         pass_filenames: true
+      - id: check-integrations
+        name: Check if integration list is aligned
+        entry: ./scripts/ci/pre_commit_check_integrations.sh
+        language: system
+        pass_filenames: false
+        files: ^common/_common_values.sh$|^breeze-complete$
       - id: build
         name: Check if image build is needed
         entry: ./scripts/ci/pre_commit_ci_build.sh 3.6 false
