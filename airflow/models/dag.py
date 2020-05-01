@@ -1756,7 +1756,7 @@ class DAG(BaseDag, LoggingMixin):
             scheduled_tis = []
 
         self.log.debug(
-            "Found {} outstanding TIs across {} dagruns for DAG {}".format(
+            "Found %s outstanding TIs across %s dagruns for DAG %s".format(
                 len(scheduled_tis), len(scheduled_dagruns), self.dag_id))
 
         # We need to examine unscheduled DAGRuns, too. If there are concurrency
@@ -1796,7 +1796,7 @@ class DAG(BaseDag, LoggingMixin):
         )
 
     @provide_session
-    def send_sla_notifications(self, sla_misses, session=None):
+    def send_sla_notifications(self, sla_misses: Collection[SlaMiss], session=None):
         """
         Given a list of SLA misses, send emails and/or do SLA miss callback.
         """
