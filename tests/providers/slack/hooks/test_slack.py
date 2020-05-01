@@ -36,7 +36,7 @@ class TestSlackHook(unittest.TestCase):
         # Creating a dummy subclass is the easiest way to avoid running init
         #  which is actually using the method we are testing
         class DummySlackHook(SlackHook):
-            def __init__(self, *args, **kwargs):
+            def __init__(self, *args, **kwargs):  # pylint: disable=W0231
                 pass
 
         # Run
@@ -61,7 +61,7 @@ class TestSlackHook(unittest.TestCase):
         # Creating a dummy subclass is the easiest way to avoid running init
         #  which is actually using the method we are testing
         class DummySlackHook(SlackHook):
-            def __init__(self, *args, **kwargs):
+            def __init__(self, *args, **kwargs):  # pylint: disable=W0231
                 pass
 
         # Run
@@ -103,7 +103,7 @@ class TestSlackHook(unittest.TestCase):
         # Creating a dummy subclass is the easiest way to avoid running init
         #  which is actually using the method we are testing
         class DummySlackHook(SlackHook):
-            def __init__(self, *args, **kwargs):
+            def __init__(self, *args, **kwargs):  # pylint: disable=W0231
                 pass
 
         # Run

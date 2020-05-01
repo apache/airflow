@@ -21,7 +21,6 @@ import unittest
 
 import mock
 
-from airflow.exceptions import AirflowException
 from airflow.providers.slack.operators.slack import SlackAPIPostOperator
 
 

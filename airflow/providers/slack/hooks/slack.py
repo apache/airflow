@@ -16,10 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Slack"""
-from typing import Optional, Any
+from typing import Any, Optional
 
 from slack import WebClient
-from slack.errors import SlackClientError
+from slack.errors import SlackClientError  # pylint: disable=E0611
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -72,9 +72,9 @@ class SlackHook(BaseHook):
             if not getattr(conn, 'password', None):
                 raise AirflowException('Missing token(password) in Slack connection')
             return conn.password
-        else:
-            raise AirflowException('Cannot get token: '
-                                   'No valid Slack token nor slack_conn_id supplied.')
+
+        raise AirflowException('Cannot get token: '
+                               'No valid Slack token nor slack_conn_id supplied.')
 
     def call(self, method: str, api_params: dict) -> None:
         """
