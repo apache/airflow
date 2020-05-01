@@ -44,7 +44,7 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.images.return_value = []
         client_mock.attach.return_value = ['container log']
         client_mock.logs.return_value = ['container log']
-        client_mock.pull.return_value = [b'{"status":"pull log"}']
+        client_mock.pull.return_value = {"status": "pull log"}
         client_mock.wait.return_value = {"StatusCode": 0}
 
         client_class_mock.return_value = client_mock
@@ -88,6 +88,8 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.pull.assert_called_with('ubuntu:latest', stream=True,
                                             decode=True)
         client_mock.wait.assert_called_with('some_id')
+        self.assertEqual(operator.cli.pull('ubuntu:latest', stream=True, decode=True),
+                         client_mock.pull.return_value)
 
     @mock.patch('airflow.operators.docker_operator.tls.TLSConfig')
     @mock.patch('airflow.operators.docker_operator.APIClient')
@@ -250,7 +252,7 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.images.return_value = []
         client_mock.create_container.return_value = {'Id': 'some_id'}
         client_mock.attach.return_value = ['container log']
-        client_mock.pull.return_value = [b'{"status":"pull log"}']
+        client_mock.pull.return_value = {"status": "pull log"}
         client_mock.wait.return_value = {"StatusCode": 0}
 
         client_class_mock.return_value = client_mock
