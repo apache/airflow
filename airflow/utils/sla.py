@@ -31,7 +31,7 @@ from airflow.utils.state import State
 log = logging.getLogger(__name__)
 
 
-def yield_unscheduled_runs(dag, last_scheduled_run, ts):
+def yield_uncreated_runs(dag, last_scheduled_run, ts):
     """
     Yield new DagRuns that haven't been created yet. This functionality is
     important to SLA misses because it is possible for the scheduler to fall
@@ -39,6 +39,10 @@ def yield_unscheduled_runs(dag, last_scheduled_run, ts):
     if it is offline, or if there are strict concurrency limits). We need to
     understand and alert on what DAGRuns *should* have been created by this
     point in time.
+
+    Uncreated DagRuns are found by following a dag's schedule until the next
+    execution is greater than ts, a timestamp that is very close to the current
+    moment.
     """
 
     # TODO: A lot of this logic is duplicated from the scheduler. It would
@@ -102,11 +106,14 @@ def yield_unscheduled_runs(dag, last_scheduled_run, ts):
         next_run_date = dag.following_schedule(next_run_date)
 
 
-def yield_unscheduled_tis(dag_run, ts):
+def yield_uncreated_tis(dag_run, ts):
     """
     Given an unscheduled `DagRun`, yield any unscheduled TIs that will exist
     for it in the future, respecting the end date of the DAG and task. See note
     above for why this is important for SLA notifications.
+
+    Uncreated TIs are found by following a dag's schedule until the next execution
+    is greater than ts, a timestamp that is very close to the current moment.
     """
     for task in dag_run.dag.tasks:
         end_dates = []

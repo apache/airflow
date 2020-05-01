@@ -59,7 +59,7 @@ from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.utils.sla import create_sla_misses, yield_unscheduled_runs, yield_unscheduled_tis
+from airflow.utils.sla import create_sla_misses, yield_uncreated_runs, yield_uncreated_tis
 from airflow.utils.sqlalchemy import Interval, UtcDateTime
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -1765,8 +1765,8 @@ class DAG(BaseDag, LoggingMixin):
         last_dagrun = scheduled_dagruns[-1] if scheduled_dagruns else None
 
         def unscheduled_tis(last_dagrun):
-            for dag_run in yield_unscheduled_runs(self, last_dagrun, ts):
-                for ti in yield_unscheduled_tis(dag_run, ts):
+            for dag_run in yield_uncreated_runs(self, last_dagrun, ts):
+                for ti in yield_uncreated_tis(dag_run, ts):
                     yield ti
 
         # Snapshot the time to check SLAs against.
