@@ -156,7 +156,7 @@ def create_sla_misses(ti, timestamp, session):
     SM = airflow.models.SlaMiss
 
     # Get existing SLA misses for this task instance.
-    ti_misses = {sm.sla_type: sm for sm in get_sla_misses(ti, session)}
+    existing_sla_types = {sm.sla_type for sm in get_sla_misses(ti, session)}
 
     # Calculate SLA misses that don't already exist. Wrapping exceptions here
     # is important so that an exception in one type of SLA doesn't
@@ -164,7 +164,7 @@ def create_sla_misses(ti, timestamp, session):
 
     # SLA Miss for Expected Duration
     # n.b. - this one can't be calculated until the ti has started!
-    if SM.TASK_DURATION_EXCEEDED not in ti_misses \
+    if SM.TASK_DURATION_EXCEEDED not in existing_sla_types \
             and ti.task.expected_duration and ti.start_date:
         try:
             if ti.state in State.finished():
@@ -195,7 +195,7 @@ def create_sla_misses(ti, timestamp, session):
             )
 
     # SLA Miss for Expected Start
-    if SM.TASK_LATE_START not in ti_misses and ti.task.expected_start:
+    if SM.TASK_LATE_START not in existing_sla_types and ti.task.expected_start:
         try:
             # If a TI's exc date is 01-01-2018, we expect it to start by the next
             # execution date (01-02-2018) plus a delta of expected_start.
@@ -237,7 +237,7 @@ def create_sla_misses(ti, timestamp, session):
             )
 
     # SLA Miss for Expected Finish
-    if SM.TASK_LATE_FINISH not in ti_misses and ti.task.expected_finish:
+    if SM.TASK_LATE_FINISH not in existing_sla_types and ti.task.expected_finish:
         try:
             # If a TI's exc date is 01-01-2018, we expect it to finish by the next
             # execution date (01-02-2018) plus a delta of expected_finish.
