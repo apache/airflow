@@ -503,13 +503,13 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         sla_param_errs: List = []
         if expected_duration and not isinstance(expected_duration, timedelta):
             sla_param_errs.append("expected_duration must be a timedelta, "
-                                  "got: {}".format(expected_duration))
+                                  "got: {}".format(type(expected_duration)))
         if expected_start and not isinstance(expected_start, timedelta):
             sla_param_errs.append("expected_start must be a timedelta, "
-                                  "got: {}".format(expected_start))
+                                  "got: {}".format(type(expected_start)))
         if expected_finish and not isinstance(expected_finish, timedelta):
             sla_param_errs.append("expected_finish must be a timedelta, "
-                                  "got: {}".format(expected_finish))
+                                  "got: {}".format(type(expected_finish)))
         if sla_param_errs:
             raise AirflowException("Invalid SLA params were set! {}".format(
                 "; ".join(sla_param_errs)))
@@ -524,8 +524,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 and self.expected_start >= self.expected_finish:
             self.log.warning(
                 "Task %s has an expected_start (%s) that occurs after its "
-                "expected_finish (%s), so it will always send an SLA "
-                "notification.",
+                "expected_finish (%s), so expected_start will not take effect.",
                 self, self.expected_start, self.expected_finish
             )
 
@@ -535,8 +534,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 > self.expected_finish:
             self.log.warning(
                 "Task %s has an expected_start (%s) and expected_duration "
-                "(%s) that exceed its expected_finish (%s), so it will "
-                "always send an SLA notification.",
+                "(%s) that exceed its expected_finish (%s), so expected_finish "
+                "will not take effect.",
                 self, self.expected_start, self.expected_duration, self.expected_finish
             )
 
@@ -1442,7 +1441,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         return False
 
 
-    def has_slas(self):
+    def has_slas(self) -> bool:
         """
         Return whether this task has any SLA attributes set.
         """
