@@ -1110,6 +1110,16 @@ class TestDagFileProcessor(unittest.TestCase):
             ('test_task_on_execute', 'scheduled'),
             ('test_task_on_success', 'scheduled'),
         }, {(ti.task_id, ti.state) for ti in tis})
+        for state, start_date, end_date, duration in [(ti.state, ti.start_date, ti.end_date, ti.duration) for
+                                                      ti in tis]:
+            if state == 'success':
+                self.assertIsNotNone(start_date)
+                self.assertIsNotNone(end_date)
+                self.assertEqual(0.0, duration)
+            else:
+                self.assertIsNone(start_date)
+                self.assertIsNone(end_date)
+                self.assertIsNone(duration)
 
         dag_file_processor.process_file(
             file_path=dag_file, failure_callback_requests=[]
@@ -1125,6 +1135,16 @@ class TestDagFileProcessor(unittest.TestCase):
             ('test_task_on_execute', 'scheduled'),
             ('test_task_on_success', 'scheduled'),
         }, {(ti.task_id, ti.state) for ti in tis})
+        for state, start_date, end_date, duration in [(ti.state, ti.start_date, ti.end_date, ti.duration) for
+                                                      ti in tis]:
+            if state == 'success':
+                self.assertIsNotNone(start_date)
+                self.assertIsNotNone(end_date)
+                self.assertEqual(0.0, duration)
+            else:
+                self.assertIsNone(start_date)
+                self.assertIsNone(end_date)
+                self.assertIsNone(duration)
 
 
 class TestDagFileProcessorQueriesCount(unittest.TestCase):
