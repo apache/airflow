@@ -456,37 +456,37 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         """Log URL for TaskInstance"""
         iso = quote(self.execution_date.isoformat())
         base_url = conf.get('webserver', 'BASE_URL')
-        return base_url + (  # noqa
-            "/log?"
+        return (
+            "{base_url}/log?"
             "execution_date={iso}"
             "&task_id={task_id}"
             "&dag_id={dag_id}"
-        ).format(iso=iso, task_id=self.task_id, dag_id=self.dag_id)
+        ).format(base_url=base_url, iso=iso, task_id=self.task_id, dag_id=self.dag_id)
 
     @property
     def mark_success_url(self):
         """URL to mark TI success"""
         iso = quote(self.execution_date.isoformat())
         base_url = conf.get('webserver', 'BASE_URL')
-        return base_url + (  # noqa
-            "/success"
+        return (
+            "{base_url}/success"
             "?task_id={task_id}"
             "&dag_id={dag_id}"
             "&execution_date={iso}"
             "&upstream=false"
             "&downstream=false"
-        ).format(task_id=self.task_id, dag_id=self.dag_id, iso=iso)
+        ).format(base_url=base_url, task_id=self.task_id, dag_id=self.dag_id, iso=iso)
 
     @property
     def details_url(self):
         iso = quote(self.execution_date.isoformat())
         base_url = conf.get('webserver', 'BASE_URL')
-        return base_url + (
-            "/task"
+        return (
+            "{base_url}/task"
             "?task_id={task_id}"
             "&dag_id={dag_id}"
             "&execution_date={iso}"
-        ).format(task_id=self.task_id, dag_id=self.dag_id, iso=iso)
+        ).format(base_url=base_url, task_id=self.task_id, dag_id=self.dag_id, iso=iso)
 
     @provide_session
     def current_state(self, session=None) -> str:
