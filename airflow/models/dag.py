@@ -1828,12 +1828,11 @@ class DAG(BaseDag, LoggingMixin):
                 ti = TaskInstance(task, sla_miss.execution_date)
                 ti.task = task
 
-            notification_sent = False
             # If no callback exists, we don't want to send any notification;
             # but we do want to update the SlaMiss in the database so that it
             # doesn't keep looping.
             if not task.sla_miss_callback:
-                notification_sent = True
+                sla_miss.notification_sent = True
             else:
                 self.log.info("Calling sla_miss_callback for %s", sla_miss)
                 try:
@@ -1841,17 +1840,16 @@ class DAG(BaseDag, LoggingMixin):
                     context = ti.get_template_context()
                     context["sla_miss"] = sla_miss
                     task.sla_miss_callback(context)
-                    notification_sent = True
+                    sla_miss.notification_sent = True
                     self.log.debug("Called sla_miss_callback for %s", sla_miss)
-                except Exception:
+                except Exception as e:  # pylint: disable=broad-except
                     self.log.exception(
-                        "Could not call sla_miss_callback for DAG %s",
-                        self.dag_id
+                        "Could not call sla_miss_callback for DAG %s: %s",
+                        self.dag_id, e
                     )
 
             # If we sent any notification, update the sla_miss table
-            if notification_sent:
-                sla_miss.notification_sent = True
+            if sla_miss.notification_sent:
                 session.merge(sla_miss)
                 session.commit()
 
