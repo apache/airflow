@@ -211,20 +211,19 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     :type sla: datetime.timedelta
     :param expected_duration: the maximum duration the task is allowed to take,
         provided as a ``timedelta``. This ``timedelta`` is relative to when the
-        task actually starts running, not to the execution date. It includes
-        any task retries, similar to the ``execution_timeout`` parameter.
-        SLA misses are stored in the database, and then SLA miss callbacks
-        are triggered. The default SLA miss callback is to email task owners.
-        Note that SLA parameters do not influence the scheduler, so you should
-        set appropriate SLA parameters given your DAG's schedule. For example,
-        setting an ``expected_start`` of ``timedelta(hours=2)`` on a task that
-        depends on a ``TimeDeltaSensor`` with ``timedelta(hours=3)`` would be
-        expected to always cause an SLA miss.
+        task actually starts running. It includes any task retries, similar to
+        the ``execution_timeout`` parameter. However, unlike ``execution_timeout``,
+        setting ``expected_duration`` will not cause tasks to abort if the task
+        takes loner than the specified duration. Instead SLA misses are created
+        and stored in the database, and then SLA miss callbacks are triggered.
+        The default SLA miss callback is to email task owners. Note that SLA
+        parameters do not influence the scheduler, so you should set appropriate
+        SLA parameters given your DAG's schedule.
     :type expected_duration: datetime.timedelta
     :param expected_start: time by which the task is expected to start,
         provided as a ``timedelta`` relative to the expected start time of
         this task's DAG. For instance, if you set an ``expected_start`` of
-        ``timedelta(hours=1)`` on a task inside of a DAG that runs on a
+        ``timedelta(hours=1)`` on a task inside a DAG that runs on a
         midnight UTC schedule, any unscheduled instances would be marked as
         missing their ``expected_start`` SLA shortly after 1 AM UTC.
         SLA misses are stored in the database, and then SLA miss callbacks
@@ -530,16 +529,16 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 self, self.expected_start, self.expected_finish
             )
 
-            if self.expected_duration and self.expected_start \
-                    and self.expected_finish and \
-                    (self.expected_start + self.expected_duration) \
-                    > self.expected_finish:
-                self.log.warning(
-                    "Task %s has an expected_start (%s) and expected_duration "
-                    "(%s) that exceed its expected_finish (%s), so it will "
-                    "always send an SLA notification.",
-                    self, self.expected_start, self.expected_duration, self.expected_finish
-                )
+        if self.expected_duration and self.expected_start \
+                and self.expected_finish and \
+                (self.expected_start + self.expected_duration) \
+                > self.expected_finish:
+            self.log.warning(
+                "Task %s has an expected_start (%s) and expected_duration "
+                "(%s) that exceed its expected_finish (%s), so it will "
+                "always send an SLA notification.",
+                self, self.expected_start, self.expected_duration, self.expected_finish
+            )
 
         if self.expected_duration and self.execution_timeout \
                 and self.expected_duration > self.execution_timeout:
