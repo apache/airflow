@@ -297,24 +297,13 @@ def send_sla_miss_email(context):
     send_email(email_to, email_subject, email_body)
 
 
-def describe_task_instance(ti):
-    """
-    Return a string representation of the task instance.
-    """
-    return "{dag_id}.{task_id} [{exc_date}]".format(
-        dag_id=ti.dag_id,
-        task_id=ti.task_id,
-        exc_date=ti.execution_date
-    )
-
-
 def get_sla_miss_subject(miss_type, ti):
     """
     Return a consistent subject line for SLA miss emails.
     """
     return "[airflow] [SLA] {miss_type} on {task_instance}".format(
         miss_type=miss_type,
-        task_instance=describe_task_instance(ti)
+        task_instance=ti,
     )
 
 
@@ -325,7 +314,7 @@ def get_subscribers(task_instances):
     def _yield_subscribers(task_instances):
         for ti in task_instances:
             email = ti.task.email
-            if isinstance(email, string_types):
+            if isinstance(email, str):
                 yield email
             elif email:
                 for e in email:
@@ -416,10 +405,10 @@ def send_task_duration_exceeded_email(context):
 
         "This may be impacting the following downstream tasks:\n"
         "<pre><code>{impacted_downstreams}\n{art}</pre></code>".format(
-            task_string=describe_task_instance(ti),
+            task_string=ti,
             target_time=target_time,
             impacted_downstreams="\n".join(
-                describe_task_instance(d) for d in impacted_downstreams),
+                downstream_ti for downstream_ti in impacted_downstreams),
             ti_url=ti.details_url,
             art=asciiart.snail)
     )
@@ -455,10 +444,10 @@ def send_task_late_start_email(context):
 
         "This may be impacting the following downstream tasks:\n"
         "<pre><code>{impacted_downstreams}\n{art}</pre></code>".format(
-            task_string=describe_task_instance(ti),
+            task_string=ti,
             target_time=target_time,
             impacted_downstreams="\n".join(
-                describe_task_instance(d) for d in impacted_downstreams),
+                downstream_ti for downstream_ti in impacted_downstreams),
             ti_url=ti.details_url,
             art=asciiart.snail)
     )
@@ -493,10 +482,10 @@ def send_task_late_finish_email(context):
 
         "This may be impacting the following downstream tasks:\n"
         "<pre><code>{impacted_downstreams}\n{art}</pre></code>".format(
-            task_string=describe_task_instance(ti),
+            task_string=ti,
             target_time=target_time,
             impacted_downstreams="\n".join(
-                describe_task_instance(d) for d in impacted_downstreams),
+                downstream_ti for downstream_ti in impacted_downstreams),
             ti_url=ti.details_url,
             art=asciiart.snail)
     )
