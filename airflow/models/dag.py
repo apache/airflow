@@ -36,7 +36,7 @@ import jinja2
 import pendulum
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
-from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, and_, asc, func, not_, or_
+from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, and_, asc, desc, func, not_, or_
 from sqlalchemy.orm import backref, joinedload, relationship
 from sqlalchemy.orm.session import Session
 
@@ -1704,31 +1704,30 @@ class DAG(BaseDag, LoggingMixin):
         """
         self.log.debug("Checking for SLA misses for DAG %s", self.dag_id)
 
-        # Get all current DagRuns.
-        scheduled_dagruns = DagRun.find(
-            dag_id=self.dag_id,
-            # TODO related to AIRFLOW-2236: determine how SLA misses should
-            # work for backfills and externally triggered
-            # DAG runs. At minimum they could have duration SLA misses.
-            external_trigger=False,
-            no_backfills=True,
-            # We aren't passing in the "state" parameter because we care about
-            # checking for SLAs whether the DAG run has failed, succeeded, or
-            # is still running.
-            session=session
-        )
-
-        # TODO: Is there a better limit here than "look at most recent 100"?
-        # Perhaps there should be a configurable lookback window on the DAG,
-        # for how many runs to consider SLA violations for.
-        scheduled_dagruns = scheduled_dagruns[-100:]
-        scheduled_dagrun_ids = [d.id for d in scheduled_dagruns]
-
         TI = TaskInstance
         DR = DagRun
 
+        # Get all current DagRuns.
+        scheduled_dagruns = (
+            session.query(DR)
+            .filter(DR.dag_id == self.dag_id)
+            .filter(DR.sla_checked == False)
+            # TODO related to AIRFLOW-2236: determine how SLA misses should
+            # work for backfills and externally triggered
+            # DAG runs. At minimum they could have duration SLA misses.
+            .filter(DR.external_trigger == False)
+            .filter(DR.run_id.notlike(f"{DagRunType.BACKFILL_JOB.value}__%"))
+            # We aren't passing in the "state" parameter because we care about
+            # checking for SLAs whether the DAG run has failed, succeeded, or
+            # is still running.
+            .order_by(desc(DR.execution_date))
+            .all()
+        )
+
+        scheduled_dagrun_ids = [d.id for d in scheduled_dagruns]
+
         if scheduled_dagrun_ids:
-            # Find full, existing TIs for these DagRuns.
+            # Find existing TIs for these DagRuns.
             scheduled_tis = (
                 session.query(TI)
                 .outerjoin(DR, and_(
@@ -1750,11 +1749,6 @@ class DAG(BaseDag, LoggingMixin):
                 ))
                 # Only look at specified DagRuns
                 .filter(DR.id.in_(scheduled_dagrun_ids))
-                # If the DAGRun is SUCCEEDED, then everything has gone
-                # according to plan. But if it's FAILED, someone may be
-                # coming to fix it, and SLAs for tasks in it will still
-                # matter.
-                .filter(DR.state != State.SUCCESS)
                 .order_by(asc(DR.execution_date))
                 .all()
             )
