@@ -106,6 +106,7 @@ def default_config_yaml() -> dict:
     with open(file_path) as config_file:
         return yaml.safe_load(config_file)
 
+
 class AirflowConfigParser(ConfigParser):
 
     # These configuration elements can be fetched as the stdout of commands
@@ -192,8 +193,14 @@ class AirflowConfigParser(ConfigParser):
                 current_value = self.get(section, name, fallback=None)
                 if self._using_old_value(old, current_value):
                     new_value = re.sub(old, new, current_value)
-                    self._update_env_var(section=section, name=name, new_value=new_value)
-                    self._create_future_warning(name=name, section=section, current_value=current_value, new_value=new_value, version=version)
+                    self._update_env_var(
+                        section=section, name=name, new_value=new_value)
+                    self._create_future_warning(
+                        name=name,
+                        section=section,
+                        current_value=current_value,
+                        new_value=new_value,
+                        version=version)
 
         self.is_validated = True
 
