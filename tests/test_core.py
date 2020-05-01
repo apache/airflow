@@ -175,9 +175,9 @@ class TestCore(unittest.TestCase):
     def test_sla_invalid_arg_exception(self):
         msg = (
             "Invalid SLA params were set! "
-            "expected_duration must be a timedelta, got: 10; "
-            "expected_start must be a timedelta, got: 1.0; "
-            "expected_finish must be a timedelta, got: 10"
+            "expected_duration must be a timedelta, got: <class 'int'>; "
+            "expected_start must be a timedelta, got: <class 'float'>; "
+            "expected_finish must be a timedelta, got: <class 'str'>"
         )
 
         with self.assertRaisesRegex(AirflowException, msg):
