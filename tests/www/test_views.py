@@ -1307,6 +1307,8 @@ class TestTaskStats(unittest.TestCase):
         stats = json.loads(resp.data.decode('utf-8'))
         self.assertIn('example_bash_operator', stats)
         self.assertIn('example_xcom', stats)
+        self.assertEqual(set(stats['example_bash_operator'][0].keys()),
+                         {'state', 'count', 'color'})
 
     def test_selected_dags(self):
         resp = self.app.get(
@@ -1328,6 +1330,13 @@ class TestTaskStats(unittest.TestCase):
         self.assertIn('example_bash_operator', stats)
         self.assertIn('example_xcom', stats)
         self.assertNotIn('example_subdag_operator', stats)
+
+    def test_dag_stats(self):
+        resp = self.app.get('/admin/airflow/dag_stats', follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        stats = json.loads(resp.data.decode('utf-8'))
+        self.assertEqual(set(list(stats.items())[0][1][0].keys()),
+                         {'state', 'count', 'color'})
 
 
 if __name__ == '__main__':
