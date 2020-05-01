@@ -17,13 +17,14 @@
 ---
 version: "2.2"
 services:
-  airflow-testing:
+  airflow:
     # We need to mount files an directories individually because some files
     # such apache_airflow.egg-info should not be mounted from host
     # we only mount those files that it makes sense to edit while developing
     # or those that might be useful to see in the host as output of the
     # tests (such as logs)
     volumes:
+      # START automatically generated volumes from LOCAL_MOUNTS in _utils.sh
       - ../../../.bash_aliases:/root/.bash_aliases:cached
       - ../../../.bash_history:/root/.bash_history:cached
       - ../../../.coveragerc:/opt/airflow/.coveragerc:cached
@@ -33,8 +34,8 @@ services:
       - ../../../.inputrc:/root/.inputrc:cached
       - ../../../.kube:/root/.kube:cached
       - ../../../.rat-excludes:/opt/airflow/.rat-excludes:cached
-      - ../../../CHANGELOG.txt:/opt/airflow/CHANGELOG:cached
-      - ../../../Dockerfile:/opt/airflow/Dockerfile:cached
+      - ../../../CHANGELOG.txt:/opt/airflow/CHANGELOG.txt:cached
+      - ../../../Dockerfile.ci:/opt/airflow/Dockerfile.ci:cached
       - ../../../LICENSE:/opt/airflow/LICENSE:cached
       - ../../../MANIFEST.in:/opt/airflow/MANIFEST.in:cached
       - ../../../NOTICE:/opt/airflow/NOTICE:cached
@@ -44,16 +45,19 @@ services:
       - ../../../dev:/opt/airflow/dev:cached
       - ../../../docs:/opt/airflow/docs:cached
       - ../../../files:/files:cached
+      - ../../../dist:/dist:cached
       - ../../../hooks:/opt/airflow/hooks:cached
       - ../../../logs:/root/airflow/logs:cached
       - ../../../pylintrc:/opt/airflow/pylintrc:cached
       - ../../../pytest.ini:/opt/airflow/pytest.ini:cached
+      - ../../../requirements:/opt/airflow/requirements:cached
       - ../../../scripts:/opt/airflow/scripts:cached
       - ../../../scripts/ci/in_container/entrypoint_ci.sh:/entrypoint_ci.sh:cached
       - ../../../setup.cfg:/opt/airflow/setup.cfg:cached
       - ../../../setup.py:/opt/airflow/setup.py:cached
       - ../../../tests:/opt/airflow/tests:cached
       - ../../../tmp:/opt/airflow/tmp:cached
+      # END automatically generated volumes from LOCAL_MOUNTS in _utils.sh
     environment:
       - HOST_USER_ID
       - HOST_GROUP_ID

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -60,14 +59,6 @@ class BaseDag(metaclass=ABCMeta):
         """
         :return: maximum number of tasks that can run simultaneously from this DAG
         :rtype: int
-        """
-        raise NotImplementedError()
-
-    @abstractmethod
-    def is_paused(self):
-        """
-        :return: whether this DAG is paused or not
-        :rtype: bool
         """
         raise NotImplementedError()
 

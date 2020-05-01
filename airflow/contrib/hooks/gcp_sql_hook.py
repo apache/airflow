@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,15 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.hooks.cloud_sql`.
+This module is deprecated. Please use `airflow.providers.google.cloud.hooks.cloud_sql`.
 """
 
 import warnings
 
-from airflow.gcp.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
+from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.hooks.cloud_sql`",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.cloud_sql`",
     DeprecationWarning,
     stacklevel=2,
 )
@@ -33,7 +32,8 @@ warnings.warn(
 
 class CloudSqlDatabaseHook(CloudSQLDatabaseHook):
     """
-    This class is deprecated. Please use `airflow.gcp.hooks.sql.CloudSQLDatabaseHook`.
+    This class is deprecated.
+    Please use `airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook`.
     """
 
     def __init__(self, *args, **kwargs):
@@ -43,7 +43,7 @@ class CloudSqlDatabaseHook(CloudSQLDatabaseHook):
 
 class CloudSqlHook(CloudSQLHook):
     """
-    This class is deprecated. Please use `airflow.gcp.hooks.sql.CloudSQLHook`.
+    This class is deprecated. Please use `airflow.providers.google.cloud.hooks.sql.CloudSQLHook`.
     """
 
     def __init__(self, *args, **kwargs):

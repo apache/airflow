@@ -23,7 +23,7 @@ from unittest import mock
 import pytest
 
 from airflow.configuration import conf
-from airflow.jobs import BackfillJob
+from airflow.jobs.backfill_job import BackfillJob
 from airflow.models import DagBag
 from airflow.utils import timezone
 
@@ -41,8 +41,6 @@ except ImportError:
     pass
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
-pytestmark = pytest.mark.xfail(condition=True, reason="The Dask executor is expected to fail: "
-                               "TODO: WE SHOULD REMOVE IT ALTOGETHER OR FIX ????")
 
 
 class TestBaseDask(unittest.TestCase):
@@ -89,32 +87,21 @@ class TestDaskExecutor(TestBaseDask):
         executor = DaskExecutor(cluster_address=self.cluster.scheduler_address)
         self.assert_tasks_on_executor(executor)
 
+    @pytest.mark.quarantined
     def test_backfill_integration(self):
         """
         Test that DaskExecutor can be used to backfill example dags
         """
-        dags = [
-            dag for dag in self.dagbag.dags.values()
-            if dag.dag_id in [
-                'example_bash_operator',
-                # 'example_python_operator',
-            ]
-        ]
+        dag = self.dagbag.get_dag('example_bash_operator')
 
-        for dag in dags:
-            dag.clear(
-                start_date=DEFAULT_DATE,
-                end_date=DEFAULT_DATE)
-
-        for dag in sorted(dags, key=lambda d: d.dag_id):
-            job = BackfillJob(
-                dag=dag,
-                start_date=DEFAULT_DATE,
-                end_date=DEFAULT_DATE,
-                ignore_first_depends_on_past=True,
-                executor=DaskExecutor(
-                    cluster_address=self.cluster.scheduler_address))
-            job.run()
+        job = BackfillJob(
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            ignore_first_depends_on_past=True,
+            executor=DaskExecutor(
+                cluster_address=self.cluster.scheduler_address))
+        job.run()
 
     def tearDown(self):
         self.cluster.close(timeout=5)
@@ -127,8 +114,8 @@ class TestDaskExecutorTLS(TestBaseDask):
 
     def test_tls(self):
         with dask_testing_cluster(
-                worker_kwargs={'security': tls_security()},
-                scheduler_kwargs={'security': tls_security()}) as (cluster, _):
+                worker_kwargs={'security': tls_security(), "protocol": "tls"},
+                scheduler_kwargs={'security': tls_security(), "protocol": "tls"}) as (cluster, _):
 
             # These use test certs that ship with dask/distributed and should not be
             #  used in production
@@ -151,7 +138,7 @@ class TestDaskExecutorTLS(TestBaseDask):
 
     @mock.patch('airflow.executors.dask_executor.DaskExecutor.sync')
     @mock.patch('airflow.executors.base_executor.BaseExecutor.trigger_tasks')
-    @mock.patch('airflow.stats.Stats.gauge')
+    @mock.patch('airflow.executors.base_executor.Stats.gauge')
     def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
         executor = DaskExecutor()
         executor.heartbeat()

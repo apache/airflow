@@ -129,6 +129,16 @@ ENV/
 # vim
 *.swp
 
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
 # OSX
 .DS_Store
 
@@ -165,7 +175,7 @@ airflow-*.pid
 .dmypy.json
 dmypy.json
 
-# Needed for CI Dockerfile build system
+# Needed for CI Dockerfile.ci build system
 .build
 /tmp
 /files

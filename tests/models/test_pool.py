@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -61,9 +60,23 @@ class TestPool(unittest.TestCase):
         session.close()
 
         self.assertEqual(3, pool.open_slots())  # pylint: disable=no-value-for-parameter
-        self.assertEqual(1, pool.used_slots())  # pylint: disable=no-value-for-parameter
+        self.assertEqual(1, pool.running_slots())  # pylint: disable=no-value-for-parameter
         self.assertEqual(1, pool.queued_slots())  # pylint: disable=no-value-for-parameter
         self.assertEqual(2, pool.occupied_slots())  # pylint: disable=no-value-for-parameter
+        self.assertEqual({
+            "default_pool": {
+                "open": 128,
+                "queued": 0,
+                "total": 128,
+                "running": 0,
+            },
+            "test_pool": {
+                "open": 3,
+                "queued": 1,
+                "running": 1,
+                "total": 5,
+            },
+        }, pool.slots_stats())
 
     def test_infinite_slots(self):
         pool = Pool(pool='test_pool', slots=-1)
@@ -85,7 +98,7 @@ class TestPool(unittest.TestCase):
         session.close()
 
         self.assertEqual(float('inf'), pool.open_slots())  # pylint: disable=no-value-for-parameter
-        self.assertEqual(1, pool.used_slots())  # pylint: disable=no-value-for-parameter
+        self.assertEqual(1, pool.running_slots())  # pylint: disable=no-value-for-parameter
         self.assertEqual(1, pool.queued_slots())  # pylint: disable=no-value-for-parameter
         self.assertEqual(2, pool.occupied_slots())  # pylint: disable=no-value-for-parameter
 
@@ -97,7 +110,7 @@ class TestPool(unittest.TestCase):
             dag_id='test_default_pool_open_slots',
             start_date=DEFAULT_DATE, )
         op1 = DummyOperator(task_id='dummy1', dag=dag)
-        op2 = DummyOperator(task_id='dummy2', dag=dag)
+        op2 = DummyOperator(task_id='dummy2', dag=dag, pool_slots=2)
         ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
         ti2 = TI(task=op2, execution_date=DEFAULT_DATE)
         ti1.state = State.RUNNING
@@ -109,4 +122,4 @@ class TestPool(unittest.TestCase):
         session.commit()
         session.close()
 
-        self.assertEqual(3, Pool.get_default_pool().open_slots())
+        self.assertEqual(2, Pool.get_default_pool().open_slots())

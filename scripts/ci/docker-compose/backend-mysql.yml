@@ -17,20 +17,22 @@
 ---
 version: "2.2"
 services:
-  airflow-testing:
+  airflow:
     environment:
       - BACKEND=mysql
-      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=mysql://root@mysql/airflow
-      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://root@mysql/airflow
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=mysql://root@mysql/airflow?charset=utf8mb4
+      - AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS=utf8mb3_general_ci
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://root@mysql/airflow?charset=utf8mb4
     depends_on:
       - mysql
   mysql:
-    image: mysql:5.6
+    image: mysql:${MYSQL_VERSION}
     environment:
       - MYSQL_ALLOW_EMPTY_PASSWORD=true
       - MYSQL_ROOT_HOST=%
       - MYSQL_DATABASE=airflow
     volumes:
       - ../mysql/conf.d:/etc/mysql/conf.d:ro
+      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
     ports:
       - "${MYSQL_HOST_PORT}:3306"

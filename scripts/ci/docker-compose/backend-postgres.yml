@@ -17,7 +17,7 @@
 ---
 version: "2.2"
 services:
-  airflow-testing:
+  airflow:
     environment:
       - BACKEND=postgres
       - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:airflow@postgres/airflow
@@ -25,10 +25,12 @@ services:
     depends_on:
       - postgres
   postgres:
-    image: postgres:9.6
+    image: postgres:${POSTGRES_VERSION}
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=airflow
       - POSTGRES_DB=airflow
+    volumes:
+      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
     ports:
       - "${POSTGRES_HOST_PORT}:5432"

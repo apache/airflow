@@ -31,9 +31,9 @@ from sqlalchemy.orm.session import Session as SASession
 from sqlalchemy.pool import NullPool
 
 # noinspection PyUnresolvedReferences
+from airflow import api
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
 from airflow.logging_config import configure_logging
-from airflow.utils.module_loading import import_string
 from airflow.utils.sqlalchemy import setup_event_handlers
 
 log = logging.getLogger(__name__)
@@ -68,9 +68,9 @@ LOG_FORMAT = conf.get('logging', 'log_format')
 SIMPLE_LOG_FORMAT = conf.get('logging', 'simple_log_format')
 
 SQL_ALCHEMY_CONN: Optional[str] = None
-DAGS_FOLDER: Optional[str] = None
 PLUGINS_FOLDER: Optional[str] = None
 LOGGING_CLASS_PATH: Optional[str] = None
+DAGS_FOLDER: str = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
 engine: Optional[Engine] = None
 Session: Optional[SASession] = None
@@ -79,28 +79,26 @@ Session: Optional[SASession] = None
 json = json
 
 
-def policy(task_instance):
+def policy(task):
     """
-    This policy setting allows altering task instances right before they
+    This policy setting allows altering tasks right before they
     are executed. It allows administrator to rewire some task parameters.
 
-    Note that the ``TaskInstance`` object has an attribute ``task`` pointing
-    to its related task object, that in turns has a reference to the DAG
+    Note that the ``Task`` object has a reference to the DAG
     object. So you can use the attributes of all of these to define your
     policy.
 
     To define policy, add a ``airflow_local_settings`` module
     to your PYTHONPATH that defines this ``policy`` function. It receives
-    a ``TaskInstance`` object and can alter it where needed.
+    a ``Task`` object and can alter it where needed.
 
     Here are a few examples of how this can be useful:
 
     * You could enforce a specific queue (say the ``spark`` queue)
         for tasks using the ``SparkOperator`` to make sure that these
-        task instances get wired to the right workers
-    * You could force all task instances running on an
-        ``execution_date`` older than a week old to run in a ``backfill``
-        pool.
+        tasks get wired to the right workers
+    * You could enforce a task timeout policy, making sure that no tasks run
+        for more than 48 hours
     * ...
     """
 
@@ -175,8 +173,8 @@ def configure_orm(disable_connection_pool=False):
         # https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
         pool_pre_ping = conf.getboolean('core', 'SQL_ALCHEMY_POOL_PRE_PING', fallback=True)
 
-        log.info("settings.configure_orm(): Using pool settings. pool_size={}, max_overflow={}, "
-                 "pool_recycle={}, pid={}".format(pool_size, max_overflow, pool_recycle, os.getpid()))
+        log.debug("settings.configure_orm(): Using pool settings. pool_size=%d, max_overflow=%d, "
+                  "pool_recycle=%d, pid=%d", pool_size, max_overflow, pool_recycle, os.getpid())
         engine_args['pool_size'] = pool_size
         engine_args['pool_recycle'] = pool_recycle
         engine_args['pool_pre_ping'] = pool_pre_ping
@@ -187,9 +185,7 @@ def configure_orm(disable_connection_pool=False):
     engine_args['encoding'] = conf.get('core', 'SQL_ENGINE_ENCODING', fallback='utf-8')
 
     if conf.has_option('core', 'sql_alchemy_connect_args'):
-        connect_args = import_string(
-            conf.get('core', 'sql_alchemy_connect_args')
-        )
+        connect_args = conf.getimport('core', 'sql_alchemy_connect_args')
     else:
         connect_args = {}
 
@@ -306,6 +302,7 @@ def initialize():
     # The webservers import this file from models.py with the default settings.
     configure_orm()
     configure_action_logging()
+    api.load_auth()
 
     # Ensure we close DB connections at scheduler and gunicon worker terminations
     atexit.register(dispose_orm)

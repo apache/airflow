@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -26,6 +25,7 @@ from urllib.parse import urlparse
 
 import flask
 import flask_login
+import pendulum
 from flask import Flask, session as flask_session
 from flask_appbuilder import SQLA, AppBuilder
 from flask_caching import Cache
@@ -49,16 +49,6 @@ log = logging.getLogger(__name__)
 def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     global app, appbuilder
     app = Flask(__name__)
-    if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
-        app.wsgi_app = ProxyFix(
-            app.wsgi_app,
-            num_proxies=conf.get("webserver", "PROXY_FIX_NUM_PROXIES", fallback=None),
-            x_for=conf.getint("webserver", "PROXY_FIX_X_FOR", fallback=1),
-            x_proto=conf.getint("webserver", "PROXY_FIX_X_PROTO", fallback=1),
-            x_host=conf.getint("webserver", "PROXY_FIX_X_HOST", fallback=1),
-            x_port=conf.getint("webserver", "PROXY_FIX_X_PORT", fallback=1),
-            x_prefix=conf.getint("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
-        )
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
     session_lifetime_days = conf.getint('webserver', 'SESSION_LIFETIME_DAYS', fallback=30)
@@ -109,7 +99,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             app,
             db.session if not session else session,
             security_manager_class=security_manager_class,
-            base_template='appbuilder/baselayout.html',
+            base_template='airflow/master.html',
             update_perms=conf.getboolean('webserver', 'UPDATE_FAB_PERMS'))
 
         def init_views(appbuilder):
@@ -175,16 +165,16 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
             def integrate_plugins():
                 """Integrate plugins to the context"""
-                from airflow.plugins_manager import (
-                    flask_appbuilder_views, flask_appbuilder_menu_links
-                )
+                from airflow import plugins_manager
 
-                for v in flask_appbuilder_views:
+                plugins_manager.initialize_web_ui_plugins()
+
+                for v in plugins_manager.flask_appbuilder_views:
                     log.debug("Adding view %s", v["name"])
                     appbuilder.add_view(v["view"],
                                         v["name"],
                                         category=v["category"])
-                for ml in sorted(flask_appbuilder_menu_links, key=lambda x: x["name"]):
+                for ml in sorted(plugins_manager.flask_appbuilder_menu_links, key=lambda x: x["name"]):
                     log.debug("Adding menu link %s", ml["name"])
                     appbuilder.add_link(ml["name"],
                                         href=ml["href"],
@@ -204,8 +194,14 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                 log.debug("Adding blueprint %s:%s", bp["name"], bp["blueprint"].import_name)
                 app.register_blueprint(bp["blueprint"])
 
+        def init_error_handlers(app: Flask):
+            from airflow.www import views
+            app.register_error_handler(500, views.show_traceback)
+            app.register_error_handler(404, views.circles)
+
         init_views(appbuilder)
         init_plugin_blueprints(app)
+        init_error_handlers(app)
 
         if conf.getboolean('webserver', 'UPDATE_FAB_PERMS'):
             security_manager = appbuilder.sm
@@ -220,10 +216,26 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
         app.register_blueprint(e.api_experimental, url_prefix='/api/experimental')
 
+        server_timezone = conf.get('core', 'default_timezone')
+        if server_timezone == "system":
+            server_timezone = pendulum.local_timezone().name
+        elif server_timezone == "utc":
+            server_timezone = "UTC"
+
+        default_ui_timezone = conf.get('webserver', 'default_ui_timezone')
+        if default_ui_timezone == "system":
+            default_ui_timezone = pendulum.local_timezone().name
+        elif default_ui_timezone == "utc":
+            default_ui_timezone = "UTC"
+        if not default_ui_timezone:
+            default_ui_timezone = server_timezone
+
         @app.context_processor
         def jinja_globals():  # pylint: disable=unused-variable
 
             globals = {
+                'server_timezone': server_timezone,
+                'default_ui_timezone': default_ui_timezone,
                 'hostname': socket.getfqdn() if conf.getboolean(
                     'webserver', 'EXPOSE_HOSTNAME', fallback=True) else 'redact',
                 'navbar_color': conf.get(
@@ -285,6 +297,15 @@ def cached_app(config=None, session=None, testing=False):
 
         app, _ = create_app(config, session, testing)
         app = DispatcherMiddleware(root_app, {base_url: app})
+        if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
+            app = ProxyFix(
+                app,
+                x_for=conf.getint("webserver", "PROXY_FIX_X_FOR", fallback=1),
+                x_proto=conf.getint("webserver", "PROXY_FIX_X_PROTO", fallback=1),
+                x_host=conf.getint("webserver", "PROXY_FIX_X_HOST", fallback=1),
+                x_port=conf.getint("webserver", "PROXY_FIX_X_PORT", fallback=1),
+                x_prefix=conf.getint("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
+            )
     return app
 
 

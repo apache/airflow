@@ -16,12 +16,13 @@
 # under the License.
 """Database sub-commands"""
 import os
-import subprocess
 import textwrap
 from tempfile import NamedTemporaryFile
 
-from airflow import AirflowException, settings
+from airflow import settings
+from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
+from airflow.utils.process_utils import execute_interactive
 
 
 def initdb(args):
@@ -49,6 +50,15 @@ def upgradedb(args):
     db.upgradedb()
 
 
+def check_migrations(args):
+    """
+    Function to wait for all airflow migrations to complete. Used for launching airflow in k8s
+    @param timeout:
+    @return:
+    """
+    db.check_migrations(timeout=args.migration_wait_timeout)
+
+
 @cli_utils.action_logging
 def shell(args):
     """Run a shell that allows to access metadata database"""
@@ -67,17 +77,23 @@ def shell(args):
                 """).strip()
             f.write(content.encode())
             f.flush()
-            subprocess.Popen(["mysql", f"--defaults-extra-file={f.name}"]).wait()
+            execute_interactive(["mysql", f"--defaults-extra-file={f.name}"])
     elif url.get_backend_name() == 'sqlite':
-        subprocess.Popen(["sqlite3", url.database]).wait()
+        execute_interactive(["sqlite3", url.database]).wait()
     elif url.get_backend_name() == 'postgresql':
         env = os.environ.copy()
         env['PGHOST'] = url.host or ""
-        env['PGPORT'] = url.port or ""
+        env['PGPORT'] = str(url.port or "")
         env['PGUSER'] = url.username or ""
         # PostgreSQL does not allow the use of PGPASSFILE if the current user is root.
         env["PGPASSWORD"] = url.password or ""
         env['PGDATABASE'] = url.database
-        subprocess.Popen(["psql"], env=env).wait()
+        execute_interactive(["psql"], env=env)
     else:
         raise AirflowException(f"Unknown driver: {url.drivername}")
+
+
+@cli_utils.action_logging
+def check(_):
+    """Runs a check command that checks if db is available."""
+    db.check()

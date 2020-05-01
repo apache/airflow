@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+import json
 
 from wtforms.validators import EqualTo, ValidationError
 
@@ -56,3 +57,23 @@ class GreaterEqualThan(EqualTo):
                 message = message % d
 
             raise ValidationError(message)
+
+
+class ValidJson(object):
+    """Validates data is valid JSON.
+
+    :param message:
+        Error message to raise in case of a validation error.
+    """
+    def __init__(self, message=None):
+        self.message = message
+
+    def __call__(self, form, field):
+        if field.data:
+            try:
+                json.loads(field.data)
+            except Exception as ex:
+                message = self.message or 'JSON Validation Error: {}'.format(ex)
+                raise ValidationError(
+                    message=field.gettext(message.format(field.data))
+                )

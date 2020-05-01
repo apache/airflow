@@ -32,12 +32,12 @@ from celery.contrib.testing.worker import start_worker
 from kombu.asynchronous import set_event_loop
 from parameterized import parameterized
 
-from airflow import DAG
 from airflow.configuration import conf
 from airflow.executors import celery_executor
 from airflow.models import TaskInstance
+from airflow.models.dag import DAG
 from airflow.models.taskinstance import SimpleTaskInstance
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.utils.state import State
 
 
@@ -177,7 +177,7 @@ class TestCeleryExecutor(unittest.TestCase):
 
     @mock.patch('airflow.executors.celery_executor.CeleryExecutor.sync')
     @mock.patch('airflow.executors.celery_executor.CeleryExecutor.trigger_tasks')
-    @mock.patch('airflow.stats.Stats.gauge')
+    @mock.patch('airflow.executors.base_executor.Stats.gauge')
     def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
         executor = celery_executor.CeleryExecutor()
         executor.heartbeat()
@@ -187,5 +187,5 @@ class TestCeleryExecutor(unittest.TestCase):
         mock_stats_gauge.assert_has_calls(calls)
 
 
-if __name__ == '__main__':
-    unittest.main()
+def test_operation_timeout_config():
+    assert celery_executor.OPERATION_TIMEOUT == 2

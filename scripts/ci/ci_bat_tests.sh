@@ -16,21 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -euo pipefail
-
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
-
-export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
-
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
-
-basic_sanity_checks
-
-script_start
+function run_bats_tests() {
+    FILES=("$@")
+    if [[ "${#FILES[@]}" == "0" ]]; then
+        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
+            bats/bats:latest --tap -r /airflow/tests/bats
+    else
+        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
+            bats/bats:latest --tap -r "${FILES[@]}"
+    fi
+}
 
 run_bats_tests "$@"
-
-script_end

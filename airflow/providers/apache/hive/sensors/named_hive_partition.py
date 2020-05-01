@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -66,6 +65,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
 
     @staticmethod
     def parse_partition_name(partition):
+        """Get schema, table, and partition info."""
         first_split = partition.split('.', 1)
         if len(first_split) == 1:
             schema = 'default'
@@ -81,6 +81,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
         return schema, table, partition
 
     def poke_partition(self, partition):
+        """Check for a named partition."""
         if not self.hook:
             from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
             self.hook = HiveMetastoreHook(

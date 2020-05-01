@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,7 +20,7 @@ import io
 import unittest
 from unittest.mock import call, patch
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
 from airflow.utils import db
@@ -356,6 +355,30 @@ class TestSparkSubmitHook(unittest.TestCase):
         self.assertEqual(connection, expected_spark_connection)
         self.assertEqual(dict_cmd["--master"], "k8s://https://k8s-master")
         self.assertEqual(dict_cmd["--deploy-mode"], "cluster")
+
+    def test_resolve_connection_spark_k8s_cluster_ns_conf(self):
+        # Given we specify the config option directly
+        conf = {
+            'spark.kubernetes.namespace': 'airflow',
+        }
+        hook = SparkSubmitHook(conn_id='spark_k8s_cluster', conf=conf)
+
+        # When
+        connection = hook._resolve_connection()
+        cmd = hook._build_spark_submit_command(self._spark_job_file)
+
+        # Then
+        dict_cmd = self.cmd_args_to_dict(cmd)
+        expected_spark_connection = {"spark_home": "/opt/spark",
+                                     "queue": None,
+                                     "spark_binary": "spark-submit",
+                                     "master": "k8s://https://k8s-master",
+                                     "deploy_mode": "cluster",
+                                     "namespace": "airflow"}
+        self.assertEqual(connection, expected_spark_connection)
+        self.assertEqual(dict_cmd["--master"], "k8s://https://k8s-master")
+        self.assertEqual(dict_cmd["--deploy-mode"], "cluster")
+        self.assertEqual(dict_cmd["--conf"], "spark.kubernetes.namespace=airflow")
 
     def test_resolve_connection_spark_home_set_connection(self):
         # Given
@@ -725,7 +748,3 @@ class TestSparkSubmitHook(unittest.TestCase):
         client.delete_namespaced_pod.assert_called_once_with(
             'spark-pi-edf2ace37be7353a958b38733a12f8e6-driver',
             'mynamespace', **kwargs)
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -172,7 +171,7 @@ class TestLoggingSettings(unittest.TestCase):
     def test_loading_invalid_local_settings(self):
         from airflow.logging_config import configure_logging, log
         with settings_context(SETTINGS_FILE_INVALID):
-            with patch.object(log, 'warning') as mock_info:
+            with patch.object(log, 'error') as mock_info:
                 # Load config
                 with self.assertRaises(ValueError):
                     configure_logging()
@@ -259,7 +258,3 @@ class TestLoggingSettings(unittest.TestCase):
 
         logger = logging.getLogger('airflow.task')
         self.assertIsInstance(logger.handlers[0], WasbTaskHandler)
-
-
-if __name__ == '__main__':
-    unittest.main()

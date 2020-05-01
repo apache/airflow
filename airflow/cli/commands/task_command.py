@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -27,10 +26,15 @@ from typing import List
 
 from tabulate import tabulate
 
-from airflow import DAG, AirflowException, conf, jobs, settings
+from airflow import settings
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models import DagPickle, TaskInstance
-from airflow.ti_deps.dep_context import SCHEDULER_QUEUED_DEPS, DepContext
+from airflow.models.dag import DAG
+from airflow.ti_deps.dep_context import DepContext
+from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import get_dag, get_dag_by_file_location, get_dag_by_pickle, get_dags
 from airflow.utils.log.logging_mixin import StreamLogWriter
@@ -99,7 +103,7 @@ def _run_task_by_local_task_job(args, ti):
     """
     Run LocalTaskJob, which monitors the raw task execution process
     """
-    run_job = jobs.LocalTaskJob(
+    run_job = LocalTaskJob(
         task_instance=ti,
         mark_success=args.mark_success,
         pickle_id=args.pickle,
@@ -170,8 +174,6 @@ def task_run(args, dag=None):
 
     task = dag.get_task(task_id=args.task_id)
     ti = TaskInstance(task, args.execution_date)
-    ti.refresh_from_db()
-
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()
@@ -234,7 +236,7 @@ def task_list(args, dag=None):
         dag.tree_view()
     else:
         tasks = sorted([t.task_id for t in dag.tasks])
-        print("\n".join(sorted(tasks)))
+        print("\n".join(tasks))
 
 
 SUPPORTED_DEBUGGER_MODULES: List[str] = [
@@ -317,6 +319,11 @@ def task_test(args, dag=None):
             break
     if not already_has_stream_handler:
         logging.getLogger('airflow.task').propagate = True
+
+    env_vars = {'AIRFLOW_TEST_MODE': 'True'}
+    if args.env_vars:
+        env_vars.update(args.env_vars)
+        os.environ.update(env_vars)
 
     dag = dag or get_dag(args.subdir, args.dag_id)
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,7 +19,7 @@
 
 import unittest
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_jdbc import SparkJDBCOperator
 from airflow.utils import timezone
 
@@ -140,7 +139,3 @@ class TestSparkJDBCOperator(unittest.TestCase):
         self.assertEqual(expected_dict['upper_bound'], operator._upper_bound)
         self.assertEqual(expected_dict['create_table_column_types'],
                          operator._create_table_column_types)
-
-
-if __name__ == '__main__':
-    unittest.main()

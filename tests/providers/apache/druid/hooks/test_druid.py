@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -253,7 +252,3 @@ class TestDruidDbApiHook(unittest.TestCase):
         assert self.conn.close.call_count == 1
         assert self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement)
-
-
-if __name__ == '__main__':
-    unittest.main()

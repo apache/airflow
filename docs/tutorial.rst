@@ -262,6 +262,9 @@ Let's run a few commands to validate this script further.
 
 .. code-block:: bash
 
+    # initialize the database tables
+    airflow db init
+
     # print the list of active DAGs
     airflow dags list
 
@@ -305,6 +308,11 @@ Note that the ``airflow tasks test`` command runs task instances locally, output
 their log to stdout (on screen), doesn't bother with dependencies, and
 doesn't communicate state (running, success, failed, ...) to the database.
 It simply allows testing a single task instance.
+
+The same applies to ``airflow dags test [dag_id] [execution_date]``, but on a DAG level. It performs a single
+DAG run of the given DAG id. While it does take task dependencies into account, no state is registered in the
+database. It is convenient for locally testing a full run of your DAG, given that e.g. if one of your tasks
+expects data at some location, it is available.
 
 Backfill
 ''''''''

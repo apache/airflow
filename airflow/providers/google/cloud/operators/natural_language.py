@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -40,7 +39,6 @@ class CloudNaturalLanguageAnalyzeEntitiesOperator(BaseOperator):
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudNaturalLanguageAnalyzeEntitiesOperator`
-
 
     :param document: Input document.
         If a dict is provided, it must be of the same form as the protobuf message Document

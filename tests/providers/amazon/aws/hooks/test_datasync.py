@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -53,7 +52,7 @@ class TestAwsDataSyncHook(unittest.TestCase):
 
 
 # Explanation of: @mock.patch.object(AWSDataSyncHook, 'get_conn')
-# aws_hook.py fiddles with config files and changes the region
+# base_aws.py fiddles with config files and changes the region
 # If you have any ~/.credentials then aws_hook uses it for the region
 # This region might not match us-east-1 used for the mocked self.client
 
@@ -424,7 +423,3 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
                 task_execution_arn, max_iterations=1
             )
             self.assertIsNone(result)
-
-
-if __name__ == "__main__":
-    unittest.main()

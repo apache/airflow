@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,22 +19,22 @@
 """
 This module contains AWS SQS hook
 """
-from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class SQSHook(AwsHook):
+class SQSHook(AwsBaseHook):
     """
     Interact with Amazon Simple Queue Service.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    def get_conn(self):
-        """
-        Get the SQS client using boto3 library
-
-        :return: SQS client
-        :rtype: botocore.client.SQS
-        """
-        return self.get_client_type('sqs')
+    def __init__(self, *args, **kwargs):
+        super().__init__(client_type='sqs', *args, **kwargs)
 
     def create_queue(self, queue_name, attributes=None):
         """

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,12 +22,13 @@ from contextlib import redirect_stdout
 from datetime import datetime, timedelta
 from unittest import mock
 
+import pytest
 from parameterized import parameterized
 from tabulate import tabulate
 
-from airflow import AirflowException, models
-from airflow.bin import cli
+from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
+from airflow.exceptions import AirflowException
 from airflow.models import DagBag, TaskInstance
 from airflow.settings import Session
 from airflow.utils import timezone
@@ -41,7 +41,7 @@ DEFAULT_DATE = timezone.make_aware(datetime(2016, 1, 1))
 
 def reset(dag_id):
     session = Session()
-    tis = session.query(models.TaskInstance).filter_by(dag_id=dag_id)
+    tis = session.query(TaskInstance).filter_by(dag_id=dag_id)
     tis.delete()
     session.commit()
     session.close()
@@ -50,8 +50,8 @@ def reset(dag_id):
 class TestCliTasks(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.dagbag = models.DagBag(include_examples=True)
-        cls.parser = cli.CLIFactory.get_parser()
+        cls.dagbag = DagBag(include_examples=True)
+        cls.parser = cli_parser.get_parser()
 
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags:
@@ -73,7 +73,7 @@ class TestCliTasks(unittest.TestCase):
         # Check that prints, and log messages, are shown
         self.assertIn("'example_python_operator__print_the_context__20180101'", stdout.getvalue())
 
-    @mock.patch("airflow.cli.commands.task_command.jobs.LocalTaskJob")
+    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
     def test_run_naive_taskinstance(self, mock_local_job):
         """
         Test that we can run naive (non-localized) task instances
@@ -86,7 +86,7 @@ class TestCliTasks(unittest.TestCase):
         task0_id = 'test_run_dependent_task'
         args0 = ['tasks',
                  'run',
-                 '-A',
+                 '--ignore-all-dependencies',
                  '--local',
                  dag_id,
                  task0_id,
@@ -109,27 +109,36 @@ class TestCliTasks(unittest.TestCase):
             'tasks', 'test', 'example_bash_operator', 'runme_0',
             DEFAULT_DATE.isoformat()]))
         task_command.task_test(self.parser.parse_args([
-            'tasks', 'test', 'example_bash_operator', 'runme_0', '--dry_run',
+            'tasks', 'test', 'example_bash_operator', 'runme_0', '--dry-run',
             DEFAULT_DATE.isoformat()]))
 
     def test_cli_test_with_params(self):
         task_command.task_test(self.parser.parse_args([
             'tasks', 'test', 'example_passing_params_via_test_command', 'run_this',
-            '-tp', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
+            '--task-params', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
         task_command.task_test(self.parser.parse_args([
             'tasks', 'test', 'example_passing_params_via_test_command', 'also_run_this',
-            '-tp', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
+            '--task-params', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
+
+    def test_cli_test_with_env_vars(self):
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_test(self.parser.parse_args([
+                'tasks', 'test', 'example_passing_params_via_test_command', 'env_var_test_task',
+                '--env-vars', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
+        output = stdout.getvalue()
+        self.assertIn('foo=bar', output)
+        self.assertIn('AIRFLOW_TEST_MODE=True', output)
 
     def test_cli_run(self):
         task_command.task_run(self.parser.parse_args([
-            'tasks', 'run', 'example_bash_operator', 'runme_0', '-l',
+            'tasks', 'run', 'example_bash_operator', 'runme_0', '--local',
             DEFAULT_DATE.isoformat()]))
 
     @parameterized.expand(
         [
-            ("--ignore_all_dependencies", ),
-            ("--ignore_depends_on_past", ),
-            ("--ignore_dependencies",),
+            ("--ignore-all-dependencies", ),
+            ("--ignore-depends-on-past", ),
+            ("--ignore-dependencies",),
             ("--force",),
         ],
 
@@ -189,7 +198,7 @@ class TestCliTasks(unittest.TestCase):
                              'state',
                              'start_date',
                              'end_date'],
-                            tablefmt="fancy_grid")
+                            tablefmt="plain")
 
         # Check that prints, and log messages, are shown
         self.assertEqual(expected.replace("\n", ""), actual_out.replace("\n", ""))
@@ -199,7 +208,7 @@ class TestCliTasks(unittest.TestCase):
             'tasks', 'clear', 'example_subdag_operator', '--yes'])
         task_command.task_clear(args)
         args = self.parser.parse_args([
-            'tasks', 'clear', 'example_subdag_operator', '--yes', '--exclude_subdags'])
+            'tasks', 'clear', 'example_subdag_operator', '--yes', '--exclude-subdags'])
         task_command.task_clear(args)
 
     def test_parentdag_downstream_clear(self):
@@ -208,9 +217,10 @@ class TestCliTasks(unittest.TestCase):
         task_command.task_clear(args)
         args = self.parser.parse_args([
             'tasks', 'clear', 'example_subdag_operator.section-1', '--yes',
-            '--exclude_parentdag'])
+            '--exclude-parentdag'])
         task_command.task_clear(args)
 
+    @pytest.mark.quarantined
     def test_local_run(self):
         args = self.parser.parse_args([
             'tasks',
@@ -243,8 +253,9 @@ class TestCliTaskBackfill(unittest.TestCase):
         clear_db_runs()
         clear_db_pools()
 
-        self.parser = cli.CLIFactory.get_parser()
+        self.parser = cli_parser.get_parser()
 
+    @pytest.mark.quarantined
     def test_run_ignores_all_dependencies(self):
         """
         Test that run respects ignore_all_dependencies
@@ -257,7 +268,7 @@ class TestCliTaskBackfill(unittest.TestCase):
         task0_id = 'test_run_dependent_task'
         args0 = ['tasks',
                  'run',
-                 '-A',
+                 '--ignore-all-dependencies',
                  dag_id,
                  task0_id,
                  DEFAULT_DATE.isoformat()]
@@ -272,7 +283,7 @@ class TestCliTaskBackfill(unittest.TestCase):
         task1_id = 'test_run_dependency_task'
         args1 = ['tasks',
                  'run',
-                 '-A',
+                 '--ignore-all-dependencies',
                  dag_id,
                  task1_id,
                  (DEFAULT_DATE + timedelta(days=1)).isoformat()]
@@ -287,7 +298,7 @@ class TestCliTaskBackfill(unittest.TestCase):
         task2_id = 'test_run_dependent_task'
         args2 = ['tasks',
                  'run',
-                 '-A',
+                 '--ignore-all-dependencies',
                  dag_id,
                  task2_id,
                  (DEFAULT_DATE + timedelta(days=1)).isoformat()]

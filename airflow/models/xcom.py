@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,6 +17,7 @@
 # under the License.
 
 import json
+import logging
 import pickle
 from typing import Any, Iterable, Optional, Union
 
@@ -26,12 +26,14 @@ from sqlalchemy import Column, LargeBinary, String, and_
 from sqlalchemy.orm import Query, Session, reconstructor
 
 from airflow.configuration import conf
-from airflow.models.base import ID_LEN, Base
+from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils import timezone
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+log = logging.getLogger(__name__)
 
 # MAX XCOM Size is 48KB
 # https://github.com/apache/airflow/pull/1618#discussion_r68249677
@@ -39,21 +41,21 @@ MAX_XCOM_SIZE = 49344
 XCOM_RETURN_KEY = 'return_value'
 
 
-class XCom(Base, LoggingMixin):
+class BaseXCom(Base, LoggingMixin):
     """
     Base class for XCom objects.
     """
     __tablename__ = "xcom"
 
-    key = Column(String(512), primary_key=True)
+    key = Column(String(512, **COLLATION_ARGS), primary_key=True)
     value = Column(LargeBinary)
     timestamp = Column(
         UtcDateTime, default=timezone.utcnow, nullable=False)
     execution_date = Column(UtcDateTime, primary_key=True)
 
     # source information
-    task_id = Column(String(ID_LEN), primary_key=True)
-    dag_id = Column(String(ID_LEN), primary_key=True)
+    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
 
     """
     TODO: "pickling" has been deprecated and JSON is preferred.
@@ -205,7 +207,6 @@ class XCom(Base, LoggingMixin):
         try:
             return json.dumps(value).encode('UTF-8')
         except ValueError:
-            log = LoggingMixin().log
             log.error("Could not serialize the XCOM value into JSON. "
                       "If you are using pickles instead of JSON "
                       "for XCOM, then you need to enable pickle "
@@ -223,9 +224,23 @@ class XCom(Base, LoggingMixin):
         try:
             return json.loads(result.value.decode('UTF-8'))
         except ValueError:
-            log = LoggingMixin().log
             log.error("Could not deserialize the XCOM value from JSON. "
                       "If you are using pickles instead of JSON "
                       "for XCOM, then you need to enable pickle "
                       "support for XCOM in your airflow config.")
             raise
+
+
+def resolve_xcom_backend():
+    """Resolves custom XCom class"""
+    clazz = conf.getimport("core", "xcom_backend", fallback=f"airflow.models.xcom.{BaseXCom.__name__}")
+    if clazz:
+        if not issubclass(clazz, BaseXCom):
+            raise TypeError(
+                f"Your custom XCom class `{clazz.__name__}` is not a subclass of `{BaseXCom.__name__}`."
+            )
+        return clazz
+    return BaseXCom
+
+
+XCom = resolve_xcom_backend()

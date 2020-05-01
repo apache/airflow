@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -25,20 +24,21 @@ import sys
 import textwrap
 import zipfile
 from datetime import datetime, timedelta
-from typing import NamedTuple
+from typing import List, NamedTuple
 
 from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
+from tabulate import tabulate
 
 from airflow import settings
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDagBag
 from airflow.exceptions import AirflowDagCycleException
+from airflow.plugins_manager import integrate_dag_plugins
 from airflow.stats import Stats
 from airflow.utils import timezone
+from airflow.utils.dag_cycle_tester import test_cycle
 from airflow.utils.file import correct_maybe_zipped
-from airflow.utils.helpers import pprinttable
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import provide_session
 from airflow.utils.timeout import timeout
 
 
@@ -79,33 +79,22 @@ class DagBag(BaseDagBag, LoggingMixin):
     :type store_serialized_dags: bool
     """
 
-    # static class variables to detetct dag cycle
-    CYCLE_NEW = 0
-    CYCLE_IN_PROGRESS = 1
-    CYCLE_DONE = 2
     DAGBAG_IMPORT_TIMEOUT = conf.getint('core', 'DAGBAG_IMPORT_TIMEOUT')
-    UNIT_TEST_MODE = conf.getboolean('core', 'UNIT_TEST_MODE')
     SCHEDULER_ZOMBIE_TASK_THRESHOLD = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
     def __init__(
             self,
             dag_folder=None,
-            executor=None,
             include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
             safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
             store_serialized_dags=False,
     ):
 
-        # do not use default arg in signature, to fix import cycle on plugin load
-        if executor is None:
-            from airflow.executors.executor_loader import ExecutorLoader
-            executor = ExecutorLoader.get_default_executor()
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
         self.dags = {}
         # the file's last modified timestamp when we last read it
         self.file_last_changed = {}
-        self.executor = executor
         self.import_errors = {}
         self.has_logged = False
         self.store_serialized_dags = store_serialized_dags
@@ -122,28 +111,21 @@ class DagBag(BaseDagBag, LoggingMixin):
         return len(self.dags)
 
     @property
-    def dag_ids(self):
+    def dag_ids(self) -> List[str]:
         return self.dags.keys()
 
-    def get_dag(self, dag_id, from_file_only=False):
+    def get_dag(self, dag_id):
         """
         Gets the DAG out of the dictionary, and refreshes it if expired
 
         :param dag_id: DAG Id
         :type dag_id: str
-        :param from_file_only: returns a DAG loaded from file.
-        :type from_file_only: bool
         """
         # Avoid circular import
         from airflow.models.dag import DagModel
 
         # Only read DAGs from DB if this dagbag is store_serialized_dags.
-        # from_file_only is an exception, currently it is for renderring templates
-        # in UI only. Because functions are gone in serialized DAGs, DAGs must be
-        # imported from files.
-        # FIXME: this exception should be removed in future, then webserver can be
-        # decoupled from DAG files.
-        if self.store_serialized_dags and not from_file_only:
+        if self.store_serialized_dags:
             # Import here so that serialized dag is only imported when serialization is enabled
             from airflow.models.serialized_dag import SerializedDagModel
             if dag_id not in self.dags:
@@ -200,6 +182,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         """
         from airflow.models.dag import DAG  # Avoid circular import
 
+        integrate_dag_plugins()
         found_dags = []
 
         # if the source file no longer exists in the DB or in the filesystem,
@@ -304,8 +287,8 @@ class DagBag(BaseDagBag, LoggingMixin):
                     try:
                         dag.is_subdag = False
                         self.bag_dag(dag, parent_dag=dag, root_dag=dag)
-                        if isinstance(dag._schedule_interval, str):
-                            croniter(dag._schedule_interval)
+                        if isinstance(dag.normalized_schedule_interval, str):
+                            croniter(dag.normalized_schedule_interval)
                         found_dags.append(dag)
                         found_dags += dag.subdags
                     except (CroniterBadCronError,
@@ -325,43 +308,13 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.file_last_changed[filepath] = file_last_changed_on_disk
         return found_dags
 
-    @provide_session
-    def kill_zombies(self, zombies, session=None):
-        """
-        Fail given zombie tasks, which are tasks that haven't
-        had a heartbeat for too long, in the current DagBag.
-
-        :param zombies: zombie task instances to kill.
-        :type zombies: List[airflow.models.taskinstance.SimpleTaskInstance]
-        :param session: DB session.
-        """
-        from airflow.models.taskinstance import TaskInstance  # Avoid circular import
-
-        for zombie in zombies:
-            if zombie.dag_id in self.dags:
-                dag = self.dags[zombie.dag_id]
-                if zombie.task_id in dag.task_ids:
-                    task = dag.get_task(zombie.task_id)
-                    ti = TaskInstance(task, zombie.execution_date)
-                    # Get properties needed for failure handling from SimpleTaskInstance.
-                    ti.start_date = zombie.start_date
-                    ti.end_date = zombie.end_date
-                    ti.try_number = zombie.try_number
-                    ti.state = zombie.state
-                    ti.test_mode = self.UNIT_TEST_MODE
-                    ti.handle_failure("{} detected as zombie".format(ti),
-                                      ti.test_mode, ti.get_template_context())
-                    self.log.info('Marked zombie job %s as %s', ti, ti.state)
-                    Stats.incr('zombies_killed')
-        session.commit()
-
     def bag_dag(self, dag, parent_dag, root_dag):
         """
         Adds the DAG into the bag, recurses into sub dags.
         Throws AirflowDagCycleException if a cycle is detected in this dag or its subdags
         """
 
-        dag.test_cycle()  # throws if a task cycle is found
+        test_cycle(dag)  # throws if a task cycle is found
 
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()
@@ -492,5 +445,15 @@ class DagBag(BaseDagBag, LoggingMixin):
             duration=sum([o.duration for o in stats], timedelta()).total_seconds(),
             dag_num=sum([o.dag_num for o in stats]),
             task_num=sum([o.task_num for o in stats]),
-            table=pprinttable(stats),
+            table=tabulate(stats, headers="keys"),
         )
+
+    def sync_to_db(self):
+        """
+        Save attributes about list of DAG to the DB.
+        """
+        # To avoid circular import - airflow.models.dagbag -> airflow.models.dag -> airflow.models.dagbag
+        from airflow.models.dag import DAG
+        from airflow.models.serialized_dag import SerializedDagModel
+        DAG.bulk_sync_to_db(self.dags.values())
+        SerializedDagModel.bulk_sync_to_db(self.dags.values())

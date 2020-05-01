@@ -22,6 +22,7 @@ const ManifestPlugin = require('webpack-manifest-plugin');
 const CleanWebpackPlugin = require('clean-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const MomentLocalesPlugin = require('moment-locales-webpack-plugin');
 
 // Input Directory (airflow/www)
 // noinspection JSUnresolvedVariable
@@ -36,15 +37,18 @@ const config = {
     connectionForm: `${STATIC_DIR}/js/connection_form.js`,
     base: `${STATIC_DIR}/js/base.js`,
     ie: `${STATIC_DIR}/js/ie.js`,
-    graph: `${STATIC_DIR}/js/graph.js`,
+    'task-instances': `${STATIC_DIR}/js/task-instances.js`,
     ganttChartD3v2: `${STATIC_DIR}/js/gantt-chart-d3v2.js`,
     main: `${STATIC_DIR}/css/main.css`,
     airflowDefaultTheme: `${STATIC_DIR}/css/bootstrap-theme.css`,
+    moment: 'moment-timezone',
   },
   output: {
     path: BUILD_DIR,
     filename: '[name].[chunkhash].js',
     chunkFilename: '[name].[chunkhash].js',
+    library: ['Airflow', '[name]'],
+    libraryTarget: 'umd',
   },
   resolve: {
     extensions: [
@@ -104,7 +108,7 @@ const config = {
 
     // MomentJS loads all the locale, making it a huge JS file.
     // This will ignore the locales from momentJS
-    new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/),
+    new MomentLocalesPlugin(),
 
     new webpack.DefinePlugin({
       'process.env': {
@@ -127,6 +131,8 @@ const config = {
       },
       { from: 'node_modules/datatables.net/**/**.min.*', flatten: true },
       { from: 'node_modules/datatables.net-bs/**/**.min.*', flatten: true },
+      { from: 'node_modules/eonasdan-bootstrap-datetimepicker/build/css/bootstrap-datetimepicker.min.css', flatten: true },
+      { from: 'node_modules/eonasdan-bootstrap-datetimepicker/build/js/bootstrap-datetimepicker.min.js', flatten: true },
     ], { copyUnmodified: true }),
   ],
 };

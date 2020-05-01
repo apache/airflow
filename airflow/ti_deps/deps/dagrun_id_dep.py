@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,6 +22,7 @@ from re import match
 
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
+from airflow.utils.types import DagRunType
 
 
 class DagrunIdDep(BaseTIDep):
@@ -45,14 +45,13 @@ class DagrunIdDep(BaseTIDep):
         :type dep_context: DepContext
         :return: True if DagRun ID is valid for scheduling from scheduler.
         """
-        from airflow.jobs import BackfillJob  # To avoid a circular dependency
         dagrun = ti.get_dagrun(session)
 
-        if not dagrun.run_id or not match(BackfillJob.ID_PREFIX + '.*', dagrun.run_id):
+        if not dagrun or not dagrun.run_id or not match(f"{DagRunType.BACKFILL_JOB.value}.*", dagrun.run_id):
             yield self._passing_status(
-                reason="Task's DagRun run_id is either NULL "
-                       "or doesn't start with {}".format(BackfillJob.ID_PREFIX))
+                reason=f"Task's DagRun doesn't exist or the run_id is either NULL "
+                       f"or doesn't start with {DagRunType.BACKFILL_JOB.value}")
         else:
             yield self._failing_status(
-                reason="Task's DagRun run_id is not NULL "
-                       "and starts with {}".format(BackfillJob.ID_PREFIX))
+                reason=f"Task's DagRun run_id is not NULL "
+                       f"and starts with {DagRunType.BACKFILL_JOB.value}")

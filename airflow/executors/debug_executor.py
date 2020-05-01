@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,14 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module contains DebugExecutor that is a single
-process executor meaning it does not use multiprocessing.
+DebugExecutor
+
+.. seealso::
+    For more information on how the DebugExecutor works, take a look at the guide:
+    :ref:`executor:DebugExecutor`
 """
 
 import threading
 from typing import Any, Dict, List, Optional
 
-from airflow import conf
+from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKeyType
 from airflow.utils.state import State

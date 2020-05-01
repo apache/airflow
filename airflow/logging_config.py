@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -62,7 +61,7 @@ def configure_logging():
         # Try to init logging
         dictConfig(logging_config)
     except ValueError as e:
-        log.warning('Unable to load the config, contains a configuration error.')
+        log.error('Unable to load the config, contains a configuration error.')
         # When there is an error in the config, escalate the exception
         # otherwise Airflow would silently fall back on the default config
         raise e

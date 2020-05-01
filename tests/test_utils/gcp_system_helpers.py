@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,58 +16,36 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-import unittest
-from typing import Optional, Sequence
+import tempfile
+from contextlib import contextmanager
+from tempfile import TemporaryDirectory
+from typing import List, Optional, Sequence
+from unittest import mock
 
-from airflow.gcp.utils.credentials_provider import provide_gcp_conn_and_credentials
+import pytest
+from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
 
-AIRFLOW_MAIN_FOLDER = os.path.realpath(
-    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
-)
-GCP_DAG_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "gcp", "example_dags")
+from airflow.providers.google.cloud.utils.credentials_provider import provide_gcp_conn_and_credentials
+from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
+from tests.test_utils import AIRFLOW_MAIN_FOLDER
+from tests.test_utils.system_tests_class import SystemTest
+from tests.utils.logging_command_executor import get_executor
+
 CLOUD_DAG_FOLDER = os.path.join(
     AIRFLOW_MAIN_FOLDER, "airflow", "providers", "google", "cloud", "example_dags"
+)
+MARKETING_DAG_FOLDER = os.path.join(
+    AIRFLOW_MAIN_FOLDER, "airflow", "providers", "google", "marketing_platform", "example_dags"
+)
+GSUITE_DAG_FOLDER = os.path.join(
+    AIRFLOW_MAIN_FOLDER, "airflow", "providers", "google", "suite", "example_dags"
+)
+FIREBASE_DAG_FOLDER = os.path.join(
+    AIRFLOW_MAIN_FOLDER, "airflow", "providers", "google", "firebase", "example_dags"
 )
 POSTGRES_LOCAL_EXECUTOR = os.path.join(
     AIRFLOW_MAIN_FOLDER, "tests", "test_utils", "postgres_local_executor.cfg"
 )
-
-
-SKIP_TEST_WARNING = """
-The test is only run when the test is run in environment with GCP-system-tests enabled
-environment. You can enable it in one of two ways:
-
-* Set GCP_CONFIG_DIR environment variable to point to the GCP configuration
-  directory which keeps the {} key.
-* Run this test within automated environment variable workspace where
-  config directory is checked out next to the airflow one.
-
-"""
-
-SKIP_LONG_TEST_WARNING = """
-The test is only run when the test is run in with GCP-system-tests enabled
-environment. And environment variable GCP_ENABLE_LONG_TESTS is set to True.
-You can enable it in one of two ways:
-
-* Set GCP_CONFIG_DIR environment variable to point to the GCP configuration
-  directory which keeps variables.env file with environment variables to set
-  and keys directory which keeps service account keys in .json format and
-  set GCP_ENABLE_LONG_TESTS to True
-* Run this test within automated environment variable workspace where
-  config directory is checked out next to the airflow one.
-"""
-
-
-LOCAL_EXECUTOR_WARNING = """
-The test requires local executor. Please set AIRFLOW_CONFIG variable to '{}'
-and make sure you have a Postgres server running locally and
-airflow/airflow.db database created.
-
-You can create the database via these commands:
-'createuser root'
-'createdb airflow/airflow.db`
-
-"""
 
 
 def resolve_full_gcp_key_path(key: str) -> str:
@@ -79,53 +56,24 @@ def resolve_full_gcp_key_path(key: str) -> str:
     :type key: str
     :returns: Full path to the key
     """
-    path = os.environ.get("GCP_CONFIG_DIR", "/config")
-    key = os.path.join(path, "keys", key)
+    path = os.environ.get("CREDENTIALS_DIR", "/files/airflow-breeze-config/keys")
+    key = os.path.join(path, key)
     return key
 
 
-def skip_gcp_system(
-    service_key: str, long_lasting: bool = False, require_local_executor: bool = False
-):
-    """
-    Decorator for skipping GCP system tests.
-
-    :param service_key: name of the service key that will be used to provide credentials
-    :type service_key: str
-    :param long_lasting: set True if a test take relatively long time
-    :type long_lasting: bool
-    :param require_local_executor: set True if test config must use local executor
-    :type require_local_executor: bool
-    """
-    try:
-        full_key_path = resolve_full_gcp_key_path(service_key)
-        with open(full_key_path):
-            pass
-    except FileNotFoundError:
-        return unittest.skip(SKIP_TEST_WARNING.format(service_key))
-
-    if long_lasting and os.environ.get("GCP_ENABLE_LONG_TESTS") == "True":
-        return unittest.skip(SKIP_LONG_TEST_WARNING)
-
-    if require_local_executor and POSTGRES_LOCAL_EXECUTOR != os.environ.get(
-        "AIRFLOW_CONFIG"
-    ):
-        return unittest.skip(LOCAL_EXECUTOR_WARNING.format(POSTGRES_LOCAL_EXECUTOR))
-
-    return lambda cls: cls
-
-
+@contextmanager
 def provide_gcp_context(
     key_file_path: Optional[str] = None,
     scopes: Optional[Sequence] = None,
     project_id: Optional[str] = None,
 ):
     """
-    Context manager that provides both:
+    Context manager that provides:
 
     - GCP credentials for application supporting `Application Default Credentials (ADC)
     strategy <https://cloud.google.com/docs/authentication/production>`__.
     - temporary value of ``AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT`` connection
+    - the ``gcloud`` config directory isolated from user configuration
 
     Moreover it resolves full path to service keys so user can pass ``myservice.json``
     as ``key_file_path``.
@@ -138,6 +86,89 @@ def provide_gcp_context(
     :type project_id: str
     """
     key_file_path = resolve_full_gcp_key_path(key_file_path)  # type: ignore
-    return provide_gcp_conn_and_credentials(
-        key_file_path=key_file_path, scopes=scopes, project_id=project_id
-    )
+    with provide_gcp_conn_and_credentials(key_file_path, scopes, project_id), \
+            tempfile.TemporaryDirectory() as gcloud_config_tmp, \
+            mock.patch.dict('os.environ', {CLOUD_SDK_CONFIG_DIR: gcloud_config_tmp}):
+        executor = get_executor()
+
+        if project_id:
+            executor.execute_cmd([
+                "gcloud", "config", "set", "core/project", project_id
+            ])
+        if key_file_path:
+            executor.execute_cmd([
+                "gcloud", "auth", "activate-service-account", f"--key-file={key_file_path}",
+            ])
+        yield
+
+
+@pytest.mark.system("google")
+class GoogleSystemTest(SystemTest):
+    @staticmethod
+    def _project_id():
+        return os.environ.get("GCP_PROJECT_ID")
+
+    @staticmethod
+    def _service_key():
+        return os.environ.get(CREDENTIALS)
+
+    @classmethod
+    def execute_with_ctx(cls, cmd: List[str], key: str = GCP_GCS_KEY, project_id=None, scopes=None):
+        """
+        Executes command with context created by provide_gcp_context and activated
+        service key.
+        """
+        executor = get_executor()
+        current_project_id = project_id or cls._project_id()
+        with provide_gcp_context(key, project_id=current_project_id, scopes=scopes):
+            executor.execute_cmd(cmd=cmd)
+
+    @classmethod
+    def create_gcs_bucket(cls, name: str, location: Optional[str] = None) -> None:
+        bucket_name = f"gs://{name}" if not name.startswith("gs://") else name
+        cmd = ["gsutil", "mb"]
+        if location:
+            cmd += ["-c", "regional", "-l", location]
+        cmd += [bucket_name]
+        cls.execute_with_ctx(cmd, key=GCP_GCS_KEY)
+
+    @classmethod
+    def delete_gcs_bucket(cls, name: str):
+        bucket_name = f"gs://{name}" if not name.startswith("gs://") else name
+        cmd = ["gsutil", "-m", "rm", "-r", bucket_name]
+        cls.execute_with_ctx(cmd, key=GCP_GCS_KEY)
+
+    @classmethod
+    def upload_to_gcs(cls, source_uri: str, target_uri: str):
+        cls.execute_with_ctx(
+            ["gsutil", "cp", source_uri, target_uri], key=GCP_GCS_KEY
+        )
+
+    @classmethod
+    def upload_content_to_gcs(cls, lines: str, bucket: str, filename: str):
+        bucket_name = f"gs://{bucket}" if not bucket.startswith("gs://") else bucket
+        with TemporaryDirectory(prefix="airflow-gcp") as tmp_dir:
+            tmp_path = os.path.join(tmp_dir, filename)
+            with open(tmp_path, "w") as file:
+                file.writelines(lines)
+                file.flush()
+            os.chmod(tmp_path, 555)
+            cls.upload_to_gcs(tmp_path, bucket_name)
+
+    @classmethod
+    def get_project_number(cls, project_id: str) -> str:
+        cmd = ['gcloud', 'projects', 'describe', project_id, '--format', 'value(projectNumber)']
+        return cls.check_output(cmd).decode("utf-8").strip()
+
+    @classmethod
+    def grant_bucket_access(cls, bucket: str, account_email: str):
+        bucket_name = f"gs://{bucket}" if not bucket.startswith("gs://") else bucket
+        cls.execute_cmd(
+            [
+                "gsutil",
+                "iam",
+                "ch",
+                "serviceAccount:%s:admin" % account_email,
+                bucket_name,
+            ]
+        )

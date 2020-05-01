@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -35,6 +34,7 @@ class FSHook(BaseHook):
     """
 
     def __init__(self, conn_id='fs_default'):
+        super().__init__()
         conn = self.get_connection(conn_id)
         self.basepath = conn.extra_dejson.get('path', '')
         self.conn = conn
@@ -42,5 +42,10 @@ class FSHook(BaseHook):
     def get_conn(self):
         pass
 
-    def get_path(self):
+    def get_path(self) -> str:
+        """
+        Get the path to the filesystem location.
+
+        :return: the path.
+        """
         return self.basepath

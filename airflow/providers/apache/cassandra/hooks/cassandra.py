@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -83,6 +82,7 @@ class CassandraHook(BaseHook, LoggingMixin):
     For details of the Cluster config, see cassandra.cluster.
     """
     def __init__(self, cassandra_conn_id: str = 'cassandra_default'):
+        super().__init__()
         conn = self.get_connection(cassandra_conn_id)
 
         conn_config = {}

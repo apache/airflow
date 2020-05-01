@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,6 +19,10 @@
 # Note: Any AirflowException raised is expected to cause the TaskInstance
 #       to be marked in an ERROR state
 """Exceptions used by Airflow"""
+from typing import List, NamedTuple, Optional
+
+from airflow.utils.code_utils import prepare_code_snippet
+from airflow.utils.platform import is_tty
 
 
 class AirflowException(Exception):
@@ -56,6 +59,7 @@ class AirflowRescheduleException(AirflowException):
     :type reschedule_date: datetime.datetime
     """
     def __init__(self, reschedule_date):
+        super().__init__()
         self.reschedule_date = reschedule_date
 
 
@@ -81,6 +85,10 @@ class AirflowDagCycleException(AirflowException):
 
 class DagNotFound(AirflowNotFoundException):
     """Raise when a DAG is not available in the system"""
+
+
+class DagCodeNotFound(AirflowNotFoundException):
+    """Raise when a DAG code is not available in the system"""
 
 
 class DagRunNotFound(AirflowNotFoundException):
@@ -121,3 +129,52 @@ class DagConcurrencyLimitReached(AirflowException):
 
 class TaskConcurrencyLimitReached(AirflowException):
     """Raise when task concurrency limit is reached"""
+
+
+class BackfillUnfinished(AirflowException):
+    """
+    Raises when not all tasks succeed in backfill.
+
+    :param message: The human-readable description of the exception
+    :zparam ti_status: The information about all task statuses
+    """
+    def __init__(self, message, ti_status):
+        super().__init__(message)
+        self.ti_status = ti_status
+
+
+class FileSyntaxError(NamedTuple):
+    """Information about a single error in a file."""
+    line_no: Optional[int]
+    message: str
+
+    def __str__(self):
+        return f"{self.message}. Line number: s{str(self.line_no)},"
+
+
+class AirflowFileParseException(AirflowException):
+    """
+    Raises when connection or variable file can not be parsed
+
+    :param msg: The human-readable description of the exception
+    :param file_path: A processed file that contains errors
+    :param parse_errors: File syntax errors
+    """
+    def __init__(self, msg: str, file_path: str, parse_errors: List[FileSyntaxError]) -> None:
+        super().__init__(msg)
+        self.msg = msg
+        self.file_path = file_path
+        self.parse_errors = parse_errors
+
+    def __str__(self):
+        result = f"{self.msg}\nFilename: {self.file_path}\n\n"
+
+        for error_no, parse_error in enumerate(self.parse_errors, 1):
+            result += "=" * 20 + f" Parse error {error_no:3} " + "=" * 20 + "\n"
+            result += f"{parse_error.message}\n"
+            if parse_error.line_no:
+                result += f"Line number:  {parse_error.line_no}\n"
+                if parse_error.line_no and is_tty():
+                    result += "\n" + prepare_code_snippet(self.file_path, parse_error.line_no) + "\n"
+
+        return result

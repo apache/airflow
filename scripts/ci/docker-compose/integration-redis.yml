@@ -19,7 +19,9 @@ version: "2.2"
 services:
   redis:
     image: redis:5.0.1
-  airflow-testing:
+    volumes:
+      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+  airflow:
     environment:
       - INTEGRATION_REDIS=true
     depends_on:

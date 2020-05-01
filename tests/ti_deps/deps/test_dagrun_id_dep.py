@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,9 +20,9 @@ import unittest
 
 from mock import Mock
 
-from airflow.jobs import BackfillJob
-from airflow.models import DagRun
+from airflow.models.dagrun import DagRun
 from airflow.ti_deps.deps.dagrun_id_dep import DagrunIdDep
+from airflow.utils.types import DagRunType
 
 
 class TestDagrunRunningDep(unittest.TestCase):
@@ -32,7 +31,7 @@ class TestDagrunRunningDep(unittest.TestCase):
         Task instances whose dagrun ID is a backfill dagrun ID should fail this dep.
         """
         dagrun = DagRun()
-        dagrun.run_id = BackfillJob.ID_PREFIX + '_something'
+        dagrun.run_id = f"{DagRunType.BACKFILL_JOB.value}__something"
         ti = Mock(get_dagrun=Mock(return_value=dagrun))
         self.assertFalse(DagrunIdDep().is_met(ti=ti))
 
@@ -48,4 +47,11 @@ class TestDagrunRunningDep(unittest.TestCase):
         dagrun = DagRun()
         dagrun.run_id = None
         ti = Mock(get_dagrun=Mock(return_value=dagrun))
+        self.assertTrue(DagrunIdDep().is_met(ti=ti))
+
+    def test_dagrun_is_none(self):
+        """
+        Task instances which don't yet have an associated dagrun.
+        """
+        ti = Mock(get_dagrun=Mock(return_value=None))
         self.assertTrue(DagrunIdDep().is_met(ti=ti))

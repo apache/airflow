@@ -34,10 +34,12 @@ This DAG relies on the following environment variables:
 """
 
 import json
+import re
 from os import getenv
 
-from airflow import models, utils
+from airflow import models
 from airflow.providers.amazon.aws.operators.datasync import AWSDataSyncOperator
+from airflow.utils.dates import days_ago
 
 # [START howto_operator_datasync_2_args]
 SOURCE_LOCATION_URI = getenv(
@@ -62,11 +64,12 @@ bucket_access_role_arn = (
 )
 default_destination_location_kwargs = """\
 {"S3BucketArn": "arn:aws:s3:::mybucket",
-    "S3Config": {"BucketAccessRoleArn": bucket_access_role_arn}
+    "S3Config": {"BucketAccessRoleArn":
+    "arn:aws:iam::11112223344:role/r-11112223344-my-bucket-access-role"}
 }"""
 CREATE_DESTINATION_LOCATION_KWARGS = json.loads(
     getenv("CREATE_DESTINATION_LOCATION_KWARGS",
-           default_destination_location_kwargs)
+           re.sub(r"[\s+]", '', default_destination_location_kwargs))
 )
 
 default_update_task_kwargs = '{"Name": "Updated by Airflow"}'
@@ -74,13 +77,14 @@ UPDATE_TASK_KWARGS = json.loads(
     getenv("UPDATE_TASK_KWARGS", default_update_task_kwargs)
 )
 
-default_args = {"start_date": utils.dates.days_ago(1)}
+default_args = {"start_date": days_ago(1)}
 # [END howto_operator_datasync_2_args]
 
 with models.DAG(
     "example_datasync_2",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
 
     # [START howto_operator_datasync_2]

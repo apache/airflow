@@ -21,7 +21,9 @@ services:
     image: godatadriven/krb5-kdc-server
     hostname: kerberos
     domainname: example.com
-  airflow-testing:
+    volumes:
+      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+  airflow:
     depends_on:
       - kerberos
     environment:

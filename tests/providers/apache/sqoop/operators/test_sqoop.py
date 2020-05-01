@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,8 +20,8 @@
 import datetime
 import unittest
 
-from airflow import DAG
 from airflow.exceptions import AirflowException
+from airflow.models.dag import DAG
 from airflow.providers.apache.sqoop.operators.sqoop import SqoopOperator
 
 
@@ -208,7 +207,3 @@ class TestSqoopOperator(unittest.TestCase):
         )
         with self.assertRaises(AirflowException):
             operator.execute({})
-
-
-if __name__ == '__main__':
-    unittest.main()

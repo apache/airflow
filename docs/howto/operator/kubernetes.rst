@@ -19,17 +19,26 @@
 
 .. _howto/operator:KubernetesPodOperator:
 
-Kubernetes Operator
-===================
+KubernetesPodOperator
+=====================
 
-The :class:`airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator` allows you to create
-Pods on Kubernetes. It works with any type of executor.
+The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`:
+
+* Launches a Docker image as a Kubernetes Pod to execute an individual Airflow
+  task via a Kubernetes API request, using the
+  `Kubernetes Python Client <https://github.com/kubernetes-client/python>`_
+* Terminate the pod when the task is completed
+* Works with any Airflow Executor
+* Allows Airflow to act a job orchestrator for a Docker container,
+  no matter the language the job was written in
+* Enables task-level resource configuration
+* Allow you to pass Kubernetes specific parameters into the task
 
 .. code:: python
 
     import kubernetes.client.models as k8s
 
-    from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
+    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
     from airflow.contrib.kubernetes.secret import Secret
     from airflow.contrib.kubernetes.volume import Volume
     from airflow.contrib.kubernetes.volume_mount import VolumeMount
@@ -141,7 +150,7 @@ Pods on Kubernetes. It works with any type of executor.
                               arguments=["echo", "10"],
                               labels={"foo": "bar"},
                               secrets=[secret_file, secret_env, secret_all_keys],
-                              ports=[port]
+                              ports=[port],
                               volumes=[volume],
                               volume_mounts=[volume_mount],
                               name="test",
@@ -152,4 +161,5 @@ Pods on Kubernetes. It works with any type of executor.
                               tolerations=tolerations,
                               configmaps=configmaps,
                               init_containers=[init_container],
+                              priority_class_name="medium",
                               )

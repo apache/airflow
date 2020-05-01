@@ -15,15 +15,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Dask executor."""
+"""
+DaskExecutor
+
+.. seealso::
+    For more information on how the DaskExecutor works, take a look at the guide:
+    :ref:`executor:DaskExecutor`
+"""
 import subprocess
 from typing import Any, Dict, Optional
 
 from distributed import Client, Future, as_completed
 from distributed.security import Security
 
-from airflow import AirflowException
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, BaseExecutor, CommandType
 from airflow.models.taskinstance import TaskInstanceKeyType
 
@@ -65,8 +71,6 @@ class DaskExecutor(BaseExecutor):
                       command: CommandType,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None) -> None:
-        if not self.futures:
-            raise AirflowException(NOT_STARTED_MESSAGE)
 
         def airflow_run():
             return subprocess.check_call(command, close_fds=True)
@@ -75,7 +79,7 @@ class DaskExecutor(BaseExecutor):
             raise AirflowException(NOT_STARTED_MESSAGE)
 
         future = self.client.submit(airflow_run, pure=False)
-        self.futures[future] = key
+        self.futures[future] = key  # type: ignore
 
     def _process_future(self, future: Future) -> None:
         if not self.futures:

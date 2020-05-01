@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -69,7 +68,7 @@ class HivePartitionSensor(BaseSensorOperator):
         )
         if not hasattr(self, 'hook'):
             from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
-            self.hook = HiveMetastoreHook(
+            hook = HiveMetastoreHook(
                 metastore_conn_id=self.metastore_conn_id)
-        return self.hook.check_for_partition(
+        return hook.check_for_partition(
             self.schema, self.table, self.partition)

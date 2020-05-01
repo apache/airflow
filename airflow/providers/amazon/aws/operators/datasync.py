@@ -19,6 +19,7 @@
 Create, get, update, execute and delete an AWS DataSync Task.
 """
 
+import logging
 import random
 
 from airflow.exceptions import AirflowException
@@ -288,23 +289,28 @@ class AWSDataSyncOperator(BaseOperator):
         self.source_location_arn = self.choose_location(
             self.candidate_source_location_arns
         )
-        if not self.source_location_arn:
+        if not self.source_location_arn and self.create_source_location_kwargs:
+            self.log.info('Attempting to create source Location')
             self.source_location_arn = hook.create_location(
                 self.source_location_uri, **self.create_source_location_kwargs
             )
         if not self.source_location_arn:
-            raise AirflowException("Unable to determine source_location_arn")
+            raise AirflowException(
+                "Unable to determine source LocationArn."
+                " Does a suitable DataSync Location exist?")
 
         self.destination_location_arn = self.choose_location(
             self.candidate_destination_location_arns
         )
-        if not self.destination_location_arn:
+        if not self.destination_location_arn and self.create_destination_location_kwargs:
+            self.log.info('Attempting to create destination Location')
             self.destination_location_arn = hook.create_location(
                 self.destination_location_uri, **self.create_destination_location_kwargs
             )
         if not self.destination_location_arn:
             raise AirflowException(
-                "Unable to determine destination_location_arn")
+                "Unable to determine destination LocationArn."
+                " Does a suitable DataSync Location exist?")
 
         self.log.info("Creating a Task.")
         self.task_arn = hook.create_task(
@@ -345,6 +351,14 @@ class AWSDataSyncOperator(BaseOperator):
         )
         self.log.info("task_execution_description=%s",
                       task_execution_description)
+
+        # Log some meaningful statuses
+        level = logging.ERROR if not result else logging.INFO
+        self.log.log(level, 'Status=%s', task_execution_description['Status'])
+        for k, v in task_execution_description['Result'].items():
+            if 'Status' in k or 'Error' in k:
+                self.log.log(level, '%s=%s', k, v)
+
         if not result:
             raise AirflowException(
                 "Failed TaskExecutionArn %s" % self.task_execution_arn

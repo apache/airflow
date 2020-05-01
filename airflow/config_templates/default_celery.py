@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,30 +16,28 @@
 # specific language governing permissions and limitations
 # under the License.
 """Default celery configuration."""
+import logging
 import ssl
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 def _broker_supports_visibility_timeout(url):
     return url.startswith("redis://") or url.startswith("sqs://")
 
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 broker_url = conf.get('celery', 'BROKER_URL')
 
-broker_transport_options = conf.getsection(
-    'celery_broker_transport_options'
-)
+broker_transport_options = conf.getsection('celery_broker_transport_options') or {}
 if 'visibility_timeout' not in broker_transport_options:
     if _broker_supports_visibility_timeout(broker_url):
         broker_transport_options['visibility_timeout'] = 21600
 
 DEFAULT_CELERY_CONFIG = {
-    'accept_content': ['json', 'pickle'],
+    'accept_content': ['json'],
     'event_serializer': 'json',
     'worker_prefetch_multiplier': 1,
     'task_acks_late': True,

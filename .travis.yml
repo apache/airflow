@@ -18,90 +18,44 @@
 ---
 dist: bionic
 language: python
+os: linux
 env:
   global:
-    - BUILD_ID=${TRAVIS_BUILD_ID}
     - MOUNT_LOCAL_SOURCES="false"
-    - AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS="true"
+    - MOUNT_HOST_AIRFLOW_VOLUME="true"
     - FORCE_ANSWER_TO_QUESTIONS="yes"
-    - AIRFLOW_CI_SILENT="true"
-    - CI="true"
+    - SKIP_CHECK_REMOTE_IMAGE="true"
+    - DB_RESET="true"
+    - VERBOSE="true"
+    - CI_JOB_TYPE="Kubernetes tests"
 python: "3.6"
 stages:
-  - pre-test
   - test
+services:
+  - docker
 jobs:
   include:
-    - name: "Static checks"
-      stage: pre-test
-      script: ./scripts/ci/ci_run_all_static_tests.sh
-      env: >-
-        PYTHON_VERSION=3.6
-        AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
-    - name: "Build documentation"
-      env: >-
-        PYTHON_VERSION=3.6
-      stage: pre-test
-      script: ./scripts/ci/ci_docs.sh
-    - name: "Tests [Postgres][3.6][Kubernetes][persistent]"
+    - name: "Tests [Py3.6][Kubernetes][persistent]"
       env: >-
         BACKEND=postgres
-        PYTHON_VERSION=3.6
+        PYTHON_MAJOR_MINOR_VERSION=3.6
         RUNTIME=kubernetes
         ENABLE_KIND_CLUSTER=true
         KUBERNETES_MODE=persistent_mode
         KUBERNETES_VERSION=v1.15.3
       python: "3.6"
       stage: test
-    - name: "Tests [Postgres][3.7][Kubernetes][git]"
+    - name: "Tests [Py3.7][Kubernetes][git]"
       env: >-
         BACKEND=postgres
-        PYTHON_VERSION=3.7
+        PYTHON_MAJOR_MINOR_VERSION=3.7
         RUNTIME=kubernetes
         ENABLE_KIND_CLUSTER=true
         KUBERNETES_MODE=git_mode
         KUBERNETES_VERSION=v1.15.3
       python: "3.6"
       stage: test
-    - name: "Tests [Postgres][3.6][integrations]"
-      env: >-
-        BACKEND=postgres
-        PYTHON_VERSION=3.6
-        ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
-        RUN_INTEGRATION_TESTS=all
-      stage: test
-    - name: "Tests [Postgres][3.6]"
-      env: >-
-        BACKEND=postgres
-        PYTHON_VERSION=3.6
-      stage: test
-    - name: "Tests [Sqlite][3.7][integrations]"
-      env: >-
-        BACKEND=sqlite
-        PYTHON_VERSION=3.7
-        ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
-        RUN_INTEGRATION_TESTS=all
-      stage: test
-    - name: "Tests [Sqlite][3.6]"
-      env: >-
-        BACKEND=sqlite
-        PYTHON_VERSION=3.6
-      stage: test
-    - name: "Tests [MySQL][3.6][integrations]"
-      env: >-
-        BACKEND=mysql
-        PYTHON_VERSION=3.6
-        ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
-        RUN_INTEGRATION_TESTS=all
-      stage: test
-      script: ./scripts/ci/ci_run_airflow_testing.sh tests/tests_core.py
-    - name: "Tests [MySQL][3.7][kerberos-temporarily-disabled]"
-      env: >-
-        BACKEND=mysql
-        PYTHON_VERSION=3.7
-      stage: test
-  services:
-    - docker
+install: skip
 before_install:
-  - ./scripts/ci/ci_before_install.sh
+  - ./scripts/ci/ci_prepare_image_on_ci.sh
 script: ./scripts/ci/ci_run_airflow_testing.sh

@@ -35,26 +35,15 @@ ComputeEngineStartInstanceOperator
 ----------------------------------
 
 Use the
-:class:`~airflow.gcp.operators.compute.ComputeEngineStartInstanceOperator`
+:class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineStartInstanceOperator`
 to start an existing Google Compute Engine instance.
-
-
-Arguments
-"""""""""
-
-The following examples of OS environment variables used to pass arguments to the operator:
-
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute.py
-    :language: python
-    :start-after: [START howto_operator_gce_args_common]
-    :end-before: [END howto_operator_gce_args_common]
 
 Using the operator
 """"""""""""""""""
 
 The code to create the operator:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_start]
@@ -63,7 +52,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the GCP connection id used:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_start_no_project_id]
@@ -73,7 +62,7 @@ from the GCP connection id used:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/compute.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/compute.py
     :language: python
     :dedent: 4
     :start-after: [START gce_instance_start_template_fields]
@@ -93,24 +82,14 @@ ComputeEngineStopInstanceOperator
 Use the operator to stop Google Compute Engine instance.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.compute.ComputeEngineStopInstanceOperator`
-
-Arguments
-"""""""""
-
-The following examples of OS environment variables used to pass arguments to the operator:
-
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute.py
-   :language: python
-   :start-after: [START howto_operator_gce_args_common]
-   :end-before: [END howto_operator_gce_args_common]
+:class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineStopInstanceOperator`
 
 Using the operator
 """"""""""""""""""
 
 The code to create the operator:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_stop]
@@ -119,7 +98,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the GCP connection used:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_stop_no_project_id]
@@ -128,7 +107,7 @@ from the GCP connection used:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/compute.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/compute.py
     :language: python
     :dedent: 4
     :start-after: [START gce_instance_stop_template_fields]
@@ -148,30 +127,19 @@ ComputeEngineSetMachineTypeOperator
 Use the operator to change machine type of a Google Compute Engine instance.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.compute.ComputeEngineSetMachineTypeOperator`.
+:class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineSetMachineTypeOperator`.
 
 Arguments
 """""""""
 
-The following examples of OS environment variables used to pass arguments to the operator:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute.py
-    :language: python
-    :start-after: [START howto_operator_gce_args_common]
-    :end-before: [END howto_operator_gce_args_common]
-
-
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute.py
-    :language: python
-    :start-after: [START howto_operator_gce_args_set_machine_type]
-    :end-before: [END howto_operator_gce_args_set_machine_type]
 
 Using the operator
 """"""""""""""""""
 
 The code to create the operator:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_set_machine_type]
@@ -180,7 +148,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the GCP connection used:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_set_machine_type_no_project_id]
@@ -189,7 +157,7 @@ from the GCP connection used:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/compute.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/compute.py
     :language: python
     :dedent: 4
     :start-after: [START gce_instance_set_machine_type_template_fields]
@@ -210,29 +178,19 @@ Use the operator to copy an existing Google Compute Engine instance template
 applying a patch to it.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.compute.ComputeEngineCopyInstanceTemplateOperator`.
-
-Arguments
-"""""""""
-
-The following examples of OS environment variables used to pass arguments to the operator:
-
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute_igm.py
-    :language: python
-    :start-after: [START howto_operator_compute_igm_common_args]
-    :end-before: [END howto_operator_compute_igm_common_args]
-
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute_igm.py
-    :language: python
-    :start-after: [START howto_operator_compute_template_copy_args]
-    :end-before: [END howto_operator_compute_template_copy_args]
+:class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineCopyInstanceTemplateOperator`.
 
 Using the operator
 """"""""""""""""""
 
 The code to create the operator:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute_igm.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
+    :language: python
+    :start-after: [START howto_operator_compute_template_copy_args]
+    :end-before: [END howto_operator_compute_template_copy_args]
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_igm_copy_template]
@@ -241,7 +199,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the GCP connection used:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute_igm.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_igm_copy_template_no_project_id]
@@ -250,7 +208,7 @@ from the GCP connection used:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/compute.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/compute.py
     :language: python
     :dedent: 4
     :start-after: [START gce_instance_template_copy_operator_template_fields]
@@ -270,29 +228,23 @@ ComputeEngineInstanceGroupUpdateManagerTemplateOperator
 Use the operator to update a template in Google Compute Engine Instance Group Manager.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.compute.ComputeEngineInstanceGroupUpdateManagerTemplateOperator`.
+:class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineInstanceGroupUpdateManagerTemplateOperator`.
 
 Arguments
 """""""""
 
-The following examples of OS environment variables used to pass arguments to the operator:
-
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute_igm.py
-    :language: python
-    :start-after: [START howto_operator_compute_igm_common_args]
-    :end-before: [END howto_operator_compute_igm_common_args]
-
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute_igm.py
-    :language: python
-    :start-after: [START howto_operator_compute_igm_update_template_args]
-    :end-before: [END howto_operator_compute_igm_update_template_args]
 
 Using the operator
 """"""""""""""""""
 
 The code to create the operator:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute_igm.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
+    :language: python
+    :start-after: [START howto_operator_compute_igm_update_template_args]
+    :end-before: [END howto_operator_compute_igm_update_template_args]
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_igm_update_template]
@@ -301,7 +253,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the GCP connection used:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute_igm.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_igm_update_template_no_project_id]
@@ -311,7 +263,7 @@ from the GCP connection used:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/compute.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/compute.py
     :language: python
     :dedent: 4
     :start-after: [START gce_igm_update_template_operator_template_fields]

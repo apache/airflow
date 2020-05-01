@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,15 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.hooks.translate`.
+This module is deprecated. Please use `airflow.providers.google.cloud.hooks.translate`.
 """
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.hooks.translate import CloudTranslateHook  # noqa
+from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.hooks.translate`",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.translate`",
     DeprecationWarning, stacklevel=2
 )

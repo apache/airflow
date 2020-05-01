@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -338,7 +337,3 @@ class TestSqoopHook(unittest.TestCase):
             hook.cmd_mask_password(cmd),
             cmd
         )
-
-
-if __name__ == '__main__':
-    unittest.main()

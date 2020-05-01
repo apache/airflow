@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -176,7 +175,7 @@ class AwsBatchOperator(BaseOperator, AwsBatchClient):
             self.log.info("AWS Batch job (%s) started: %s", self.job_id, response)
 
         except Exception as e:
-            self.log.info("AWS Batch job (%s) failed submission", self.job_id)
+            self.log.error("AWS Batch job (%s) failed submission", self.job_id)
             raise AirflowException(e)
 
     def monitor_job(self, context: Dict):  # pylint: disable=unused-argument
@@ -195,5 +194,5 @@ class AwsBatchOperator(BaseOperator, AwsBatchClient):
             self.log.info("AWS Batch job (%s) succeeded", self.job_id)
 
         except Exception as e:
-            self.log.info("AWS Batch job (%s) failed monitoring", self.job_id)
+            self.log.error("AWS Batch job (%s) failed monitoring", self.job_id)
             raise AirflowException(e)

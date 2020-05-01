@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import io
 import os
+import tempfile
 import unittest
 import warnings
 from collections import OrderedDict
@@ -117,6 +118,8 @@ class TestConf(unittest.TestCase):
         cfg_dict = conf.as_dict(display_source=True)
         self.assertEqual(
             cfg_dict['core']['load_examples'][1], 'airflow.cfg')
+        self.assertEqual(
+            cfg_dict['core']['load_default_connections'][1], 'airflow.cfg')
         self.assertEqual(
             cfg_dict['testsection']['testkey'], ('< hidden >', 'env var'))
 
@@ -321,6 +324,21 @@ key3 = value3
             test_conf.getsection('testsection')
         )
 
+    def test_get_section_should_respect_cmd_env_variable(self):
+        with tempfile.NamedTemporaryFile(delete=False) as cmd_file:
+            cmd_file.write("#!/usr/bin/env bash\n".encode())
+            cmd_file.write("echo -n difficult_unpredictable_cat_password\n".encode())
+            cmd_file.flush()
+            os.chmod(cmd_file.name, 0o0555)
+            cmd_file.close()
+
+            with mock.patch.dict(
+                "os.environ", {"AIRFLOW__KUBERNETES__GIT_PASSWORD_CMD": cmd_file.name}
+            ):
+                content = conf.getsection("kubernetes")
+            os.unlink(cmd_file.name)
+        self.assertEqual(content["git_password"], "difficult_unpredictable_cat_password")
+
     def test_kubernetes_environment_variables_section(self):
         test_config = '''
 [kubernetes_environment_variables]
@@ -455,9 +473,10 @@ AIRFLOW_HOME = /root/airflow
     def test_deprecated_funcs(self):
         for func in ['load_test_config', 'get', 'getboolean', 'getfloat', 'getint', 'has_option',
                      'remove_option', 'as_dict', 'set']:
-            with mock.patch('airflow.configuration.{}'.format(func)):
+            with mock.patch('airflow.configuration.conf.{}'.format(func)) as mock_method:
                 with self.assertWarns(DeprecationWarning):
                     getattr(configuration, func)()
+                mock_method.assert_called_once()
 
     def test_command_from_env(self):
         test_cmdenv_config = '''[testcmdenv]
@@ -534,6 +553,13 @@ notacommand = OK
             fernet_key = conf.get('core', 'FERNET_KEY')
 
         self.assertEqual(value, fernet_key)
+
+    @mock.patch.dict("os.environ", {"AIRFLOW__CORE__DAGS_FOLDER": "/tmp/test_folder"})
+    def test_write_should_respect_env_variable(self):
+        with io.StringIO() as string_file:
+            conf.write(string_file)
+            content = string_file.getvalue()
+        self.assertIn("dags_folder = /tmp/test_folder", content)
 
     def test_run_command(self):
         write = r'sys.stdout.buffer.write("\u1000foo".encode("utf8"))'

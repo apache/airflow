@@ -38,17 +38,7 @@ Deletes a database from the specified Cloud Spanner instance. If the database do
 exist, no action is taken, and the operator succeeds.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.spanner.SpannerDeleteDatabaseInstanceOperator`.
-
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from environment variables.
-
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_spanner.py
-    :language: python
-    :start-after: [START howto_operator_spanner_arguments]
-    :end-before: [END howto_operator_spanner_arguments]
+:class:`~airflow.providers.google.cloud.operators.spanner.SpannerDeleteDatabaseInstanceOperator`.
 
 Using the operator
 """"""""""""""""""
@@ -56,7 +46,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_spanner.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_database_delete]
@@ -65,7 +55,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/spanner.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/spanner.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_delete_template_fields]
@@ -88,17 +78,7 @@ configuration. No structure of the database is verified - it's enough if the dat
 with the same name.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.spanner.SpannerDeployDatabaseInstanceOperator`.
-
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from environment variables.
-
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_spanner.py
-    :language: python
-    :start-after: [START howto_operator_spanner_arguments]
-    :end-before: [END howto_operator_spanner_arguments]
+:class:`~airflow.providers.google.cloud.operators.spanner.SpannerDeployDatabaseInstanceOperator`.
 
 Using the operator
 """"""""""""""""""
@@ -106,7 +86,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_spanner.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_database_deploy]
@@ -115,7 +95,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/spanner.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/spanner.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_database_deploy_template_fields]
@@ -142,17 +122,7 @@ a valid identifier: ``[a-z][a-z0-9_]*``. More information can be found in
 `the documentation of updateDdl API <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/updateDdl>`_
 
 For parameter definition take a look at
-:class:`~airflow.gcp.operators.spanner.SpannerUpdateDatabaseInstanceOperator`.
-
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from environment variables.
-
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_spanner.py
-    :language: python
-    :start-after: [START howto_operator_spanner_arguments]
-    :end-before: [END howto_operator_spanner_arguments]
+:class:`~airflow.providers.google.cloud.operators.spanner.SpannerUpdateDatabaseInstanceOperator`.
 
 Using the operator
 """"""""""""""""""
@@ -160,13 +130,13 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_spanner.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_database_update]
     :end-before: [END howto_operator_spanner_database_update]
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_spanner.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_database_update_idempotent]
@@ -175,7 +145,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/spanner.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/spanner.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_database_update_template_fields]
@@ -195,17 +165,7 @@ SpannerQueryDatabaseInstanceOperator
 Executes an arbitrary DML query (INSERT, UPDATE, DELETE).
 
 For parameter definition take a look at
-:class:`~airflow.gcp.operators.spanner.SpannerQueryDatabaseInstanceOperator`.
-
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from environment variables.
-
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_spanner.py
-    :language: python
-    :start-after: [START howto_operator_spanner_arguments]
-    :end-before: [END howto_operator_spanner_arguments]
+:class:`~airflow.providers.google.cloud.operators.spanner.SpannerQueryDatabaseInstanceOperator`.
 
 Using the operator
 """"""""""""""""""
@@ -213,7 +173,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_spanner.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_query]
@@ -222,7 +182,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/spanner.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/spanner.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_query_template_fields]
@@ -243,17 +203,8 @@ Deletes a Cloud Spanner instance. If an instance does not exist, no action is ta
 and the operator succeeds.
 
 For parameter definition take a look at
-:class:`~airflow.gcp.operators.spanner.SpannerDeleteInstanceOperator`.
+:class:`~airflow.providers.google.cloud.operators.spanner.SpannerDeleteInstanceOperator`.
 
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from environment variables:
-
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_spanner.py
-    :language: python
-    :start-after: [START howto_operator_spanner_arguments]
-    :end-before: [END howto_operator_spanner_arguments]
 
 Using the operator
 """"""""""""""""""
@@ -261,7 +212,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_spanner.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_delete]
@@ -270,7 +221,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/spanner.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/spanner.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_delete_template_fields]

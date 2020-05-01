@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,10 +22,10 @@ import pkgutil
 from typing import Iterable
 
 import jsonschema
-from typing_extensions import Protocol
 
 from airflow.exceptions import AirflowException
 from airflow.settings import json
+from airflow.typing_compat import Protocol
 
 
 class Validator(Protocol):

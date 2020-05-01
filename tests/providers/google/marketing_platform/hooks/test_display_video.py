@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,7 +18,7 @@
 from unittest import TestCase, mock
 
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
-from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 API_VERSION = "v1"
 GCP_CONN_ID = "google_cloud_default"
@@ -28,7 +27,7 @@ GCP_CONN_ID = "google_cloud_default"
 class TestGoogleDisplayVideo360Hook(TestCase):
     def setUp(self):
         with mock.patch(
-            "airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__",
+            "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = GoogleDisplayVideo360Hook(gcp_conn_id=GCP_CONN_ID)
@@ -137,3 +136,106 @@ class TestGoogleDisplayVideo360Hook(TestCase):
         get_conn_mock.return_value.queries.return_value.runquery.assert_called_once_with(
             queryId=query_id, body=params
         )
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook.get_conn"
+    )
+    def test_download_line_items_should_be_called_once(self, get_conn_mock):
+        request_body = {
+            "filterType": "filter_type",
+            "filterIds": [],
+            "format": "format",
+            "fileSpec": "file_spec"
+        }
+        self.hook.download_line_items(request_body=request_body)
+        get_conn_mock.return_value\
+            .lineitems.return_value\
+            .downloadlineitems.assert_called_once()
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook.get_conn"
+    )
+    def test_download_line_items_should_be_called_with_params(self, get_conn_mock):
+        request_body = {
+            "filterType": "filter_type",
+            "filterIds": [],
+            "format": "format",
+            "fileSpec": "file_spec"
+        }
+        self.hook.download_line_items(request_body=request_body)
+
+        get_conn_mock.return_value \
+            .lineitems.return_value \
+            .downloadlineitems.assert_called_once_with(body=request_body)
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook.get_conn"
+    )
+    def test_download_line_items_should_return_equal_values(self, get_conn_mock):
+        line_item = ["holy_hand_grenade"]
+        response = {"lineItems": line_item}
+        request_body = {
+            "filterType": "filter_type",
+            "filterIds": [],
+            "format": "format",
+            "fileSpec": "file_spec"
+        }
+
+        get_conn_mock.return_value \
+            .lineitems.return_value \
+            .downloadlineitems.return_value.execute.return_value = response
+
+        result = self.hook.download_line_items(request_body)
+        self.assertEqual(line_item, result)
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook.get_conn"
+    )
+    def test_upload_line_items_should_be_called_once(self, get_conn_mock):
+        line_items = ["this", "is", "super", "awesome", "test"]
+
+        self.hook.upload_line_items(line_items)
+        get_conn_mock.return_value \
+            .lineitems.return_value \
+            .uploadlineitems.assert_called_once()
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook.get_conn"
+    )
+    def test_upload_line_items_should_be_called_with_params(self, get_conn_mock):
+        line_items = "I spent too much time on this"
+        request_body = {
+            "lineItems": line_items,
+            "dryRun": False,
+            "format": "CSV",
+        }
+
+        self.hook.upload_line_items(line_items)
+
+        get_conn_mock.return_value \
+            .lineitems.return_value \
+            .uploadlineitems.assert_called_once_with(body=request_body)
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook.get_conn"
+    )
+    def test_upload_line_items_should_return_equal_values(self, get_conn_mock):
+        line_items = {
+            "lineItems": "string",
+            "format": "string",
+            "dryRun": False
+        }
+        return_value = "TEST"
+        get_conn_mock.return_value \
+            .lineitems.return_value \
+            .uploadlineitems.return_value \
+            .execute.return_value = return_value
+        result = self.hook.upload_line_items(line_items)
+
+        self.assertEqual(return_value, result)

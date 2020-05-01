@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,30 +18,37 @@
 
 import datetime
 import json
+import logging
 import os
+import time
+import traceback
 
 import pendulum
 from dateutil import relativedelta
 from sqlalchemy import event, exc
 from sqlalchemy.types import DateTime, Text, TypeDecorator
 
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.configuration import conf
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
+
 utc = pendulum.timezone('UTC')
+
+using_mysql = conf.get('core', 'sql_alchemy_conn').lower().startswith('mysql')
 
 
 def setup_event_handlers(engine):
     """
     Setups event handlers.
     """
+    # pylint: disable=unused-argument
     @event.listens_for(engine, "connect")
-    def connect(dbapi_connection, connection_record):  # pylint: disable=unused-argument
+    def connect(dbapi_connection, connection_record):
         connection_record.info['pid'] = os.getpid()
 
     if engine.dialect.name == "sqlite":
         @event.listens_for(engine, "connect")
-        def set_sqlite_pragma(dbapi_connection, connection_record):  # pylint: disable=unused-argument
+        def set_sqlite_pragma(dbapi_connection, connection_record):
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.close()
@@ -50,13 +56,13 @@ def setup_event_handlers(engine):
     # this ensures sanity in mysql when storing datetimes (not required for postgres)
     if engine.dialect.name == "mysql":
         @event.listens_for(engine, "connect")
-        def set_mysql_timezone(dbapi_connection, connection_record):  # pylint: disable=unused-argument
+        def set_mysql_timezone(dbapi_connection, connection_record):
             cursor = dbapi_connection.cursor()
             cursor.execute("SET time_zone = '+00:00'")
             cursor.close()
 
     @event.listens_for(engine, "checkout")
-    def checkout(dbapi_connection, connection_record, connection_proxy):  # pylint: disable=unused-argument
+    def checkout(dbapi_connection, connection_record, connection_proxy):
         pid = os.getpid()
         if connection_record.info['pid'] != pid:
             connection_record.connection = connection_proxy.connection = None
@@ -64,6 +70,25 @@ def setup_event_handlers(engine):
                 "Connection record belongs to pid {}, "
                 "attempting to check out in pid {}".format(connection_record.info['pid'], pid)
             )
+    if conf.getboolean('debug', 'sqlalchemy_stats', fallback=False):
+        @event.listens_for(engine, "before_cursor_execute")
+        def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+            conn.info.setdefault('query_start_time', []).append(time.time())
+
+        @event.listens_for(engine, "after_cursor_execute")
+        def after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+            total = time.time() - conn.info['query_start_time'].pop()
+            file_name = [
+                f"'{f.name}':{f.filename}:{f.lineno}" for f
+                in traceback.extract_stack() if 'sqlalchemy' not in f.filename][-1]
+            stack = [f for f in traceback.extract_stack() if 'sqlalchemy' not in f.filename]
+            stack_info = ">".join([f"{f.filename.rpartition('/')[-1]}:{f.name}" for f in stack][-3:])
+            conn.info.setdefault('query_start_time', []).append(time.monotonic())
+            log.info("@SQLALCHEMY %s |$ %s |$ %s |$  %s ",
+                     total, file_name, stack_info, statement.replace("\n", " ")
+                     )
+
+# pylint: enable=unused-argument
 
 
 class UtcDateTime(TypeDecorator):
@@ -91,7 +116,14 @@ class UtcDateTime(TypeDecorator):
                                 repr(value))
             elif value.tzinfo is None:
                 raise ValueError('naive datetime is disallowed')
-
+            # For mysql we should store timestamps as naive values
+            # Timestamp in MYSQL is not timezone aware. In MySQL 5.6
+            # timezone added at the end is ignored but in MySQL 5.7
+            # inserting timezone value fails with 'invalid-date'
+            # See https://issues.apache.org/jira/browse/AIRFLOW-7001
+            if using_mysql:
+                from airflow.utils.timezone import make_naive
+                return make_naive(value, timezone=utc)
             return value.astimezone(utc)
         return None
 

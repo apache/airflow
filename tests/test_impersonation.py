@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -27,7 +26,10 @@ import unittest
 import unittest.mock
 from copy import deepcopy
 
-from airflow import jobs, models
+import pytest
+
+from airflow import models
+from airflow.jobs.backfill_job import BackfillJob
 from airflow.utils.db import add_default_pool_if_not_exists
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
@@ -107,6 +109,7 @@ def create_user():
             )
 
 
+@pytest.mark.quarantined
 class TestImpersonation(unittest.TestCase):
 
     def setUp(self):
@@ -130,7 +133,7 @@ class TestImpersonation(unittest.TestCase):
         dag = self.dagbag.get_dag(dag_id)
         dag.clear()
 
-        jobs.BackfillJob(
+        BackfillJob(
             dag=dag,
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE).run()
@@ -183,6 +186,7 @@ class TestImpersonation(unittest.TestCase):
         )
 
 
+@pytest.mark.quarantined
 class TestImpersonationWithCustomPythonPath(unittest.TestCase):
 
     @mock_custom_module_path(TEST_UTILS_FOLDER)
@@ -207,7 +211,7 @@ class TestImpersonationWithCustomPythonPath(unittest.TestCase):
         dag = self.dagbag.get_dag(dag_id)
         dag.clear()
 
-        jobs.BackfillJob(
+        BackfillJob(
             dag=dag,
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE).run()

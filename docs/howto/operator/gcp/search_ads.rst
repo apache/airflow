@@ -57,8 +57,8 @@ The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used b
 
 .. _howto/operator:GoogleSearchAdsReportSensor:
 
-A section title
-^^^^^^^^^^^^^^^
+Awaiting for a report
+^^^^^^^^^^^^^^^^^^^^^
 
 To wait for a report to be ready for download use
 :class:`~airflow.providers.google.marketing_platform.sensors.search_ads.GoogleSearchAdsReportSensor`.

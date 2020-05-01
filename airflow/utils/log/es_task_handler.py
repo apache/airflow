@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -186,7 +185,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
                 else:
                     metadata['max_offset'] = 0
             except Exception:  # pylint: disable=broad-except
-                self.log.exception('Could not get current log size with log_id: {}'.format(log_id))
+                self.log.exception('Could not get current log size with log_id: %s', log_id)
 
         logs = []
         if max_log_line != 0:

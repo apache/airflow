@@ -6,11 +6,6 @@ Foundation (http://www.apache.org/).
 
 =======================================================================
 
-airflow.contrib.auth.backends.github_enterprise_auth:
------------------------------------------------------
-
-* Copyright 2015 Matthew Pelland (matt@pelland.io)
-
 hue:
 -----
 This product contains a modified portion of 'Hue' developed by Cloudera, Inc.

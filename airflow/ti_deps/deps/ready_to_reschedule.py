@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -25,6 +24,9 @@ from airflow.utils.state import State
 
 
 class ReadyToRescheduleDep(BaseTIDep):
+    """
+    Determines whether a task is ready to be rescheduled.
+    """
     NAME = "Ready To Reschedule"
     IGNOREABLE = True
     IS_TASK_DEP = True

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import logging
 import re
 import sys
 
@@ -23,7 +23,8 @@ from airflow import settings
 from airflow.providers.apache.hdfs.hooks.hdfs import HDFSHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.utils.log.logging_mixin import LoggingMixin
+
+log = logging.getLogger(__name__)
 
 
 class HdfsSensor(BaseSensorOperator):
@@ -63,7 +64,6 @@ class HdfsSensor(BaseSensorOperator):
         :return: (bool) depending on the matching criteria
         """
         if size:
-            log = LoggingMixin().log
             log.debug(
                 'Filtering for file size >= %s in files: %s',
                 size, map(lambda x: x['path'], result)
@@ -88,7 +88,6 @@ class HdfsSensor(BaseSensorOperator):
         :rtype: list[dict]
         """
         if ignore_copying:
-            log = LoggingMixin().log
             regex_builder = r"^.*\.(%s$)$" % '$|'.join(ignored_ext)
             ignored_extensions_regex = re.compile(regex_builder)
             log.debug(
@@ -100,28 +99,32 @@ class HdfsSensor(BaseSensorOperator):
         return result
 
     def poke(self, context):
-        sb = self.hook(self.hdfs_conn_id).get_conn()
+        """Get a snakebite client connection and check for file."""
+        sb_client = self.hook(self.hdfs_conn_id).get_conn()
         self.log.info('Poking for file %s', self.filepath)
         try:
-            # IMOO it's not right here, as there no raise of any kind.
+            # IMOO it's not right here, as there is no raise of any kind.
             # if the filepath is let's say '/data/mydirectory',
             # it's correct but if it is '/data/mydirectory/*',
-            # it's not correct as the directory exists and sb does not raise any error
+            # it's not correct as the directory exists and sb_client does not raise any error
             # here is a quick fix
-            result = [f for f in sb.ls([self.filepath], include_toplevel=False)]
+            result = sb_client.ls([self.filepath], include_toplevel=False)
             self.log.debug('HdfsSensor.poke: result is %s', result)
             result = self.filter_for_ignored_ext(
                 result, self.ignored_ext, self.ignore_copying
             )
             result = self.filter_for_filesize(result, self.file_size)
             return bool(result)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             e = sys.exc_info()
             self.log.debug("Caught an exception !: %s", str(e))
             return False
 
 
 class HdfsSensorRegex(HdfsSensor):
+    """
+    Waits for matching files by matching on regex
+    """
     def __init__(self,
                  regex,
                  *args,
@@ -135,11 +138,11 @@ class HdfsSensorRegex(HdfsSensor):
 
         :return: Bool depending on the search criteria
         """
-        sb = self.hook(self.hdfs_conn_id).get_conn()
+        sb_client = self.hook(self.hdfs_conn_id).get_conn()
         self.log.info(
             'Poking for %s to be a directory with files matching %s', self.filepath, self.regex.pattern
         )
-        result = [f for f in sb.ls([self.filepath], include_toplevel=False) if
+        result = [f for f in sb_client.ls([self.filepath], include_toplevel=False) if
                   f['file_type'] == 'f' and
                   self.regex.match(f['path'].replace('%s/' % self.filepath, ''))]
         result = self.filter_for_ignored_ext(result, self.ignored_ext,
@@ -149,6 +152,9 @@ class HdfsSensorRegex(HdfsSensor):
 
 
 class HdfsSensorFolder(HdfsSensor):
+    """
+    Waits for a non-empty directory
+    """
     def __init__(self,
                  be_empty=False,
                  *args,
@@ -162,8 +168,8 @@ class HdfsSensorFolder(HdfsSensor):
 
         :return: Bool depending on the search criteria
         """
-        sb = self.hook(self.hdfs_conn_id).get_conn()
-        result = [f for f in sb.ls([self.filepath], include_toplevel=True)]
+        sb_client = self.hook(self.hdfs_conn_id).get_conn()
+        result = sb_client.ls([self.filepath], include_toplevel=True)
         result = self.filter_for_ignored_ext(result, self.ignored_ext,
                                              self.ignore_copying)
         result = self.filter_for_filesize(result, self.file_size)

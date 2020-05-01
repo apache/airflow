@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -27,10 +26,9 @@
 
 import warnings
 
-from typing_extensions import Protocol, runtime_checkable
-
 from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchProtocol
 from airflow.providers.amazon.aws.operators.batch import AwsBatchOperator
+from airflow.typing_compat import Protocol, runtime_checkable
 
 warnings.warn(
     "This module is deprecated. "
@@ -42,6 +40,7 @@ warnings.warn(
 )
 
 
+# pylint: disable=too-many-ancestors
 class AWSBatchOperator(AwsBatchOperator):
     """
     This class is deprecated. Please use `airflow.providers.amazon.aws.operators.batch.AwsBatchOperator`.

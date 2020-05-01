@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -49,7 +48,7 @@ class LoggingMixin:
             # FIXME: LoggingMixin should have a default _log field.
             return self._log  # type: ignore
         except AttributeError:
-            self._log = logging.root.getChild(
+            self._log = logging.getLogger(
                 self.__class__.__module__ + '.' + self.__class__.__name__
             )
             return self._log
@@ -64,7 +63,7 @@ class StreamLogWriter:
     """
     Allows to redirect stdout and stderr to logger
     """
-    encoding = False
+    encoding: None = None
 
     def __init__(self, logger, level):
         """
@@ -126,6 +125,7 @@ class RedirectStdHandler(StreamHandler):
     whatever sys.stderr/stderr is currently set to rather than the value of
     sys.stderr/stdout at handler construction time.
     """
+    # pylint: disable=super-init-not-called
     def __init__(self, stream):
         if not isinstance(stream, str):
             raise Exception("Cannot use file like objects. Use 'stdout' or 'stderr'"

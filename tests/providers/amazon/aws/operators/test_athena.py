@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -36,7 +35,7 @@ MOCK_DATA = {
     'database': 'TEST_DATABASE',
     'outputLocation': 's3://test_s3_bucket/',
     'client_request_token': 'eac427d0-1c6d-4dfb-96aa-2835d3ac6595',
-    'workgroup': 'default'
+    'workgroup': 'primary'
 }
 
 query_context = {
@@ -144,7 +143,3 @@ class TestAWSAthenaOperator(unittest.TestCase):
         self.assertEqual(ti.xcom_pull(task_ids='test_aws_athena_operator'),
                          ATHENA_QUERY_ID)
 # pylint: enable=unused-argument
-
-
-if __name__ == '__main__':
-    unittest.main()

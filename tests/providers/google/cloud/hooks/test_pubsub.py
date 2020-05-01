@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,17 +17,20 @@
 # under the License.
 
 import unittest
+from typing import List
 
 import mock
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.cloud.exceptions import NotFound
+from google.cloud.pubsub_v1.types import ReceivedMessage
+from google.protobuf.json_format import ParseDict
 from googleapiclient.errors import HttpError
 from parameterized import parameterized
 
 from airflow.providers.google.cloud.hooks.pubsub import PubSubException, PubSubHook
 from airflow.version import version
 
-BASE_STRING = 'airflow.gcp.hooks.base.{}'
+BASE_STRING = 'airflow.providers.google.common.hooks.base_google.{}'
 PUBSUB_STRING = 'airflow.providers.google.cloud.hooks.pubsub.{}'
 
 EMPTY_CONTENT = b''
@@ -55,9 +57,24 @@ def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-ar
 
 class TestPubSubHook(unittest.TestCase):
     def setUp(self):
-        with mock.patch(BASE_STRING.format('CloudBaseHook.__init__'),
+        with mock.patch(BASE_STRING.format('GoogleBaseHook.__init__'),
                         new=mock_init):
             self.pubsub_hook = PubSubHook(gcp_conn_id='test')
+
+    def _generate_messages(self, count) -> List[ReceivedMessage]:
+        return [
+            ParseDict(
+                {
+                    "ack_id": str(i),
+                    "message": {
+                        "data": f'Message {i}'.encode('utf8'),
+                        "attributes": {"type": "generated message"},
+                    },
+                },
+                ReceivedMessage(),
+            )
+            for i in range(1, count + 1)
+        ]
 
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook.client_info",
                 new_callable=mock.PropertyMock)
@@ -390,7 +407,7 @@ class TestPubSubHook(unittest.TestCase):
             )
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
-    def test_acknowledge(self, mock_service):
+    def test_acknowledge_by_ack_ids(self, mock_service):
         ack_method = mock_service.acknowledge
 
         self.pubsub_hook.acknowledge(
@@ -404,6 +421,23 @@ class TestPubSubHook(unittest.TestCase):
             retry=None,
             timeout=None,
             metadata=None
+        )
+
+    @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
+    def test_acknowledge_by_message_objects(self, mock_service):
+        ack_method = mock_service.acknowledge
+
+        self.pubsub_hook.acknowledge(
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            messages=self._generate_messages(3),
+        )
+        ack_method.assert_called_once_with(
+            subscription=EXPANDED_SUBSCRIPTION,
+            ack_ids=['1', '2', '3'],
+            retry=None,
+            timeout=None,
+            metadata=None,
         )
 
     @parameterized.expand([

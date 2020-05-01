@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,14 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.operators.cloud_storage_transfer_service`.
+This module is deprecated.
+Please use `airflow.providers.google.cloud.operators.cloud_storage_transfer_service`.
 """
 import warnings
 
 # pylint: disable=unused-import,line-too-long
-from airflow.gcp.operators.cloud_storage_transfer_service import CloudDataTransferServiceS3ToGCSOperator  # noqa isort:skip
+from airflow.providers.google.cloud.operators.cloud_storage_transfer_service import CloudDataTransferServiceS3ToGCSOperator  # noqa isort:skip
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.cloud_storage_transfer_service`.",
+    "This module is deprecated. "
+    "Please use `airflow.providers.google.cloud.operators.cloud_storage_transfer_service`.",
     DeprecationWarning, stacklevel=2
 )

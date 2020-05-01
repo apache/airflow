@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,14 +18,15 @@
 """
 This module contains Google DisplayVideo hook.
 """
+
 from typing import Any, Dict, List, Optional
 
 from googleapiclient.discovery import Resource, build
 
-from airflow.gcp.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class GoogleDisplayVideo360Hook(CloudBaseHook):
+class GoogleDisplayVideo360Hook(GoogleBaseHook):
     """
     Hook for Google Display & Video 360.
     """
@@ -128,3 +128,45 @@ class GoogleDisplayVideo360Hook(CloudBaseHook):
             .runquery(queryId=query_id, body=params)
             .execute(num_retries=self.num_retries)
         )
+
+    def upload_line_items(self, line_items: Any) -> List[Dict[str, Any]]:
+        """
+        Uploads line items in CSV format.
+
+        :param line_items: downloaded data from GCS and passed to the body request
+        :type line_items: Any
+        :return: response body.
+        :rtype: List[Dict[str, Any]]
+        """
+
+        request_body = {
+            "lineItems": line_items,
+            "dryRun": False,
+            "format": "CSV",
+        }
+
+        response = (
+            self.get_conn()  # pylint: disable=no-member
+            .lineitems()
+            .uploadlineitems(body=request_body)
+            .execute(num_retries=self.num_retries)
+        )
+        return response
+
+    def download_line_items(self, request_body: Dict[str, Any]) -> List[Any]:
+        """
+        Retrieves line items in CSV format.
+
+        :param request_body: dictionary with parameters that should be passed into.
+            More information about it can be found here:
+            https://developers.google.com/bid-manager/v1.1/lineitems/downloadlineitems
+        :type request_body: Dict[str, Any]
+        """
+
+        response = (
+            self.get_conn()  # pylint: disable=no-member
+            .lineitems()
+            .downloadlineitems(body=request_body)
+            .execute(num_retries=self.num_retries)
+        )
+        return response["lineItems"]

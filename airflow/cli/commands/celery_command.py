@@ -16,69 +16,69 @@
 # specific language governing permissions and limitations
 # under the License.
 """Celery command"""
-import os
-import signal
 import sys
 from multiprocessing import Process
 from typing import Optional
 
 import daemon
+import psutil
+from celery import maybe_patch_concurrency
 from celery.bin import worker as worker_bin
 from daemon.pidfile import TimeoutPIDLockFile
+from flower.command import FlowerCommand
+from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
 from airflow import settings
 from airflow.configuration import conf
 from airflow.executors.celery_executor import app as celery_app
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import setup_locations, setup_logging, sigint_handler
+from airflow.utils.cli import setup_locations, setup_logging
 from airflow.utils.serve_logs import serve_logs
+
+WORKER_PROCESS_NAME = "worker"
 
 
 @cli_utils.action_logging
 def flower(args):
     """Starts Flower, Celery monitoring tool"""
-    broker = conf.get('celery', 'BROKER_URL')
-    address = '--address={}'.format(args.hostname)
-    port = '--port={}'.format(args.port)
-    api = ''  # pylint: disable=redefined-outer-name
+    options = [
+        conf.get('celery', 'BROKER_URL'),
+        f"--address={args.hostname}",
+        f"--port={args.port}",
+    ]
+
     if args.broker_api:
-        api = '--broker_api=' + args.broker_api
+        options.append(f"--broker-api={args.broker_api}")
 
-    url_prefix = ''
     if args.url_prefix:
-        url_prefix = '--url-prefix=' + args.url_prefix
+        options.append(f"--url-prefix={args.url_prefix}")
 
-    basic_auth = ''
     if args.basic_auth:
-        basic_auth = '--basic_auth=' + args.basic_auth
+        options.append(f"--basic-auth={args.basic_auth}")
 
-    flower_conf = ''
     if args.flower_conf:
-        flower_conf = '--conf=' + args.flower_conf
+        options.append(f"--conf={args.flower_conf}")
+
+    flower_cmd = FlowerCommand()
 
     if args.daemon:
-        pid, stdout, stderr, _ = setup_locations("flower", args.pid, args.stdout, args.stderr, args.log_file)
-        stdout = open(stdout, 'w+')
-        stderr = open(stderr, 'w+')
-
-        ctx = daemon.DaemonContext(
-            pidfile=TimeoutPIDLockFile(pid, -1),
-            stdout=stdout,
-            stderr=stderr,
+        pidfile, stdout, stderr, _ = setup_locations(
+            process="flower",
+            pid=args.pid,
+            stdout=args.stdout,
+            stderr=args.stderr,
+            log=args.log_file,
         )
-
-        with ctx:
-            os.execvp("flower", ['flower', '-b',
-                                 broker, address, port, api, flower_conf, url_prefix, basic_auth])
-
-        stdout.close()
-        stderr.close()
+        with open(stdout, "w+") as stdout, open(stderr, "w+") as stderr:
+            ctx = daemon.DaemonContext(
+                pidfile=TimeoutPIDLockFile(pidfile, -1),
+                stdout=stdout,
+                stderr=stderr,
+            )
+            with ctx:
+                flower_cmd.execute_from_commandline(argv=options)
     else:
-        signal.signal(signal.SIGINT, sigint_handler)
-        signal.signal(signal.SIGTERM, sigint_handler)
-
-        os.execvp("flower", ['flower', '-b',
-                             broker, address, port, api, flower_conf, url_prefix, basic_auth])
+        flower_cmd.execute_from_commandline(argv=options)
 
 
 def _serve_logs(skip_serve_logs: bool = False) -> Optional[Process]:
@@ -93,9 +93,6 @@ def _serve_logs(skip_serve_logs: bool = False) -> Optional[Process]:
 @cli_utils.action_logging
 def worker(args):
     """Starts Airflow Celery worker"""
-    env = os.environ.copy()
-    env['AIRFLOW_HOME'] = settings.AIRFLOW_HOME
-
     if not settings.validate_session():
         print("Worker exiting... database connection precheck failed! ")
         sys.exit(1)
@@ -106,6 +103,16 @@ def worker(args):
     if autoscale is None and conf.has_option("celery", "worker_autoscale"):
         autoscale = conf.get("celery", "worker_autoscale")
 
+    # Setup locations
+    pid_file_path, stdout, stderr, log_file = setup_locations(
+        process=WORKER_PROCESS_NAME,
+        pid=args.pid,
+        stdout=args.stdout,
+        stderr=args.stderr,
+        log=args.log_file,
+    )
+
+    # Setup Celery worker
     worker_instance = worker_bin.worker(app=celery_app)
     options = {
         'optimization': 'fair',
@@ -115,24 +122,31 @@ def worker(args):
         'autoscale': autoscale,
         'hostname': args.celery_hostname,
         'loglevel': conf.get('logging', 'LOGGING_LEVEL'),
+        'pidfile': pid_file_path,
     }
 
     if conf.has_option("celery", "pool"):
-        options["pool"] = conf.get("celery", "pool")
+        pool = conf.get("celery", "pool")
+        options["pool"] = pool
+        # Celery pools of type eventlet and gevent use greenlets, which
+        # requires monkey patching the app:
+        # https://eventlet.net/doc/patching.html#monkey-patch
+        # Otherwise task instances hang on the workers and are never
+        # executed.
+        maybe_patch_concurrency(['-P', pool])
 
     if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations("worker",
-                                                        args.pid,
-                                                        args.stdout,
-                                                        args.stderr,
-                                                        args.log_file)
+        # Run Celery worker as daemon
         handle = setup_logging(log_file)
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
 
+        if args.umask:
+            umask = args.umask
+
         ctx = daemon.DaemonContext(
-            pidfile=TimeoutPIDLockFile(pid, -1),
             files_preserve=[handle],
+            umask=int(umask, 8),
             stdout=stdout,
             stderr=stderr,
         )
@@ -143,11 +157,25 @@ def worker(args):
         stdout.close()
         stderr.close()
     else:
-        signal.signal(signal.SIGINT, sigint_handler)
-        signal.signal(signal.SIGTERM, sigint_handler)
-
+        # Run Celery worker in the same process
         sub_proc = _serve_logs(skip_serve_logs)
         worker_instance.run(**options)
 
     if sub_proc:
         sub_proc.terminate()
+
+
+@cli_utils.action_logging
+def stop_worker(args):  # pylint: disable=unused-argument
+    """Sends SIGTERM to Celery worker"""
+    # Read PID from file
+    pid_file_path, _, _, _ = setup_locations(process=WORKER_PROCESS_NAME)
+    pid = read_pid_from_pidfile(pid_file_path)
+
+    # Send SIGTERM
+    if pid:
+        worker_process = psutil.Process(pid)
+        worker_process.terminate()
+
+    # Remove pid file
+    remove_existing_pidfile(pid_file_path)

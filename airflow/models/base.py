@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -39,3 +38,14 @@ ID_LEN = 250
 # used for typing
 class Operator:
     pass
+
+
+def get_id_collation_args():
+    collation = conf.get('core', 'sql_engine_collation_for_ids', fallback=None)
+    if collation:
+        return {'collation': collation}
+    else:
+        return {}
+
+
+COLLATION_ARGS = get_id_collation_args()

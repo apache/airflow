@@ -98,6 +98,12 @@ Foundation.
        :mod:`airflow.providers.apache.hive.sensors.hive_partition`,
        :mod:`airflow.providers.apache.hive.sensors.metastore_partition`
 
+   * - `Apache Livy <https://livy.apache.org/>`__
+     -
+     - :mod:`airflow.providers.apache.livy.hooks.livy`
+     - :mod:`airflow.providers.apache.livy.operators.livy`
+     - :mod:`airflow.providers.apache.livy.sensors.livy`
+
    * - `Apache Pig <https://pig.apache.org/>`__
      -
      - :mod:`airflow.providers.apache.pig.hooks.pig`
@@ -157,47 +163,52 @@ Foundation.
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.operators.s3_to_hive_operator`
+     - :mod:`airflow.providers.apache.hive.operators.s3_to_hive`
+
+   * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
+     - `MySQL <https://www.mysql.com/>`__
+     -
+     - :mod:`airflow.providers.mysql.operators.s3_to_mysql`
 
    * - `Apache Cassandra <http://cassandra.apache.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.cassandra_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.cassandra_to_gcs`
 
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
      -
-     - :mod:`airflow.contrib.operators.hive_to_dynamodb`
+     - :mod:`airflow.providers.amazon.aws.operators.hive_to_dynamodb`
 
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Apache Druid <https://druid.apache.org/>`__
      -
-     - :mod:`airflow.operators.hive_to_druid`
+     - :mod:`airflow.providers.apache.druid.operators.hive_to_druid`
 
    * - `Apache Hive <https://hive.apache.org/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
-     - :mod:`airflow.operators.hive_to_mysql`
+     - :mod:`airflow.providers.apache.hive.operators.hive_to_mysql`
 
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Samba <https://www.samba.org/>`__
      -
-     - :mod:`airflow.operators.hive_to_samba_operator`
+     - :mod:`airflow.providers.apache.hive.operators.hive_to_samba`
 
    * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.operators.mssql_to_hive`
+     - :mod:`airflow.providers.apache.hive.operators.mssql_to_hive`
 
    * - `MySQL <https://www.mysql.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.operators.mysql_to_hive`
+     - :mod:`airflow.providers.apache.hive.operators.mysql_to_hive`
 
    * - `Vertica <https://www.vertica.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.contrib.operators.vertica_to_hive`
+     - :mod:`airflow.providers.apache.hive.operators.vertica_to_hive`
 
 .. _Azure:
 
@@ -220,30 +231,40 @@ These integrations allow you to perform various operations within the Microsoft 
      - Operators
      - Sensors
 
+   * - `Azure Batch <https://azure.microsoft.com/en-us/services/batch/>`__
+     - :mod:`airflow.providers.microsoft.azure.hooks.azure_batch`
+     - :mod:`airflow.providers.microsoft.azure.operators.azure_batch`
+     -
+
    * - `Azure Blob Storage <https://azure.microsoft.com/en-us/services/storage/blobs/>`__
-     - :mod:`airflow.contrib.hooks.wasb_hook`
-     - :mod:`airflow.contrib.operators.wasb_delete_blob_operator`
-     - :mod:`airflow.contrib.sensors.wasb_sensor`
+     - :mod:`airflow.providers.microsoft.azure.hooks.wasb`
+     - :mod:`airflow.providers.microsoft.azure.operators.wasb_delete_blob`
+     - :mod:`airflow.providers.microsoft.azure.sensors.wasb`
 
    * - `Azure Container Instances <https://azure.microsoft.com/en-us/services/container-instances/>`__
-     - :mod:`airflow.contrib.hooks.azure_container_instance_hook`,
-       :mod:`airflow.contrib.hooks.azure_container_registry_hook`,
-       :mod:`airflow.contrib.hooks.azure_container_volume_hook`
-     - :mod:`airflow.contrib.operators.azure_container_instances_operator`
+     - :mod:`airflow.providers.microsoft.azure.hooks.azure_container_instance`,
+       :mod:`airflow.providers.microsoft.azure.hooks.azure_container_registry`,
+       :mod:`airflow.providers.microsoft.azure.hooks.azure_container_volume`
+     - :mod:`airflow.providers.microsoft.azure.operators.azure_container_instances`
      -
 
    * - `Azure Cosmos DB <https://azure.microsoft.com/en-us/services/cosmos-db/>`__
-     - :mod:`airflow.contrib.hooks.azure_cosmos_hook`
-     - :mod:`airflow.contrib.operators.azure_cosmos_operator`
-     - :mod:`airflow.contrib.sensors.azure_cosmos_sensor`
+     - :mod:`airflow.providers.microsoft.azure.hooks.azure_cosmos`
+     - :mod:`airflow.providers.microsoft.azure.operators.azure_cosmos`
+     - :mod:`airflow.providers.microsoft.azure.sensors.azure_cosmos`
 
    * - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
-     - :mod:`airflow.contrib.hooks.azure_data_lake_hook`
-     - :mod:`airflow.contrib.operators.adls_list_operator`
+     - :mod:`airflow.providers.microsoft.azure.hooks.azure_data_lake`
+     - :mod:`airflow.providers.microsoft.azure.operators.adls_list`
+     -
+
+   * - `Azure Data Explorer <https://azure.microsoft.com/en-us/services/data-explorer//>`__
+     - :mod:`airflow.providers.microsoft.azure.hooks.adx`
+     - :mod:`airflow.providers.microsoft.azure.operators.adx`
      -
 
    * - `Azure Files <https://azure.microsoft.com/en-us/services/storage/files/>`__
-     - :mod:`airflow.contrib.hooks.azure_fileshare_hook`
+     - :mod:`airflow.providers.microsoft.azure.hooks.azure_fileshare`
      -
      -
 
@@ -264,17 +285,17 @@ These integrations allow you to copy data from/to Microsoft Azure.
    * - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.adls_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.adls_to_gcs`
 
    * - Local
      - `Azure Blob Storage <https://azure.microsoft.com/en-us/services/storage/blobs/>`__
      -
-     - :mod:`airflow.contrib.operators.file_to_wasb`
+     - :mod:`airflow.providers.microsoft.azure.operators.file_to_wasb`
 
    * - `Oracle <https://www.oracle.com/pl/database/>`__
      - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
      -
-     - :mod:`airflow.contrib.operators.oracle_to_azure_data_lake_transfer`
+     - :mod:`airflow.providers.microsoft.azure.operators.oracle_to_azure_data_lake_transfer`
 
 
 .. _AWS:
@@ -284,7 +305,7 @@ AWS: Amazon Web Services
 
 Airflow has support for `Amazon Web Services <https://aws.amazon.com/>`__.
 
-All hooks are based on :mod:`airflow.contrib.hooks.aws_hook`.
+All hooks are based on :mod:`airflow.providers.amazon.aws.hooks.base_aws`.
 
 Service operators and hooks
 '''''''''''''''''''''''''''
@@ -315,9 +336,9 @@ These integrations allow you to perform various operations within the Amazon Web
 
    * - `AWS Glue Catalog <https://aws.amazon.com/glue/>`__
      -
-     - :mod:`airflow.contrib.hooks.aws_glue_catalog_hook`
+     - :mod:`airflow.providers.amazon.aws.hooks.glue_catalog`
      -
-     - :mod:`airflow.contrib.sensors.aws_glue_catalog_partition_sensor`
+     - :mod:`airflow.providers.amazon.aws.sensors.glue_catalog_partition`
 
    * - `AWS Lambda <https://aws.amazon.com/lambda/>`__
      -
@@ -331,33 +352,40 @@ These integrations allow you to perform various operations within the Amazon Web
      - :mod:`airflow.providers.amazon.aws.operators.athena`
      - :mod:`airflow.providers.amazon.aws.sensors.athena`
 
+   * - `Amazon CloudFormation <https://aws.amazon.com/cloudformation/>`__
+     -
+     - :mod:`airflow.providers.amazon.aws.hooks.cloud_formation`
+     - :mod:`airflow.providers.amazon.aws.operators.cloud_formation`
+     - :mod:`airflow.providers.amazon.aws.sensors.cloud_formation`
+
    * - `Amazon CloudWatch Logs <https://aws.amazon.com/cloudwatch/>`__
      -
-     - :mod:`airflow.contrib.hooks.aws_logs_hook`
+     - :mod:`airflow.providers.amazon.aws.hooks.logs`
      -
      -
 
    * - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
      -
-     - :mod:`airflow.contrib.hooks.aws_dynamodb_hook`
+     - :mod:`airflow.providers.amazon.aws.hooks.aws_dynamodb`
      -
      -
 
    * - `Amazon EC2 <https://aws.amazon.com/ec2/>`__
      -
      -
-     - :mod:`airflow.contrib.operators.ecs_operator`
+     - :mod:`airflow.providers.amazon.aws.operators.ecs`
      -
 
    * - `Amazon EMR <https://aws.amazon.com/emr/>`__
      -
-     - :mod:`airflow.contrib.hooks.emr_hook`
-     - :mod:`airflow.contrib.operators.emr_add_steps_operator`,
-       :mod:`airflow.contrib.operators.emr_create_job_flow_operator`,
-       :mod:`airflow.contrib.operators.emr_terminate_job_flow_operator`
-     - :mod:`airflow.contrib.sensors.emr_base_sensor`,
-       :mod:`airflow.contrib.sensors.emr_job_flow_sensor`,
-       :mod:`airflow.contrib.sensors.emr_step_sensor`
+     - :mod:`airflow.providers.amazon.aws.hooks.emr`
+     - :mod:`airflow.providers.amazon.aws.operators.emr_add_steps`,
+       :mod:`airflow.providers.amazon.aws.operators.emr_create_job_flow`,
+       :mod:`airflow.providers.amazon.aws.operators.emr_terminate_job_flow`,
+       :mod:`airflow.providers.amazon.aws.operators.emr_modify_cluster`
+     - :mod:`airflow.providers.amazon.aws.sensors.emr_base`,
+       :mod:`airflow.providers.amazon.aws.sensors.emr_job_flow`,
+       :mod:`airflow.providers.amazon.aws.sensors.emr_step`
 
    * - `Amazon Kinesis Data Firehose <https://aws.amazon.com/kinesis/data-firehose/>`__
      -
@@ -373,19 +401,19 @@ These integrations allow you to perform various operations within the Amazon Web
 
    * - `Amazon SageMaker <https://aws.amazon.com/sagemaker/>`__
      -
-     - :mod:`airflow.contrib.hooks.sagemaker_hook`
-     - :mod:`airflow.contrib.operators.sagemaker_base_operator`,
-       :mod:`airflow.contrib.operators.sagemaker_endpoint_config_operator`,
-       :mod:`airflow.contrib.operators.sagemaker_endpoint_operator`,
-       :mod:`airflow.contrib.operators.sagemaker_model_operator`,
-       :mod:`airflow.contrib.operators.sagemaker_training_operator`,
-       :mod:`airflow.contrib.operators.sagemaker_transform_operator`,
-       :mod:`airflow.contrib.operators.sagemaker_tuning_operator`
-     - :mod:`airflow.contrib.sensors.sagemaker_base_sensor`,
-       :mod:`airflow.contrib.sensors.sagemaker_endpoint_sensor`,
-       :mod:`airflow.contrib.sensors.sagemaker_training_sensor`,
-       :mod:`airflow.contrib.sensors.sagemaker_transform_sensor`,
-       :mod:`airflow.contrib.sensors.sagemaker_tuning_sensor`
+     - :mod:`airflow.providers.amazon.aws.hooks.sagemaker`
+     - :mod:`airflow.providers.amazon.aws.operators.sagemaker_base`,
+       :mod:`airflow.providers.amazon.aws.operators.sagemaker_endpoint_config`,
+       :mod:`airflow.providers.amazon.aws.operators.sagemaker_endpoint`,
+       :mod:`airflow.providers.amazon.aws.operators.sagemaker_model`,
+       :mod:`airflow.providers.amazon.aws.operators.sagemaker_training`,
+       :mod:`airflow.providers.amazon.aws.operators.sagemaker_transform`,
+       :mod:`airflow.providers.amazon.aws.operators.sagemaker_tuning`
+     - :mod:`airflow.providers.amazon.aws.sensors.sagemaker_base`,
+       :mod:`airflow.providers.amazon.aws.sensors.sagemaker_endpoint`,
+       :mod:`airflow.providers.amazon.aws.sensors.sagemaker_training`,
+       :mod:`airflow.providers.amazon.aws.sensors.sagemaker_transform`,
+       :mod:`airflow.providers.amazon.aws.sensors.sagemaker_tuning`
 
    * - `Amazon Simple Notification Service (SNS) <https://aws.amazon.com/sns/>`__
      -
@@ -402,12 +430,12 @@ These integrations allow you to perform various operations within the Amazon Web
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
      - :mod:`airflow.providers.amazon.aws.hooks.s3`
-     - :mod:`airflow.operators.s3_file_transform_operator`,
-       :mod:`airflow.contrib.operators.s3_copy_object_operator`,
-       :mod:`airflow.contrib.operators.s3_delete_objects_operator`,
-       :mod:`airflow.contrib.operators.s3_list_operator`
-     - :mod:`airflow.sensors.s3_key_sensor`,
-       :mod:`airflow.sensors.s3_prefix_sensor`
+     - :mod:`airflow.providers.amazon.aws.operators.s3_file_transform`,
+       :mod:`airflow.providers.amazon.aws.operators.s3_copy_object`,
+       :mod:`airflow.providers.amazon.aws.operators.s3_delete_objects`,
+       :mod:`airflow.providers.amazon.aws.operators.s3_list`
+     - :mod:`airflow.providers.amazon.aws.sensors.s3_key`,
+       :mod:`airflow.providers.amazon.aws.sensors.s3_prefix`
 
 Transfer operators and hooks
 ''''''''''''''''''''''''''''
@@ -428,7 +456,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
        All GCP services :ref:`[1] <integration:GCP-Discovery>`
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
-     - :mod:`airflow.operators.google_api_to_s3_transfer`
+     - :mod:`airflow.providers.amazon.aws.operators.google_api_to_s3_transfer`
 
    * - `Amazon DataSync <https://aws.amazon.com/datasync/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
@@ -438,61 +466,66 @@ These integrations allow you to copy data from/to Amazon Web Services.
    * - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      -
-     - :mod:`airflow.contrib.operators.dynamodb_to_s3`
+     - :mod:`airflow.providers.amazon.aws.operators.dynamodb_to_s3`
 
    * - `Amazon Redshift <https://aws.amazon.com/redshift/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      -
-     - :mod:`airflow.operators.redshift_to_s3_operator`
+     - :mod:`airflow.providers.amazon.aws.operators.redshift_to_s3`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `Amazon Redshift <https://aws.amazon.com/redshift/>`__
      -
-     - :mod:`airflow.operators.s3_to_redshift_operator`
+     - :mod:`airflow.providers.amazon.aws.operators.s3_to_redshift`
+
+   * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
+     - `Snowflake <https://snowflake.com/>`__
+     -
+     - :mod:`airflow.providers.snowflake.operators.s3_to_snowflake`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.operators.s3_to_hive_operator`
+     - :mod:`airflow.providers.apache.hive.operators.s3_to_hive`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
-     - :mod:`airflow.contrib.operators.s3_to_gcs_operator`,
-       :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
+     - :mod:`airflow.providers.google.cloud.operators.s3_to_gcs`,
+       :mod:`airflow.providers.google.cloud.operators.cloud_storage_transfer_service`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
      -
-     - :mod:`airflow.contrib.operators.s3_to_sftp_operator`
+     - :mod:`airflow.providers.amazon.aws.operators.s3_to_sftp`
 
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
      -
-     - :mod:`airflow.contrib.operators.hive_to_dynamodb`
+     - :mod:`airflow.providers.amazon.aws.operators.hive_to_dynamodb`
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
-     - :mod:`airflow.operators.gcs_to_s3`
+     - :mod:`airflow.providers.amazon.aws.operators.gcs_to_s3`
 
    * - `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
-     - :mod:`airflow.contrib.operators.imap_attachment_to_s3_operator`
+     - :mod:`airflow.providers.amazon.aws.operators.imap_attachment_to_s3`
 
    * - `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
-     - :mod:`airflow.contrib.operators.mongo_to_s3`
+     - :mod:`airflow.providers.amazon.aws.operators.mongo_to_s3`
 
    * - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      -
-     - :mod:`airflow.contrib.operators.sftp_to_s3_operator`
+     - :mod:`airflow.providers.amazon.aws.operators.sftp_to_s3`
 
 :ref:`[1] <integration:AWS-Discovery-ref>` Those discovery-based operators use
-:class:`airflow.gcp.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
+:class:`airflow.providers.google.cloud.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
 Services via the `Google API Python Client <https://github.com/googleapis/google-api-python-client>`__.
 Please note that this library is in maintenance mode hence it won't fully support GCP in the future.
 Therefore it is recommended that you use the custom GCP Service Operators for working with the Google
@@ -508,11 +541,11 @@ Airflow has extensive support for the `Google Cloud Platform <https://cloud.goog
 See the :doc:`GCP connection type <howto/connection/gcp>` documentation to
 configure connections to GCP.
 
-All hooks are based on :class:`airflow.gcp.hooks.base.GoogleCloudBaseHook`.
+All hooks are based on :class:`airflow.providers.google.common.hooks.base.GoogleBaseHook`.
 
 .. note::
     You can learn how to use GCP integrations by analyzing the
-    `source code <https://github.com/apache/airflow/tree/master/airflow/gcp/example_dags/>`_ of the particular example DAGs.
+    `source code <https://github.com/apache/airflow/tree/master/airflow/providers/google/cloud/example_dags/>`_ of the particular example DAGs.
 
 Service operators and hooks
 '''''''''''''''''''''''''''
@@ -531,52 +564,70 @@ These integrations allow you to perform various operations within the Google Clo
      - Operators
      - Sensors
 
+   * - `Analytics360 <https://analytics.google.com/>`__
+     - :doc:`How to use <howto/operator/gcp/analytics>`
+     - :mod:`airflow.providers.google.marketing_platform.hooks.analytics`
+     - :mod:`airflow.providers.google.marketing_platform.operators.analytics`
+     -
+
    * - `AutoML <https://cloud.google.com/automl/>`__
      - :doc:`How to use <howto/operator/gcp/automl>`
-     - :mod:`airflow.gcp.hooks.automl`
-     - :mod:`airflow.gcp.operators.automl`
+     - :mod:`airflow.providers.google.cloud.hooks.automl`
+     - :mod:`airflow.providers.google.cloud.operators.automl`
      -
 
    * - `BigQuery <https://cloud.google.com/bigquery/>`__
-     -
-     - :mod:`airflow.gcp.hooks.bigquery`
-     - :mod:`airflow.gcp.operators.bigquery`
-     - :mod:`airflow.gcp.sensors.bigquery`
+     - :doc:`How to use <howto/operator/gcp/bigquery>`
+     - :mod:`airflow.providers.google.cloud.hooks.bigquery`
+     - :mod:`airflow.providers.google.cloud.operators.bigquery`
+     - :mod:`airflow.providers.google.cloud.sensors.bigquery`
 
    * - `BigQuery Data Transfer Service <https://cloud.google.com/bigquery/transfer/>`__
      - :doc:`How to use <howto/operator/gcp/bigquery_dts>`
-     - :mod:`airflow.gcp.hooks.bigquery_dts`
-     - :mod:`airflow.gcp.operators.bigquery_dts`
-     - :mod:`airflow.gcp.sensors.bigquery_dts`
+     - :mod:`airflow.providers.google.cloud.hooks.bigquery_dts`
+     - :mod:`airflow.providers.google.cloud.operators.bigquery_dts`
+     - :mod:`airflow.providers.google.cloud.sensors.bigquery_dts`
 
    * - `Bigtable <https://cloud.google.com/bigtable/>`__
      - :doc:`How to use <howto/operator/gcp/bigtable>`
-     - :mod:`airflow.gcp.hooks.bigtable`
-     - :mod:`airflow.gcp.operators.bigtable`
-     - :mod:`airflow.gcp.sensors.bigtable`
+     - :mod:`airflow.providers.google.cloud.hooks.bigtable`
+     - :mod:`airflow.providers.google.cloud.operators.bigtable`
+     - :mod:`airflow.providers.google.cloud.sensors.bigtable`
 
    * - `Cloud Build <https://cloud.google.com/cloud-build/>`__
      - :doc:`How to use <howto/operator/gcp/cloud_build>`
-     - :mod:`airflow.gcp.hooks.cloud_build`
-     - :mod:`airflow.gcp.operators.cloud_build`
+     - :mod:`airflow.providers.google.cloud.hooks.cloud_build`
+     - :mod:`airflow.providers.google.cloud.operators.cloud_build`
      -
 
    * - `Compute Engine <https://cloud.google.com/compute/>`__
      - :doc:`How to use <howto/operator/gcp/compute>`
-     - :mod:`airflow.gcp.hooks.compute`
-     - :mod:`airflow.gcp.operators.compute`
+     - :mod:`airflow.providers.google.cloud.hooks.compute`
+     - :mod:`airflow.providers.google.cloud.operators.compute`
      -
 
    * - `Cloud Data Loss Prevention (DLP) <https://cloud.google.com/dlp/>`__
      -
-     - :mod:`airflow.gcp.hooks.dlp`
-     - :mod:`airflow.gcp.operators.dlp`
+     - :mod:`airflow.providers.google.cloud.hooks.dlp`
+     - :mod:`airflow.providers.google.cloud.operators.dlp`
+     -
+
+   * - `DataFusion <https://cloud.google.com/data-fusion/>`__
+     - :doc:`How to use <howto/operator/gcp/datafusion>`
+     - :mod:`airflow.providers.google.cloud.hooks.datafusion`
+     - :mod:`airflow.providers.google.cloud.operators.datafusion`
+     -
+
+   * - `Datacatalog <https://cloud.google.com/data-catalog>`__
+     -
+     - :mod:`airflow.providers.google.cloud.hooks.datacatalog`
+     - :mod:`airflow.providers.google.cloud.operators.datacatalog`
      -
 
    * - `Dataflow <https://cloud.google.com/dataflow/>`__
      -
-     - :mod:`airflow.gcp.hooks.dataflow`
-     - :mod:`airflow.gcp.operators.dataflow`
+     - :mod:`airflow.providers.google.cloud.hooks.dataflow`
+     - :mod:`airflow.providers.google.cloud.operators.dataflow`
      -
 
    * - `Dataproc <https://cloud.google.com/dataproc/>`__
@@ -587,38 +638,49 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `Datastore <https://cloud.google.com/datastore/>`__
      -
-     - :mod:`airflow.gcp.hooks.datastore`
-     - :mod:`airflow.gcp.operators.datastore`
+     - :mod:`airflow.providers.google.cloud.hooks.datastore`
+     - :mod:`airflow.providers.google.cloud.operators.datastore`
      -
 
    * - `Cloud Functions <https://cloud.google.com/functions/>`__
      - :doc:`How to use <howto/operator/gcp/functions>`
-     - :mod:`airflow.gcp.hooks.functions`
-     - :mod:`airflow.gcp.operators.functions`
+     - :mod:`airflow.providers.google.cloud.hooks.functions`
+     - :mod:`airflow.providers.google.cloud.operators.functions`
+     -
+
+   * - `Cloud Firestore <https://firebase.google.com/docs/firestore>`__
+     - :doc:`How to use <howto/operator/gcp/firestore>`
+     - :mod:`airflow.providers.google.firebase.hooks.firestore`
+     - :mod:`airflow.providers.google.firebase.operators.firestore`
      -
 
    * - `Cloud Key Management Service (KMS) <https://cloud.google.com/kms/>`__
      -
-     - :mod:`airflow.gcp.hooks.kms`
+     - :mod:`airflow.providers.google.cloud.hooks.kms`
      -
+     -
+   * - `Cloud Life Sciences <https://cloud.google.com/life-sciences/>`__
+     - :doc:`How to use <howto/operator/gcp/life_sciences>`
+     - :mod:`airflow.providers.google.cloud.hooks.life_sciences`
+     - :mod:`airflow.providers.google.cloud.operators.life_sciences`
      -
 
    * - `Kubernetes Engine <https://cloud.google.com/kubernetes_engine/>`__
      -
-     - :mod:`airflow.gcp.hooks.kubernetes_engine`
-     - :mod:`airflow.gcp.operators.kubernetes_engine`
+     - :mod:`airflow.providers.google.cloud.hooks.kubernetes_engine`
+     - :mod:`airflow.providers.google.cloud.operators.kubernetes_engine`
      -
 
    * - `Machine Learning Engine <https://cloud.google.com/ml-engine/>`__
      -
-     - :mod:`airflow.gcp.hooks.mlengine`
-     - :mod:`airflow.gcp.operators.mlengine`
+     - :mod:`airflow.providers.google.cloud.hooks.mlengine`
+     - :mod:`airflow.providers.google.cloud.operators.mlengine`
      -
 
    * - `Cloud Memorystore <https://cloud.google.com/memorystore/>`__
      - :doc:`How to use <howto/operator/gcp/cloud_memorystore>`
-     - :mod:`airflow.gcp.hooks.cloud_memorystore`
-     - :mod:`airflow.gcp.operators.cloud_memorystore`
+     - :mod:`airflow.providers.google.cloud.hooks.cloud_memorystore`
+     - :mod:`airflow.providers.google.cloud.operators.cloud_memorystore`
      -
 
    * - `Natural Language <https://cloud.google.com/natural-language/>`__
@@ -635,56 +697,62 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `Cloud Spanner <https://cloud.google.com/spanner/>`__
      - :doc:`How to use <howto/operator/gcp/spanner>`
-     - :mod:`airflow.gcp.hooks.spanner`
-     - :mod:`airflow.gcp.operators.spanner`
+     - :mod:`airflow.providers.google.cloud.hooks.spanner`
+     - :mod:`airflow.providers.google.cloud.operators.spanner`
      -
 
    * - `Cloud Speech-to-Text <https://cloud.google.com/speech-to-text/>`__
      - :doc:`How to use <howto/operator/gcp/speech>`
-     - :mod:`airflow.gcp.hooks.speech_to_text`
-     - :mod:`airflow.gcp.operators.speech_to_text`
+     - :mod:`airflow.providers.google.cloud.hooks.speech_to_text`
+     - :mod:`airflow.providers.google.cloud.operators.speech_to_text`
      -
 
    * - `Cloud SQL <https://cloud.google.com/sql/>`__
-     - :doc:`How to use <howto/operator/gcp/sql>`
-     - :mod:`airflow.gcp.hooks.cloud_sql`
-     - :mod:`airflow.gcp.operators.cloud_sql`
+     - :doc:`How to use <howto/operator/gcp/cloud_sql>`
+     - :mod:`airflow.providers.google.cloud.hooks.cloud_sql`
+     - :mod:`airflow.providers.google.cloud.operators.cloud_sql`
+     -
+
+   * - `Cloud Stackdriver <https://cloud.google.com/stackdriver>`__
+     - :doc:`How to use <howto/operator/gcp/stackdriver>`
+     - :mod:`airflow.providers.google.cloud.hooks.stackdriver`
+     - :mod:`airflow.providers.google.cloud.operators.stackdriver`
      -
 
    * - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/gcs>`
-     - :mod:`airflow.gcp.hooks.gcs`
-     - :mod:`airflow.gcp.operators.gcs`
-     - :mod:`airflow.gcp.sensors.gcs`
+     - :mod:`airflow.providers.google.cloud.hooks.gcs`
+     - :mod:`airflow.providers.google.cloud.operators.gcs`
+     - :mod:`airflow.providers.google.cloud.sensors.gcs`
 
    * - `Storage Transfer Service <https://cloud.google.com/storage/transfer/>`__
      - :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
-     - :mod:`airflow.gcp.hooks.cloud_storage_transfer_service`
-     - :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
-     - :mod:`airflow.gcp.sensors.cloud_storage_transfer_service`
+     - :mod:`airflow.providers.google.cloud.hooks.cloud_storage_transfer_service`
+     - :mod:`airflow.providers.google.cloud.operators.cloud_storage_transfer_service`
+     - :mod:`airflow.providers.google.cloud.sensors.cloud_storage_transfer_service`
 
    * - `Cloud Tasks <https://cloud.google.com/tasks/>`__
      -
-     - :mod:`airflow.gcp.hooks.tasks`
-     - :mod:`airflow.gcp.operators.tasks`
+     - :mod:`airflow.providers.google.cloud.hooks.tasks`
+     - :mod:`airflow.providers.google.cloud.operators.tasks`
      -
 
    * - `Cloud Text-to-Speech <https://cloud.google.com/text-to-speech/>`__
      - :doc:`How to use <howto/operator/gcp/speech>`
-     - :mod:`airflow.gcp.hooks.text_to_speech`
-     - :mod:`airflow.gcp.operators.text_to_speech`
+     - :mod:`airflow.providers.google.cloud.hooks.text_to_speech`
+     - :mod:`airflow.providers.google.cloud.operators.text_to_speech`
      -
 
    * - `Cloud Translation <https://cloud.google.com/translate/>`__
      - :doc:`How to use <howto/operator/gcp/translate>`
-     - :mod:`airflow.gcp.hooks.translate`
-     - :mod:`airflow.gcp.operators.translate`
+     - :mod:`airflow.providers.google.cloud.hooks.translate`
+     - :mod:`airflow.providers.google.cloud.operators.translate`
      -
 
    * - `Cloud Video Intelligence <https://cloud.google.com/video_intelligence/>`__
      - :doc:`How to use <howto/operator/gcp/video_intelligence>`
-     - :mod:`airflow.gcp.hooks.video_intelligence`
-     - :mod:`airflow.gcp.operators.video_intelligence`
+     - :mod:`airflow.providers.google.cloud.hooks.video_intelligence`
+     - :mod:`airflow.providers.google.cloud.operators.video_intelligence`
      -
 
    * - `Cloud Vision <https://cloud.google.com/vision/>`__
@@ -713,85 +781,100 @@ These integrations allow you to copy data from/to Google Cloud Platform.
        All services :ref:`[1] <integration:GCP-Discovery>`
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
-     - :mod:`airflow.operators.google_api_to_s3_transfer`
+     - :mod:`airflow.providers.amazon.aws.operators.google_api_to_s3_transfer`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
-     - :mod:`airflow.contrib.operators.s3_to_gcs_operator`,
-       :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
+     - :mod:`airflow.providers.google.cloud.operators.s3_to_gcs`,
+       :mod:`airflow.providers.google.cloud.operators.cloud_storage_transfer_service`
 
    * - `Apache Cassandra <http://cassandra.apache.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.cassandra_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.cassandra_to_gcs`
 
    * - `Azure Data Lake Storage <https://azure.microsoft.com/pl-pl/services/storage/data-lake-storage/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.adls_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.adls_to_gcs`
+
+   * - `Facebook Ads <http://business.facebook.com>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.providers.google.facebook_ads_to_gcs.operators.ads`
 
    * - `Google BigQuery <https://cloud.google.com/bigquery/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
-     - :mod:`airflow.operators.bigquery_to_mysql`
+     - :mod:`airflow.providers.google.cloud.operators.bigquery_to_mysql`
 
    * - `Google BigQuery <https://cloud.google.com/bigquery/>`__
      - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.bigquery_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.bigquery_to_gcs`
 
    * - `Google BigQuery <https://cloud.google.com/bigquery/>`__
      - `Google BigQuery <https://cloud.google.com/bigquery/>`__
      -
-     - :mod:`airflow.operators.bigquery_to_bigquery`
+     - :mod:`airflow.providers.google.cloud.operators.bigquery_to_bigquery`
+
+   * - `Cloud Firestore <https://firebase.google.com/docs/firestore>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/gcp/firestore>`
+     - :mod:`airflow.providers.google.firebase.operators.firestore`
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
-     - :mod:`airflow.operators.gcs_to_s3`
+     - :mod:`airflow.providers.amazon.aws.operators.gcs_to_s3`
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google BigQuery <https://cloud.google.com/bigquery/>`__
      -
-     - :mod:`airflow.operators.gcs_to_bq`
+     - :mod:`airflow.providers.google.cloud.operators.gcs_to_bigquery`
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/gcs_to_gcs>`,
        :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
-     - :mod:`airflow.operators.gcs_to_gcs`,
-       :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
+     - :mod:`airflow.providers.google.cloud.operators.gcs_to_gcs`,
+       :mod:`airflow.providers.google.cloud.operators.cloud_storage_transfer_service`
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google Drive <https://www.google.com/drive/>`__
      -
-     - :mod:`airflow.contrib.operators.gcs_to_gdrive_operator`
+     - :mod:`airflow.providers.google.suite.operators.gcs_to_gdrive`
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - SFTP
      - :doc:`How to use <howto/operator/gcp/gcs_to_sftp>`
-     - :mod:`airflow.operators.gcs_to_sftp`
+     - :mod:`airflow.providers.google.cloud.operators.gcs_to_sftp`
 
    * - Local
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.local_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.local_to_gcs`
 
    * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.mssql_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.mssql_to_gcs`
 
    * - `MySQL <https://www.mysql.com/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.mysql_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.mysql_to_gcs`
 
    * - `PostgresSQL <https://www.postgresql.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.postgres_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.postgres_to_gcs`
+
+   * - `Presto <https://prestodb.io/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/gcp/presto_to_gcs>`
+     - :mod:`airflow.providers.google.cloud.operators.presto_to_gcs`
 
    * - SFTP
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
@@ -801,13 +884,22 @@ These integrations allow you to copy data from/to Google Cloud Platform.
    * - SQL
      - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.sql_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.sql_to_gcs`
 
+   * - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
+     - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     -
+     - :mod:`airflow.providers.google.cloud.operators.sheets_to_gcs`
+
+   * - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
+     -
+     - :mod:`airflow.providers.google.suite.operators.gcs_to_sheets`
 
 .. _integration:GCP-Discovery:
 
 :ref:`[1] <integration:GCP-Discovery-ref>` Those discovery-based operators use
-:class:`airflow.gcp.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
+:class:`airflow.providers.google.cloud.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
 Services via the `Google API Python Client <https://github.com/googleapis/google-api-python-client>`__.
 Please note that this library is in maintenance mode hence it won't fully support GCP in the future.
 Therefore it is recommended that you use the custom GCP Service Operators for working with the Google
@@ -824,14 +916,60 @@ Other operators and hooks
      - Hooks
 
    * - :doc:`How to use <howto/operator/gcp/translate-speech>`
-     - :mod:`airflow.gcp.operators.translate_speech`
+     - :mod:`airflow.providers.google.cloud.operators.translate_speech`
      -
 
    * -
      -
-     - :mod:`airflow.gcp.hooks.discovery_api`
+     - :mod:`airflow.providers.google.common.hooks.discovery_api`
 
 .. _service:
+
+
+Yandex.Cloud
+--------------------------
+
+Airflow has a limited support for the `Yandex.Cloud <https://cloud.yandex.com/>`__.
+
+See the :doc:`Yandex.Cloud connection type <howto/connection/yandexcloud>` documentation to
+configure connections to Yandex.Cloud.
+
+All hooks are based on :class:`airflow.contrib.hooks.yandexcloud_base_hook.YandexGoogleBaseHook`.
+
+.. note::
+    You can learn how to use Yandex.Cloud integrations by analyzing the
+    `example DAG <https://github.com/apache/airflow/tree/master/airflow/contrib/example_dags/example_yandexcloud_dataproc.py>`_
+
+Service operators and hooks
+'''''''''''''''''''''''''''
+
+These integrations allow you to perform various operations within the Yandex.Cloud.
+
+..
+  PLEASE KEEP THE ALPHABETICAL ORDER OF THE LIST BELOW, BUT OMIT THE "Cloud" PREFIX
+
+.. list-table::
+   :header-rows: 1
+
+   * - Service name
+     - Guide
+     - Hook
+     - Operators
+     - Sensors
+
+   * - `Base Classes <https://cloud.yandex.com>`__
+     - :doc:`How to use <howto/operator/yandexcloud>`
+     - :mod:`airflow.providers.yandex.hooks.yandex`
+     - :mod:`airflow.providers.yandex.operators.yandexcloud_base_operator`
+     -
+
+   * - `Data Proc <https://cloud.yandex.com/services/data-proc>`__
+     - :doc:`How to use <howto/operator/yandexcloud>`
+     - :mod:`airflow.providers.yandex.hooks.yandexcloud_dataproc`
+     - :mod:`airflow.providers.yandex.operators.yandexcloud_dataproc`
+     -
+
+.. _yc_service:
 
 Service integrations
 --------------------
@@ -852,38 +990,50 @@ These integrations allow you to perform various operations within various servic
 
    * - `Atlassian Jira <https://www.atlassian.com/pl/software/jira>`__
      -
-     - :mod:`airflow.contrib.hooks.jira_hook`
-     - :mod:`airflow.contrib.operators.jira_operator`
-     - :mod:`airflow.contrib.sensors.jira_sensor`
+     - :mod:`airflow.providers.jira.hooks.jira`
+     - :mod:`airflow.providers.jira.operators.jira`
+     - :mod:`airflow.providers.jira.sensors.jira`
 
    * - `Databricks <https://databricks.com/>`__
      -
-     - :mod:`airflow.contrib.hooks.databricks_hook`
-     - :mod:`airflow.contrib.operators.databricks_operator`
+     - :mod:`airflow.providers.databricks.hooks.databricks`
+     - :mod:`airflow.providers.databricks.operators.databricks`
      -
 
    * - `Datadog <https://www.datadoghq.com/>`__
      -
-     - :mod:`airflow.contrib.hooks.datadog_hook`
+     - :mod:`airflow.providers.datadog.hooks.datadog`
      -
-     - :mod:`airflow.contrib.sensors.datadog_sensor`
+     - :mod:`airflow.providers.datadog.sensors.datadog`
 
    * - `Pagerduty <https://www.pagerduty.com/>`__
      -
-     - :mod:`airflow.contrib.hooks.pagerduty_hook`
+     - :mod:`airflow.providers.pagerduty.hooks.pagerduty`
      -
      -
 
    * - `Dingding <https://oapi.dingtalk.com>`__
      - :doc:`How to use <howto/operator/dingding>`
-     - :mod:`airflow.contrib.hooks.dingding_hook`
-     - :mod:`airflow.contrib.operators.dingding_operator`
+     - :mod:`airflow.providers.dingding.hooks.dingding`
+     - :mod:`airflow.providers.dingding.operators.dingding`
      -
 
    * - `Discord <https://discordapp.com>`__
      -
-     - :mod:`airflow.contrib.hooks.discord_webhook_hook`
-     - :mod:`airflow.contrib.operators.discord_webhook_operator`
+     - :mod:`airflow.providers.discord.hooks.discord_webhook`
+     - :mod:`airflow.providers.discord.operators.discord_webhook`
+     -
+
+   * - `Facebook Ads <http://business.facebook.com>`__
+     -
+     - :mod:`airflow.providers.facebook.ads.hooks.ads`
+     -
+     -
+
+   * - `Google Ads <https://ads.google.com/home/>`__
+     - :doc:`How to use <howto/operator/gcp/ads>`
+     - :mod:`airflow.providers.google.ads.hooks.ads`
+     - :mod:`airflow.providers.google.ads.operators.ads`
      -
 
    * - `Google Campaign Manager <https://developers.google.com/doubleclick-advertisers>`__
@@ -900,7 +1050,7 @@ These integrations allow you to perform various operations within various servic
 
    * - `Google Drive <https://www.google.com/drive/>`__
      -
-     - :mod:`airflow.contrib.hooks.gdrive_hook`
+     - :mod:`airflow.providers.google.suite.hooks.drive`
      -
      -
 
@@ -911,72 +1061,73 @@ These integrations allow you to perform various operations within various servic
      - :mod:`airflow.providers.google.marketing_platform.sensors.search_ads`
 
    * - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
-     -
-     - :mod:`airflow.gcp.hooks.gsheets`
-     -
+     - :doc:`How to use <howto/operator/gcp/sheets>`
+     - :mod:`airflow.providers.google.suite.hooks.sheets`
+     - :mod:`airflow.providers.google.suite.operators.sheets`
      -
 
    * - `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
      -
-     - :mod:`airflow.contrib.hooks.cloudant_hook`
+     - :mod:`airflow.providers.cloudant.hooks.cloudant`
      -
      -
 
    * - `Jenkins <https://jenkins.io/>`__
      -
-     - :mod:`airflow.contrib.hooks.jenkins_hook`
-     - :mod:`airflow.contrib.operators.jenkins_job_trigger_operator`
+     - :mod:`airflow.providers.jenkins.hooks.jenkins`
+     - :mod:`airflow.providers.jenkins.operators.jenkins_job_trigger`
      -
 
    * - `Opsgenie <https://www.opsgenie.com/>`__
      -
-     - :mod:`airflow.contrib.hooks.opsgenie_alert_hook`
-     - :mod:`airflow.contrib.operators.opsgenie_alert_operator`
+     - :mod:`airflow.providers.opsgenie.hooks.opsgenie_alert`
+     - :mod:`airflow.providers.opsgenie.operators.opsgenie_alert`
      -
 
    * - `Qubole <https://www.qubole.com/>`__
      -
-     - :mod:`airflow.contrib.hooks.qubole_hook`,
-       :mod:`airflow.contrib.hooks.qubole_check_hook`
-     - :mod:`airflow.contrib.operators.qubole_operator`,
-       :mod:`airflow.contrib.operators.qubole_check_operator`
-     - :mod:`airflow.contrib.sensors.qubole_sensor`
+     - :mod:`airflow.providers.qubole.hooks.qubole`,
+       :mod:`airflow.providers.qubole.hooks.qubole_check`
+     - :mod:`airflow.providers.qubole.operators.qubole`,
+       :mod:`airflow.providers.qubole.operators.qubole_check`
+     - :mod:`airflow.providers.qubole.sensors.qubole`
 
    * - `Salesforce <https://www.salesforce.com/>`__
      -
-     - :mod:`airflow.contrib.hooks.salesforce_hook`
-     -
-     -
+     - :mod:`airflow.providers.salesforce.hooks.salesforce`,
+       :mod:`airflow.providers.salesforce.hooks.tableau`
+     - :mod:`airflow.providers.salesforce.operators.tableau_refresh_workbook`
+     - :mod:`airflow.providers.salesforce.sensors.tableau_job_status`
 
    * - `Segment <https://oapi.dingtalk.com>`__
      -
-     - :mod:`airflow.contrib.hooks.segment_hook`
-     - :mod:`airflow.contrib.operators.segment_track_event_operator`
+     - :mod:`airflow.providers.segment.hooks.segment`
+     - :mod:`airflow.providers.segment.operators.segment_track_event`
      -
 
    * - `Slack <https://slack.com/>`__
      -
-     - :mod:`airflow.hooks.slack_hook`,
-       :mod:`airflow.contrib.hooks.slack_webhook_hook`
-     - :mod:`airflow.operators.slack_operator`,
-       :mod:`airflow.contrib.operators.slack_webhook_operator`
+     - :mod:`airflow.providers.slack.hooks.slack`,
+       :mod:`airflow.providers.slack.hooks.slack_webhook`
+     - :mod:`airflow.providers.slack.operators.slack`,
+       :mod:`airflow.providers.slack.operators.slack_webhook`
      -
 
    * - `Snowflake <https://www.snowflake.com/>`__
      -
-     - :mod:`airflow.contrib.hooks.snowflake_hook`
-     - :mod:`airflow.contrib.operators.snowflake_operator`
+     - :mod:`airflow.providers.snowflake.hooks.snowflake`
+     - :mod:`airflow.providers.snowflake.operators.snowflake`
      -
 
    * - `Vertica <https://www.vertica.com/>`__
      -
-     - :mod:`airflow.contrib.hooks.vertica_hook`
-     - :mod:`airflow.contrib.operators.vertica_operator`
+     - :mod:`airflow.providers.vertica.hooks.vertica`
+     - :mod:`airflow.providers.vertica.operators.vertica`
      -
 
    * - `Zendesk <https://www.zendesk.com/>`__
      -
-     - :mod:`airflow.hooks.zendesk_hook`
+     - :mod:`airflow.providers.zendesk.hooks.zendesk`
      -
      -
 
@@ -996,17 +1147,17 @@ These integrations allow you to perform various operations within various servic
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google Drive <https://www.google.com/drive/>`__
      -
-     - :mod:`airflow.contrib.operators.gcs_to_gdrive_operator`
+     - :mod:`airflow.providers.google.suite.operators.gcs_to_gdrive`
 
    * - `Vertica <https://www.vertica.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.contrib.operators.vertica_to_hive`
+     - :mod:`airflow.providers.apache.hive.operators.vertica_to_hive`
 
    * - `Vertica <https://www.vertica.com/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
-     - :mod:`airflow.contrib.operators.vertica_to_mysql`
+     - :mod:`airflow.providers.mysql.operators.vertica_to_mysql`
 
 .. _software:
 
@@ -1031,99 +1182,127 @@ These integrations allow you to perform various operations using various softwar
      -
      -
      -
-     - :mod:`airflow.contrib.sensors.celery_queue_sensor`
+     - :mod:`airflow.providers.celery.sensors.celery_queue`
 
    * - `Docker <https://docs.docker.com/install/>`__
      -
-     - :mod:`airflow.hooks.docker_hook`
-     - :mod:`airflow.operators.docker_operator`,
-       :mod:`airflow.contrib.operators.docker_swarm_operator`
+     - :mod:`airflow.providers.docker.hooks.docker`
+     - :mod:`airflow.providers.docker.operators.docker`,
+       :mod:`airflow.providers.docker.operators.docker_swarm`
+     -
+
+   * - `Elasticsearch <https://https://www.elastic.co/elasticsearch>`__
+     -
+     - :mod:`airflow.providers.elasticsearch.hooks.elasticsearch`
+     -
+     -
+
+   * - `Exasol <https://docs.exasol.com/home.htm>`__
+     -
+     - :mod:`airflow.providers.exasol.hooks.exasol`
+     - :mod:`airflow.providers.exasol.operators.exasol`
      -
 
    * - `GNU Bash <https://www.gnu.org/software/bash/>`__
      - :doc:`How to use <howto/operator/bash>`
      -
-     - :mod:`airflow.operators.bash_operator`
-     - :mod:`airflow.contrib.sensors.bash_sensor`
+     - :mod:`airflow.operators.bash`
+     - :mod:`airflow.sensors.bash`
 
    * - `Kubernetes <https://kubernetes.io/>`__
      - :doc:`How to use <howto/operator/kubernetes>`
-     -
-     - :mod:`airflow.contrib.operators.kubernetes_pod_operator`
-     -
+     - :mod:`airflow.providers.cncf.kubernetes.hooks.kubernetes`
+     - :mod:`airflow.providers.cncf.kubernetes.operators.kubernetes_pod`
+       :mod:`airflow.providers.cncf.kubernetes.operators.spark_kubernetes`
+     - :mod:`airflow.providers.cncf.kubernetes.sensors.spark_kubernetes`
+
 
    * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
      -
-     - :mod:`airflow.hooks.mssql_hook`
-     - :mod:`airflow.operators.mssql_operator`
+     - :mod:`airflow.providers.microsoft.mssql.hooks.mssql`,
+       :mod:`airflow.providers.odbc.hooks.odbc`
+     - :mod:`airflow.providers.microsoft.mssql.operators.mssql`
+     -
+
+
+   * - `ODBC <https://github.com/mkleehammer/pyodbc/wiki>`__
+     -
+     - :mod:`airflow.providers.odbc.hooks.odbc`
+     -
      -
 
    * - `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
      -
-     - :mod:`airflow.contrib.hooks.mongo_hook`
+     - :mod:`airflow.providers.mongo.hooks.mongo`
      -
-     - :mod:`airflow.contrib.sensors.mongo_sensor`
+     - :mod:`airflow.providers.mongo.sensors.mongo`
 
 
    * - `MySQL <https://www.mysql.com/products/>`__
-     -
-     - :mod:`airflow.hooks.mysql_hook`
-     - :mod:`airflow.operators.mysql_operator`
+     - :mod:`airflow.providers.mysql.operators.mysql`
+     - :mod:`airflow.providers.mysql.hooks.mysql`
+     - :mod:`airflow.providers.mssql.operators.mysql`
      -
 
    * - `OpenFaaS <https://www.openfaas.com/>`__
      -
-     - :mod:`airflow.contrib.hooks.openfaas_hook`
+     - :mod:`airflow.providers.openfaas.hooks.openfaas`
      -
      -
 
    * - `Oracle <https://www.oracle.com/pl/database/>`__
      -
-     - :mod:`airflow.hooks.oracle_hook`
-     - :mod:`airflow.operators.oracle_operator`
+     - :mod:`airflow.providers.oracle.hooks.oracle`
+     - :mod:`airflow.providers.oracle.operators.oracle`
      -
 
    * - `Papermill <https://github.com/nteract/papermill>`__
      - :doc:`How to use <howto/operator/papermill>`
      -
-     - :mod:`airflow.operators.papermill_operator`
+     - :mod:`airflow.providers.papermill.operators.papermill`
      -
 
    * - `PostgresSQL <https://www.postgresql.org/>`__
      -
-     - :mod:`airflow.hooks.postgres_hook`
-     - :mod:`airflow.operators.postgres_operator`
+     - :mod:`airflow.providers.postgres.hooks.postgres`
+     - :mod:`airflow.providers.postgres.operators.postgres`
      -
 
    * - `Presto <http://prestodb.github.io/>`__
      -
-     - :mod:`airflow.hooks.presto_hook`
-     - :mod:`airflow.operators.presto_check_operator`
+     - :mod:`airflow.providers.presto.hooks.presto`
+     - :mod:`airflow.providers.presto.operators.presto_check`
      -
 
    * - `Python <https://www.python.org>`__
      -
      -
-     - :mod:`airflow.operators.python_operator`
-     - :mod:`airflow.contrib.sensors.python_sensor`
+     - :mod:`airflow.operators.python`
+     - :mod:`airflow.sensors.python`
 
    * - `Redis <https://redis.io/>`__
      -
-     - :mod:`airflow.contrib.hooks.redis_hook`
-     - :mod:`airflow.contrib.operators.redis_publish_operator`
-     - :mod:`airflow.contrib.sensors.redis_pub_sub_sensor`,
-       :mod:`airflow.contrib.sensors.redis_key_sensor`
+     - :mod:`airflow.providers.redis.hooks.redis`
+     - :mod:`airflow.providers.redis.operators.redis_publish`
+     - :mod:`airflow.providers.redis.sensors.redis_pub_sub`,
+       :mod:`airflow.providers.redis.sensors.redis_key`
 
    * - `Samba <https://www.samba.org/>`__
      -
-     - :mod:`airflow.hooks.samba_hook`
+     - :mod:`airflow.providers.samba.hooks.samba`
      -
+     -
+
+   * - `Singularity <https://sylabs.io/guides/latest/user-guide/>`__
+     -
+     -
+     - :mod:`airflow.providers.singularity.operators.singularity`
      -
 
    * - `SQLite <https://www.sqlite.org/index.html>`__
      -
-     - :mod:`airflow.hooks.sqlite_hook`
-     - :mod:`airflow.operators.sqlite_operator`
+     - :mod:`airflow.providers.sqlite.hooks.sqlite`
+     - :mod:`airflow.providers.sqlite.operators.sqlite`
      -
 
 
@@ -1143,72 +1322,72 @@ These integrations allow you to copy data.
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Samba <https://www.samba.org/>`__
      -
-     - :mod:`airflow.operators.hive_to_samba_operator`
+     - :mod:`airflow.providers.apache.hive.operators.hive_to_samba`
 
    * - `BigQuery <https://cloud.google.com/bigquery/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
-     - :mod:`airflow.operators.bigquery_to_mysql`
+     - :mod:`airflow.providers.google.cloud.operators.bigquery_to_mysql`
 
    * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.operators.mssql_to_hive`
+     - :mod:`airflow.providers.apache.hive.operators.mssql_to_hive`
 
    * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.mssql_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.mssql_to_gcs`
 
    * - `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
-     - :mod:`airflow.contrib.operators.mongo_to_s3`
+     - :mod:`airflow.providers.amazon.aws.operators.mongo_to_s3`
 
    * - `MySQL <https://www.mysql.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.operators.mysql_to_hive`
+     - :mod:`airflow.providers.apache.hive.operators.mysql_to_hive`
 
    * - `MySQL <https://www.mysql.com/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.mysql_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.mysql_to_gcs`
 
    * - `Oracle <https://www.oracle.com/pl/database/>`__
      - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
      -
-     - :mod:`airflow.contrib.operators.oracle_to_azure_data_lake_transfer`
+     - :mod:`airflow.providers.microsoft.azure.operators.oracle_to_azure_data_lake_transfer`
 
    * - `Oracle <https://www.oracle.com/pl/database/>`__
      - `Oracle <https://www.oracle.com/pl/database/>`__
      -
-     - :mod:`airflow.contrib.operators.oracle_to_oracle_transfer`
+     - :mod:`airflow.providers.oracle.operators.oracle_to_oracle_transfer`
 
    * - `PostgresSQL <https://www.postgresql.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.postgres_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.postgres_to_gcs`
 
    * - `Presto <https://prestodb.github.io/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
-     - :mod:`airflow.operators.presto_to_mysql`
+     - :mod:`airflow.providers.mysql.operators.presto_to_mysql`
 
    * - SQL
      - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.sql_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.sql_to_gcs`
 
    * - `Vertica <https://www.vertica.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.contrib.operators.vertica_to_hive`
+     - :mod:`airflow.providers.apache.hive.operators.vertica_to_hive`
 
    * - `Vertica <https://www.vertica.com/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
-     - :mod:`airflow.contrib.operators.vertica_to_mysql`
+     - :mod:`airflow.providers.mysql.operators.vertica_to_mysql`
 
 .. _protocol:
 
@@ -1232,9 +1411,9 @@ communication protocols or interface.
 
    * - `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
      -
-     - :mod:`airflow.contrib.hooks.ftp_hook`
+     - :mod:`airflow.providers.ftp.hooks.ftp`
      -
-     - :mod:`airflow.contrib.sensors.ftp_sensor`
+     - :mod:`airflow.providers.ftp.sensors.ftp`
 
    * - Filesystem
      -
@@ -1244,50 +1423,50 @@ communication protocols or interface.
 
    * - `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
      -
-     - :mod:`airflow.hooks.http_hook`
-     - :mod:`airflow.operators.http_operator`
-     - :mod:`airflow.sensors.http_sensor`
+     - :mod:`airflow.providers.http.hooks.http`
+     - :mod:`airflow.providers.http.operators.http`
+     - :mod:`airflow.providers.http.sensors.http`
 
    * - `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
      -
-     - :mod:`airflow.contrib.hooks.imap_hook`
+     - :mod:`airflow.providers.imap.hooks.imap`
      -
-     - :mod:`airflow.contrib.sensors.imap_attachment_sensor`
+     - :mod:`airflow.providers.imap.sensors.imap_attachment`
 
    * - `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
      -
-     - :mod:`airflow.hooks.jdbc_hook`
-     - :mod:`airflow.operators.jdbc_operator`
+     - :mod:`airflow.providers.jdbc.hooks.jdbc`
+     - :mod:`airflow.providers.jdbc.operators.jdbc`
      -
 
    * - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
      -
-     - :mod:`airflow.providers.sftp.hooks.sftp_hook`
-     - :mod:`airflow.providers.sftp.operators.sftp_operator`
-     - :mod:`airflow.providers.sftp.sensors.sftp_sensor`
+     - :mod:`airflow.providers.sftp.hooks.sftp`
+     - :mod:`airflow.providers.sftp.operators.sftp`
+     - :mod:`airflow.providers.sftp.sensors.sftp`
 
    * - `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
      -
-     - :mod:`airflow.contrib.hooks.ssh_hook`
-     - :mod:`airflow.contrib.operators.ssh_operator`
+     - :mod:`airflow.providers.ssh.hooks.ssh`
+     - :mod:`airflow.providers.ssh.operators.ssh`
      -
 
    * - `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc821>`__
      -
      -
-     - :mod:`airflow.operators.email_operator`
+     - :mod:`airflow.providers.email.operators.email`
      -
 
    * - `Windows Remote Management (WinRM) <https://docs.microsoft.com/en-gb/windows/win32/winrm/portal>`__
      -
-     - :mod:`airflow.contrib.hooks.winrm_hook`
-     - :mod:`airflow.contrib.operators.winrm_operator`
+     - :mod:`airflow.providers.microsoft.winrm.hooks.winrm`
+     - :mod:`airflow.providers.microsoft.winrm.operators.winrm`
      -
 
    * - `gRPC <https://grpc.io/>`__
      -
-     - :mod:`airflow.contrib.hooks.grpc_hook`
-     - :mod:`airflow.contrib.operators.grpc_operator`
+     - :mod:`airflow.providers.grpc.hooks.grpc`
+     - :mod:`airflow.providers.grpc.operators.grpc`
      -
 
 Transfer operators and hooks
@@ -1306,24 +1485,24 @@ These integrations allow you to copy data.
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
      -
-     - :mod:`airflow.contrib.operators.s3_to_sftp_operator`
+     - :mod:`airflow.providers.amazon.aws.operators.s3_to_sftp`
 
    * - Filesystem
      - `Azure Blob Storage <https://azure.microsoft.com/en-us/services/storage/blobs/>`__
      -
-     - :mod:`airflow.contrib.operators.file_to_wasb`
+     - :mod:`airflow.providers.microsoft.azure.operators.file_to_wasb`
 
    * - Filesystem
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.local_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.local_to_gcs`
 
    * - `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
-     - :mod:`airflow.contrib.operators.imap_attachment_to_s3_operator`
+     - :mod:`airflow.providers.amazon.aws.operators.imap_attachment_to_s3`
 
    * - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      -
-     - :mod:`airflow.contrib.operators.sftp_to_s3_operator`
+     - :mod:`airflow.providers.amazon.aws.operators.sftp_to_s3`

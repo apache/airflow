@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -27,20 +26,22 @@ from time import sleep
 from dateutil.relativedelta import relativedelta
 from numpy.testing import assert_array_almost_equal
 
-from airflow import DAG, exceptions, settings
-from airflow.exceptions import AirflowException
+from airflow import settings
+from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.hooks.base_hook import BaseHook
 from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models import DagBag, DagRun, TaskFail, TaskInstance
 from airflow.models.baseoperator import BaseOperator
-from airflow.operators.bash_operator import BashOperator
+from airflow.models.dag import DAG
+from airflow.operators.bash import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
 from airflow.settings import Session
 from airflow.utils.dates import infer_time_unit, round_time, scale_time_units
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
+from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 
 DEV_NULL = '/dev/null'
@@ -177,7 +178,7 @@ class TestCore(unittest.TestCase):
             bash_command="/bin/bash -c 'sleep %s'" % sleep_time,
             dag=self.dag)
         self.assertRaises(
-            exceptions.AirflowTaskTimeout,
+            AirflowTaskTimeout,
             op.run,
             start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         sleep(2)
@@ -204,7 +205,7 @@ class TestCore(unittest.TestCase):
             dag=self.dag,
             on_failure_callback=check_failure)
         self.assertRaises(
-            exceptions.AirflowException,
+            AirflowException,
             op.run,
             start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         self.assertTrue(data['called'])
@@ -217,8 +218,8 @@ class TestCore(unittest.TestCase):
         op.dry_run()
 
     def test_sqlite(self):
-        import airflow.operators.sqlite_operator
-        op = airflow.operators.sqlite_operator.SqliteOperator(
+        import airflow.providers.sqlite.operators.sqlite
+        op = airflow.providers.sqlite.operators.sqlite.SqliteOperator(
             task_id='time_sqlite',
             sql="CREATE TABLE IF NOT EXISTS unitest (dummy VARCHAR(20))",
             dag=self.dag)
@@ -231,7 +232,7 @@ class TestCore(unittest.TestCase):
             python_callable=lambda: sleep(5),
             dag=self.dag)
         self.assertRaises(
-            exceptions.AirflowTaskTimeout,
+            AirflowTaskTimeout,
             op.run,
             start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
@@ -469,7 +470,8 @@ class TestCore(unittest.TestCase):
             start_date=DEFAULT_DATE)
         task = DummyOperator(task_id='test_externally_triggered_dag_context',
                              dag=dag)
-        dag.create_dagrun(run_id=DagRun.id_for_date(execution_date),
+        run_id = f"{DagRunType.SCHEDULED.value}__{execution_date.isoformat()}"
+        dag.create_dagrun(run_id=run_id,
                           execution_date=execution_date,
                           state=State.RUNNING,
                           external_trigger=True)
@@ -485,7 +487,3 @@ class TestCore(unittest.TestCase):
 
         self.assertEqual(context['prev_ds'], execution_ds)
         self.assertEqual(context['prev_ds_nodash'], execution_ds_nodash)
-
-
-if __name__ == '__main__':
-    unittest.main()

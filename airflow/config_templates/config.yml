@@ -31,17 +31,17 @@
     - name: hostname_callable
       description: |
         Hostname by providing a path to a callable, which will resolve the hostname.
-        The format is "package:function".
+        The format is "package.function".
 
-        For example, default value "socket:getfqdn" means that result from getfqdn() of "socket"
+        For example, default value "socket.getfqdn" means that result from getfqdn() of "socket"
         package will be used as hostname.
 
         No argument should be required in the function specified.
-        If using IP address as hostname is preferred, use value ``airflow.utils.net:get_host_ip_address``
+        If using IP address as hostname is preferred, use value ``airflow.utils.net.get_host_ip_address``
       version_added: ~
       type: string
       example: ~
-      default: "socket:getfqdn"
+      default: "socket.getfqdn"
     - name: default_timezone
       description: |
         Default timezone in case supplied date times are naive
@@ -54,6 +54,7 @@
       description: |
         The executor class that airflow should use. Choices include
         SequentialExecutor, LocalExecutor, CeleryExecutor, DaskExecutor, KubernetesExecutor
+        or the full import path to the class when using a custom executor.
       version_added: ~
       type: string
       example: ~
@@ -70,10 +71,20 @@
     - name: sql_engine_encoding
       description: |
         The encoding for the databases
-      version_added: ~
+      version_added: 1.10.1
       type: string
       example: ~
       default: "utf-8"
+    - name: sql_engine_collation_for_ids
+      description: |
+        Collation for `dag_id`, `task_id`, `key` columns in case they have different encoding.
+        This is particularly useful in case of mysql with utf8mb4 encoding because
+        primary keys for XCom table has too big size and `sql_engine_collation_for_ids` should
+        be set to `utf8mb3_general_ci`
+      version_added: 2.0.0
+      type: string
+      example: ~
+      default: ~
     - name: sql_alchemy_pool_enabled
       description: |
         If SqlAlchemy should pool database connections.
@@ -100,7 +111,7 @@
         and the total number of "sleeping" connections the pool will allow is pool_size.
         max_overflow can be set to -1 to indicate no overflow limit;
         no limit will be placed on the total number of concurrent connections. Defaults to 10.
-      version_added: ~
+      version_added: 1.10.4
       type: string
       example: ~
       default: "10"
@@ -120,7 +131,7 @@
         Typically, this is a simple statement like "SELECT 1".
         More information here:
         https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
-      version_added: ~
+      version_added: 1.10.6
       type: string
       example: ~
       default: "True"
@@ -128,7 +139,7 @@
       description: |
         The schema to use for the metadata database.
         SqlAlchemy supports databases with the concept of multiple schemas.
-      version_added: ~
+      version_added: 1.10.3
       type: string
       example: ~
       default: ""
@@ -174,10 +185,19 @@
       default: "16"
     - name: load_examples
       description: |
-        Whether to load the examples that ship with Airflow. It's good to
+        Whether to load the DAG examples that ship with Airflow. It's good to
         get started, but you probably want to set this to False in a production
         environment
       version_added: ~
+      type: string
+      example: ~
+      default: "True"
+    - name: load_default_connections
+      description: |
+        Whether to load the default connections that ship with Airflow. It's good to
+        get started, but you probably want to set this to False in a production
+        environment
+      version_added: 1.10.10
       type: string
       example: ~
       default: "True"
@@ -212,13 +232,15 @@
     - name: dag_file_processor_timeout
       description: |
         How long before timing out a DagFileProcessor, which processes a dag file
-      version_added: ~
+      version_added: 1.10.6
       type: string
       example: ~
       default: "50"
     - name: task_runner
       description: |
-        The class to use for running task instances in a subprocess
+        The class to use for running task instances in a subprocess.
+        Choices include StandardTaskRunner, CgroupTaskRunner or the full import path to the class
+        when using a custom task runner.
       version_added: ~
       type: string
       example: ~
@@ -238,14 +260,6 @@
       type: string
       example: ~
       default: ""
-    - name: secure_mode
-      description: |
-        If set to False enables some unsecure features like Charts and Ad Hoc Queries.
-        In 2.0 will default to True.
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
     - name: unit_test_mode
       description: |
         Turn unit test mode on (overwrites many configuration options with test
@@ -282,27 +296,27 @@
     - name: worker_precheck
       description: |
         Worker initialisation check to validate Metadata Database connection
-      version_added: ~
+      version_added: 1.10.1
       type: string
       example: ~
       default: "False"
     - name: dag_discovery_safe_mode
       description: |
         When discovering DAGs, ignore any files that don't contain the strings ``DAG`` and ``airflow``.
-      version_added: ~
+      version_added: 1.10.3
       type: string
       example: ~
       default: "True"
     - name: default_task_retries
       description: |
         The number of retries each task is going to have by default. Can be overridden at dag or task level.
-      version_added: ~
+      version_added: 1.10.6
       type: string
       example: ~
       default: "0"
     - name: store_serialized_dags
       description: |
-        Whether to serialises DAGs and persist them in DB.
+        Whether to serialise DAGs and persist them in DB.
         If set to True, Webserver reads from DB instead of parsing DAG files
         More details: https://airflow.apache.org/docs/stable/dag-serialization.html
       version_added: 1.10.7
@@ -316,13 +330,42 @@
       type: string
       example: ~
       default: "30"
+    - name: store_dag_code
+      description: |
+        Whether to persist DAG files code in DB.
+        If set to True, Webserver reads file contents from DB instead of
+        trying to access files in a DAG folder. Defaults to same as the
+        ``store_serialized_dags`` setting.
+      version_added: 1.10.10
+      type: string
+      example: ~
+      default: "%(store_serialized_dags)s"
+    - name: max_num_rendered_ti_fields_per_task
+      description: |
+        Maximum number of Rendered Task Instance Fields (Template Fields) per task to store
+        in the Database.
+        When Dag Serialization is enabled (``store_serialized_dags=True``), all the template_fields
+        for each of Task Instance are stored in the Database.
+        Keeping this number small may cause an error when you try to view ``Rendered`` tab in
+        TaskInstance view for older tasks.
+      version_added: 2.0.0
+      type: integer
+      example: ~
+      default: "30"
     - name: check_slas
       description: |
         On each dagrun check against defined SLAs
-      version_added: ~
+      version_added: 1.10.8
       type: string
       example: ~
       default: "True"
+    - name: xcom_backend
+      description: |
+        Path to custom XCom class that will be used to store and resolve operators results
+      version_added: 2.0.0
+      type: string
+      example: "path.to.CustomXCom"
+      default: "airflow.models.xcom.BaseXCom"
 
 - name: logging
   description: ~
@@ -355,6 +398,7 @@
       description: |
         Storage bucket URL for remote logging
         S3 buckets should start with "s3://"
+        Cloudwatch log groups should start with "cloudwatch://"
         GCS buckets should start with "gs://"
         WASB buckets should start with "wasb" just to help Airflow select correct handler
       version_added: ~
@@ -395,14 +439,14 @@
       description: |
         Flag to enable/disable Colored logs in Console
         Colour the logs when the controlling terminal is a TTY.
-      version_added: ~
+      version_added: 1.10.4
       type: string
       example: ~
       default: "True"
     - name: colored_log_format
       description: |
         Log format for when Colored logs is enabled
-      version_added: ~
+      version_added: 1.10.4
       type: string
       example: ~
       default: >-
@@ -410,7 +454,7 @@
         %%(log_color)s%%(levelname)s%%(reset)s - %%(log_color)s%%(message)s%%(reset)s
     - name: colored_formatter_class
       description: ~
-      version_added: ~
+      version_added: 1.10.4
       type: string
       example: ~
       default: "airflow.utils.log.colored_log.CustomTTYColoredFormatter"
@@ -451,7 +495,7 @@
     - name: dag_processor_manager_log_location
       description: |
         full path of dag_processor_manager logfile
-      version_added: ~
+      version_added: 1.10.2
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/logs/dag_processor_manager/dag_processor_manager.log"
@@ -463,6 +507,26 @@
       type: string
       example: ~
       default: "task"
+- name: secrets
+  description: ~
+  options:
+    - name: backend
+      description: |
+        Full class name of secrets backend to enable (will precede env vars and metastore in search path)
+      version_added: 1.10.10
+      type: string
+      example: "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend"
+      default: ""
+    - name: backend_kwargs
+      description: |
+        The backend_kwargs param is loaded into a dictionary and passed to __init__ of secrets backend class.
+        See documentation for the secrets backend you are using. JSON is expected.
+        Example for AWS Systems Manager ParameterStore:
+        ``{{"connections_prefix": "/airflow/connections", "profile_name": "default"}}``
+      version_added: 1.10.10
+      type: string
+      example: ~
+      default: ""
 - name: cli
   description: ~
   options:
@@ -491,7 +555,7 @@
       description: |
         Used only with DebugExecutor. If set to True DAG will fail with first
         failed task. Helpful for debugging purposes.
-      version_added: ~
+      version_added: 1.10.8
       type: string
       example: ~
       default: "False"
@@ -621,6 +685,16 @@
       type: string
       example: ~
       default: "http://localhost:8080"
+    - name: default_ui_timezone
+      description: |
+        Default timezone to display all dates in the UI, can be UTC, system, or
+        any IANA timezone string (e.g. Europe/Amsterdam). If left empty the
+        default value of core/default_timezone will be used
+      version_added: 1.10.10
+      type: string
+      example: "America/New_York"
+      # Default is left as UTC for now so the date's don't "suddenly" change on upgrade
+      default: "UTC"
     - name: web_server_host
       description: |
         The ip specified when starting the web server
@@ -728,14 +802,14 @@
     - name: expose_hostname
       description: |
         Expose hostname in the web server
-      version_added: ~
+      version_added: 1.10.8
       type: string
       example: ~
       default: "True"
     - name: expose_stacktrace
       description: |
         Expose stacktrace in the web server
-      version_added: ~
+      version_added: 1.10.8
       type: string
       example: ~
       default: "True"
@@ -774,21 +848,21 @@
     - name: log_fetch_delay_sec
       description: |
         Time interval (in secs) to wait before next log fetching.
-      version_added: ~
+      version_added: 1.10.8
       type: int
       example: ~
       default: "2"
     - name: log_auto_tailing_offset
       description: |
         Distance away from page bottom to enable auto tailing.
-      version_added: ~
+      version_added: 1.10.8
       type: int
       example: ~
       default: "30"
     - name: log_animation_speed
       description: |
         Animation speed for auto tailing log display.
-      version_added: ~
+      version_added: 1.10.8
       type: int
       example: ~
       default: "1000"
@@ -823,36 +897,72 @@
       default: "25"
     - name: enable_proxy_fix
       description: |
-        Enable werkzeug ``ProxyFix`` middleware
-      version_added: ~
-      type: string
+        Enable werkzeug ``ProxyFix`` middleware for reverse proxy
+      version_added: 1.10.1
+      type: boolean
       example: ~
       default: "False"
+    - name: proxy_fix_x_for
+      description: |
+        Number of values to trust for ``X-Forwarded-For``.
+        More info: https://werkzeug.palletsprojects.com/en/0.16.x/middleware/proxy_fix/
+      version_added: 1.10.7
+      type: integer
+      example: ~
+      default: "1"
+    - name: proxy_fix_x_proto
+      description: |
+        Number of values to trust for ``X-Forwarded-Proto``
+      version_added: 1.10.7
+      type: integer
+      example: ~
+      default: "1"
+    - name: proxy_fix_x_host
+      description: |
+        Number of values to trust for ``X-Forwarded-Host``
+      version_added: 1.10.7
+      type: integer
+      example: ~
+      default: "1"
+    - name: proxy_fix_x_port
+      description: |
+        Number of values to trust for ``X-Forwarded-Port``
+      version_added: 1.10.7
+      type: integer
+      example: ~
+      default: "1"
+    - name: proxy_fix_x_prefix
+      description: |
+        Number of values to trust for ``X-Forwarded-Prefix``
+      version_added: 1.10.7
+      type: integer
+      example: ~
+      default: "1"
     - name: cookie_secure
       description: |
         Set secure flag on session cookie
-      version_added: ~
+      version_added: 1.10.3
       type: string
       example: ~
       default: "False"
     - name: cookie_samesite
       description: |
         Set samesite policy on session cookie
-      version_added: ~
+      version_added: 1.10.3
       type: string
       example: ~
       default: ""
     - name: default_wrap
       description: |
         Default setting for wrap toggle on DAG code and TI log views.
-      version_added: ~
+      version_added: 1.10.4
       type: boolean
       example: ~
       default: "False"
     - name: x_frame_enabled
       description: |
         Allow the UI to be rendered in a frame
-      version_added: ~
+      version_added: 1.10.8
       type: boolean
       example: ~
       default: "True"
@@ -867,7 +977,7 @@
     - name: analytics_id
       description: |
         Unique ID of your account in the analytics tool
-      version_added: ~
+      version_added: 1.10.5
       type: string
       example: ~
       default: ~
@@ -882,7 +992,7 @@
       description: |
         Update FAB permissions and sync security manager roles
         on webserver startup
-      version_added: ~
+      version_added: 1.10.7
       type: string
       example: ~
       default: "True"
@@ -890,27 +1000,44 @@
       description: |
         Minutes of non-activity before logged out from UI
         0 means never get forcibly logged out
-      version_added: ~
+      version_added: 1.10.8
       type: string
       example: ~
       default: "0"
     - name: session_lifetime_days
       description: |
         The UI cookie lifetime in days
-      version_added: ~
+      version_added: 1.10.8
       type: string
       example: ~
       default: "30"
 
 - name: email
-  description: ~
+  description: |
+    Configuration email backend and whether to
+    send email alerts on retry or failure
   options:
     - name: email_backend
-      description: ~
+      description: Email backend to use
       version_added: ~
       type: string
       example: ~
       default: "airflow.utils.email.send_email_smtp"
+    - name: default_email_on_retry
+      description: |
+        Whether email alerts should be sent when a task is retried
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
+    - name: default_email_on_failure
+      description: |
+        Whether email alerts should be sent when a task failed
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
+
 - name: smtp
   description: |
     If you want airflow to send emails on retries, failure, and you want to use
@@ -965,7 +1092,7 @@
   options:
     - name: sentry_dsn
       description: ~
-      version_added: ~
+      version_added: 1.10.6
       type: string
       example: ~
       default: ""
@@ -990,7 +1117,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "16"
+      default: "8"
     - name: worker_autoscale
       description: |
         The maximum and minimum concurrency that will be used when starting workers with the
@@ -1014,6 +1141,15 @@
       type: string
       example: ~
       default: "8793"
+    - name: worker_umask
+      description: |
+        Umask that will be used when starting workers with the ``airflow celery worker``
+        in daemon mode. This control the file-creation mode mask which determines the initial
+        value of file permission bits for newly created files.
+      version_added: ~
+      type: string
+      example: ~
+      default: "0o077"
     - name: broker_url
       description: |
         The Celery broker URL. Celery supports RabbitMQ, Redis and experimentally
@@ -1023,7 +1159,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "sqla+mysql://airflow:airflow@localhost:3306/airflow"
+      default: "redis://redis:6379/0"
     - name: result_backend
       description: |
         The Celery result_backend. When a job finishes, it needs to update the
@@ -1035,7 +1171,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "db+mysql://airflow:airflow@localhost:3306/airflow"
+      default: "db+postgresql://postgres:airflow@postgres/airflow"
     - name: flower_host
       description: |
         Celery Flower is a sweet UI for Celery. Airflow has a shortcut to start
@@ -1062,7 +1198,7 @@
       description: |
         Securing Flower with Basic Authentication
         Accepts user:password pairs separated by a comma
-      version_added: ~
+      version_added: 1.10.2
       type: string
       example: "user1:password1,user2:password2"
       default: ""
@@ -1077,7 +1213,7 @@
       description: |
         How many processes CeleryExecutor uses to sync task state.
         0 means to use max(1, number of cores - 1) processes.
-      version_added: ~
+      version_added: 1.10.3
       type: string
       example: ~
       default: "0"
@@ -1119,10 +1255,18 @@
         See:
         https://docs.celeryproject.org/en/latest/userguide/workers.html#concurrency
         https://docs.celeryproject.org/en/latest/userguide/concurrency/eventlet.html
-      version_added: ~
+      version_added: 1.10.4
       type: string
       example: ~
       default: "prefork"
+    - name: operation_timeout
+      description: |
+        The number of seconds to wait before timing out ``send_task_to_executor`` or
+        ``fetch_celery_task_state`` operations.
+      version_added: 1.10.8
+      type: int
+      example: ~
+      default: "2"
 - name: celery_broker_transport_options
   description: |
     This section is for specifying options which can be passed to the
@@ -1198,14 +1342,14 @@
       description: |
         The number of times to try to schedule each DAG file
         -1 indicates unlimited number
-      version_added: ~
+      version_added: 1.10.6
       type: string
       example: ~
       default: "-1"
     - name: processor_poll_interval
       description: |
         The number of seconds to wait between consecutive DAG file processing
-      version_added: ~
+      version_added: 1.10.6
       type: string
       example: ~
       default: "1"
@@ -1225,17 +1369,25 @@
       default: "300"
     - name: print_stats_interval
       description: |
-        How often should stats be printed to the logs
+        How often should stats be printed to the logs. Setting to 0 will disable printing stats
       version_added: ~
       type: string
       example: ~
       default: "30"
+    - name: dag_cleanup_interval
+      description: |
+        How often unseen Dags should be marked inactive and their serializations deleted.
+        Setting to 0 will disable DAG cleanup. Defaults to 5 minutes
+      version_added: ~
+      type: string
+      example: ~
+      default: "300"
     - name: scheduler_health_check_threshold
       description: |
         If the last scheduler heartbeat happened more than scheduler_health_check_threshold
         ago (in seconds), scheduler is considered unhealthy.
         This is used by the health check in the "/health" endpoint
-      version_added: ~
+      version_added: 1.10.2
       type: string
       example: ~
       default: "30"
@@ -1310,10 +1462,44 @@
         If you want to avoid send all the available metrics to StatsD,
         you can configure an allow list of prefixes to send only the metrics that
         start with the elements of the list (e.g: scheduler,executor,dagrun)
+      version_added: 1.10.6
+      type: string
+      example: ~
+      default: ""
+    - name: stat_name_handler
+      description: |
+        A function that validate the statsd stat name, apply changes to the stat name if necessary and return
+        the transformed stat name.
+
+        The function should have the following signature:
+        def func_name(stat_name: str) -> str:
       version_added: ~
       type: string
       example: ~
       default: ""
+    - name: statsd_datadog_enabled
+      description: |
+        To enable datadog integration to send airflow metrics.
+      version_added: ~
+      type: string
+      example: ~
+      default: "False"
+    - name: statsd_datadog_tags
+      description: |
+        List of datadog tags attached to all metrics(e.g: key1:value1,key2:value2)
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
+    - name: statsd_custom_client_path
+      description: |
+        If you want to utilise your own custom Statsd client set the relevant
+        module path below.
+        Note: The module path must exist on your PYTHONPATH for Airflow to pick it up
+      version_added: ~
+      type: string
+      example: ~
+      default: ~
     - name: max_threads
       description: |
         The scheduler can run multiple threads in parallel to schedule dags.
@@ -1322,20 +1508,22 @@
       type: string
       example: ~
       default: "2"
-    - name: authenticate
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
     - name: use_job_schedule
       description: |
         Turn off scheduler use of cron intervals by setting this to False.
         DAGs submitted manually in the web UI or with trigger_dag will still run.
-      version_added: ~
+      version_added: 1.10.2
       type: string
       example: ~
       default: "True"
+    - name: allow_trigger_in_future
+      description: |
+        Allow externally triggered DagRuns for Execution Dates in the future
+        Only has effect if schedule_interval is set to None in DAG
+      version_added: 1.10.8
+      type: string
+      example: ~
+      default: "False"
 - name: ldap
   description: ~
   options:
@@ -1410,7 +1598,7 @@
       description: |
         This setting allows the use of LDAP servers that either return a
         broken schema, or do not return a schema.
-      version_added: ~
+      version_added: 1.10.3
       type: string
       example: ~
       default: "False"
@@ -1473,21 +1661,21 @@
     - name: host
       description: |
         Elasticsearch host
-      version_added: ~
+      version_added: 1.10.4
       type: string
       example: ~
       default: ""
     - name: log_id_template
       description: |
         Format of the log_id, which is used to query for a given tasks logs
-      version_added: ~
+      version_added: 1.10.4
       type: string
       example: ~
       default: "{{dag_id}}-{{task_id}}-{{execution_date}}-{{try_number}}"
     - name: end_of_log_mark
       description: |
         Used to mark the end of a log stream for a task
-      version_added: ~
+      version_added: 1.10.4
       type: string
       example: ~
       default: "end_of_log"
@@ -1496,28 +1684,28 @@
         Qualified URL for an elasticsearch frontend (like Kibana) with a template argument for log_id
         Code will construct log_id using the log_id template from the argument above.
         NOTE: The code will prefix the https:// automatically, don't include that here.
-      version_added: ~
+      version_added: 1.10.4
       type: string
       example: ~
       default: ""
     - name: write_stdout
       description: |
         Write the task logs to the stdout of the worker, rather than the default files
-      version_added: ~
+      version_added: 1.10.4
       type: string
       example: ~
       default: "False"
     - name: json_format
       description: |
         Instead of the default log formatter, write the log lines as JSON
-      version_added: ~
+      version_added: 1.10.4
       type: string
       example: ~
       default: "False"
     - name: json_fields
       description: |
         Log fields to also attach to the json output, if enabled
-      version_added: ~
+      version_added: 1.10.4
       type: string
       example: ~
       default: "asctime, filename, lineno, levelname, message"
@@ -1526,13 +1714,13 @@
   options:
     - name: use_ssl
       description: ~
-      version_added: ~
+      version_added: 1.10.5
       type: string
       example: ~
       default: "False"
     - name: verify_certs
       description: ~
-      version_added: ~
+      version_added: 1.10.5
       type: string
       example: ~
       default: "True"
@@ -1542,6 +1730,13 @@
     - name: worker_container_repository
       description: |
         The repository of the Kubernetes Image for the Worker to Run
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
+    - name: pod_template_file
+      description: |
+        Path to the YAML pod file. If set, all other kubernetes-related fields are ignored.
       version_added: ~
       type: string
       example: ~
@@ -1556,17 +1751,25 @@
     - name: worker_container_image_pull_policy
       description: |
         The imagePullPolicy of the Kubernetes Image for the Worker to Run
-      version_added: ~
+      version_added: 1.10.2
       type: string
       example: ~
       default: "IfNotPresent"
     - name: delete_worker_pods
       description: |
-        If True (default), worker pods will be deleted upon termination
+        If True, all worker pods will be deleted upon termination
       version_added: ~
       type: string
       example: ~
       default: "True"
+    - name: delete_worker_pods_on_failure
+      description: |
+        If False (and delete_worker_pods is True),
+        failed worker pods will not be deleted so users can investigate them.
+      version_added: ~
+      type: string
+      example: ~
+      default: "False"
     - name: worker_pods_creation_batch_size
       description: |
         Number of Kubernetes Worker Pod creation calls per scheduler loop.
@@ -1574,7 +1777,7 @@
         per-heartbeat. It is HIGHLY recommended that users increase this
         number to match the tolerance of their kubernetes cluster for
         better performance.
-      version_added: ~
+      version_added: 1.10.3
       type: string
       example: ~
       default: "1"
@@ -1635,7 +1838,7 @@
                     ...
             airflow.cfg: |
                 ...
-      version_added: ~
+      version_added: 1.10.8
       type: string
       example: "airflow-configmap"
       default: ""
@@ -1643,13 +1846,20 @@
       description: |
         For docker image already contains DAGs, this is set to ``True``, and the worker will
         search for dags in dags_folder, otherwise use git sync or dags volume claim to mount DAGs
-      version_added: ~
+      version_added: 1.10.2
       type: string
       example: ~
       default: "False"
     - name: dags_volume_subpath
       description: |
         For either git sync or volume mounted DAGs, the worker will look in this subpath for DAGs
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
+    - name: dags_volume_mount_point
+      description: |
+        For either git sync or volume mounted DAGs, the worker will mount the volume in this path
       version_added: ~
       type: string
       example: ~
@@ -1679,7 +1889,7 @@
       description: |
         For DAGs mounted via a hostPath volume (mutually exclusive with volume claim and git-sync)
         Useful in local environment, discouraged in production
-      version_added: ~
+      version_added: 1.10.2
       type: string
       example: ~
       default: ""
@@ -1687,7 +1897,7 @@
       description: |
         A hostPath volume for the logs
         Useful in local environment, discouraged in production
-      version_added: ~
+      version_added: 1.10.2
       type: string
       example: ~
       default: ""
@@ -1695,7 +1905,7 @@
       description: |
         A list of configMapsRefs to envFrom. If more than one configMap is
         specified, provide a comma separated list: configmap_a,configmap_b
-      version_added: ~
+      version_added: 1.10.3
       type: string
       example: ~
       default: ""
@@ -1703,7 +1913,7 @@
       description: |
         A list of secretRefs to envFrom. If more than one secret is
         specified, provide a comma separated list: secret_a,secret_b
-      version_added: ~
+      version_added: 1.10.3
       type: string
       example: ~
       default: ""
@@ -1734,7 +1944,7 @@
       description: |
         The specific rev or hash the git_sync init container will checkout
         This becomes GIT_SYNC_REV environment variable in the git_sync init container for worker pods
-      version_added: ~
+      version_added: 1.10.7
       type: string
       example: ~
       default: ""
@@ -1754,13 +1964,13 @@
       default: ""
     - name: git_sync_root
       description: ~
-      version_added: ~
+      version_added: 1.10.2
       type: string
       example: ~
       default: "/git"
     - name: git_sync_dest
       description: ~
-      version_added: ~
+      version_added: 1.10.2
       type: string
       example: ~
       default: "repo"
@@ -1768,7 +1978,7 @@
       description: |
         Mount point of the volume if git-sync is being used.
         i.e. {AIRFLOW_HOME}/dags
-      version_added: ~
+      version_added: 1.10.2
       type: string
       example: ~
       default: ""
@@ -1788,7 +1998,7 @@
           data:
             # key needs to be gitSshKey
             gitSshKey: <base64_encoded_data>
-      version_added: ~
+      version_added: 1.10.3
       type: string
       example: "airflow-secrets"
       default: ""
@@ -1811,7 +2021,7 @@
             airflow.cfg: |
                 ...
 
-      version_added: ~
+      version_added: 1.10.3
       type: string
       example: "airflow-configmap"
       default: ""
@@ -1834,7 +2044,7 @@
           data:
             GIT_SYNC_USERNAME: <base64_encoded_git_username>
             GIT_SYNC_PASSWORD: <base64_encoded_git_password>
-      version_added: ~
+      version_added: 1.10.5
       type: string
       example: ~
       default: ""
@@ -1859,7 +2069,7 @@
       default: "git-sync-clone"
     - name: git_sync_run_as_user
       description: ~
-      version_added: ~
+      version_added: 1.10.5
       type: string
       example: ~
       default: "65533"
@@ -1894,14 +2104,14 @@
       description: |
         When running with in_cluster=False change the default cluster_context or config_file
         options to Kubernetes client. Leave blank these to use default behaviour like ``kubectl`` has.
-      version_added: ~
+      version_added: 1.10.3
       type: string
       example: ~
       default: ~
     - name: config_file
       description: |
         Path to the kubernetes configfile to be used when ``in_cluster`` is set to False
-      version_added: ~
+      version_added: 1.10.3
       type: string
       example: ~
       default: ~
@@ -1910,7 +2120,7 @@
         Affinity configuration as a single line formatted JSON object.
         See the affinity model for top-level key names (e.g. ``nodeAffinity``, etc.):
         https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.12/#affinity-v1-core
-      version_added: ~
+      version_added: 1.10.2
       type: string
       example: ~
       default: ""
@@ -1919,7 +2129,7 @@
         A list of toleration objects as a single line formatted JSON array
         See:
         https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.12/#toleration-v1-core
-      version_added: ~
+      version_added: 1.10.2
       type: string
       example: ~
       default: ""
@@ -1930,14 +2140,25 @@
         List of supported params are similar for all core_v1_apis, hence a single config
         variable for all apis. See:
         https://raw.githubusercontent.com/kubernetes-client/python/master/kubernetes/client/apis/core_v1_api.py
-      version_added: ~
+      version_added: 1.10.4
       type: string
       example: ~
+      default: ""
+    - name: delete_option_kwargs
+      description: |
+        Optional keyword arguments to pass to the ``delete_namespaced_pod`` kubernetes client
+        ``core_v1_api`` method when using the Kubernetes Executor.
+        This should be an object and can contain any of the options listed in the ``v1DeleteOptions``
+        class defined here:
+        https://github.com/kubernetes-client/python/blob/41f11a09995efcd0142e25946adc7591431bfb2f/kubernetes/client/models/v1_delete_options.py#L19
+      version_added: ~
+      type: string
+      example: '{"grace_period_seconds": 10}'
       default: ""
     - name: run_as_user
       description: |
         Specifies the uid to run the first process of the worker pods containers as
-      version_added: ~
+      version_added: 1.10.3
       type: string
       example: ~
       default: ""
@@ -1946,7 +2167,7 @@
         Specifies a gid to associate with all containers in the worker pods
         if using a git_ssh_key_secret_name use an fs_group
         that allows for the key to be read, e.g. 65533
-      version_added: ~
+      version_added: 1.10.3
       type: string
       example: ~
       default: ""
@@ -1958,6 +2179,13 @@
       version_added: ~
       type: string
       example: ~
+      default: ""
+    - name: worker_resources
+      description: |
+        Worker resources configuration as a single line formatted JSON object.
+      version_added: ~
+      type: string
+      example: '{ "limit_cpu": 0.25, "limit_memory": "64Mi", "request_cpu": "250m", "request_memory": "64Mi"}'
       default: ""
 - name: kubernetes_node_selectors
   description: |

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -54,6 +53,7 @@ class FakeElasticsearch(Elasticsearch):
     __documents_dict = None
 
     def __init__(self):
+        super().__init__()
         self.__documents_dict = {}
 
     @query_params()
@@ -244,7 +244,7 @@ class FakeElasticsearch(Elasticsearch):
 
     @query_params('allow_no_indices', 'expand_wildcards', 'ignore_unavailable',
                   'preference', 'routing')
-    def suggest(self, body, index=None, params=None):
+    def suggest(self, body, index=None):
         if index is not None and index not in self.__documents_dict:
             raise NotFoundError(404, 'IndexMissingException[[{0}] missing]'.format(index))
 

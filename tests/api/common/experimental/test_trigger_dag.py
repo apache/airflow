@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -167,7 +166,3 @@ class TestTriggerDag(unittest.TestCase):
             replace_microseconds=True)
 
         self.assertEqual(triggers[0].conf, conf)
-
-
-if __name__ == '__main__':
-    unittest.main()

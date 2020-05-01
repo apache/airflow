@@ -26,7 +26,7 @@ class TestSequentialExecutor(unittest.TestCase):
 
     @mock.patch('airflow.executors.sequential_executor.SequentialExecutor.sync')
     @mock.patch('airflow.executors.base_executor.BaseExecutor.trigger_tasks')
-    @mock.patch('airflow.stats.Stats.gauge')
+    @mock.patch('airflow.executors.base_executor.Stats.gauge')
     def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
         executor = SequentialExecutor()
         executor.heartbeat()
@@ -34,7 +34,3 @@ class TestSequentialExecutor(unittest.TestCase):
                  mock.call('executor.queued_tasks', mock.ANY),
                  mock.call('executor.running_tasks', mock.ANY)]
         mock_stats_gauge.assert_has_calls(calls)
-
-
-if __name__ == '__main__':
-    unittest.main()

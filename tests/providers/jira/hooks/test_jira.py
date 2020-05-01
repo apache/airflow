@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -46,7 +45,3 @@ class TestJiraHook(unittest.TestCase):
         self.assertTrue(jira_mock.called)
         self.assertIsInstance(jira_hook.client, Mock)
         self.assertEqual(jira_hook.client.name, jira_mock.return_value.name)  # pylint: disable=no-member
-
-
-if __name__ == '__main__':
-    unittest.main()

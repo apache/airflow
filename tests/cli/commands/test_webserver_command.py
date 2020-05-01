@@ -23,9 +23,10 @@ from time import sleep
 from unittest import mock
 
 import psutil
+import pytest
 
 from airflow import settings
-from airflow.bin import cli
+from airflow.cli import cli_parser
 from airflow.cli.commands import webserver_command
 from airflow.cli.commands.webserver_command import get_num_ready_workers_running
 from airflow.models import DagBag
@@ -38,7 +39,7 @@ class TestCLIGetNumReadyWorkersRunning(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = DagBag(include_examples=True)
-        cls.parser = cli.CLIFactory.get_parser()
+        cls.parser = cli_parser.get_parser()
 
     def setUp(self):
         self.gunicorn_master_proc = mock.Mock(pid=None)
@@ -75,7 +76,7 @@ class TestCLIGetNumReadyWorkersRunning(unittest.TestCase):
 
     def test_cli_webserver_debug(self):
         env = os.environ.copy()
-        proc = psutil.Popen(["airflow", "webserver", "-d"], env=env)
+        proc = psutil.Popen(["airflow", "webserver", "--debug"], env=env)
         sleep(3)  # wait for webserver to start
         return_code = proc.poll()
         self.assertEqual(
@@ -86,10 +87,11 @@ class TestCLIGetNumReadyWorkersRunning(unittest.TestCase):
         proc.wait()
 
 
+@pytest.mark.quarantined
 class TestCliWebServer(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.parser = cli.CLIFactory.get_parser()
+        cls.parser = cli_parser.get_parser()
 
     def setUp(self) -> None:
         self._check_processes()
@@ -99,8 +101,8 @@ class TestCliWebServer(unittest.TestCase):
         try:
             # Confirm that webserver hasn't been launched.
             # pgrep returns exit status 1 if no process matched.
-            self.assertEqual(1, subprocess.Popen(["pgrep", "-f", "-c", "airflow webserver"]).wait())
-            self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+            self.assertEqual(1, subprocess.Popen(["pgrep", "--full", "--count", "airflow webserver"]).wait())
+            self.assertEqual(1, subprocess.Popen(["pgrep", "--count", "gunicorn"]).wait())
         except:  # noqa: E722
             subprocess.Popen(["ps", "-ax"]).wait()
             raise
@@ -130,8 +132,6 @@ class TestCliWebServer(unittest.TestCase):
         proc.terminate()
         proc.wait()
 
-    @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
-                     "Skipping test due to lack of required file permission")
     def test_cli_webserver_foreground_with_pid(self):
         # Run webserver in foreground with --pid option
         pidfile = tempfile.mkstemp()[1]
@@ -144,21 +144,19 @@ class TestCliWebServer(unittest.TestCase):
         proc.terminate()
         proc.wait()
 
-    @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
-                     "Skipping test due to lack of required file permission")
     def test_cli_webserver_background(self):
         pidfile_webserver = setup_locations("webserver")[0]
         pidfile_monitor = setup_locations("webserver-monitor")[0]
 
         # Run webserver as daemon in background. Note that the wait method is not called.
-        subprocess.Popen(["airflow", "webserver", "-D"])
+        subprocess.Popen(["airflow", "webserver", "--daemon"])
 
         pid_monitor = self._wait_pidfile(pidfile_monitor)
         self._wait_pidfile(pidfile_webserver)
 
         # Assert that gunicorn and its monitor are launched.
-        self.assertEqual(0, subprocess.Popen(["pgrep", "-f", "-c", "airflow webserver"]).wait())
-        self.assertEqual(0, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+        self.assertEqual(0, subprocess.Popen(["pgrep", "--full", "--count", "airflow webserver"]).wait())
+        self.assertEqual(0, subprocess.Popen(["pgrep", "--count", "gunicorn"]).wait())
 
         # Terminate monitor process.
         proc = psutil.Process(pid_monitor)
