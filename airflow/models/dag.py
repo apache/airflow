@@ -62,7 +62,6 @@ from airflow.utils.session import provide_session
 from airflow.utils.sla import create_sla_misses, yield_uncreated_runs, yield_uncreated_tis
 from airflow.utils.sqlalchemy import Interval, UtcDateTime
 from airflow.utils.state import State
-from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from airflow.utils.task_group import TaskGroup
