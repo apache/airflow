@@ -191,8 +191,8 @@ def configure_action_logging():
 try:
     from airflow_local_settings import *
     logging.info("Loaded airflow_local_settings.")
-except:
-    pass
+except Exception as e:
+    logging.warn('Failed to load airflow_local_settings because of: %s', str(e))
 
 configure_logging()
 configure_vars()
