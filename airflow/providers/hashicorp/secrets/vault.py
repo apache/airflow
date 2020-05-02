@@ -28,6 +28,7 @@ from airflow import AirflowException
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+
 # pylint: disable=too-many-instance-attributes
 class VaultBackend(BaseSecretsBackend, LoggingMixin):
     """
