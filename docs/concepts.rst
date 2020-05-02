@@ -1066,6 +1066,13 @@ may look like inside your ``airflow_local_settings.py``:
         if task.timeout > timedelta(hours=48):
             task.timeout = timedelta(hours=48)
 
+To define policy, add a ``airflow_local_settings`` module to your PYTHONPATH
+or to AIRFLOW_HOME/config folder that defines this ``policy`` function. It receives a ``TaskInstance``
+object and can alter it where needed.
+
+Please note, cluster policy currently applies to task only though you can access DAG via ``task.dag`` property.
+Also, cluster policy will have precedence over task attributes defined in DAG
+meaning if ``task.sla`` is defined in dag and also mutated via cluster policy then later will have precedence.
 
 Documentation & Notes
 =====================

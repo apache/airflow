@@ -17,6 +17,7 @@
 # under the License.
 import io
 import os
+import re
 import tempfile
 import unittest
 import warnings
@@ -440,7 +441,8 @@ AIRFLOW_HOME = /root/airflow
             # lookup even if we remove this explicit fallback
             test_conf.deprecated_values = {
                 'core': {
-                    'task_runner': ('BashTaskRunner', 'StandardTaskRunner', '2.0'),
+                    'task_runner': (re.compile(r'\ABashTaskRunner\Z'), r'StandardTaskRunner', '2.0'),
+                    'hostname_callable': (re.compile(r':'), r'.', '2.0'),
                 },
             }
             test_conf.read_dict({
@@ -448,6 +450,7 @@ AIRFLOW_HOME = /root/airflow
                     'executor': 'SequentialExecutor',
                     'task_runner': 'BashTaskRunner',
                     'sql_alchemy_conn': 'sqlite://',
+                    'hostname_callable': 'socket:getfqdn',
                 },
             })
             return test_conf
@@ -455,18 +458,29 @@ AIRFLOW_HOME = /root/airflow
         with self.assertWarns(FutureWarning):
             test_conf = make_config()
             self.assertEqual(test_conf.get('core', 'task_runner'), 'StandardTaskRunner')
+            self.assertEqual(test_conf.get('core', 'hostname_callable'), 'socket.getfqdn')
 
         with self.assertWarns(FutureWarning):
             with unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__TASK_RUNNER='BashTaskRunner'):
                 test_conf = make_config()
 
                 self.assertEqual(test_conf.get('core', 'task_runner'), 'StandardTaskRunner')
+
+        with self.assertWarns(FutureWarning):
+            with unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__HOSTNAME_CALLABLE='socket:getfqdn'):
+                test_conf = make_config()
+
+                self.assertEqual(test_conf.get('core', 'hostname_callable'), 'socket.getfqdn')
+
         with reset_warning_registry():
             with warnings.catch_warnings(record=True) as warning:
-                with unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__TASK_RUNNER='NotBashTaskRunner'):
+                with unittest.mock.patch.dict('os.environ',
+                                              AIRFLOW__CORE__TASK_RUNNER='NotBashTaskRunner',
+                                              AIRFLOW__CORE__HOSTNAME_CALLABLE='CarrierPigeon'):
                     test_conf = make_config()
 
                     self.assertEqual(test_conf.get('core', 'task_runner'), 'NotBashTaskRunner')
+                    self.assertEqual(test_conf.get('core', 'hostname_callable'), 'CarrierPigeon')
 
                     self.assertListEqual([], warning)
 
