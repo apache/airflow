@@ -44,8 +44,7 @@ class SlackHook(BaseHook):
         ``https://www.slack.com/api/``
     :type base_url: str
     :param timeout: The maximum number of seconds the client will wait
-        to connect and receive a response from Slack.
-        Default is 30 seconds.
+        to connect and receive a response from Slack. Default is 30 seconds.
     :type timeout: int
     """
 
@@ -56,8 +55,8 @@ class SlackHook(BaseHook):
         **client_args: Any,
     ) -> None:
         super().__init__()
-        token = self.__get_token(token, slack_conn_id)
-        self.client = WebClient(token, **client_args)
+        self.token = self.__get_token(token, slack_conn_id)
+        self.client_args = client_args
 
     def __get_token(self, token, slack_conn_id):
         if token is not None:
@@ -75,12 +74,13 @@ class SlackHook(BaseHook):
 
     def call(self, method: str, api_params: dict) -> None:
         """
-        Calls the Slack client.
+        Creates and calls the Slack client.
 
         :param method: method
         :param api_params: parameters of the API
         """
-        return_code = self.client.api_call(method, **api_params)
+        slack_client = WebClient(self.token, **self.client_args)
+        return_code = slack_client.api_call(method, **api_params)
 
         try:
             return_code.validate()
