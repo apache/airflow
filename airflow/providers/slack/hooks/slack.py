@@ -39,7 +39,7 @@ class SlackHook(BaseHook):
     :type slack_conn_id: str
     :param use_session: A boolean specifying if the client should take advantage of
         connection pooling. Default is True.
-    :type base_url: bool
+    :type use_session: bool
     :param base_url: A string representing the Slack API base URL. Default is
         `https://www.slack.com/api/`
     :type base_url: str
