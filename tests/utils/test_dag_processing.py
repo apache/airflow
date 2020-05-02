@@ -343,6 +343,28 @@ class TestDagFileProcessorManager(unittest.TestCase):
         manager._kill_timed_out_processors()
         mock_dag_file_processor.kill.assert_not_called()
 
+    @mock.patch("airflow.utils.dag_processing.STORE_SERIALIZED_DAGS", True)
+    @mock.patch("airflow.utils.timezone.utcnow", MagicMock(return_value=DEFAULT_DATE))
+    @mock.patch("airflow.models.DAG")
+    @mock.patch("airflow.models.serialized_dag.SerializedDagModel")
+    def test_cleanup_stale_dags_no_serialization(self, sdm_mock, dag_mock):
+        manager = DagFileProcessorManager(
+            dag_directory='directory',
+            max_runs=1,
+            processor_factory=MagicMock().return_value,
+            processor_timeout=timedelta(seconds=50),
+            signal_conn=MagicMock(),
+            async_mode=True)
+
+        manager.last_dag_cleanup_time = DEFAULT_DATE - timezone.dt.timedelta(seconds=301)
+        manager._file_process_interval = 30
+        manager._min_serialized_dag_update_interval = 30
+
+        expected_min_last_seen = DEFAULT_DATE - timezone.dt.timedelta(seconds=(50 + 30 + 30))
+        manager._cleanup_stale_dags()
+        dag_mock.deactivate_stale_dags.assert_called_with(expected_min_last_seen)
+        sdm_mock.remove_stale_dags.assert_called_with(expected_min_last_seen)
+
 
 class TestDagFileProcessorAgent(unittest.TestCase):
     def setUp(self):

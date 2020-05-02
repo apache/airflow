@@ -465,8 +465,9 @@ class S3Hook(AwsBaseHook):
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
         if gzip:
-            filename_gz = filename.name + '.gz'
-            with open(filename.name, 'rb') as f_in:
+            filename_gz = ''
+            with open(filename, 'rb') as f_in:
+                filename_gz = f_in.name + '.gz'
                 with gz.open(filename_gz, 'wb') as f_out:
                     shutil.copyfileobj(f_in, f_out)
                     filename = filename_gz

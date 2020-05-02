@@ -521,6 +521,8 @@ class TestAirflowBaseViews(TestBase):
     def test_task_stats(self):
         resp = self.client.post('task_stats', follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
+        self.assertEqual(set(list(resp.json.items())[0][1][0].keys()),
+                         {'state', 'count', 'color'})
 
     def test_task_stats_only_noncompleted(self):
         conf.set("webserver", "show_recent_stats_for_completed_runs", "False")
@@ -544,6 +546,25 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         mock_get_dag.assert_called_once_with('example_bash_operator')
         self.check_content_in_response('example_bash_operator', resp)
+
+    @parameterized.expand([
+        ("hello\nworld", "hello\\\\nworld"),
+        ("hello'world", "hello\\\\u0027world"),
+        ("<script>", "\\\\u003cscript\\\\u003e"),
+    ])
+    def test_escape_in_tree_view(self, test_str, seralized_test_str):
+        dag = self.dagbag.dags['test_tree_view']
+        dag.create_dagrun(
+            run_id=self.run_id,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+            conf={"abc": test_str},
+        )
+
+        url = 'tree?dag_id=test_tree_view'
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_in_response(f'"conf":{{"abc":"{seralized_test_str}"}}', resp)
 
     def test_dag_details_trigger_origin_tree_view(self):
         dag = self.dagbag.dags['test_tree_view']
@@ -1597,6 +1618,8 @@ class TestDagACLView(TestBase):
         self.login()
         resp = self.client.post('dag_stats', follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
+        self.assertEqual(set(list(resp.json.items())[0][1][0].keys()),
+                         {'state', 'count', 'color'})
 
     def test_dag_stats_failure(self):
         self.logout()

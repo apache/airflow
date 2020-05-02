@@ -102,7 +102,7 @@ if [[ -n ${AIRFLOW__CELERY__BROKER_URL} ]] && \
     verify_db_connection "${AIRFLOW__CELERY__BROKER_URL}"
 fi
 
-if [[ ${AIRFLOW_COMMAND} == "" ]]; then
+if [[ ${AIRFLOW_COMMAND} == "bash" ]]; then
    exec "/bin/bash"
 fi
 

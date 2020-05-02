@@ -294,7 +294,8 @@ class TestBigQueryUpdateDatasetOperator(unittest.TestCase):
             .assert_called_once_with(
                 dataset_resource=dataset_resource,
                 dataset_id=TEST_DATASET,
-                project_id=TEST_GCP_PROJECT_ID
+                project_id=TEST_GCP_PROJECT_ID,
+                fields=list(dataset_resource.keys())
             )
 
 

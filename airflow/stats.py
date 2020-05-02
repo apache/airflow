@@ -25,9 +25,8 @@ from functools import wraps
 from typing import Callable, Optional
 
 from airflow.configuration import conf
-from airflow.exceptions import InvalidStatsNameException
+from airflow.exceptions import AirflowConfigException, InvalidStatsNameException
 from airflow.typing_compat import Protocol
-from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
 
@@ -86,12 +85,7 @@ def stat_name_default_handler(stat_name, max_length=250) -> str:
 
 
 def get_current_handle_stat_name_func() -> Callable[[str], str]:
-    stat_name_handler_name = conf.get('scheduler', 'stat_name_handler')
-    if stat_name_handler_name:
-        handle_stat_name_func = import_string(stat_name_handler_name)
-    else:
-        handle_stat_name_func = stat_name_default_handler
-    return handle_stat_name_func
+    return conf.getimport('scheduler', 'stat_name_handler') or stat_name_default_handler
 
 
 def validate_stat(fn):
@@ -207,21 +201,16 @@ class _Stats(type):
             from statsd import StatsClient
 
             if conf.has_option('scheduler', 'statsd_custom_client_path'):
-                custom_statsd_module_path = conf.get('scheduler', 'statsd_custom_client_path')
+                stats_class = conf.getimport('scheduler', 'statsd_custom_client_path')
 
-                try:
-                    stats_class = import_string(custom_statsd_module_path)
-                    if not issubclass(stats_class, StatsClient):
-                        raise Exception(
-                            """Your custom Statsd client must extend the statsd.StatsClient in order to ensure backwards
-                            compatibility.""")
-                    else:
-                        log.info("Successfully loaded custom Statsd client "
-                                 f"from {custom_statsd_module_path}")
+                if not issubclass(stats_class, StatsClient):
+                    raise AirflowConfigException(
+                        "Your custom Statsd client must extend the statsd.StatsClient in order to ensure "
+                        "backwards compatibility."
+                    )
+                else:
+                    log.info("Successfully loaded custom Statsd client")
 
-                except Exception as err:
-                    raise ImportError('Unable to load custom Statsd client from '
-                                      f'{custom_statsd_module_path} due to {err}')
             else:
                 stats_class = StatsClient
 

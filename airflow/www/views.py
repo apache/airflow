@@ -395,7 +395,6 @@ class Airflow(AirflowBaseView):
                 payload[dag_id].append({
                     'state': state,
                     'count': count,
-                    'dag_id': dag_id,
                     'color': State.color(state)
                 })
 
@@ -496,7 +495,6 @@ class Airflow(AirflowBaseView):
                 payload[dag_id].append({
                     'state': state,
                     'count': count,
-                    'dag_id': dag_id,
                     'color': State.color(state)
                 })
         return wwwutils.json_response(payload)
@@ -1506,14 +1504,18 @@ class Airflow(AirflowBaseView):
                                              'num_runs': num_runs})
         external_logs = conf.get('elasticsearch', 'frontend')
 
+        # avoid spaces to reduce payload size
+        data = htmlsafe_json_dumps(data, separators=(',', ':'))
+        # escape slashes to avoid JSON parse error in JS
+        data = data.replace('\\', '\\\\')
+
         return self.render_template(
             'airflow/tree.html',
             operators=sorted({op.task_type: op for op in dag.tasks}.values(), key=lambda x: x.task_type),
             root=root,
             form=form,
             dag=dag,
-            # avoid spaces to reduce payload size
-            data=htmlsafe_json_dumps(data, separators=(',', ':')),
+            data=data,
             blur=blur, num_runs=num_runs,
             show_external_logs=bool(external_logs))
 

@@ -42,9 +42,10 @@ class AwsBaseHook(BaseHook):
     This class is a thin wrapper around the boto3 python library.
 
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None then the default boto3 behaviour is used. If running Airflow
-        in a distributed manner and aws_conn_id is None, then default boto3 configuration
-        would be used (and must be maintained on each worker node).
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates.
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
@@ -62,7 +63,7 @@ class AwsBaseHook(BaseHook):
 
     def __init__(
             self,
-            aws_conn_id="aws_default",
+            aws_conn_id: Optional[str] = "aws_default",
             verify: Union[bool, str, None] = None,
             region_name: Optional[str] = None,
             client_type: Optional[str] = None,
@@ -70,8 +71,6 @@ class AwsBaseHook(BaseHook):
             config: Optional[Config] = None
     ):
         super().__init__()
-        if not aws_conn_id:
-            raise AirflowException('aws_conn_id must be provided')
         self.aws_conn_id = aws_conn_id
         self.verify = verify
         self.client_type = client_type
@@ -254,7 +253,7 @@ class AwsBaseHook(BaseHook):
             assume_role_kwargs["ExternalId"] = extra_config.get(
                 "external_id"
             )
-        role_session_name = "Airflow_" + self.aws_conn_id
+        role_session_name = f"Airflow_{self.aws_conn_id}"
         self.log.info(
             "Doing sts_client.assume_role to role_arn=%s (role_session_name=%s)",
             role_arn,
