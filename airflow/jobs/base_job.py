@@ -84,7 +84,7 @@ class BaseJob(Base, LoggingMixin):
             *args, **kwargs):
         self.hostname = get_hostname()
         self.executor = executor or executors.get_default_executor()
-        self.executor_class = executor.__class__.__name__
+        self.executor_class = self.executor.__class__.__name__
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
         if heartrate is not None:
