@@ -41,7 +41,7 @@ class SlackHook(BaseHook):
         connection pooling. Default is True.
     :type use_session: bool
     :param base_url: A string representing the Slack API base URL. Default is
-        `https://www.slack.com/api/`
+        ``https://www.slack.com/api/``
     :type base_url: str
     :param timeout: The maximum number of seconds the client will wait
         to connect and receive a response from Slack.
