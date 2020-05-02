@@ -1635,6 +1635,8 @@ class SchedulerJob(BaseJob):
                 if isinstance(ti.task, DummyOperator) \
                         and not ti.task.on_success_callback:
                     ti.state = State.SUCCESS
+                    ti.start_date = ti.end_date = timezone.utcnow()
+                    ti.duration = 0
 
             # Also save this task instance to the DB.
             self.log.info("Creating / updating %s in ORM", ti)
