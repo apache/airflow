@@ -18,15 +18,24 @@
 
 """Operators that integrates with Google Cloud Build service."""
 
-from typing import Dict, Optional, Sequence, Tuple, Union
+import re
+import warnings
+from copy import deepcopy
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from urllib.parse import unquote, urlparse
 
 from google.api_core.retry import Retry
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
-from google.protobuf.json_format import MessageToDict
+from google.protobuf.json_format import MessageToDict, ParseDict
 
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook  # noqa
 from airflow.utils.decorators import apply_defaults
+
+REGEX_REPO_PATH = re.compile(
+    r"^/p/(?P<project_id>[^/]+)/r/(?P<repo_name>[^/]+)"
+)
 
 
 class CloudBuildCancelBuildOperator(BaseOperator):
@@ -93,6 +102,9 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     :param build: The build resource to create. If a dict is provided, it must be of the same form
         as the protobuf message `google.cloud.devtools.cloudbuild_v1.types.Build`
     :type build: Union[dict, `google.cloud.devtools.cloudbuild_v1.types.Build`]
+    :param body: (Deprecated) The build resource to create.
+        This parameter has been deprecated. You should pass the build parameter instead.
+    :type body: dict
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
         If set to None or missing, the default project_id from the GCP connection is used.
     :type project_id: Optional[str]
@@ -112,12 +124,13 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     :rtype: dict
     """
 
-    template_fields = ("project_id", "build", "gcp_conn_id")
+    template_fields = ("project_id", "build", "body", "gcp_conn_id")
 
     @apply_defaults
     def __init__(
         self,
         build: Union[Dict, Build],
+        body: Dict = None,
         project_id: Optional[str] = None,
         wait: bool = True,
         retry: Optional[Retry] = None,
@@ -129,6 +142,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     ) -> None:
         super().__init__(*args, **kwargs)
         self.build = build
+        self.body = body
         self.project_id = project_id
         self.wait = wait
         self.retry = retry
@@ -138,8 +152,16 @@ class CloudBuildCreateBuildOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id)
+        if self.body:
+            warnings.warn(
+                "The body parameter has been deprecated. You should pass body using "
+                "the build parameter.", DeprecationWarning, stacklevel=4)
+            if not self.build:
+                self.build = self.body
+        build = BuildProcessor(build=self.build).process_body()
+
         result = hook.create_build(
-            build=self.build,
+            build=build,
             project_id=self.project_id,
             wait=self.wait,
             retry=self.retry,
@@ -283,6 +305,7 @@ class CloudBuildGetBuildOperator(BaseOperator):
 
     :rtype: dict
     """
+
     template_fields = ("project_id", "id_", "gcp_conn_id")
 
     @apply_defaults
@@ -690,3 +713,147 @@ class CloudBuildUpdateBuildTriggerOperator(BaseOperator):
             metadata=self.metadata,
         )
         return MessageToDict(result)
+
+
+class BuildProcessor:
+    """
+    Processes build configurations to add additional functionality to support the use of operators.
+    The following improvements are made:
+    * It is required to provide the source and only one type can be given,
+    * It is possible to provide the source as the URL address instead dict.
+
+    :param build: The request body of the build.
+        See: https://cloud.google.com/cloud-build/docs/api/reference/rest/Shared.Types/Build
+    :type build: Union[Dict, Build]
+    """
+
+    def __init__(self, build: Union[Dict, Build]) -> None:
+        if isinstance(build, Build):
+            self.build = MessageToDict(build)
+        self.build = deepcopy(build)
+
+    def _verify_source(self) -> None:
+        if not (
+            ("storage_source" in self.build["source"])
+            ^ ("repo_source" in self.build["source"])
+        ):
+            raise AirflowException(
+                "The source could not be determined. Please choose one data source from: "
+                "storage_source and repo_source."
+            )
+
+    def _reformat_source(self) -> None:
+        self._reformat_repo_source()
+        self._reformat_storage_source()
+
+    def _reformat_repo_source(self) -> None:
+        if "repo_source" not in self.build["source"]:
+            return
+
+        source = self.build["source"]["repo_source"]
+
+        if not isinstance(source, str):
+            return
+
+        self.build["source"]["repo_source"] = self._convert_repo_url_to_dict(
+            source
+        )
+
+    def _reformat_storage_source(self) -> None:
+        if "storage_source" not in self.build["source"]:
+            return
+
+        source = self.build["source"]["storage_source"]
+
+        if not isinstance(source, str):
+            return
+
+        self.build["source"][
+            "storage_source"
+        ] = self._convert_storage_url_to_dict(source)
+
+    def process_body(self) -> Build:
+        """
+        Processes the body passed in the constructor
+
+        :return: the body.
+        :rtype: `google.cloud.devtools.cloudbuild_v1.types.Build`
+        """
+        self._verify_source()
+        self._reformat_source()
+        return ParseDict(self.build, Build())
+
+    @staticmethod
+    def _convert_repo_url_to_dict(source: str) -> Dict[str, Any]:
+        """
+        Convert url to repository in Google Cloud Source to a format supported by the API
+
+        Example valid input:
+
+        .. code-block:: none
+
+            https://source.developers.google.com/p/airflow-project/r/airflow-repo#branch-name
+
+        """
+        url_parts = urlparse(source)
+
+        match = REGEX_REPO_PATH.search(url_parts.path)
+
+        if (
+            url_parts.scheme != "https"
+            or url_parts.hostname != "source.developers.google.com"
+            or not match
+        ):
+            raise AirflowException(
+                "Invalid URL. You must pass the URL in the format: "
+                "https://source.developers.google.com/p/airflow-project/r/airflow-repo#branch-name"
+            )
+
+        project_id = unquote(match.group("project_id"))
+        repo_name = unquote(match.group("repo_name"))
+
+        source_dict = {
+            "project_id": project_id,
+            "repo_name": repo_name,
+            "branch_name": "master",
+        }
+
+        if url_parts.fragment:
+            source_dict["branch_name"] = url_parts.fragment
+
+        return source_dict
+
+    @staticmethod
+    def _convert_storage_url_to_dict(storage_url: str) -> Dict[str, Any]:
+        """
+        Convert url to object in Google Cloud Storage to a format supported by the API
+
+        Example valid input:
+
+        .. code-block:: none
+
+            gs://bucket-name/object-name.tar.gz
+
+        """
+        url_parts = urlparse(storage_url)
+
+        if (
+            url_parts.scheme != "gs"
+            or not url_parts.hostname
+            or not url_parts.path
+            or url_parts.path == "/"
+        ):
+            raise AirflowException(
+                "Invalid URL. You must pass the URL in the format: "
+                "gs://bucket-name/object-name.tar.gz#24565443"
+            )
+
+        source_dict = {
+            "bucket": url_parts.hostname,
+            "object": url_parts.path[1:],
+        }
+
+        if url_parts.fragment:
+            source_dict["generation"] = url_parts.fragment
+
+        return source_dict

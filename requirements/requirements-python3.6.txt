@@ -32,7 +32,7 @@ Sphinx==3.0.3
 Unidecode==1.1.1
 WTForms==2.3.1
 Werkzeug==0.16.1
-adal==1.2.2
+adal==1.2.3
 alabaster==0.7.12
 alembic==1.4.2
 amqp==2.5.2
@@ -69,9 +69,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.3.0
 black==19.10b0
 blinker==1.4
-boto3==1.12.49
+boto3==1.13.1
 boto==2.49.0
-botocore==1.15.49
+botocore==1.16.1
 bowler==0.8.0
 cached-property==1.5.1
 cachetools==4.1.0
@@ -100,7 +100,7 @@ decorator==4.4.2
 defusedxml==0.6.0
 dill==0.3.1.1
 distlib==0.3.0
-distributed==2.15.1
+distributed==2.15.2
 dnspython==1.16.0
 docker-pycreds==0.4.0
 docker==3.7.3
@@ -110,7 +110,7 @@ ecdsa==0.15
 elasticsearch-dbapi==0.1.0
 elasticsearch-dsl==7.1.0
 elasticsearch==7.5.1
-email-validator==1.0.5
+email-validator==1.1.0
 entrypoints==0.3
 enum34==1.1.10
 execnet==1.7.1
@@ -182,7 +182,7 @@ importlib-resources==1.5.0
 inflection==0.4.0
 ipdb==0.13.2
 ipython-genutils==0.2.0
-ipython==7.13.0
+ipython==7.14.0
 iso8601==0.1.12
 isodate==0.6.0
 isort==4.3.21
@@ -263,7 +263,7 @@ pycparser==2.20
 pycryptodomex==3.9.7
 pydata-google-auth==1.1.0
 pydruid==0.5.8
-pyexasol==0.12.0
+pyexasol==0.12.1
 pyflakes==2.1.1
 pykerberos==1.2.1
 pylint==2.4.4
