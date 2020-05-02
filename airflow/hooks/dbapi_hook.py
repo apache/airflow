@@ -226,8 +226,43 @@ class DbApiHook(BaseHook):
         """
         return self.get_conn().cursor()
 
+    @staticmethod
+    def _generate_insert_sql(table, values, target_fields, replace, **kwargs):
+        """
+        Static helper method that generate the INSERT SQL statement.
+        The REPLACE variant is specific to MySQL syntax.
+
+        :param table: Name of the target table
+        :type table: str
+        :param values: The row to insert into the table
+        :type values: tuple of cell values
+        :param target_fields: The names of the columns to fill in the table
+        :type target_fields: iterable of strings
+        :param replace: Whether to replace instead of insert
+        :type replace: bool
+        :return: The generated INSERT or REPLACE SQL statement
+        :rtype: str
+        """
+        placeholders = ["%s", ] * len(values)
+
+        if target_fields:
+            target_fields = ", ".join(target_fields)
+            target_fields = "({})".format(target_fields)
+        else:
+            target_fields = ''
+
+        if not replace:
+            sql = "INSERT INTO "
+        else:
+            sql = "REPLACE INTO "
+        sql += "{0} {1} VALUES ({2})".format(
+            table,
+            target_fields,
+            ",".join(placeholders))
+        return sql
+
     def insert_rows(self, table, rows, target_fields=None, commit_every=1000,
-                    replace=False):
+                    replace=False, **kwargs):
         """
         A generic way to insert a set of tuples into a table,
         a new transaction is created every commit_every rows
@@ -244,11 +279,6 @@ class DbApiHook(BaseHook):
         :param replace: Whether to replace instead of insert
         :type replace: bool
         """
-        if target_fields:
-            target_fields = ", ".join(target_fields)
-            target_fields = "({})".format(target_fields)
-        else:
-            target_fields = ''
         i = 0
         with closing(self.get_conn()) as conn:
             if self.supports_autocommit:
@@ -262,15 +292,9 @@ class DbApiHook(BaseHook):
                     for cell in row:
                         lst.append(self._serialize_cell(cell, conn))
                     values = tuple(lst)
-                    placeholders = ["%s", ] * len(values)
-                    if not replace:
-                        sql = "INSERT INTO "
-                    else:
-                        sql = "REPLACE INTO "
-                    sql += "{0} {1} VALUES ({2})".format(
-                        table,
-                        target_fields,
-                        ",".join(placeholders))
+                    sql = self._generate_insert_sql(
+                        table, values, target_fields, replace, **kwargs
+                    )
                     cur.execute(sql, values)
                     if commit_every and i % commit_every == 0:
                         conn.commit()

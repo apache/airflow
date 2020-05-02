@@ -20,6 +20,7 @@ import copy
 import logging
 import os
 import pathlib
+import re
 import shlex
 import subprocess
 import sys
@@ -158,7 +159,8 @@ class AirflowConfigParser(ConfigParser):
     # about. Mapping of section -> setting -> { old, replace, by_version }
     deprecated_values = {
         'core': {
-            'task_runner': ('BashTaskRunner', 'StandardTaskRunner', '2.0'),
+            'task_runner': (re.compile(r'\ABashTaskRunner\Z'), r'StandardTaskRunner', '2.0'),
+            'hostname_callable': (re.compile(r':'), r'.', '2.0'),
         },
     }
 
@@ -188,24 +190,41 @@ class AirflowConfigParser(ConfigParser):
         for section, replacement in self.deprecated_values.items():
             for name, info in replacement.items():
                 old, new, version = info
-                if self.get(section, name, fallback=None) == old:
-                    # Make sure the env var option is removed, otherwise it
-                    # would be read and used instead of the value we set
-                    env_var = self._env_var_name(section, name)
-                    os.environ.pop(env_var, None)
-
-                    self.set(section, name, new)
-                    warnings.warn(
-                        'The {name} setting in [{section}] has the old default value '
-                        'of {old!r}. This value has been changed to {new!r} in the '
-                        'running config, but please update your config before Apache '
-                        'Airflow {version}.'.format(
-                            name=name, section=section, old=old, new=new, version=version
-                        ),
-                        FutureWarning
-                    )
+                current_value = self.get(section, name, fallback=None)
+                if self._using_old_value(old, current_value):
+                    new_value = re.sub(old, new, current_value)
+                    self._update_env_var(
+                        section=section, name=name, new_value=new_value)
+                    self._create_future_warning(
+                        name=name,
+                        section=section,
+                        current_value=current_value,
+                        new_value=new_value,
+                        version=version)
 
         self.is_validated = True
+
+    def _using_old_value(self, old, current_value):
+        return old.search(current_value) is not None
+
+    def _update_env_var(self, section, name, new_value):
+        # Make sure the env var option is removed, otherwise it
+        # would be read and used instead of the value we set
+        env_var = self._env_var_name(section, name)
+        os.environ.pop(env_var, None)
+        self.set(section, name, new_value)
+
+    @staticmethod
+    def _create_future_warning(name, section, current_value, new_value, version):
+        warnings.warn(
+            'The {name} setting in [{section}] has the old default value '
+            'of {current_value!r}. This value has been changed to {new_value!r} in the '
+            'running config, but please update your config before Apache '
+            'Airflow {version}.'.format(
+                name=name, section=section, current_value=current_value, new_value=new_value, version=version
+            ),
+            FutureWarning
+        )
 
     @staticmethod
     def _env_var_name(section, key):

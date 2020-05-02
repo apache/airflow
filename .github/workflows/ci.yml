@@ -303,9 +303,8 @@ jobs:
       fail-fast: false
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS: true
+      CHECK_REQUIREMENTS_ONLY: true
       UPGRADE_WHILE_GENERATING_REQUIREMENTS: ${{ github.event_name == 'schedule' }}
-      FAIL_WHEN_REQUIREMENTS_UPDATED: ${{ github.event_name != 'schedule' }}
       CI_JOB_TYPE: "Requirements"
     steps:
       - uses: actions/checkout@master

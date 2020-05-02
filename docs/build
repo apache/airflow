@@ -78,12 +78,12 @@ def prepare_directories() -> None:
             # The _api folder should be deleted by then but just in case we should change the ownership
             host_user_id = os.environ["HOST_USER_ID"]
             host_group_id = os.environ["HOST_GROUP_ID"]
-            print(f"Changing ownership of docs/_build folder back to ${host_user_id}:${host_group_id}")
-            run(["sudo", "chown", f'"${host_user_id}":"${host_group_id}"', "_build"], check=True)
+            print(f"Changing ownership of docs/_build folder back to {host_user_id}:{host_group_id}")
+            run(["sudo", "chown", "-R", f'{host_user_id}:{host_group_id}', "_build"], check=True)
             if os.path.exists("_api"):
-                run(["sudo", "chown", f'"${host_user_id}":"${host_group_id}"', "_api"], check=True)
+                run(["sudo", "chown", "-R", f'{host_user_id}:{host_group_id}', "_api"], check=True)
 
-            print(f"Changed ownership of docs/_build folder back to ${host_user_id}:${host_group_id}")
+            print(f"Changed ownership of docs/_build folder back to {host_user_id}:{host_group_id}")
 
         atexit.register(restore_ownership)
 
@@ -226,11 +226,11 @@ def parse_sphinx_warnings(warning_text: str) -> List[DocBuildError]:
     for sphinx_warning in warning_text.split("\n"):
         if not sphinx_warning:
             continue
-        warining_parts = sphinx_warning.split(":", 2)
-        if len(warining_parts) == 3:
+        warning_parts = sphinx_warning.split(":", 2)
+        if len(warning_parts) == 3:
             sphinx_build_errors.append(
                 DocBuildError(
-                    file_path=warining_parts[0], line_no=int(warining_parts[1]), message=warining_parts[2]
+                    file_path=warning_parts[0], line_no=int(warning_parts[1]), message=warning_parts[2]
                 )
             )
         else:
@@ -267,8 +267,8 @@ def build_sphinx_docs() -> None:
         warning_text = tmp_file.read().decode()
         # Remove 7-bit C1 ANSI escape sequences
         warning_text = re.sub(r"\x1B[@-_][0-?]*[ -/]*[@-~]", "", warning_text)
-        sphinx_build_errrors = parse_sphinx_warnings(warning_text)
-        build_errors.extend(sphinx_build_errrors)
+        sphinx_build_errors = parse_sphinx_warnings(warning_text)
+        build_errors.extend(sphinx_build_errors)
 
 
 print("Current working directory: ", os.getcwd())
