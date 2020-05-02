@@ -270,12 +270,12 @@ class TestGCSUploadSessionCompleteSensor(TestCase):
         self.assertEqual(self.sensor.inactivity_seconds, 0)
         self.sensor.is_bucket_updated({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 10)
-        self.assertTrue(self.sensor.is_bucket_updated(2))
+        self.assertTrue(self.sensor.is_bucket_updated({'a'}))
 
     @mock.patch('airflow.providers.google.cloud.sensors.gcs.get_time', mock_time)
     def test_not_enough_objects(self):
-        self.sensor.is_bucket_updated({})
+        self.sensor.is_bucket_updated(set())
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated({})
+        self.sensor.is_bucket_updated(set())
         self.assertEqual(self.sensor.inactivity_seconds, 10)
-        self.assertFalse(self.sensor.is_bucket_updated(0))
+        self.assertFalse(self.sensor.is_bucket_updated(set()))

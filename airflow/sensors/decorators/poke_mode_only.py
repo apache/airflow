@@ -62,9 +62,12 @@ def _poke_mode_only_func_decorator(method):
         # checking if fist parameter is self (aka non-static method).
         if isinstance(args[0], BaseSensorOperator):
             instance = args[0]
-            if instance.mode != 'poke':
-                raise ValueError(
-                    f"cannot set mode to 'poke'.")
+            try:
+                if instance.mode != 'poke':
+                    raise ValueError(
+                        f"cannot set mode to 'poke'.")
+            except AttributeError:  # this happens on _set_context
+                pass
 
         return result
 
