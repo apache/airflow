@@ -22,6 +22,7 @@ This module contains Google Dataproc operators.
 # pylint: disable=C0302
 
 import inspect
+import ntpath
 import os
 import re
 import time
