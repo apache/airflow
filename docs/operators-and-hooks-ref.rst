@@ -1507,7 +1507,7 @@ communication protocols or interface.
      - :mod:`airflow.sensors.filesystem`
 
    * - `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
-     -
+     - :doc:`How to use <howto/operator/http/http>`
      - :mod:`airflow.providers.http.hooks.http`
      - :mod:`airflow.providers.http.operators.http`
      - :mod:`airflow.providers.http.sensors.http`
