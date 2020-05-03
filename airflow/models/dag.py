@@ -36,7 +36,9 @@ import jinja2
 import pendulum
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
-from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, and_, asc, desc, func, not_, or_
+from sqlalchemy import (
+    Boolean, Column, ForeignKey, Index, Integer, String, Text, and_, asc, desc, func, not_, or_,
+)
 from sqlalchemy.orm import backref, joinedload, relationship
 from sqlalchemy.orm.session import Session
 
@@ -1718,7 +1720,7 @@ class DAG(BaseDag, LoggingMixin):
             # work for backfills and externally triggered
             # DAG runs. At minimum they could have duration SLA misses.
             .filter(DR.run_id.notlike(f"{DagRunType.BACKFILL_JOB.value}__%"))
-            .filter(DR.external_trigger == False)
+            .filter(DR.external_trigger == False) # noqa E712
             # We don't filter on state here so that it's cheaper to get the
             # latest scheduled run, which can be in any state.
             .order_by(desc(DR.execution_date))
@@ -1767,8 +1769,8 @@ class DAG(BaseDag, LoggingMixin):
             scheduled_tis = []
 
         self.log.debug(
-            "Found %s outstanding TIs across %s dagruns for DAG %s".format(
-                len(scheduled_tis), len(scheduled_dagruns), self.dag_id))
+            "Found %s outstanding TIs across %s dagruns for DAG %s",
+            len(scheduled_tis), len(scheduled_dagruns), self.dag_id)
 
         # We need to examine unscheduled DAGRuns, too. If there are concurrency
         # limitations, it's possible that a task instance will miss its SLA
