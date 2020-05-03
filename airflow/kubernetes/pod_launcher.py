@@ -166,7 +166,7 @@ class PodLauncher(LoggingMixin):
         wait=tenacity.wait_exponential(),
         reraise=True
     )
-    def read_pod_logs(self, pod):
+    def read_pod_logs(self, pod, tail_lines=10):
         """Reads log from the POD"""
         try:
             return self._client.read_namespaced_pod_log(
@@ -174,7 +174,7 @@ class PodLauncher(LoggingMixin):
                 namespace=pod.metadata.namespace,
                 container='base',
                 follow=True,
-                tail_lines=10,
+                tail_lines=tail_lines,
                 _preload_content=False
             )
         except BaseHTTPError as e:
