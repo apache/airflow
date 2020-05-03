@@ -54,6 +54,7 @@ from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.slamiss import SlaMiss
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
+from airflow.sla import create_sla_misses, yield_uncreated_runs, yield_uncreated_tis
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
@@ -61,7 +62,6 @@ from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.utils.sla import create_sla_misses, yield_uncreated_runs, yield_uncreated_tis
 from airflow.utils.sqlalchemy import Interval, UtcDateTime
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType

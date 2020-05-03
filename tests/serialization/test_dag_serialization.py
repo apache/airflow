@@ -36,7 +36,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
-from airflow.utils.sla import send_sla_miss_email
+from airflow.sla import send_sla_miss_email
 from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
 
 executor_config_pod = k8s.V1Pod(
