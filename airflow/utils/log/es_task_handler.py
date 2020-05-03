@@ -78,7 +78,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         self.json_format = json_format
         self.json_fields = [label.strip() for label in json_fields.split(",")]
         self.handler = None
-        self.context_set = False
 
     def _render_log_id(self, ti, try_number):
         if self.log_id_jinja_template:
@@ -217,18 +216,14 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
                     'try_number': str(ti.try_number)
                 })
 
-        if self.write_stdout:
-            if self.context_set:
-                # We don't want to re-set up the handler if this logger has
-                # already been initialized
-                return
-
+        if self.write_stdout and self.handler is None:
+            # We don't want to re-set up the handler if this logger has
+            # already been initialized
             self.handler = logging.StreamHandler(stream=sys.__stdout__)
             self.handler.setLevel(self.level)
             self.handler.setFormatter(self.formatter)
         else:
             super().set_context(ti)
-        self.context_set = True
 
     def close(self):
         # When application exit, system shuts down all handlers by
@@ -255,10 +250,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         # Mark the end of file using end of log mark,
         # so we know where to stop while auto-tailing.
         self.handler.stream.write(self.end_of_log_mark)
-
-        if self.write_stdout:
-            self.handler.close()
-            sys.stdout = sys.__stdout__
 
         super().close()
 
