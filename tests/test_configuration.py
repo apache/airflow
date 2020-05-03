@@ -21,6 +21,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import contextlib
+import io
 import os
 import tempfile
 import warnings
@@ -489,7 +490,7 @@ notacommand = OK
 
     @mock.patch.dict("os.environ", {"AIRFLOW__CORE__DAGS_FOLDER": "/tmp/test_folder"})
     def test_write_should_respect_env_variable(self):
-        with os.io.StringIO() as string_file:
+        with io.StringIO() as string_file:
             conf.write(string_file)
             content = string_file.getvalue()
         self.assertIn("dags_folder = /tmp/test_folder", content)

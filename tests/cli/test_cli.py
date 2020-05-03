@@ -604,18 +604,18 @@ class TestCliConfig(unittest.TestCase):
     def setUpClass(cls):
         cls.parser = cli.CLIFactory.get_parser()
 
+    @mock.patch("airflow.bin.cli.cli_utils.should_use_colors", return_value=False)
     @mock.patch("airflow.bin.cli.io.StringIO")
     @mock.patch("airflow.bin.cli.conf")
-    def test_cli_show_config_should_write_data(self, mock_conf, mock_stringio):
+    def test_cli_show_config_should_write_data(self, mock_conf, mock_stringio, mock_should_use_colors):
         cli.config(self.parser.parse_args(['config']))
         mock_conf.write.assert_called_once_with(mock_stringio.return_value.__enter__.return_value)
 
     @conf_vars({
         ('core', 'testkey'): 'test_value'
     })
-    @mock.patch("airflow.bin.cli.io.StringIO")
-    def test_cli_show_config_should_display_key(self, mock_stringio):
-        temp_stdout = io.StringIO()
+    def test_cli_show_config_should_display_key(self):
+        temp_stdout = StringIO()
         with mock.patch("sys.stdout", temp_stdout):
             cli.config(self.parser.parse_args(['config', '--color=off']))
         self.assertIn('[core]', temp_stdout.getvalue())
