@@ -24,7 +24,7 @@ import hvac
 from cached_property import cached_property
 from hvac.exceptions import InvalidPath, VaultError
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
