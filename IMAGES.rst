@@ -416,3 +416,22 @@ signals). This entrypoint works as follows:
 
 * If first argument is equal to "bash" - you are dropped in bash shell.
 * If there are any arguments they are passed to "airflow" command
+
+Docker Compose
+--------------
+
+Docker Compose can be used to run Airflow installation. The provided Compose (docker-compose.yml) defines
+the necessary services to run Airflow. It also starts an ephemeral container to initialize the database
+and creates a user.
+
+This starts the Compose.
+
+.. code-block::
+
+  docker-compose -f docker-compose.yml up -d
+
+This stops the Compose.
+
+.. code-block::
+
+  docker-compose -f docker-compose.yml stop

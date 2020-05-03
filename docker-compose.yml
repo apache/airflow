@@ -1,0 +1,78 @@
+version: "3.7"
+x-airflow-environment: &airflow-environment
+  AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+  AIRFLOW__WEBSERVER__RBAC: "True"
+  AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+  AIRFLOW__CELERY__BROKER_URL: "redis://:@redis:6379/0"
+  AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+
+services:
+  postgres:
+    image: postgres:11.5
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_DB: airflow
+      POSTGRES_PASSWORD: airflow
+  redis:
+    image: redis:5
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - 6379:6379
+  init:
+    image: apache/airflow:1.10.10
+    environment:
+      <<: *airflow-environment
+    depends_on:
+      - redis
+      - postgres
+    volumes:
+      - ./dags:/opt/airflow/dags
+    entrypoint: /bin/bash
+    command: >
+      -c "airflow list_users || (airflow initdb
+      && airflow create_user --role Admin --username airflow --password airflow -e airflow@airflow.com -f airflow -l airflow)"
+    restart: on-failure
+  webserver:
+    image: apache/airflow:1.10.10
+    ports:
+      - 8080:8080
+    environment:
+      <<: *airflow-environment
+    depends_on:
+      - init
+    volumes:
+      - ./dags:/opt/airflow/dags
+    command: "webserver"
+    restart: always
+  flower:
+    image: apache/airflow:1.10.10
+    ports:
+      - 5555:5555
+    environment:
+      <<: *airflow-environment
+    depends_on:
+      - redis
+    command: flower
+    restart: always
+  scheduler:
+    image: apache/airflow:1.10.10
+    environment:
+      <<: *airflow-environment
+    depends_on:
+      - webserver
+    volumes:
+      - ./dags:/opt/airflow/dags
+    command: scheduler
+    restart: always
+  worker:
+    image: apache/airflow:1.10.10
+    environment:
+      <<: *airflow-environment
+    depends_on:
+      - scheduler
+    volumes:
+      - ./dags:/opt/airflow/dags
+    command: worker
+    restart: always
