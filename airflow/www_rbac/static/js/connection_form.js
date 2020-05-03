@@ -61,6 +61,10 @@ $(document).ready(function () {
         'login': 'Username',
       }
     },
+    spark: {
+      hidden_fields: ['schema', 'login', 'password'],
+      relabeling: {},
+    },
   };
 
   function connTypeChange(connectionType) {

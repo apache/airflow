@@ -74,6 +74,10 @@
             hidden_fields: ['host', 'schema', 'login', 'password', 'port', 'extra'],
             relabeling: {},
         },
+        spark: {
+            hidden_fields: ['schema', 'login', 'password'],
+            relabeling: {},
+        },
       }
       function connTypeChange(connectionType) {
         $("div.form-group").removeClass("hide");

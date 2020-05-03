@@ -108,6 +108,7 @@ class Connection(Base, LoggingMixin):
         ('gcpcloudsql', 'Google Cloud SQL'),
         ('grpc', 'GRPC Connection'),
         ('yandexcloud', 'Yandex Cloud'),
+        ('spark', 'Spark'),
     ]
 
     def __init__(
