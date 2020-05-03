@@ -36,7 +36,7 @@ class XComArg:
     **Example**: The moment you get a result from any operator (functional or regular) you can ::
 
         any_op = AnyOperator()
-        xcomarg = XComArg(any_op)
+        xcomarg = XComArg(any_op) OR xcomarg = any_op.output
         my_op = MyOperator()
         my_op >> xcomarg
 
@@ -45,7 +45,7 @@ class XComArg:
     **Example**: You can make this result to be part of any generated string ::
 
         any_op = AnyOperator()
-        xcomarg = XComArg(any_op)
+        xcomarg = any_op.output
         op1 = MyOperator(my_text_message=f"the value is {xcomarg}")
         op2 = MyOperator(my_text_message=f"the value is {xcomarg['topic']}")
 
