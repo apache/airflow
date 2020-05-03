@@ -36,7 +36,7 @@ import jinja2
 import pendulum
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
-from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, and_, asc, func, not_, or_
+from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, and_, asc, desc, func, not_, or_
 from sqlalchemy.orm import backref, joinedload, relationship
 from sqlalchemy.orm.session import Session
 
@@ -62,6 +62,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.sla import create_sla_misses, yield_uncreated_runs, yield_uncreated_tis
 from airflow.utils.sqlalchemy import Interval, UtcDateTime
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from airflow.utils.task_group import TaskGroup
@@ -1706,21 +1707,28 @@ class DAG(BaseDag, LoggingMixin):
         TI = TaskInstance
         DR = DagRun
 
-        # Get all current DagRuns that haven't been checked for SLA
-        scheduled_dagruns = DagRun.find(
-            dag_id=self.dag_id,
+        # Get scheduled DagRuns to check SLAs. We check SLAs often, so
+        # there's little chance that a DagRun become successful after an
+        # SLA miss but before we notice. This assumption might need to be
+        # revisited once SLA monitor runs separately from scheduler.
+        scheduled_dagruns = (
+            session.query(DR)
+            .filter(DR.dag_id == self.dag_id)
             # TODO related to AIRFLOW-2236: determine how SLA misses should
             # work for backfills and externally triggered
             # DAG runs. At minimum they could have duration SLA misses.
-            external_trigger=False,
-            no_backfills=True,
-            sla_checked=False,
-            # We aren't passing in the "state" parameter because we care about
-            # checking for SLAs whether the DAG run has failed, succeeded, or
-            # is still running.
-            session=session
+            .filter(DR.run_id.notlike(f"{DagRunType.BACKFILL_JOB.value}__%"))
+            .filter(DR.external_trigger == False)
+            # We don't filter on state here so that it's cheaper to get the
+            # latest scheduled run, which can be in any state.
+            .order_by(desc(DR.execution_date))
+            # We set a fixed limit here to avoid losing performance over time
+            # as failed DagRuns accumulate. If we have a cheap way to determine
+            # if a DagRun is free from SLA check, we should use that to filter
+            # out those DagRuns and remove this limit.
+            .limit(100)
+            .all()
         )
-
         scheduled_dagrun_ids = [d.id for d in scheduled_dagruns]
 
         if scheduled_dagrun_ids:
@@ -1738,7 +1746,8 @@ class DAG(BaseDag, LoggingMixin):
                 # there's little chance that a TI switches to successful
                 # after an SLA miss but before we notice; and this should
                 # be a major perf boost (since most TIs are successful or
-                # skipped).
+                # skipped). This assumption might need to be revisited once
+                # SLA monitor runs separately from scheduler.
                 .filter(or_(
                     # has to be written this way to account for sql nulls
                     TI.state == None, # noqa E711
@@ -1746,6 +1755,11 @@ class DAG(BaseDag, LoggingMixin):
                 ))
                 # Only look at specified DagRuns
                 .filter(DR.id.in_(scheduled_dagrun_ids))
+                # If the DAGRun is SUCCEEDED, then everything has gone
+                # according to plan. But if it's FAILED, someone may be
+                # coming to fix it, and SLAs for tasks in it will still
+                # matter.
+                .filter(DR.state != State.SUCCESS)
                 .order_by(asc(DR.execution_date))
                 .all()
             )
@@ -1759,7 +1773,7 @@ class DAG(BaseDag, LoggingMixin):
         # We need to examine unscheduled DAGRuns, too. If there are concurrency
         # limitations, it's possible that a task instance will miss its SLA
         # before its corresponding DAGRun even gets created.
-        last_dagrun = scheduled_dagruns[-1] if scheduled_dagruns else None
+        last_dagrun = scheduled_dagruns[0] if scheduled_dagruns else None
 
         def unscheduled_tis(last_dagrun):
             for dag_run in yield_uncreated_runs(self, last_dagrun, ts):
@@ -1775,12 +1789,6 @@ class DAG(BaseDag, LoggingMixin):
             # future task instances.
             if ti.task.has_slas():
                 create_sla_misses(ti, ts, session=session)
-
-        # Mark existing dagruns to be sla checked. Uncreated DRs are not marked
-        # because they need to be checked again.
-        for dr in scheduled_dagruns:
-            dr.sla_checked = True
-            session.merge(dr)
 
         # Save any SlaMisses that were created in `create_sla_misses()`
         session.commit()
