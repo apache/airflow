@@ -29,28 +29,75 @@ Fundamentals
 
 **Base:**
 
-* :mod:`airflow.hooks.base_hook`
-* :mod:`airflow.hooks.dbapi_hook`
-* :mod:`airflow.models.baseoperator`
-* :mod:`airflow.sensors.base_sensor_operator`
+.. list-table::
+   :header-rows: 1
+
+   * - Module
+     - Guides
+
+   * - :mod:`airflow.hooks.base_hook`
+     -
+
+   * - :mod:`airflow.hooks.dbapi_hook`
+     -
+
+   * - :mod:`airflow.models.baseoperator`
+     -
+
+   * - :mod:`airflow.sensors.base_sensor_operator`
+     -
 
 **Operators:**
 
-* :mod:`airflow.operators.branch_operator`
-* :mod:`airflow.operators.check_operator`
-* :mod:`airflow.operators.dagrun_operator`
-* :mod:`airflow.operators.dummy_operator`
-* :mod:`airflow.operators.generic_transfer`
-* :mod:`airflow.operators.latest_only_operator`
-* :mod:`airflow.operators.subdag_operator`
+.. list-table::
+   :header-rows: 1
+
+   * - Operators
+     - Guides
+
+   * - :mod:`airflow.operators.branch_operator`
+     -
+
+   * - :mod:`airflow.operators.check_operator`
+     -
+
+   * - :mod:`airflow.operators.dagrun_operator`
+     -
+
+   * - :mod:`airflow.operators.dummy_operator`
+     -
+
+   * - :mod:`airflow.operators.generic_transfer`
+     -
+
+   * - :mod:`airflow.operators.latest_only_operator`
+     -
+
+   * - :mod:`airflow.operators.subdag_operator`
+     -
 
 **Sensors:**
 
-* :mod:`airflow.sensors.weekday_sensor`
-* :mod:`airflow.sensors.external_task_sensor`
-* :mod:`airflow.sensors.sql_sensor`
-* :mod:`airflow.sensors.time_delta_sensor`
-* :mod:`airflow.sensors.time_sensor`
+.. list-table::
+   :header-rows: 1
+
+   * - Sensors
+     - Guides
+
+   * - :mod:`airflow.sensors.weekday_sensor`
+     -
+
+   * - :mod:`airflow.sensors.external_task_sensor`
+     - :doc:`How to use <howto/operator/external_task_sensor>`
+
+   * - :mod:`airflow.sensors.sql_sensor`
+     -
+
+   * - :mod:`airflow.sensors.time_delta_sensor`
+     -
+
+   * - :mod:`airflow.sensors.time_sensor`
+     -
 
 
 .. _Apache:
@@ -371,7 +418,7 @@ These integrations allow you to perform various operations within the Amazon Web
      -
 
    * - `Amazon EC2 <https://aws.amazon.com/ec2/>`__
-     -
+     - :doc:`How to use <howto/operator/amazon/aws/ecs>`
      -
      - :mod:`airflow.providers.amazon.aws.operators.ecs`
      -
@@ -624,7 +671,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Datacatalog <https://cloud.google.com/data-catalog>`__
-     -
+     - :doc:`How to use <howto/operator/gcp/datacatalog>`
      - :mod:`airflow.providers.google.cloud.hooks.datacatalog`
      - :mod:`airflow.providers.google.cloud.operators.datacatalog`
      -
@@ -893,12 +940,12 @@ These integrations allow you to copy data from/to Google Cloud Platform.
 
    * - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
-     -
+     - :doc:`How to use <howto/operator/gcp/sheets_to_gcs>`
      - :mod:`airflow.providers.google.cloud.operators.sheets_to_gcs`
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
-     -
+     - :doc:`How to use <howto/operator/gcp/gcs_to_sheets>`
      - :mod:`airflow.providers.google.suite.operators.gcs_to_sheets`
 
 .. _integration:GCP-Discovery:
@@ -1184,7 +1231,7 @@ These integrations allow you to perform various operations within various servic
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google Drive <https://www.google.com/drive/>`__
-     -
+     - :doc:`How to use <howto/operator/gcp/gcs_to_gdrive>`
      - :mod:`airflow.providers.google.suite.operators.gcs_to_gdrive`
 
    * - `Vertica <https://www.vertica.com/>`__
@@ -1277,9 +1324,9 @@ These integrations allow you to perform various operations using various softwar
 
 
    * - `MySQL <https://www.mysql.com/products/>`__
-     - :mod:`airflow.providers.mysql.operators.mysql`
+     -
      - :mod:`airflow.providers.mysql.hooks.mysql`
-     - :mod:`airflow.providers.mssql.operators.mysql`
+     - :mod:`airflow.providers.mysql.operators.mysql`
      -
 
    * - `OpenFaaS <https://www.openfaas.com/>`__
@@ -1314,7 +1361,7 @@ These integrations allow you to perform various operations using various softwar
 
    * - `Python <https://www.python.org>`__
      -
-     -
+     - :doc:`How to use <howto/operator/python>`
      - :mod:`airflow.operators.python`
      - :mod:`airflow.sensors.python`
 
