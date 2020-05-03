@@ -408,7 +408,7 @@ def send_task_duration_exceeded_email(context):
             task_string=ti,
             target_time=target_time,
             impacted_downstreams="\n".join(
-                downstream_ti for downstream_ti in impacted_downstreams),
+                "{}".format(dt) for dt in impacted_downstreams),
             ti_url=ti.details_url,
             art=asciiart.snail)
     )
@@ -447,7 +447,7 @@ def send_task_late_start_email(context):
             task_string=ti,
             target_time=target_time,
             impacted_downstreams="\n".join(
-                downstream_ti for downstream_ti in impacted_downstreams),
+                "{}".format(dt) for dt in impacted_downstreams),
             ti_url=ti.details_url,
             art=asciiart.snail)
     )
@@ -485,7 +485,7 @@ def send_task_late_finish_email(context):
             task_string=ti,
             target_time=target_time,
             impacted_downstreams="\n".join(
-                downstream_ti for downstream_ti in impacted_downstreams),
+                "{}".format(dt) for dt in impacted_downstreams),
             ti_url=ti.details_url,
             art=asciiart.snail)
     )

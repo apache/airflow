@@ -20,9 +20,9 @@ import datetime
 import difflib
 import unittest
 
-from airflow import models, settings
+from airflow import models, settings, sla
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.utils import asciiart, sla, timezone
+from airflow.utils import asciiart, timezone
 from airflow.utils.state import State
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -102,13 +102,13 @@ class SlaEmailTest(unittest.TestCase):
         self.assertEqual(
             email_subject,
             "[airflow] [SLA] Exceeded duration on "
-            "test_send_task_duration_exceeded_email_dag.test_task "
-            "[2016-01-01 00:00:00+00:00]",
+            "<TaskInstance: test_send_task_duration_exceeded_email_dag.test_task "
+            "2016-01-01 00:00:00+00:00 [running]>",
         )
 
         desired_body = (
-            "<pre><code>test_send_task_duration_exceeded_email_dag.test_task "
-            "[2016-01-01 00:00:00+00:00]</pre></code> missed an SLA: duration "
+            "<pre><code><TaskInstance: test_send_task_duration_exceeded_email_dag.test_task "
+            "2016-01-01 00:00:00+00:00 [running]></pre></code> missed an SLA: duration "
             "exceeded <pre><code>1:00:00</pre></code>.\n\n"
 
             # TODO: this is likely too brittle
@@ -118,15 +118,16 @@ class SlaEmailTest(unittest.TestCase):
 
             "This may be impacting the following downstream tasks:\n"
             "<pre><code>"
-            "test_send_task_duration_exceeded_email_dag.downstream_task_0 "
-            "[2016-01-01 00:00:00+00:00]\n"
-            "test_send_task_duration_exceeded_email_dag.downstream_task_1 "
-            "[2016-01-01 00:00:00+00:00]\n"
-            "test_send_task_duration_exceeded_email_dag.downstream_task_2 "
-            "[2016-01-01 00:00:00+00:00]\n"
+            "<TaskInstance: test_send_task_duration_exceeded_email_dag.downstream_task_0 "
+            "2016-01-01 00:00:00+00:00 [None]>\n"
+            "<TaskInstance: test_send_task_duration_exceeded_email_dag.downstream_task_1 "
+            "2016-01-01 00:00:00+00:00 [None]>\n"
+            "<TaskInstance: test_send_task_duration_exceeded_email_dag.downstream_task_2 "
+            "2016-01-01 00:00:00+00:00 [None]>\n"
             "{art}"
             "</pre></code>".format(art=asciiart.snail)
         )
+
         self.assert_text_match(email_body, desired_body)
 
     def test_send_task_late_start_email(self):
@@ -150,13 +151,13 @@ class SlaEmailTest(unittest.TestCase):
         self.assertEqual(
             email_subject,
             "[airflow] [SLA] Late start on "
-            "test_send_task_late_start_email_dag.test_task "
-            "[2016-01-01 00:00:00+00:00]",
+            "<TaskInstance: test_send_task_late_start_email_dag.test_task "
+            "2016-01-01 00:00:00+00:00 [running]>",
         )
 
         desired_body = (
-            "<pre><code>test_send_task_late_start_email_dag.test_task "
-            "[2016-01-01 00:00:00+00:00]</pre></code> missed an SLA: did not "
+            "<pre><code><TaskInstance: test_send_task_late_start_email_dag.test_task "
+            "2016-01-01 00:00:00+00:00 [running]></pre></code> missed an SLA: did not "
             "start by <pre><code>2016-01-01 01:00:00+00:00</pre></code>.\n\n"
 
             # TODO: this is likely too brittle
@@ -166,12 +167,12 @@ class SlaEmailTest(unittest.TestCase):
 
             "This may be impacting the following downstream tasks:\n"
             "<pre><code>"
-            "test_send_task_late_start_email_dag.downstream_task_0 "
-            "[2016-01-01 00:00:00+00:00]\n"
-            "test_send_task_late_start_email_dag.downstream_task_1 "
-            "[2016-01-01 00:00:00+00:00]\n"
-            "test_send_task_late_start_email_dag.downstream_task_2 "
-            "[2016-01-01 00:00:00+00:00]\n"
+            "<TaskInstance: test_send_task_late_start_email_dag.downstream_task_0 "
+            "2016-01-01 00:00:00+00:00 [None]>\n"
+            "<TaskInstance: test_send_task_late_start_email_dag.downstream_task_1 "
+            "2016-01-01 00:00:00+00:00 [None]>\n"
+            "<TaskInstance: test_send_task_late_start_email_dag.downstream_task_2 "
+            "2016-01-01 00:00:00+00:00 [None]>\n"
             "{art}"
             "</pre></code>".format(art=asciiart.snail)
         )
@@ -198,13 +199,13 @@ class SlaEmailTest(unittest.TestCase):
         self.assertEqual(
             email_subject,
             "[airflow] [SLA] Late finish on "
-            "test_send_task_late_finish_email_dag.test_task "
-            "[2016-01-01 00:00:00+00:00]",
+            "<TaskInstance: test_send_task_late_finish_email_dag.test_task "
+            "2016-01-01 00:00:00+00:00 [running]>",
         )
 
         desired_body = (
-            "<pre><code>test_send_task_late_finish_email_dag.test_task "
-            "[2016-01-01 00:00:00+00:00]</pre></code> missed an SLA: did not "
+            "<pre><code><TaskInstance: test_send_task_late_finish_email_dag.test_task "
+            "2016-01-01 00:00:00+00:00 [running]></pre></code> missed an SLA: did not "
             "finish by <pre><code>2016-01-01 01:00:00+00:00</pre></code>.\n\n"
 
             # TODO: this is likely too brittle
@@ -214,12 +215,12 @@ class SlaEmailTest(unittest.TestCase):
 
             "This may be impacting the following downstream tasks:\n"
             "<pre><code>"
-            "test_send_task_late_finish_email_dag.downstream_task_0 "
-            "[2016-01-01 00:00:00+00:00]\n"
-            "test_send_task_late_finish_email_dag.downstream_task_1 "
-            "[2016-01-01 00:00:00+00:00]\n"
-            "test_send_task_late_finish_email_dag.downstream_task_2 "
-            "[2016-01-01 00:00:00+00:00]\n"
+            "<TaskInstance: test_send_task_late_finish_email_dag.downstream_task_0 "
+            "2016-01-01 00:00:00+00:00 [None]>\n"
+            "<TaskInstance: test_send_task_late_finish_email_dag.downstream_task_1 "
+            "2016-01-01 00:00:00+00:00 [None]>\n"
+            "<TaskInstance: test_send_task_late_finish_email_dag.downstream_task_2 "
+            "2016-01-01 00:00:00+00:00 [None]>\n"
             "{art}"
             "</pre></code>".format(art=asciiart.snail)
         )
