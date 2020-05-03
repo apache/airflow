@@ -234,3 +234,30 @@ class TestVaultSecrets(TestCase):
 
         with six.assertRaisesRegex(self, VaultError, "token cannot be None for auth_type='token'"):
             VaultBackend(**kwargs).get_connections(conn_id='test')
+
+    def test_auth_type_kubernetes_without_role_raises_error(self):
+        kwargs = {
+            "auth_type": "kubernetes",
+            "url": "http://127.0.0.1:8200",
+        }
+
+        with six.assertRaisesRegex(self, VaultError,
+                                   "kubernetes_role cannot be None for auth_type='kubernetes'"):
+            VaultBackend(**kwargs).get_connections(conn_id='test')
+
+    def test_auth_type_kubernetes_with_unreadable_jwt_raises_error(self):
+        path = "/var/tmp/this_does_not_exist/334e918ef11987d3ef2f9553458ea09f"
+        kwargs = {
+            "auth_type": "kubernetes",
+            "kubernetes_role": "default",
+            "kubernetes_jwt_path": path,
+            "url": "http://127.0.0.1:8200",
+        }
+
+        if six.PY2:
+            error_ = IOError
+        else:
+            error_ = FileNotFoundError
+
+        with six.assertRaisesRegex(self, error_, path):
+            VaultBackend(**kwargs).get_connections(conn_id='test')
