@@ -32,6 +32,7 @@ import traceback
 from collections import defaultdict
 from datetime import timedelta
 from functools import wraps
+from operator import itemgetter
 from textwrap import dedent
 
 import sqlalchemy as sqla
@@ -3186,7 +3187,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         'extra__yandexcloud__folder_id': StringField('Default folder ID'),
     }
     form_choices = {
-        'conn_type': Connection._types
+        'conn_type': sorted(Connection._types, key=itemgetter(1))
     }
 
     def on_model_change(self, form, model, is_created):
