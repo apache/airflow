@@ -2497,14 +2497,11 @@ class TestExtraLinks(TestBase):
 
 
 class TestDagRunModelView(TestBase):
-    EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
-    run_id = f"test_{DagRunType.SCHEDULED.value}__{EXAMPLE_DAG_DEFAULT_DATE.isoformat()}"
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.dagbag = models.DagBag(include_examples=True)
-        cls.dagbag.get_dag("example_bash_operator").sync_to_db(session=cls.session)
+        models.DagBag().get_dag("example_bash_operator").sync_to_db(session=cls.session)
         cls.clear_table(models.DagRun)
 
     def tearDown(self):
@@ -2560,13 +2557,17 @@ class TestDagRunModelView(TestBase):
         self.assertFalse(dr)
 
     def test_list_dagrun_includes_conf(self):
-        bash_dag = self.dagbag.dags['example_bash_operator']
-        bash_dag.create_dagrun(
-            run_id=self.run_id,
-            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
-            start_date=timezone.utcnow(),
-            state=State.RUNNING,
-            conf={'include': 'me'})
+        data = {
+            "state": "running",
+            "dag_id": "example_bash_operator",
+            "execution_date": "2018-07-06 05:06:03",
+            "run_id": "test_list_dagrun_includes_conf",
+            "conf": '{"include": "me"}'
+        }
+        self.client.post('/dagrun/add', data=data, follow_redirects=True)
+        dr = self.session.query(models.DagRun).one()
+        self.assertEqual(dr.execution_date, timezone.convert_to_utc(datetime(2018, 7, 6, 5, 6, 3)))
+        self.assertEqual(dr.conf, {"include": "me"})
 
         resp = self.client.get('/dagrun/list', follow_redirects=True)
         self.check_content_in_response("{'include': 'me'}", resp)
