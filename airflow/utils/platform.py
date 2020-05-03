@@ -21,11 +21,16 @@ Platform and system specific function.
 import os
 import sys
 
+import six
+
 
 def is_tty():
     """
     Checks if the standard output is s connected (is associated with a terminal device) to a tty(-like) device
     """
+    if six.PY2:
+        _, w = os.pipe()
+        return os.isatty(w)
     if not hasattr(sys.stdout, "isatty"):
         return False
     return sys.stdout.isatty()

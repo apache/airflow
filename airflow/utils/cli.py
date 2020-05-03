@@ -32,6 +32,7 @@ from datetime import datetime
 
 from airflow.models import Log
 from airflow.utils import cli_action_loggers
+from airflow.utils.platform import is_terminal_support_colors
 
 
 def action_logging(f):
@@ -116,3 +117,23 @@ def _build_metrics(func_name, namespace):
         execution_date=metrics.get('execution_date'))
     metrics['log'] = log
     return metrics
+
+
+class ColorMode:
+    """
+    Coloring modes. If `auto` is then automatically detected.
+    """
+    ON = "on"
+    OFF = "off"
+    AUTO = "auto"
+
+
+def should_use_colors(args):
+    """
+    Processes arguments and decides whether to enable color in output
+    """
+    if args.color == ColorMode.ON:
+        return True
+    if args.color == ColorMode.OFF:
+        return False
+    return is_terminal_support_colors()
