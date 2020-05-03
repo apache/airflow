@@ -24,7 +24,6 @@
 ./airflow/models/taskinstance.py
 ./airflow/models/variable.py
 ./airflow/models/xcom.py
-./airflow/models/xcom_arg.py
 ./airflow/settings.py
 ./airflow/stats.py
 ./airflow/www/api/experimental/endpoints.py

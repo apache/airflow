@@ -18,7 +18,7 @@
 from typing import Any, Dict, List, Union
 
 from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator
+from airflow.models.baseoperator import BaseOperator  # pylint: disable=R0401
 from airflow.models.xcom import XCOM_RETURN_KEY
 
 
@@ -35,7 +35,8 @@ class XComArg:
 
     **Example**: The moment you get a result from any operator (functional or regular) you can ::
 
-        xcomarg = ...
+        any_op = AnyOperator()
+        xcomarg = XComArg(any_op)
         my_op = MyOperator()
         my_op >> xcomarg
 
@@ -43,7 +44,8 @@ class XComArg:
 
     **Example**: You can make this result to be part of any generated string ::
 
-        xcomarg = ...
+        any_op = AnyOperator()
+        xcomarg = XComArg(any_op)
         op1 = MyOperator(my_text_message=f"the value is {xcomarg}")
         op2 = MyOperator(my_text_message=f"the value is {xcomarg['topic']}")
 
