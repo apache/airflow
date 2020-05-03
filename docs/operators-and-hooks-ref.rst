@@ -119,8 +119,8 @@ Foundation.
    * - Service name
      - Guides
      - Hook
-     - Operators
-     - Sensors
+     - Operator
+     - Sensor
 
    * - `Apache Cassandra <http://cassandra.apache.org/>`__
      -
@@ -205,7 +205,7 @@ Foundation.
    * - Source
      - Destination
      - Guide
-     - Operators
+     - Operator
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `Apache Hive <https://hive.apache.org/>`__
@@ -275,8 +275,8 @@ These integrations allow you to perform various operations within the Microsoft 
 
    * - Service name
      - Hook
-     - Operators
-     - Sensors
+     - Operator
+     - Sensor
 
    * - `Azure Batch <https://azure.microsoft.com/en-us/services/batch/>`__
      - :mod:`airflow.providers.microsoft.azure.hooks.azure_batch`
@@ -327,7 +327,7 @@ These integrations allow you to copy data from/to Microsoft Azure.
    * - Source
      - Destination
      - Guide
-     - Operators
+     - Operator
 
    * - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
@@ -365,8 +365,8 @@ These integrations allow you to perform various operations within the Amazon Web
    * - Service name
      - Guide
      - Hook
-     - Operators
-     - Sensors
+     - Operator
+     - Sensor
 
    * - `AWS Batch <https://aws.amazon.com/batch/>`__
      -
@@ -495,7 +495,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
    * - Source
      - Destination
      - Guide
-     - Operators
+     - Operator
 
    * -
        .. _integration:AWS-Discovery-ref:
@@ -618,8 +618,8 @@ These integrations allow you to perform various operations within the Google Clo
    * - Service name
      - Guide
      - Hook
-     - Operators
-     - Sensors
+     - Operator
+     - Sensor
 
 
    * - `AutoML <https://cloud.google.com/automl/>`__
@@ -825,7 +825,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
    * - Source
      - Destination
      - Guide
-     - Operators
+     - Operator
 
    * -
        .. _integration:GCP-Discovery-ref:
@@ -964,8 +964,8 @@ Other operators and hooks
    :header-rows: 1
 
    * - Guide
-     - Operators
-     - Hooks
+     - Operator
+     - Hook
 
    * - :doc:`How to use <howto/operator/gcp/translate-speech>`
      - :mod:`airflow.providers.google.cloud.operators.translate_speech`
@@ -986,8 +986,8 @@ Google Marketing Platform
    * - Source
      - Destination
      - Guide
-     - Operators
-     - Sensors
+     - Operator
+     - Sensor
 
    * - `Analytics360 <https://analytics.google.com/>`__
      - :doc:`How to use <howto/operator/gcp/analytics>`
@@ -1022,7 +1022,7 @@ Other Google operators and hooks
    * - Service name
      - Guide
      - Hook
-     - Operators
+     - Operator
 
    * - `Google Ads <https://ads.google.com/home/>`__
      - :doc:`How to use <howto/operator/gcp/ads>`
@@ -1074,8 +1074,8 @@ These integrations allow you to perform various operations within the Yandex.Clo
    * - Service name
      - Guide
      - Hook
-     - Operators
-     - Sensors
+     - Operator
+     - Sensor
 
    * - `Base Classes <https://cloud.yandex.com>`__
      - :doc:`How to use <howto/operator/yandexcloud>`
@@ -1106,8 +1106,8 @@ These integrations allow you to perform various operations within various servic
    * - Service name
      - Guide
      - Hook
-     - Operators
-     - Sensors
+     - Operator
+     - Sensor
 
    * - `Atlassian Jira <https://www.atlassian.com/pl/software/jira>`__
      -
@@ -1227,7 +1227,7 @@ These integrations allow you to perform various operations within various servic
    * - Source
      - Destination
      - Guide
-     - Operators
+     - Operator
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google Drive <https://www.google.com/drive/>`__
@@ -1260,8 +1260,8 @@ These integrations allow you to perform various operations using various softwar
    * - Service name
      - Guide
      - Hook
-     - Operators
-     - Sensors
+     - Operator
+     - Sensor
 
    * - `Celery <http://www.celeryproject.org/>`__
      -
@@ -1402,7 +1402,7 @@ These integrations allow you to copy data.
    * - Source
      - Destination
      - Guide
-     - Operators
+     - Operator
 
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Samba <https://www.samba.org/>`__
@@ -1490,9 +1490,9 @@ communication protocols or interface.
 
    * - Service name
      - Guide
-     - Hook
-     - Operators
-     - Sensors
+     - Hooks
+     - Operator
+     - Sensor
 
    * - `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
      -
@@ -1565,7 +1565,7 @@ These integrations allow you to copy data.
    * - Source
      - Destination
      - Guide
-     - Operators
+     - Operator
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__

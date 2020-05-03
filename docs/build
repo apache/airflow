@@ -164,7 +164,7 @@ def check_class_links_in_operators_and_hooks_ref() -> None:
                 line_no=0,
                 message=(
                     f"New module detected."
-                    f"Please add them to the list of operators and hook - `operators-and-hooks-ref.rst` "
+                    f"Please add them to the list of operators and hooks - `operators-and-hooks-ref.rst` "
                     f"file.\n"
                     f"\n"
                     f"New modules:\n"
@@ -206,7 +206,7 @@ def check_guide_links_in_operators_and_hooks_ref() -> None:
                 line_no=0,
                 message=(
                     f"New guide detected. "
-                    f"Please add them to the list of operators and hook - `operators-and-hooks-ref.rst` "
+                    f"Please add them to the list of operators and hooks - `operators-and-hooks-ref.rst` "
                     f"file.\n"
                     f"You can copy the relevant parts of the link from the section below:\n"
                     f"\n"
