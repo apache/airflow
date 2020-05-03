@@ -1141,7 +1141,7 @@
         https://docs.celeryproject.org/en/stable/userguide/optimizing.html#prefetch-limits
       version_added: ~
       type: int
-      example: 1
+      example: ~
       default: ~
     - name: worker_log_server_port
       description: |
