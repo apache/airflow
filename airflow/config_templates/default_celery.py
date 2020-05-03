@@ -39,7 +39,7 @@ if 'visibility_timeout' not in broker_transport_options:
 DEFAULT_CELERY_CONFIG = {
     'accept_content': ['json'],
     'event_serializer': 'json',
-    'worker_prefetch_multiplier': 1,
+    'worker_prefetch_multiplier': conf.getint('celery', 'worker_prefetch_multiplier', fallback=1),
     'task_acks_late': True,
     'task_default_queue': conf.get('celery', 'DEFAULT_QUEUE'),
     'task_default_exchange': conf.get('celery', 'DEFAULT_QUEUE'),
