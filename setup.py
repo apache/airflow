@@ -427,6 +427,7 @@ all_dbs = (cassandra + cloudant + druid + exasol + hdfs + hive + mongo + mssql +
 ############################################################################################################
 devel = [
     'beautifulsoup4~=4.7.1',
+    'blinker',
     'bowler',
     'click==6.7',
     'contextdecorator;python_version<"3.4"',

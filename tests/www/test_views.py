@@ -28,13 +28,15 @@ import sys
 import tempfile
 import unittest
 import urllib
+from contextlib import contextmanager
 from datetime import datetime as dt, timedelta
+from typing import Any, Dict, Generator, List, NamedTuple
 from unittest import mock
 from urllib.parse import quote_plus
 
 import jinja2
 import pytest
-from flask import Markup, session as flask_session, url_for
+from flask import Markup, session as flask_session, template_rendered, url_for
 from parameterized import parameterized
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse
@@ -59,9 +61,53 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from airflow.www import app as application
-from tests.test_utils.asserts import catch_jinja_params
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
+
+
+class TemplateWithContext(NamedTuple):
+    template: jinja2.environment.Template
+    context: Dict[str, Any]
+
+    @property
+    def name(self):
+        return self.template.name
+
+    @property
+    def local_context(self):
+        """Returns context without global arguments"""
+        result = copy.copy(self.context)
+        keys_to_delete = [
+            # flask.templating._default_template_ctx_processor
+            'g',
+            'request',
+            'session',
+            # flask_wtf.csrf.CSRFProtect.init_app
+            'csrf_token',
+            # flask_login.utils._user_context_processor
+            'current_user',
+            # flask_appbuilder.baseviews.BaseView.render_template
+            'appbuilder',
+            'base_template',
+            # airflow.www.app.py.create_app (inner method - jinja_globals)
+            'server_timezone',
+            'default_ui_timezone',
+            'hostname',
+            'navbar_color',
+            'log_fetch_delay_sec',
+            'log_auto_tailing_offset',
+            'log_animation_speed',
+            # airflow.www.static_config.configure_manifest_files
+            'url_for_asset',
+            # airflow.www.views.AirflowBaseView.render_template
+            'scheduler_job',
+            # airflow.www.views.AirflowBaseView.extra_args
+            'macros',
+        ]
+        for key in keys_to_delete:
+            del result[key]
+
+        return result
 
 
 class TestBase(unittest.TestCase):
@@ -99,6 +145,20 @@ class TestBase(unittest.TestCase):
 
     def logout(self):
         return self.client.get('/logout/')
+
+    @contextmanager
+    def capture_templates(self) -> Generator[List[TemplateWithContext], None, None]:
+        recorded = []
+
+        def record(sender, template, context, **extra):  # pylint: disable=unused-argument
+            recorded.append(TemplateWithContext(template, context))
+        template_rendered.connect(record, self.app)  # type: ignore
+        try:
+            yield recorded
+        finally:
+            template_rendered.disconnect(record, self.app)  # type: ignore
+
+        assert recorded, "Failed to catch the templates"
 
     @classmethod
     def clear_table(cls, model):
@@ -1150,18 +1210,18 @@ class TestLogView(TestBase):
 
 class TestVersionView(TestBase):
     def test_version(self):
-        with catch_jinja_params() as jinja_params:
+        with self.capture_templates() as templates:
             resp = self.client.get('version', data=dict(
                 username='test',
                 password='test'
             ), follow_redirects=True)
             self.check_content_in_response('Version Info', resp)
 
-        self.assertEqual(jinja_params.template_name, 'airflow/version.html')
-        self.assertEqual(jinja_params.template_params, dict(
+        self.assertEqual(len(templates), 1)
+        self.assertEqual(templates[0].name, 'airflow/version.html')
+        self.assertEqual(templates[0].local_context, dict(
             airflow_version=version.version,
             git_version=mock.ANY,
-            scheduler_job=mock.ANY,
             title='Version Info'
         ))
 
