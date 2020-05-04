@@ -18,7 +18,7 @@
 #
 
 import logging
-import multiprocessing as mp
+import multiprocessing
 import os
 import signal
 import sys
@@ -184,17 +184,17 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
         if conf.has_option('core', 'mp_start_method'):
             mp_start_method = conf.get('core', 'mp_start_method')
         else:
-            mp_start_method = mp.get_start_method()
+            mp_start_method = multiprocessing.get_start_method()
 
-        possible_value_list = mp.get_all_start_methods()
+        possible_value_list = multiprocessing.get_all_start_methods()
         if mp_start_method not in possible_value_list:
             raise AirflowConfigException(
                 "mp_start_method should not be " + mp_start_method +
                 ". Possible value is one of " + str(possible_value_list))
-        cxt = mp.get_context(mp_start_method)
+        context = multiprocessing.get_context(mp_start_method)
 
-        self._parent_channel, _child_channel = cxt.Pipe()
-        self._process = cxt.Process(
+        self._parent_channel, _child_channel = context.Pipe()
+        self._process = context.Process(
             target=type(self)._run_file_processor,
             args=(
                 _child_channel,
@@ -963,10 +963,6 @@ class DagFileProcessor(LoggingMixin):
         return simple_dags
 
 
-# To be picklable for both Linux and macOS,
-# this function is needed to be defined at module scope.
-# SchedulerJob is not pickleable for Linux for now so
-# this function can't be a member of the class.
 def processor_factory(file_path, failure_callback_requests, dag_ids, pickle_dags):
     return DagFileProcessorProcess(
         file_path=file_path,

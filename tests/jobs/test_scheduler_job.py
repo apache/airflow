@@ -2502,6 +2502,7 @@ class TestSchedulerJob(unittest.TestCase):
                                      executor=self.null_exec,
                                      subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
                                      num_runs=1)
+
             scheduler.run()
 
             # zero tasks ran
