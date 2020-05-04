@@ -33,7 +33,6 @@ import string
 from importlib import import_module
 
 import getpass
-from urlparse import urlsplit, urlunsplit
 
 import reprlib
 import argparse
@@ -43,8 +42,6 @@ import tenacity
 from builtins import input
 from tempfile import NamedTemporaryFile
 
-from airflow.utils.dot_renderer import render_dag
-from airflow.utils.timezone import parse as parsedate
 import json
 from tabulate import tabulate
 
@@ -58,8 +55,9 @@ import sys
 import threading
 import time
 import traceback
-from urllib.parse import urlunparse
-from typing import Any, Protocol
+
+from typing import Any
+from typing_extensions import Protocol
 
 import airflow
 from airflow import api
@@ -72,7 +70,9 @@ from airflow.models import (
 )
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_QUEUED_DEPS)
 from airflow.utils import cli as cli_utils, db
+from airflow.utils.dot_renderer import render_dag
 from airflow.utils.net import get_hostname
+from airflow.utils.timezone import parse as parsedate
 from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
                                              redirect_stdout)
 from airflow.www.app import (cached_app, create_app)
@@ -86,6 +86,7 @@ from pygments.formatters.terminal import TerminalFormatter
 from pygments.lexers.configs import IniLexer
 from sqlalchemy.orm import exc
 import six
+from six.moves.urllib_parse import urlunparse, urlsplit, urlunsplit
 
 api.load_auth()
 api_module = import_module(conf.get('cli', 'api_client'))  # type: Any
