@@ -261,8 +261,14 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | sqlite databases are stored)             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_UID``                          | ``50000``                                | Airflow user UID                         |
+|                                          |                                          | Note: if you run OpenShift, see the      |
+|                                          |                                          | documentation under "Support Arbitrary   |
+|                                          |                                          | User IDs"                                |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_GID``                          | ``50000``                                | Airflow group GID                        |
+| ``AIRFLOW_GID``                          | ``0``                                    | Airflow group GID                        |
+|                                          |                                          | Note: if you run OpenShift, see the      |
+|                                          |                                          | documentation under "Support Arbitrary   |
+|                                          |                                          | User IDs"                                |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``PIP_VERSION``                          | ``19.0.2``                               | version of PIP to use                    |
 +------------------------------------------+------------------------------------------+------------------------------------------+

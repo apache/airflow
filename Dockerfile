@@ -38,7 +38,7 @@ ARG AIRFLOW_EXTRAS="async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mys
 
 ARG AIRFLOW_HOME=/opt/airflow
 ARG AIRFLOW_UID="50000"
-ARG AIRFLOW_GID="50000"
+ARG AIRFLOW_GID="0"
 
 ARG PIP_VERSION="19.0.2"
 ARG CASS_DRIVER_BUILD_CONCURRENCY="8"
@@ -301,12 +301,25 @@ ARG PIP_VERSION
 ENV PIP_VERSION=${PIP_VERSION}
 RUN pip install --upgrade pip==${PIP_VERSION}
 
+# As per OpenShift's documented best practices for Docker, the GID should be set to 0 (root) and one
+# should not assume the UID provided here will be respected by the containers orchestrator.
+# See the documentation mentionning "Support Arbitrary User IDs":
+#
+#    By default, OpenShift Enterprise runs containers using an arbitrarily assigned user ID.
+#    This provides additional security against processes escaping the container due to a container
+#    engine vulnerability and thereby achieving escalated permissions on the host node.
+#
+#    For an image to support running as an arbitrary user, directories and files that may be written
+#    to by processes in the image should be owned by the root group and be read/writable by that group.
+#    Files to be executed should also have group execute permissions.
+#
+# Let's default to that best practice, as it does not diminish the security.
 ENV AIRFLOW_UID=${AIRFLOW_UID}
 ENV AIRFLOW_GID=${AIRFLOW_GID}
 
-RUN addgroup --gid "${AIRFLOW_GID}" "airflow" && \
+RUN if [ "$AIRFLOW_GID" -ne 0 ]; then addgroup --gid "${AIRFLOW_GID}" "airflow"; fi && \
     adduser --quiet "airflow" --uid "${AIRFLOW_UID}" \
-        --ingroup "airflow" \
+        --ingroup "${AIRFLOW_GID}" \
         --home /home/airflow
 
 ARG AIRFLOW_HOME
@@ -315,10 +328,18 @@ ENV AIRFLOW_HOME=${AIRFLOW_HOME}
 RUN mkdir -pv "${AIRFLOW_HOME}"; \
     mkdir -pv "${AIRFLOW_HOME}/dags"; \
     mkdir -pv "${AIRFLOW_HOME}/logs"; \
-    chown -R "airflow" "${AIRFLOW_HOME}"
+    chown -R "${AIRFLOW_UID}:${AIRFLOW_GID}" "${AIRFLOW_HOME}"; \
+    chmod -R g=u "${AIRFLOW_HOME}"
 
-COPY --chown=airflow:airflow --from=airflow-build-image /root/.local "/home/airflow/.local"
-COPY --chown=airflow:airflow --from=airflow-build-image /entrypoint /entrypoint
+COPY --chown=airflow:root --from=airflow-build-image /root/.local "/home/airflow/.local"
+COPY --chown=airflow:root --from=airflow-build-image /entrypoint /entrypoint
+
+# See https://github.com/moby/moby/issues/35018
+# We must assume the above COPY commands cannot be dynamically populated with the right GID,
+# while the group name sadly depends on whether we use GID=0 (root) or something else.
+# That's why we must apply this chown command to be sure...
+RUN chown -R "${AIRFLOW_UID}:${AIRFLOW_GID}" "/home/airflow/.local" /entrypoint ; \
+    chmod -R g=u "/home/airflow/.local" /entrypoint
 
 USER airflow
 
