@@ -354,7 +354,7 @@ postgres = [
     'psycopg2-binary>=2.7.4',
 ]
 presto = [
-    'presto-python-client>=0.7.0,<0.8'
+    'presto-python-client>=0.7.0,<0.8',
 ]
 qds = [
     'qds-sdk>=1.10.4',
@@ -381,7 +381,9 @@ sentry = [
     'blinker>=1.1',
     'sentry-sdk>=0.8.0',
 ]
-singularity = ['spython>=0.0.56']
+singularity = [
+    'spython>=0.0.56',
+]
 slack = [
     'slackclient>=2.0.0,<3.0.0',
 ]

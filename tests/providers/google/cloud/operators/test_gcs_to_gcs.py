@@ -471,7 +471,8 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
             mock.call(TEST_BUCKET, 'test_object/file2.txt',
                       TEST_BUCKET, 'test_object/file2.txt'),
             mock.call(TEST_BUCKET, 'test_object/file3.json',
-                      TEST_BUCKET, 'test_object/file3.json'), ]
+                      TEST_BUCKET, 'test_object/file3.json'),
+        ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls)
 
     @mock.patch('airflow.providers.google.cloud.operators.gcs_to_gcs.GCSHook')
@@ -497,7 +498,8 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
             mock.call(
                 TEST_BUCKET, 'test_object/file3.json',
                 DESTINATION_BUCKET, 'test_object/file3.json'
-            ), ]
+            ),
+        ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls_none)
 
 

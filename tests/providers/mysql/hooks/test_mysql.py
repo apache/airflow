@@ -353,7 +353,7 @@ class TestMySql(unittest.TestCase):
             for table in drop_tables:
                 conn.execute("DROP TABLE IF EXISTS {}".format(table))
 
-    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",), ])
+    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",)])
     def test_mysql_hook_test_bulk_load(self, client):
         with MySqlContext(client):
             records = ("foo", "bar", "baz")
@@ -376,7 +376,7 @@ class TestMySql(unittest.TestCase):
                     results = tuple(result[0] for result in conn.fetchall())
                     self.assertEqual(sorted(results), sorted(records))
 
-    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",), ])
+    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",)])
     def test_mysql_hook_test_bulk_dump(self, client):
         with MySqlContext(client):
             hook = MySqlHook('airflow_db')
@@ -388,7 +388,7 @@ class TestMySql(unittest.TestCase):
                 self.skipTest("Skip test_mysql_hook_test_bulk_load "
                               "since file output is not permitted")
 
-    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",), ])
+    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",)])
     @mock.patch('airflow.providers.mysql.hooks.mysql.MySqlHook.get_conn')
     def test_mysql_hook_test_bulk_dump_mock(self, client, mock_get_conn):
         with MySqlContext(client):

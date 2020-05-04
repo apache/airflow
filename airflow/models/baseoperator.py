@@ -442,10 +442,10 @@ class BaseOperator(Operator, LoggingMixin):
         self._outlets: List = []
 
         if inlets:
-            self._inlets = inlets if isinstance(inlets, list) else [inlets, ]
+            self._inlets = inlets if isinstance(inlets, list) else [inlets]
 
         if outlets:
-            self._outlets = outlets if isinstance(outlets, list) else [outlets, ]
+            self._outlets = outlets if isinstance(outlets, list) else [outlets]
 
     def __eq__(self, other):
         if type(self) is type(other) and self.task_id == other.task_id:

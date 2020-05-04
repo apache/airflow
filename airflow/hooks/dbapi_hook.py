@@ -243,7 +243,7 @@ class DbApiHook(BaseHook):
         :return: The generated INSERT or REPLACE SQL statement
         :rtype: str
         """
-        placeholders = ["%s", ] * len(values)
+        placeholders = ["%s"] * len(values)
 
         if target_fields:
             target_fields = ", ".join(target_fields)

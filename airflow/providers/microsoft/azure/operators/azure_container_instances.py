@@ -108,7 +108,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                     "my_storage_container",
                     "my_fileshare",
                     "/input-data",
-                    True),],
+                    True)],
                     memory_in_gb=14.0,
                     cpu=4.0,
                     gpu=GpuResource(count=1, sku='K80'),
@@ -174,7 +174,7 @@ class AzureContainerInstancesOperator(BaseOperator):
 
         if self.registry_conn_id:
             registry_hook = AzureContainerRegistryHook(self.registry_conn_id)
-            image_registry_credentials = [registry_hook.connection, ]
+            image_registry_credentials = [registry_hook.connection]
         else:
             image_registry_credentials = None
 
@@ -223,7 +223,7 @@ class AzureContainerInstancesOperator(BaseOperator):
 
             container_group = ContainerGroup(
                 location=self.region,
-                containers=[container, ],
+                containers=[container],
                 image_registry_credentials=image_registry_credentials,
                 volumes=volumes,
                 restart_policy='Never',

@@ -43,7 +43,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         table = "table"
         s3_bucket = "bucket"
         s3_key = "key"
-        unload_options = ['HEADER', ]
+        unload_options = ['HEADER']
 
         RedshiftToS3Transfer(
             schema=schema,

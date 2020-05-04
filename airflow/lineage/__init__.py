@@ -129,7 +129,7 @@ def prepare_lineage(func):
         self.log.debug("Preparing lineage inlets and outlets")
 
         if isinstance(self._inlets, (str, Operator)) or attr.has(self._inlets):
-            self._inlets = [self._inlets, ]
+            self._inlets = [self._inlets]
 
         if self._inlets and isinstance(self._inlets, list):
             # get task_ids that are specified as parameter and make sure they are upstream
@@ -158,7 +158,7 @@ def prepare_lineage(func):
             raise AttributeError("inlets is not a list, operator, string or attr annotated object")
 
         if not isinstance(self._outlets, list):
-            self._outlets = [self._outlets, ]
+            self._outlets = [self._outlets]
 
         self.outlets.extend(self._outlets)
 

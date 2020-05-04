@@ -98,7 +98,7 @@ class RedshiftToS3Transfer(BaseOperator):
         self.table_as_file_name = table_as_file_name
 
         if self.include_header and 'HEADER' not in [uo.upper().strip() for uo in self.unload_options]:
-            self.unload_options = list(self.unload_options) + ['HEADER', ]
+            self.unload_options = list(self.unload_options) + ['HEADER']
 
     def execute(self, context):
         postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)

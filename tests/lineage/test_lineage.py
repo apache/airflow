@@ -44,7 +44,7 @@ class TestLineage(unittest.TestCase):
         with dag:
             op1 = DummyOperator(task_id='leave1',
                                 inlets=file1,
-                                outlets=[file2, ])
+                                outlets=[file2])
             op2 = DummyOperator(task_id='leave2')
             op3 = DummyOperator(task_id='upstream_level_1',
                                 inlets=AUTO,

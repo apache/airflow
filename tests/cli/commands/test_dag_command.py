@@ -331,7 +331,7 @@ class TestCliDags(unittest.TestCase):
 
     def test_cli_list_dag_runs(self):
         dag_command.dag_trigger(self.parser.parse_args([
-            'dags', 'trigger', 'example_bash_operator', ]))
+            'dags', 'trigger', 'example_bash_operator']))
         args = self.parser.parse_args(['dags',
                                        'list_runs',
                                        '--dag-id',

@@ -462,7 +462,7 @@ texinfo_documents = [(
     'Apache Airflow', 'Airflow',
     'Airflow is a system to programmatically author, schedule and monitor data pipelines.',
     'Miscellaneous'
-), ]
+)]
 
 # Documents to append as an appendix to all manuals.
 # texinfo_appendices = []

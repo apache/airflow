@@ -50,7 +50,7 @@ class TestMySql(unittest.TestCase):
             for table in drop_tables:
                 conn.execute("DROP TABLE IF EXISTS {}".format(table))
 
-    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",), ])
+    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",)])
     def test_mysql_to_mysql(self, client):
         with MySqlContext(client):
             sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"

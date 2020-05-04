@@ -34,9 +34,9 @@ class TestLoggingMixin(unittest.TestCase):
         handler2 = mock.MagicMock()
         parent = mock.MagicMock()
         parent.propagate = False
-        parent.handlers = [handler1, ]
+        parent.handlers = [handler1]
         log = mock.MagicMock()
-        log.handlers = [handler2, ]
+        log.handlers = [handler2]
         log.parent = parent
         log.propagate = True
 

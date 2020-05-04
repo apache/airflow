@@ -48,7 +48,7 @@ class TestMySql(unittest.TestCase):
             for table in drop_tables:
                 conn.execute("DROP TABLE IF EXISTS {}".format(table))
 
-    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",), ])
+    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",)])
     def test_mysql_operator_test(self, client):
         with MySqlContext(client):
             sql = """
@@ -62,7 +62,7 @@ class TestMySql(unittest.TestCase):
                 dag=self.dag)
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",), ])
+    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",)])
     def test_mysql_operator_test_multi(self, client):
         with MySqlContext(client):
             sql = [
@@ -77,7 +77,7 @@ class TestMySql(unittest.TestCase):
             )
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",), ])
+    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",)])
     def test_overwrite_schema(self, client):
         """
         Verifies option to overwrite connection schema
