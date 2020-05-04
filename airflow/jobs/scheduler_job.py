@@ -1275,7 +1275,7 @@ class SchedulerJob(BaseJob):
                                       " this task has been reached.", task_instance)
                         continue
 
-                if self.executor.has_task(task_instance):
+                if self.executor.is_task_running(task_instance):
                     self.log.debug(
                         "Not handling task %s as the executor reports it is running",
                         task_instance.key

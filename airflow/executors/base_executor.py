@@ -120,6 +120,15 @@ class BaseExecutor(LoggingMixin):
         """
         return task_instance.key in self.queued_tasks or task_instance.key in self.running
 
+    def is_task_running(self, task_instance: TaskInstance) -> bool:
+        """
+        Checks if the given task is in 'running' status.
+
+        :param task_instance: TaskInstance
+        :return: True if the task is in running state in the executor
+        """
+        return task_instance.key in self.running
+
     def sync(self) -> None:
         """
         Sync will get called periodically by the heartbeat method.
