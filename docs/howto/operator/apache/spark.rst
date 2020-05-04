@@ -64,6 +64,8 @@ SparkSqlOperator
 Launches applications on a Apache Spark server, it requires that the ``spark-sql`` script is in the PATH.
 The operator will run the SQL query on Spark Hive metastore service, the ``sql`` parameter can be templated and be a ``.sql`` or ``.hql`` file.
 
+For parameter definition take a look at :class:`~airflow.providers.apache.spark.operators.spark_sql.SparkSqlOperator`.
+
 Using the operator
 """"""""""""""""""
 
