@@ -43,13 +43,14 @@ from tabulate import tabulate
 
 import daemon
 from daemon.pidfile import TimeoutPIDLockFile
+import io
+import psutil
+import re
 import signal
 import sys
 import threading
-import traceback
 import time
-import psutil
-import re
+import traceback
 from urllib.parse import urlunparse
 from typing import Any
 
@@ -72,6 +73,9 @@ from airflow.www_rbac.app import cached_app as cached_app_rbac
 from airflow.www_rbac.app import create_app as create_app_rbac
 from airflow.www_rbac.app import cached_appbuilder
 
+import pygments
+from pygments.formatters.terminal import TerminalFormatter
+from pygments.lexers.configs import IniLexer
 from sqlalchemy.orm import exc
 import six
 
@@ -1560,6 +1564,18 @@ def sync_perm(args): # noqa
         print('The sync_perm command only works for rbac UI.')
 
 
+def config(args):
+    """Show current application configuration"""
+    with io.StringIO() as output:
+        conf.write(output)
+        code = output.getvalue()
+        if cli_utils.should_use_colors(args):
+            code = pygments.highlight(
+                code=code, formatter=TerminalFormatter(), lexer=IniLexer()
+            )
+        print(code)
+
+
 class Arg(object):
     def __init__(self, flags=None, help=None, action=None, default=None, nargs=None,
                  type=None, choices=None, metavar=None):
@@ -2047,6 +2063,11 @@ class CLIFactory(object):
             default=False,
             help="Don't start the serve logs process along with the workers.",
             action="store_true"),
+        'color': Arg(
+            ('--color',),
+            help="Do emit colored output (default: auto)",
+            choices={cli_utils.ColorMode.ON, cli_utils.ColorMode.OFF, cli_utils.ColorMode.AUTO},
+            default=cli_utils.ColorMode.AUTO)
     }
     subparsers = (
         {
@@ -2245,6 +2266,11 @@ class CLIFactory(object):
                     'https://airflow.readthedocs.io/en/stable/howto/secure-connections.html'
                     '#rotating-encryption-keys.',
             'args': (),
+        },
+        {
+            'help': 'Show current application configuration',
+            'func': config,
+            'args': ('color', ),
         },
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}

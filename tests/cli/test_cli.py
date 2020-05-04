@@ -41,6 +41,8 @@ from airflow.utils.state import State
 from airflow.settings import Session
 from airflow import models
 from tests.compat import mock
+from tests.test_utils.config import conf_vars
+
 if PY2:
     # Need `assertWarns` back-ported from unittest2
     import unittest2 as unittest
@@ -595,3 +597,26 @@ class TestWorkerStart(unittest.TestCase):
             hostname=celery_hostname,
             loglevel=mock.ANY,
         )
+
+
+class TestCliConfig(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = cli.CLIFactory.get_parser()
+
+    @mock.patch("airflow.bin.cli.cli_utils.should_use_colors", return_value=False)
+    @mock.patch("airflow.bin.cli.io.StringIO")
+    @mock.patch("airflow.bin.cli.conf")
+    def test_cli_show_config_should_write_data(self, mock_conf, mock_stringio, mock_should_use_colors):
+        cli.config(self.parser.parse_args(['config']))
+        mock_conf.write.assert_called_once_with(mock_stringio.return_value.__enter__.return_value)
+
+    @conf_vars({
+        ('core', 'testkey'): 'test_value'
+    })
+    def test_cli_show_config_should_display_key(self):
+        temp_stdout = StringIO()
+        with mock.patch("sys.stdout", temp_stdout):
+            cli.config(self.parser.parse_args(['config', '--color=off']))
+        self.assertIn('[core]', temp_stdout.getvalue())
+        self.assertIn('testkey = test_value', temp_stdout.getvalue())

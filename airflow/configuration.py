@@ -393,7 +393,10 @@ class AirflowConfigParser(ConfigParser):
         section_prefix = 'AIRFLOW__{S}__'.format(S=section.upper())
         for env_var in sorted(os.environ.keys()):
             if env_var.startswith(section_prefix):
-                key = env_var.replace(section_prefix, '').lower()
+                key = env_var.replace(section_prefix, '')
+                if key.endswith("_CMD"):
+                    key = key[:-4]
+                key = key.lower()
                 _section[key] = self._get_env_var_option(section, key)
 
         for key, val in iteritems(_section):
@@ -409,6 +412,18 @@ class AirflowConfigParser(ConfigParser):
                         val = False
             _section[key] = val
         return _section
+
+    def write(self, fp, space_around_delimiters=True):
+        # This is based on the configparser.RawConfigParser.write method code to add support for
+        # reading options from environment variables.
+        if space_around_delimiters:
+            d = " {} ".format(self._delimiters[0])  # type: ignore
+        else:
+            d = self._delimiters[0]  # type: ignore
+        if self._defaults:
+            self._write_section(fp, self.default_section, self._defaults.items(), d)  # type: ignore
+        for section in self._sections:
+            self._write_section(fp, section, self.getsection(section).items(), d)  # type: ignore
 
     def as_dict(
             self, display_source=False, display_sensitive=False, raw=False,

@@ -21,7 +21,9 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import contextlib
+import io
 import os
+import tempfile
 import warnings
 from collections import OrderedDict
 
@@ -343,6 +345,21 @@ key3 = value3
             test_conf.getsection('testsection')
         )
 
+    def test_get_section_should_respect_cmd_env_variable(self):
+        with tempfile.NamedTemporaryFile(delete=False) as cmd_file:
+            cmd_file.write("#!/usr/bin/env bash\n".encode())
+            cmd_file.write("echo -n difficult_unpredictable_cat_password\n".encode())
+            cmd_file.flush()
+            os.chmod(cmd_file.name, 0o0555)
+            cmd_file.close()
+
+            with mock.patch.dict(
+                "os.environ", {"AIRFLOW__KUBERNETES__GIT_PASSWORD_CMD": cmd_file.name}
+            ):
+                content = conf.getsection("kubernetes")
+            os.unlink(cmd_file.name)
+        self.assertEqual(content["git_password"], "difficult_unpredictable_cat_password")
+
     def test_kubernetes_environment_variables_section(self):
         TEST_CONFIG = '''
 [kubernetes_environment_variables]
@@ -470,3 +487,10 @@ notacommand = OK
             # the option should return 'OK' from the configuration, and must not return 'NOT OK' from
             # the environement variable's echo command
             self.assertEqual(test_cmdenv_conf.get('testcmdenv', 'notacommand'), 'OK')
+
+    @mock.patch.dict("os.environ", {"AIRFLOW__CORE__DAGS_FOLDER": "/tmp/test_folder"})
+    def test_write_should_respect_env_variable(self):
+        with io.StringIO() as string_file:
+            conf.write(string_file)
+            content = string_file.getvalue()
+        self.assertIn("dags_folder = /tmp/test_folder", content)
