@@ -21,6 +21,8 @@ import io
 
 import logging
 import os
+
+from parameterized import parameterized
 from six import StringIO, PY2
 import sys
 
@@ -40,6 +42,7 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.settings import Session
 from airflow import models
+from airflow.version import version as airflow_version
 from tests.compat import mock
 from tests.test_utils.config import conf_vars
 
@@ -620,3 +623,134 @@ class TestCliConfig(unittest.TestCase):
             cli.config(self.parser.parse_args(['config', '--color=off']))
         self.assertIn('[core]', temp_stdout.getvalue())
         self.assertIn('testkey = test_value', temp_stdout.getvalue())
+
+
+class TestPiiAnonymizer(unittest.TestCase):
+    def setUp(self):
+        self.instance = cli.PiiAnonymizer()
+
+    def test_should_remove_pii_from_path(self):
+        home_path = os.path.expanduser("~/airflow/config")
+        self.assertEqual("${HOME}/airflow/config", self.instance.process_path(home_path))
+
+    @parameterized.expand(
+        [
+            (
+                "postgresql+psycopg2://postgres:airflow@postgres/airflow",
+                "postgresql+psycopg2://p...s:PASSWORD@postgres/airflow",
+            ),
+            (
+                "postgresql+psycopg2://postgres@postgres/airflow",
+                "postgresql+psycopg2://p...s@postgres/airflow",
+            ),
+            (
+                "postgresql+psycopg2://:airflow@postgres/airflow",
+                "postgresql+psycopg2://:PASSWORD@postgres/airflow",
+            ),
+            ("postgresql+psycopg2://postgres/airflow", "postgresql+psycopg2://postgres/airflow",),
+        ]
+    )
+    def test_should_remove_pii_from_url(self, before, after):
+        self.assertEqual(after, self.instance.process_url(before))
+
+
+class TestAirflowInfo(unittest.TestCase):
+    def test_should_be_string(self):
+        text = str(cli.AirflowInfo(cli.NullAnonymizer()))
+
+        self.assertIn("Apache Airflow [{}]".format(airflow_version), text)
+
+
+class TestSystemInfo(unittest.TestCase):
+    def test_should_be_string(self):
+        self.assertTrue(str(cli.SystemInfo(cli.NullAnonymizer())))
+
+
+class TestPathsInfo(unittest.TestCase):
+    def test_should_be_string(self):
+        self.assertTrue(str(cli.PathsInfo(cli.NullAnonymizer())))
+
+
+class TestConfigInfo(unittest.TestCase):
+    @conf_vars(
+        {
+            ("core", "executor"): "TEST_EXECUTOR",
+            ("core", "dags_folder"): "TEST_DAGS_FOLDER",
+            ("core", "plugins_folder"): "TEST_PLUGINS_FOLDER",
+            ("core", "base_log_folder"): "TEST_LOG_FOLDER",
+            ('core', 'sql_alchemy_conn'): 'postgresql+psycopg2://postgres:airflow@postgres/airflow',
+        }
+    )
+    def test_should_read_config(self):
+        instance = cli.ConfigInfo(cli.NullAnonymizer())
+        text = str(instance)
+        self.assertIn("TEST_EXECUTOR", text)
+        self.assertIn("TEST_DAGS_FOLDER", text)
+        self.assertIn("TEST_PLUGINS_FOLDER", text)
+        self.assertIn("TEST_LOG_FOLDER", text)
+        self.assertIn("postgresql+psycopg2://postgres:airflow@postgres/airflow", text)
+
+
+class TestToolsInfo(unittest.TestCase):
+    def test_should_be_string(self):
+        self.assertTrue(str(cli.ToolsInfo(cli.NullAnonymizer())))
+
+
+class TestShowInfo(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = cli.get_parser()
+
+    @conf_vars(
+        {
+            ('core', 'sql_alchemy_conn'): 'postgresql+psycopg2://postgres:airflow@postgres/airflow',
+        }
+    )
+    def test_show_info(self):
+        temp_stdout = StringIO()
+        with mock.patch("sys.stdout", temp_stdout):
+            cli.info(self.parser.parse_args(["info"]))
+
+        output = temp_stdout.getvalue()
+        self.assertIn("Apache Airflow [{}]".format(airflow_version), output)
+        self.assertIn("postgresql+psycopg2://postgres:airflow@postgres/airflow", output)
+
+    @conf_vars(
+        {
+            ('core', 'sql_alchemy_conn'): 'postgresql+psycopg2://postgres:airflow@postgres/airflow',
+        }
+    )
+    def test_show_info_anonymize(self):
+        temp_stdout = StringIO()
+        with mock.patch("sys.stdout", temp_stdout):
+            cli.info(self.parser.parse_args(["info", "--anonymize"]))
+
+        output = temp_stdout.getvalue()
+        self.assertIn("Apache Airflow [{}]".format(airflow_version), output)
+        self.assertIn("postgresql+psycopg2://p...s:PASSWORD@postgres/airflow", output)
+
+    @conf_vars(
+        {
+            ('core', 'sql_alchemy_conn'): 'postgresql+psycopg2://postgres:airflow@postgres/airflow',
+        }
+    )
+    @mock.patch(
+        "airflow.bin.cli.requests",
+        **{  # type: ignore
+            "post.return_value.ok": True,
+            "post.return_value.json.return_value": {
+                "success": True,
+                "key": "f9U3zs3I",
+                "link": "https://file.io/TEST",
+                "expiry": "14 days",
+            },
+        }
+    )
+    def test_show_info_anonymize_fileio(self, mock_requests):
+        temp_stdout = StringIO()
+        with mock.patch("sys.stdout", temp_stdout):
+            cli.info(self.parser.parse_args(["info", "--file-io"]))
+
+        self.assertIn("https://file.io/TEST", temp_stdout.getvalue())
+        content = mock_requests.post.call_args[1]["files"]["file"][1]
+        self.assertIn("postgresql+psycopg2://p...s:PASSWORD@postgres/airflow", content)
