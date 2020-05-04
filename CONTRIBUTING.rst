@@ -425,8 +425,9 @@ in the ``airflow/providers/dependencies.json``. Pre-commits are also used to gen
 The dependency list is automatically used during pypi packages generation.
 
 Cross-dependencies between provider packages are converted into extras - if you need functionality from
-the other provider package you can install it adding [extra] after the apache-airflow-providers-PROVIDER
-for example ``pip install apache-airflow-providers-google[amazon]`` in case you want to use GCP's
+the other provider package you can install it adding [extra] after the
+apache-airflow-backport-providers-PROVIDER for example ``pip install
+apache-airflow-backport-providers-google[amazon]`` in case you want to use GCP's
 transfer operators from Amazon ECS.
 
 If you add a new dependency between different providers packages, it will be detected automatically during
@@ -1008,7 +1009,7 @@ prepare such packages on your own easily.
   adding cross-dependencies between packages.
 
 * This creates a wheel package in your ``dist`` folder with a name similar to:
-  ``apache_airflow_providers-0.0.1-py2.py3-none-any.whl``
+  ``apache_airflow_backport_providers-0.0.1-py2.py3-none-any.whl``
 
 * You can install this package with ``pip install <PACKAGE_FILE>``
 
@@ -1019,7 +1020,8 @@ prepare such packages on your own easily.
 Each package has description generated from the the general ``backport_packages/README.md`` file with the
 following replacements:
 
-* ``{{ PACKAGE_NAME }}`` is replaced with the name of the package (``apache-airflow-providers-<NAME>``)
+* ``{{ PACKAGE_NAME }}`` is replaced with the name of the package
+(``apache-airflow-backport-providers-<NAME>``)
 * ``{{ PACKAGE_DEPENDENCIES }}`` is replaced with list of optional dependencies for the package
 * ``{{ PACKAGE_BACKPORT_README }}`` is replaced with the content of ``BACKPORT_README.md`` file in the
   package folder if it exists.

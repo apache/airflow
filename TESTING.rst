@@ -479,7 +479,7 @@ run Google Cloud system tests.
 
   # install any packages from dist folder if they are available
   if [[ ${RUN_AIRFLOW_1_10:=} == "true" ]]; then
-      pip install /dist/apache_airflow_providers_{google,postgres,mysql}*.whl || true
+      pip install /dist/apache_airflow_backport_providers_{google,postgres,mysql}*.whl || true
   fi
 
 To execute system tests, specify the ``--system SYSTEM``
@@ -588,7 +588,7 @@ Typically the command in you variables.env file will be similar to:
 
   # install any packages from dist folder if they are available
   if [[ ${RUN_AIRFLOW_1_10:=} == "true" ]]; then
-      pip install /dist/apache_airflow_providers_{google,postgres,mysql}*.whl || true
+      pip install /dist/apache_airflow_backport_providers_{google,postgres,mysql}*.whl || true
   fi
 
 The command above will automatically install backported google, postgres, and mysql packages if they
@@ -722,8 +722,8 @@ In the container:
 
 .. code-block:: bash
 
-  pip uninstall apache-airflow-providers-google
-  pip install /dist/apache_airflow_providers_google-*.whl
+  pip uninstall apache-airflow-backport-providers-google
+  pip install /dist/apache_airflow_backport_providers_google-*.whl
 
 The points 4. and 5. can be repeated multiple times without leaving the container
 

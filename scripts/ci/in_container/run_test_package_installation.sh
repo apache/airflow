@@ -30,9 +30,9 @@ else
     pip install "apache-airflow==${INSTALL_AIRFLOW_VERSION}" >>"${OUT_FILE}" 2>&1
 fi
 
-for PACKAGE_FILE in /dist/apache_airflow_providers_*.whl
+for PACKAGE_FILE in /dist/apache_airflow_backport_providers_*.whl
 do
-    if [[ ! ${PACKAGE_FILE} =~ /dist/(apache_airflow_providers_[^-]*)-.* ]]; then
+    if [[ ! ${PACKAGE_FILE} =~ /dist/(apache_airflow_backport_providers_[^-]*)-.* ]]; then
         echo
         echo "ERROR: ${PACKAGE_FILE} does not match providers package regexp"
         echo
