@@ -20,6 +20,7 @@ import io
 import os
 import tempfile
 import unittest.mock
+from contextlib import redirect_stdout
 
 from airflow import models
 from airflow.cli import cli_parser
@@ -47,19 +48,21 @@ class TestCliVariables(unittest.TestCase):
         self.assertIsNotNone(Variable.get("foo"))
         self.assertRaises(KeyError, Variable.get, "foo1")
 
-    @unittest.mock.patch('sys.stdout', new_callable=io.StringIO)
-    def test_variables_get(self, mock_stdout):
-        """"Test variable_get command"""
-        # Test conventional get call
-        variable_command.variables_set(self.parser.parse_args([
-            'variables', 'set', 'foo', '{"foo":"bar"}']))
-        variable_command.variables_get(self.parser.parse_args([
-            'variables', 'get', 'foo']))
-        variable_command.variables_get(self.parser.parse_args([
-            'variables', 'get', 'baz', '--default', 'bar']))
-        self.assertEqual(mock_stdout.getvalue(), 'bar\n')
+    def test_variables_get(self):
+        Variable.set('foo', {'foo': 'bar'}, serialize_json=True)
 
-        # Test get call with no variable
+        with redirect_stdout(io.StringIO()) as stdout:
+            variable_command.variables_get(self.parser.parse_args([
+                'variables', 'get', 'foo']))
+            self.assertEqual('{\n  "foo": "bar"\n}\n', stdout.getvalue())
+
+    def test_get_variable_default_value(self):
+        with redirect_stdout(io.StringIO()) as stdout:
+            variable_command.variables_get(self.parser.parse_args([
+                'variables', 'get', 'baz', '--default', 'bar']))
+            self.assertEqual("bar\n", stdout.getvalue())
+
+    def test_get_variable_missing_variable(self):
         with self.assertRaises(SystemExit):
             variable_command.variables_get(self.parser.parse_args([
                 'variables', 'get', 'no-existing-VAR']))
