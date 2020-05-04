@@ -1463,14 +1463,6 @@ components:
           items:
             $ref: '#/components/schemas/Tag'
 
-    DagStructureCollection:
-      type: object
-      properties:
-        dag_structures:
-          type: array
-          items:
-            $ref: '#/components/schemas/DagStructure'
-
     ExtraLink:
       type: object
       properties:
