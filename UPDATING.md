@@ -1164,6 +1164,54 @@ The goal of this change is to achieve a more consistent and configurale cascadin
 
 When initializing a Snowflake hook or operator, the value used for `snowflake_conn_id` was always `snowflake_conn_id`, regardless of whether or not you specified a value for it. The default `snowflake_conn_id` value is now switched to `snowflake_default` for consistency and will be properly overriden when specified.
 
+### Simplify the response payload of endpoints /dag_stats and /task_stats
+
+The response of endpoints `/dag_stats` and `/task_stats` help UI fetch brief statistics about DAGs and Tasks. The format was like
+
+```json
+{
+    "example_http_operator": [
+        {
+            "state": "success",
+            "count": 0,
+            "dag_id": "example_http_operator",
+            "color": "green"
+        },
+        {
+            "state": "running",
+            "count": 0,
+            "dag_id": "example_http_operator",
+            "color": "lime"
+        },
+        ...
+],
+...
+}
+```
+
+The `dag_id` was repeated in the payload, which makes the response payload unnecessarily bigger.
+
+Now the `dag_id` will not appear repeated in the payload, and the response format is like
+
+```json
+{
+    "example_http_operator": [
+        {
+            "state": "success",
+            "count": 0,
+            "color": "green"
+        },
+        {
+            "state": "running",
+            "count": 0,
+            "color": "lime"
+        },
+        ...
+],
+...
+}
+```
+
 ## Airflow 1.10.10
 
 ### Setting Empty string to a Airflow Variable will return an empty string

@@ -395,7 +395,6 @@ class Airflow(AirflowBaseView):
                 payload[dag_id].append({
                     'state': state,
                     'count': count,
-                    'dag_id': dag_id,
                     'color': State.color(state)
                 })
 
@@ -496,7 +495,6 @@ class Airflow(AirflowBaseView):
                 payload[dag_id].append({
                     'state': state,
                     'count': count,
-                    'dag_id': dag_id,
                     'color': State.color(state)
                 })
         return wwwutils.json_response(payload)

@@ -179,8 +179,6 @@ function initialize_common_environment {
         export UPGRADE_WHILE_GENERATING_REQUIREMENTS=${UPGRADE_WHILE_GENERATING_REQUIREMENTS:="false"}
     fi
 
-    export SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS=${SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS:="false"}
-
     export DEFAULT_CI_EXTRAS="devel_ci"
 
 
@@ -1516,8 +1514,7 @@ function run_generate_requirements() {
         --env HOST_GROUP_ID="$(id -gr)" \
         --env UPGRADE_WHILE_GENERATING_REQUIREMENTS \
         --env PYTHON_MAJOR_MINOR_VERSION \
-        --env SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS \
-        --env FAIL_WHEN_REQUIREMENTS_UPDATED \
+        --env CHECK_REQUIREMENTS_ONLY \
         --rm \
         "${AIRFLOW_CI_IMAGE}" \
         "--" "/opt/airflow/scripts/ci/in_container/run_generate_requirements.sh" \
@@ -1534,7 +1531,7 @@ function run_prepare_packages() {
         --env HOST_GROUP_ID="$(id -gr)" \
         --env UPGRADE_WHILE_GENERATING_REQUIREMENTS \
         --env PYTHON_MAJOR_MINOR_VERSION \
-        --env SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS \
+        --env CHECK_REQUIREMENTS_ONLY \
         -t \
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
         --rm \
