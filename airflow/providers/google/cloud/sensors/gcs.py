@@ -25,8 +25,8 @@ from typing import Callable, List, Optional, Set
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.sensors.decorators.poke_mode_only import poke_mode_only
+from airflow.sensors.base_sensor_operator import (BaseSensorOperator, 
+                                                  poke_mode_only)
 from airflow.utils.decorators import apply_defaults
 
 
