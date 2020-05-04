@@ -41,10 +41,9 @@ class TestXCom:
         assert cls().serialize_value([1]) == b"[1]"
 
     @conf_vars({("core", "enable_xcom_pickling"): "False"})
+    @conf_vars({("core", "xcom_backend"): "to be removed"})
     def test_resolve_xcom_class_fallback_to_basexcom_no_config(self):
-        init = conf.get("core", "xcom_backend")
         conf.remove_option("core", "xcom_backend")
         cls = resolve_xcom_backend()
         assert issubclass(cls, BaseXCom)
         assert cls().serialize_value([1]) == b"[1]"
-        conf.set("core", "xcom_backend", init)

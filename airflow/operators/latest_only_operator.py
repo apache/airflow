@@ -46,7 +46,7 @@ class LatestOnlyOperator(BaseBranchOperator):
         if context['dag_run'] and context['dag_run'].external_trigger:
             self.log.info(
                 "Externally triggered DAG_Run: allowing execution to proceed.")
-            return context['task'].get_direct_relative_ids(upstream=False)
+            return list(context['task'].get_direct_relative_ids(upstream=False))
 
         now = pendulum.utcnow()
         left_window = context['dag'].following_schedule(
@@ -64,4 +64,4 @@ class LatestOnlyOperator(BaseBranchOperator):
             return []
         else:
             self.log.info('Latest, allowing execution to proceed.')
-            return context['task'].get_direct_relative_ids(upstream=False)
+            return list(context['task'].get_direct_relative_ids(upstream=False))
