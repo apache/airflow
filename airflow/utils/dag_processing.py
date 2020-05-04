@@ -28,6 +28,7 @@ from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from datetime import datetime, timedelta
 from importlib import import_module
+from multiprocessing.connection import Connection as MultiprocessingConnection
 from typing import Any, Callable, Dict, KeysView, List, NamedTuple, Optional, Tuple
 
 from setproctitle import setproctitle  # pylint: disable=no-name-in-module
@@ -546,7 +547,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
     :param processor_timeout: How long to wait before timing out a DAG file processor
     :type processor_timeout: timedelta
     :param signal_conn: connection to communicate signal with processor agent.
-    :type signal_conn: multiprocessing.connection.Connection
+    :type signal_conn: MultiprocessingConnection
     :param async_mode: whether to start the manager in async mode
     :type async_mode: bool
     """
@@ -559,7 +560,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                      AbstractDagFileProcessorProcess
                  ],
                  processor_timeout: timedelta,
-                 signal_conn: multiprocessing.connection.Connection,
+                 signal_conn: MultiprocessingConnection,
                  async_mode: bool = True):
         super().__init__()
         self._file_paths: List[str] = []
