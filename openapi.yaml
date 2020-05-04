@@ -1381,8 +1381,6 @@ components:
           type: string
         unixname:
           type: string
-        job_id:
-          type: integer
         pool:
           type: string
         pool_slots:
