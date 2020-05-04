@@ -734,9 +734,9 @@ class TestShowInfo(unittest.TestCase):
             ('core', 'sql_alchemy_conn'): 'postgresql+psycopg2://postgres:airflow@postgres/airflow',
         }
     )
-    @mock.patch(
+    @mock.patch(  # type: ignore
         "airflow.bin.cli.requests",
-        **{  # type: ignore
+        **{
             "post.return_value.ok": True,
             "post.return_value.json.return_value": {
                 "success": True,

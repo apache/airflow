@@ -59,7 +59,7 @@ import threading
 import time
 import traceback
 from urllib.parse import urlunparse
-from typing import Any, Protocol, Optional
+from typing import Any, Protocol
 
 import airflow
 from airflow import api
@@ -1750,8 +1750,8 @@ class AirflowInfo:
                 {config}
                 """
             )
-                .strip()
-                .format(
+            .strip()
+            .format(
                 version=self.airflow_version,
                 system=self.system,
                 tools=self.tools,
@@ -1782,8 +1782,8 @@ class SystemInfo:
                 Python Location: [{python_location}]
                 """
             )
-                .strip()
-                .format(
+            .strip()
+            .format(
                 os=self.operating_system or "NOT AVAILABLE",
                 arch=self.arch or "NOT AVAILABLE",
                 uname=self.uname,
@@ -1817,8 +1817,8 @@ class PathsInfo:
                 airflow on PATH: [{airflow_on_path}]
                 """
             )
-                .strip()
-                .format(
+            .strip()
+            .format(
                 airflow_home=self.airflow_home,
                 system_path=os.pathsep.join(self.system_path),
                 python_path=os.pathsep.join(self.python_path),
@@ -1856,8 +1856,8 @@ class ConfigInfo:
                 Base Log Folder: [{base_log_folder}]
                 """
             )
-                .strip()
-                .format(
+            .strip()
+            .format(
                 executor=self.executor,
                 sql_alchemy_conn=self.sql_alchemy_conn,
                 dags_folder=self.dags_folder,
@@ -1910,8 +1910,8 @@ class ToolsInfo:
                 psql: [{psql}]
                 """
             )
-                .strip()
-                .format(
+            .strip()
+            .format(
                 git=self.git_version,
                 ssh=self.ssh_version,
                 kubectl=self.kubectl_version,
