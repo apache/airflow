@@ -522,10 +522,10 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.post('task_stats', follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
 
+    @conf_vars({("webserver", "show_recent_stats_for_completed_runs"): "False"})
     def test_task_stats_only_noncompleted(self):
-        with conf_vars({("webserver", "show_recent_stats_for_completed_runs"): "False"}):
-            resp = self.client.post('task_stats', follow_redirects=True)
-            self.assertEqual(resp.status_code, 200)
+        resp = self.client.post('task_stats', follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
 
     def test_dag_details(self):
         url = 'dag_details?dag_id=example_bash_operator'
@@ -675,34 +675,26 @@ class TestAirflowBaseViews(TestBase):
             self.check_content_in_response('Failed to load file', resp)
             self.check_content_in_response('example_bash_operator', resp)
 
+    @conf_vars({("core", "store_dag_code"): "True"})
     def test_code_from_db(self):
-        with conf_vars(
-            {
-                ("core", "store_dag_code"): "True"
-            }
-        ):
-            from airflow.models.dagcode import DagCode
-            dag = models.DagBag(include_examples=True).get_dag("example_bash_operator")
-            DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
-            url = 'code?dag_id=example_bash_operator'
-            resp = self.client.get(url)
-            self.check_content_not_in_response('Failed to load file', resp)
-            self.check_content_in_response('example_bash_operator', resp)
+        from airflow.models.dagcode import DagCode
+        dag = models.DagBag(include_examples=True).get_dag("example_bash_operator")
+        DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
+        url = 'code?dag_id=example_bash_operator'
+        resp = self.client.get(url)
+        self.check_content_not_in_response('Failed to load file', resp)
+        self.check_content_in_response('example_bash_operator', resp)
 
+    @conf_vars({("core", "store_dag_code"): "True"})
     def test_code_from_db_all_example_dags(self):
-        with conf_vars(
-            {
-                ("core", "store_dag_code"): "True"
-            }
-        ):
-            from airflow.models.dagcode import DagCode
-            dagbag = models.DagBag(include_examples=True)
-            for dag in dagbag.dags.values():
-                DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
-            url = 'code?dag_id=example_bash_operator'
-            resp = self.client.get(url)
-            self.check_content_not_in_response('Failed to load file', resp)
-            self.check_content_in_response('example_bash_operator', resp)
+        from airflow.models.dagcode import DagCode
+        dagbag = models.DagBag(include_examples=True)
+        for dag in dagbag.dags.values():
+            DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
+        url = 'code?dag_id=example_bash_operator'
+        resp = self.client.get(url)
+        self.check_content_not_in_response('Failed to load file', resp)
+        self.check_content_in_response('example_bash_operator', resp)
 
     def test_paused(self):
         url = 'paused?dag_id=example_bash_operator&is_paused=false'
