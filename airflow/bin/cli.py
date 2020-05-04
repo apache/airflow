@@ -1617,7 +1617,7 @@ class PiiAnonymizer(Anonymizer):
         home_path = os.path.expanduser("~")
         username = getpass.getuser()
         self._path_replacements = OrderedDict([
-            (home_path,  "${HOME}"), (username,  "${USER}")
+            (home_path, "${HOME}"), (username, "${USER}")
         ])
 
     def process_path(self, value):
