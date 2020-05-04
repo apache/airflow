@@ -117,7 +117,7 @@ Foundation.
      -
 
    * - `Apache Spark <https://spark.apache.org/>`__
-     -
+     - :doc:`How to use <howto/operator/apache/spark>`
      - :mod:`airflow.providers.apache.spark.hooks.spark_jdbc`,
        :mod:`airflow.providers.apache.spark.hooks.spark_jdbc_script`,
        :mod:`airflow.providers.apache.spark.hooks.spark_sql`,
