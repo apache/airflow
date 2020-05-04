@@ -137,6 +137,8 @@ changed.
 - `update_dataset` requires now new `fields` argument (breaking change)
 - `delete_dataset` has new signature (dataset_id, project_id, ...)
 previous one was (project_id, dataset_id, ...) (breaking change)
+- `get_tabledata` returns list of rows instead of API response in dict format. This method is deprecated in
+ favor of `list_rows`. (breaking change)
 
 ### Added mypy plugin to preserve types of decorated functions
 

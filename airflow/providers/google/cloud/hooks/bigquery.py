@@ -1161,8 +1161,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         )
 
         tables_list_resp = self.get_dataset_tables(dataset_id=dataset_id, project_id=project_id)
-        for table in tables_list_resp:
-            if table['tableId'] == table_id:
+        for tab in tables_list_resp:
+            if tab['tableId'] == table_id:
                 self.log.info('Table %s:%s.%s exists, updating.', project_id, dataset_id, table_id)
                 return self.update_table(table_resource=table_resource)
 
@@ -1227,7 +1227,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         selected_fields: Optional[str] = None,
         page_token: Optional[str] = None,
         start_index: Optional[int] = None
-    ) -> List[Row]:
+    ) -> List[Dict]:
         """
         Get the data of a given dataset.table and optionally with selected columns.
         see https://cloud.google.com/bigquery/docs/reference/v2/tabledata/list
@@ -1243,9 +1243,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :return: list of rows
         """
         warnings.warn("This method is deprecated. Please use `list_rows`.", DeprecationWarning)
-        return self.list_rows(
+        rows = self.list_rows(
             dataset_id, table_id, max_results, selected_fields, page_token, start_index
         )
+        return [dict(r) for r in rows]
 
     @GoogleBaseHook.fallback_to_default_project_id
     def list_rows(
@@ -1296,7 +1297,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
     def get_schema(self, dataset_id: str, table_id: str, project_id: Optional[str] = None) -> Dict:
         """
-        Get the schema for a given datset.table.
+        Get the schema for a given dataset and table.
         see https://cloud.google.com/bigquery/docs/reference/v2/tables#resource
 
         :param dataset_id: the dataset ID of the requested table
@@ -1305,15 +1306,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 If not provided, the connector's configured project will be used.
         :return: a table schema
         """
-        service = self.get_service()
-        tables_resource = (
-            service.tables()  # pylint: disable=no-member
-            .get(projectId=project_id or self.project_id,
-                 datasetId=dataset_id,
-                 tableId=table_id)
-            .execute(num_retries=self.num_retries)
-        )
-        return tables_resource['schema']
+        table_ref = TableReference(dataset_ref=DatasetReference(project_id, dataset_id), table_id=table_id)
+        table = self.get_client(project_id=project_id).get_table(table_ref)
+        return {"fields": [s.to_api_rer for s in table.schema]}
 
     def poll_job_complete(self, job_id: str) -> bool:
         """
@@ -2338,7 +2333,7 @@ class BigQueryBaseCursor(LoggingMixin):
             DeprecationWarning, stacklevel=3)
         return self.hook.run_table_delete(*args, **kwargs)
 
-    def get_tabledata(self, *args, **kwargs) -> Dict:
+    def get_tabledata(self, *args, **kwargs) -> List[Dict]:
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_tabledata`
