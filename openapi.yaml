@@ -285,6 +285,32 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+    post:
+      summary: Create a DAG Run
+      operationId: createDagRun
+      tags: [DAGRun]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAGRun'
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pool'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '409':
+          $ref: '#/components/responses/AlreadyExists'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
     patch:
       summary: Update a DAG Run
       operationId: updateDagRun
@@ -1133,22 +1159,51 @@ components:
           type: string
           readOnly: true
         execution_date:
+          description: >
+            The execution date. This is the time when the DAG run should be started according
+            to the DAG definition.
+
+            If the specified execution is in use, the creation request fails with an ALREADY_EXISTS error.
+
+            This together with DAG_ID are a unique key.
           type: string
           format: date-time
           readOnly: true
         start_date:
           type: string
           format: date-time
+          description: >
+            The start time. The time when DAG Run was actually created..
+
+            The difference between A and B is the scheduler delay.
+          readOnly: True
         end_date:
           type: string
           format: date-time
+          readOnly: True
         state:
-          $ref: '#/components/schemas/TaskState'
+          $ref: '#/components/schemas/DagState'
         run_id:
           type: string
+          description: >
+            Run ID.
+
+            If not provided, a value will be generated based on execution_date.
+
+            If the specified execution is in use, the creation request fails with an ALREADY_EXISTS error.
+
+            This together with DAG_ID are a unique key.
         external_trigger:
           type: boolean
           default: true
+          readOnly: True
+        conf:
+          type: string
+          description: >
+            JSON object describing additional configuration parameters.
+      required:
+        - dag_id
+        - execution_date
 
     DAGRunCollection:
       type: object
