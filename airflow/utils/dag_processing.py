@@ -346,7 +346,6 @@ class DagFileProcessorAgent(LoggingMixin):
             mp_start_method = conf.get('core', 'mp_start_method')
         else:
             mp_start_method = multiprocessing.get_start_method()
-        mp_start_method = 'forkserver'
 
         possible_value_list = multiprocessing.get_all_start_methods()
         if mp_start_method not in possible_value_list:

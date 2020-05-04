@@ -1550,13 +1550,6 @@ class SchedulerJob(BaseJob):
         if self.do_pickle and self.executor.__class__ not in (LocalExecutor, SequentialExecutor):
             pickle_dags = True
 
-        self.log.info("Processing each file at most %s times", self.num_runs)
-
-        # Build up a list of Python files that could contain DAGs
-        self.log.info("Searching for files in %s", self.subdir)
-        known_file_paths = list_py_file_paths(self.subdir)
-        self.log.info("There are %s files in %s", len(known_file_paths), self.subdir)
-
         # When using sqlite, we do not use async_mode
         # so the scheduler job and DAG parser don't access the DB at the same time.
         async_mode = not self.using_sqlite

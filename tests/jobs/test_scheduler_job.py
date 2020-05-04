@@ -2508,7 +2508,7 @@ class TestSchedulerJob(unittest.TestCase):
             dag_id = 'test_start_date_scheduling'
             session = settings.Session()
             self.assertEqual(
-                len(session.query(TI).filter(TI.dag_id == dag_id).all()), 0)
+                len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()), 0)
         finally:
             conf.remove_option('core', 'mp_start_method')
 
