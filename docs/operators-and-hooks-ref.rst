@@ -478,6 +478,12 @@ These integrations allow you to perform various operations within the Amazon Web
      - :mod:`airflow.providers.amazon.aws.operators.ecs`
      -
 
+   * - `Amazon ElastiCache <https://aws.amazon.com/elasticache/>`__
+     -
+     -
+     - :mod:`airflow.providers.amazon.aws.hooks.ElastiCacheHook`
+     -
+
    * - `Amazon EMR <https://aws.amazon.com/emr/>`__
      - :doc:`How to use <howto/operator/amazon/aws/emr>`
      - :mod:`airflow.providers.amazon.aws.hooks.emr`

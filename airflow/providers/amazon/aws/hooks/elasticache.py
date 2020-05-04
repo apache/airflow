@@ -47,7 +47,9 @@ class ElastiCacheHook(AwsBaseHook):
     Interact with AWS ElastiCache
     """
 
-    def __init__(self, max_retries=10, exponential_back_off_factor=1, initial_poke_interval=60, *args, **kwargs):
+    def __init__(
+        self, max_retries=10, exponential_back_off_factor=1, initial_poke_interval=60, *args, **kwargs
+    ):
         """
         :param max_retries: Max tries for checking availability of and deleting replication group
         :param exponential_back_off_factor: Factor for deciding next sleep time
@@ -89,11 +91,12 @@ class ElastiCacheHook(AwsBaseHook):
         :param config: Python dictionary to use as config for creating replication group
         :return: Response from ElastiCache create replication group API
         """
-        self.log.info('Creating replication group with config : {0}'.format(config))
+        self.log.info('Creating replication group with config : %s', config)
 
         response = self.__create_replication_group(config=config)
 
-        status = response[ElastiCacheDescribeResponseKeys.REPLICATION_GROUP][ElastiCacheDescribeResponseKeys.STATUS]
+        status = response[ElastiCacheDescribeResponseKeys.REPLICATION_GROUP][
+            ElastiCacheDescribeResponseKeys.STATUS]
 
         if status != ElastiCacheStatus.STATUS_CREATING:
             raise AirflowException('Replication group could not be created. Status: "{0}"'.format(status))
@@ -104,11 +107,13 @@ class ElastiCacheHook(AwsBaseHook):
         """
         Helper for checking if replication is available or not
         :param replication_group_id: ID of replication group to check for availability
-        :return: Flag to check if availability check should be stopped or not and current status of replication group
+        :return: Flag to check if availability check should be stopped or not and current status of
+        replication group
         """
         desc = self.describe_replication_group(replication_group_id)
 
-        status = desc[ElastiCacheDescribeResponseKeys.REPLICATION_GROUPS][0][ElastiCacheDescribeResponseKeys.STATUS]
+        status = desc[ElastiCacheDescribeResponseKeys.REPLICATION_GROUPS][0][
+            ElastiCacheDescribeResponseKeys.STATUS]
 
         return status in (
             ElastiCacheStatus.STATUS_AVAILABLE,
@@ -127,24 +132,26 @@ class ElastiCacheHook(AwsBaseHook):
         status = ElastiCacheStatus.STATUS_CREATE_FAILED
 
         while num_retries < self.max_retries:
-            stop_poking, status = self._is_replication_group_available(replication_group_id=replication_group_id)
+            stop_poking, status = self._is_replication_group_available(
+                replication_group_id=replication_group_id
+            )
 
-            self.log.info('Status : {0}'.format(status))
+            self.log.info('Status : %s', status)
 
             if stop_poking:
-                self.log.info('Received signal to stop poking. Current status : "{0}"'.format(status))
+                self.log.info('Received signal to stop poking. Current status : "%s"', status)
                 break
 
             num_retries += 1
 
-            self.log.info('Poke retry: {0}. Sleep time: {1}. Sleeping...'.format(num_retries, sleep_time))
+            self.log.info('Poke retry: %s. Sleep time: %s. Sleeping...', num_retries, sleep_time)
 
             sleep(sleep_time)
 
             sleep_time = sleep_time * self.exponential_back_off_factor
 
         if status != ElastiCacheStatus.STATUS_AVAILABLE:
-            self.log.warning('Replication group is not available. Current status : "{0}"'.format(status))
+            self.log.warning('Replication group is not available. Current status : "%s"', status)
 
             return False
 
@@ -165,27 +172,30 @@ class ElastiCacheHook(AwsBaseHook):
             try:
                 response = self.__delete_replication_group(replication_group_id=replication_group_id)
 
-                self.log.info('Replication group with ID : {0} : is being deleted...'.format(replication_group_id))
+                self.log.info('Replication group with ID : %s : is being deleted...', replication_group_id)
 
             except self.get_conn().exceptions.ReplicationGroupNotFoundFault:
-                self.log.info("Replication group with ID : '{0}' does not exist".format(replication_group_id))
+                self.log.info("Replication group with ID : '%s' does not exist", replication_group_id)
 
                 deleted = True
 
             except self.get_conn().exceptions.InvalidReplicationGroupStateFault as exp:
                 message = exp.response['Error']['Message']
 
-                self.log.info('Received message : {0}'.format(message))
+                self.log.info('Received message : %s', message)
 
                 if re.search(ElastiCacheDeleteResponses.RESPONSE_NOT_VALID_STATE, message) \
                         or re.search(ElastiCacheDeleteResponses.RESPONSE_MODIFYING_STATE, message):
 
-                    self.log.info('Replication group with ID : {0} : is not in valid state to be deleted'.format(
-                        replication_group_id)
+                    self.log.info(
+                        'Replication group with ID : %s : is not in valid state to be deleted',
+                        replication_group_id
                     )
 
                 elif re.search(ElastiCacheDeleteResponses.RESPONSE_DELETING_STATE, message):
-                    self.log.info('Replication group with ID : {0} : is being deleted...'.format(replication_group_id))
+                    self.log.info(
+                        'Replication group with ID : %s : is being deleted...', replication_group_id
+                    )
 
                 else:
                     raise AirflowException(str(exp))
@@ -193,7 +203,7 @@ class ElastiCacheHook(AwsBaseHook):
                 if not deleted:
                     num_retries += 1
 
-                    self.log.info('Poke retry: {0}. Sleep time: {1}. Sleeping...'.format(num_retries, sleep_time))
+                    self.log.info('Poke retry: %s. Sleep time: %s. Sleeping...', num_retries, sleep_time)
 
                     sleep(sleep_time)
 
@@ -207,11 +217,13 @@ class ElastiCacheHook(AwsBaseHook):
         :param replication_group_id: ID of replication to delete
         :return: Response from ElastiCache delete replication group API
         """
-        self.log.info('Deleting replication group with ID : {0}'.format(replication_group_id))
+        self.log.info('Deleting replication group with ID : %s', replication_group_id)
 
         response, deleted = self._delete_replication_group(replication_group_id=replication_group_id)
 
         if not deleted:
-            raise AirflowException('Replication group could not be deleted. Response : "{0}"'.format(response))
+            raise AirflowException(
+                'Replication group could not be deleted. Response : "{0}"'.format(response)
+            )
 
         return response
