@@ -526,7 +526,7 @@ paths:
 
     patch:
       summary: Update a pool
-      operationId: upadtePool
+      operationId: updatePool
       tags: [Pool]
       parameters:
         - $ref: '#/components/parameters/UpdateMask'
