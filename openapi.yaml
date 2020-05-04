@@ -570,7 +570,17 @@ paths:
   /dags/{dag_id}/taskInstances:
     parameters:
       - $ref: '#/components/parameters/DAGID'
-
+      - $ref: '#/components/parameters/FilterExecutionDateStartRange'
+      - $ref: '#/components/parameters/FilterExecutionDateEndRange'
+      - $ref: '#/components/parameters/FilterStartDateStartRange'
+      - $ref: '#/components/parameters/FilterStartDateEndRange'
+      - $ref: '#/components/parameters/FilterEndDateStartRaange'
+      - $ref: '#/components/parameters/FilterEndDateEndRange'
+      - $ref: '#/components/parameters/FilterDurationStartRange'
+      - $ref: '#/components/parameters/FilterDurationEndRange'
+      - $ref: '#/components/parameters/FilterState'
+      - $ref: '#/components/parameters/FilterPool'
+      - $ref: '#/components/parameters/FilterQueue'
     get:
       summary: Get list of task instance of DAG.
       description: >
@@ -1982,6 +1992,122 @@ components:
         type: string
       required: true
       description: The XCom Key.
+    # Filter
+    FilterExecutionDateStartRange:
+      in: query
+      name: ExecutionDateStartRange
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: >
+        Returns objects after the specified date.
+
+        This can be combined with ExecutionDateEndRange parameter to receive only the selected period.
+    FilterExecutionDateEndRange:
+      in: query
+      name: ExecutionDateEndRange
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: >
+        Returns objects before the specified date.
+
+        This can be combined with ExecutionDateStartRange parameter to receive only the selected period.
+    FilterStartDateStartRange:
+      in: query
+      name: StartDateStartRange
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: >
+        Returns objects after the specified date.
+
+        This can be combined with StartDateEndRange parameter to receive only the selected period.
+    FilterStartDateEndRange:
+      in: query
+      name: StartDateEndRange
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: >
+        Returns objects before the specified date.
+
+        This can be combined with StartDateEndRange parameter to receive only the selected period
+    FilterEndDateStartRaange:
+      in: query
+      name: EndDateStartRange
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: >
+        Returns objects after the specified date.
+
+        This can be combined with StartDateEndRange parameter to receive only the selected period.
+    FilterEndDateEndRange:
+      in: query
+      name: EndDateEndRange
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: >
+        Returns objects before the specified date.
+
+        This can be combined with StartDateEndRange parameter to receive only the selected period.
+    FilterDurationStartRange:
+      in: query
+      name: DurationStartRange
+      schema:
+        type: number
+      required: false
+      description: >
+        Returns objects greater than or equal to the specified values.
+
+        This can be combined with DurationEndRange parameter to receive only the selected period.
+    FilterDurationEndRange:
+      in: query
+      name: DurationEndRange
+      schema:
+        type: number
+      required: false
+      description: >
+        Returns objects less than or equal to the specified values.
+
+        This can be combined with DurationStartRange parameter to receive only the selected range.
+    FilterState:
+      in: query
+      name: State
+      schema:
+        type: array
+        items:
+          type: string
+      required: false
+      description:
+        The value can be repeated to retrieve multiple matching values (OR condition).
+    FilterPool:
+      in: query
+      name: Pool
+      schema:
+        type: array
+        items:
+          type: string
+      required: false
+      description:
+        The value can be repeated to retrieve multiple matching values (OR condition).
+    FilterQueue:
+      in: query
+      name: Queue
+      schema:
+        type: array
+        items:
+          type: string
+      description:
+        The value can be repeated to retrieve multiple matching values (OR condition).
 
     # Other parameters
     FileToken:
