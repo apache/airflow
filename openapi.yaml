@@ -399,7 +399,7 @@ paths:
       - $ref: '#/components/parameters/ImportErrorID'
 
     get:
-      summary: Get an import errors
+      summary: Get an import error
       operationId: getImportError
       tags: [ImportError]
       responses:
