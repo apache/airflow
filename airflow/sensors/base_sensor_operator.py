@@ -180,6 +180,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             return BaseOperator.deps.fget(self) | {ReadyToRescheduleDep()}
         return BaseOperator.deps.fget(self)
 
+
 def poke_mode_only(cls):
     """
     Class Decorator for child classes of BaseSensorOperator to indicate
