@@ -30,6 +30,7 @@ import subprocess
 import textwrap
 import random
 import string
+from collections import OrderedDict
 from importlib import import_module
 
 import getpass
@@ -1615,7 +1616,9 @@ class PiiAnonymizer(Anonymizer):
     def __init__(self):
         home_path = os.path.expanduser("~")
         username = getpass.getuser()
-        self._path_replacements = {home_path: "${HOME}", username: "${USER}"}
+        self._path_replacements = OrderedDict([
+            (home_path,  "${HOME}"), (username,  "${USER}")
+        ])
 
     def process_path(self, value):
         if not value:
