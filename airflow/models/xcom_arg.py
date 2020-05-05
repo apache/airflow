@@ -36,7 +36,9 @@ class XComArg:
     **Example**: The moment you get a result from any operator (functional or regular) you can ::
 
         any_op = AnyOperator()
-        xcomarg = XComArg(any_op) OR xcomarg = any_op.output
+        xcomarg = XComArg(any_op)
+        # or equivalently
+        xcomarg = any_op.output
         my_op = MyOperator()
         my_op >> xcomarg
 
