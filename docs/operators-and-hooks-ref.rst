@@ -481,7 +481,7 @@ These integrations allow you to perform various operations within the Amazon Web
    * - `Amazon ElastiCache <https://aws.amazon.com/elasticache/>`__
      -
      -
-     - :mod:`airflow.providers.amazon.aws.hooks.ElastiCacheHook`
+     - :mod:`airflow.providers.amazon.aws.hooks.elasticache`
      -
 
    * - `Amazon EMR <https://aws.amazon.com/emr/>`__
