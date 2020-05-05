@@ -286,7 +286,7 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     post:
-      summary: Create a DAG Run
+      summary: Trigger a DAG Run
       operationId: createDagRun
       tags: [DAGRun]
       requestBody:
