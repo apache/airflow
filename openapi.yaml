@@ -1190,8 +1190,6 @@ components:
           format: date-time
           description: >
             The start time. The time when DAG Run was actually created..
-
-            The difference between A and B is the scheduler delay.
           readOnly: True
         end_date:
           type: string
