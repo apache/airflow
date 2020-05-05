@@ -18,6 +18,7 @@
 
 import copy
 import logging
+import multiprocessing
 import os
 import pathlib
 import re
@@ -180,12 +181,8 @@ class AirflowConfigParser(ConfigParser):
         self.is_validated = False
 
     def _validate(self):
-        if (
-                self.get("core", "executor") not in ('DebugExecutor', 'SequentialExecutor') and
-                "sqlite" in self.get('core', 'sql_alchemy_conn')):
-            raise AirflowConfigException(
-                "error: cannot use sqlite with the {}".format(
-                    self.get('core', 'executor')))
+
+        self._validate_config_dependencies()
 
         for section, replacement in self.deprecated_values.items():
             for name, info in replacement.items():
@@ -203,6 +200,28 @@ class AirflowConfigParser(ConfigParser):
                         version=version)
 
         self.is_validated = True
+
+    def _validate_config_dependencies(self):
+        """
+        Validate that config values aren't invalid given other config values
+        or system-level limitations and requirements.
+        """
+
+        if (
+                self.get("core", "executor") not in ('DebugExecutor', 'SequentialExecutor') and
+                "sqlite" in self.get('core', 'sql_alchemy_conn')):
+            raise AirflowConfigException(
+                "error: cannot use sqlite with the {}".format(
+                    self.get('core', 'executor')))
+
+        if self.has_option('core', 'mp_start_method'):
+            mp_start_method = self.get('core', 'mp_start_method')
+            start_method_options = multiprocessing.get_all_start_methods()
+
+            if mp_start_method not in start_method_options:
+                raise AirflowConfigException(
+                    "mp_start_method should not be " + mp_start_method +
+                    ". Possible values are " + ", ".join(start_method_options))
 
     def _using_old_value(self, old, current_value):
         return old.search(current_value) is not None

@@ -19,7 +19,6 @@
 import multiprocessing
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException
 
 
 class MultiprocessingStartMethodMixin:
@@ -32,14 +31,6 @@ class MultiprocessingStartMethodMixin:
         mp_start_method is set in configs, else, it uses the OS default.
         """
         if conf.has_option('core', 'mp_start_method'):
-            mp_start_method = conf.get('core', 'mp_start_method')
-        else:
-            mp_start_method = multiprocessing.get_start_method()
-        possible_value_list = multiprocessing.get_all_start_methods()
+            return conf.get('core', 'mp_start_method')
 
-        if mp_start_method not in possible_value_list:
-            raise AirflowConfigException(
-                "mp_start_method should not be " + mp_start_method +
-                ". Possible value is one of " + str(possible_value_list))
-
-        return mp_start_method
+        return multiprocessing.get_start_method()
