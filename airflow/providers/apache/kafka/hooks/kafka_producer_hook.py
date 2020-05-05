@@ -62,7 +62,7 @@ class KafkaProducerHook(BaseHook):
         """
         Pretty the hook with the connection info
         """
-        connected = self.produer is not None
+        connected = self.producer is not None
         return '<KafkaProducerHook ' \
                'connected?=%s server=%s topic=%s>' % \
                (connected, self.server, self.topic)
