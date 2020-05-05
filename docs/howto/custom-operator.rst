@@ -214,9 +214,9 @@ poll some state (e.g. presence of a file) on a regular interval until a
 success criteria is met.
 
 You can create any sensor your want by extending the :class:`airflow.sensors.base_sensor_operator.BaseSensorOperator`
-defining a `poke` method to poll your external state and evaluate the success criteria.
+defining a ``poke`` method to poll your external state and evaluate the success criteria.
 
-Sensors have a powerful feature called `'reschedule'` mode which allows the sensor to
+Sensors have a powerful feature called ``'reschedule'`` mode which allows the sensor to
 task to be rescheduled, rather than blocking a worker slot between pokes.
 This is useful when you can tolerate a longer poll interval and expect to be
 polling for a long time.

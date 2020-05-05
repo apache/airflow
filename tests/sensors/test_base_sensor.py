@@ -27,8 +27,7 @@ from airflow.exceptions import AirflowException, AirflowRescheduleException, Air
 from airflow.models import DagBag, DagRun, TaskInstance, TaskReschedule
 from airflow.models.dag import DAG, settings
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.sensors.base_sensor_operator import (BaseSensorOperator,
-                                                  poke_mode_only)
+from airflow.sensors.base_sensor_operator import BaseSensorOperator, poke_mode_only
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
 from airflow.utils.state import State
