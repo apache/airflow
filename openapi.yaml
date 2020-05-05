@@ -502,9 +502,9 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-  /pools/{pool_id}:
+  /pools/{pool_name}:
     parameters:
-      - $ref: '#/components/parameters/PoolID'
+      - $ref: '#/components/parameters/PoolName'
 
     get:
       summary: Get a pool
@@ -1928,13 +1928,13 @@ components:
       required: true
       description: The Import Error ID.
 
-    PoolID:
+    PoolName:
       in: path
-      name: pool_id
+      name: pool_name
       schema:
-        type: integer
+        type: string
       required: true
-      description: The Pool ID.
+      description: The Pool name.
 
     VariableID:
       in: path
