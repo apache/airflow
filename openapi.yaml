@@ -769,25 +769,25 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /dags/{dag_id}/taskInstances/{task_id}/{execution_date}/xcomValues:
+  /dags/{dag_id}/taskInstances/{task_id}/{execution_date}/xcomEntry:
     parameters:
       - $ref: '#/components/parameters/DAGID'
       - $ref: '#/components/parameters/TaskID'
       - $ref: '#/components/parameters/ExecutionDate'
 
     get:
-      summary: Get all XCom values
+      summary: Get all XCom entry
       description:
         This endpoint support reading resources across multiple Task Instances by specifying a
         "-" as a `dag_id`, `task_id` and `execution_date`.
-      operationId: getXComValues
+      operationId: getXComVEntry
       tags: [XCom]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: List of XCom values.
+          description: List of XCom entries.
           content:
             application/json:
               schema:
@@ -801,7 +801,7 @@ paths:
 
     post:
       summary: Create an XCom entry
-      operationId: updateXComValues
+      operationId: updateXComEntries
       tags: [XCom]
       requestBody:
         required: true
