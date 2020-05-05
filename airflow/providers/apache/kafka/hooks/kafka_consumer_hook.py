@@ -15,7 +15,9 @@ from kafka import KafkaConsumer
 
 
 class KafkaConsumerHook(BaseHook):
+    """
 
+    """
     DEFAULT_HOST = 'kafka1'
     DEFAULT_PORT = 9092
 
