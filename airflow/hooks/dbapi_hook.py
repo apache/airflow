@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,15 +16,31 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import str
-from datetime import datetime
 from contextlib import closing
-from typing import Optional
+from datetime import datetime
+from typing import Any, Optional
 
 from sqlalchemy import create_engine
 
-from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
+from airflow.typing_compat import Protocol
+
+
+class ConnectorProtocol(Protocol):
+    """
+    A protocol where you can connect to a database.
+    """
+    def connect(self, host: str, port: int, username: str, schema: str) -> Any:
+        """
+        Connect to a database.
+
+        :param host: The database host to connect to.
+        :param port: The database port to connect to.
+        :param username: The database username used for the authentication.
+        :param schema: The database schema to connect to.
+        :return: the authorized connection object.
+        """
 
 
 class DbApiHook(BaseHook):
@@ -33,15 +48,16 @@ class DbApiHook(BaseHook):
     Abstract base class for sql hooks.
     """
     # Override to provide the connection name.
-    conn_name_attr = None  # type: Optional[str]
+    conn_name_attr = None  # type: str
     # Override to have a default connection id for a particular dbHook
     default_conn_name = 'default_conn_id'
     # Override if this db supports autocommit.
     supports_autocommit = False
     # Override with the object that exposes the connect method
-    connector = None
+    connector = None  # type: Optional[ConnectorProtocol]
 
     def __init__(self, *args, **kwargs):
+        super().__init__()
         if not self.conn_name_attr:
             raise AirflowException("conn_name_attr is not defined")
         elif len(args) == 1:
@@ -61,7 +77,12 @@ class DbApiHook(BaseHook):
             username=db.login,
             schema=db.schema)
 
-    def get_uri(self):
+    def get_uri(self) -> str:
+        """
+        Extract the URI from the connection.
+
+        :return: the extracted uri.
+        """
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         login = ''
         if conn.login:
@@ -69,10 +90,19 @@ class DbApiHook(BaseHook):
         host = conn.host
         if conn.port is not None:
             host += ':{port}'.format(port=conn.port)
-        return '{conn.conn_type}://{login}{host}/{conn.schema}'.format(
+        uri = '{conn.conn_type}://{login}{host}/'.format(
             conn=conn, login=login, host=host)
+        if conn.schema:
+            uri += conn.schema
+        return uri
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
+        """
+        Get an sqlalchemy_engine object.
+
+        :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
+        :return: the created engine.
+        """
         if engine_kwargs is None:
             engine_kwargs = {}
         return create_engine(self.get_uri(), **engine_kwargs)
@@ -151,13 +181,13 @@ class DbApiHook(BaseHook):
                 self.set_autocommit(conn, autocommit)
 
             with closing(conn.cursor()) as cur:
-                for s in sql:
+                for sql_statement in sql:
                     if parameters is not None:
-                        self.log.info("{} with parameters {}".format(s, parameters))
-                        cur.execute(s, parameters)
+                        self.log.info("%s with parameters %s", sql_statement, parameters)
+                        cur.execute(sql_statement, parameters)
                     else:
-                        self.log.info(s)
-                        cur.execute(s)
+                        self.log.info(sql_statement)
+                        cur.execute(sql_statement)
 
             # If autocommit was set to False for db that supports autocommit,
             # or if db does not supports autocommit, we do a manual commit.
@@ -169,10 +199,10 @@ class DbApiHook(BaseHook):
         Sets the autocommit flag on the connection
         """
         if not self.supports_autocommit and autocommit:
-            self.log.warn(
-                ("%s connection doesn't support "
-                 "autocommit but autocommit activated."),
-                getattr(self, self.conn_name_attr))
+            self.log.warning(
+                "%s connection doesn't support autocommit but autocommit activated.",
+                getattr(self, self.conn_name_attr)
+            )
         conn.autocommit = autocommit
 
     def get_autocommit(self, conn):
@@ -196,8 +226,43 @@ class DbApiHook(BaseHook):
         """
         return self.get_conn().cursor()
 
+    @staticmethod
+    def _generate_insert_sql(table, values, target_fields, replace, **kwargs):
+        """
+        Static helper method that generate the INSERT SQL statement.
+        The REPLACE variant is specific to MySQL syntax.
+
+        :param table: Name of the target table
+        :type table: str
+        :param values: The row to insert into the table
+        :type values: tuple of cell values
+        :param target_fields: The names of the columns to fill in the table
+        :type target_fields: iterable of strings
+        :param replace: Whether to replace instead of insert
+        :type replace: bool
+        :return: The generated INSERT or REPLACE SQL statement
+        :rtype: str
+        """
+        placeholders = ["%s", ] * len(values)
+
+        if target_fields:
+            target_fields = ", ".join(target_fields)
+            target_fields = "({})".format(target_fields)
+        else:
+            target_fields = ''
+
+        if not replace:
+            sql = "INSERT INTO "
+        else:
+            sql = "REPLACE INTO "
+        sql += "{0} {1} VALUES ({2})".format(
+            table,
+            target_fields,
+            ",".join(placeholders))
+        return sql
+
     def insert_rows(self, table, rows, target_fields=None, commit_every=1000,
-                    replace=False):
+                    replace=False, **kwargs):
         """
         A generic way to insert a set of tuples into a table,
         a new transaction is created every commit_every rows
@@ -214,11 +279,6 @@ class DbApiHook(BaseHook):
         :param replace: Whether to replace instead of insert
         :type replace: bool
         """
-        if target_fields:
-            target_fields = ", ".join(target_fields)
-            target_fields = "({})".format(target_fields)
-        else:
-            target_fields = ''
         i = 0
         with closing(self.get_conn()) as conn:
             if self.supports_autocommit:
@@ -232,27 +292,21 @@ class DbApiHook(BaseHook):
                     for cell in row:
                         lst.append(self._serialize_cell(cell, conn))
                     values = tuple(lst)
-                    placeholders = ["%s", ] * len(values)
-                    if not replace:
-                        sql = "INSERT INTO "
-                    else:
-                        sql = "REPLACE INTO "
-                    sql += "{0} {1} VALUES ({2})".format(
-                        table,
-                        target_fields,
-                        ",".join(placeholders))
+                    sql = self._generate_insert_sql(
+                        table, values, target_fields, replace, **kwargs
+                    )
                     cur.execute(sql, values)
                     if commit_every and i % commit_every == 0:
                         conn.commit()
                         self.log.info(
-                            "Loaded %s into %s rows so far", i, table
+                            "Loaded %s rows into %s so far", i, table
                         )
 
             conn.commit()
         self.log.info("Done loading. Loaded a total of %s rows", i)
 
     @staticmethod
-    def _serialize_cell(cell, conn=None):
+    def _serialize_cell(cell, conn=None):  # pylint: disable=unused-argument
         """
         Returns the SQL literal of the cell as a string.
 

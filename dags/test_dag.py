@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,11 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from airflow import utils
-from airflow import DAG
-from airflow.operators.dummy_operator import DummyOperator
+"""
+This dag only runs some simple tasks to test Airflow's task execution.
+"""
 from datetime import datetime, timedelta
+
+from airflow.models.dag import DAG
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.utils.dates import days_ago
 
 now = datetime.now()
 now_to_the_hour = (
@@ -32,7 +34,7 @@ DAG_NAME = 'test_dag_v1'
 default_args = {
     'owner': 'airflow',
     'depends_on_past': True,
-    'start_date': utils.dates.days_ago(2)
+    'start_date': days_ago(2)
 }
 dag = DAG(DAG_NAME, schedule_interval='*/10 * * * *', default_args=default_args)
 

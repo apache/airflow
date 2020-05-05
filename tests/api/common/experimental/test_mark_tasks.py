@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,24 +16,26 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 import time
-from datetime import datetime
+import unittest
+from datetime import datetime, timedelta
 
-from airflow import configuration, models
+import pytest
+
+from airflow import models
 from airflow.api.common.experimental.mark_tasks import (
-    set_state, _create_dagruns, set_dag_run_state_to_success, set_dag_run_state_to_failed,
-    set_dag_run_state_to_running)
-from airflow.utils import timezone
-from airflow.utils.db import create_session, provide_session
-from airflow.utils.dates import days_ago
-from airflow.utils.state import State
+    _create_dagruns, set_dag_run_state_to_failed, set_dag_run_state_to_running, set_dag_run_state_to_success,
+    set_state,
+)
 from airflow.models import DagRun
+from airflow.utils import timezone
+from airflow.utils.dates import days_ago
+from airflow.utils.session import create_session, provide_session
+from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
 
 DEV_NULL = "/dev/null"
-
-configuration.load_test_config()
 
 
 class TestMarkTasks(unittest.TestCase):
@@ -46,13 +47,18 @@ class TestMarkTasks(unittest.TestCase):
         cls.dag1.sync_to_db()
         cls.dag2 = dagbag.dags['example_subdag_operator']
         cls.dag2.sync_to_db()
+        cls.dag3 = dagbag.dags['example_trigger_target_dag']
+        cls.dag3.sync_to_db()
         cls.execution_dates = [days_ago(2), days_ago(1)]
+        start_date3 = cls.dag3.default_args["start_date"]
+        cls.dag3_execution_dates = [start_date3, start_date3 + timedelta(days=1),
+                                    start_date3 + timedelta(days=2)]
 
     def setUp(self):
         clear_db_runs()
         drs = _create_dagruns(self.dag1, self.execution_dates,
                               state=State.RUNNING,
-                              run_id_template="scheduled__{}")
+                              run_type=DagRunType.SCHEDULED.value)
         for dr in drs:
             dr.dag = self.dag1
             dr.verify_integrity()
@@ -60,10 +66,18 @@ class TestMarkTasks(unittest.TestCase):
         drs = _create_dagruns(self.dag2,
                               [self.dag2.default_args['start_date']],
                               state=State.RUNNING,
-                              run_id_template="scheduled__{}")
+                              run_type=DagRunType.SCHEDULED.value)
 
         for dr in drs:
             dr.dag = self.dag2
+            dr.verify_integrity()
+
+        drs = _create_dagruns(self.dag3,
+                              self.dag3_execution_dates,
+                              state=State.SUCCESS,
+                              run_type=DagRunType.MANUAL.value)
+        for dr in drs:
+            dr.dag = self.dag3
             dr.verify_integrity()
 
     def tearDown(self):
@@ -89,9 +103,12 @@ class TestMarkTasks(unittest.TestCase):
 
         self.assertTrue(len(tis) > 0)
 
-        for ti in tis:
+        for ti in tis:  # pylint: disable=too-many-nested-blocks
+            self.assertEqual(ti.operator, dag.get_task(ti.task_id).__class__.__name__)
             if ti.task_id in task_ids and ti.execution_date in execution_dates:
                 self.assertEqual(ti.state, state)
+                if state in State.finished():
+                    self.assertIsNotNone(ti.end_date)
             else:
                 for old_ti in old_tis:
                     if old_ti.task_id == ti.task_id and old_ti.execution_date == ti.execution_date:
@@ -101,7 +118,7 @@ class TestMarkTasks(unittest.TestCase):
         # set one task to success but do not commit
         snapshot = TestMarkTasks.snapshot_state(self.dag1, self.execution_dates)
         task = self.dag1.get_task("runme_1")
-        altered = set_state(task=task, execution_date=self.execution_dates[0],
+        altered = set_state(tasks=[task], execution_date=self.execution_dates[0],
                             upstream=False, downstream=False, future=False,
                             past=False, state=State.SUCCESS, commit=False)
         self.assertEqual(len(altered), 1)
@@ -109,7 +126,7 @@ class TestMarkTasks(unittest.TestCase):
                           None, snapshot)
 
         # set one and only one task to success
-        altered = set_state(task=task, execution_date=self.execution_dates[0],
+        altered = set_state(tasks=[task], execution_date=self.execution_dates[0],
                             upstream=False, downstream=False, future=False,
                             past=False, state=State.SUCCESS, commit=True)
         self.assertEqual(len(altered), 1)
@@ -117,7 +134,7 @@ class TestMarkTasks(unittest.TestCase):
                           State.SUCCESS, snapshot)
 
         # set no tasks
-        altered = set_state(task=task, execution_date=self.execution_dates[0],
+        altered = set_state(tasks=[task], execution_date=self.execution_dates[0],
                             upstream=False, downstream=False, future=False,
                             past=False, state=State.SUCCESS, commit=True)
         self.assertEqual(len(altered), 0)
@@ -125,7 +142,7 @@ class TestMarkTasks(unittest.TestCase):
                           State.SUCCESS, snapshot)
 
         # set task to other than success
-        altered = set_state(task=task, execution_date=self.execution_dates[0],
+        altered = set_state(tasks=[task], execution_date=self.execution_dates[0],
                             upstream=False, downstream=False, future=False,
                             past=False, state=State.FAILED, commit=True)
         self.assertEqual(len(altered), 1)
@@ -135,12 +152,29 @@ class TestMarkTasks(unittest.TestCase):
         # dont alter other tasks
         snapshot = TestMarkTasks.snapshot_state(self.dag1, self.execution_dates)
         task = self.dag1.get_task("runme_0")
-        altered = set_state(task=task, execution_date=self.execution_dates[0],
+        altered = set_state(tasks=[task], execution_date=self.execution_dates[0],
                             upstream=False, downstream=False, future=False,
                             past=False, state=State.SUCCESS, commit=True)
         self.assertEqual(len(altered), 1)
         self.verify_state(self.dag1, [task.task_id], [self.execution_dates[0]],
                           State.SUCCESS, snapshot)
+
+        # set one task as FAILED. dag3 has schedule_interval None
+        snapshot = TestMarkTasks.snapshot_state(self.dag3, self.dag3_execution_dates)
+        task = self.dag3.get_task("run_this")
+        altered = set_state(tasks=[task], execution_date=self.dag3_execution_dates[1],
+                            upstream=False, downstream=False, future=False,
+                            past=False, state=State.FAILED, commit=True)
+        # exactly one TaskInstance should have been altered
+        self.assertEqual(len(altered), 1)
+        # task should have been marked as failed
+        self.verify_state(self.dag3, [task.task_id], [self.dag3_execution_dates[1]],
+                          State.FAILED, snapshot)
+        # tasks on other days should be unchanged
+        self.verify_state(self.dag3, [task.task_id], [self.dag3_execution_dates[0]],
+                          None, snapshot)
+        self.verify_state(self.dag3, [task.task_id], [self.dag3_execution_dates[2]],
+                          None, snapshot)
 
     def test_mark_downstream(self):
         # test downstream
@@ -150,7 +184,7 @@ class TestMarkTasks(unittest.TestCase):
         task_ids = [t.task_id for t in relatives]
         task_ids.append(task.task_id)
 
-        altered = set_state(task=task, execution_date=self.execution_dates[0],
+        altered = set_state(tasks=[task], execution_date=self.execution_dates[0],
                             upstream=False, downstream=True, future=False,
                             past=False, state=State.SUCCESS, commit=True)
         self.assertEqual(len(altered), 3)
@@ -164,7 +198,7 @@ class TestMarkTasks(unittest.TestCase):
         task_ids = [t.task_id for t in relatives]
         task_ids.append(task.task_id)
 
-        altered = set_state(task=task, execution_date=self.execution_dates[0],
+        altered = set_state(tasks=[task], execution_date=self.execution_dates[0],
                             upstream=True, downstream=False, future=False,
                             past=False, state=State.SUCCESS, commit=True)
         self.assertEqual(len(altered), 4)
@@ -175,26 +209,55 @@ class TestMarkTasks(unittest.TestCase):
         # set one task to success towards end of scheduled dag runs
         snapshot = TestMarkTasks.snapshot_state(self.dag1, self.execution_dates)
         task = self.dag1.get_task("runme_1")
-        altered = set_state(task=task, execution_date=self.execution_dates[0],
+        altered = set_state(tasks=[task], execution_date=self.execution_dates[0],
                             upstream=False, downstream=False, future=True,
                             past=False, state=State.SUCCESS, commit=True)
         self.assertEqual(len(altered), 2)
         self.verify_state(self.dag1, [task.task_id], self.execution_dates, State.SUCCESS, snapshot)
 
+        snapshot = TestMarkTasks.snapshot_state(self.dag3, self.dag3_execution_dates)
+        task = self.dag3.get_task("run_this")
+        altered = set_state(tasks=[task], execution_date=self.dag3_execution_dates[1],
+                            upstream=False, downstream=False, future=True,
+                            past=False, state=State.FAILED, commit=True)
+        self.assertEqual(len(altered), 2)
+        self.verify_state(self.dag3, [task.task_id], [self.dag3_execution_dates[0]], None, snapshot)
+        self.verify_state(self.dag3, [task.task_id], self.dag3_execution_dates[1:], State.FAILED, snapshot)
+
     def test_mark_tasks_past(self):
         # set one task to success towards end of scheduled dag runs
         snapshot = TestMarkTasks.snapshot_state(self.dag1, self.execution_dates)
         task = self.dag1.get_task("runme_1")
-        altered = set_state(task=task, execution_date=self.execution_dates[1],
+        altered = set_state(tasks=[task], execution_date=self.execution_dates[1],
                             upstream=False, downstream=False, future=False,
                             past=True, state=State.SUCCESS, commit=True)
         self.assertEqual(len(altered), 2)
         self.verify_state(self.dag1, [task.task_id], self.execution_dates, State.SUCCESS, snapshot)
 
-    # TODO: this skipIf should be removed once a fixing solution is found later
+        snapshot = TestMarkTasks.snapshot_state(self.dag3, self.dag3_execution_dates)
+        task = self.dag3.get_task("run_this")
+        altered = set_state(tasks=[task], execution_date=self.dag3_execution_dates[1],
+                            upstream=False, downstream=False, future=False,
+                            past=True, state=State.FAILED, commit=True)
+        self.assertEqual(len(altered), 2)
+        self.verify_state(self.dag3, [task.task_id], self.dag3_execution_dates[:2], State.FAILED, snapshot)
+        self.verify_state(self.dag3, [task.task_id], [self.dag3_execution_dates[2]], None, snapshot)
+
+    def test_mark_tasks_multiple(self):
+        # set multiple tasks to success
+        snapshot = TestMarkTasks.snapshot_state(self.dag1, self.execution_dates)
+        tasks = [self.dag1.get_task("runme_1"), self.dag1.get_task("runme_2")]
+        altered = set_state(tasks=tasks, execution_date=self.execution_dates[0],
+                            upstream=False, downstream=False, future=False,
+                            past=False, state=State.SUCCESS, commit=True)
+        self.assertEqual(len(altered), 2)
+        self.verify_state(self.dag1, [task.task_id for task in tasks], [self.execution_dates[0]],
+                          State.SUCCESS, snapshot)
+
+    # TODO: this backend should be removed once a fixing solution is found later
     #       We skip it here because this test case is working with Postgres & SQLite
     #       but not with MySQL
-    @unittest.skipIf('mysql' in configuration.conf.get('core', 'sql_alchemy_conn'), "Flaky with MySQL")
+    @pytest.mark.backend("sqlite", "postgres")
     def test_mark_tasks_subdag(self):
         # set one task to success towards end of scheduled dag runs
         task = self.dag2.get_task("section-1")
@@ -202,7 +265,7 @@ class TestMarkTasks(unittest.TestCase):
         task_ids = [t.task_id for t in relatives]
         task_ids.append(task.task_id)
 
-        altered = set_state(task=task, execution_date=self.execution_dates[0],
+        altered = set_state(tasks=[task], execution_date=self.execution_dates[0],
                             upstream=False, downstream=True, future=False,
                             past=False, state=State.SUCCESS, commit=True)
         self.assertEqual(len(altered), 14)
@@ -251,7 +314,7 @@ class TestMarkDAGRun(unittest.TestCase):
         self.assertEqual(dr.get_task_instance('run_this_last').state, State.FAILED)
 
     @provide_session
-    def _verify_task_instance_states(self, dag, date, state, session):
+    def _verify_task_instance_states(self, dag, date, state, session=None):
         TI = models.TaskInstance
         tis = session.query(TI)\
             .filter(TI.dag_id == dag.dag_id, TI.execution_date == date)
@@ -502,15 +565,26 @@ class TestMarkDAGRun(unittest.TestCase):
         altered = set_dag_run_state_to_running(self.dag1, None)
         self.assertEqual(len(altered), 0)
 
-        # This will throw AssertionError since dag.latest_execution_date
+        # This will throw ValueError since dag.latest_execution_date
         # need to be 0 does not exist.
-        self.assertRaises(AssertionError, set_dag_run_state_to_success, self.dag2,
+        self.assertRaises(ValueError, set_dag_run_state_to_success, self.dag2,
                           timezone.make_naive(self.execution_dates[0]))
         # altered = set_dag_run_state_to_success(self.dag1, self.execution_dates[0])
         # DagRun does not exist
-        # This will throw AssertionError since dag.latest_execution_date does not exist
-        self.assertRaises(AssertionError, set_dag_run_state_to_success,
+        # This will throw ValueError since dag.latest_execution_date does not exist
+        self.assertRaises(ValueError, set_dag_run_state_to_success,
                           self.dag2, self.execution_dates[0])
+
+    def test_set_dag_run_state_to_failed_no_running_tasks(self):
+        """
+        set_dag_run_state_to_failed when there are no running tasks to update
+        """
+        date = self.execution_dates[0]
+        dr = self._create_test_dag_run(State.SUCCESS, date)
+        for task in self.dag1.tasks:
+            dr.get_task_instance(task.task_id).set_state(State.SUCCESS)
+
+        set_dag_run_state_to_failed(self.dag1, date)
 
     def tearDown(self):
         self.dag1.clear()
@@ -519,7 +593,3 @@ class TestMarkDAGRun(unittest.TestCase):
         with create_session() as session:
             session.query(models.DagRun).delete()
             session.query(models.TaskInstance).delete()
-
-
-if __name__ == '__main__':
-    unittest.main()

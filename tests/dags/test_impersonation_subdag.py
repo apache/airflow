@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,11 +19,9 @@
 from datetime import datetime
 
 from airflow.models import DAG
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.bash import BashOperator
+from airflow.operators.python import PythonOperator
 from airflow.operators.subdag_operator import SubDagOperator
-from airflow.operators.bash_operator import BashOperator
-from airflow.executors import SequentialExecutor
-
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 
@@ -60,5 +57,6 @@ BashOperator(
 
 subdag_operator = SubDagOperator(task_id='test_subdag_operation',
                                  subdag=subdag,
-                                 executor=SequentialExecutor(),
+                                 mode='reschedule',
+                                 poke_interval=1,
                                  dag=dag)

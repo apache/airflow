@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,7 +18,7 @@
 
 import unittest
 from datetime import timedelta
-from mock import Mock, patch
+from unittest.mock import Mock, patch
 
 from airflow.models import DAG, TaskInstance, TaskReschedule
 from airflow.ti_deps.dep_context import DepContext
@@ -28,7 +27,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
 
 
-class NotInReschedulePeriodDepTest(unittest.TestCase):
+class TestNotInReschedulePeriodDep(unittest.TestCase):
 
     def _get_task_instance(self, state):
         dag = DAG('test_dag')
@@ -38,10 +37,10 @@ class NotInReschedulePeriodDepTest(unittest.TestCase):
 
     def _get_task_reschedule(self, reschedule_date):
         task = Mock(dag_id='test_dag', task_id='test_task')
-        tr = TaskReschedule(task=task, execution_date=None, try_number=None,
-                            start_date=reschedule_date, end_date=reschedule_date,
-                            reschedule_date=reschedule_date)
-        return tr
+        reschedule = TaskReschedule(task=task, execution_date=None, try_number=None,
+                                    start_date=reschedule_date, end_date=reschedule_date,
+                                    reschedule_date=reschedule_date)
+        return reschedule
 
     def test_should_pass_if_ignore_in_reschedule_period_is_set(self):
         ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
@@ -53,7 +52,7 @@ class NotInReschedulePeriodDepTest(unittest.TestCase):
         self.assertTrue(ReadyToRescheduleDep().is_met(ti=ti))
 
     @patch('airflow.models.taskreschedule.TaskReschedule.find_for_task_instance', return_value=[])
-    def test_should_pass_if_no_reschedule_record_exists(self, find_for_task_instance):
+    def test_should_pass_if_no_reschedule_record_exists(self, mock_find_for_task_instance):
         ti = self._get_task_instance(State.NONE)
         self.assertTrue(ReadyToRescheduleDep().is_met(ti=ti))
 

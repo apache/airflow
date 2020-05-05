@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,14 +20,14 @@
 from flask import g
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
 
 from airflow import models
 from airflow.exceptions import AirflowException
-from airflow.www.app import appbuilder
-from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
-
+from airflow.utils.session import provide_session
+from airflow.www.app import appbuilder
+from airflow.www.utils import CustomSQLAInterface
 
 EXISTING_ROLES = {
     'Admin',
@@ -43,6 +42,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     ###########################################################################
     #                               VIEW MENUS
     ###########################################################################
+    # [START security_viewer_vms]
     VIEWER_VMS = {
         'Airflow',
         'DagModelView',
@@ -64,9 +64,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'Version',
         'VersionView',
     }
+    # [END security_viewer_vms]
 
     USER_VMS = VIEWER_VMS
 
+    # [START security_op_vms]
     OP_VMS = {
         'Admin',
         'Configurations',
@@ -80,11 +82,12 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'XComs',
         'XComModelView',
     }
+    # [END security_op_vms]
 
     ###########################################################################
     #                               PERMISSIONS
     ###########################################################################
-
+    # [START security_viewer_perms]
     VIEWER_PERMS = {
         'menu_access',
         'can_index',
@@ -108,10 +111,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'can_duration',
         'can_blocked',
         'can_rendered',
-        'can_pickle_info',
         'can_version',
     }
+    # [END security_viewer_perms]
 
+    # [START security_user_perms]
     USER_PERMS = {
         'can_dagrun_clear',
         'can_run',
@@ -129,11 +133,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'clear',
         'can_clear',
     }
+    # [END security_user_perms]
 
+    # [START security_op_perms]
     OP_PERMS = {
         'can_conf',
         'can_varimport',
     }
+    # [END security_op_perms]
 
     # global view-menu for dag-level access
     DAG_VMS = {
@@ -171,6 +178,20 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             'vms': VIEWER_VMS | DAG_VMS | USER_VMS | OP_VMS,
         },
     ]
+
+    def __init__(self, appbuilder):
+        super().__init__(appbuilder)
+
+        # Go and fix up the SQLAInterface used from the stock one to our subclass.
+        # This is needed to support the "hack" where we had to edit
+        # FieldConverter.conversion_table in place in airflow.www.utils
+        for attr in dir(self):
+            if not attr.endswith('view'):
+                continue
+            view = getattr(self, attr, None)
+            if not view or not getattr(view, 'datamodel', None):
+                continue
+            view.datamodel = CustomSQLAInterface(view.datamodel.obj)
 
     def init_role(self, role_name, role_vms, role_perms):
         """
@@ -218,7 +239,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             raise AirflowException("Role named '{}' does not exist".format(
                 role_name))
 
-    def get_user_roles(self, user=None):
+    @staticmethod
+    def get_user_roles(user=None):
         """
         Get all the roles associated with the user.
 
@@ -263,9 +285,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         user_perms_views = self.get_all_permissions_views()
         # return a set of all dags that the user could access
-        return set([view for perm, view in user_perms_views if perm in self.DAG_PERMS])
+        return {view for perm, view in user_perms_views if perm in self.DAG_PERMS}
 
-    def has_access(self, permission, view_name, user=None):
+    def has_access(self, permission, view_name, user=None) -> bool:
         """
         Verify whether a given user could perform certain permission
         (e.g can_read, can_write) on the given dag_id.
@@ -332,11 +354,18 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         pvms = (
             sesh.query(sqla_models.PermissionView)
             .filter(or_(
-                sqla_models.PermissionView.permission == None,  # NOQA
-                sqla_models.PermissionView.view_menu == None,  # NOQA
+                sqla_models.PermissionView.permission == None,  # noqa pylint: disable=singleton-comparison
+                sqla_models.PermissionView.view_menu == None,  # noqa pylint: disable=singleton-comparison
             ))
         )
-        deleted_count = pvms.delete()
+        # Since FAB doesn't define ON DELETE CASCADE on these tables, we need
+        # to delete the _object_ so that SQLA knows to delete the many-to-many
+        # relationship object too. :(
+
+        deleted_count = 0
+        for pvm in pvms:
+            sesh.delete(pvm)
+            deleted_count += 1
         sesh.commit()
         if deleted_count:
             self.log.info('Deleted %s faulty permissions', deleted_count)
@@ -367,7 +396,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         Workflow:
         1. Fetch all the existing (permissions, view-menu) from Airflow DB.
-        2. Fetch all the existing dag models that are either active or paused. Exclude the subdags.
+        2. Fetch all the existing dag models that are either active or paused.
         3. Create both read and write permission view-menus relation for every dags from step 2
         4. Find out all the dag specific roles(excluded pubic, admin, viewer, op, user)
         5. Get all the permission-vm owned by the user role.
@@ -390,8 +419,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         # Get all the active / paused dags and insert them into a set
         all_dags_models = session.query(models.DagModel)\
-            .filter(or_(models.DagModel.is_active, models.DagModel.is_paused))\
-            .filter(~models.DagModel.is_subdag).all()
+            .filter(or_(models.DagModel.is_active, models.DagModel.is_paused)).all()
 
         # create can_dag_edit and can_dag_read permissions for every dag(vm)
         for dag in all_dags_models:
@@ -418,15 +446,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             .filter(ab_perm_view_role.columns.role_id == user_role.id)\
             .join(view_menu)\
             .filter(perm_view.view_menu_id != dag_vm.id)
-        all_perm_views = set([role.permission_view_id for role in all_perm_view_by_user])
+        all_perm_views = {role.permission_view_id for role in all_perm_view_by_user}
 
         for role in dag_role:
             # Get all the perm-view of the role
             existing_perm_view_by_user = self.get_session.query(ab_perm_view_role)\
                 .filter(ab_perm_view_role.columns.role_id == role.id)
 
-            existing_perms_views = set([pv.permission_view_id
-                                        for pv in existing_perm_view_by_user])
+            existing_perms_views = {pv.permission_view_id for pv in existing_perm_view_by_user}
             missing_perm_views = all_perm_views - existing_perms_views
 
             for perm_view_id in missing_perm_views:
@@ -439,12 +466,19 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def update_admin_perm_view(self):
         """
-        Admin should have all the permission-views.
+        Admin should has all the permission-views, except the dag views.
+        because Admin have already have all_dags permission.
         Add the missing ones to the table for admin.
 
         :return: None.
         """
-        pvms = self.get_session.query(sqla_models.PermissionView).all()
+        all_dag_view = self.find_view_menu('all_dags')
+        dag_perm_ids = [self.find_permission('can_dag_edit').id, self.find_permission('can_dag_read').id]
+        pvms = self.get_session.query(sqla_models.PermissionView).filter(~and_(
+            sqla_models.PermissionView.permission_id.in_(dag_perm_ids),
+            sqla_models.PermissionView.view_menu_id != all_dag_view.id)
+        ).all()
+
         pvms = [p for p in pvms if p.permission and p.view_menu]
 
         admin = self.find_role('Admin')
@@ -482,7 +516,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         as only / refresh button or cli.sync_perm will call this function
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :type dag_id: string
+        :type dag_id: str
         :param access_control: a dict where each key is a rolename and
             each value is a set() of permission names (e.g.,
             {'can_dag_read'}
@@ -501,7 +535,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Set the access policy on the given DAG's ViewModel.
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :type dag_id: string
+        :type dag_id: str
         :param access_control: a dict where each key is a rolename and
             each value is a set() of permission names (e.g.,
             {'can_dag_read'}

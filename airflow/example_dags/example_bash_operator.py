@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,17 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import range
+"""Example DAG demonstrating the usage of the BashOperator."""
+
 from datetime import timedelta
 
-import airflow
-from airflow.models import DAG
-from airflow.operators.bash_operator import BashOperator
+from airflow import DAG
+from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'airflow',
-    'start_date': airflow.utils.dates.days_ago(2),
+    'start_date': days_ago(2),
 }
 
 dag = DAG(
@@ -35,6 +35,7 @@ dag = DAG(
     default_args=args,
     schedule_interval='0 0 * * *',
     dagrun_timeout=timedelta(minutes=60),
+    tags=['example']
 )
 
 run_this_last = DummyOperator(

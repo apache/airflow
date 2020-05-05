@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 UI / Screenshots
 =================
@@ -26,7 +28,16 @@ DAGs View
 .........
 List of the DAGs in your environment, and a set of shortcuts to useful pages.
 You can see exactly how many tasks succeeded, failed, or are currently
-running at a glance.
+running at a glance. To hide completed tasks set show_recent_stats_for_completed_runs = False
+
+In order to filter DAGs (e.g by team), you can add tags in each dag.
+The filter is saved in a cookie and can be reset by the reset button.
+For example:
+
+.. code:: python
+
+   dag = DAG('dag', tags=['team1', 'sql'])
+
 
 ------------
 
@@ -46,6 +57,9 @@ the blocking ones.
 .. image:: img/tree.png
 
 ------------
+
+
+.. _ui:graph-view:
 
 Graph View
 ..........

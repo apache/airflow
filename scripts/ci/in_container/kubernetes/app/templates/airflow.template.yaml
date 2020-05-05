@@ -1,0 +1,144 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: admin-rbac
+subjects:
+  - kind: ServiceAccount
+    # Reference to upper's `metadata.name`
+    name: default
+    # Reference to upper's `metadata.namespace`
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: airflow
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: airflow
+    spec:
+      initContainers:
+      - name: "init"
+        image: {{AIRFLOW_KUBERNETES_IMAGE}}
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: airflow-configmap
+          mountPath: /root/airflow/airflow.cfg
+          subPath: airflow.cfg
+        - name: {{INIT_DAGS_VOLUME_NAME}}
+          mountPath: /root/airflow/dags
+        - name: test-volume
+          mountPath: /root/test_volume
+        env:
+        - name: SQL_ALCHEMY_CONN
+          valueFrom:
+            secretKeyRef:
+              name: airflow-secrets
+              key: sql_alchemy_conn
+        command:
+          - "bash"
+        args:
+          - "-cx"
+          - "/tmp/airflow-test-env-init.sh"
+{{INIT_GIT_SYNC}}
+      containers:
+      - name: webserver
+        image: {{AIRFLOW_KUBERNETES_IMAGE}}
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: webserver
+          containerPort: 8080
+        args: ["webserver"]
+        env:
+        - name: AIRFLOW__KUBERNETES__NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: SQL_ALCHEMY_CONN
+          valueFrom:
+            secretKeyRef:
+              name: airflow-secrets
+              key: sql_alchemy_conn
+        volumeMounts:
+        - name: airflow-configmap
+          mountPath: /root/airflow/airflow.cfg
+          subPath: airflow.cfg
+        - name: {{POD_AIRFLOW_DAGS_VOLUME_NAME}}
+          mountPath: /root/airflow/dags
+        - name: airflow-logs
+          mountPath: /root/airflow/logs
+      - name: scheduler
+        image: {{AIRFLOW_KUBERNETES_IMAGE}}
+        imagePullPolicy: IfNotPresent
+        args: ["scheduler"]
+        env:
+        - name: AIRFLOW__KUBERNETES__NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: SQL_ALCHEMY_CONN
+          valueFrom:
+            secretKeyRef:
+              name: airflow-secrets
+              key: sql_alchemy_conn
+        volumeMounts:
+        - name: airflow-configmap
+          mountPath: /root/airflow/airflow.cfg
+          subPath: airflow.cfg
+        - name: {{POD_AIRFLOW_DAGS_VOLUME_NAME}}
+          mountPath: /root/airflow/dags
+        - name: airflow-logs
+          mountPath: /root/airflow/logs
+      volumes:
+      - name: airflow-dags
+        persistentVolumeClaim:
+          claimName: airflow-dags
+      - name: airflow-dags-fake
+        emptyDir: {}
+      - name: airflow-dags-git
+        emptyDir: {}
+      - name: test-volume
+        persistentVolumeClaim:
+          claimName: test-volume
+      - name: airflow-logs
+        persistentVolumeClaim:
+          claimName: airflow-logs
+      - name: airflow-configmap
+        configMap:
+          name: airflow-configmap
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      nodePort: 30809
+  selector:
+    name: airflow

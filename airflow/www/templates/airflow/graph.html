@@ -1,23 +1,25 @@
 {#
-  Licensed to the Apache Software Foundation (ASF) under one or more
-  contributor license agreements.  See the NOTICE file distributed with
-  this work for additional information regarding copyright ownership.
-  The ASF licenses this file to You under the Apache License, Version 2.0
-  (the "License"); you may not use this file except in compliance with
-  the License.  You may obtain a copy of the License at
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+   http://www.apache.org/licenses/LICENSE-2.0
 
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
-
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
 #}
+
 {% extends "airflow/dag.html" %}
 
-{% block title %}Airflow - DAGs{% endblock %}
+{% block page_title %}{{ dag.dag_id }} - Graph - Airflow{% endblock %}
 
 {% block head_css %}
 {{ super() }}
@@ -53,7 +55,7 @@
   {% for op in operators %}
   <div class="legend_item"
        style="border-width:1px;float:left;background:{{ op.ui_color }};color:{{ op.ui_fgcolor }};">
-    {{ op.__name__ }}
+    {{ op.task_type }}
   </div>
   {% endfor %}
 
@@ -62,6 +64,7 @@
     <div class="legend_item state" style="border-color:grey;">queued</div>
     <div class="legend_item state" style="border-color:gold;">up_for_retry</div>
     <div class="legend_item state" style="border-color:turquoise;">up_for_reschedule</div>
+    <div class="legend_item state" style="border-color:orange;">upstream_failed</div>
     <div class="legend_item state" style="border-color:pink;">skipped</div>
     <div class="legend_item state" style="border-color:red;">failed</div>
     <div class="legend_item state" style="border-color:lime;">running</div>
@@ -73,7 +76,7 @@
   <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
   <span id="error_msg">Oops.</span>
 </div>
-<hr style="margin-bottom: 0px;"/>
+<hr style="margin-bottom:0;"/>
 <button class="btn btn-default pull-right" id="refresh_button">
   <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
 </button>
@@ -95,6 +98,7 @@
 
 <script src="{{ url_for_asset('d3.min.js') }}"></script>
 <script src="{{ url_for_asset('dagre-d3.min.js') }}"></script>
+<script src="{{ url_for_asset('d3-tip.js') }}"></script>
 <script>
 
     var highlight_color = "#000000";
@@ -121,11 +125,17 @@
         'running':false,
         'failed':false,
         'skipped': false,
+        'upstream_failed': false,
         'up_for_reschedule': false,
         'up_for_retry': false,
         'queued': false,
         'no_status': false
     };
+    const taskTip = d3.tip()
+      .attr('class', 'tooltip d3-tip')
+      .html(function(toolTipHtml) {
+        return toolTipHtml;
+      });
 
     // Preparation of DagreD3 data structures
     var g = new dagreD3.graphlib.Graph().setGraph({
@@ -142,7 +152,7 @@
 
     // Set edges
     edges.forEach(function(edge) {
-      g.setEdge(edge.u, edge.v)
+      g.setEdge(edge.source_id, edge.target_id);
     });
 
     var render = dagreD3.render(),
@@ -150,6 +160,7 @@
       innerSvg = d3.select("svg g");
 
     innerSvg.call(render, g);
+    innerSvg.call(taskTip);
 
     function setUpZoomSupport() {
       // Set up zoom support for Graph
@@ -158,10 +169,27 @@
                                         "scale(" + d3.event.scale + ")");
           });
       svg.call(zoom);
-    }
 
-    // Centering the DAG on load (Not implemented yet)
-    // https://github.com/dagrejs/dagre-d3/issues/245
+      // Centering the DAG on load
+      // Get Dagre Graph dimensions
+      var graphWidth = g.graph().width;
+      var graphHeight = g.graph().height;
+      // Get SVG dimensions
+      var padding = 20;
+      var svgBb = svg.node().getBoundingClientRect();
+      var width = svgBb.width - padding*2;
+      var height = svgBb.height - padding;  // we are not centering the dag vertically
+
+      // Calculate applicable scale for zoom
+      zoomScale = Math.min(
+        Math.min(width / graphWidth, height / graphHeight),
+        1.5,  // cap zoom level to 1.5 so nodes are not too large
+      );
+
+      zoom.translate([(width/2) - ((graphWidth*zoomScale)/2) + padding, padding]);
+      zoom.scale(zoomScale);
+      zoom.event(innerSvg);
+    }
 
     setUpZoomSupport();
     inject_node_ids(tasks);
@@ -182,7 +210,7 @@
 
     function highlight_nodes(nodes, color) {
         nodes.forEach (function (nodeid) {
-            my_node = d3.select('#' + nodeid).node().parentNode;
+            my_node = d3.select('[id="' + nodeid + '"]').node().parentNode;
             d3.select(my_node).selectAll("rect").style("stroke", color) ;
         })
     }
@@ -204,11 +232,6 @@
     {% if blur %}
     d3.selectAll("text").attr("class", "blur");
     {% endif %}
-
-    $("g.node").tooltip({
-      html: true,
-      container: "body",
-    });
 
     d3.selectAll("div.legend_item.state")
         .style("cursor", "pointer")
@@ -304,7 +327,7 @@
 
 
     // Injecting ids to be used for parent/child highlighting
-    // Separated from update_node_states since it must work even
+    // Separated from updateNodeStates since it must work even
     // when there is no valid task instance available
     function inject_node_ids(tasks) {
         $.each(tasks, function(task_id, task) {
@@ -364,9 +387,53 @@
         return false
     }
 
+    function initRefreshButton() {
+      d3.select("#refresh_button").on("click", () => {
+        $("#loading").css("display", "block");
+        $("div#svg_container").css("opacity", "0.2");
+        $.get(getTaskInstanceURL)
+          .done(
+            (task_instances) => {
+              updateNodesStates(JSON.parse(task_instances));
+              $("#loading").hide();
+              $("div#svg_container").css("opacity", "1");
+              $('#error').hide();
+            }
+          ).fail((_, textStatus, err) => {
+            $('#error_msg').html(`${textStatus}: ${err}`);
+            $('#error').show();
+            $('#loading').hide();
+            $('#chart_section').hide(1000);
+            $('#datatable_section').hide(1000);
+          });
+      });
+    }
+
+    // Assigning css classes based on state to nodes
+    // Initiating the tooltips
+    function updateNodesStates(task_instances) {
+      $.each(task_instances, (task_id, ti) => {
+        $('tspan').filter((index, el) => {
+          return $(el).text() === task_id;
+        })
+          .parent().parent().parent().parent()
+          .attr("class", "node enter " + (ti.state ? ti.state : "no_status"))
+          .attr("data-toggle", "tooltip")
+          .on("mouseover", (evt) => {
+            const task = tasks[task_id];
+            const tt = tiTooltip(ti);
+            taskTip.show(tt, evt.target); // taskTip is defined in graph.html
+          })
+          .on('mouseout', taskTip.hide);
+      });
+    }
+
+    updateNodesStates(task_instances);
+    initRefreshButton();
 
 </script>
 <script src="{{ url_for_asset('graph.js') }}"></script>
+<script src="{{ url_for_asset('task-instances.js') }}"></script>
 
 
 {% endblock %}

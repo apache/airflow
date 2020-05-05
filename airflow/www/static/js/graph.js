@@ -1,24 +1,23 @@
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements. See the NOTICE file
+ * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership. The ASF licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied. See the License for the
+ * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
  */
+// global tiTooltip, taskTip
 
-import { generateTooltipDateTime, converAndFormatUTC, secondsToString } from './datetime-utils';
-import { escapeHtml } from './base';
 
 // Assigning css classes based on state to nodes
 // Initiating the tooltips
@@ -30,23 +29,11 @@ function update_nodes_states(task_instances) {
       .parent().parent().parent().parent()
       .attr("class", "node enter " + (ti.state ? ti.state : "no_status"))
       .attr("data-toggle", "tooltip")
-      .attr("data-original-title", function (d) {
-        // Tooltip
-        const task = tasks[task_id];
-        let tt = "";
-        if(ti.task_id != undefined) {
-          tt +=  "Task_id: " + escapeHtml(task.task_id) + "<br>";
-        }
-        tt += "Run: " + converAndFormatUTC(task.execution_date) + "<br>";
-        if(ti.run_id != undefined) {
-          tt += "run_id: <nobr>" + escapeHtml(task.run_id) + "</nobr><br>";
-        }
-        tt += "Operator: " + escapeHtml(task.task_type) + "<br>";
-        tt += "Duration: " + escapeHtml(convertSecsToHumanReadable(ti.duration)) + "<br>";
-        tt += "Started: " + escapeHtml(ti.start_date) + "<br>";
-        tt += generateTooltipDateTime(ti.start_date, ti.end_date, dagTZ); // dagTZ has been defined in dag.html
-        return tt;
-      });
+      .on("mouseover", function (d) {
+        const tt = tiTooltip(task_instances[task_id]);
+        taskTip.show(tt, this);
+      })
+      .on('mouseout', taskTip.hide);
   });
 }
 

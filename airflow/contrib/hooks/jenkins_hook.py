@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,33 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+"""This module is deprecated. Please use `airflow.providers.jenkins.hooks.jenkins`."""
 
-from airflow.hooks.base_hook import BaseHook
+import warnings
 
-import jenkins
-from distutils.util import strtobool
+# pylint: disable=unused-import
+from airflow.providers.jenkins.hooks.jenkins import JenkinsHook  # noqa
 
-
-class JenkinsHook(BaseHook):
-    """
-    Hook to manage connection to jenkins server
-    """
-
-    def __init__(self, conn_id='jenkins_default'):
-        connection = self.get_connection(conn_id)
-        self.connection = connection
-        connectionPrefix = 'http'
-        # connection.extra contains info about using https (true) or http (false)
-        if connection.extra is None or connection.extra == '':
-            connection.extra = 'false'
-            # set a default value to connection.extra
-            # to avoid rising ValueError in strtobool
-        if strtobool(connection.extra):
-            connectionPrefix = 'https'
-        url = '%s://%s:%d' % (connectionPrefix, connection.host, connection.port)
-        self.log.info('Trying to connect to %s', url)
-        self.jenkins_server = jenkins.Jenkins(url, connection.login, connection.password)
-
-    def get_jenkins_server(self):
-        return self.jenkins_server
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.jenkins.hooks.jenkins`.",
+    DeprecationWarning, stacklevel=2
+)

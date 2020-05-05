@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,50 +15,58 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""CeleryExecutor
 
+.. seealso::
+    For more information on how the CeleryExecutor works, take a look at the guide:
+    :ref:`executor:CeleryExecutor`
+"""
+import logging
 import math
 import os
 import subprocess
 import time
 import traceback
 from multiprocessing import Pool, cpu_count
+from typing import Any, List, Optional, Tuple, Union
 
-from celery import Celery
-from celery import states as celery_states
+from celery import Celery, Task, states as celery_states
+from celery.result import AsyncResult
 
-from airflow import configuration
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.executors.base_executor import BaseExecutor
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.module_loading import import_string
+from airflow.executors.base_executor import BaseExecutor, CommandType
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType, TaskInstanceStateType
 from airflow.utils.timeout import timeout
+
+log = logging.getLogger(__name__)
 
 # Make it constant for unit test.
 CELERY_FETCH_ERR_MSG_HEADER = 'Error fetching Celery task state'
 
 CELERY_SEND_ERR_MSG_HEADER = 'Error sending Celery task'
 
+OPERATION_TIMEOUT = conf.getint('celery', 'operation_timeout', fallback=2)
+
 '''
 To start the celery worker, run the command:
-airflow worker
+airflow celery worker
 '''
 
-if configuration.conf.has_option('celery', 'celery_config_options'):
-    celery_configuration = import_string(
-        configuration.conf.get('celery', 'celery_config_options')
-    )
+if conf.has_option('celery', 'celery_config_options'):
+    celery_configuration = conf.getimport('celery', 'celery_config_options')
 else:
     celery_configuration = DEFAULT_CELERY_CONFIG
 
 app = Celery(
-    configuration.conf.get('celery', 'CELERY_APP_NAME'),
+    conf.get('celery', 'CELERY_APP_NAME'),
     config_source=celery_configuration)
 
 
 @app.task
-def execute_command(command_to_exec):
-    log = LoggingMixin().log
+def execute_command(command_to_exec: CommandType) -> None:
+    """Executes command."""
     log.info("Executing command in Celery: %s", command_to_exec)
     env = os.environ.copy()
     try:
@@ -68,7 +75,6 @@ def execute_command(command_to_exec):
     except subprocess.CalledProcessError as e:
         log.exception('execute_command encountered a CalledProcessError')
         log.error(e.output)
-
         raise AirflowException('Celery command failed')
 
 
@@ -82,12 +88,13 @@ class ExceptionWithTraceback:
     :type exception_traceback: str
     """
 
-    def __init__(self, exception, exception_traceback):
+    def __init__(self, exception: Exception, exception_traceback: str):
         self.exception = exception
         self.traceback = exception_traceback
 
 
-def fetch_celery_task_state(celery_task):
+def fetch_celery_task_state(celery_task: Tuple[TaskInstanceKeyType, AsyncResult]) \
+        -> Union[TaskInstanceStateType, ExceptionWithTraceback]:
     """
     Fetch and return the state of the given celery task. The scope of this function is
     global so that it can be called by subprocesses in the pool.
@@ -100,25 +107,30 @@ def fetch_celery_task_state(celery_task):
     """
 
     try:
-        with timeout(seconds=2):
+        with timeout(seconds=OPERATION_TIMEOUT):
             # Accessing state property of celery task will make actual network request
             # to get the current state of the task.
-            res = (celery_task[0], celery_task[1].state)
-    except Exception as e:
+            return celery_task[0], celery_task[1].state
+    except Exception as e:  # pylint: disable=broad-except
         exception_traceback = "Celery Task ID: {}\n{}".format(celery_task[0],
                                                               traceback.format_exc())
-        res = ExceptionWithTraceback(e, exception_traceback)
-    return res
+        return ExceptionWithTraceback(e, exception_traceback)
 
 
-def send_task_to_executor(task_tuple):
-    key, simple_ti, command, queue, task = task_tuple
+# Task instance that is sent over Celery queues
+# TaskInstanceKeyType, SimpleTaskInstance, Command, queue_name, CallableTask
+TaskInstanceInCelery = Tuple[TaskInstanceKeyType, SimpleTaskInstance, CommandType, Optional[str], Task]
+
+
+def send_task_to_executor(task_tuple: TaskInstanceInCelery) \
+        -> Tuple[TaskInstanceKeyType, CommandType, Union[AsyncResult, ExceptionWithTraceback]]:
+    """Sends task to executor."""
+    key, _, command, queue, task_to_run = task_tuple
     try:
-        with timeout(seconds=2):
-            result = task.apply_async(args=[command], queue=queue)
-    except Exception as e:
-        exception_traceback = "Celery Task ID: {}\n{}".format(key,
-                                                              traceback.format_exc())
+        with timeout(seconds=OPERATION_TIMEOUT):
+            result = task_to_run.apply_async(args=[command], queue=queue)
+    except Exception as e:  # pylint: disable=broad-except
+        exception_traceback = "Celery Task ID: {}\n{}".format(key, traceback.format_exc())
         result = ExceptionWithTraceback(e, exception_traceback)
 
     return key, command, result
@@ -141,7 +153,7 @@ class CeleryExecutor(BaseExecutor):
         # (which can become a bottleneck on bigger clusters) so we use
         # a multiprocessing pool to speed this up.
         # How many worker processes are created for checking celery task state.
-        self._sync_parallelism = configuration.getint('celery', 'SYNC_PARALLELISM')
+        self._sync_parallelism = conf.getint('celery', 'SYNC_PARALLELISM')
         if self._sync_parallelism == 0:
             self._sync_parallelism = max(1, cpu_count() - 1)
 
@@ -149,13 +161,13 @@ class CeleryExecutor(BaseExecutor):
         self.tasks = {}
         self.last_state = {}
 
-    def start(self):
+    def start(self) -> None:
         self.log.debug(
             'Starting Celery Executor using %s processes for syncing',
             self._sync_parallelism
         )
 
-    def _num_tasks_per_send_process(self, to_send_count):
+    def _num_tasks_per_send_process(self, to_send_count: int) -> int:
         """
         How many Celery tasks should each worker process send.
 
@@ -165,38 +177,29 @@ class CeleryExecutor(BaseExecutor):
         return max(1,
                    int(math.ceil(1.0 * to_send_count / self._sync_parallelism)))
 
-    def _num_tasks_per_fetch_process(self):
+    def _num_tasks_per_fetch_process(self) -> int:
         """
         How many Celery tasks should be sent to each worker process.
 
         :return: Number of tasks that should be used per process
         :rtype: int
         """
-        return max(1,
-                   int(math.ceil(1.0 * len(self.tasks) / self._sync_parallelism)))
+        return max(1, int(math.ceil(1.0 * len(self.tasks) / self._sync_parallelism)))
 
-    def heartbeat(self):
-        # Triggering new jobs
-        if not self.parallelism:
-            open_slots = len(self.queued_tasks)
-        else:
-            open_slots = self.parallelism - len(self.running)
+    def trigger_tasks(self, open_slots: int) -> None:
+        """
+        Overwrite trigger_tasks function from BaseExecutor
 
-        self.log.debug("%s running task instances", len(self.running))
-        self.log.debug("%s in queue", len(self.queued_tasks))
-        self.log.debug("%s open slots", open_slots)
+        :param open_slots: Number of open slots
+        :return:
+        """
+        sorted_queue = self.order_queued_tasks_by_priority()
 
-        sorted_queue = sorted(
-            [(k, v) for k, v in self.queued_tasks.items()],
-            key=lambda x: x[1][1],
-            reverse=True)
+        task_tuples_to_send: List[TaskInstanceInCelery] = []
 
-        task_tuples_to_send = []
-
-        for i in range(min((open_slots, len(self.queued_tasks)))):
+        for _ in range(min((open_slots, len(self.queued_tasks)))):
             key, (command, _, queue, simple_ti) = sorted_queue.pop(0)
-            task_tuples_to_send.append((key, simple_ti, command, queue,
-                                        execute_command))
+            task_tuples_to_send.append((key, simple_ti, command, queue, execute_command))
 
         cached_celery_backend = None
         if task_tuples_to_send:
@@ -207,7 +210,7 @@ class CeleryExecutor(BaseExecutor):
             cached_celery_backend = tasks[0].backend
 
         if task_tuples_to_send:
-            # Use chunking instead of a work queue to reduce context switching
+            # Use chunks instead of a work queue to reduce context switching
             # since tasks are roughly uniform in size
             chunksize = self._num_tasks_per_send_process(len(task_tuples_to_send))
             num_processes = min(len(task_tuples_to_send), self._sync_parallelism)
@@ -224,7 +227,7 @@ class CeleryExecutor(BaseExecutor):
 
             for key, command, result in key_and_async_results:
                 if isinstance(result, ExceptionWithTraceback):
-                    self.log.error(
+                    self.log.error(  # pylint: disable=logging-not-lazy
                         CELERY_SEND_ERR_MSG_HEADER + ":%s\n%s\n", result.exception, result.traceback
                     )
                 elif result is not None:
@@ -232,15 +235,11 @@ class CeleryExecutor(BaseExecutor):
                     # and expect scheduler loop to deal with it.
                     self.queued_tasks.pop(key)
                     result.backend = cached_celery_backend
-                    self.running[key] = command
+                    self.running.add(key)
                     self.tasks[key] = result
                     self.last_state[key] = celery_states.PENDING
 
-        # Calling child class sync method
-        self.log.debug("Calling the %s sync method", self.__class__)
-        self.sync()
-
-    def sync(self):
+    def sync(self) -> None:
         num_processes = min(len(self.tasks), self._sync_parallelism)
         if num_processes == 0:
             self.log.debug("No task to query celery, skipping sync")
@@ -252,7 +251,7 @@ class CeleryExecutor(BaseExecutor):
         # Recreate the process pool each sync in case processes in the pool die
         self._sync_pool = Pool(processes=num_processes)
 
-        # Use chunking instead of a work queue to reduce context switching since tasks are
+        # Use chunks instead of a work queue to reduce context switching since tasks are
         # roughly uniform in size
         chunksize = self._num_tasks_per_fetch_process()
 
@@ -265,38 +264,58 @@ class CeleryExecutor(BaseExecutor):
         self._sync_pool.join()
         self.log.debug("Inquiries completed.")
 
+        self.update_task_states(task_keys_to_states)
+
+    def update_task_states(self,
+                           task_keys_to_states: List[Union[TaskInstanceStateType,
+                                                           ExceptionWithTraceback]]) -> None:
+        """Updates states of the tasks."""
         for key_and_state in task_keys_to_states:
             if isinstance(key_and_state, ExceptionWithTraceback):
-                self.log.error(
+                self.log.error(  # pylint: disable=logging-not-lazy
                     CELERY_FETCH_ERR_MSG_HEADER + ", ignoring it:%s\n%s\n",
                     repr(key_and_state.exception), key_and_state.traceback
                 )
                 continue
             key, state = key_and_state
-            try:
-                if self.last_state[key] != state:
-                    if state == celery_states.SUCCESS:
-                        self.success(key)
-                        del self.tasks[key]
-                        del self.last_state[key]
-                    elif state == celery_states.FAILURE:
-                        self.fail(key)
-                        del self.tasks[key]
-                        del self.last_state[key]
-                    elif state == celery_states.REVOKED:
-                        self.fail(key)
-                        del self.tasks[key]
-                        del self.last_state[key]
-                    else:
-                        self.log.info("Unexpected state: %s", state)
-                        self.last_state[key] = state
-            except Exception:
-                self.log.exception("Error syncing the Celery executor, ignoring it.")
+            self.update_task_state(key, state)
 
-    def end(self, synchronous=False):
+    def update_task_state(self, key: TaskInstanceKeyType, state: str) -> None:
+        """Updates state of a single task."""
+        # noinspection PyBroadException
+        try:
+            if self.last_state[key] != state:
+                if state == celery_states.SUCCESS:
+                    self.success(key)
+                    del self.tasks[key]
+                    del self.last_state[key]
+                elif state == celery_states.FAILURE:
+                    self.fail(key)
+                    del self.tasks[key]
+                    del self.last_state[key]
+                elif state == celery_states.REVOKED:
+                    self.fail(key)
+                    del self.tasks[key]
+                    del self.last_state[key]
+                else:
+                    self.log.info("Unexpected state: %s", state)
+                    self.last_state[key] = state
+        except Exception:  # pylint: disable=broad-except
+            self.log.exception("Error syncing the Celery executor, ignoring it.")
+
+    def end(self, synchronous: bool = False) -> None:
         if synchronous:
-            while any([
-                    task.state not in celery_states.READY_STATES
-                    for task in self.tasks.values()]):
+            while any([task.state not in celery_states.READY_STATES for task in self.tasks.values()]):
                 time.sleep(5)
         self.sync()
+
+    def execute_async(self,
+                      key: TaskInstanceKeyType,
+                      command: CommandType,
+                      queue: Optional[str] = None,
+                      executor_config: Optional[Any] = None):
+        """Do not allow async execution for Celery executor."""
+        raise AirflowException("No Async execution for Celery executor.")
+
+    def terminate(self):
+        pass

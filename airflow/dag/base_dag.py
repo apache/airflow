@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+"""Base classes for DAG and DagBag."""
 
 from abc import ABCMeta, abstractmethod
 
@@ -58,14 +59,6 @@ class BaseDag(metaclass=ABCMeta):
         """
         :return: maximum number of tasks that can run simultaneously from this DAG
         :rtype: int
-        """
-        raise NotImplementedError()
-
-    @abstractmethod
-    def is_paused(self):
-        """
-        :return: whether this DAG is paused or not
-        :rtype: bool
         """
         raise NotImplementedError()
 

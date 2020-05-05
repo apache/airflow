@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,13 +20,12 @@ import unittest
 from datetime import datetime
 from urllib.parse import parse_qs
 
-import mock
 from bs4 import BeautifulSoup
 
 from airflow.www import utils
 
 
-class UtilsTest(unittest.TestCase):
+class TestUtils(unittest.TestCase):
     def test_empty_variable_should_not_be_hidden(self):
         self.assertFalse(utils.should_hide_value_for_key(""))
         self.assertFalse(utils.should_hide_value_for_key(None))
@@ -103,67 +101,24 @@ class UtilsTest(unittest.TestCase):
         self.assertEqual('search=bash_',
                          utils.get_params(search='bash_'))
 
-    def test_params_showPaused_true(self):
-        """Should detect True as default for showPaused"""
-        self.assertEqual('',
-                         utils.get_params(showPaused=True))
-
-    def test_params_showPaused_false(self):
-        self.assertEqual('showPaused=False',
-                         utils.get_params(showPaused=False))
-
     def test_params_none_and_zero(self):
-        qs = utils.get_params(a=0, b=None)
+        query_str = utils.get_params(a=0, b=None, c='true')
         # The order won't be consistent, but that doesn't affect behaviour of a browser
-        pairs = list(sorted(qs.split('&')))
-        self.assertListEqual(['a=0', 'b='], pairs)
+        pairs = list(sorted(query_str.split('&')))
+        self.assertListEqual(['a=0', 'c=true'], pairs)
 
     def test_params_all(self):
-        query = utils.get_params(showPaused=False, page=3, search='bash_')
+        query = utils.get_params(status='active', page=3, search='bash_')
         self.assertEqual(
             {'page': ['3'],
              'search': ['bash_'],
-             'showPaused': ['False']},
+             'status': ['active']},
             parse_qs(query)
         )
 
     def test_params_escape(self):
         self.assertEqual('search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E',
                          utils.get_params(search="'>\"/><img src=x onerror=alert(1)>"))
-
-    def test_open_maybe_zipped_normal_file(self):
-        with mock.patch(
-                'io.open', mock.mock_open(read_data="data")) as mock_file:
-            utils.open_maybe_zipped('/path/to/some/file.txt')
-            mock_file.assert_called_with('/path/to/some/file.txt', mode='r')
-
-    def test_open_maybe_zipped_normal_file_with_zip_in_name(self):
-        path = '/path/to/fakearchive.zip.other/file.txt'
-        with mock.patch(
-                'io.open', mock.mock_open(read_data="data")) as mock_file:
-            utils.open_maybe_zipped(path)
-            mock_file.assert_called_with(path, mode='r')
-
-    @mock.patch("zipfile.is_zipfile")
-    @mock.patch("zipfile.ZipFile")
-    def test_open_maybe_zipped_archive(self, mocked_ZipFile, mocked_is_zipfile):
-        mocked_is_zipfile.return_value = True
-        instance = mocked_ZipFile.return_value
-        instance.open.return_value = mock.mock_open(read_data="data")
-
-        utils.open_maybe_zipped('/path/to/archive.zip/deep/path/to/file.txt')
-
-        mocked_is_zipfile.assert_called_once()
-        (args, kwargs) = mocked_is_zipfile.call_args_list[0]
-        self.assertEqual('/path/to/archive.zip', args[0])
-
-        mocked_ZipFile.assert_called_once()
-        (args, kwargs) = mocked_ZipFile.call_args_list[0]
-        self.assertEqual('/path/to/archive.zip', args[0])
-
-        instance.open.assert_called_once()
-        (args, kwargs) = instance.open.call_args_list[0]
-        self.assertEqual('deep/path/to/file.txt', args[0])
 
     def test_state_token(self):
         # It's shouldn't possible to set these odd values anymore, but lets
@@ -220,13 +175,13 @@ class UtilsTest(unittest.TestCase):
         self.assertNotIn('<b2>', html)
 
 
-class AttrRendererTest(unittest.TestCase):
+class TestAttrRenderer(unittest.TestCase):
 
     def setUp(self):
         self.attr_renderer = utils.get_attr_renderer()
 
     def test_python_callable(self):
-        def example_callable(self):
+        def example_callable(unused_self):
             print("example")
         rendered = self.attr_renderer["python_callable"](example_callable)
         self.assertIn('&quot;example&quot;', rendered)

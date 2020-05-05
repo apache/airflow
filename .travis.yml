@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,77 +15,47 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-dist: xenial
+---
+dist: bionic
 language: python
-python:
-  - "3.6"
+os: linux
 env:
   global:
-    - TRAVIS_CACHE=$HOME/.travis_cache/
-    - CASS_DRIVER_BUILD_CONCURRENCY=8
-    - CASS_DRIVER_NO_CYTHON=1
-  matrix:
-    - TOX_ENV=py35-backend_mysql-env_docker PYTHON_VERSION=3
-    - TOX_ENV=py35-backend_sqlite-env_docker PYTHON_VERSION=3
-    - TOX_ENV=py35-backend_postgres-env_docker PYTHON_VERSION=3
-    - TOX_ENV=py35-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.13.0 PYTHON_VERSION=3
-
+    - MOUNT_LOCAL_SOURCES="false"
+    - MOUNT_HOST_AIRFLOW_VOLUME="true"
+    - FORCE_ANSWER_TO_QUESTIONS="yes"
+    - SKIP_CHECK_REMOTE_IMAGE="true"
+    - DB_RESET="true"
+    - VERBOSE="true"
+    - CI_JOB_TYPE="Kubernetes tests"
+python: "3.6"
 stages:
-  - pre-test
   - test
-
+services:
+  - docker
 jobs:
   include:
-    - name: Flake8
-      stage: pre-test
-      install: pip install flake8
-      script: flake8
-    - name: mypy
-      stage: pre-test
-      install: pip install mypy
-      script: mypy airflow tests
-    - name: Check license header
-      stage: pre-test
-      install: skip
-      script: scripts/ci/6-check-license.sh
-    - name: Lint Dockerfile
-      stage: pre-test
-      install: skip
-      script: scripts/ci/ci_lint_dockerfile.sh
-    - name: Check docs
-      stage: pre-test
-      install: pip install -e .[doc]
-      script: docs/build.sh
-cache:
-  directories:
-    - $HOME/.wheelhouse/
-    - $HOME/.cache/pip
-    - $HOME/.travis_cache/
+    - name: "Tests [Py3.6][Kubernetes][persistent]"
+      env: >-
+        BACKEND=postgres
+        PYTHON_MAJOR_MINOR_VERSION=3.6
+        RUNTIME=kubernetes
+        ENABLE_KIND_CLUSTER=true
+        KUBERNETES_MODE=persistent_mode
+        KUBERNETES_VERSION=v1.15.3
+      python: "3.6"
+      stage: test
+    - name: "Tests [Py3.7][Kubernetes][git]"
+      env: >-
+        BACKEND=postgres
+        PYTHON_MAJOR_MINOR_VERSION=3.7
+        RUNTIME=kubernetes
+        ENABLE_KIND_CLUSTER=true
+        KUBERNETES_MODE=git_mode
+        KUBERNETES_VERSION=v1.15.3
+      python: "3.6"
+      stage: test
+install: skip
 before_install:
-  - echo "options timeout:5" | sudo tee -a /etc/resolvconf/resolv.conf.d/tail
-  - echo "options attempts:5" | sudo tee -a /etc/resolvconf/resolv.conf.d/tail
-  - sudo service resolvconf restart
-  # Required for K8s v1.10.x. See
-  # https://github.com/kubernetes/kubernetes/issues/61058#issuecomment-372764783
-  - if [ ! -z "$KUBERNETES_VERSION" ]; then sudo mount --make-shared / && sudo service docker restart; fi
-install:
-  - pip install --upgrade pip
-  - docker-compose -f scripts/ci/docker-compose.yml pull --quiet
-script:
-  - if [ -z "$KUBERNETES_VERSION" ]; then
-      docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh;
-    fi
-  - if [ ! -z "$KUBERNETES_VERSION" ]; then
-      ./scripts/ci/kubernetes/minikube/stop_minikube.sh &&
-      ./scripts/ci/kubernetes/setup_kubernetes.sh &&
-      ./scripts/ci/kubernetes/kube/deploy.sh -d persistent_mode &&
-      MINIKUBE_IP=$(minikube ip) docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml -f scripts/ci/docker-compose-kubernetes.yml run airflow-testing /app/scripts/ci/run-ci.sh;
-    fi
-  - if [ ! -z "$KUBERNETES_VERSION" ]; then
-      ./scripts/ci/kubernetes/minikube/stop_minikube.sh &&
-      ./scripts/ci/kubernetes/setup_kubernetes.sh &&
-      ./scripts/ci/kubernetes/kube/deploy.sh -d git_mode &&
-      MINIKUBE_IP=$(minikube ip) docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml -f scripts/ci/docker-compose-kubernetes.yml run airflow-testing /app/scripts/ci/run-ci.sh;
-    fi
-before_cache:
-  - sudo chown -R travis:travis $HOME/.cache/pip $HOME/.wheelhouse/
+  - ./scripts/ci/ci_prepare_image_on_ci.sh
+script: ./scripts/ci/ci_run_airflow_testing.sh

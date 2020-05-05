@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -22,7 +21,7 @@ import unittest
 from airflow.utils.module_loading import import_string
 
 
-class ModuleImportTestCase(unittest.TestCase):
+class TestModuleImport(unittest.TestCase):
     def test_import_string(self):
         cls = import_string('airflow.utils.module_loading.import_string')
         self.assertEqual(cls, import_string)
@@ -31,5 +30,5 @@ class ModuleImportTestCase(unittest.TestCase):
         with self.assertRaises(ImportError):
             import_string('no_dots_in_path')
         msg = 'Module "airflow.utils" does not define a "nonexistent" attribute'
-        with self.assertRaisesRegexp(ImportError, msg):
+        with self.assertRaisesRegex(ImportError, msg):
             import_string('airflow.utils.nonexistent')

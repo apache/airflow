@@ -1,0 +1,259 @@
+#!/usr/bin/env bash
+
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+_BREEZE_ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS="3.6 3.7"
+_BREEZE_ALLOWED_BACKENDS="sqlite mysql postgres"
+_BREEZE_ALLOWED_INTEGRATIONS="cassandra kerberos mongo openldap presto rabbitmq redis"
+_BREEZE_ALLOWED_KUBERNETES_MODES="persistent_mode git_mode"
+_BREEZE_ALLOWED_KUBERNETES_VERSIONS="v1.15.3 v1.16.2"
+_BREEZE_ALLOWED_MYSQL_VERSIONS="5.7 8"
+_BREEZE_ALLOWED_POSTGRES_VERSIONS="9.6 10"
+
+_BREEZE_ALLOWED_INSTALL_AIRFLOW_VERSIONS=$(cat <<-EOF
+1.10.10
+1.10.9
+1.10.8
+1.10.7
+1.10.6
+1.10.5
+1.10.4
+1.10.3
+1.10.2
+master
+v1-10-test
+EOF
+)
+
+_BREEZE_ALLOWED_STATIC_CHECKS=$(cat <<-EOF
+all
+all-but-pylint
+bat-tests
+check-apache-license
+check-executables-have-shebangs
+check-hooks-apply
+check-merge-conflict
+check-xml
+debug-statements
+doctoc
+detect-private-key
+end-of-file-fixer
+flake8
+forbid-tabs
+insert-license
+lint-dockerfile
+mixed-line-ending
+mypy
+pylint
+pylint-test
+setup-order
+shellcheck
+EOF
+)
+
+_BREEZE_DEFAULT_DOCKERHUB_USER="apache"
+_BREEZE_DEFAULT_DOCKERHUB_REPO="airflow"
+
+_BREEZE_SHORT_OPTIONS="
+h p: b: i:
+K: V:
+s x r
+l a: t: d:
+v y n q f
+F P I E: C L
+D: R: u
+"
+
+_BREEZE_LONG_OPTIONS="
+help python: backend: integration:
+kubernetes-mode: kubernetes-version:
+kind-cluster-start kind-cluster-stop kind-cluster-recreate
+skip-mounting-local-sources install-airflow-version: install-airflow-reference: db-reset
+verbose assume-yes assume-no assume-quit forward-credentials
+force-build-images force-pull-images production-image extras: force-clean-images use-local-cache
+dockerhub-user: dockerhub-repo: push-images
+postgres-version: mysql-version:
+"
+
+export BREEZE_COMMANDS="
+shell
+build-docs
+build-image
+cleanup-image
+exec
+generate-requirements
+initialize-local-virtualenv
+setup-autocomplete
+stop
+restart
+toggle-suppress-cheatsheet
+toggle-suppress-asciiart"
+
+export BREEZE_EXTRA_ARG_COMMANDS="
+docker-compose
+execute-command
+static-check
+static-check-all-files
+test-target"
+
+export BREEZE_HELP_COMMANDS="
+flags
+help
+help-all"
+
+export ALL_BREEZE_COMMANDS="${BREEZE_COMMANDS} ${BREEZE_EXTRA_ARG_COMMANDS} ${BREEZE_HELP_COMMANDS}"
+
+# Note on OSX bash has no associative arrays (Bash 3.2) so we have to fake it
+
+_BREEZE_KNOWN_VALUES=""
+
+function _get_known_values_breeze() {
+    case "$1" in
+    -p | --python)
+        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS}
+        ;;
+    -b | --backend)
+        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_BACKENDS}
+        ;;
+    -i | --integration)
+        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_INTEGRATIONS}
+        ;;
+    -K | --kubernetes-mode)
+        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_KUBERNETES_MODES}
+        ;;
+    -V | --kubernetes-version)
+        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_KUBERNETES_VERSIONS}
+        ;;
+    static-check)
+        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_STATIC_CHECKS}
+        ;;
+    static-check-all-files)
+        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_STATIC_CHECKS}
+        ;;
+    -A | --install-airflow-version)
+        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_INSTALL_AIRFLOW_VERSIONS}
+        ;;
+    docker-compose)
+        # shellcheck disable=SC2034
+        if typeset -f "_docker_compose" >/dev/null; then
+            _docker_compose
+        fi
+        _BREEZE_KNOWN_VALUES=""
+        ;;
+    --postgres-version)
+        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_POSTGRES_VERSIONS}
+        ;;
+    --mysql-version)
+        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_MYSQL_VERSIONS}
+        ;;
+    -D | --dockerhub-user)
+        _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_DOCKERHUB_USER}"
+        ;;
+    -R | --dockerhub-repo)
+        _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_DOCKERHUB_REPO}"
+        ;;
+    *)
+        _BREEZE_KNOWN_VALUES=""
+        ;;
+    esac
+}
+
+_BREEZE_GETOPT_SHORT_OPTIONS=""
+_BREEZE_GETOPT_LONG_OPTIONS=""
+
+function _build_options_breeze {
+    local SEPARATOR=""
+    local OPTION
+
+    for OPTION in ${_BREEZE_SHORT_OPTIONS}
+    do
+        _BREEZE_GETOPT_SHORT_OPTIONS="${_BREEZE_GETOPT_SHORT_OPTIONS}${SEPARATOR}${OPTION}"
+        SEPARATOR=","
+    done
+
+    SEPARATOR=""
+    for OPTION in ${_BREEZE_LONG_OPTIONS}
+    do
+        _BREEZE_GETOPT_LONG_OPTIONS="${_BREEZE_GETOPT_LONG_OPTIONS}${SEPARATOR}${OPTION}"
+        SEPARATOR=","
+    done
+}
+
+function _listcontains_breeze {
+    local WORD
+    for WORD in $1; do
+    [[ ${WORD} = "$2" ]] && return 0
+    done
+    return 1
+}
+
+# A completion function for breeze
+function _comp_breeze {
+    local ALL_OPTIONS=""
+    local EXTRA_ARG_OPTIONS=""
+    local OPTION
+    local GETOPT_OPTION
+    local LAST_COMMAND_PREFIX
+    local PREVIOUS_COMMAND
+
+    for OPTION in ${_BREEZE_SHORT_OPTIONS}
+    do
+        LAST_CHAR="${OPTION:$((${#OPTION} - 1)):1}"
+        GETOPT_OPTION='-'${OPTION//:/}
+        if [[ "${LAST_CHAR}" == ":" ]]; then
+            EXTRA_ARG_OPTIONS="${EXTRA_ARG_OPTIONS} ${GETOPT_OPTION}"
+        fi
+        ALL_OPTIONS="${ALL_OPTIONS} ${GETOPT_OPTION}"
+    done
+    for OPTION in ${_BREEZE_LONG_OPTIONS}
+    do
+        LAST_CHAR="${OPTION:$((${#OPTION} - 1)):1}"
+        GETOPT_OPTION='--'${OPTION//:/}
+        ALL_OPTIONS="${ALL_OPTIONS} ${GETOPT_OPTION}"
+        if [[ "${LAST_CHAR}" == ":" ]]; then
+            EXTRA_ARG_OPTIONS="${EXTRA_ARG_OPTIONS} ${GETOPT_OPTION}"
+        fi
+    done
+
+    ALL_OPTIONS="${ALL_OPTIONS} ${ALL_BREEZE_COMMANDS}"
+    EXTRA_ARG_OPTIONS="${EXTRA_ARG_OPTIONS} ${BREEZE_EXTRA_ARG_COMMANDS}"
+
+    LAST_COMMAND_PREFIX="${COMP_WORDS[${COMP_CWORD}]}"
+
+    if [[ ${#COMP_WORDS[@]} -gt 1 ]]; then
+        PREVIOUS_COMMAND="${COMP_WORDS[${COMP_CWORD} - 1]}"
+    else
+        PREVIOUS_COMMAND=""
+    fi
+
+    if _listcontains_breeze "${EXTRA_ARG_OPTIONS}" "${PREVIOUS_COMMAND}"; then
+        COMPREPLY=()
+        _get_known_values_breeze "${PREVIOUS_COMMAND}"
+        while IFS='' read -r LINE; do COMPREPLY+=("$LINE"); done \
+            < <(compgen -W "${_BREEZE_KNOWN_VALUES}" -- "${LAST_COMMAND_PREFIX}")
+    else
+        COMPREPLY=()
+        while IFS='' read -r LINE; do COMPREPLY+=("$LINE"); done \
+            < <(compgen -W "${ALL_OPTIONS}" -- "${LAST_COMMAND_PREFIX}")
+    fi
+}
+
+_build_options_breeze
+
+complete -F _comp_breeze breeze
+complete -F _comp_breeze ./breeze

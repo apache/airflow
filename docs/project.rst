@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 Project
 =======
@@ -58,6 +60,12 @@ Committers
 - @jmcarp (Joshua Carp)
 - @KevinYang21 (Kevin Yang)
 - @mik-laj (Kamil Breguła)
+- @aijamalnk (Aizhamal Nurmamat kyzy)
+- @milton0825 (Chao-Han Tsai)
+- @feluelle (Felix Uellendall)
+- @sekikn (Kengo Seki)
+- @nuclearpinguin (Tomasz Urbaszek)
+- @zhongjiajie (Jiajie Zhong)
 
 
 For the full list of contributors, take a look at `Airflow's Github
@@ -69,11 +77,13 @@ Resources & links
 -----------------
 
 * `Airflow's official documentation <http://airflow.apache.org/>`_
-* Mailing list (send emails to
-  ``dev-subscribe@airflow.apache.org`` and/or
-  ``commits-subscribe@airflow.apache.org``
-  to subscribe to each)
-* `Issues on Apache's Jira <https://issues.apache.org/jira/browse/AIRFLOW>`_
+* Mailing lists:
+
+  * Developer's mailing list: dev-subscribe@airflow.apache.org
+  * All commits mailing list: commits-subscribe@airflow.apache.org
+  * Airflow users mailing list: users-subscribe@airflow.apache.org
+
+* `Issues on GitHub <https://github.com/apache/airflow/issues>`_
 * `Slack (chat) Channel <https://apache-airflow-slack.herokuapp.com/>`_
 * `More resources and links to Airflow related content on the Wiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links>`_
 

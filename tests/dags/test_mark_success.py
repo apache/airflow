@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,9 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 from datetime import datetime
+from time import sleep
 
 from airflow.models import DAG
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.python import PythonOperator
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 
@@ -28,8 +28,10 @@ args = {
     'start_date': DEFAULT_DATE,
 }
 
+
 dag = DAG(dag_id='test_mark_success', default_args=args)
-task = BashOperator(
+task = PythonOperator(
     task_id='task1',
-    bash_command='sleep 600',
+    python_callable=lambda x: sleep(x),  # pylint: disable=W0108
+    op_args=[600],
     dag=dag)

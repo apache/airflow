@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,13 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module is deprecated.
+Please use `airflow.providers.google.cloud.operators.cloud_storage_transfer_service`.
+"""
+
 import warnings
 
-from airflow.contrib.operators.gcp_transfer_operator import (  # noqa
-    GoogleCloudStorageToGoogleCloudStorageTransferOperator,
-)
+# pylint: disable=unused-import
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.contrib.operators.gcp_transfer_operator`",
-    DeprecationWarning,
+    "This module is deprecated. "
+    "Please use `airflow.providers.google.cloud.operators.cloud_storage_transfer_service`.",
+    DeprecationWarning, stacklevel=2
 )

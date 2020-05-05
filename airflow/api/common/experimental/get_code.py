@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,27 +15,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Get code APIs."""
+from airflow.api.common.experimental import check_and_get_dag
+from airflow.exceptions import AirflowException, DagCodeNotFound
+from airflow.models.dagcode import DagCode
 
-from airflow.exceptions import AirflowException, DagNotFound
-from airflow import models, settings
-from airflow.www import utils as wwwutils
 
+def get_code(dag_id: str) -> str:
+    """Return python code of a given dag_id.
 
-def get_code(dag_id):
-    """Return python code of a given dag_id."""
-    session = settings.Session()
-    DM = models.DagModel
-    dag = session.query(DM).filter(DM.dag_id == dag_id).first()
-    session.close()
-    # Check DAG exists.
-    if dag is None:
-        error_message = "Dag id {} not found".format(dag_id)
-        raise DagNotFound(error_message)
+    :param dag_id: DAG id
+    :return: code of the DAG
+    """
+    dag = check_and_get_dag(dag_id=dag_id)
 
     try:
-        with wwwutils.open_maybe_zipped(dag.fileloc, 'r') as f:
-            code = f.read()
-            return code
-    except IOError as e:
-        error_message = "Error {} while reading Dag id {} Code".format(str(e), dag_id)
-        raise AirflowException(error_message)
+        return DagCode.get_code_by_fileloc(dag.fileloc)
+    except (OSError, DagCodeNotFound) as exception:
+        error_message = "Error {} while reading Dag id {} Code".format(str(exception), dag_id)
+        raise AirflowException(error_message, exception)

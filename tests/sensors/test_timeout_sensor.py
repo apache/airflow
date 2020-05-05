@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,19 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
-
 import time
+import unittest
 from datetime import timedelta
 
-from airflow import DAG, configuration
+import pytest
+
 from airflow.exceptions import AirflowSensorTimeout, AirflowSkipException
+from airflow.models.dag import DAG
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.timezone import datetime
-
-configuration.load_test_config()
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_dag'
@@ -68,17 +66,17 @@ class TimeoutTestSensor(BaseSensorOperator):
         self.log.info("Success criteria met. Exiting.")
 
 
-class SensorTimeoutTest(unittest.TestCase):
+class TestSensorTimeout(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
         }
         self.dag = DAG(TEST_DAG_ID, default_args=args)
 
+    @pytest.mark.quarantined
     def test_timeout(self):
-        t = TimeoutTestSensor(
+        op = TimeoutTestSensor(
             task_id='test_timeout',
             execution_timeout=timedelta(days=2),
             return_value=False,
@@ -88,6 +86,6 @@ class SensorTimeoutTest(unittest.TestCase):
         )
         self.assertRaises(
             AirflowSensorTimeout,
-            t.run,
+            op.run,
             start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
         )

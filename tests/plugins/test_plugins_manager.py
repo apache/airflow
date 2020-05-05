@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,14 +18,11 @@
 
 import unittest
 
-
-from airflow.configuration import conf
 from airflow.www import app as application
 
 
-class PluginsTestRBAC(unittest.TestCase):
+class TestPluginsRBAC(unittest.TestCase):
     def setUp(self):
-        conf.load_test_config()
         self.app, self.appbuilder = application.create_app(testing=True)
 
     def test_flaskappbuilder_views(self):

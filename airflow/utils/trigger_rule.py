@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,23 +20,33 @@ from typing import Set
 
 
 class TriggerRule:
+    """
+    Class with task's trigger rules.
+    """
     ALL_SUCCESS = 'all_success'
     ALL_FAILED = 'all_failed'
     ALL_DONE = 'all_done'
     ONE_SUCCESS = 'one_success'
     ONE_FAILED = 'one_failed'
     NONE_FAILED = 'none_failed'
+    NONE_FAILED_OR_SKIPPED = 'none_failed_or_skipped'
     NONE_SKIPPED = 'none_skipped'
     DUMMY = 'dummy'
 
-    _ALL_TRIGGER_RULES = set()  # type: Set[str]
+    _ALL_TRIGGER_RULES: Set[str] = set()
 
     @classmethod
     def is_valid(cls, trigger_rule):
+        """
+        Validates a trigger rule.
+        """
         return trigger_rule in cls.all_triggers()
 
     @classmethod
     def all_triggers(cls):
+        """
+        Returns all trigger rules.
+        """
         if not cls._ALL_TRIGGER_RULES:
             cls._ALL_TRIGGER_RULES = {
                 getattr(cls, attr)

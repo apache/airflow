@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,15 +18,16 @@
 
 import unittest
 from datetime import datetime
-from mock import Mock
+from unittest.mock import Mock
 
-from airflow.models import DAG, BaseOperator
+from airflow.models import DAG
+from airflow.models.baseoperator import BaseOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.utils.state import State
 
 
-class PrevDagrunDepTest(unittest.TestCase):
+class TestPrevDagrunDep(unittest.TestCase):
 
     def _get_task(self, **kwargs):
         return BaseOperator(task_id='test_task', dag=DAG('test_dag'), **kwargs)
@@ -121,8 +121,11 @@ class PrevDagrunDepTest(unittest.TestCase):
                               wait_for_downstream=True)
         prev_ti = Mock(state=State.SUCCESS,
                        are_dependents_done=Mock(return_value=True))
-        ti = Mock(task=task, previous_ti=prev_ti,
-                  execution_date=datetime(2016, 1, 2))
+        ti = Mock(
+            task=task,
+            execution_date=datetime(2016, 1, 2),
+            **{'get_previous_ti.return_value': prev_ti}
+        )
         dep_context = DepContext(ignore_depends_on_past=False)
 
         self.assertTrue(PrevDagrunDep().is_met(ti=ti, dep_context=dep_context))

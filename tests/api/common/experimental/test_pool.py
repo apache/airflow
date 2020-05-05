@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,20 +16,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import random
+import string
 import unittest
 
 from airflow import models
 from airflow.api.common.experimental import pool as pool_api
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
-from airflow.utils.db import create_session
+from airflow.models.pool import Pool
+from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_pools
 
 
 class TestPool(unittest.TestCase):
 
+    USER_POOL_COUNT = 2
+    TOTAL_POOL_COUNT = USER_POOL_COUNT + 1  # including default_pool
+
     def setUp(self):
-        self.pools = []
-        for i in range(2):
+        clear_db_pools()
+        self.pools = [Pool.get_default_pool()]
+        for i in range(self.USER_POOL_COUNT):
             name = 'experimental_%s' % (i + 1)
             pool = models.Pool(
                 pool=name,
@@ -41,25 +47,22 @@ class TestPool(unittest.TestCase):
         with create_session() as session:
             session.add_all(self.pools)
 
-    def tearDown(self):
-        clear_db_pools()
-
     def test_get_pool(self):
         pool = pool_api.get_pool(name=self.pools[0].pool)
         self.assertEqual(pool.pool, self.pools[0].pool)
 
     def test_get_pool_non_existing(self):
-        self.assertRaisesRegexp(PoolNotFound,
-                                "^Pool 'test' doesn't exist$",
-                                pool_api.get_pool,
-                                name='test')
+        self.assertRaisesRegex(PoolNotFound,
+                               "^Pool 'test' doesn't exist$",
+                               pool_api.get_pool,
+                               name='test')
 
     def test_get_pool_bad_name(self):
         for name in ('', '    '):
-            self.assertRaisesRegexp(AirflowBadRequest,
-                                    "^Pool name shouldn't be empty$",
-                                    pool_api.get_pool,
-                                    name=name)
+            self.assertRaisesRegex(AirflowBadRequest,
+                                   "^Pool name shouldn't be empty$",
+                                   pool_api.get_pool,
+                                   name=name)
 
     def test_get_pools(self):
         pools = sorted(pool_api.get_pools(),
@@ -75,7 +78,7 @@ class TestPool(unittest.TestCase):
         self.assertEqual(pool.slots, 5)
         self.assertEqual(pool.description, '')
         with create_session() as session:
-            self.assertEqual(session.query(models.Pool).count(), 3)
+            self.assertEqual(session.query(models.Pool).count(), self.TOTAL_POOL_COUNT + 1)
 
     def test_create_pool_existing(self):
         pool = pool_api.create_pool(name=self.pools[0].pool,
@@ -85,44 +88,55 @@ class TestPool(unittest.TestCase):
         self.assertEqual(pool.slots, 5)
         self.assertEqual(pool.description, '')
         with create_session() as session:
-            self.assertEqual(session.query(models.Pool).count(), 2)
+            self.assertEqual(session.query(models.Pool).count(), self.TOTAL_POOL_COUNT)
 
     def test_create_pool_bad_name(self):
         for name in ('', '    '):
-            self.assertRaisesRegexp(AirflowBadRequest,
-                                    "^Pool name shouldn't be empty$",
-                                    pool_api.create_pool,
-                                    name=name,
-                                    slots=5,
-                                    description='')
+            self.assertRaisesRegex(AirflowBadRequest,
+                                   "^Pool name shouldn't be empty$",
+                                   pool_api.create_pool,
+                                   name=name,
+                                   slots=5,
+                                   description='')
+
+    def test_create_pool_name_too_long(self):
+        long_name = ''.join(random.choices(string.ascii_lowercase, k=300))
+        column_length = models.Pool.pool.property.columns[0].type.length
+        self.assertRaisesRegex(AirflowBadRequest,
+                               "^Pool name can't be more than %d characters$" % column_length,
+                               pool_api.create_pool,
+                               name=long_name,
+                               slots=5,
+                               description='')
 
     def test_create_pool_bad_slots(self):
-        self.assertRaisesRegexp(AirflowBadRequest,
-                                "^Bad value for `slots`: foo$",
-                                pool_api.create_pool,
-                                name='foo',
-                                slots='foo',
-                                description='')
+        self.assertRaisesRegex(AirflowBadRequest,
+                               "^Bad value for `slots`: foo$",
+                               pool_api.create_pool,
+                               name='foo',
+                               slots='foo',
+                               description='')
 
     def test_delete_pool(self):
-        pool = pool_api.delete_pool(name=self.pools[0].pool)
-        self.assertEqual(pool.pool, self.pools[0].pool)
+        pool = pool_api.delete_pool(name=self.pools[-1].pool)
+        self.assertEqual(pool.pool, self.pools[-1].pool)
         with create_session() as session:
-            self.assertEqual(session.query(models.Pool).count(), 1)
+            self.assertEqual(session.query(models.Pool).count(), self.TOTAL_POOL_COUNT - 1)
 
     def test_delete_pool_non_existing(self):
-        self.assertRaisesRegexp(pool_api.PoolNotFound,
-                                "^Pool 'test' doesn't exist$",
-                                pool_api.delete_pool,
-                                name='test')
+        self.assertRaisesRegex(pool_api.PoolNotFound,
+                               "^Pool 'test' doesn't exist$",
+                               pool_api.delete_pool,
+                               name='test')
 
     def test_delete_pool_bad_name(self):
         for name in ('', '    '):
-            self.assertRaisesRegexp(AirflowBadRequest,
-                                    "^Pool name shouldn't be empty$",
-                                    pool_api.delete_pool,
-                                    name=name)
+            self.assertRaisesRegex(AirflowBadRequest,
+                                   "^Pool name shouldn't be empty$",
+                                   pool_api.delete_pool,
+                                   name=name)
 
-
-if __name__ == '__main__':
-    unittest.main()
+    def test_delete_default_pool_not_allowed(self):
+        with self.assertRaisesRegex(AirflowBadRequest,
+                                    "^default_pool cannot be deleted$"):
+            pool_api.delete_pool(Pool.DEFAULT_POOL_NAME)

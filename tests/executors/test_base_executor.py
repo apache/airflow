@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,14 +17,14 @@
 # under the License.
 
 import unittest
+from datetime import datetime
+from unittest import mock
 
 from airflow.executors.base_executor import BaseExecutor
 from airflow.utils.state import State
 
-from datetime import datetime
 
-
-class BaseExecutorTest(unittest.TestCase):
+class TestBaseExecutor(unittest.TestCase):
     def test_get_event_buffer(self):
         executor = BaseExecutor()
 
@@ -42,3 +41,14 @@ class BaseExecutorTest(unittest.TestCase):
         self.assertEqual(len(executor.get_event_buffer(("my_dag1",))), 1)
         self.assertEqual(len(executor.get_event_buffer()), 2)
         self.assertEqual(len(executor.event_buffer), 0)
+
+    @mock.patch('airflow.executors.base_executor.BaseExecutor.sync')
+    @mock.patch('airflow.executors.base_executor.BaseExecutor.trigger_tasks')
+    @mock.patch('airflow.executors.base_executor.Stats.gauge')
+    def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
+        executor = BaseExecutor()
+        executor.heartbeat()
+        calls = [mock.call('executor.open_slots', mock.ANY),
+                 mock.call('executor.queued_tasks', mock.ANY),
+                 mock.call('executor.running_tasks', mock.ANY)]
+        mock_stats_gauge.assert_has_calls(calls)

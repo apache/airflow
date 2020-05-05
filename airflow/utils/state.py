@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -25,7 +24,7 @@ class State:
     """
 
     # scheduler
-    NONE = None
+    NONE = None  # type: None
     REMOVED = "removed"
     SCHEDULED = "scheduled"
 
@@ -79,10 +78,16 @@ class State:
 
     @classmethod
     def color(cls, state):
+        """
+        Returns color for a state.
+        """
         return cls.state_color.get(state, 'white')
 
     @classmethod
     def color_fg(cls, state):
+        """
+        Black&white colors for a state.
+        """
         color = cls.color(state)
         if color in ['green', 'red']:
             return 'white'

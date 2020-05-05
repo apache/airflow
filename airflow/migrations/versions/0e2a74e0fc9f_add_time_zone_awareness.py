@@ -23,9 +23,9 @@ Create Date: 2017-11-10 22:22:31.326152
 
 """
 
+import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import mysql
-import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = "0e2a74e0fc9f"
@@ -345,7 +345,7 @@ def downgrade():
 
         op.alter_column(
             table_name="import_error",
-            column_name="DATETIME",
+            column_name="timestamp",
             type_=mysql.DATETIME(fsp=6),
         )
 
@@ -375,7 +375,7 @@ def downgrade():
             nullable=False,
         )
         op.alter_column(
-            table_name="sla_miss", column_name="DATETIME", type_=mysql.DATETIME(fsp=6)
+            table_name="sla_miss", column_name="timestamp", type_=mysql.DATETIME(fsp=6)
         )
 
         op.alter_column(
@@ -415,7 +415,7 @@ def downgrade():
         )
 
         op.alter_column(
-            table_name="xcom", column_name="DATETIME", type_=mysql.DATETIME(fsp=6)
+            table_name="xcom", column_name="timestamp", type_=mysql.DATETIME(fsp=6)
         )
         op.alter_column(
             table_name="xcom", column_name="execution_date", type_=mysql.DATETIME(fsp=6)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,20 +15,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Authentication backend that denies all requests"""
 from functools import wraps
+from typing import Optional
+
 from flask import Response
 
-client_auth = None
+from airflow.api.auth.backend.default import ClientAuthProtocol
+
+CLIENT_AUTH = None  # type: Optional[ClientAuthProtocol]
 
 
-def init_app(app):
-    pass
+def init_app(_):
+    """Initializes authentication"""
 
 
 def requires_authentication(function):
+    """Decorator for functions that require authentication"""
+
+    # noinspection PyUnusedLocal
     @wraps(function)
-    def decorated(*args, **kwargs):
+    def decorated(*args, **kwargs):  # pylint: disable=unused-argument
         return Response("Forbidden", 403)
 
     return decorated

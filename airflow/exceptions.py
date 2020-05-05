@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,6 +18,11 @@
 #
 # Note: Any AirflowException raised is expected to cause the TaskInstance
 #       to be marked in an ERROR state
+"""Exceptions used by Airflow"""
+from typing import List, NamedTuple, Optional
+
+from airflow.utils.code_utils import prepare_code_snippet
+from airflow.utils.platform import is_tty
 
 
 class AirflowException(Exception):
@@ -40,11 +44,11 @@ class AirflowNotFoundException(AirflowException):
 
 
 class AirflowConfigException(AirflowException):
-    pass
+    """Raise when there is configuration problem"""
 
 
 class AirflowSensorTimeout(AirflowException):
-    pass
+    """Raise when there is a timeout on sensor polling"""
 
 
 class AirflowRescheduleException(AirflowException):
@@ -52,77 +56,125 @@ class AirflowRescheduleException(AirflowException):
     Raise when the task should be re-scheduled at a later time.
 
     :param reschedule_date: The date when the task should be rescheduled
-    :type reschedule: datetime.datetime
+    :type reschedule_date: datetime.datetime
     """
     def __init__(self, reschedule_date):
+        super().__init__()
         self.reschedule_date = reschedule_date
 
 
 class InvalidStatsNameException(AirflowException):
-    pass
+    """Raise when name of the stats is invalid"""
 
 
 class AirflowTaskTimeout(AirflowException):
-    pass
+    """Raise when the task execution times-out"""
 
 
 class AirflowWebServerTimeout(AirflowException):
-    pass
+    """Raise when the web server times out"""
 
 
 class AirflowSkipException(AirflowException):
-    pass
+    """Raise when the task should be skipped"""
 
 
 class AirflowDagCycleException(AirflowException):
-    pass
+    """Raise when there is a cycle in Dag definition"""
 
 
 class DagNotFound(AirflowNotFoundException):
     """Raise when a DAG is not available in the system"""
-    pass
+
+
+class DagCodeNotFound(AirflowNotFoundException):
+    """Raise when a DAG code is not available in the system"""
 
 
 class DagRunNotFound(AirflowNotFoundException):
     """Raise when a DAG Run is not available in the system"""
-    pass
 
 
 class DagRunAlreadyExists(AirflowBadRequest):
     """Raise when creating a DAG run for DAG which already has DAG run entry"""
-    pass
 
 
 class DagFileExists(AirflowBadRequest):
     """Raise when a DAG ID is still in DagBag i.e., DAG file is in DAG folder"""
-    pass
+
+
+class DuplicateTaskIdFound(AirflowException):
+    """Raise when a Task with duplicate task_id is defined in the same DAG"""
 
 
 class TaskNotFound(AirflowNotFoundException):
     """Raise when a Task is not available in the system"""
-    pass
 
 
 class TaskInstanceNotFound(AirflowNotFoundException):
     """Raise when a Task Instance is not available in the system"""
-    pass
 
 
 class PoolNotFound(AirflowNotFoundException):
     """Raise when a Pool is not available in the system"""
-    pass
 
 
 class NoAvailablePoolSlot(AirflowException):
     """Raise when there is not enough slots in pool"""
-    pass
 
 
 class DagConcurrencyLimitReached(AirflowException):
     """Raise when DAG concurrency limit is reached"""
-    pass
 
 
 class TaskConcurrencyLimitReached(AirflowException):
     """Raise when task concurrency limit is reached"""
-    pass
+
+
+class BackfillUnfinished(AirflowException):
+    """
+    Raises when not all tasks succeed in backfill.
+
+    :param message: The human-readable description of the exception
+    :zparam ti_status: The information about all task statuses
+    """
+    def __init__(self, message, ti_status):
+        super().__init__(message)
+        self.ti_status = ti_status
+
+
+class FileSyntaxError(NamedTuple):
+    """Information about a single error in a file."""
+    line_no: Optional[int]
+    message: str
+
+    def __str__(self):
+        return f"{self.message}. Line number: s{str(self.line_no)},"
+
+
+class AirflowFileParseException(AirflowException):
+    """
+    Raises when connection or variable file can not be parsed
+
+    :param msg: The human-readable description of the exception
+    :param file_path: A processed file that contains errors
+    :param parse_errors: File syntax errors
+    """
+    def __init__(self, msg: str, file_path: str, parse_errors: List[FileSyntaxError]) -> None:
+        super().__init__(msg)
+        self.msg = msg
+        self.file_path = file_path
+        self.parse_errors = parse_errors
+
+    def __str__(self):
+        result = f"{self.msg}\nFilename: {self.file_path}\n\n"
+
+        for error_no, parse_error in enumerate(self.parse_errors, 1):
+            result += "=" * 20 + f" Parse error {error_no:3} " + "=" * 20 + "\n"
+            result += f"{parse_error.message}\n"
+            if parse_error.line_no:
+                result += f"Line number:  {parse_error.line_no}\n"
+                if parse_error.line_no and is_tty():
+                    result += "\n" + prepare_code_snippet(self.file_path, parse_error.line_no) + "\n"
+
+        return result

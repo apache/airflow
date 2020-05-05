@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,11 +22,10 @@ DAG designed to test a PythonOperator that calls a functool.partial
 """
 import functools
 import logging
-
 from datetime import datetime
 
 from airflow.models import DAG
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 default_args = dict(
@@ -38,18 +36,16 @@ default_args = dict(
 class CallableClass:
     def __call__(self):
         """ A __call__ method """
-        pass
 
 
-def a_function(arg_x, arg_y):
+def a_function(_, __):
     """ A function with two args """
-    pass
 
 
 partial_function = functools.partial(a_function, arg_x=1)
 class_instance = CallableClass()
 
-logging.info('class_instance type: {}'.format(type(class_instance)))
+logging.info('class_instance type: %s', type(class_instance))
 
 dag = DAG(dag_id='test_task_view_type_check', default_args=default_args)
 

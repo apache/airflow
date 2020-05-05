@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -14,184 +13,322 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# WARNING: THIS DOCKERFILE IS NOT INTENDED FOR PRODUCTION USE OR DEPLOYMENT.
+# THIS DOCKERFILE IS INTENDED FOR PRODUCTION USE AND DEPLOYMENT.
+# NOTE! IT IS ALPHA-QUALITY FOR NOW - WE ARE IN A PROCESS OF TESTING IT
 #
-# Base image for the whole Docker file
-ARG APT_DEPS_IMAGE="airflow-apt-deps"
-ARG PYTHON_BASE_IMAGE="python:3.6-slim"
-############################################################################################################
-# This is the base image with APT dependencies needed by Airflow. It is based on a python slim image
-# Parameters:
-#    PYTHON_BASE_IMAGE - base python image (python:x.y-slim)
-############################################################################################################
-FROM ${PYTHON_BASE_IMAGE} as airflow-apt-deps
+#
+# This is a multi-segmented image. It actually contains two images:
+#
+# airflow-build-image  - there all airflow dependencies can be installed (and
+#                        built - for those dependencies that require
+#                        build essentials). Airflow is installed there with
+#                        --user switch so that all the dependencies are
+#                        installed to ${HOME}/.local
+#
+# main                 - this is the actual production image that is much
+#                        smaller because it does not contain all the build
+#                        essentials. Instead the ${HOME}/.local folder
+#                        is copied from the build-image - this way we have
+#                        only result of installation and we do not need
+#                        all the build essentials. This makes the image
+#                        much smaller.
+#
+ARG AIRFLOW_VERSION="2.0.0.dev0"
+ARG AIRFLOW_EXTRAS="async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,ssh,statsd,virtualenv"
 
+ARG AIRFLOW_HOME=/opt/airflow
+ARG AIRFLOW_UID="50000"
+ARG AIRFLOW_GID="50000"
+
+ARG PIP_VERSION="19.0.2"
+ARG CASS_DRIVER_BUILD_CONCURRENCY="8"
+
+ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
+ARG PYTHON_MAJOR_MINOR_VERSION="3.6"
+
+##############################################################################################
+# This is the build image where we build all dependencies
+##############################################################################################
+FROM ${PYTHON_BASE_IMAGE} as airflow-build-image
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
-# Need to repeat the empty argument here otherwise it will not be set for this stage
-# But the default value carries from the one set before FROM
+LABEL org.apache.airflow.distro="debian"
+LABEL org.apache.airflow.distro.version="buster"
+LABEL org.apache.airflow.module="airflow"
+LABEL org.apache.airflow.component="airflow"
+LABEL org.apache.airflow.image="airflow-build-image"
+
 ARG PYTHON_BASE_IMAGE
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE}
 
-ARG AIRFLOW_VERSION="2.0.0.dev0"
-ENV AIRFLOW_VERSION=$AIRFLOW_VERSION
+ARG PYTHON_MAJOR_MINOR_VERSION
+ENV PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}
 
-# Print versions
-RUN echo "Base image: ${PYTHON_BASE_IMAGE}"
-RUN echo "Airflow version: ${AIRFLOW_VERSION}"
-
-# Make sure noninteractie debian install is used and language variables set
+# Make sure noninteractive debian install is used and language variables set
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
-
-# By increasing this number we can do force build of all dependencies
-ARG DEPENDENCIES_EPOCH_NUMBER="1"
-# Increase the value below to force renstalling of all dependencies
-ENV DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER}
 
 # Install curl and gnupg2 - needed to download nodejs in the next step
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-           curl gnupg2 \
+           curl \
+           gnupg2 \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
 
 # Install basic apt dependencies
-RUN curl -sL https://deb.nodesource.com/setup_10.x | bash - \
+RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
+    && curl https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - > /dev/null \
+    && echo "deb https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list \
+    # Note missing man directories on debian-buster
+    # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
+    && mkdir -pv /usr/share/man/man1 \
+    && mkdir -pv /usr/share/man/man7 \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-           # Packages to install \
-           libsasl2-dev freetds-bin build-essential sasl2-bin \
-           libsasl2-2 libsasl2-dev libsasl2-modules \
-           default-libmysqlclient-dev apt-utils curl rsync netcat locales  \
-           freetds-dev libkrb5-dev libssl-dev libffi-dev libpq-dev git \
-           nodejs gosu sudo \
+           apt-transport-https \
+           apt-utils \
+           build-essential \
+           ca-certificates \
+           gnupg \
+           dirmngr \
+           freetds-bin \
+           freetds-dev \
+           gosu \
+           krb5-user \
+           ldap-utils \
+           libffi-dev \
+           libkrb5-dev \
+           libpq-dev \
+           libsasl2-2 \
+           libsasl2-dev \
+           libsasl2-modules \
+           libssl-dev \
+           locales  \
+           lsb-release \
+           nodejs \
+           openssh-client \
+           postgresql-client \
+           python-selinux \
+           sasl2-bin \
+           software-properties-common \
+           sqlite3 \
+           sudo \
+           unixodbc \
+           unixodbc-dev \
+           yarn \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN adduser airflow \
-    && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
-    && chmod 0440 /etc/sudoers.d/airflow
+# Install MySQL client from Oracle repositories (Debian installs mariadb)
+RUN KEY="A4A9406876FCBD3C456770C88C718D3B5072E1F5" \
+    && GNUPGHOME="$(mktemp -d)" \
+    && export GNUPGHOME \
+    && for KEYSERVER in $(shuf -e \
+            ha.pool.sks-keyservers.net \
+            hkp://p80.pool.sks-keyservers.net:80 \
+            keyserver.ubuntu.com \
+            hkp://keyserver.ubuntu.com:80 \
+            pgp.mit.edu) ; do \
+          gpg --keyserver "${KEYSERVER}" --recv-keys "${KEY}" && break || true ; \
+       done \
+    && gpg --export "${KEY}" | apt-key add - \
+    && gpgconf --kill all \
+    rm -rf "${GNUPGHOME}"; \
+    apt-key list > /dev/null \
+    && echo "deb http://repo.mysql.com/apt/debian/ stretch mysql-5.7" | tee -a /etc/apt/sources.list.d/mysql.list \
+    && apt-get update \
+    && apt-get install --no-install-recommends -y \
+        libmysqlclient-dev \
+        mysql-client \
+    && apt-get autoremove -yqq --purge \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-############################################################################################################
-# This is the target image - it installs PIP and NPM dependencies including efficient caching
-# mechanisms - it might be used to build the bare airflow build or CI build
-# Parameters:
-#    APT_DEPS_IMAGE - image with APT dependencies. It might either be base deps image with airflow
-#                     dependencies or CI deps image that contains also CI-required dependencies
-############################################################################################################
-FROM ${APT_DEPS_IMAGE} as main
-
-SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
-
-WORKDIR /opt/airflow
-
-RUN echo "Airflow version: ${AIRFLOW_VERSION}"
-
-ARG APT_DEPS_IMAGE
-ENV APT_DEPS_IMAGE=${APT_DEPS_IMAGE}
-
-ARG AIRFLOW_HOME=/opt/airflow
-ENV AIRFLOW_HOME=${AIRFLOW_HOME}
-
-RUN mkdir -pv ${AIRFLOW_HOME} \
-    && chown -R airflow.airflow ${AIRFLOW_HOME}
-
-# Increase the value here to force reinstalling Apache Airflow pip dependencies
-ARG PIP_DEPENDENCIES_EPOCH_NUMBER="1"
-ENV PIP_DEPENDENCIES_EPOCH_NUMBER=${PIP_DEPENDENCIES_EPOCH_NUMBER}
-
-# Optimizing installation of Cassandra driver
-# Speeds up building the image - cassandra driver without CYTHON saves around 10 minutes
-ARG CASS_DRIVER_NO_CYTHON="1"
-# Build cassandra driver on multiple CPUs
-ARG CASS_DRIVER_BUILD_CONCURRENCY="8"
-
-ENV CASS_DRIVER_BUILD_CONCURRENCY=${CASS_DRIVER_BUILD_CONCURRENCY}
-ENV CASS_DRIVER_NO_CYTHON=${CASS_DRIVER_NO_CYTHON}
-
-# By default PIP install run without cache to make image smaller
-ARG PIP_NO_CACHE_DIR="true"
-ENV PIP_NO_CACHE_DIR=${PIP_NO_CACHE_DIR}
-RUN echo "Pip no cache dir: ${PIP_NO_CACHE_DIR}"
-
-# PIP version used to install dependencies
-ARG PIP_VERSION="19.0.1"
+ARG PIP_VERSION
 ENV PIP_VERSION=${PIP_VERSION}
-RUN echo "Pip version: ${PIP_VERSION}"
 
 RUN pip install --upgrade pip==${PIP_VERSION}
 
-# Airflow sources change frequently but dependency configuration won't change that often
-# We copy setup.py and other files needed to perform setup of dependencies
-# This way cache here will only be invalidated if any of the
-# version/setup configuration change but not when airflow sources change
-COPY --chown=airflow:airflow setup.py /opt/airflow/setup.py
-COPY --chown=airflow:airflow setup.cfg /opt/airflow/setup.cfg
+ARG AIRFLOW_SOURCES_FROM="."
+ENV AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM}
 
-COPY --chown=airflow:airflow airflow/version.py /opt/airflow/airflow/version.py
-COPY --chown=airflow:airflow airflow/__init__.py /opt/airflow/airflow/__init__.py
-COPY --chown=airflow:airflow airflow/bin/airflow /opt/airflow/airflow/bin/airflow
+ARG AIRFLOW_SOURCES_TO="/opt/airflow"
+ENV AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO}
 
-# Airflow Extras installed
-ARG AIRFLOW_EXTRAS="all"
+COPY ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
+
+ARG CASS_DRIVER_BUILD_CONCURRENCY
+ENV CASS_DRIVER_BUILD_CONCURRENCY=${CASS_DRIVER_BUILD_CONCURRENCY}
+
+ARG AIRFLOW_VERSION
+ENV AIRFLOW_VERSION=${AIRFLOW_VERSION}
+
+ARG AIRFLOW_EXTRAS
 ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}
-RUN echo "Installing with extras: ${AIRFLOW_EXTRAS}."
 
-# First install only dependencies but no Apache Airflow itself
-# This way regular changes in sources of Airflow will not trigger reinstallation of all dependencies
-# And this Docker layer will be reused between builds.
-RUN pip install --no-use-pep517 -e ".[${AIRFLOW_EXTRAS}]"
+ARG AIRFLOW_INSTALL_SOURCES="."
+ENV AIRFLOW_INSTALL_SOURCES=${AIRFLOW_INSTALL_SOURCES}
 
-COPY --chown=airflow:airflow airflow/www/package.json /opt/airflow/airflow/www/package.json
-COPY --chown=airflow:airflow airflow/www/package-lock.json /opt/airflow/airflow/www/package-lock.json
+ARG AIRFLOW_INSTALL_VERSION=""
+ENV AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION}
 
-WORKDIR /opt/airflow/airflow/www
-
-# Install necessary NPM dependencies (triggered by changes in package-lock.json)
-RUN gosu airflow npm ci
-
-COPY --chown=airflow:airflow airflow/www/ /opt/airflow/airflow/www/
-
-# Package NPM for production
-RUN gosu airflow npm run prod
+ARG CONSTRAINT_REQUIREMENTS="requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
+ENV CONSTRAINT_REQUIREMENTS=${CONSTRAINT_REQUIREMENTS}
 
 WORKDIR /opt/airflow
 
-# Always apt-get update/upgrade here to get latest dependencies before
-# we redo pip install
-RUN apt-get update \
-    && apt-get upgrade -y --no-install-recommends \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# hadolint ignore=DL3020
+ADD "${CONSTRAINT_REQUIREMENTS}" /requirements.txt
 
-# Cache for this line will be automatically invalidated if any
-# of airflow sources change
-COPY --chown=airflow:airflow . /opt/airflow/
+ENV PATH=${PATH}:/root/.local/bin
 
-# Always add-get update/upgrade here to get latest dependencies before
-# we redo pip install
-RUN apt-get update \
-    && apt-get upgrade -y --no-install-recommends \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+RUN pip install --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
+    --constraint /requirements.txt && \
+    find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r && \
+    find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r
 
-# Additional python deps to install
-ARG ADDITIONAL_PYTHON_DEPS=""
-
-RUN if [ -n "${ADDITIONAL_PYTHON_DEPS}" ]; then \
-        pip install ${ADDITIONAL_PYTHON_DEPS}; \
+RUN \
+    AIRFLOW_SITE_PACKAGE="/root/.local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow"; \
+    if [[ -f "${AIRFLOW_SITE_PACKAGE}/www_rbac/package.json" ]]; then \
+        WWW_DIR="${AIRFLOW_SITE_PACKAGE}/www_rbac"; \
+    elif [[ -f "${AIRFLOW_SITE_PACKAGE}/www/package.json" ]]; then \
+        WWW_DIR="${AIRFLOW_SITE_PACKAGE}/www"; \
+    fi; \
+    if [[ ${WWW_DIR:=} != "" ]]; then \
+        yarn --cwd "${WWW_DIR}" install --frozen-lockfile --no-cache; \
+        yarn --cwd "${WWW_DIR}" run prod; \
+        rm -rf "${WWW_DIR}/node_modules"; \
     fi
+
+ARG ENTRYPOINT_FILE="entrypoint.sh"
+ENV ENTRYPOINT_FILE="${ENTRYPOINT_FILE}"
+
+# hadolint ignore=DL3020
+ADD ${ENTRYPOINT_FILE} /entrypoint
+RUN chmod a+x /entrypoint
+
+##############################################################################################
+# This is the actual Airflow image - much smaller than the build one. We copy
+# installed Airflow and all it's dependencies from the build image to make it smaller.
+##############################################################################################
+FROM ${PYTHON_BASE_IMAGE} as main
+SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
+
+ARG AIRFLOW_UID
+ARG AIRFLOW_GID
+
+LABEL org.apache.airflow.distro="debian"
+LABEL org.apache.airflow.distro.version="buster"
+LABEL org.apache.airflow.module="airflow"
+LABEL org.apache.airflow.component="airflow"
+LABEL org.apache.airflow.image="airflow"
+LABEL org.apache.airflow.uid="${AIRFLOW_UID}"
+LABEL org.apache.airflow.gid="${AIRFLOW_GID}"
+
+ARG PYTHON_BASE_IMAGE
+ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE}
+
+ARG AIRFLOW_VERSION
+ENV AIRFLOW_VERSION=${AIRFLOW_VERSION}
+
+# Make sure noninteractive debian install is used and language variables set
+ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
+    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
+
+# Note missing man directories on debian-buster
+# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
+# Install basic apt dependencies
+RUN mkdir -pv /usr/share/man/man1 \
+    && mkdir -pv /usr/share/man/man7 \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+           apt-transport-https \
+           apt-utils \
+           ca-certificates \
+           curl \
+           dumb-init \
+           freetds-bin \
+           gnupg \
+           gosu \
+           krb5-user \
+           ldap-utils \
+           libffi6 \
+           libsasl2-2 \
+           libsasl2-modules \
+           libssl1.1 \
+           locales  \
+           lsb-release \
+           netcat \
+           openssh-client \
+           postgresql-client \
+           rsync \
+           sasl2-bin \
+           sqlite3 \
+           sudo \
+           unixodbc \
+    && apt-get autoremove -yqq --purge \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install MySQL client from Oracle repositories (Debian installs mariadb)
+RUN KEY="A4A9406876FCBD3C456770C88C718D3B5072E1F5" \
+    && GNUPGHOME="$(mktemp -d)" \
+    && export GNUPGHOME \
+    && for KEYSERVER in $(shuf -e \
+            ha.pool.sks-keyservers.net \
+            hkp://p80.pool.sks-keyservers.net:80 \
+            keyserver.ubuntu.com \
+            hkp://keyserver.ubuntu.com:80 \
+            pgp.mit.edu) ; do \
+          gpg --keyserver "${KEYSERVER}" --recv-keys "${KEY}" && break || true ; \
+       done \
+    && gpg --export "${KEY}" | apt-key add - \
+    && gpgconf --kill all \
+    rm -rf "${GNUPGHOME}"; \
+    apt-key list > /dev/null \
+    && echo "deb http://repo.mysql.com/apt/debian/ stretch mysql-5.7" | tee -a /etc/apt/sources.list.d/mysql.list \
+    && apt-get update \
+    && apt-get install --no-install-recommends -y \
+        libmysqlclient20 \
+        mysql-client \
+    && apt-get autoremove -yqq --purge \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+ARG PIP_VERSION
+ENV PIP_VERSION=${PIP_VERSION}
+RUN pip install --upgrade pip==${PIP_VERSION}
+
+ENV AIRFLOW_UID=${AIRFLOW_UID}
+ENV AIRFLOW_GID=${AIRFLOW_GID}
+
+RUN addgroup --gid "${AIRFLOW_GID}" "airflow" && \
+    adduser --quiet "airflow" --uid "${AIRFLOW_UID}" \
+        --ingroup "airflow" \
+        --home /home/airflow
+
+ARG AIRFLOW_HOME
+ENV AIRFLOW_HOME=${AIRFLOW_HOME}
+
+RUN mkdir -pv "${AIRFLOW_HOME}"; \
+    mkdir -pv "${AIRFLOW_HOME}/dags"; \
+    mkdir -pv "${AIRFLOW_HOME}/logs"; \
+    chown -R "airflow" "${AIRFLOW_HOME}"
+
+COPY --chown=airflow:airflow --from=airflow-build-image /root/.local "/home/airflow/.local"
+COPY --chown=airflow:airflow --from=airflow-build-image /entrypoint /entrypoint
 
 USER airflow
 
+ENV PATH="/home/airflow/.local/bin:${PATH}"
+
 WORKDIR ${AIRFLOW_HOME}
 
-COPY --chown=airflow:airflow ./scripts/docker/entrypoint.sh /entrypoint.sh
+ENV AIRFLOW__CORE__LOAD_EXAMPLES="false"
 
 EXPOSE 8080
-ENTRYPOINT ["/usr/local/bin/dumb-init", "--", "/entrypoint.sh"]
+
+COPY scripts/include/clean-logs.sh /usr/local/bin/clean-airflow-logs
+ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
 CMD ["--help"]

@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,21 +6,23 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
 
+
+
 .. _howto/operator:BashOperator:
 
 BashOperator
 ============
 
-Use the :class:`~airflow.operators.bash_operator.BashOperator` to execute
+Use the :class:`~airflow.operators.bash.BashOperator` to execute
 commands in a `Bash <https://www.gnu.org/software/bash/>`__ shell.
 
 .. exampleinclude:: ../../../airflow/example_dags/example_bash_operator.py
@@ -54,9 +56,43 @@ template to it, which will fail.
     t2 = BashOperator(
         task_id='bash_example',
 
-        # This fails with `Jinja template not found` error
+        # This fails with 'Jinja template not found' error
         # bash_command="/home/batcher/test.sh",
 
         # This works (has a space after)
         bash_command="/home/batcher/test.sh ",
+        dag=dag)
+
+However, if you want to use templating in your bash script, do not add the space
+and instead put your bash script in a location relative to the directory containing
+the DAG file. So if your DAG file is in ``/usr/local/airflow/dags/test_dag.py``, you can
+move your ``test.sh`` file to any location under ``/usr/local/airflow/dags/`` (Example:
+``/usr/local/airflow/dags/scripts/test.sh``) and pass the relative path to ``bash_command``
+as shown below:
+
+.. code-block:: python
+
+    t2 = BashOperator(
+        task_id='bash_example',
+        # "scripts" folder is under "/usr/local/airflow/dags"
+        bash_command="scripts/test.sh",
+        dag=dag)
+
+Creating separate folder for bash scripts may be desirable for many reasons, like
+separating your script's logic and pipeline code, allowing for proper code highlighting
+in files composed in different languages, and general flexibility in structuring
+pipelines.
+
+It is also possible to define your ``template_searchpath`` as pointing to any folder
+locations in the DAG constructor call.
+
+Example:
+
+.. code-block:: python
+
+    dag = DAG("example_bash_dag", template_searchpath="/opt/scripts")
+    t2 = BashOperator(
+        task_id='bash_example',
+        # "test.sh" is a file under "/opt/scripts"
+        bash_command="test.sh ",
         dag=dag)

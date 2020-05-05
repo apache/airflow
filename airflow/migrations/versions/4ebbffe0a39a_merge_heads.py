@@ -19,14 +19,14 @@
 """Merge heads
 
 Revision ID: 4ebbffe0a39a
-Revises: dd4ecb8fbee3, cf5dc11e79ad, a56c9515abdc
+Revises: dd4ecb8fbee3, cf5dc11e79ad
 Create Date: 2019-02-04 20:19:50.628137
 
 """
 
 # revision identifiers, used by Alembic.
 revision = '4ebbffe0a39a'
-down_revision = ('dd4ecb8fbee3', 'cf5dc11e79ad', 'a56c9515abdc')
+down_revision = ('dd4ecb8fbee3', 'cf5dc11e79ad')
 branch_labels = None
 depends_on = None
 

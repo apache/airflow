@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,97 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.contrib.hooks.aws_hook import AwsHook
+"""This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.redshift`."""
 
+import warnings
 
-class RedshiftHook(AwsHook):
-    """
-    Interact with AWS Redshift, using the boto3 library
-    """
-    def get_conn(self):
-        return self.get_client_type('redshift')
+# pylint: disable=unused-import
+from airflow.providers.amazon.aws.hooks.redshift import RedshiftHook  # noqa
 
-    # TODO: Wrap create_cluster_snapshot
-    def cluster_status(self, cluster_identifier):
-        """
-        Return status of a cluster
-
-        :param cluster_identifier: unique identifier of a cluster
-        :type cluster_identifier: str
-        """
-        conn = self.get_conn()
-        try:
-            response = conn.describe_clusters(
-                ClusterIdentifier=cluster_identifier)['Clusters']
-            return response[0]['ClusterStatus'] if response else None
-        except conn.exceptions.ClusterNotFoundFault:
-            return 'cluster_not_found'
-
-    def delete_cluster(
-            self,
-            cluster_identifier,
-            skip_final_cluster_snapshot=True,
-            final_cluster_snapshot_identifier=''):
-        """
-        Delete a cluster and optionally create a snapshot
-
-        :param cluster_identifier: unique identifier of a cluster
-        :type cluster_identifier: str
-        :param skip_final_cluster_snapshot: determines cluster snapshot creation
-        :type skip_final_cluster_snapshot: bool
-        :param final_cluster_snapshot_identifier: name of final cluster snapshot
-        :type final_cluster_snapshot_identifier: str
-        """
-        response = self.get_conn().delete_cluster(
-            ClusterIdentifier=cluster_identifier,
-            SkipFinalClusterSnapshot=skip_final_cluster_snapshot,
-            FinalClusterSnapshotIdentifier=final_cluster_snapshot_identifier
-        )
-        return response['Cluster'] if response['Cluster'] else None
-
-    def describe_cluster_snapshots(self, cluster_identifier):
-        """
-        Gets a list of snapshots for a cluster
-
-        :param cluster_identifier: unique identifier of a cluster
-        :type cluster_identifier: str
-        """
-        response = self.get_conn().describe_cluster_snapshots(
-            ClusterIdentifier=cluster_identifier
-        )
-        if 'Snapshots' not in response:
-            return None
-        snapshots = response['Snapshots']
-        snapshots = filter(lambda x: x['Status'], snapshots)
-        snapshots.sort(key=lambda x: x['SnapshotCreateTime'], reverse=True)
-        return snapshots
-
-    def restore_from_cluster_snapshot(self, cluster_identifier, snapshot_identifier):
-        """
-        Restores a cluster from its snapshot
-
-        :param cluster_identifier: unique identifier of a cluster
-        :type cluster_identifier: str
-        :param snapshot_identifier: unique identifier for a snapshot of a cluster
-        :type snapshot_identifier: str
-        """
-        response = self.get_conn().restore_from_cluster_snapshot(
-            ClusterIdentifier=cluster_identifier,
-            SnapshotIdentifier=snapshot_identifier
-        )
-        return response['Cluster'] if response['Cluster'] else None
-
-    def create_cluster_snapshot(self, snapshot_identifier, cluster_identifier):
-        """
-        Creates a snapshot of a cluster
-
-        :param snapshot_identifier: unique identifier for a snapshot of a cluster
-        :type snapshot_identifier: str
-        :param cluster_identifier: unique identifier of a cluster
-        :type cluster_identifier: str
-        """
-        response = self.get_conn().create_cluster_snapshot(
-            SnapshotIdentifier=snapshot_identifier,
-            ClusterIdentifier=cluster_identifier,
-        )
-        return response['Snapshot'] if response['Snapshot'] else None
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.redshift`.",
+    DeprecationWarning,
+    stacklevel=2,
+)

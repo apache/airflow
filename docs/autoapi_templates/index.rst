@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,17 +6,21 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
 
-API Reference
-=============
+
+
+Python API Reference
+====================
+
+.. _pythonapi:operators:
 
 Operators
 ---------
@@ -62,10 +66,135 @@ All operators are in the following packages:
 
   airflow/sensors/index
 
-  airflow/contrib/operators/index
+  airflow/providers/amazon/aws/operators/index
 
-  airflow/contrib/sensors/index
+  airflow/providers/amazon/aws/sensors/index
 
+  airflow/providers/apache/cassandra/sensors/index
+
+  airflow/providers/apache/druid/operators/index
+
+  airflow/providers/apache/hdfs/sensors/index
+
+  airflow/providers/apache/hive/operators/index
+
+  airflow/providers/apache/hive/sensors/index
+
+  airflow/providers/apache/livy/operators/index
+
+  airflow/providers/apache/livy/sensors/index
+
+  airflow/providers/apache/pig/operators/index
+
+  airflow/providers/apache/spark/operators/index
+
+  airflow/providers/apache/sqoop/operators/index
+
+  airflow/providers/celery/sensors/index
+
+  airflow/providers/cncf/kubernetes/operators/index
+
+  airflow/providers/cncf/kubernetes/sensors/index
+
+  airflow/providers/databricks/operators/index
+
+  airflow/providers/datadog/sensors/index
+
+  airflow/providers/dingding/operators/index
+
+  airflow/providers/discord/operators/index
+
+  airflow/providers/docker/operators/index
+
+  airflow/providers/email/operators/index
+
+  airflow/providers/exasol/operators/index
+
+  airflow/providers/ftp/sensors/index
+
+  airflow/providers/google/ads/operators/index
+
+  airflow/providers/google/cloud/operators/index
+
+  airflow/providers/google/cloud/sensors/index
+
+  airflow/providers/google/firebase/operators/index
+
+  airflow/providers/google/marketing_platform/operators/index
+
+  airflow/providers/google/marketing_platform/sensors/index
+
+  airflow/providers/google/suite/operators/index
+
+  airflow/providers/grpc/operators/index
+
+  airflow/providers/http/operators/index
+
+  airflow/providers/http/sensors/index
+
+  airflow/providers/imap/sensors/index
+
+  airflow/providers/jdbc/operators/index
+
+  airflow/providers/jenkins/operators/index
+
+  airflow/providers/jira/operators/index
+
+  airflow/providers/jira/sensors/index
+
+  airflow/providers/microsoft/azure/operators/index
+
+  airflow/providers/microsoft/azure/sensors/index
+
+  airflow/providers/microsoft/mssql/operators/index
+
+  airflow/providers/microsoft/winrm/operators/index
+
+  airflow/providers/mongo/sensors/index
+
+  airflow/providers/mysql/operators/index
+
+  airflow/providers/opsgenie/operators/index
+
+  airflow/providers/oracle/operators/index
+
+  airflow/providers/papermill/operators/index
+
+  airflow/providers/postgres/operators/index
+
+  airflow/providers/qubole/operators/index
+
+  airflow/providers/qubole/sensors/index
+
+  airflow/providers/redis/operators/index
+
+  airflow/providers/redis/sensors/index
+
+  airflow/providers/salesforce/operators/index
+
+  airflow/providers/salesforce/sensors/index
+
+  airflow/providers/segment/operators/index
+
+  airflow/providers/sftp/operators/index
+
+  airflow/providers/sftp/sensors/index
+
+  airflow/providers/singularity/operators/index
+
+  airflow/providers/slack/operators/index
+
+  airflow/providers/snowflake/operators/index
+
+  airflow/providers/sqlite/operators/index
+
+  airflow/providers/ssh/operators/index
+
+  airflow/providers/vertica/operators/index
+
+  airflow/providers/yandex/operators/index
+
+.. _pythonapi:hooks:
 
 Hooks
 -----
@@ -84,8 +213,121 @@ All hooks are in the following packages:
 
   airflow/hooks/index
 
-  airflow/contrib/hooks/index
+  airflow/providers/amazon/aws/hooks/index
 
+  airflow/providers/apache/cassandra/hooks/index
+
+  airflow/providers/apache/druid/hooks/index
+
+  airflow/providers/apache/hdfs/hooks/index
+
+  airflow/providers/apache/hive/hooks/index
+
+  airflow/providers/apache/livy/hooks/index
+
+  airflow/providers/apache/pig/hooks/index
+
+  airflow/providers/apache/pinot/hooks/index
+
+  airflow/providers/apache/spark/hooks/index
+
+  airflow/providers/apache/sqoop/hooks/index
+
+  airflow/providers/cloudant/hooks/index
+
+  airflow/providers/cncf/kubernetes/hooks/index
+
+  airflow/providers/databricks/hooks/index
+
+  airflow/providers/datadog/hooks/index
+
+  airflow/providers/discord/hooks/index
+
+  airflow/providers/dingding/hooks/index
+
+  airflow/providers/docker/hooks/index
+
+  airflow/providers/elasticsearch/hooks/index
+
+  airflow/providers/exasol/hooks/index
+
+  airflow/providers/facebook/ads/hooks/index
+
+  airflow/providers/ftp/hooks/index
+
+  airflow/providers/google/ads/hooks/index
+
+  airflow/providers/google/cloud/hooks/index
+
+  airflow/providers/google/common/hooks/index
+
+  airflow/providers/google/firebase/hooks/index
+
+  airflow/providers/google/marketing_platform/hooks/index
+
+  airflow/providers/google/suite/hooks/index
+
+  airflow/providers/grpc/hooks/index
+
+  airflow/providers/http/hooks/index
+
+  airflow/providers/imap/hooks/index
+
+  airflow/providers/jdbc/hooks/index
+
+  airflow/providers/jenkins/hooks/index
+
+  airflow/providers/jira/hooks/index
+
+  airflow/providers/microsoft/azure/hooks/index
+
+  airflow/providers/microsoft/mssql/hooks/index
+
+  airflow/providers/microsoft/winrm/hooks/index
+
+  airflow/providers/mongo/hooks/index
+
+  airflow/providers/mysql/hooks/index
+
+  airflow/providers/odbc/hooks/index
+
+  airflow/providers/openfaas/hooks/index
+
+  airflow/providers/opsgenie/hooks/index
+
+  airflow/providers/oracle/hooks/index
+
+  airflow/providers/pagerduty/hooks/index
+
+  airflow/providers/postgres/hooks/index
+
+  airflow/providers/presto/hooks/index
+
+  airflow/providers/qubole/hooks/index
+
+  airflow/providers/redis/hooks/index
+
+  airflow/providers/salesforce/hooks/index
+
+  airflow/providers/samba/hooks/index
+
+  airflow/providers/segment/hooks/index
+
+  airflow/providers/sftp/hooks/index
+
+  airflow/providers/slack/hooks/index
+
+  airflow/providers/snowflake/hooks/index
+
+  airflow/providers/sqlite/hooks/index
+
+  airflow/providers/ssh/hooks/index
+
+  airflow/providers/vertica/hooks/index
+
+  airflow/providers/zendesk/hooks/index
+
+  airflow/providers/yandex/hooks/index
 
 Executors
 ---------
@@ -116,11 +358,18 @@ persisted in the database.
   airflow/models/index
 
 
-Core and community package
---------------------------
-Formerly the core code was maintained by the original creators - Airbnb. The code
-that was in the contrib package was supported by the community. The project
-was passed to the Apache community and currently the entire code is
-maintained by the community, so now the division has no justification,
-and it is only due to historical reasons. Currently, all new classes are
-added only to the contrib package.
+Secrets Backends
+----------------
+Airflow uses relies on secrets backends to retrieve :class:`~airflow.models.connection.Connection` objects.
+All secrets backends derive from :class:`~airflow.secrets.BaseSecretsBackend`.
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  airflow/secrets/index
+
+  airflow/providers/amazon/aws/secrets/index
+  airflow/providers/hashicorp/secrets/index
+  airflow/providers/google/cloud/secrets/index
