@@ -1203,7 +1203,6 @@ components:
             JSON object describing additional configuration parameters.
       required:
         - dag_id
-        - execution_date
 
     DAGRunCollection:
       type: object
