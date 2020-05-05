@@ -70,7 +70,8 @@ parameters which allow you to dynamically determine values.
 
 Waiting for report
 ^^^^^^^^^^^^^^^^^^
-To delete Display&Video 360 report use
+
+To wait for the report use
 :class:`~airflow.providers.google.marketing_platform.sensors.display_video.GoogleDisplayVideo360ReportSensor`.
 
 .. exampleinclude:: ../../../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py

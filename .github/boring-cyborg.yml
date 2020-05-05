@@ -19,10 +19,11 @@
 # Details: https://github.com/kaxil/boring-cyborg
 
 labelPRBasedOnFilePath:
-  provider:GCP:
-    - airflow/providers/google/cloud/**/*
-    - tests/providers/google/cloud/**/*
-    - tests/providers/google/cloud/*
+  provider:Google:
+    - airflow/providers/google/*
+    - airflow/providers/google/**/*
+    - tests/providers/google/*
+    - tests/providers/google/**/*
     - docs/howto/connection/gcp.rst
     - docs/howto/connection/gcp_sql.rst
     - docs/howto/operator/gcp/*

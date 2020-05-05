@@ -16,9 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 import unittest
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
+
+from jinja2 import StrictUndefined
 
 from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance
@@ -26,6 +29,7 @@ from airflow.models.dag import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.providers.amazon.aws.operators.emr_add_steps import EmrAddStepsOperator
 from airflow.utils import timezone
+from tests.test_utils import AIRFLOW_MAIN_FOLDER
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
@@ -35,6 +39,11 @@ ADD_STEPS_SUCCESS_RETURN = {
     },
     'StepIds': ['s-2LH3R5GW3A53T']
 }
+
+TEMPLATE_SEARCHPATH = os.path.join(
+    AIRFLOW_MAIN_FOLDER,
+    'tests', 'providers', 'amazon', 'aws', 'config_templates'
+)
 
 
 class TestEmrAddStepsOperator(unittest.TestCase):
@@ -146,6 +155,46 @@ class TestEmrAddStepsOperator(unittest.TestCase):
         self.emr_client_mock.add_job_flow_steps.assert_called_once_with(
             JobFlowId='j-8989898989',
             Steps=xcom_steps)
+
+    def test_render_template_from_file(self):
+        dag = DAG(
+            dag_id='test_file',
+            default_args=self.args,
+            template_searchpath=TEMPLATE_SEARCHPATH,
+            template_undefined=StrictUndefined
+        )
+
+        file_steps = [
+            {
+                'Name': 'test_step1',
+                'ActionOnFailure': 'CONTINUE',
+                'HadoopJarStep': {
+                    'Jar': 'command-runner.jar',
+                    'Args': [
+                        '/usr/lib/spark/bin/run-example1'
+                    ]
+                }
+            }
+        ]
+
+        execution_date = timezone.utcnow()
+
+        self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
+
+        test_task = EmrAddStepsOperator(
+            task_id='test_task',
+            job_flow_id='j-8989898989',
+            aws_conn_id='aws_default',
+            steps='steps.j2.json',
+            dag=dag)
+
+        with patch('boto3.session.Session', self.boto3_session_mock):
+            ti = TaskInstance(task=test_task, execution_date=execution_date)
+            ti.run()
+
+        self.emr_client_mock.add_job_flow_steps.assert_called_once_with(
+            JobFlowId='j-8989898989',
+            Steps=file_steps)
 
     def test_execute_returns_step_id(self):
         self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN

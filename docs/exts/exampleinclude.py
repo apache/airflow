@@ -252,5 +252,5 @@ def setup(app):
     app.add_config_value("exampleinclude_sourceroot", None, "env")
     if not airflow_theme_is_available:
         # Sphinx airflow theme has its own styles.
-        app.add_stylesheet('exampleinclude.css')
+        app.add_css_file('exampleinclude.css')
     return {"version": "builtin", "parallel_read_safe": False, "parallel_write_safe": False}

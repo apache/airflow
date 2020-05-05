@@ -16,7 +16,7 @@
 # under the License.
 from unittest import mock
 
-from airflow.providers.google.facebook_ads_to_gcs.operators.ads import FacebookAdsReportToGcsOperator
+from airflow.providers.google.cloud.operators.facebook_ads_to_gcs import FacebookAdsReportToGcsOperator
 
 GCS_BUCKET = "airflow_bucket_fb"
 GCS_OBJ_PATH = "Temp/this_is_my_report_json.json"
@@ -47,8 +47,8 @@ FACEBOOK_RETURN_VALUE = [
 
 class TestFacebookAdsReportToGcsOperator:
 
-    @mock.patch("airflow.providers.google.facebook_ads_to_gcs.operators.ads.FacebookAdsReportingHook")
-    @mock.patch("airflow.providers.google.facebook_ads_to_gcs.operators.ads.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.operators.facebook_ads_to_gcs.FacebookAdsReportingHook")
+    @mock.patch("airflow.providers.google.cloud.operators.facebook_ads_to_gcs.GCSHook")
     def test_execute(self, mock_gcs_hook, mock_ads_hook):
         mock_ads_hook.return_value.bulk_facebook_report.return_value = FACEBOOK_RETURN_VALUE
         op = FacebookAdsReportToGcsOperator(facebook_conn_id=FACEBOOK_ADS_CONN_ID,
