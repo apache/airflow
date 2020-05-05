@@ -20,7 +20,6 @@ import enum
 import importlib
 import logging
 import multiprocessing
-multiprocessing.allow_connection_pickling()
 import os
 import signal
 import sys
@@ -686,7 +685,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         """
 
         self.register_exit_signals()
-        
+
         # Start a new process group
         os.setpgid(0, 0)
 
