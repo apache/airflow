@@ -955,19 +955,6 @@ class DagFileProcessor(LoggingMixin):
         return simple_dags
 
 
-def processor_factory(file_path, failure_callback_requests, dag_ids, pickle_dags):
-    """
-    Returns DagFileProcessorProcess instance. Will get pickled when start_method is
-    'spawn', so this can't be an class method.
-    """
-    return DagFileProcessorProcess(
-        file_path=file_path,
-        pickle_dags=pickle_dags,
-        dag_id_white_list=dag_ids,
-        failure_callback_requests=failure_callback_requests
-    )
-
-
 class SchedulerJob(BaseJob):
     """
     This SchedulerJob runs for a specific time interval and schedules the jobs
@@ -1542,6 +1529,8 @@ class SchedulerJob(BaseJob):
         if self.do_pickle and self.executor.__class__ not in (LocalExecutor, SequentialExecutor):
             pickle_dags = True
 
+        self.log.info("Processing each file at most %s times", self.num_runs)
+
         # When using sqlite, we do not use async_mode
         # so the scheduler job and DAG parser don't access the DB at the same time.
         async_mode = not self.using_sqlite
@@ -1550,7 +1539,7 @@ class SchedulerJob(BaseJob):
         processor_timeout = timedelta(seconds=processor_timeout_seconds)
         self.processor_agent = DagFileProcessorAgent(self.subdir,
                                                      self.num_runs,
-                                                     processor_factory,
+                                                     type(self)._create_dag_file_processor,
                                                      processor_timeout,
                                                      self.dag_ids,
                                                      pickle_dags,
@@ -1592,6 +1581,18 @@ class SchedulerJob(BaseJob):
         finally:
             self.processor_agent.end()
             self.log.info("Exited execute loop")
+
+    @staticmethod
+    def _create_dag_file_processor(file_path, failure_callback_requests, dag_ids, pickle_dags):
+        """
+        Creates DagFileProcessorProcess instance.
+        """
+        return DagFileProcessorProcess(
+            file_path=file_path,
+            pickle_dags=pickle_dags,
+            dag_id_white_list=dag_ids,
+            failure_callback_requests=failure_callback_requests
+        )
 
     def _run_scheduler_loop(self):
         """

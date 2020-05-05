@@ -71,14 +71,14 @@ class FakeDagFileProcessorRunner(DagFileProcessorProcess):
     def result(self):
         return self._result
 
-
-def fake_dag_file_processor_factory(file_path, zombies, dag_ids, pickle_dags):
-    return FakeDagFileProcessorRunner(
-        file_path,
-        pickle_dags,
-        dag_ids,
-        zombies
-    )
+    @staticmethod
+    def _fake_dag_processor_factory(file_path, zombies, dag_ids, pickle_dags):
+        return FakeDagFileProcessorRunner(
+            file_path,
+            pickle_dags,
+            dag_ids,
+            zombies
+        )
 
 
 class TestDagFileProcessorManager(unittest.TestCase):
@@ -208,7 +208,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
             processor_agent = DagFileProcessorAgent(test_dag_path,
                                                     1,
-                                                    fake_dag_file_processor_factory,
+                                                    FakeDagFileProcessorRunner._fake_dag_processor_factory,
                                                     timedelta.max,
                                                     [],
                                                     False,
@@ -293,13 +293,6 @@ class TestDagFileProcessorManager(unittest.TestCase):
         sdm_mock.remove_stale_dags.assert_called_with(expected_min_last_seen)
 
 
-def processor_factory(file_path, zombies, dag_ids, pickle_dags):
-    return DagFileProcessorProcess(file_path,
-                                   pickle_dags,
-                                   dag_ids,
-                                   zombies)
-
-
 class TestDagFileProcessorAgent(unittest.TestCase):
     def setUp(self):
         # Make sure that the configure_logging is not cached
@@ -315,6 +308,13 @@ class TestDagFileProcessorAgent(unittest.TestCase):
 
         for mod in remove_list:
             del sys.modules[mod]
+
+    @staticmethod
+    def _processor_factory(file_path, zombies, dag_ids, pickle_dags):
+        return DagFileProcessorProcess(file_path,
+                                       pickle_dags,
+                                       dag_ids,
+                                       zombies)
 
     def test_reload_module(self):
         """
@@ -338,7 +338,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
             # Starting dag processing with 0 max_runs to avoid redundant operations.
             processor_agent = DagFileProcessorAgent(test_dag_path,
                                                     0,
-                                                    processor_factory,
+                                                    type(self)._processor_factory,
                                                     timedelta.max,
                                                     [],
                                                     False,
@@ -358,7 +358,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
         processor_agent = DagFileProcessorAgent(test_dag_path,
                                                 1,
-                                                processor_factory,
+                                                type(self)._processor_factory,
                                                 timedelta.max,
                                                 [],
                                                 False,
@@ -388,7 +388,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         # Starting dag processing with 0 max_runs to avoid redundant operations.
         processor_agent = DagFileProcessorAgent(test_dag_path,
                                                 0,
-                                                processor_factory,
+                                                type(self)._processor_factory,
                                                 timedelta.max,
                                                 [],
                                                 False,
