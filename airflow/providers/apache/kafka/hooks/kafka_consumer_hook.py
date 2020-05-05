@@ -17,7 +17,7 @@ from airflow.hooks.base_hook import BaseHook
 
 class KafkaConsumerHook(BaseHook):
     """
-
+    KafkaConsumerHook Class.
     """
     DEFAULT_HOST = 'kafka1'
     DEFAULT_PORT = 9092

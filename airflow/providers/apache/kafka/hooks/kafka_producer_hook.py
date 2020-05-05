@@ -17,7 +17,7 @@ from airflow.hooks.base_hook import BaseHook
 
 class KafkaProducerHook(BaseHook):
     """
-
+    KafkaProducerHook Class.
     """
     DEFAULT_HOST = 'localhost'
     DEFAULT_PORT = 9092
