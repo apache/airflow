@@ -36,7 +36,7 @@ from mock import patch
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowDagCycleException
-from airflow.models import DAG, DagModel, TaskInstance as TI
+from airflow.models import DAG, DagModel, DagTag, TaskInstance as TI
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator
@@ -46,6 +46,7 @@ from airflow.utils.db import create_session
 from airflow.utils.state import State
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
+from tests.test_utils.db import clear_db_dags
 
 
 class DagTest(unittest.TestCase):
@@ -656,6 +657,15 @@ class DagTest(unittest.TestCase):
 
         self.assertEqual(prev_local.isoformat(), "2018-03-24T03:00:00+01:00")
         self.assertEqual(prev.isoformat(), "2018-03-24T02:00:00+00:00")
+
+    def test_dagtag_repr(self):
+        clear_db_dags()
+        dag = DAG('dag-test-dagtag', start_date=DEFAULT_DATE, tags=['tag-1', 'tag-2'])
+        dag.sync_to_db()
+        with create_session() as session:
+            self.assertEqual({'tag-1', 'tag-2'},
+                             {repr(t) for t in session.query(DagTag).filter(
+                                 DagTag.dag_id == 'dag-test-dagtag').all()})
 
     @patch('airflow.models.dag.timezone.utcnow')
     def test_sync_to_db(self, mock_now):
