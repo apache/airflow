@@ -24,18 +24,27 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
 class ElastiCacheDescribeResponseKeys:
+    """
+    Constants for ElastiCache describe API response keys
+    """
     REPLICATION_GROUPS = 'ReplicationGroups'
     REPLICATION_GROUP = 'ReplicationGroup'
     STATUS = 'Status'
 
 
 class ElastiCacheDeleteResponses:
+    """
+    Constants for ElastiCache delete API response messages
+    """
     RESPONSE_NOT_VALID_STATE = 'not in a valid state to be deleted'
     RESPONSE_DELETING_STATE = 'has status deleting which is not valid for deletion'
     RESPONSE_MODIFYING_STATE = 'has status modifying which is not valid for deletion'
 
 
 class ElastiCacheStatus:
+    """
+    Constants for ElastiCache replication group status
+    """
     STATUS_CREATING = 'creating'
     STATUS_AVAILABLE = 'available'
     STATUS_DELETING = 'deleting'
