@@ -208,6 +208,7 @@ def _poke_mode_only_func_decorator(method):
     """
     Decorator that raises an error if method changed mode to anything but
     'poke'.function
+
     :param method: BaseSensor class to enforce methods only use 'poke' mode.
     :type method: function
     """
