@@ -266,7 +266,7 @@ class TestBulkStateFetcher(unittest.TestCase):
     @pytest.mark.integration("redis")
     @pytest.mark.integration("rabbitmq")
     @pytest.mark.backend("mysql", "postgres")
-    def test_should_support_pther_backend(self):
+    def test_should_support_base_backend(self):
         with _prepare_app():
             mock_backend = mock.MagicMock(autospec=BaseBackend)
 
