@@ -1,0 +1,14 @@
+[
+  {
+    "ActionOnFailure": "CONTINUE",
+    "HadoopJarStep": {
+      "Args": [
+        "/usr/lib/spark/bin/run-example",
+        "2016-12-31",
+        "2017-01-01"
+      ],
+      "Jar": "command-runner.jar"
+    },
+    "Name": "test_step"
+  }
+]

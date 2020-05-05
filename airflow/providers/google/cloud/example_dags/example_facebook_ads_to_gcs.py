@@ -24,10 +24,12 @@ from facebook_business.adobjects.adsinsights import AdsInsights
 
 from airflow import models
 from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryExecuteQueryOperator,
+    BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryDeleteDatasetOperator,
+    BigQueryExecuteQueryOperator,
 )
+from airflow.providers.google.cloud.operators.facebook_ads_to_gcs import FacebookAdsReportToGcsOperator
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.gcs_to_bigquery import GCSToBigQueryOperator
-from airflow.providers.google.facebook_ads_to_gcs.operators.ads import FacebookAdsReportToGcsOperator
 from airflow.utils.dates import days_ago
 
 # [START howto_GCS_env_variables]
@@ -56,13 +58,21 @@ PARAMS = {
 default_args = {"start_date": days_ago(1)}
 
 with models.DAG(
-    "example_fb_operator",
+    "example_facebook_ads_to_gcs",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
 ) as dag:
 
-    create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create-dataset",
-                                                        dataset_id=DATASET_NAME)
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket",
+        bucket_name=GCS_BUCKET,
+        project_id=GCP_PROJECT_ID,
+    )
+
+    create_dataset = BigQueryCreateEmptyDatasetOperator(
+        task_id="create_dataset",
+        dataset_id=DATASET_NAME,
+    )
 
     create_table = BigQueryCreateEmptyTableOperator(
         task_id="create_table",
@@ -77,7 +87,7 @@ with models.DAG(
         ],
     )
 
-    # [START howto_FB_ADS_to_gcs_operator]
+    # [START howto_operator_facebook_ads_to_gcs]
     run_operator = FacebookAdsReportToGcsOperator(
         task_id='run_fetch_data',
         start_date=days_ago(2),
@@ -88,23 +98,33 @@ with models.DAG(
         gcp_conn_id=GCS_CONN_ID,
         object_name=GCS_OBJ_PATH,
     )
-    # [END howto_FB_ADS_to_gcs_operator]
+    # [END howto_operator_facebook_ads_to_gcs]
 
-    # [START howto_operator_gcs_to_bq]
     load_csv = GCSToBigQueryOperator(
         task_id='gcs_to_bq_example',
         bucket=GCS_BUCKET,
         source_objects=[GCS_OBJ_PATH],
         destination_project_dataset_table=f"{DATASET_NAME}.{TABLE_NAME}",
-        write_disposition='WRITE_TRUNCATE')
-    # [END howto_operator_gcs_to_bq]
+        write_disposition='WRITE_TRUNCATE'
+    )
 
-    # [START howto_operator_read_data_from_gcs]
     read_data_from_gcs_many_chunks = BigQueryExecuteQueryOperator(
         task_id="read_data_from_gcs_many_chunks",
         sql=f"SELECT COUNT(*) FROM `{GCP_PROJECT_ID}.{DATASET_NAME}.{TABLE_NAME}`",
         use_legacy_sql=False,
     )
-    # [END howto_operator_read_data_from_gcs]
 
-    create_dataset >> create_table >> run_operator >> load_csv >> read_data_from_gcs_many_chunks
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket",
+        bucket_name=GCS_BUCKET,
+    )
+
+    delete_dataset = BigQueryDeleteDatasetOperator(
+        task_id="delete_dataset",
+        project_id=GCP_PROJECT_ID,
+        dataset_id=DATASET_NAME,
+        delete_contents=True,
+    )
+
+    create_bucket >> create_dataset >> create_table >> run_operator >> load_csv
+    load_csv >> read_data_from_gcs_many_chunks >> delete_bucket >> delete_dataset

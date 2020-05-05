@@ -539,6 +539,7 @@ Currently **officially** using Airflow:
 1. [Zego](https://www.zego.com/) [[@ruimffl](https://github.com/ruimffl), [@james-welly](https://github.com/james-welly), [@ken-payne](https://github.com/ken-payne)]
 1. [Zendesk](https://www.github.com/zendesk)
 1. [Zenly](https://zen.ly) [[@cerisier](https://github.com/cerisier) & [@jbdalido](https://github.com/jbdalido)]
+1. [Zerodha](https://zerodha.com/) [[@johnnybravo-xyz](https://github.com/johnnybravo-xyz)]
 1. [Zymergen](https://www.zymergen.com/)
 1. [Zynga](https://www.zynga.com)
 

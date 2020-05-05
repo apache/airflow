@@ -414,5 +414,5 @@ signals). This entrypoint works as follows:
 * If ``AIRFLOW__CELERY__BROKER_URL`` variable is passed and scheduler, worker of flower command is used then
   the connection is checked and the script waits until the Celery broker database is reachable.
 
-* If no argument is specified - you are dropped in bash shell.
+* If first argument is equal to "bash" - you are dropped in bash shell.
 * If there are any arguments they are passed to "airflow" command

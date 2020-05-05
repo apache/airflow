@@ -62,6 +62,22 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Change signature of BigQueryGetDatasetTablesOperator
+Was:
+```python
+BigQueryGetDatasetTablesOperator(dataset_id: str, dataset_resource: dict, ...)
+```
+and now it is:
+```python
+BigQueryGetDatasetTablesOperator(dataset_resource: dict, dataset_id: Optional[str] = None, ...)
+```
+
+### Unify `hostname_callable` option in `core` section
+
+The previous option used a colon(`:`) to split the module from function. Now the dot(`.`) is used.
+
+The change aims to unify the format of all options that refer to objects in the `airflow.cfg` file.
+
 ### Changes in BigQueryHook
 - `create_empty_table` method accepts now `table_resource` parameter. If provided all
 other parameters are ignored.
@@ -69,6 +85,9 @@ other parameters are ignored.
 if parameters were passed in `dataset_reference` and as arguments to method. Additionally validation
 of `dataset_reference` is done using `Dataset.from_api_repr`. Exception and log messages has been
 changed.
+- `update_dataset` requires now new `fields` argument (breaking change)
+- `delete_dataset` has new signature (dataset_id, project_id, ...)
+previous one was (project_id, dataset_id, ...) (breaking change)
 
 ### Added mypy plugin to preserve types of decorated functions
 
@@ -1144,6 +1163,54 @@ The goal of this change is to achieve a more consistent and configurale cascadin
 ### Change default snowflake_conn_id for Snowflake hook and operators
 
 When initializing a Snowflake hook or operator, the value used for `snowflake_conn_id` was always `snowflake_conn_id`, regardless of whether or not you specified a value for it. The default `snowflake_conn_id` value is now switched to `snowflake_default` for consistency and will be properly overriden when specified.
+
+### Simplify the response payload of endpoints /dag_stats and /task_stats
+
+The response of endpoints `/dag_stats` and `/task_stats` help UI fetch brief statistics about DAGs and Tasks. The format was like
+
+```json
+{
+    "example_http_operator": [
+        {
+            "state": "success",
+            "count": 0,
+            "dag_id": "example_http_operator",
+            "color": "green"
+        },
+        {
+            "state": "running",
+            "count": 0,
+            "dag_id": "example_http_operator",
+            "color": "lime"
+        },
+        ...
+],
+...
+}
+```
+
+The `dag_id` was repeated in the payload, which makes the response payload unnecessarily bigger.
+
+Now the `dag_id` will not appear repeated in the payload, and the response format is like
+
+```json
+{
+    "example_http_operator": [
+        {
+            "state": "success",
+            "count": 0,
+            "color": "green"
+        },
+        {
+            "state": "running",
+            "count": 0,
+            "color": "lime"
+        },
+        ...
+],
+...
+}
+```
 
 ## Airflow 1.10.10
 
