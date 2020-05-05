@@ -634,20 +634,6 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-    delete:
-      summary: Delete a task insstance
-      operationId: deleteTaskInstance
-      tags: [TaskInstance]
-      responses:
-        '204':
-          description: No content.
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-
   /variables:
     get:
       summary: Get all variables
