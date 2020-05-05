@@ -60,9 +60,25 @@ from airflow.utils.weight_rule import WeightRule
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
 
+class BaseOperatorMeta(type):
+    """
+    Base metaclass of BaseOperator.
+    """
+    def __call__(cls, *args, **kwargs):
+        """
+        Called when you call BaseOperator(). In this way we are able to perform an action
+        after initializing an operator no matter where  the ``super().__init__`` is called
+        (before or after assign of new attributes in a custom operator).
+        """
+        obj = type.__call__(cls, *args, **kwargs)
+        # Set upstream task defined by XComArgs passed to template fields of an operator
+        obj._set_xcomargs_dependencies()  # pylint: disable=protected-access
+        return obj
+
+
 # pylint: disable=too-many-instance-attributes,too-many-public-methods
 @functools.total_ordering
-class BaseOperator(Operator, LoggingMixin):
+class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
     """
     Abstract base class for all operators. Since operators create objects that
     become nodes in the dag, BaseOperator contains many recursive methods for
@@ -633,6 +649,33 @@ class BaseOperator(Operator, LoggingMixin):
             NotPreviouslySkippedDep(),
         }
 
+    def _set_xcomargs_dependencies(self) -> None:
+        """
+        Resolves upstream dependencies of a task. In this way passing an ``XComArg`
+        as value for a template field will result in creating upstream relation between
+        two tasks.
+
+        **Example**: ::
+
+            with DAG(...):
+                generate_content = GenerateContentOperator(task_id="generate_content")
+                send_email = EmailOperator(..., html_content=generate_content.output)
+
+            # This is equivalent to
+            with DAG(...):
+                generate_content = GenerateContentOperator(task_id="generate_content")
+                send_email = EmailOperator(
+                    ..., html_content="{{ task_instance.xcom_pull('generate_content') }}"
+                )
+                generate_content >> send_email
+
+        """
+        from airflow.models.xcom_arg import XComArg
+        for field in self.template_fields:
+            arg = getattr(self, field)
+            if isinstance(arg, XComArg):
+                self.set_upstream(arg.operator)
+
     @property
     def priority_weight_total(self) -> int:
         """
@@ -1140,7 +1183,7 @@ class BaseOperator(Operator, LoggingMixin):
 
     @property
     def output(self):
-        """Returns default XComArg for the operator"""
+        """Returns reference to XCom pushed by current operator"""
         from airflow.models.xcom_arg import XComArg
         return XComArg(operator=self)
 

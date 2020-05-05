@@ -29,6 +29,7 @@ from airflow.lineage.entities import File
 from airflow.models import DAG
 from airflow.models.baseoperator import chain, cross_downstream
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.utils.decorators import apply_defaults
 from tests.models import DEFAULT_DATE
 from tests.test_utils.mock_operators import MockNamedTuple, MockOperator
 
@@ -261,6 +262,33 @@ class TestBaseOperator(unittest.TestCase):
         )
         assert test_task.email_on_retry is False
         assert test_task.email_on_failure is True
+
+    def test_upstream_is_set_when_template_field_is_xcomarg(self):
+        class CustomOpSuperBefore(DummyOperator):
+            template_fields = ("field",)
+
+            @apply_defaults
+            def __init__(self, field, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.field = field
+
+        class CustomOpSuperAfter(DummyOperator):
+            template_fields = ("field",)
+
+            @apply_defaults
+            def __init__(self, field, *args, **kwargs):
+                self.field = field
+                super().__init__(*args, **kwargs)
+
+        with DAG("test_dag", default_args={"start_date": datetime.today()}):
+            op1 = DummyOperator(task_id="op1")
+            op2 = CustomOpSuperBefore(task_id="op2", field=op1.output)
+            op3 = CustomOpSuperAfter(task_id="op3", field=op1.output)
+
+        assert op1 in op2.upstream_list
+        assert op1 in op3.upstream_list
+        assert op2 in op1.downstream_list
+        assert op3 in op1.downstream_list
 
 
 class TestBaseOperatorMethods(unittest.TestCase):
