@@ -22,7 +22,9 @@ from airflow.hooks.base_hook import BaseHook
 
 
 class KafkaProducerHook(BaseHook):
+    """
 
+    """
     DEFAULT_HOST = 'localhost'
     DEFAULT_PORT = 9092
 
@@ -50,6 +52,15 @@ class KafkaProducerHook(BaseHook):
         return self.producer
 
     def send_message(self, topic, value=None, key=None, partition=None, timestamp_ms=None):
+        """
+
+        :param topic:
+        :param value:
+        :param key:
+        :param partition:
+        :param timestamp_ms:
+        :return:
+        """
         producer = self.get_conn()
         try:
             future_record_metadata = producer.send(topic, value=value, key=key, partition=partition,

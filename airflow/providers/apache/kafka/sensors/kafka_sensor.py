@@ -54,12 +54,17 @@ class KafkaSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self):
+        """
+
+        :return:
+        KafkaConsumerHook
+        """
         return KafkaConsumerHook(self.topic, self.host, self.port)
 
     def poke(self, context):
         logging.info(
             'Poking topic: %s, using hook: %s',
-            self.topic, self.hook)
+            str(self.topic), str(self.hook))
 
         messages = self.hook.get_messages()
 
