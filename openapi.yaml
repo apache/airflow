@@ -105,7 +105,7 @@ paths:
 
     patch:
       summary: Update a connection entry
-      operationId: patchConnection
+      operationId: updaateConnection
       tags: [Connection]
       parameters:
         - $ref: '#/components/parameters/UpdateMask'
