@@ -38,7 +38,7 @@ from tabulate import tabulate
 import airflow.models
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
-from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import errors
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.settings import STORE_SERIALIZED_DAGS
@@ -46,6 +46,7 @@ from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.process_utils import kill_child_processes_by_pids, reap_process_group
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
@@ -282,7 +283,7 @@ class FailureCallbackRequest(NamedTuple):
     msg: str
 
 
-class DagFileProcessorAgent(LoggingMixin):
+class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
     """
     Agent for DAG file processing. It is responsible for all DAG parsing
     related jobs in scheduler process. Mainly it can spin up DagFileProcessorManager
@@ -342,16 +343,7 @@ class DagFileProcessorAgent(LoggingMixin):
         """
         Launch DagFileProcessorManager processor and start DAG parsing loop in manager.
         """
-        if conf.has_option('core', 'mp_start_method'):
-            mp_start_method = conf.get('core', 'mp_start_method')
-        else:
-            mp_start_method = multiprocessing.get_start_method()
-
-        possible_value_list = multiprocessing.get_all_start_methods()
-        if mp_start_method not in possible_value_list:
-            raise AirflowConfigException(
-                "mp_start_method should not be " + mp_start_method +
-                ". Possible value is one of " + str(possible_value_list))
+        mp_start_method = self._get_multiprocessing_start_method()
         cxt = multiprocessing.get_context(mp_start_method)
 
         self._parent_signal_conn, child_signal_conn = cxt.Pipe()
@@ -1097,7 +1089,12 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
             file_path = self._file_path_queue.pop(0)
             callback_to_execute_for_file = self._callback_to_execute[file_path]
-            processor = self._processor_factory(file_path, callback_to_execute_for_file, self._dag_ids, self._pickle_dags)
+            processor = self._processor_factory(
+                file_path,
+                callback_to_execute_for_file,
+                self._dag_ids,
+                self._pickle_dags)
+
             del self._callback_to_execute[file_path]
             Stats.incr('dag_processing.processes')
 

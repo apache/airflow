@@ -202,40 +202,6 @@ class TestDagFileProcessorManager(unittest.TestCase):
                         msg="Message"
                     )
                 ]
-            
-            class FakeDagFileProcessorRunner(DagFileProcessorProcess):
-                # This fake processor will return the zombies it received in constructor
-                # as its processing result w/o actually parsing anything.
-                def __init__(self, file_path, pickle_dags, dag_id_white_list, failure_callback_requests):
-                    super().__init__(file_path, pickle_dags, dag_id_white_list, failure_callback_requests)
-                    self._result = failure_callback_requests, 0
-
-                def start(self):
-                    pass
-
-                @property
-                def start_time(self):
-                    return DEFAULT_DATE
-
-                @property
-                def pid(self):
-                    return 1234
-
-                @property
-                def done(self):
-                    return True
-
-                @property
-                def result(self):
-                    return self._result
-
-            def processor_factory(file_path, failure_callback_requests):
-                return FakeDagFileProcessorRunner(
-                    file_path,
-                    False,
-                    [],
-                    failure_callback_requests
-                )
 
             test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_example_bash_operator.py')
 
@@ -326,14 +292,16 @@ class TestDagFileProcessorManager(unittest.TestCase):
         dag_mock.deactivate_stale_dags.assert_called_with(expected_min_last_seen)
         sdm_mock.remove_stale_dags.assert_called_with(expected_min_last_seen)
 
+
 def processor_factory(file_path, zombies, dag_ids, pickle_dags):
     return DagFileProcessorProcess(file_path,
                                    pickle_dags,
                                    dag_ids,
                                    zombies)
 
+
 class TestDagFileProcessorAgent(unittest.TestCase):
-    def setUp(self):        
+    def setUp(self):
         # Make sure that the configure_logging is not cached
         self.old_modules = dict(sys.modules)
 
@@ -382,7 +350,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
             processor_agent._process.join()
             # Since we are reloading logging config not creating this file,
             # we should expect it to be nonexistent.
-            
+
             self.assertFalse(os.path.isfile(log_file_loc))
 
     def test_parse_once(self):

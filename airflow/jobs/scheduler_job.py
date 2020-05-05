@@ -36,7 +36,7 @@ from sqlalchemy.orm.session import make_transient
 
 from airflow import models, settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException, AirflowException, TaskNotFound
+from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
@@ -54,12 +54,13 @@ from airflow.utils.dag_processing import (
 )
 from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
+from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
 
-class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
+class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, MultiprocessingStartMethodMixin):
     """Runs DAG processing in a separate process using DagFileProcessor
 
     :param file_path: a Python file containing Airflow DAG definitions
@@ -181,17 +182,8 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
         """
         Launch the process and start processing the DAG.
         """
-        if conf.has_option('core', 'mp_start_method'):
-            mp_start_method = conf.get('core', 'mp_start_method')
-        else:
-            mp_start_method = multiprocessing.get_start_method()
-
-        possible_value_list = multiprocessing.get_all_start_methods()
-        if mp_start_method not in possible_value_list:
-            raise AirflowConfigException(
-                "mp_start_method should not be " + mp_start_method +
-                ". Possible value is one of " + str(possible_value_list))
-        context = multiprocessing.get_context(mp_start_method)
+        start_method = self._get_multiprocessing_start_method()
+        context = multiprocessing.get_context(start_method)
 
         self._parent_channel, _child_channel = context.Pipe()
         self._process = context.Process(
@@ -964,6 +956,10 @@ class DagFileProcessor(LoggingMixin):
 
 
 def processor_factory(file_path, failure_callback_requests, dag_ids, pickle_dags):
+    """
+    Returns DagFileProcessorProcess instance. Will get pickled when start_method is
+    'spawn', so this can't be an class method.
+    """
     return DagFileProcessorProcess(
         file_path=file_path,
         pickle_dags=pickle_dags,
