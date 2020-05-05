@@ -778,7 +778,7 @@ paths:
     get:
       summary: Get all XCom entry
       description:
-        This endpoint support reading resources across multiple Task Instances by specifying a
+        This endpoint support reading resources across multiple XCom entries by specifying a
         "-" as a `dag_id`, `task_id` and `execution_date`.
       operationId: getXComVEntry
       tags: [XCom]
