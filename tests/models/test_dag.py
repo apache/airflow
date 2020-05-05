@@ -646,6 +646,15 @@ class TestDag(unittest.TestCase):
         self.assertEqual(prev_local.isoformat(), "2018-03-24T03:00:00+01:00")
         self.assertEqual(prev.isoformat(), "2018-03-24T02:00:00+00:00")
 
+    def test_dagtag_repr(self):
+        clear_db_dags()
+        dag = DAG('dag-test-dagtag', start_date=DEFAULT_DATE, tags=['tag-1', 'tag-2'])
+        dag.sync_to_db()
+        with create_session() as session:
+            self.assertEqual({'tag-1', 'tag-2'},
+                             {repr(t) for t in session.query(DagTag).filter(
+                                 DagTag.dag_id == 'dag-test-dagtag').all()})
+
     def test_bulk_sync_to_db(self):
         clear_db_dags()
         dags = [
