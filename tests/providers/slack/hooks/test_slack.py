@@ -160,3 +160,13 @@ class TestSlackHook(unittest.TestCase):
         except AirflowException as exc:
             self.assertIn("foo", str(exc))
             self.assertIn("bar", str(exc))
+
+    @mock.patch('airflow.providers.slack.hooks.slack.WebClient.api_call', autospec=True)
+    @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
+    def test_api_call(self, mock_slack_client, mock_slack_api_call):
+        slack_hook = SlackHook(token='test_token')
+        test_api_json = {'channel': 'test_channel'}
+
+        slack_hook.call("chat.postMessage", json=test_api_json)
+        mock_slack_api_call.assert_called_once_with(
+            mock_slack_client, "chat.postMessage", json=test_api_json)
