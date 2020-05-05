@@ -247,8 +247,7 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
         self.bucket = bucket
         self.prefix = prefix
         if inactivity_period < 0:
-            raise ValueError(
-                f"inactivity_period must be non-negative")
+            raise ValueError("inactivity_period must be non-negative")
         self.inactivity_period = inactivity_period
         self.min_objects = min_objects
         self.previous_objects = previous_objects if previous_objects else set()
