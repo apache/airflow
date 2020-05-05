@@ -250,6 +250,12 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
+        - $ref: '#/components/parameters/FilterExecutionDateStartRange'
+        - $ref: '#/components/parameters/FilterExecutionDateEndRange'
+        - $ref: '#/components/parameters/FilterStartDateStartRange'
+        - $ref: '#/components/parameters/FilterStartDateEndRange'
+        - $ref: '#/components/parameters/FilterEndDateStartRaange'
+        - $ref: '#/components/parameters/FilterEndDateEndRange'
       responses:
         '200':
           description: List of DAG Runs.
