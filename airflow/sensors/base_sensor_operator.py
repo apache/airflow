@@ -179,7 +179,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         return BaseOperator.deps.fget(self)
 
 
-def poke_mode_only(cls: BaseSensorOperator):
+def poke_mode_only(cls):
     """
     Class Decorator for child classes of BaseSensorOperator to indicate
     that instances of this class are only safe to use poke mode.
