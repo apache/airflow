@@ -110,7 +110,7 @@ def display_errors_summary() -> None:
     print("=" * 50)
 
 
-def check_file_not_contains(file_path: str, pattern: str, message: str) -> None:
+def assert_file_not_contains(file_path: str, pattern: str, message: str) -> None:
     with open(file_path, "rb", 0) as doc_file:
         pattern_compiled = re.compile(pattern)
 
@@ -144,7 +144,7 @@ def find_modules(deprecated_only: bool = False) -> Set[str]:
     return modules_names
 
 
-def check_operators_and_hooks_ref() -> None:
+def check_class_links_in_operators_and_hooks_ref() -> None:
     with open("operators-and-hooks-ref.rst") as ref_file:
         content = ref_file.read()
     current_modules_in_file = set(re.findall(r":mod:`(.+?)`", content))
@@ -163,10 +163,54 @@ def check_operators_and_hooks_ref() -> None:
                 file_path="operators-and-hooks-ref.rst",
                 line_no=0,
                 message=(
-                    f"You should try to keep the list of operators and hooks up to date.\n"
+                    f"New module detected."
+                    f"Please add them to the list of operators and hooks - `operators-and-hooks-ref.rst` "
+                    f"file.\n"
                     f"\n"
-                    f"Missing modules:\n "
+                    f"New modules:\n"
                     f"{module_text_list}"
+                ),
+            )
+        )
+
+
+def check_guide_links_in_operators_and_hooks_ref() -> None:
+    all_guides = glob("howto/operator/**/*.rst", recursive=True)
+    # Remove extension
+    all_guides = (
+        guide.rpartition(".")[0]
+        for guide in all_guides
+        if "_partials" not in guide
+    )
+    # Remove partials and index
+    all_guides = (
+        guide
+        for guide in all_guides
+        if "/_partials/" not in guide and not guide.endswith("index")
+    )
+
+    with open("operators-and-hooks-ref.rst") as ref_file:
+        content = ref_file.read()
+
+    missing_guides = [
+        guide
+        for guide in all_guides
+        if guide not in content
+    ]
+    if missing_guides:
+        guide_text_list = "\n".join(f":doc:`How to use <{guide}>`" for guide in missing_guides)
+
+        build_errors.append(
+            DocBuildError(
+                file_path="operators-and-hooks-ref.rst",
+                line_no=0,
+                message=(
+                    f"New guide detected. "
+                    f"Please add them to the list of operators and hooks - `operators-and-hooks-ref.rst` "
+                    f"file.\n"
+                    f"You can copy the relevant parts of the link from the section below:\n"
+                    f"\n"
+                    f"{guide_text_list}"
                 ),
             )
         )
@@ -176,7 +220,7 @@ def check_exampleinclude_for_example_dags():
     all_docs_files = glob("**/*rst", recursive=True)
 
     for doc_file in all_docs_files:
-        check_file_not_contains(
+        assert_file_not_contains(
             file_path=doc_file,
             pattern=r"literalinclude::.+example_dags",
             message=(
@@ -276,7 +320,8 @@ print("Current working directory: ", os.getcwd())
 prepare_directories()
 clean_files()
 
-check_operators_and_hooks_ref()
+check_class_links_in_operators_and_hooks_ref()
+check_guide_links_in_operators_and_hooks_ref()
 check_exampleinclude_for_example_dags()
 
 if build_errors:

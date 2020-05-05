@@ -2627,6 +2627,8 @@ class TaskInstanceModelView(AirflowModelView):
                     'unixname', 'priority_weight', 'queue', 'queued_dttm', 'try_number',
                     'pool', 'log_url']
 
+    order_columns = [item for item in list_columns if item not in ['try_number', 'log_url']]
+
     search_columns = ['state', 'dag_id', 'task_id', 'execution_date', 'hostname',
                       'queue', 'pool', 'operator', 'start_date', 'end_date']
 
