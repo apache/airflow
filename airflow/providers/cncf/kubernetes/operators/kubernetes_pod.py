@@ -130,6 +130,10 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :type init_containers: list[kubernetes.client.models.V1Container]
     :param log_events_on_failure: Log the pod's events if a failure occurs
     :type log_events_on_failure: bool
+    :param log_container_statuses_on_failure: Log the pod's containers statuses if a failure occurs.
+        This is particularly useful if the container runs out of memory. The pod will fail silently
+        if we do not log container statuses to surface OOMKilled status of the container.
+    :type log_container_statuses_on_failure: bool
     :param do_xcom_push: If True, the content of the file
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
@@ -177,6 +181,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  full_pod_spec: Optional[k8s.V1Pod] = None,
                  init_containers: Optional[List[k8s.V1Container]] = None,
                  log_events_on_failure: bool = False,
+                 log_container_statuses_on_failure: bool = False,
                  do_xcom_push: bool = False,
                  pod_template_file: Optional[str] = None,
                  priority_class_name: Optional[str] = None,
@@ -221,6 +226,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.full_pod_spec = full_pod_spec
         self.init_containers = init_containers or []
         self.log_events_on_failure = log_events_on_failure
+        self.log_container_statuses_on_failure = log_container_statuses_on_failure
         self.priority_class_name = priority_class_name
         self.pod_template_file = pod_template_file
         self.name = self._set_name(name)
@@ -292,6 +298,18 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                     pod,
                     startup_timeout=self.startup_timeout_seconds,
                     get_logs=self.get_logs)
+                if final_state != State.SUCCESS:
+                    try:
+                        if self.log_container_statuses_on_failure:
+                            pod_status = launcher.read_pod_status(pod)
+                            self.log.error('Pod not succeeded, look for OOMKilled in containers statuses.')
+                            self.log.error(pod_status.status.container_statuses)
+                    except AirflowException as ex:
+                        self.log.exception('Failed to get container statuses: {error}'.format(error=ex))
+                    finally:
+                        raise AirflowException(
+                            'Pod returned a failure: {state}'.format(state=final_state)
+                        )
             except AirflowException:
                 if self.log_events_on_failure:
                     for event in launcher.read_pod_events(pod).items:
@@ -300,14 +318,6 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             finally:
                 if self.is_delete_operator_pod:
                     launcher.delete_pod(pod)
-
-            if final_state != State.SUCCESS:
-                if self.log_events_on_failure:
-                    for event in launcher.read_pod_events(pod).items:
-                        self.log.error("Pod Event: %s - %s", event.reason, event.message)
-                raise AirflowException(
-                    'Pod returned a failure: {state}'.format(state=final_state)
-                )
 
             return result
         except AirflowException as ex:
