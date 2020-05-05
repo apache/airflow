@@ -1685,6 +1685,9 @@ class DagTag(Base):
     name = Column(String(100), primary_key=True)
     dag_id = Column(String(ID_LEN), ForeignKey('dag.dag_id'), primary_key=True)
 
+    def __repr__(self):
+        return self.name
+
 
 class DagModel(Base):
 
