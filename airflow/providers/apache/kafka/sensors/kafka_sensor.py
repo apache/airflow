@@ -68,9 +68,9 @@ class KafkaSensor(BaseSensorOperator):
 
         messages = self.hook.get_messages()
 
-        if messages is not {}:
+        if not messages:
             logging.info(
-                'Got messages during poking: %s', messages)
+                'Got messages during poking: %s', str(messages))
             return messages
         else:
             return False
