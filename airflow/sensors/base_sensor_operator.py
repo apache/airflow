@@ -194,9 +194,9 @@ def poke_mode_only(cls):
     """
     def decorate(cls):
         if not issubclass(cls, BaseSensorOperator):
-            raise ValueError("poke_mode_only decorator should only be "
-                             + "applied to subclasses of BaseSensorOperator,"
-                             + f" got:{cls}.")
+            raise ValueError(f"poke_mode_only decorator should only be "
+                                         f"applied to subclasses of BaseSensorOperator,"
+                                         f" got:{cls}.")
         for method in inspect.getmembers(cls, inspect.isfunction):
             setattr(cls, method[0], _poke_mode_only_func_decorator(method))
         return cls
