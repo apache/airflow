@@ -344,10 +344,10 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         Launch DagFileProcessorManager processor and start DAG parsing loop in manager.
         """
         mp_start_method = self._get_multiprocessing_start_method()
-        cxt = multiprocessing.get_context(mp_start_method)
+        context = multiprocessing.get_context(mp_start_method)
 
-        self._parent_signal_conn, child_signal_conn = cxt.Pipe()
-        self._process = cxt.Process(
+        self._parent_signal_conn, child_signal_conn = context.Pipe()
+        self._process = context.Process(
             target=type(self)._run_processor_manager,
             args=(
                 self._dag_directory,
