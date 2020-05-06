@@ -20,11 +20,12 @@ import unittest
 from unittest import mock
 
 from google.cloud.bigquery import DEFAULT_RETRY, DatasetReference, Table, TableReference
-from google.cloud.bigquery.dataset import Dataset, DatasetListItem
+from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem
 from google.cloud.exceptions import NotFound
 from googleapiclient.errors import HttpError
 from parameterized import parameterized
 
+from airflow import AirflowException
 from airflow.providers.google.cloud.hooks.bigquery import (
     BigQueryCursor, BigQueryHook, _api_resource_configs_duplication_check, _cleanse_time_partitioning,
     _split_tablename, _validate_src_fmt_configs, _validate_value,
@@ -402,169 +403,132 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         )
         run_with_config.assert_called_once_with(expected_configuration)
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_get_tabledata_default_parameters(self, mock_get_service):
-        method = mock_get_service.return_value.tabledata.return_value.list
-        cursor = self.hook.get_cursor()
-        cursor.get_tabledata(DATASET_ID, TABLE_ID)
-        method.assert_called_once_with(datasetId=DATASET_ID, projectId=PROJECT_ID, tableId=TABLE_ID)
-
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_get_tabledata_optional_parameters(self, mock_get_service):
-        method = mock_get_service.return_value.tabledata.return_value.list
-        cursor = self.hook.get_cursor()
-        cursor.get_tabledata(
-            DATASET_ID,
-            TABLE_ID,
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.SchemaField")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_list_rows(self, mock_client, mock_schema, mock_table):
+        self.hook.list_rows(
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
             max_results=10,
             selected_fields=["field_1", "field_2"],
             page_token="page123",
+            start_index=5,
+            location=LOCATION,
+        )
+        mock_table.from_api_repr.assert_called_once_with({"tableReference": TABLE_REFERENCE_REPR})
+        mock_schema.has_calls(
+            [mock.call(x, "") for x in ["field_1", "field_2"]]
+        )
+        mock_client.return_value.list_rows.assert_called_once_with(
+            table=mock_table.from_api_repr.return_value,
+            max_results=10,
+            selected_fields=mock.ANY,
+            page_token='page123',
             start_index=5
         )
-        method.assert_called_once_with(
-            projectId=PROJECT_ID,
-            datasetId=DATASET_ID,
-            tableId=TABLE_ID,
-            maxResults=10,
-            selectedFields=['field_1', 'field_2'],
-            pageToken='page123',
-            startIndex=5
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_run_table_delete(self, mock_client, mock_table):
+        source_project_dataset_table = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
+        self.hook.run_table_delete(source_project_dataset_table, ignore_if_missing=False)
+        mock_table.from_string.assert_called_once_with(source_project_dataset_table)
+        mock_client.return_value.delete_table.assert_called_once_with(
+            table=mock_table.from_string.return_value,
+            not_found_ok=False
         )
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_run_table_delete(self, mock_get_service,):
-        source_project_dataset_table = "{}.{}.{}".format(PROJECT_ID, DATASET_ID, TABLE_ID)
-        method = mock_get_service.return_value.tables.return_value.delete
-        self.hook.run_table_delete(source_project_dataset_table)
-        method.assert_called_once_with(datasetId=DATASET_ID, projectId=PROJECT_ID, tableId=TABLE_ID)
-
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_run_table_delete_ignore_if_missing_fails(self, mock_get_service):
-        source_project_dataset_table = "{}.{}.{}".format(PROJECT_ID, DATASET_ID, TABLE_ID)
-        method = mock_get_service.return_value.tables.return_value.delete
-        resp = type('', (object,), {"status": 404, "reason": "Address not found"})()
-        method.return_value.execute.side_effect = HttpError(
-            resp=resp, content=b'Address not found')
-        with self.assertRaisesRegex(HttpError, r"Address not found"):
-            self.hook.run_table_delete(source_project_dataset_table)
-        method.assert_called_once_with(datasetId=DATASET_ID, projectId=PROJECT_ID, tableId=TABLE_ID)
-
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_run_table_delete_ignore_if_missing_pass(self, mock_get_service):
-        source_project_dataset_table = "{}.{}.{}".format(PROJECT_ID, DATASET_ID, TABLE_ID)
-        method = mock_get_service.return_value.tables.return_value.delete
-        resp = type('', (object,), {"status": 404, "reason": "Address not found"})()
-        method.return_value.execute.side_effect = HttpError(
-            resp=resp, content=b'Address not found')
-        self.hook.run_table_delete(source_project_dataset_table, ignore_if_missing=True)
-        method.assert_called_once_with(datasetId=DATASET_ID, projectId=PROJECT_ID, tableId=TABLE_ID)
-
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_table_upsert_create_new_table(self, mock_get_service):
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables")
+    def test_table_upsert_create_new_table(self, mock_get, mock_create):
         table_resource = {
             "tableReference": {
                 "tableId": TABLE_ID
             }
         }
-
-        method_tables_list = mock_get_service.return_value.tables.return_value.list
-        method_tables_list_execute = method_tables_list.return_value.execute
-        method_tables_insert = mock_get_service.return_value.tables.return_value.insert
-        method_tables_insert_execute = method_tables_insert.return_value.execute
+        mock_get.return_value = []
 
         self.hook.run_table_upsert(dataset_id=DATASET_ID, table_resource=table_resource)
 
-        method_tables_list.assert_called_once_with(datasetId=DATASET_ID, projectId=PROJECT_ID)
-        method_tables_insert.assert_called_once_with(
-            datasetId=DATASET_ID, projectId=PROJECT_ID, body=table_resource
-        )
-        assert method_tables_list_execute.call_count == 1
-        assert method_tables_insert_execute.call_count == 1
+        mock_get.assert_called_once_with(project_id=PROJECT_ID, dataset_id=DATASET_ID)
+        mock_create.assert_called_once_with(table_resource=table_resource, project_id=PROJECT_ID)
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_table_upsert_already_exists(self, mock_get_service):
-        page_token = "token"
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_table")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables")
+    def test_table_upsert_already_exists(self, mock_get, mock_update):
         table_resource = {
             "tableReference": {
                 "tableId": TABLE_ID
             }
         }
-
-        method_tables_list = mock_get_service.return_value.tables.return_value.list
-        method_tables_list_execute = method_tables_list.return_value.execute
-        method_tables_list_execute.side_effect = [
-            {
-                "tables": [{"tableReference": {"tableId": "some_id"}}],
-                "nextPageToken": page_token
-            },
-            {
-                "tables": [{"tableReference": {"tableId": TABLE_ID}}]
-            }
-        ]
-        method_tables_update = mock_get_service.return_value.tables.return_value.update
-        method_tables_update_execute = method_tables_update.return_value.execute
+        mock_get.return_value = [{"tableId": TABLE_ID}]
 
         self.hook.run_table_upsert(dataset_id=DATASET_ID, table_resource=table_resource)
 
-        method_tables_list.has_calls(
-            mock.call(datasetId=DATASET_ID, projectId=PROJECT_ID),
-            mock.call(datasetId=DATASET_ID, projectId=PROJECT_ID, pageToken=page_token),
+        mock_get.assert_called_once_with(project_id=PROJECT_ID, dataset_id=DATASET_ID)
+        mock_update.assert_called_once_with(table_resource=table_resource)
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_dataset")
+    def test_run_grant_dataset_view_access_granting(self, mock_update, mock_get):
+        view_table = f"{TABLE_ID}_view"
+        view_dataset = f"{DATASET_ID}_view"
+        view_access = AccessEntry(
+            role=None,
+            entity_type="view",
+            entity_id={
+                'projectId': PROJECT_ID,
+                'datasetId': view_dataset,
+                'tableId': view_table
+            }
         )
-        method_tables_update.assert_called_once_with(
-            projectId=PROJECT_ID, datasetId=DATASET_ID, tableId=TABLE_ID, body=table_resource)
-        assert method_tables_list_execute.call_count == 2
-        assert method_tables_update_execute.call_count == 1
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_run_grant_dataset_view_access_granting(self, mock_get_service):
-        source_dataset = "source_dataset_{}".format(DATASET_ID)
-        view_dataset = "view_dataset_{}".format(DATASET_ID)
-        view = {"projectId": PROJECT_ID, "datasetId": view_dataset, "tableId": TABLE_ID}
-        access = [{"view": view}]
-        body = {"access": access}
-
-        method_get = mock_get_service.return_value.datasets.return_value.get
-        method_get_execute = method_get.return_value.execute
-        method_get_execute.return_value = []
-        method_patch = mock_get_service.return_value.datasets.return_value.patch
-        method_patch_execute = method_patch.return_value.execute
+        dataset = Dataset(DatasetReference.from_string(DATASET_ID, PROJECT_ID))
+        dataset.access_entries = []
+        mock_get.return_value = dataset
 
         self.hook.run_grant_dataset_view_access(
-            source_dataset=source_dataset,
+            source_dataset=DATASET_ID,
             view_dataset=view_dataset,
-            view_table=TABLE_ID
+            view_table=view_table
         )
 
-        method_get.assert_called_once_with(datasetId=source_dataset, projectId=PROJECT_ID)
-        method_patch.assert_called_once_with(datasetId=source_dataset, projectId=PROJECT_ID, body=body)
-        assert method_get.call_count == 1
-        assert method_get_execute.call_count == 1
-        assert method_patch.call_count == 1
-        assert method_patch_execute.call_count == 1
+        mock_get.assert_called_once_with(project_id=PROJECT_ID, dataset_id=DATASET_ID)
+        assert view_access in dataset.access_entries
+        mock_update.assert_called_once_with(
+            fields=["access"],
+            dataset_resource=dataset.to_api_repr(),
+            project_id=PROJECT_ID,
+        )
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_run_grant_dataset_view_access_already_granted(self, mock_get_service):
-        source_dataset = "source_dataset_{}".format(DATASET_ID)
-        view_dataset = "view_dataset_{}".format(DATASET_ID)
-        view = {"projectId": PROJECT_ID, "datasetId": view_dataset, "tableId": TABLE_ID}
-        access = [{"view": view}]
-        body = {"access": access}
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_dataset")
+    def test_run_grant_dataset_view_access_already_granted(self, mock_update, mock_get):
+        view_table = f"{TABLE_ID}_view"
+        view_dataset = f"{DATASET_ID}_view"
+        view_access = AccessEntry(
+            role=None,
+            entity_type="view",
+            entity_id={
+                'projectId': PROJECT_ID,
+                'datasetId': view_dataset,
+                'tableId': view_table
+            }
+        )
 
-        method_get = mock_get_service.return_value.datasets.return_value.get
-        method_get_execute = method_get.return_value.execute
-        method_get_execute.return_value = body
-        method_patch = mock_get_service.return_value.datasets.return_value.patch
+        dataset = Dataset(DatasetReference.from_string(DATASET_ID, PROJECT_ID))
+        dataset.access_entries = [view_access]
+        mock_get.return_value = dataset
 
         self.hook.run_grant_dataset_view_access(
-            source_dataset=source_dataset,
+            source_dataset=DATASET_ID,
             view_dataset=view_dataset,
-            view_table=TABLE_ID
+            view_table=view_table
         )
 
-        method_get.assert_called_once_with(datasetId=source_dataset, projectId=PROJECT_ID)
-        assert method_get.call_count == 1
-        assert method_get_execute.call_count == 1
-        method_patch.assert_not_called()
+        mock_get.assert_called_once_with(project_id=PROJECT_ID, dataset_id=DATASET_ID)
+        assert len(mock_update.calls) == 0
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_get_dataset_tables_list(self, mock_client):
@@ -691,33 +655,24 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         assert mock_sleep.call_count == 11
         mock_logger_info.has_call(mock.call("Job successfully canceled: {}, {}".format(PROJECT_ID, JOB_ID)))
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_get_schema(self, mock_get_service):
-        schema = "SCHEMA"
-        method_get = mock_get_service.return_value.tables.return_value.get
-        method_execute = method_get.return_value.execute
-        method_execute.return_value = {"schema": schema}
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_get_schema(self, mock_client):
+        table = {
+            "tableReference": TABLE_REFERENCE_REPR,
+            "schema": {
+                "fields": [
+                    {'name': 'id', 'type': 'STRING', 'mode': 'REQUIRED'},
+                    {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
+                ]
+            }
+        }
 
+        mock_client.return_value.get_table.return_value = Table.from_api_repr(table)
         result = self.hook.get_schema(dataset_id=DATASET_ID, table_id=TABLE_ID)
 
-        method_get.assert_called_once_with(projectId=PROJECT_ID, datasetId=DATASET_ID, tableId=TABLE_ID)
-        assert method_execute.call_count == 1
-        self.assertEqual(schema, result)
-
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_get_schema_other_project(self, mock_get_service,):
-        other_project = "another-project"
-        schema = "SCHEMA"
-        method_get = mock_get_service.return_value.tables.return_value.get
-        method_execute = method_get.return_value.execute
-        method_execute.return_value = {"schema": schema}
-
-        cursor = self.hook.get_cursor()
-        result = cursor.get_schema(dataset_id=DATASET_ID, table_id=TABLE_ID, project_id=other_project)
-
-        method_get.assert_called_once_with(projectId=other_project, datasetId=DATASET_ID, tableId=TABLE_ID)
-        assert method_execute.call_count == 1
-        self.assertEqual(schema, result)
+        mock_client.return_value.get_table.assert_called_once_with(TABLE_REFERENCE)
+        assert "fields" in result
+        assert len(result["fields"]) == 2
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_invalid_source_format(self, mock_get_service):
@@ -730,69 +685,39 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
                 "test.test", "test_schema.json", ["test_data.json"], source_format="json"
             )
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_external_table_invalid_source_format(self, mock_get_service):
-        with self.assertRaisesRegex(
-            Exception,
-            r"JSON is not a valid source format. Please use one of the following types: \['CSV', "
-            r"'NEWLINE_DELIMITED_JSON', 'AVRO', 'GOOGLE_SHEETS', 'DATASTORE_BACKUP', 'PARQUET'\]"
-        ):
-            self.hook.create_external_table(
-                external_project_dataset_table='test.test',
-                schema_fields='test_schema.json',
-                source_uris=['test_data.json'],
-                source_format='json'
-            )
-
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_insert_all_succeed(self, mock_get_service):
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_insert_all_succeed(self, mock_client, mock_table):
         rows = [
             {"json": {"a_key": "a_value_0"}}
         ]
-        body = {
-            "rows": rows,
-            "ignoreUnknownValues": False,
-            "kind": "bigquery#tableDataInsertAllRequest",
-            "skipInvalidRows": False,
-        }
 
-        mock_service = mock_get_service.return_value
-        method = mock_service.tabledata.return_value.insertAll
-        method.return_value.execute.return_value = {
-            "kind": "bigquery#tableDataInsertAllResponse"
-        }
-
-        self.hook.insert_all(PROJECT_ID, DATASET_ID, TABLE_ID, rows)
-        method.assert_called_once_with(
-            projectId=PROJECT_ID,
-            datasetId=DATASET_ID,
-            tableId=TABLE_ID,
-            body=body
+        self.hook.insert_all(
+            project_id=PROJECT_ID,
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+            rows=rows,
+            ignore_unknown_values=True,
+            skip_invalid_rows=True,
+        )
+        mock_table.from_api_repr.assert_called_once_with({"tableReference": TABLE_REFERENCE_REPR})
+        mock_client.return_value.insert_rows.assert_called_once_with(
+            table=mock_table.from_api_repr.return_value,
+            rows=rows,
+            ignore_unknown_values=True,
+            skip_invalid_rows=True
         )
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_insert_all_fail(self, mock_get_service):
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_insert_all_fail(self, mock_client):
         rows = [
             {"json": {"a_key": "a_value_0"}}
         ]
 
-        mock_service = mock_get_service.return_value
-        method = mock_service.tabledata.return_value.insertAll
-        method.return_value.execute.return_value = {
-            "kind": "bigquery#tableDataInsertAllResponse",
-            "insertErrors": [
-                {
-                    "index": 1,
-                    "errors": []
-                }
-            ]
-        }
-        with self.assertRaisesRegex(
-            Exception,
-            r"BigQuery job failed\. Error was: 1 insert error\(s\) occurred: "
-            r"bq-project:bq_dataset\.bq_table\. Details: \[{'index': 1, 'errors': \[\]}\]"
-        ):
-            self.hook.insert_all(PROJECT_ID, DATASET_ID, TABLE_ID, rows, fail_on_error=True)
+        mock_client.return_value.insert_rows.return_value = ["some", "errors"]
+        with self.assertRaisesRegex(AirflowException, "insert error"):
+            self.hook.insert_all(project_id=PROJECT_ID, dataset_id=DATASET_ID, table_id=TABLE_ID,
+                                 rows=rows, fail_on_error=True)
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration")
@@ -880,8 +805,9 @@ class TestTableOperations(_BigQueryBaseTestClass):
             retry=DEFAULT_RETRY,
         )
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_patch_table(self, mock_get_service):
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_patch_table(self, mock_client, mock_table):
         description_patched = 'Test description.'
         expiration_time_patched = 2524608000000
         friendly_name_patched = 'Test friendly name.'
@@ -896,17 +822,22 @@ class TestTableOperations(_BigQueryBaseTestClass):
             'expirationMs': 10000000
         }
         require_partition_filter_patched = True
+        view_patched = {
+            'query': "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*` LIMIT 500",
+            'useLegacySql': False
+        }
 
-        mock_service = mock_get_service.return_value
-        method = mock_service.tables.return_value.patch
         self.hook.patch_table(
-            DATASET_ID, TABLE_ID, PROJECT_ID,
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+            project_id=PROJECT_ID,
             description=description_patched,
             expiration_time=expiration_time_patched,
             friendly_name=friendly_name_patched,
             labels=labels_patched, schema=schema_patched,
             time_partitioning=time_partitioning_patched,
-            require_partition_filter=require_partition_filter_patched
+            require_partition_filter=require_partition_filter_patched,
+            view=view_patched
         )
 
         body = {
@@ -918,44 +849,16 @@ class TestTableOperations(_BigQueryBaseTestClass):
                 "fields": schema_patched
             },
             "timePartitioning": time_partitioning_patched,
-            "requirePartitionFilter": require_partition_filter_patched
+            "view": view_patched,
+            "requirePartitionFilter": require_partition_filter_patched,
         }
-        method.assert_called_once_with(
-            projectId=PROJECT_ID,
-            datasetId=DATASET_ID,
-            tableId=TABLE_ID,
-            body=body
-        )
+        fields = list(body.keys())
+        body["tableReference"] = TABLE_REFERENCE_REPR
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_patch_table_on_exception(self, mock_get_service):
-        mock_service = mock_get_service.return_value
-        method = mock_service.tables.return_value.patch
-        resp = type('', (object,), {"status": 500, "reason": "Bad request"})()
-        method.return_value.execute.side_effect = HttpError(
-            resp=resp, content=b'Bad request')
-        with self.assertRaisesRegex(HttpError, "Bad request"):
-            self.hook.patch_table(DATASET_ID, TABLE_ID)
-
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_patch_view(self, mock_get_service):
-        view_patched = {
-            'query': "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*` LIMIT 500",
-            'useLegacySql': False
-        }
-
-        mock_service = mock_get_service.return_value
-        method = mock_service.tables.return_value.patch
-        self.hook.patch_table(DATASET_ID, VIEW_ID, PROJECT_ID, view=view_patched)
-
-        body = {
-            'view': view_patched
-        }
-        method.assert_called_once_with(
-            projectId=PROJECT_ID,
-            datasetId=DATASET_ID,
-            tableId=VIEW_ID,
-            body=body
+        mock_table.from_api_repr.assert_called_once_with(body)
+        mock_client.return_value.update_table.assert_called_once_with(
+            table=mock_table.from_api_repr.return_value,
+            fields=fields
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
@@ -1060,85 +963,7 @@ class TestTableOperations(_BigQueryBaseTestClass):
             retry=DEFAULT_RETRY,
         )
         for res, exp in zip(result, table_list):
-            assert res.full_table_id == exp["id"]
-
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_table_upsert_on_insert(self, mock_get_service):
-        table_resource = {
-            "tableReference": {
-                "tableId": "test-table-id"
-            },
-            "expirationTime": 123456
-        }
-        mock_service = mock_get_service.return_value
-        method = mock_service.tables.return_value.insert
-        self.hook.run_table_upsert(
-            dataset_id=DATASET_ID,
-            table_resource=table_resource,
-            project_id=PROJECT_ID
-        )
-
-        method.assert_called_once_with(
-            body=table_resource,
-            datasetId=DATASET_ID,
-            projectId=PROJECT_ID
-        )
-
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_table_upsert_on_update(self, mock_get_service):
-        table_resource = {
-            "tableReference": {
-                "tableId": "table1"
-            },
-            "expirationTime": 123456
-        }
-        table1 = "table1"
-        table2 = "table2"
-        expected_tables_list = {'tables': [
-            {
-                "creationTime": "12345678",
-                "kind": "bigquery#table",
-                "type": "TABLE",
-                "id": "{project}:{dataset}.{table}".format(
-                    project=PROJECT_ID,
-                    dataset=DATASET_ID,
-                    table=table1),
-                "tableReference": {
-                    "projectId": PROJECT_ID,
-                    "tableId": table1,
-                    "datasetId": DATASET_ID
-                }
-            },
-            {
-                "creationTime": "12345678",
-                "kind": "bigquery#table",
-                "type": "TABLE",
-                "id": "{project}:{dataset}.{table}".format(
-                    project=PROJECT_ID,
-                    dataset=DATASET_ID,
-                    table=table2),
-                "tableReference": {
-                    "projectId": PROJECT_ID,
-                    "tableId": table2,
-                    "datasetId": DATASET_ID
-                }
-            }
-        ]}
-        mock_service = mock_get_service.return_value
-        mock_service.tables.return_value.list.return_value.execute.return_value = expected_tables_list
-        method = mock_service.tables.return_value.update
-        self.hook.run_table_upsert(
-            dataset_id=DATASET_ID,
-            table_resource=table_resource,
-            project_id=PROJECT_ID
-        )
-
-        method.assert_called_once_with(
-            body=table_resource,
-            datasetId=DATASET_ID,
-            projectId=PROJECT_ID,
-            tableId=table1
-        )
+            assert res["tableId"] == exp["tableReference"]["tableId"]
 
 
 class TestBigQueryCursor(_BigQueryBaseTestClass):
@@ -1811,11 +1636,9 @@ class TestBigQueryWithKMS(_BigQueryBaseTestClass):
         )
 
     # pylint: disable=too-many-locals
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_create_external_table_with_kms(self, mock_get_service):
-        external_project_dataset_table = "{}.{}.{}".format(
-            PROJECT_ID, DATASET_ID, TABLE_ID
-        )
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table")
+    def test_create_external_table_with_kms(self, mock_create):
+        external_project_dataset_table = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
         source_uris = ['test_data.csv']
         source_format = 'CSV'
         autodetect = False
@@ -1830,14 +1653,11 @@ class TestBigQueryWithKMS(_BigQueryBaseTestClass):
         encoding = "UTF-8"
         labels = {'label1': 'test1', 'label2': 'test2'}
         schema_fields = [
-            {"name": "id", "type": "STRING", "mode": "REQUIRED"}
+            {'mode': 'REQUIRED', 'name': 'id', 'type': 'STRING', 'description': None}
         ]
         encryption_configuration = {
             "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
         }
-
-        mock_service = mock_get_service.return_value
-        method = mock_service.tables.return_value.insert
 
         self.hook.create_external_table(
             external_project_dataset_table=external_project_dataset_table,
@@ -1884,35 +1704,10 @@ class TestBigQueryWithKMS(_BigQueryBaseTestClass):
             'labels': labels,
             "encryptionConfiguration": encryption_configuration,
         }
-        method.assert_called_once_with(
-            projectId=PROJECT_ID, datasetId=DATASET_ID, body=body
-        )
-
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_patch_table_with_kms(self, mock_get_service):
-        encryption_configuration = {
-            "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
-        }
-
-        mock_service = mock_get_service.return_value
-        method = mock_service.tables.return_value.patch
-
-        self.hook.patch_table(
-            dataset_id=DATASET_ID,
-            table_id=TABLE_ID,
+        mock_create.assert_called_once_with(
+            table_resource=body,
             project_id=PROJECT_ID,
-            encryption_configuration=encryption_configuration
-        )
-
-        body = {
-            "encryptionConfiguration": encryption_configuration
-        }
-
-        method.assert_called_once_with(
-            projectId=PROJECT_ID,
-            datasetId=DATASET_ID,
-            tableId=TABLE_ID,
-            body=body
+            location=None,
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")

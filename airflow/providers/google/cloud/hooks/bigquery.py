@@ -229,7 +229,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         view: Optional[Dict] = None,
         encryption_configuration: Optional[Dict] = None,
         retry: Optional[Retry] = DEFAULT_RETRY,
-        num_retries: Optional[int] = None
+        num_retries: Optional[int] = None,
+        location: Optional[str] = None,
     ) -> Table:
         """
         Creates a new, empty table in the dataset.
@@ -328,7 +329,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table_id=table_id,
         )
         table = Table.from_api_repr(table_resource)
-        return self.get_client().create_table(table=table, exists_ok=True, retry=retry)
+        return self.get_client(project_id=project_id, location=location).create_table(
+            table=table,
+            exists_ok=True,
+            retry=retry
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_empty_dataset(self,
@@ -616,7 +621,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table.encryption_configuration = EncryptionConfiguration.from_api_repr(encryption_configuration)
 
         self.log.info('Creating external table: %s', external_project_dataset_table)
-        self.get_client(project_id=project_id, location=location).create_table(table=table, exists_ok=True)
+        self.create_empty_table(table_resource=table.to_api_repr(), project_id=project_id, location=location)
         self.log.info('External table created successfully: %s', external_project_dataset_table)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -666,7 +671,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         table = Table.from_api_repr(table_resource)
         self.log.info('Updating table %s.%s.%s', project_id, dataset_id, table_id)
-        table_object = self.get_client().update_table(table, fields=fields)
+        table_object = self.get_client().update_table(table=table, fields=fields)
         self.log.info('Table %s.%s.%s updated successfully', project_id, dataset_id, table_id)
         return table_object.to_api_repr()
 
@@ -1172,8 +1177,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         )
         return table.to_api_repr()
 
-    def run_table_delete(self, deletion_dataset_table: str,
-                         ignore_if_missing: bool = False) -> None:
+    def run_table_delete(self, deletion_dataset_table: str, ignore_if_missing: bool = False) -> None:
         """
         Delete an existing table from the dataset;
         If the table does not exist, return an error unless ignore_if_missing
@@ -1189,33 +1193,32 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :return:
         """
         warnings.warn("This method is deprecated. Please use `delete_table`.", DeprecationWarning)
-        return self.delete_table(deletion_dataset_table, ignore_if_missing)
+        return self.delete_table(table_id=deletion_dataset_table, not_found_ok=ignore_if_missing)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_table(
         self,
         table_id: str,
-        ignore_if_missing: bool = True,
+        not_found_ok: bool = True,
         project_id: Optional[str] = None,
     ) -> None:
         """
-        Delete an existing table from the dataset;
-        If the table does not exist, return an error unless ignore_if_missing
-        is set to True.
+        Delete an existing table from the dataset. If the table does not exist, return an error
+        unless not_found_ok is set to True.
 
         :param table_id: A dotted ``(<project>.|<project>:)<dataset>.<table>``
             that indicates which table will be deleted.
         :type table_id: str
-        :param ignore_if_missing: if True, then return success even if the
+        :param not_found_ok: if True, then return success even if the
             requested table does not exist.
-        :type ignore_if_missing: bool
+        :type not_found_ok: bool
         :param project_id: the project used to perform the request
         :type project_id: str
         """
         project_id = project_id or self.project_id
         self.get_client(project_id=project_id).delete_table(
             table=Table.from_string(table_id),
-            not_found_ok=ignore_if_missing,
+            not_found_ok=not_found_ok,
         )
         self.log.info('Deleted table %s', table_id)
 
@@ -1295,6 +1298,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         )
         return list(result)
 
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_schema(self, dataset_id: str, table_id: str, project_id: Optional[str] = None) -> Dict:
         """
         Get the schema for a given dataset and table.
@@ -1308,7 +1312,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         table_ref = TableReference(dataset_ref=DatasetReference(project_id, dataset_id), table_id=table_id)
         table = self.get_client(project_id=project_id).get_table(table_ref)
-        return {"fields": [s.to_api_rer for s in table.schema]}
+        return {"fields": [s.to_api_repr for s in table.schema]}
 
     def poll_job_complete(self, job_id: str) -> bool:
         """
