@@ -57,7 +57,7 @@ class TestXComArgBuild:
         assert actual.operator == python_op
         assert actual.key == "test_key"
         # Asserting the overridden __eq__ method
-        assert actual == actual  # pylint: disable=comparison-with-itself
+        assert actual == XComArg(python_op, "test_key")
         assert str(actual) == "task_instance.xcom_pull(" \
                               "task_ids=\'test_xcom_op\', " \
                               "dag_id=\'test_xcom_dag\', " \

@@ -27,7 +27,7 @@ class XComArg:
     Class that represents a XCom push from a previous operator.
     Defaults to "return_value" as only key.
 
-    Current implementations supports
+    Current implementation supports
         xcomarg >> op
         xcomarg << op
         op >> xcomarg   (by BaseOperator code)
@@ -67,14 +67,14 @@ class XComArg:
 
     def __lshift__(self, other):
         """
-        Implements xcomresult << op
+        Implements XComArg << op
         """
         self.set_upstream(other)
         return self
 
     def __rshift__(self, other):
         """
-        Implements xcomresult >> op
+        Implements XComArg >> op
         """
         self.set_downstream(other)
         return self
@@ -89,7 +89,7 @@ class XComArg:
         """
         Backward compatibility for old-style jinja used in Airflow Operators
 
-        **Example**: to use XArg at BashOperator::
+        **Example**: to use XComArg at BashOperator::
 
             BashOperator(cmd=f"... { xcomarg } ...")
 
