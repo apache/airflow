@@ -314,7 +314,7 @@ kubernetes = [
     'kubernetes>=3.0.0',
 ]
 ldap = [
-    'ldap3>=2.5.1',
+    "python-ldap~=3.2.0",
 ]
 mongo = [
     'dnspython>=1.13.0,<2.0.0',

@@ -100,6 +100,7 @@ RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
            ldap-utils \
            libffi-dev \
            libkrb5-dev \
+           libldap2-dev \
            libpq-dev \
            libsasl2-2 \
            libsasl2-dev \
