@@ -780,7 +780,7 @@ paths:
       description:
         This endpoint support reading resources across multiple XCom entries by specifying a
         "-" as a `dag_id`, `task_id` and `execution_date`.
-      operationId: getXComVEntry
+      operationId: getXComEntry
       tags: [XCom]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
