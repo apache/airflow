@@ -21,12 +21,14 @@ import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
-from airflow.providers.amazon.aws.operators.step_function_get_execution_output import StepFunctionGetExecutionOutputOperator
+from airflow.providers.amazon.aws.operators.step_function_get_execution_output import \
+    StepFunctionGetExecutionOutputOperator
 
 TASK_ID = 'step_function_get_execution_output'
-EXECUTION_ARN = 'arn:aws:states:us-east-1:123456789012:execution:pseudo-state-machine:020f5b16-b1a1-4149-946f-92dd32d97934'
+EXECUTION_ARN = 'arn:aws:states:us-east-1:123456789012:execution:'\
+                'pseudo-state-machine:020f5b16-b1a1-4149-946f-92dd32d97934'
 AWS_CONN_ID = 'aws_non_default'
-REGION_NAME='us-west-2'
+REGION_NAME = 'us-west-2'
 
 
 class TestStepFunctionGetExecutionOutputOperator(unittest.TestCase):
