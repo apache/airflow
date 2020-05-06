@@ -505,6 +505,14 @@ class TestAirflowBaseViews(TestBase):
     def test_home(self):
         resp = self.client.get('home', follow_redirects=True)
         self.check_content_in_response('DAGs', resp)
+        val_state_color_mapping = 'const STATE_COLOR = {"failed": "red", ' \
+                                  '"null": "lightblue", "queued": "gray", ' \
+                                  '"removed": "lightgrey", "running": "lime", ' \
+                                  '"scheduled": "tan", "shutdown": "blue", ' \
+                                  '"skipped": "pink", "success": "green", ' \
+                                  '"up_for_reschedule": "turquoise", ' \
+                                  '"up_for_retry": "gold", "upstream_failed": "orange"};'
+        self.check_content_in_response(val_state_color_mapping, resp)
 
     def test_users_list(self):
         resp = self.client.get('users/list', follow_redirects=True)
