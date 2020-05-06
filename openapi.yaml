@@ -1075,10 +1075,7 @@ components:
     ConnectionCollectionItem:
       type: object
       properties:
-        id:
-          type: integer
-          readOnly: true
-        conn_id:
+        connection_id:
           type: string
         conn_type:
           type: string
