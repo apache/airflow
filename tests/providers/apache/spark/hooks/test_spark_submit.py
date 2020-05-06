@@ -612,6 +612,19 @@ class TestSparkSubmitHook(unittest.TestCase):
                          'spark-pi-edf2ace37be7353a958b38733a12f8e6-driver')
         self.assertEqual(hook._spark_exit_code, 999)
 
+    def test_process_spark_submit_log_k8s_spark_3(self):
+        # Given
+        hook = SparkSubmitHook(conn_id='spark_k8s_cluster')
+        log_lines = [
+            'exit code: 999'
+        ]
+
+        # When
+        hook._process_spark_submit_log(log_lines)
+
+        # Then
+        self.assertEqual(hook._spark_exit_code, 999)
+
     def test_process_spark_submit_log_standalone_cluster(self):
         # Given
         hook = SparkSubmitHook(conn_id='spark_standalone_cluster')
