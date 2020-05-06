@@ -73,10 +73,11 @@ def test_entrypoint_plugin_errors_dont_raise_exceptions(mock_ep_plugins, caplog)
     Test that Airflow does not raise an Error if there is any Exception because of the
     Plugin.
     """
-    from airflow.plugins_manager import load_entrypoint_plugins
+    from airflow.plugins_manager import load_entrypoint_plugins, import_errors
 
     mock_entrypoint = mock.Mock()
     mock_entrypoint.name = 'test-entrypoint'
+    mock_entrypoint.module_name = 'test.plugins.test_plugins_manager'
     mock_entrypoint.load.side_effect = Exception('Version Conflict')
     mock_ep_plugins.return_value = [mock_entrypoint]
 
@@ -88,3 +89,4 @@ def test_entrypoint_plugin_errors_dont_raise_exceptions(mock_ep_plugins, caplog)
     assert "Traceback (most recent call last):" in caplog.text
     assert "Version Conflict" in caplog.text
     assert "Failed to import plugin test-entrypoint" in caplog.text
+    assert "Version Conflict", "test.plugins.test_plugins_manager" in import_errors.items()
