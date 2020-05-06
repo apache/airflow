@@ -172,7 +172,7 @@ paths:
 
     get:
       summary: Get basic information about a DAG
-      description: Presents only information available at database (DAGModel).
+      description: Presents only information available in database (DAGModel).
       operationId: getDag
       tags: [DAG]
       responses:
