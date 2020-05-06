@@ -67,8 +67,12 @@ class TestPluginsRBAC(unittest.TestCase):
         self.assertEqual(self.app.blueprints['test_plugin'].name, bp.name)
 
 
+@mock.patch('airflow.plugins_manager.import_errors', return_value={})
+@mock.patch('airflow.plugins_manager.plugins', return_value=[])
 @mock.patch('airflow.plugins_manager.pkg_resources.iter_entry_points')
-def test_entrypoint_plugin_errors_dont_raise_exceptions(mock_ep_plugins, caplog):
+def test_entrypoint_plugin_errors_dont_raise_exceptions(
+    mock_ep_plugins, mock_plugins, mock_import_errors, caplog
+):
     """
     Test that Airflow does not raise an Error if there is any Exception because of the
     Plugin.
