@@ -228,7 +228,6 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
 
     template_fields = ('bucket', 'prefix')
     ui_color = '#f0eee4'
-    previous_objects: Set[str]
 
     @apply_defaults
     def __init__(self,
