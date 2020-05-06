@@ -1266,7 +1266,7 @@ class SchedulerJob(BaseJob):
         :param dagbag: a collection of DAGs to process
         :type dagbag: airflow.models.DagBag
         :param dags: the DAGs from the DagBag to process
-        :type dags: airflow.models.DAG
+        :type dags: list[airflow.models.DAG]
         :param tis_out: A list to add generated TaskInstance objects
         :type tis_out: list[TaskInstance]
         :rtype: None
@@ -1275,10 +1275,6 @@ class SchedulerJob(BaseJob):
             dag = dagbag.get_dag(dag.dag_id)
             if not dag:
                 self.log.error("DAG ID %s was not found in the DagBag", dag.dag_id)
-                continue
-
-            if dag.is_paused:
-                self.log.info("Not processing DAG %s since it's paused", dag.dag_id)
                 continue
 
             self.log.info("Processing %s", dag.dag_id)
@@ -1581,8 +1577,7 @@ class SchedulerJob(BaseJob):
         for dag in dagbag.dags.values():
             dag.sync_to_db()
 
-        paused_dag_ids = [dag.dag_id for dag in dagbag.dags.values()
-                          if dag.is_paused]
+        paused_dag_ids = models.DagModel.get_paused_dag_ids(dag_ids=dagbag.dag_ids)
 
         # Pickle the DAGs (if necessary) and put them into a SimpleDag
         for dag_id in dagbag.dags:
