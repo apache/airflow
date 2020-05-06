@@ -105,39 +105,43 @@ def settings_context(content, directory=None, name='LOGGING_CONFIG'):
     :param content:
           The content of the settings file
     """
-    settings_root = tempfile.mkdtemp()
-    filename = f"{SETTINGS_DEFAULT_NAME}.py"
+    initial_logging_config = os.environ.get("AIRFLOW__LOGGING__LOGGING_CONFIG_CLASS", "")
+    try:
+        settings_root = tempfile.mkdtemp()
+        filename = f"{SETTINGS_DEFAULT_NAME}.py"
+        if directory:
+            # Replace slashes by dots
+            module = directory.replace('/', '.') + '.' + SETTINGS_DEFAULT_NAME + '.' + name
 
-    if directory:
-        # Replace slashes by dots
-        module = directory.replace('/', '.') + '.' + SETTINGS_DEFAULT_NAME + '.' + name
+            # Create the directory structure
+            dir_path = os.path.join(settings_root, directory)
+            pathlib.Path(dir_path).mkdir(parents=True, exist_ok=True)
 
-        # Create the directory structure
-        dir_path = os.path.join(settings_root, directory)
-        pathlib.Path(dir_path).mkdir(parents=True, exist_ok=True)
-
-        # Add the __init__ for the directories
-        # This is required for Python 2.7
-        basedir = settings_root
-        for part in directory.split('/'):
+            # Add the __init__ for the directories
+            # This is required for Python 2.7
+            basedir = settings_root
+            for part in directory.split('/'):
+                open(os.path.join(basedir, '__init__.py'), 'w').close()
+                basedir = os.path.join(basedir, part)
             open(os.path.join(basedir, '__init__.py'), 'w').close()
-            basedir = os.path.join(basedir, part)
-        open(os.path.join(basedir, '__init__.py'), 'w').close()
 
-        settings_file = os.path.join(dir_path, filename)
-    else:
-        module = SETTINGS_DEFAULT_NAME + '.' + name
-        settings_file = os.path.join(settings_root, filename)
+            settings_file = os.path.join(dir_path, filename)
+        else:
+            module = SETTINGS_DEFAULT_NAME + '.' + name
+            settings_file = os.path.join(settings_root, filename)
 
-    with open(settings_file, 'w') as handle:
-        handle.writelines(content)
-    sys.path.append(settings_root)
+        with open(settings_file, 'w') as handle:
+            handle.writelines(content)
+        sys.path.append(settings_root)
 
-    with conf_vars({('logging', 'logging_config_class'): module}):
+        # Using environment vars instead of conf_vars so value is accessible
+        # to parent and child processes when using 'spawn' for multiprocessing.
         os.environ["AIRFLOW__LOGGING__LOGGING_CONFIG_CLASS"] = module
         yield settings_file
 
-    sys.path.remove(settings_root)
+    finally:
+        os.environ["AIRFLOW__LOGGING__LOGGING_CONFIG_CLASS"] = initial_logging_config
+        sys.path.remove(settings_root)
 
 
 class TestLoggingSettings(unittest.TestCase):
