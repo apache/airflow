@@ -1,5 +1,5 @@
 # Editable install with no version control (apache-airflow==2.0.0.dev0)
-Authlib==0.14.1
+Authlib==0.14.2
 Babel==2.8.0
 Flask-AppBuilder==2.3.2
 Flask-Babel==1.0.0
@@ -11,7 +11,7 @@ Flask-OpenID==1.2.5
 Flask-SQLAlchemy==2.4.1
 Flask-WTF==0.14.3
 Flask==1.1.2
-GitPython==3.1.1
+GitPython==3.1.2
 HeapDict==1.0.1
 JPype1==0.7.4
 JayDeBeApi==1.1.1
@@ -33,6 +33,7 @@ Unidecode==1.1.1
 WTForms==2.3.1
 Werkzeug==0.16.1
 adal==1.2.3
+aiohttp==3.6.2
 alabaster==0.7.12
 alembic==1.4.2
 amqp==2.5.2
@@ -45,6 +46,7 @@ argcomplete==1.11.1
 asn1crypto==1.3.0
 astroid==2.3.3
 async-generator==1.10
+async-timeout==3.0.1
 atlasclient==1.0.0
 attrs==19.3.0
 aws-sam-translator==1.22.0
@@ -69,9 +71,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.3.0
 black==19.10b0
 blinker==1.4
-boto3==1.13.1
+boto3==1.13.3
 boto==2.49.0
-botocore==1.16.1
+botocore==1.16.3
 bowler==0.8.0
 cached-property==1.5.1
 cachetools==4.1.0
@@ -95,7 +97,7 @@ cryptography==2.9.2
 curlify==2.2.1
 cx-Oracle==7.3.0
 dask==2.15.0
-datadog==0.35.0
+datadog==0.36.0
 decorator==4.4.2
 defusedxml==0.6.0
 dill==0.3.1.1
@@ -108,13 +110,13 @@ docopt==0.6.2
 docutils==0.16
 ecdsa==0.15
 elasticsearch-dbapi==0.1.0
-elasticsearch-dsl==7.1.0
+elasticsearch-dsl==7.2.0
 elasticsearch==7.5.1
 email-validator==1.1.0
 entrypoints==0.3
 enum34==1.1.10
 execnet==1.7.1
-facebook-business==6.0.4
+facebook-business==7.0.0
 fastavro==0.23.3
 filelock==3.0.12
 fissix==19.2b1
@@ -129,7 +131,7 @@ funcsigs==1.0.2
 future-fstrings==1.2.0
 future==0.18.2
 gcsfs==0.6.1
-gitdb==4.0.4
+gitdb==4.0.5
 google-ads==4.0.0
 google-api-core==1.17.0
 google-api-python-client==1.8.2
@@ -152,9 +154,9 @@ google-cloud-monitoring==0.35.0
 google-cloud-pubsub==1.4.3
 google-cloud-redis==0.4.0
 google-cloud-secret-manager==0.2.0
-google-cloud-spanner==1.15.1
+google-cloud-spanner==1.16.0
 google-cloud-speech==1.3.2
-google-cloud-storage==1.28.0
+google-cloud-storage==1.28.1
 google-cloud-tasks==1.5.0
 google-cloud-texttospeech==1.0.1
 google-cloud-translate==2.0.1
@@ -173,6 +175,7 @@ httplib2==0.17.3
 humanize==0.5.1
 hvac==0.10.1
 identify==1.4.15
+idna-ssl==1.1.0
 idna==2.9
 ijson==2.6.1
 imagesize==1.2.0
@@ -214,6 +217,7 @@ msgpack==1.0.0
 msrest==0.6.13
 msrestazure==0.6.3
 multi-key-dict==2.0.3
+multidict==4.7.5
 mypy-extensions==0.4.3
 mypy==0.770
 mysql-connector-python==8.0.18
@@ -304,7 +308,7 @@ responses==0.10.14
 rsa==4.0
 s3transfer==0.3.3
 sasl==0.2.1
-semver==2.9.1
+semver==2.10.0
 sendgrid==6.3.0
 sentinels==1.0.0
 sentry-sdk==0.14.3
@@ -312,8 +316,8 @@ setproctitle==1.1.10
 sh==1.13.1
 simple-salesforce==1.0.0
 six==1.14.0
-slackclient==1.3.2
-smmap==3.0.2
+slackclient==2.5.0
+smmap==3.0.4
 snowballstemmer==2.0.0
 snowflake-connector-python==2.2.5
 snowflake-sqlalchemy==1.2.3
@@ -359,7 +363,7 @@ uritemplate==3.0.1
 urllib3==1.25.9
 vertica-python==0.10.3
 vine==1.3.0
-virtualenv==20.0.19
+virtualenv==20.0.20
 watchtower==0.7.3
 wcwidth==0.1.9
 websocket-client==0.57.0
@@ -367,6 +371,7 @@ wrapt==1.12.1
 xmltodict==0.12.0
 yamllint==1.23.0
 yandexcloud==0.34.0
+yarl==1.4.2
 zdesk==2.7.1
 zict==2.0.0
 zipp==3.1.0
