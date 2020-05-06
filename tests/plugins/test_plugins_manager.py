@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import logging
 import unittest
 from unittest import mock
 
@@ -84,6 +84,8 @@ def test_entrypoint_plugin_errors_dont_raise_exceptions(
     mock_entrypoint.module_name = 'test.plugins.test_plugins_manager'
     mock_entrypoint.load.side_effect = Exception('Version Conflict')
     mock_ep_plugins.return_value = [mock_entrypoint]
+
+    caplog.set_level(logging.INFO)
 
     # Clear Logs
     caplog.clear()
