@@ -133,10 +133,10 @@ class TestSlackHook(unittest.TestCase):
         test_method = 'test_method'
         test_api_params = {'key1': 'value1', 'key2': 'value2'}
 
-        slack_hook.call(test_method, test_api_params)
+        slack_hook.call(test_method, json=test_api_params)
 
         slack_client_class_mock.assert_called_once_with(test_token)
-        slack_client_mock.api_call.assert_called_once_with(test_method, **test_api_params)
+        slack_client_mock.api_call.assert_called_once_with(test_method, json=test_api_params)
         self.assertEqual(slack_response.validate.call_count, 1)
 
     @mock.patch('airflow.providers.slack.hooks.slack.WebClient')

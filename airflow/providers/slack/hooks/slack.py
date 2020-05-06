@@ -33,7 +33,10 @@ class SlackHook(BaseHook):
     If both supplied, Slack API token will be used.
     Exposes also the rest of slack.WebClient args.
 
-    **Example usage**: ::
+    Examples:
+
+    .. code-block:: python
+
         # Create hook
         slack_hook = SlackHook(token="xxx")  # or slack_hook = SlackHook(slack_conn_id="slack")
 
@@ -86,7 +89,7 @@ class SlackHook(BaseHook):
 
     def call(self, *args, **kwargs) -> None:
         """
-        Creates a Slack WebClient and calls `WebClient.api_call` with given arguments.
+        Calls Slack WebClient `WebClient.api_call` with given arguments.
 
         :param api_method: The target Slack API method. e.g. 'chat.postMessage'. Required.
         :type api_method: str
@@ -95,7 +98,7 @@ class SlackHook(BaseHook):
         :param files: Files to multipart upload. e.g. {imageORfile: file_objectORfile_path}
         :type files: dict
         :param data: The body to attach to the request. If a dictionary is provided,
-        form-encoding will take place. Optional.
+            form-encoding will take place. Optional.
         :type data: dict or aiohttp.FormData
         :param params: The URL parameters to append to the URL. Optional.
         :type params: dict

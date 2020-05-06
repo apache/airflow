@@ -88,7 +88,10 @@ class SlackAPIPostOperator(SlackAPIOperator):
     """
     Posts messages to a slack channel
 
-    **Example usage**: ::
+    Examples:
+
+    .. code-block:: python
+
         slack = SlackAPIPostOperator(
             task_id="post_hello",
             dag=dag,
