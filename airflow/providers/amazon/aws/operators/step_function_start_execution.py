@@ -49,7 +49,7 @@ class StepFunctionStartExecutionOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self, state_machine_arn: str, name: Optional[str] = None,
-                 input: Union[Dict[str, any], str, None] = None,
+                 input: Union[dict, str, None] = None,
                  aws_conn_id='aws_default', region_name=None,
                  *args, **kwargs):
         if kwargs.get('xcom_push') is not None:
