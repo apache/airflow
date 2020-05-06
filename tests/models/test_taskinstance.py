@@ -855,6 +855,19 @@ class TestTaskInstance(unittest.TestCase):
         self.assertEqual(completed, expect_completed)
         self.assertEqual(ti.state, expect_state)
 
+    def test_respects_prev_dagrun_dep(self):
+        with DAG(dag_id='test_dag'):
+            task = DummyOperator(task_id='task', start_date=DEFAULT_DATE)
+        ti = TI(task, DEFAULT_DATE)
+        failing_status = [TIDepStatus('test fail status name', False, 'test fail reason')]
+        passing_status = [TIDepStatus('test pass status name', True, 'test passing reason')]
+        with patch('airflow.ti_deps.deps.prev_dagrun_dep.PrevDagrunDep.get_dep_statuses',
+                   return_value=failing_status):
+            self.assertFalse(ti.are_dependencies_met())
+        with patch('airflow.ti_deps.deps.prev_dagrun_dep.PrevDagrunDep.get_dep_statuses',
+                   return_value=passing_status):
+            self.assertTrue(ti.are_dependencies_met())
+
     @parameterized.expand([
         (State.SUCCESS, True),
         (State.SKIPPED, True),
