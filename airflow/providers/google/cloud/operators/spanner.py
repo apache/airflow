@@ -31,6 +31,10 @@ class SpannerDeployInstanceOperator(BaseOperator):
     Creates a new Cloud Spanner instance, or if an instance with the same instance_id
     exists in the specified project, updates the Cloud Spanner instance.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SpannerDeployInstanceOperator`
+
     :param instance_id: Cloud Spanner instance ID.
     :type instance_id: str
     :param configuration_name:  The name of the Cloud Spanner instance configuration
