@@ -26,7 +26,7 @@ info:
     url: http://www.apache.org/licenses/LICENSE-2.0.html
   contact:
     name: Apache Foundation
-    url: http://www.airflow.apache.org
+    url: https://airflow.apache.org
     email: dev@airflow.apache.org
 
 servers:
