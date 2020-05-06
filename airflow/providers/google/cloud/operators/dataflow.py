@@ -379,14 +379,11 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             *args,
             **kwargs) -> None:
         super().__init__(*args, **kwargs)
-
-        dataflow_default_options = dataflow_default_options or {}
-        parameters = parameters or {}
-
         self.template = template
         self.job_name = job_name
-        self.options = copy.deepcopy(options or {})
-        self.parameters = parameters
+        self.options = options or {}
+        self.dataflow_default_options = dataflow_default_options or {}
+        self.parameters = parameters or {}
         self.project_id = project_id
         self.location = location
         self.gcp_conn_id = gcp_conn_id
@@ -394,7 +391,6 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         self.poll_sleep = poll_sleep
         self.job_id = None
         self.hook: Optional[DataflowHook] = None
-        self.options.update(dataflow_default_options)
 
     def execute(self, context):
         self.hook = DataflowHook(
@@ -405,10 +401,12 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
 
         def set_current_job_id(job_id):
             self.job_id = job_id
+        options = self.dataflow_default_options
+        options.update(self.options)
 
         job = self.hook.start_template_dataflow(
             job_name=self.job_name,
-            variables=self.options,
+            variables=options,
             parameters=self.parameters,
             dataflow_template=self.template,
             on_new_job_id_callback=set_current_job_id,

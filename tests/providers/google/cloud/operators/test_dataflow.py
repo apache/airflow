@@ -269,18 +269,6 @@ class TestDataflowTemplateOperator(unittest.TestCase):
             location=TEST_LOCATION
         )
 
-    def test_init(self):
-        """Test DataflowTemplateOperator instance is properly initialized."""
-        self.assertEqual(self.dataflow.task_id, TASK_ID)
-        self.assertEqual(self.dataflow.job_name, JOB_NAME)
-        self.assertEqual(self.dataflow.template, TEMPLATE)
-        self.assertEqual(self.dataflow.parameters, PARAMETERS)
-        self.assertEqual(self.dataflow.poll_sleep, POLL_SLEEP)
-        self.assertEqual(self.dataflow.options, {
-            **DEFAULT_OPTIONS_TEMPLATE,
-            'EXTRA_OPTION': "TEST_A"
-        })
-
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
     def test_exec(self, dataflow_mock):
         """Test DataflowHook is created and the right args are passed to
