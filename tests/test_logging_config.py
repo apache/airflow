@@ -134,6 +134,7 @@ def settings_context(content, directory=None, name='LOGGING_CONFIG'):
     sys.path.append(settings_root)
 
     with conf_vars({('logging', 'logging_config_class'): module}):
+        os.environ["AIRFLOW__LOGGING__LOGGING_CONFIG_CLASS"] = module
         yield settings_file
 
     sys.path.remove(settings_root)
