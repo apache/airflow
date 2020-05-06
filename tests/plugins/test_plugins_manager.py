@@ -17,8 +17,7 @@
 # under the License.
 
 import unittest
-
-import mock
+from unittest import mock
 
 from airflow.www import app as application
 
@@ -77,6 +76,7 @@ def test_entrypoint_plugin_errors_dont_raise_exceptions(mock_ep_plugins, caplog)
     from airflow.plugins_manager import load_entrypoint_plugins
 
     mock_entrypoint = mock.Mock()
+    mock_entrypoint.name = 'test-entrypoint'
     mock_entrypoint.load.side_effect = Exception('Version Conflict')
     mock_ep_plugins.return_value = [mock_entrypoint]
 
@@ -87,3 +87,4 @@ def test_entrypoint_plugin_errors_dont_raise_exceptions(mock_ep_plugins, caplog)
     # Assert Traceback is shown too
     assert "Traceback (most recent call last):" in caplog.text
     assert "Version Conflict" in caplog.text
+    assert "Failed to import plugin test-entrypoint" in caplog.text
