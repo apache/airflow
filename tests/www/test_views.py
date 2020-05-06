@@ -585,7 +585,7 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.post('task_stats', follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(set(list(resp.json.items())[0][1][0].keys()),
-                         {'state', 'count', 'color'})
+                         {'state', 'count'})
 
     @conf_vars({("webserver", "show_recent_stats_for_completed_runs"): "False"})
     def test_task_stats_only_noncompleted(self):
@@ -1681,7 +1681,7 @@ class TestDagACLView(TestBase):
         resp = self.client.post('dag_stats', follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
         self.assertEqual(set(list(resp.json.items())[0][1][0].keys()),
-                         {'state', 'count', 'color'})
+                         {'state', 'count'})
 
     def test_dag_stats_failure(self):
         self.logout()

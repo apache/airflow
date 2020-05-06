@@ -337,6 +337,9 @@ class Airflow(AirflowBaseView):
 
         num_of_pages = int(math.ceil(num_of_all_dags / float(dags_per_page)))
 
+        state_color_mapping = State.state_color.copy()
+        state_color_mapping["null"] = state_color_mapping.pop(None)
+
         return self.render_template(
             'airflow/dags.html',
             dags=dags,
@@ -353,6 +356,7 @@ class Airflow(AirflowBaseView):
                                            status=arg_status_filter if arg_status_filter else None),
             num_runs=num_runs,
             tags=tags,
+            state_color=state_color_mapping,
             status_filter=arg_status_filter,
             status_count_all=all_dags_count,
             status_count_active=status_count_active,
@@ -399,8 +403,7 @@ class Airflow(AirflowBaseView):
                 count = data.get(dag_id, {}).get(state, 0)
                 payload[dag_id].append({
                     'state': state,
-                    'count': count,
-                    'color': State.color(state)
+                    'count': count
                 })
 
         return wwwutils.json_response(payload)
@@ -499,8 +502,7 @@ class Airflow(AirflowBaseView):
                 count = data.get(dag_id, {}).get(state, 0)
                 payload[dag_id].append({
                     'state': state,
-                    'count': count,
-                    'color': State.color(state)
+                    'count': count
                 })
         return wwwutils.json_response(payload)
 
