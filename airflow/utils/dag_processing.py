@@ -55,6 +55,7 @@ from airflow.utils import timezone
 from airflow.utils.helpers import reap_process_group
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.state import State
 
 if six.PY2:
@@ -473,7 +474,7 @@ class DagParsingSignal(enum.Enum):
     END_MANAGER = 'end_manager'
 
 
-class DagFileProcessorAgent(LoggingMixin):
+class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
     """
     Agent for DAG file processing. It is responsible for all DAG parsing
     related jobs in scheduler process. Mainly it can spin up DagFileProcessorManager
@@ -489,6 +490,8 @@ class DagFileProcessorAgent(LoggingMixin):
                  max_runs,
                  processor_factory,
                  processor_timeout,
+                 dag_ids,
+                 pickle_dags,
                  async_mode):
         """
         :param dag_directory: Directory where DAG definitions are kept. All
@@ -513,6 +516,8 @@ class DagFileProcessorAgent(LoggingMixin):
         self._max_runs = max_runs
         self._processor_factory = processor_factory
         self._processor_timeout = processor_timeout
+        self._dag_ids = dag_ids
+        self._pickle_dags = pickle_dags
         self._async_mode = async_mode
         # Map from file path to the processor
         self._processors = {}
@@ -529,8 +534,14 @@ class DagFileProcessorAgent(LoggingMixin):
         """
         Launch DagFileProcessorManager processor and start DAG parsing loop in manager.
         """
-        self._parent_signal_conn, child_signal_conn = multiprocessing.Pipe()
-        self._process = multiprocessing.Process(
+        if six.PY2:
+            context = multiprocessing
+        else:
+            mp_start_method = self._get_multiprocessing_start_method()
+            context = multiprocessing.get_context(mp_start_method)
+
+        self._parent_signal_conn, child_signal_conn = context.Pipe()
+        self._process = context.Process(
             target=type(self)._run_processor_manager,
             args=(
                 self._dag_directory,
@@ -539,6 +550,8 @@ class DagFileProcessorAgent(LoggingMixin):
                 self._processor_factory,
                 self._processor_timeout,
                 child_signal_conn,
+                self._dag_ids,
+                self._pickle_dags,
                 self._async_mode,
             )
         )
@@ -584,6 +597,8 @@ class DagFileProcessorAgent(LoggingMixin):
                                processor_factory,
                                processor_timeout,
                                signal_conn,
+                               dag_ids,
+                               pickle_dags,
                                async_mode):
 
         # Make this process start as a new process group - that makes it easy
@@ -610,6 +625,8 @@ class DagFileProcessorAgent(LoggingMixin):
                                                     processor_factory,
                                                     processor_timeout,
                                                     signal_conn,
+                                                    dag_ids,
+                                                    pickle_dags,
                                                     async_mode)
 
         processor_manager.start()
@@ -722,6 +739,10 @@ class DagFileProcessorManager(LoggingMixin):
     :type processor_timeout: timedelta
     :param signal_conn: connection to communicate signal with processor agent.
     :type signal_conn: airflow.models.connection.Connection
+    :param dag_ids: if specified, only schedule tasks with these DAG IDs
+    :type dag_ids: list[str]
+    :param pickle_dags: whether to pickle DAGs.
+    :type pickle_dags: bool
     :param async_mode: whether to start the manager in async mode
     :type async_mode: bool
     """
@@ -733,6 +754,8 @@ class DagFileProcessorManager(LoggingMixin):
                  processor_factory,
                  processor_timeout,
                  signal_conn,
+                 dag_ids,
+                 pickle_dags,
                  async_mode=True):
         self._file_paths = file_paths
         self._file_path_queue = []
@@ -740,6 +763,8 @@ class DagFileProcessorManager(LoggingMixin):
         self._max_runs = max_runs
         self._processor_factory = processor_factory
         self._signal_conn = signal_conn
+        self._pickle_dags = pickle_dags
+        self._dag_ids = dag_ids
         self._async_mode = async_mode
 
         self._parallelism = conf.getint('scheduler', 'max_threads')
@@ -1216,7 +1241,8 @@ class DagFileProcessorManager(LoggingMixin):
         """
         while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
             file_path = self._file_path_queue.pop(0)
-            processor = self._processor_factory(file_path, self._zombies)
+            processor = self._processor_factory(file_path, self._zombies,
+                                                self._dag_ids, self._pickle_dags)
             Stats.incr('dag_processing.processes')
 
             processor.start()
@@ -1280,7 +1306,7 @@ class DagFileProcessorManager(LoggingMixin):
         if not self._last_zombie_query_time or \
                 (now - self._last_zombie_query_time).total_seconds() > self._zombie_query_interval:
             # to avoid circular imports
-            from airflow.jobs import LocalTaskJob as LJ
+            from airflow.jobs.local_task_job import LocalTaskJob as LJ
             self.log.info("Finding 'running' jobs without a recent heartbeat")
             TI = airflow.models.TaskInstance
             limit_dttm = timezone.utcnow() - timedelta(

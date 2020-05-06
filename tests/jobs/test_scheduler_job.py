@@ -55,6 +55,7 @@ from airflow.utils.db import create_session, provide_session
 from airflow.utils.state import State
 from tests.compat import MagicMock, Mock, PropertyMock, mock, patch
 from tests.test_core import TEST_DAG_FOLDER
+from tests.test_utils.config import conf_vars
 from tests.test_utils.db import (
     clear_db_dags, clear_db_errors, clear_db_pools, clear_db_runs, clear_db_sla_miss, set_default_pool_slots,
 )
@@ -1376,6 +1377,31 @@ class SchedulerJobTest(unittest.TestCase):
         session = settings.Session()
         self.assertEqual(
             len(session.query(TI).filter(TI.dag_id == dag_id).all()), 0)
+
+    @conf_vars({("core", "mp_start_method"): "spawn"})
+    def test_scheduler_multiprocessing_with_spawn_method(self):
+        """
+        Test that the scheduler can successfully queue multiple dags in parallel
+        when using "spawn" mode of multiprocessing. (Fork is default on Linux and older OSX)
+        """
+        dag_ids = ['test_start_date_scheduling', 'test_dagrun_states_success']
+        for dag_id in dag_ids:
+            dag = self.dagbag.get_dag(dag_id)
+            dag.clear()
+
+        scheduler = SchedulerJob(dag_ids=dag_ids,
+                                 executor=self.null_exec,
+                                 subdir=os.path.join(
+                                     TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
+                                 num_runs=1)
+
+        scheduler.run()
+
+        # zero tasks ran
+        dag_id = 'test_start_date_scheduling'
+        with create_session() as session:
+            self.assertEqual(
+                session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).count(), 0)
 
     def test_scheduler_dagrun_once(self):
         """

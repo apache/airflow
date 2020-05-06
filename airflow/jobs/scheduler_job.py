@@ -57,11 +57,12 @@ from airflow.utils.dag_processing import (AbstractDagFileProcessor,
                                           list_py_file_paths)
 from airflow.utils.db import provide_session
 from airflow.utils.email import get_email_address_list, send_email
+from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.state import State
 
 
-class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
+class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin, MultiprocessingStartMethodMixin):
     """Helps call SchedulerJob.process_file() in a separate process.
 
     :param file_path: a Python file containing Airflow DAG definitions
@@ -177,8 +178,14 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         """
         Launch the process and start processing the DAG.
         """
-        self._parent_channel, _child_channel = multiprocessing.Pipe()
-        self._process = multiprocessing.Process(
+        if six.PY2:
+            context = multiprocessing
+        else:
+            start_method = self._get_multiprocessing_start_method()
+            context = multiprocessing.get_context(start_method)
+
+        self._parent_channel, _child_channel = context.Pipe()
+        self._process = context.Process(
             target=type(self)._run_file_processor,
             args=(
                 _child_channel,
@@ -1355,12 +1362,6 @@ class SchedulerJob(BaseJob):
         known_file_paths = list_py_file_paths(self.subdir)
         self.log.info("There are %s files in %s", len(known_file_paths), self.subdir)
 
-        def processor_factory(file_path, zombies):
-            return DagFileProcessor(file_path,
-                                    pickle_dags,
-                                    self.dag_ids,
-                                    zombies)
-
         # When using sqlite, we do not use async_mode
         # so the scheduler job and DAG parser don't access the DB at the same time.
         async_mode = not self.using_sqlite
@@ -1370,8 +1371,10 @@ class SchedulerJob(BaseJob):
         self.processor_agent = DagFileProcessorAgent(self.subdir,
                                                      known_file_paths,
                                                      self.num_runs,
-                                                     processor_factory,
+                                                     type(self)._create_dag_file_processor,
                                                      processor_timeout,
+                                                     self.dag_ids,
+                                                     pickle_dags,
                                                      async_mode)
 
         try:
@@ -1381,6 +1384,16 @@ class SchedulerJob(BaseJob):
         finally:
             self.processor_agent.end()
             self.log.info("Exited execute loop")
+
+    @staticmethod
+    def _create_dag_file_processor(file_path, zombies, dag_ids, pickle_dags):
+        """
+        Creates DagFileProcessorProcess instance.
+        """
+        return DagFileProcessor(file_path,
+                                pickle_dags,
+                                dag_ids,
+                                zombies)
 
     def _get_simple_dags(self):
         return self.processor_agent.harvest_simple_dags()
