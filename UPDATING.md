@@ -68,7 +68,7 @@ Previously, a task instance with `wait_for_downstream=True` will only run if the
 the previous task instance is successful. Meanwhile, a task instance with `depends_on_past=True`
 will run if the previous task instance is either successful or skipped. These two flags are close siblings
 yet they have different behavior. This inconsistency in behavior made the API less intuitive to users.
-To maintain consistent behavior, both successful or skipped downstream task can satisfy the
+To maintain consistent behavior, both successful or skipped downstream task can now satisfy the
 `wait_for_downstream=True` flag.
 
 

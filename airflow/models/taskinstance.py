@@ -540,7 +540,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def are_dependents_done(self, session=None):
         """
-        Checks whether the immediate dependents of this task instance have been succeeded or skipped.
+        Checks whether the immediate dependents of this task instance have succeeded or have been skipped.
         This is meant to be used by wait_for_downstream.
 
         This is useful when you do not want to start processing the next
