@@ -18,10 +18,9 @@
 import json
 
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
-
-from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 
 
 class StepFunctionExecutionSensor(BaseSensorOperator):

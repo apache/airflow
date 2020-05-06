@@ -21,8 +21,9 @@ import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
-from airflow.providers.amazon.aws.operators.step_function_start_execution \
-    import StepFunctionStartExecutionOperator
+from airflow.providers.amazon.aws.operators.step_function_start_execution import (
+    StepFunctionStartExecutionOperator,
+)
 
 TASK_ID = 'step_function_start_execution_task'
 STATE_MACHINE_ARN = 'arn:aws:states:us-east-1:000000000000:stateMachine:pseudo-state-machine'
