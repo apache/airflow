@@ -112,14 +112,11 @@ class TestCeleryExecutor(unittest.TestCase):
                 chunksize = executor._num_tasks_per_send_process(len(task_tuples_to_send))
                 num_processes = min(len(task_tuples_to_send), executor._sync_parallelism)
 
-                send_pool = Pool(processes=num_processes)
-                key_and_async_results = send_pool.map(
-                    celery_executor.send_task_to_executor,
-                    task_tuples_to_send,
-                    chunksize=chunksize)
-
-                send_pool.close()
-                send_pool.join()
+                with Pool(processes=num_processes) as send_pool:
+                    key_and_async_results = send_pool.map(
+                        celery_executor.send_task_to_executor,
+                        task_tuples_to_send,
+                        chunksize=chunksize)
 
                 for task_instance_key, _, result in key_and_async_results:
                     # Only pops when enqueued successfully, otherwise keep it

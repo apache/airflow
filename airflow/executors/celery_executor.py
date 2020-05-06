@@ -135,7 +135,6 @@ class CeleryExecutor(BaseExecutor):
         if self._sync_parallelism == 0:
             self._sync_parallelism = max(1, cpu_count() - 1)
         self.bulk_state_fetcher = BulkStateFetcher(self._sync_parallelism)
-        self._sync_pool = None
         self.tasks = {}
         self.last_state = {}
 
@@ -199,13 +198,11 @@ class CeleryExecutor(BaseExecutor):
         # since tasks are roughly uniform in size
         chunksize = self._num_tasks_per_send_process(len(task_tuples_to_send))
         num_processes = min(len(task_tuples_to_send), self._sync_parallelism)
-        send_pool = Pool(processes=num_processes)
-        key_and_async_results = send_pool.map(
-            send_task_to_executor,
-            task_tuples_to_send,
-            chunksize=chunksize)
-        send_pool.close()
-        send_pool.join()
+        with Pool(processes=num_processes) as send_pool:
+            key_and_async_results = send_pool.map(
+                send_task_to_executor,
+                task_tuples_to_send,
+                chunksize=chunksize)
         return key_and_async_results
 
     def sync(self) -> None:
@@ -304,7 +301,6 @@ class BulkStateFetcher(LoggingMixin):
     def __init__(self, sync_parralelism=None):
         super().__init__()
         self._sync_parallelism = sync_parralelism
-        self._sync_pool = None
 
     def get_many(self, async_results) -> Mapping[str, str]:
         """
@@ -354,21 +350,21 @@ class BulkStateFetcher(LoggingMixin):
     def _get_many_using_multiprocessing(self, async_results) -> Mapping[str, str]:
         num_process = min(len(async_results), self._sync_parallelism)
 
-        self._sync_pool = Pool(processes=num_process)
-        chunksize = max(1, math.floor(math.ceil(1.0 * len(async_results) / self._sync_parallelism)))
+        with Pool(processes=num_process) as sync_pool:
+            chunksize = max(1, math.floor(math.ceil(1.0 * len(async_results) / self._sync_parallelism)))
 
-        task_id_to_states_or_exception = self._sync_pool.map(
-            fetch_celery_task_state,
-            async_results,
-            chunksize=chunksize)
+            task_id_to_states_or_exception = sync_pool.map(
+                fetch_celery_task_state,
+                async_results,
+                chunksize=chunksize)
 
-        states_by_task_id: MutableMapping[str, str] = {}
-        for task_id, state_or_exception in task_id_to_states_or_exception:
-            if isinstance(state_or_exception, ExceptionWithTraceback):
-                self.log.error(  # pylint: disable=logging-not-lazy
-                    CELERY_FETCH_ERR_MSG_HEADER + ":%s\n%s\n",
-                    state_or_exception.exception, state_or_exception.traceback
-                )
-            else:
-                states_by_task_id[task_id] = state_or_exception
+            states_by_task_id: MutableMapping[str, str] = {}
+            for task_id, state_or_exception in task_id_to_states_or_exception:
+                if isinstance(state_or_exception, ExceptionWithTraceback):
+                    self.log.error(  # pylint: disable=logging-not-lazy
+                        CELERY_FETCH_ERR_MSG_HEADER + ":%s\n%s\n",
+                        state_or_exception.exception, state_or_exception.traceback
+                    )
+                else:
+                    states_by_task_id[task_id] = state_or_exception
         return states_by_task_id
