@@ -171,6 +171,7 @@ class Connection(Base, LoggingMixin):
         ('livy', 'Apache Livy'),
         ('tableau', 'Tableau'),
         ('kubernetes', 'Kubernetes cluster Connection'),
+        ('spark', 'Spark'),
     ]
 
     def __init__(

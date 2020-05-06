@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import ast
+
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
@@ -31,12 +33,12 @@ class EmrCreateJobFlowOperator(BaseOperator):
     :type aws_conn_id: str
     :param emr_conn_id: emr connection to use
     :type emr_conn_id: str
-    :param job_flow_overrides: boto3 style arguments to override
-       emr_connection extra. (templated)
-    :type job_flow_overrides: dict
+    :param job_flow_overrides: boto3 style arguments or reference to an arguments file
+        (must be '.json') to override emr_connection extra. (templated)
+    :type job_flow_overrides: dict|str
     """
     template_fields = ['job_flow_overrides']
-    template_ext = ()
+    template_ext = ('.json',)
     ui_color = '#f9c915'
 
     @apply_defaults
@@ -64,6 +66,10 @@ class EmrCreateJobFlowOperator(BaseOperator):
             'Creating JobFlow using aws-conn-id: %s, emr-conn-id: %s',
             self.aws_conn_id, self.emr_conn_id
         )
+
+        if isinstance(self.job_flow_overrides, str):
+            self.job_flow_overrides = ast.literal_eval(self.job_flow_overrides)
+
         response = emr.create_job_flow(self.job_flow_overrides)
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:

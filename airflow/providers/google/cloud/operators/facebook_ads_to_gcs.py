@@ -42,6 +42,10 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         For more information on the Facebook Ads Python SDK, take a look at the docs:
         https://github.com/facebook/facebook-python-business-sdk
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:FacebookAdsReportToGcsOperator`
+
     :param bucket: The GCS bucket to upload to
     :type bucket: str
     :param obj: GCS path to save the object. Must be the full file path (ex. `path/to/file.txt`)

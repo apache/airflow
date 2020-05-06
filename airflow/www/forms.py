@@ -17,6 +17,7 @@
 # under the License.
 
 import json
+from operator import itemgetter
 
 from flask_appbuilder.fieldwidgets import (
     BS3PasswordFieldWidget, BS3TextAreaFieldWidget, BS3TextFieldWidget, Select2Widget,
@@ -104,7 +105,7 @@ class ConnectionForm(DynamicForm):
         widget=BS3TextFieldWidget())
     conn_type = SelectField(
         lazy_gettext('Conn Type'),
-        choices=Connection._types,
+        choices=sorted(Connection._types, key=itemgetter(1)),
         widget=Select2Widget())
     host = StringField(
         lazy_gettext('Host'),

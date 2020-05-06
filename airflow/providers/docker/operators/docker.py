@@ -19,7 +19,6 @@
 Implements Docker operator
 """
 import ast
-import json
 from tempfile import TemporaryDirectory
 from typing import Dict, Iterable, List, Optional, Union
 
@@ -270,9 +269,10 @@ class DockerOperator(BaseOperator):
         # Pull the docker image if `force_pull` is set or image does not exist locally
         if self.force_pull or not self.cli.images(name=self.image):
             self.log.info('Pulling docker image %s', self.image)
-            for line in self.cli.pull(self.image, stream=True, decode=True):
-                output = json.loads(line.decode('utf-8').strip())
-                if 'status' in output:
+            for output in self.cli.pull(self.image, stream=True, decode=True):
+                if isinstance(output, str):
+                    self.log.info("%s", output)
+                if isinstance(output, dict) and 'status' in output:
                     self.log.info("%s", output['status'])
 
         self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir

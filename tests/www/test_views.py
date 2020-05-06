@@ -28,13 +28,15 @@ import sys
 import tempfile
 import unittest
 import urllib
+from contextlib import contextmanager
 from datetime import datetime as dt, timedelta
+from typing import Any, Dict, Generator, List, NamedTuple
 from unittest import mock
 from urllib.parse import quote_plus
 
 import jinja2
 import pytest
-from flask import Markup, session as flask_session, url_for
+from flask import Markup, session as flask_session, template_rendered, url_for
 from parameterized import parameterized
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse
@@ -61,6 +63,51 @@ from airflow.utils.types import DagRunType
 from airflow.www import app as application
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
+
+
+class TemplateWithContext(NamedTuple):
+    template: jinja2.environment.Template
+    context: Dict[str, Any]
+
+    @property
+    def name(self):
+        return self.template.name
+
+    @property
+    def local_context(self):
+        """Returns context without global arguments"""
+        result = copy.copy(self.context)
+        keys_to_delete = [
+            # flask.templating._default_template_ctx_processor
+            'g',
+            'request',
+            'session',
+            # flask_wtf.csrf.CSRFProtect.init_app
+            'csrf_token',
+            # flask_login.utils._user_context_processor
+            'current_user',
+            # flask_appbuilder.baseviews.BaseView.render_template
+            'appbuilder',
+            'base_template',
+            # airflow.www.app.py.create_app (inner method - jinja_globals)
+            'server_timezone',
+            'default_ui_timezone',
+            'hostname',
+            'navbar_color',
+            'log_fetch_delay_sec',
+            'log_auto_tailing_offset',
+            'log_animation_speed',
+            # airflow.www.static_config.configure_manifest_files
+            'url_for_asset',
+            # airflow.www.views.AirflowBaseView.render_template
+            'scheduler_job',
+            # airflow.www.views.AirflowBaseView.extra_args
+            'macros',
+        ]
+        for key in keys_to_delete:
+            del result[key]
+
+        return result
 
 
 class TestBase(unittest.TestCase):
@@ -98,6 +145,20 @@ class TestBase(unittest.TestCase):
 
     def logout(self):
         return self.client.get('/logout/')
+
+    @contextmanager
+    def capture_templates(self) -> Generator[List[TemplateWithContext], None, None]:
+        recorded = []
+
+        def record(sender, template, context, **extra):  # pylint: disable=unused-argument
+            recorded.append(TemplateWithContext(template, context))
+        template_rendered.connect(record, self.app)  # type: ignore
+        try:
+            yield recorded
+        finally:
+            template_rendered.disconnect(record, self.app)  # type: ignore
+
+        assert recorded, "Failed to catch the templates"
 
     @classmethod
     def clear_table(cls, model):
@@ -297,10 +358,10 @@ class TestPoolModelView(TestBase):
 
 class TestMountPoint(unittest.TestCase):
     @classmethod
+    @conf_vars({("webserver", "base_url"): "http://localhost/test"})
     def setUpClass(cls):
         application.app = None
         application.appbuilder = None
-        conf.set("webserver", "base_url", "http://localhost/test")
         app = application.cached_app(config={'WTF_CSRF_ENABLED': False}, session=Session, testing=True)
         cls.client = Client(app, BaseResponse)
 
@@ -524,8 +585,8 @@ class TestAirflowBaseViews(TestBase):
         self.assertEqual(set(list(resp.json.items())[0][1][0].keys()),
                          {'state', 'count', 'color'})
 
+    @conf_vars({("webserver", "show_recent_stats_for_completed_runs"): "False"})
     def test_task_stats_only_noncompleted(self):
-        conf.set("webserver", "show_recent_stats_for_completed_runs", "False")
         resp = self.client.post('task_stats', follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
 
@@ -677,34 +738,26 @@ class TestAirflowBaseViews(TestBase):
             self.check_content_in_response('Failed to load file', resp)
             self.check_content_in_response('example_bash_operator', resp)
 
+    @conf_vars({("core", "store_dag_code"): "True"})
     def test_code_from_db(self):
-        with conf_vars(
-            {
-                ("core", "store_dag_code"): "True"
-            }
-        ):
-            from airflow.models.dagcode import DagCode
-            dag = models.DagBag(include_examples=True).get_dag("example_bash_operator")
-            DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
-            url = 'code?dag_id=example_bash_operator'
-            resp = self.client.get(url)
-            self.check_content_not_in_response('Failed to load file', resp)
-            self.check_content_in_response('example_bash_operator', resp)
+        from airflow.models.dagcode import DagCode
+        dag = models.DagBag(include_examples=True).get_dag("example_bash_operator")
+        DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
+        url = 'code?dag_id=example_bash_operator'
+        resp = self.client.get(url)
+        self.check_content_not_in_response('Failed to load file', resp)
+        self.check_content_in_response('example_bash_operator', resp)
 
+    @conf_vars({("core", "store_dag_code"): "True"})
     def test_code_from_db_all_example_dags(self):
-        with conf_vars(
-            {
-                ("core", "store_dag_code"): "True"
-            }
-        ):
-            from airflow.models.dagcode import DagCode
-            dagbag = models.DagBag(include_examples=True)
-            for dag in dagbag.dags.values():
-                DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
-            url = 'code?dag_id=example_bash_operator'
-            resp = self.client.get(url)
-            self.check_content_not_in_response('Failed to load file', resp)
-            self.check_content_in_response('example_bash_operator', resp)
+        from airflow.models.dagcode import DagCode
+        dagbag = models.DagBag(include_examples=True)
+        for dag in dagbag.dags.values():
+            DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
+        url = 'code?dag_id=example_bash_operator'
+        resp = self.client.get(url)
+        self.check_content_not_in_response('Failed to load file', resp)
+        self.check_content_in_response('example_bash_operator', resp)
 
     def test_paused(self):
         url = 'paused?dag_id=example_bash_operator&is_paused=false'
@@ -971,34 +1024,34 @@ class TestLogView(TestBase):
         with open(settings_file, 'w') as handle:
             handle.writelines(new_logging_file)
         sys.path.append(self.settings_folder)
-        conf.set('logging', 'logging_config_class', 'airflow_local_settings.LOGGING_CONFIG')
 
-        self.app, self.appbuilder = application.create_app(session=Session, testing=True)
-        self.app.config['WTF_CSRF_ENABLED'] = False
-        self.client = self.app.test_client()
-        settings.configure_orm()
-        self.login()
+        with conf_vars({('logging', 'logging_config_class'): 'airflow_local_settings.LOGGING_CONFIG'}):
+            self.app, self.appbuilder = application.create_app(session=Session, testing=True)
+            self.app.config['WTF_CSRF_ENABLED'] = False
+            self.client = self.app.test_client()
+            settings.configure_orm()
+            self.login()
 
-        from airflow.www.views import dagbag
-        dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
-        dag.sync_to_db()
-        dag_removed = DAG(self.DAG_ID_REMOVED, start_date=self.DEFAULT_DATE)
-        dag_removed.sync_to_db()
-        dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
-        with create_session() as session:
-            self.ti = TaskInstance(
-                task=DummyOperator(task_id=self.TASK_ID, dag=dag),
-                execution_date=self.DEFAULT_DATE
-            )
-            self.ti.try_number = 1
-            self.ti_removed_dag = TaskInstance(
-                task=DummyOperator(task_id=self.TASK_ID, dag=dag_removed),
-                execution_date=self.DEFAULT_DATE
-            )
-            self.ti_removed_dag.try_number = 1
+            from airflow.www.views import dagbag
+            dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
+            dag.sync_to_db()
+            dag_removed = DAG(self.DAG_ID_REMOVED, start_date=self.DEFAULT_DATE)
+            dag_removed.sync_to_db()
+            dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
+            with create_session() as session:
+                self.ti = TaskInstance(
+                    task=DummyOperator(task_id=self.TASK_ID, dag=dag),
+                    execution_date=self.DEFAULT_DATE
+                )
+                self.ti.try_number = 1
+                self.ti_removed_dag = TaskInstance(
+                    task=DummyOperator(task_id=self.TASK_ID, dag=dag_removed),
+                    execution_date=self.DEFAULT_DATE
+                )
+                self.ti_removed_dag.try_number = 1
 
-            session.merge(self.ti)
-            session.merge(self.ti_removed_dag)
+                session.merge(self.ti)
+                session.merge(self.ti_removed_dag)
 
     def tearDown(self):
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
@@ -1011,8 +1064,6 @@ class TestLogView(TestBase):
 
         sys.path.remove(self.settings_folder)
         shutil.rmtree(self.settings_folder)
-        conf.set('logging', 'logging_config_class', '')
-
         self.logout()
         super().tearDown()
 
@@ -1149,11 +1200,20 @@ class TestLogView(TestBase):
 
 class TestVersionView(TestBase):
     def test_version(self):
-        resp = self.client.get('version', data=dict(
-            username='test',
-            password='test'
-        ), follow_redirects=True)
-        self.check_content_in_response('Version Info', resp)
+        with self.capture_templates() as templates:
+            resp = self.client.get('version', data=dict(
+                username='test',
+                password='test'
+            ), follow_redirects=True)
+            self.check_content_in_response('Version Info', resp)
+
+        self.assertEqual(len(templates), 1)
+        self.assertEqual(templates[0].name, 'airflow/version.html')
+        self.assertEqual(templates[0].local_context, dict(
+            airflow_version=version.version,
+            git_version=mock.ANY,
+            title='Version Info'
+        ))
 
 
 class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:

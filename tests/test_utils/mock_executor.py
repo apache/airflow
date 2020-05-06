@@ -36,9 +36,16 @@ class MockExecutor(BaseExecutor):
         self.history = []
         # All the tasks, in a stable sort order
         self.sorted_tasks = []
-        self.mock_task_results = defaultdict(lambda: State.SUCCESS)
+
+        # If multiprocessing runs in spawn mode,
+        # arguments are to be pickled but lambda is not picclable.
+        # So we should pass self.success instead of lambda.
+        self.mock_task_results = defaultdict(self.success)
 
         super().__init__(*args, **kwargs)
+
+    def success(self):
+        return State.SUCCESS
 
     def heartbeat(self):
         if not self.do_update:

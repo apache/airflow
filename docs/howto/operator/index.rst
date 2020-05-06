@@ -33,11 +33,12 @@ determine what actually executes when your DAG runs.
 
     bash
     amazon/aws/index
+    apache/index
     dingding
     gcp/index
     http/index
     kubernetes
     papermill
     python
-    external
+    external_task_sensor
     yandexcloud

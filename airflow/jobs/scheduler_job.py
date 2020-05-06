@@ -37,8 +37,7 @@ from sqlalchemy.orm.session import make_transient
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskNotFound
-from airflow.executors.local_executor import LocalExecutor
-from airflow.executors.sequential_executor import SequentialExecutor
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagModel, SlaMiss, errors
 from airflow.models.dagrun import DagRun
@@ -54,12 +53,13 @@ from airflow.utils.dag_processing import (
 )
 from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
+from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
 
-class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
+class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, MultiprocessingStartMethodMixin):
     """Runs DAG processing in a separate process using DagFileProcessor
 
     :param file_path: a Python file containing Airflow DAG definitions
@@ -181,8 +181,11 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
         """
         Launch the process and start processing the DAG.
         """
-        self._parent_channel, _child_channel = multiprocessing.Pipe()
-        self._process = multiprocessing.Process(
+        start_method = self._get_multiprocessing_start_method()
+        context = multiprocessing.get_context(start_method)
+
+        self._parent_channel, _child_channel = context.Pipe()
+        self._process = context.Process(
             target=type(self)._run_file_processor,
             args=(
                 _child_channel,
@@ -921,6 +924,8 @@ class DagFileProcessor(LoggingMixin):
                         and not ti.task.on_execute_callback \
                         and not ti.task.on_success_callback:
                     ti.state = State.SUCCESS
+                    ti.start_date = ti.end_date = timezone.utcnow()
+                    ti.duration = 0
 
             # Also save this task instance to the DB.
             self.log.info("Creating / updating %s in ORM", ti)
@@ -1520,18 +1525,12 @@ class SchedulerJob(BaseJob):
 
         # DAGs can be pickled for easier remote execution by some executors
         pickle_dags = False
-        if self.do_pickle and self.executor.__class__ not in (LocalExecutor, SequentialExecutor):
+        if self.do_pickle and self.executor_class not in (
+            ExecutorLoader.LOCAL_EXECUTOR, ExecutorLoader.SEQUENTIAL_EXECUTOR, ExecutorLoader.DASK_EXECUTOR
+        ):
             pickle_dags = True
 
         self.log.info("Processing each file at most %s times", self.num_runs)
-
-        def processor_factory(file_path, failure_callback_requests):
-            return DagFileProcessorProcess(
-                file_path=file_path,
-                pickle_dags=pickle_dags,
-                dag_id_white_list=self.dag_ids,
-                failure_callback_requests=failure_callback_requests
-            )
 
         # When using sqlite, we do not use async_mode
         # so the scheduler job and DAG parser don't access the DB at the same time.
@@ -1541,8 +1540,10 @@ class SchedulerJob(BaseJob):
         processor_timeout = timedelta(seconds=processor_timeout_seconds)
         self.processor_agent = DagFileProcessorAgent(self.subdir,
                                                      self.num_runs,
-                                                     processor_factory,
+                                                     type(self)._create_dag_file_processor,
                                                      processor_timeout,
+                                                     self.dag_ids,
+                                                     pickle_dags,
                                                      async_mode)
 
         try:
@@ -1581,6 +1582,18 @@ class SchedulerJob(BaseJob):
         finally:
             self.processor_agent.end()
             self.log.info("Exited execute loop")
+
+    @staticmethod
+    def _create_dag_file_processor(file_path, failure_callback_requests, dag_ids, pickle_dags):
+        """
+        Creates DagFileProcessorProcess instance.
+        """
+        return DagFileProcessorProcess(
+            file_path=file_path,
+            pickle_dags=pickle_dags,
+            dag_id_white_list=dag_ids,
+            failure_callback_requests=failure_callback_requests
+        )
 
     def _run_scheduler_loop(self):
         """

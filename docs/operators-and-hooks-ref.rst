@@ -29,28 +29,75 @@ Fundamentals
 
 **Base:**
 
-* :mod:`airflow.hooks.base_hook`
-* :mod:`airflow.hooks.dbapi_hook`
-* :mod:`airflow.models.baseoperator`
-* :mod:`airflow.sensors.base_sensor_operator`
+.. list-table::
+   :header-rows: 1
+
+   * - Module
+     - Guides
+
+   * - :mod:`airflow.hooks.base_hook`
+     -
+
+   * - :mod:`airflow.hooks.dbapi_hook`
+     -
+
+   * - :mod:`airflow.models.baseoperator`
+     -
+
+   * - :mod:`airflow.sensors.base_sensor_operator`
+     -
 
 **Operators:**
 
-* :mod:`airflow.operators.branch_operator`
-* :mod:`airflow.operators.check_operator`
-* :mod:`airflow.operators.dagrun_operator`
-* :mod:`airflow.operators.dummy_operator`
-* :mod:`airflow.operators.generic_transfer`
-* :mod:`airflow.operators.latest_only_operator`
-* :mod:`airflow.operators.subdag_operator`
+.. list-table::
+   :header-rows: 1
+
+   * - Operators
+     - Guides
+
+   * - :mod:`airflow.operators.branch_operator`
+     -
+
+   * - :mod:`airflow.operators.check_operator`
+     -
+
+   * - :mod:`airflow.operators.dagrun_operator`
+     -
+
+   * - :mod:`airflow.operators.dummy_operator`
+     -
+
+   * - :mod:`airflow.operators.generic_transfer`
+     -
+
+   * - :mod:`airflow.operators.latest_only_operator`
+     -
+
+   * - :mod:`airflow.operators.subdag_operator`
+     -
 
 **Sensors:**
 
-* :mod:`airflow.sensors.weekday_sensor`
-* :mod:`airflow.sensors.external_task_sensor`
-* :mod:`airflow.sensors.sql_sensor`
-* :mod:`airflow.sensors.time_delta_sensor`
-* :mod:`airflow.sensors.time_sensor`
+.. list-table::
+   :header-rows: 1
+
+   * - Sensors
+     - Guides
+
+   * - :mod:`airflow.sensors.weekday_sensor`
+     -
+
+   * - :mod:`airflow.sensors.external_task_sensor`
+     - :doc:`How to use <howto/operator/external_task_sensor>`
+
+   * - :mod:`airflow.sensors.sql_sensor`
+     -
+
+   * - :mod:`airflow.sensors.time_delta_sensor`
+     -
+
+   * - :mod:`airflow.sensors.time_sensor`
+     -
 
 
 .. _Apache:
@@ -72,8 +119,8 @@ Foundation.
    * - Service name
      - Guides
      - Hook
-     - Operators
-     - Sensors
+     - Operator
+     - Sensor
 
    * - `Apache Cassandra <http://cassandra.apache.org/>`__
      -
@@ -117,7 +164,7 @@ Foundation.
      -
 
    * - `Apache Spark <https://spark.apache.org/>`__
-     -
+     - :doc:`How to use <howto/operator/apache/spark>`
      - :mod:`airflow.providers.apache.spark.hooks.spark_jdbc`,
        :mod:`airflow.providers.apache.spark.hooks.spark_jdbc_script`,
        :mod:`airflow.providers.apache.spark.hooks.spark_sql`,
@@ -158,7 +205,7 @@ Foundation.
    * - Source
      - Destination
      - Guide
-     - Operators
+     - Operator
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `Apache Hive <https://hive.apache.org/>`__
@@ -228,8 +275,8 @@ These integrations allow you to perform various operations within the Microsoft 
 
    * - Service name
      - Hook
-     - Operators
-     - Sensors
+     - Operator
+     - Sensor
 
    * - `Azure Batch <https://azure.microsoft.com/en-us/services/batch/>`__
      - :mod:`airflow.providers.microsoft.azure.hooks.azure_batch`
@@ -280,7 +327,7 @@ These integrations allow you to copy data from/to Microsoft Azure.
    * - Source
      - Destination
      - Guide
-     - Operators
+     - Operator
 
    * - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
@@ -318,8 +365,8 @@ These integrations allow you to perform various operations within the Amazon Web
    * - Service name
      - Guide
      - Hook
-     - Operators
-     - Sensors
+     - Operator
+     - Sensor
 
    * - `AWS Batch <https://aws.amazon.com/batch/>`__
      -
@@ -371,7 +418,7 @@ These integrations allow you to perform various operations within the Amazon Web
      -
 
    * - `Amazon EC2 <https://aws.amazon.com/ec2/>`__
-     -
+     - :doc:`How to use <howto/operator/amazon/aws/ecs>`
      -
      - :mod:`airflow.providers.amazon.aws.operators.ecs`
      -
@@ -448,7 +495,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
    * - Source
      - Destination
      - Guide
-     - Operators
+     - Operator
 
    * -
        .. _integration:AWS-Discovery-ref:
@@ -531,24 +578,34 @@ Please note that this library is in maintenance mode hence it won't fully suppor
 Therefore it is recommended that you use the custom GCP Service Operators for working with the Google
 Cloud Platform.
 
+.. _Google:
+
+Google
+------
+
+Airflow has support for the `Google service <https://developer.google.com/>`__.
+
+All hooks are based on :class:`airflow.providers.google.common.hooks.base.GoogleBaseHook`. Some integration
+also use :mod:`airflow.providers.google.common.hooks.discovery_api`.
+
+See the :doc:`GCP connection type <howto/connection/gcp>` documentation to
+configure connections to Google services.
+
 .. _GCP:
 
 GCP: Google Cloud Platform
---------------------------
+''''''''''''''''''''''''''
 
 Airflow has extensive support for the `Google Cloud Platform <https://cloud.google.com/>`__.
 
-See the :doc:`GCP connection type <howto/connection/gcp>` documentation to
-configure connections to GCP.
-
-All hooks are based on :class:`airflow.providers.google.common.hooks.base.GoogleBaseHook`.
-
 .. note::
-    You can learn how to use GCP integrations by analyzing the
-    `source code <https://github.com/apache/airflow/tree/master/airflow/providers/google/cloud/example_dags/>`_ of the particular example DAGs.
+    You can learn how to use Google Cloud Platform integrations by analyzing the
+    `source code of the Google Cloud Platform example DAGs
+    <https://github.com/apache/airflow/tree/master/airflow/providers/google/cloud/example_dags/>`_
+
 
 Service operators and hooks
-'''''''''''''''''''''''''''
+"""""""""""""""""""""""""""
 
 These integrations allow you to perform various operations within the Google Cloud Platform.
 
@@ -561,14 +618,9 @@ These integrations allow you to perform various operations within the Google Clo
    * - Service name
      - Guide
      - Hook
-     - Operators
-     - Sensors
+     - Operator
+     - Sensor
 
-   * - `Analytics360 <https://analytics.google.com/>`__
-     - :doc:`How to use <howto/operator/gcp/analytics>`
-     - :mod:`airflow.providers.google.marketing_platform.hooks.analytics`
-     - :mod:`airflow.providers.google.marketing_platform.operators.analytics`
-     -
 
    * - `AutoML <https://cloud.google.com/automl/>`__
      - :doc:`How to use <howto/operator/gcp/automl>`
@@ -619,7 +671,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Datacatalog <https://cloud.google.com/data-catalog>`__
-     -
+     - :doc:`How to use <howto/operator/gcp/datacatalog>`
      - :mod:`airflow.providers.google.cloud.hooks.datacatalog`
      - :mod:`airflow.providers.google.cloud.operators.datacatalog`
      -
@@ -763,7 +815,7 @@ These integrations allow you to perform various operations within the Google Clo
 
 
 Transfer operators and hooks
-''''''''''''''''''''''''''''
+""""""""""""""""""""""""""""
 
 These integrations allow you to copy data from/to Google Cloud Platform.
 
@@ -773,7 +825,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
    * - Source
      - Destination
      - Guide
-     - Operators
+     - Operator
 
    * -
        .. _integration:GCP-Discovery-ref:
@@ -801,8 +853,8 @@ These integrations allow you to copy data from/to Google Cloud Platform.
 
    * - `Facebook Ads <http://business.facebook.com>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
-     -
-     - :mod:`airflow.providers.google.facebook_ads_to_gcs.operators.ads`
+     - :doc:`How to use <howto/operator/gcp/facebook_ads_to_gcs>`
+     - :mod:`airflow.providers.google.cloud.operators.facebook_ads_to_gcs`
 
    * - `Google BigQuery <https://cloud.google.com/bigquery/>`__
      - `MySQL <https://www.mysql.com/>`__
@@ -810,7 +862,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      - :mod:`airflow.providers.google.cloud.operators.bigquery_to_mysql`
 
    * - `Google BigQuery <https://cloud.google.com/bigquery/>`__
-     - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
      - :mod:`airflow.providers.google.cloud.operators.bigquery_to_gcs`
 
@@ -882,18 +934,18 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      - :mod:`airflow.providers.google.cloud.operators.sftp_to_gcs`
 
    * - SQL
-     - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
      - :mod:`airflow.providers.google.cloud.operators.sql_to_gcs`
 
    * - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
-     - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
-     -
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/gcp/sheets_to_gcs>`
      - :mod:`airflow.providers.google.cloud.operators.sheets_to_gcs`
 
-   * - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+   * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
-     -
+     - :doc:`How to use <howto/operator/gcp/gcs_to_sheets>`
      - :mod:`airflow.providers.google.suite.operators.gcs_to_sheets`
 
 .. _integration:GCP-Discovery:
@@ -901,30 +953,98 @@ These integrations allow you to copy data from/to Google Cloud Platform.
 :ref:`[1] <integration:GCP-Discovery-ref>` Those discovery-based operators use
 :class:`airflow.providers.google.cloud.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
 Services via the `Google API Python Client <https://github.com/googleapis/google-api-python-client>`__.
-Please note that this library is in maintenance mode hence it won't fully support GCP in the future.
-Therefore it is recommended that you use the custom GCP Service Operators for working with the Google
-Cloud Platform.
+Please note that this library is in maintenance mode hence it won't fully support Google in the future.
+Therefore it is recommended that you use the custom Google Service Operators for working with the Google
+services.
 
 Other operators and hooks
-'''''''''''''''''''''''''
+"""""""""""""""""""""""""
 
 .. list-table::
    :header-rows: 1
 
    * - Guide
-     - Operators
-     - Hooks
+     - Operator
+     - Hook
 
    * - :doc:`How to use <howto/operator/gcp/translate-speech>`
      - :mod:`airflow.providers.google.cloud.operators.translate_speech`
      -
 
-   * -
+Google Marketing Platform
+'''''''''''''''''''''''''
+
+.. note::
+    You can learn how to use Google Marketing Platform integrations by analyzing the
+    `source code <https://github.com/apache/airflow/tree/master/airflow/providers/google/marketing_platform/example_dags/>`_
+    of the example DAGs.
+
+
+.. list-table::
+   :header-rows: 1
+
+   * - Source
+     - Destination
+     - Guide
+     - Operator
+     - Sensor
+
+   * - `Analytics360 <https://analytics.google.com/>`__
+     - :doc:`How to use <howto/operator/gcp/analytics>`
+     - :mod:`airflow.providers.google.marketing_platform.hooks.analytics`
+     - :mod:`airflow.providers.google.marketing_platform.operators.analytics`
      -
-     - :mod:`airflow.providers.google.common.hooks.discovery_api`
 
-.. _service:
+   * - `Google Campaign Manager <https://developers.google.com/doubleclick-advertisers>`__
+     - :doc:`How to use <howto/operator/gcp/campaign_manager>`
+     - :mod:`airflow.providers.google.marketing_platform.hooks.campaign_manager`
+     - :mod:`airflow.providers.google.marketing_platform.operators.campaign_manager`
+     - :mod:`airflow.providers.google.marketing_platform.sensors.campaign_manager`
 
+   * - `Google Display&Video 360 <https://marketingplatform.google.com/about/display-video-360/>`__
+     - :doc:`How to use <howto/operator/gcp/display_video>`
+     - :mod:`airflow.providers.google.marketing_platform.hooks.display_video`
+     - :mod:`airflow.providers.google.marketing_platform.operators.display_video`
+     - :mod:`airflow.providers.google.marketing_platform.sensors.display_video`
+
+   * - `Google Search Ads 360 <https://marketingplatform.google.com/about/search-ads-360/>`__
+     - :doc:`How to use <howto/operator/gcp/search_ads>`
+     - :mod:`airflow.providers.google.marketing_platform.hooks.search_ads`
+     - :mod:`airflow.providers.google.marketing_platform.operators.search_ads`
+     - :mod:`airflow.providers.google.marketing_platform.sensors.search_ads`
+
+Other Google operators and hooks
+''''''''''''''''''''''''''''''''
+
+.. list-table::
+   :header-rows: 1
+
+   * - Service name
+     - Guide
+     - Hook
+     - Operator
+
+   * - `Google Ads <https://ads.google.com/home/>`__
+     - :doc:`How to use <howto/operator/gcp/ads>`
+     - :mod:`airflow.providers.google.ads.hooks.ads`
+     - :mod:`airflow.providers.google.ads.operators.ads`
+
+   * - `Google Drive <https://www.google.com/drive/>`__
+     -
+     - :mod:`airflow.providers.google.suite.hooks.drive`
+     -
+
+   * - `Cloud Firestore <https://firebase.google.com/docs/firestore>`__
+     - :doc:`How to use <howto/operator/gcp/firestore>`
+     - :mod:`airflow.providers.google.firebase.hooks.firestore`
+     - :mod:`airflow.providers.google.firebase.operators.firestore`
+
+   * - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
+     - :doc:`How to use <howto/operator/gcp/sheets>`
+     - :mod:`airflow.providers.google.suite.hooks.sheets`
+     - :mod:`airflow.providers.google.suite.operators.sheets`
+
+.. _yc_service:
 
 Yandex.Cloud
 --------------------------
@@ -954,8 +1074,8 @@ These integrations allow you to perform various operations within the Yandex.Clo
    * - Service name
      - Guide
      - Hook
-     - Operators
-     - Sensors
+     - Operator
+     - Sensor
 
    * - `Base Classes <https://cloud.yandex.com>`__
      - :doc:`How to use <howto/operator/yandexcloud>`
@@ -969,7 +1089,8 @@ These integrations allow you to perform various operations within the Yandex.Clo
      - :mod:`airflow.providers.yandex.operators.yandexcloud_dataproc`
      -
 
-.. _yc_service:
+
+.. _service:
 
 Service integrations
 --------------------
@@ -985,8 +1106,8 @@ These integrations allow you to perform various operations within various servic
    * - Service name
      - Guide
      - Hook
-     - Operators
-     - Sensors
+     - Operator
+     - Sensor
 
    * - `Atlassian Jira <https://www.atlassian.com/pl/software/jira>`__
      -
@@ -1028,42 +1149,6 @@ These integrations allow you to perform various operations within various servic
      -
      - :mod:`airflow.providers.facebook.ads.hooks.ads`
      -
-     -
-
-   * - `Google Ads <https://ads.google.com/home/>`__
-     - :doc:`How to use <howto/operator/gcp/ads>`
-     - :mod:`airflow.providers.google.ads.hooks.ads`
-     - :mod:`airflow.providers.google.ads.operators.ads`
-     -
-
-   * - `Google Campaign Manager <https://developers.google.com/doubleclick-advertisers>`__
-     - :doc:`How to use <howto/operator/gcp/campaign_manager>`
-     - :mod:`airflow.providers.google.marketing_platform.hooks.campaign_manager`
-     - :mod:`airflow.providers.google.marketing_platform.operators.campaign_manager`
-     - :mod:`airflow.providers.google.marketing_platform.sensors.campaign_manager`
-
-   * - `Google Display&Video 360 <https://marketingplatform.google.com/about/display-video-360/>`__
-     - :doc:`How to use <howto/operator/gcp/display_video>`
-     - :mod:`airflow.providers.google.marketing_platform.hooks.display_video`
-     - :mod:`airflow.providers.google.marketing_platform.operators.display_video`
-     - :mod:`airflow.providers.google.marketing_platform.sensors.display_video`
-
-   * - `Google Drive <https://www.google.com/drive/>`__
-     -
-     - :mod:`airflow.providers.google.suite.hooks.drive`
-     -
-     -
-
-   * - `Google Search Ads 360 <https://marketingplatform.google.com/about/search-ads-360/>`__
-     - :doc:`How to use <howto/operator/gcp/search_ads>`
-     - :mod:`airflow.providers.google.marketing_platform.hooks.search_ads`
-     - :mod:`airflow.providers.google.marketing_platform.operators.search_ads`
-     - :mod:`airflow.providers.google.marketing_platform.sensors.search_ads`
-
-   * - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
-     - :doc:`How to use <howto/operator/gcp/sheets>`
-     - :mod:`airflow.providers.google.suite.hooks.sheets`
-     - :mod:`airflow.providers.google.suite.operators.sheets`
      -
 
    * - `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
@@ -1142,11 +1227,11 @@ These integrations allow you to perform various operations within various servic
    * - Source
      - Destination
      - Guide
-     - Operators
+     - Operator
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google Drive <https://www.google.com/drive/>`__
-     -
+     - :doc:`How to use <howto/operator/gcp/gcs_to_gdrive>`
      - :mod:`airflow.providers.google.suite.operators.gcs_to_gdrive`
 
    * - `Vertica <https://www.vertica.com/>`__
@@ -1175,8 +1260,8 @@ These integrations allow you to perform various operations using various softwar
    * - Service name
      - Guide
      - Hook
-     - Operators
-     - Sensors
+     - Operator
+     - Sensor
 
    * - `Celery <http://www.celeryproject.org/>`__
      -
@@ -1239,9 +1324,9 @@ These integrations allow you to perform various operations using various softwar
 
 
    * - `MySQL <https://www.mysql.com/products/>`__
-     - :mod:`airflow.providers.mysql.operators.mysql`
+     -
      - :mod:`airflow.providers.mysql.hooks.mysql`
-     - :mod:`airflow.providers.mssql.operators.mysql`
+     - :mod:`airflow.providers.mysql.operators.mysql`
      -
 
    * - `OpenFaaS <https://www.openfaas.com/>`__
@@ -1276,7 +1361,7 @@ These integrations allow you to perform various operations using various softwar
 
    * - `Python <https://www.python.org>`__
      -
-     -
+     - :doc:`How to use <howto/operator/python>`
      - :mod:`airflow.operators.python`
      - :mod:`airflow.sensors.python`
 
@@ -1317,7 +1402,7 @@ These integrations allow you to copy data.
    * - Source
      - Destination
      - Guide
-     - Operators
+     - Operator
 
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Samba <https://www.samba.org/>`__
@@ -1375,7 +1460,7 @@ These integrations allow you to copy data.
      - :mod:`airflow.providers.mysql.operators.presto_to_mysql`
 
    * - SQL
-     - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
      - :mod:`airflow.providers.google.cloud.operators.sql_to_gcs`
 
@@ -1405,9 +1490,9 @@ communication protocols or interface.
 
    * - Service name
      - Guide
-     - Hook
-     - Operators
-     - Sensors
+     - Hooks
+     - Operator
+     - Sensor
 
    * - `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
      -
@@ -1422,7 +1507,7 @@ communication protocols or interface.
      - :mod:`airflow.sensors.filesystem`
 
    * - `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
-     -
+     - :doc:`How to use <howto/operator/http/http>`
      - :mod:`airflow.providers.http.hooks.http`
      - :mod:`airflow.providers.http.operators.http`
      - :mod:`airflow.providers.http.sensors.http`
@@ -1480,7 +1565,7 @@ These integrations allow you to copy data.
    * - Source
      - Destination
      - Guide
-     - Operators
+     - Operator
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
