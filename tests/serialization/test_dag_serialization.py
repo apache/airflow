@@ -301,7 +301,7 @@ class TestStringifiedDAGs(unittest.TestCase):
             "task_ids", "params", "fileloc", "max_active_runs", "concurrency",
             "is_paused_upon_creation", "doc_md", "safe_dag_id", "is_subdag",
             "catchup", "description", "start_date", "end_date", "parent_dag",
-            "template_searchpath", "_access_control"
+            "template_searchpath", "_access_control", "dagrun_timeout"
         ]
 
         # fields_to_check = dag.get_serialized_fields()
