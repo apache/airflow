@@ -59,6 +59,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from airflow.www import app as application
+from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
 
@@ -366,7 +367,8 @@ class TestAirflowBaseViews(TestBase):
             state=State.RUNNING)
 
     def test_index(self):
-        resp = self.client.get('/', follow_redirects=True)
+        with assert_queries_count(5):
+            resp = self.client.get('/', follow_redirects=True)
         self.check_content_in_response('DAGs', resp)
 
     def test_doc_site_url(self):

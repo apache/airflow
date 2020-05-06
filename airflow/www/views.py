@@ -294,12 +294,22 @@ class Airflow(AirflowBaseView):
             active_dags = dags_query.filter(~DagModel.is_paused)
             paused_dags = dags_query.filter(DagModel.is_paused)
 
+            is_paused_count = dict(
+                all_dags.with_entities(DagModel.is_paused, func.count(DagModel.dag_id))
+                .group_by(DagModel.is_paused).all()
+            )
+            status_count_active = is_paused_count.get(False, 0)
+            status_count_paused = is_paused_count.get(True, 0)
+            all_dags_count = status_count_active + status_count_paused
             if arg_status_filter == 'active':
                 current_dags = active_dags
+                num_of_all_dags = status_count_active
             elif arg_status_filter == 'paused':
                 current_dags = paused_dags
+                num_of_all_dags = status_count_paused
             else:
                 current_dags = all_dags
+                num_of_all_dags = all_dags_count
 
             dags = current_dags.order_by(DagModel.dag_id).options(
                 joinedload(DagModel.tags)).offset(start).limit(dags_per_page).all()
@@ -325,12 +335,7 @@ class Airflow(AirflowBaseView):
                     filename=filename),
                 "error")
 
-        num_of_all_dags = current_dags.count()
         num_of_pages = int(math.ceil(num_of_all_dags / float(dags_per_page)))
-
-        status_count_active = active_dags.count()
-        status_count_paused = paused_dags.count()
-        status_count_all = status_count_active + status_count_paused
 
         return self.render_template(
             'airflow/dags.html',
@@ -349,7 +354,7 @@ class Airflow(AirflowBaseView):
             num_runs=num_runs,
             tags=tags,
             status_filter=arg_status_filter,
-            status_count_all=status_count_all,
+            status_count_all=all_dags_count,
             status_count_active=status_count_active,
             status_count_paused=status_count_paused)
 
