@@ -190,7 +190,7 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     patch:
-      summary: Update the specific DAG
+      summary: Update a DAG
       operationId: updateDag
       tags: [DAG]
       responses:
