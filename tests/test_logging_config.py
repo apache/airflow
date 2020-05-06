@@ -50,11 +50,6 @@ LOGGING_CONFIG = {
         },
     },
     'loggers': {
-        'airflow': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False
-        },
         'airflow.task': {
             'handlers': ['task'],
             'level': 'INFO',
