@@ -918,15 +918,7 @@ class DagTest(unittest.TestCase):
 
         self.assertEqual(dag.task_dict, {t1.task_id: t1})
 
-        # Also verify that DAGs with duplicate task_ids don't raise errors
-        with DAG("test_dag_1", start_date=DEFAULT_DATE) as dag1:
-            t3 = DummyOperator(task_id="t3")
-            t4 = DummyOperator(task_id="t3")
-            t3 >> t4
-
-        self.assertEqual(dag1.task_dict, {t3.task_id: t3, t4.task_id: t4})
-
-    def test_duplicate_task_ids_not_allowed_without_dag_context_manager(self):
+    def test_duplicate_task_ids_not_allowed(self):
         """Verify tasks with Duplicate task_id show warning"""
         with self.assertWarnsRegex(
             PendingDeprecationWarning,
@@ -940,14 +932,6 @@ class DagTest(unittest.TestCase):
             t1 >> t2
 
         self.assertEqual(dag.task_dict, {t1.task_id: t1})
-
-        # Also verify that DAGs with duplicate task_ids don't raise errors
-        dag1 = DAG("test_dag_1", start_date=DEFAULT_DATE)
-        t3 = DummyOperator(task_id="t3", dag=dag1)
-        t4 = DummyOperator(task_id="t4", dag=dag1)
-        t3 >> t4
-
-        self.assertEqual(dag1.task_dict, {t3.task_id: t3, t4.task_id: t4})
 
     def test_duplicate_task_ids_for_same_task_is_allowed(self):
         """Verify that same tasks with Duplicate task_id do not raise warning"""
