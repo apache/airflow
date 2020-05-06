@@ -254,7 +254,7 @@ paths:
         - $ref: '#/components/parameters/FilterExecutionDateEndRange'
         - $ref: '#/components/parameters/FilterStartDateStartRange'
         - $ref: '#/components/parameters/FilterStartDateEndRange'
-        - $ref: '#/components/parameters/FilterEndDateStartRaange'
+        - $ref: '#/components/parameters/FilterEndDateStartRange'
         - $ref: '#/components/parameters/FilterEndDateEndRange'
       responses:
         '200':
@@ -580,7 +580,7 @@ paths:
       - $ref: '#/components/parameters/FilterExecutionDateEndRange'
       - $ref: '#/components/parameters/FilterStartDateStartRange'
       - $ref: '#/components/parameters/FilterStartDateEndRange'
-      - $ref: '#/components/parameters/FilterEndDateStartRaange'
+      - $ref: '#/components/parameters/FilterEndDateStartRange'
       - $ref: '#/components/parameters/FilterEndDateEndRange'
       - $ref: '#/components/parameters/FilterDurationStartRange'
       - $ref: '#/components/parameters/FilterDurationEndRange'
@@ -2023,7 +2023,7 @@ components:
         Returns objects before the specified date.
 
         This can be combined with StartDateEndRange parameter to receive only the selected period
-    FilterEndDateStartRaange:
+    FilterEndDateStartRange:
       in: query
       name: EndDateStartRange
       schema:
