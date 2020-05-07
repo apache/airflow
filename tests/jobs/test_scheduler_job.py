@@ -329,8 +329,9 @@ class TestDagFileProcessor(unittest.TestCase):
         self.assertIn(email1, send_email_to)
         self.assertNotIn(email2, send_email_to)
 
+    @mock.patch('airflow.jobs.scheduler_job.Stats.incr')
     @mock.patch("airflow.utils.email.send_email")
-    def test_dag_file_processor_sla_miss_email_exception(self, mock_send_email):
+    def test_dag_file_processor_sla_miss_email_exception(self, mock_send_email, mock_stats_incr):
         """
         Test that the dag file processor gracefully logs an exception if there is a problem
         sending an email
@@ -363,6 +364,7 @@ class TestDagFileProcessor(unittest.TestCase):
         mock_log.exception.assert_called_once_with(
             'Could not send SLA Miss email notification for DAG %s',
             'test_sla_miss')
+        mock_stats_incr.assert_called_once_with('sla_email_notification_failure')
 
     def test_dag_file_processor_sla_miss_deleted_task(self):
         """
