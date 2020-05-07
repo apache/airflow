@@ -130,7 +130,6 @@ class TestExternalTaskSensor(unittest.TestCase):
                          "unit_test_dag failed.")
 
     def test_external_dag_sensor(self):
-
         other_dag = DAG(
             'other_dag',
             default_args=self.args,
