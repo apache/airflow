@@ -558,7 +558,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
 
    * - `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
-     -
+     - :doc:`How to use <howto/operator/amazon/aws/imap_attachment_to_s3>`
      - :mod:`airflow.providers.amazon.aws.operators.imap_attachment_to_s3`
 
    * - `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
@@ -1584,7 +1584,7 @@ These integrations allow you to copy data.
 
    * - `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
-     -
+     - :doc:`How to use <howto/operator/amazon/aws/imap_attachment_to_s3>`
      - :mod:`airflow.providers.amazon.aws.operators.imap_attachment_to_s3`
 
    * - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
