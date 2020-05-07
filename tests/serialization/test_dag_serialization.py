@@ -355,6 +355,9 @@ class TestStringifiedDAGs(unittest.TestCase):
         assert serialized_task.task_type == task.task_type
         assert set(serialized_task.template_fields) == set(task.template_fields)
 
+        assert serialized_task.upstream_task_ids == task.upstream_task_ids
+        assert serialized_task.downstream_task_ids == task.downstream_task_ids
+
         for field in fields_to_check:
             assert getattr(serialized_task, field) == getattr(task, field), \
                 f'{task.dag.dag_id}.{task.task_id}.{field} does not match'
