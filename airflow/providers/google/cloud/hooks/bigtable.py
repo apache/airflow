@@ -54,7 +54,7 @@ class BigtableHook(GoogleBaseHook):
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_instance(self, instance_id: str, project_id: str) -> Instance:
+    def get_instance(self, *, instance_id: str, project_id: str) -> Instance:
         """
         Retrieves and returns the specified Cloud Bigtable instance if it exists.
         Otherwise, returns None.
@@ -72,7 +72,7 @@ class BigtableHook(GoogleBaseHook):
         return instance
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def delete_instance(self, instance_id: str, project_id: str) -> None:
+    def delete_instance(self, *, instance_id: str, project_id: str) -> None:
         """
         Deletes the specified Cloud Bigtable instance.
         Raises google.api_core.exceptions.NotFound if the Cloud Bigtable instance does
@@ -95,6 +95,7 @@ class BigtableHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def create_instance(
         self,
+        *,
         instance_id: str,
         main_cluster_id: str,
         main_cluster_zone: str,
@@ -206,7 +207,7 @@ class BigtableHook(GoogleBaseHook):
         table.create(initial_split_keys, column_families)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def delete_table(self, instance_id: str, table_id: str, project_id: str) -> None:
+    def delete_table(self, *, instance_id: str, table_id: str, project_id: str) -> None:
         """
         Deletes the specified table in Cloud Bigtable.
         Raises google.api_core.exceptions.NotFound if the table does not exist.

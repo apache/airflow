@@ -165,6 +165,7 @@ class CloudVisionHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def create_product_set(
         self,
+        *,
         location: str,
         product_set: Union[dict, ProductSet],
         project_id: str,
@@ -201,6 +202,7 @@ class CloudVisionHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def get_product_set(
         self,
+        *,
         location: str,
         product_set_id: str,
         project_id: str,
@@ -222,6 +224,7 @@ class CloudVisionHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def update_product_set(
         self,
+        *,
         product_set: Union[dict, ProductSet],
         project_id: str,
         location: Optional[str] = None,
@@ -250,6 +253,7 @@ class CloudVisionHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_product_set(
         self,
+        *,
         location: str,
         product_set_id: str,
         project_id: str,
@@ -270,6 +274,7 @@ class CloudVisionHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def create_product(
         self,
+        *,
         location: str,
         product: Union[dict, Product],
         project_id: str,
@@ -306,6 +311,7 @@ class CloudVisionHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def get_product(
         self,
+        *,
         location: str,
         product_id: str,
         project_id: str,
@@ -328,6 +334,7 @@ class CloudVisionHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def update_product(
         self,
+        *,
         product: Union[dict, Product],
         project_id: str,
         location: Optional[str] = None,
@@ -354,6 +361,7 @@ class CloudVisionHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_product(
         self,
+        *,
         location: str,
         product_id: str,
         project_id: str,
@@ -374,6 +382,7 @@ class CloudVisionHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def create_reference_image(
         self,
+        *,
         location: str,
         product_id: str,
         reference_image: Union[Dict, ReferenceImage],
@@ -415,6 +424,7 @@ class CloudVisionHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_reference_image(
         self,
+        *,
         location: str,
         product_id: str,
         reference_image_id: str,
@@ -443,6 +453,7 @@ class CloudVisionHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def add_product_to_product_set(
         self,
+        *,
         product_set_id: str,
         product_id: str,
         project_id: str,
@@ -471,6 +482,7 @@ class CloudVisionHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def remove_product_from_product_set(
         self,
+        *,
         product_set_id: str,
         product_id: str,
         project_id: str,

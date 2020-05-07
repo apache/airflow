@@ -81,6 +81,7 @@ class CloudAutoMLHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def create_model(
         self,
+        *,
         model: Union[dict, Model],
         location: str,
         project_id: str,
@@ -122,6 +123,7 @@ class CloudAutoMLHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def batch_predict(
         self,
+        *,
         model_id: str,
         input_config: Union[dict, BatchPredictInputConfig],
         output_config: Union[dict, BatchPredictOutputConfig],
@@ -182,6 +184,7 @@ class CloudAutoMLHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def predict(
         self,
+        *,
         model_id: str,
         payload: Union[dict, ExamplePayload],
         location: str,

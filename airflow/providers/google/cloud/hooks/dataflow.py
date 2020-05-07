@@ -460,6 +460,7 @@ class DataflowHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def start_java_dataflow(
         self,
+        *,
         job_name: str,
         variables: Dict,
         jar: str,
@@ -518,6 +519,7 @@ class DataflowHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def start_template_dataflow(
         self,
+        *,
         job_name: str,
         variables: Dict,
         parameters: Dict,

@@ -96,6 +96,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def create_transfer_config(
         self,
+        *,
         transfer_config: Union[dict, TransferConfig],
         project_id: str,
         authorization_code: Optional[str] = None,
@@ -139,6 +140,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_transfer_config(
         self,
+        *,
         transfer_config_id: str,
         project_id: str,
         retry: Optional[Retry] = None,
@@ -175,6 +177,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def start_manual_transfer_runs(
         self,
+        *,
         transfer_config_id: str,
         project_id: str,
         requested_time_range: Optional[dict] = None,
@@ -230,6 +233,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def get_transfer_run(
         self,
+        *,
         run_id: str,
         transfer_config_id: str,
         project_id: str,

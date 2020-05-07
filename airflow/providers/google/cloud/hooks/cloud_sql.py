@@ -101,7 +101,7 @@ class CloudSQLHook(GoogleBaseHook):
         return self._conn
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_instance(self, instance: str, project_id: str) -> Dict:
+    def get_instance(self, *, instance: str, project_id: str) -> Dict:
         """
         Retrieves a resource containing information about a Cloud SQL instance.
 
@@ -120,7 +120,7 @@ class CloudSQLHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     @GoogleBaseHook.operation_in_progress_retry()
-    def create_instance(self, body: Dict, project_id: str) -> None:
+    def create_instance(self, *, body: Dict, project_id: str) -> None:
         """
         Creates a new Cloud SQL instance.
 
@@ -142,7 +142,7 @@ class CloudSQLHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     @GoogleBaseHook.operation_in_progress_retry()
-    def patch_instance(self, body: Dict, instance: str, project_id: str) -> None:
+    def patch_instance(self, *, body: Dict, instance: str, project_id: str) -> None:
         """
         Updates settings of a Cloud SQL instance.
 
@@ -170,7 +170,7 @@ class CloudSQLHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     @GoogleBaseHook.operation_in_progress_retry()
-    def delete_instance(self, instance: str, project_id: str) -> None:
+    def delete_instance(self, *, instance: str, project_id: str) -> None:
         """
         Deletes a Cloud SQL instance.
 
@@ -190,7 +190,7 @@ class CloudSQLHook(GoogleBaseHook):
                                              operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_database(self, instance: str, database: str, project_id: str) -> Dict:
+    def get_database(self, *, instance: str, database: str, project_id: str) -> Dict:
         """
         Retrieves a database resource from a Cloud SQL instance.
 
@@ -213,7 +213,7 @@ class CloudSQLHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     @GoogleBaseHook.operation_in_progress_retry()
-    def create_database(self, instance: str, body: Dict, project_id: str) -> None:
+    def create_database(self, *, instance: str, body: Dict, project_id: str) -> None:
         """
         Creates a new database inside a Cloud SQL instance.
 
@@ -240,6 +240,7 @@ class CloudSQLHook(GoogleBaseHook):
     @GoogleBaseHook.operation_in_progress_retry()
     def patch_database(
         self,
+        *,
         instance: str,
         database: str,
         body: Dict,
@@ -275,7 +276,7 @@ class CloudSQLHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     @GoogleBaseHook.operation_in_progress_retry()
-    def delete_database(self, instance: str, database: str, project_id: str) -> None:
+    def delete_database(self, *, instance: str, database: str, project_id: str) -> None:
         """
         Deletes a database from a Cloud SQL instance.
 

@@ -161,7 +161,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                         credentials=credentials)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def table_exists(self, dataset_id: str, table_id: str, project_id: str) -> bool:
+    def table_exists(self, *, dataset_id: str, table_id: str, project_id: str) -> bool:
         """
         Checks for the existence of a table in Google BigQuery.
 
@@ -185,6 +185,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def create_empty_table(  # pylint: disable=too-many-arguments
         self,
+        *,
         project_id: str,
         dataset_id: str,
         table_id: str,
@@ -299,6 +300,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_empty_dataset(self,
+                             *,
                              dataset_id: Optional[str] = None,
                              project_id: Optional[str] = None,
                              location: Optional[str] = None,
@@ -354,6 +356,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def get_dataset_tables(
         self,
+        *,
         dataset_id: str,
         project_id: Optional[str] = None,
         max_results: Optional[int] = None,
@@ -393,6 +396,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_dataset(
         self,
+        *,
         dataset_id: str,
         project_id: Optional[str] = None,
         delete_contents: bool = False,

@@ -195,7 +195,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         return transfer_job
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_transfer_job(self, job_name: str, project_id: str) -> Dict:
+    def get_transfer_job(self, *, job_name: str, project_id: str) -> Dict:
         """
         Gets the latest state of a long-running operation in Google Storage
         Transfer Service.
@@ -253,7 +253,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         return jobs
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def enable_transfer_job(self, job_name: str, project_id: str) -> Dict:
+    def enable_transfer_job(self, *, job_name: str, project_id: str) -> Dict:
         """
         New transfers will be performed based on the schedule.
 
@@ -301,7 +301,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def delete_transfer_job(self, job_name: str, project_id: str) -> None:
+    def delete_transfer_job(self, *, job_name: str, project_id: str) -> None:
         """
         Deletes a transfer job. This is a soft delete. After a transfer job is
         deleted, the job and all the transfer executions are subject to garbage
