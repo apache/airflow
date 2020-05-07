@@ -24,7 +24,10 @@ from airflow.utils import dates
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 BUCKET_NAME = os.environ.get("GCP_SPEECH_TO_TEXT_TEST_BUCKET", "gcp-speech-to-text-test-bucket")
+
+# [START howto_operator_translate_speech_gcp_filename]
 FILENAME = "gcp-speech-test-file"
+# [END howto_operator_translate_speech_gcp_filename]
 
 # [START howto_operator_translate_speech_arguments]
 CONFIG = {"encoding": "LINEAR16", "language_code": "en_US"}

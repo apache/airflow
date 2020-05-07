@@ -16,65 +16,13 @@
     under the License.
 
 
-
-Google Cloud Text to Speech Operators
+Google Cloud Speech to Text Operators
 =====================================
 
 Prerequisite Tasks
 ------------------
 
 .. include:: _partials/prerequisite_tasks.rst
-
-.. _howto/operator:CloudTextToSpeechSynthesizeOperator:
-
-CloudTextToSpeechSynthesizeOperator
------------------------------------
-
-Synthesizes text to audio file and stores it to Google Cloud Storage
-
-For parameter definition, take a look at
-:class:`~airflow.providers.google.cloud.operators.text_to_speech.CloudTextToSpeechSynthesizeOperator`
-
-Arguments
-"""""""""
-
-The ``input``, ``voice`` and ``audio_config`` arguments need to be dicts or objects of corresponding classes from
-``google.cloud.texttospeech_v1.types`` module
-
-for more information, see: https://googleapis.github.io/google-cloud-python/latest/texttospeech/gapic/v1/api.html#google.cloud.texttospeech_v1.TextToSpeechClient.synthesize_speech
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_speech.py
-      :language: python
-      :start-after: [START howto_operator_text_to_speech_api_arguments]
-      :end-before: [END howto_operator_text_to_speech_api_arguments]
-
-The ``filename`` argument is a simple string argument:
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_speech.py
-      :language: python
-      :start-after: [START howto_operator_text_to_speech_gcp_filename]
-      :end-before: [END howto_operator_text_to_speech_gcp_filename]
-
-Using the operator
-""""""""""""""""""
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_speech.py
-      :language: python
-      :dedent: 4
-      :start-after: [START howto_operator_text_to_speech_synthesize]
-      :end-before: [END howto_operator_text_to_speech_synthesize]
-
-Templating
-""""""""""
-
-.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/text_to_speech.py
-    :language: python
-    :dedent: 4
-    :start-after: [START gcp_text_to_speech_synthesize_template_fields]
-    :end-before: [END gcp_text_to_speech_synthesize_template_fields]
-
-Google Cloud Speech to Text Operators
-=====================================
 
 .. _howto/operator:CloudSpeechToTextRecognizeSpeechOperator:
 
@@ -94,14 +42,14 @@ google.cloud.speech_v1.types module
 
 for more information, see: https://googleapis.github.io/google-cloud-python/latest/speech/gapic/v1/api.html#google.cloud.speech_v1.SpeechClient.recognize
 
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_speech.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_speech_to_text.py
       :language: python
       :start-after: [START howto_operator_text_to_speech_api_arguments]
       :end-before: [END howto_operator_text_to_speech_api_arguments]
 
 filename is a simple string argument:
 
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_speech.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_speech_to_text.py
       :language: python
       :start-after: [START howto_operator_speech_to_text_api_arguments]
       :end-before: [END howto_operator_speech_to_text_api_arguments]
@@ -109,7 +57,7 @@ filename is a simple string argument:
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_speech.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_speech_to_text.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_speech_to_text_recognize]
