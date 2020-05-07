@@ -22,7 +22,6 @@ from unittest import mock
 from google.cloud.bigquery import DEFAULT_RETRY, DatasetReference, Table, TableReference
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem
 from google.cloud.exceptions import NotFound
-from googleapiclient.errors import HttpError
 from parameterized import parameterized
 
 from airflow import AirflowException
@@ -1528,31 +1527,19 @@ class TestBigQueryHookLegacySql(_BigQueryBaseTestClass):
 
 
 class TestBigQueryHookRunWithConfiguration(_BigQueryBaseTestClass):
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_run_with_configuration_location(self, mock_get_service):
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.UnknownJob")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_run_with_configuration_location(self, mock_client, mock_job):
         running_job_id = 'job_vjdi28vskdui2onru23'
         location = 'asia-east1'
 
-        method = mock_get_service.return_value.jobs.return_value.get
-        mock_get_service.return_value.jobs.return_value.insert.return_value.execute.return_value = {
-            'jobReference': {
-                'jobId': running_job_id,
-                'location': location
-            }
-        }
-        mock_get_service.return_value.jobs.return_value.get.return_value.execute.return_value = {
-            'status': {
-                'state': 'DONE'
-            }
-        }
-
         self.hook.running_job_id = running_job_id
+        self.hook.location = location
         self.hook.run_with_configuration({})
-
-        method.assert_called_once_with(
-            projectId=PROJECT_ID,
-            jobId=running_job_id,
-            location=location
+        mock_client.assert_called_once_with(project_id=PROJECT_ID, location=location)
+        mock_job.from_api_repr.assert_called_once_with(
+            {'configuration': {}},
+            mock_client.return_value
         )
 
 

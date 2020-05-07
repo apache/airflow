@@ -22,17 +22,19 @@ implementation for BigQuery.
 """
 import logging
 import time
+import uuid
 import warnings
 from copy import deepcopy
 from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Optional, Sequence, Tuple, Type, Union
 
 from google.api_core.retry import Retry
-from google.cloud.bigquery import DEFAULT_RETRY, Client, ExternalConfig, SchemaField
+from google.cloud.bigquery import (
+    DEFAULT_RETRY, Client, CopyJob, ExternalConfig, ExtractJob, LoadJob, QueryJob, SchemaField,
+)
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
 from google.cloud.bigquery.table import EncryptionConfiguration, Row, Table, TableReference
 from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
 from pandas import DataFrame
 from pandas_gbq import read_gbq
 from pandas_gbq.gbq import (
@@ -1398,6 +1400,60 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 self.log.info('Waiting for canceled job with id %s to finish.', job_id)
                 time.sleep(5)
 
+    @GoogleBaseHook.fallback_to_default_project_id
+    def insert_job(
+        self,
+        configuration: Dict,
+        project_id: Optional[str] = None,
+        location: Optional[str] = None,
+    ) -> str:
+        """
+        Executes a BigQuery job. Waits for the job to complete and returns job id.
+        See here:
+
+        https://cloud.google.com/bigquery/docs/reference/v2/jobs
+
+        :param configuration: The configuration parameter maps directly to
+            BigQuery's configuration field in the job object. See
+            https://cloud.google.com/bigquery/docs/reference/v2/jobs for
+            details.
+        :param project_id: Google Cloud Project where the job is running
+        :type project_id: str
+        :param location: location the job is running
+        :type location: str
+        """
+        project_id = project_id or self.project_id
+        location = location or self.location
+        client = self.get_client(project_id=project_id, location=location)
+        job_data = {
+            "configuration": configuration,
+            "jobReference": {
+                "jobId": str(uuid.uuid4()),
+                "projectId": project_id,
+                "location": location
+            }
+        }
+        # pylint: disable=protected-access
+        supported_jobs = {
+           LoadJob._JOB_TYPE: LoadJob,
+           CopyJob._JOB_TYPE: CopyJob,
+           ExtractJob._JOB_TYPE: ExtractJob,
+           QueryJob._JOB_TYPE: QueryJob,
+        }
+        # pylint: enable=protected-access
+        job = None
+        for job_type, job_object in supported_jobs.items():
+            if job_type in configuration:
+                job = job_object
+                break
+
+        if not job:
+            raise AirflowException(f"Unknown job type. Supported types: {supported_jobs.keys()}")
+        job = job.from_api_repr(job_data, client)
+        # Start the job and wait for it to complete and get the result.
+        job.result()
+        return job.job_id
+
     def run_with_configuration(self, configuration: Dict) -> str:
         """
         Executes a BigQuery SQL query. See here:
@@ -1411,62 +1467,12 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             https://cloud.google.com/bigquery/docs/reference/v2/jobs for
             details.
         """
-        service = self.get_service()
-        jobs = service.jobs()  # type: Any  # pylint: disable=no-member
-        job_data = {'configuration': configuration}  # type: Dict[str, Dict]
-
-        # Send query and wait for reply.
-        query_reply = jobs \
-            .insert(projectId=self.project_id, body=job_data) \
-            .execute(num_retries=self.num_retries)
-        self.running_job_id = query_reply['jobReference']['jobId']
-        if 'location' in query_reply['jobReference']:
-            location = query_reply['jobReference']['location']
-        else:
-            location = self.location
-
-        # Wait for query to finish.
-        keep_polling_job = True  # type: bool
-        while keep_polling_job:
-            try:
-                keep_polling_job = self._check_query_status(jobs, keep_polling_job, location)
-
-            except HttpError as err:
-                if err.resp.status in [500, 503]:
-                    self.log.info(
-                        '%s: Retryable error, waiting for job to complete: %s',
-                        err.resp.status, self.running_job_id)
-                    time.sleep(5)
-                else:
-                    raise Exception(
-                        'BigQuery job status check failed. Final error was: {}'.
-                        format(err.resp.status))
-
-        return self.running_job_id  # type: ignore
-
-    def _check_query_status(self, jobs: Any, keep_polling_job: bool, location: str) -> bool:
-        if location:
-            job = jobs.get(
-                projectId=self.project_id,
-                jobId=self.running_job_id,
-                location=location).execute(num_retries=self.num_retries)
-        else:
-            job = jobs.get(
-                projectId=self.project_id,
-                jobId=self.running_job_id).execute(num_retries=self.num_retries)
-
-        if job['status']['state'] == 'DONE':
-            keep_polling_job = False
-            # Check if job had errors.
-            if 'errorResult' in job['status']:
-                raise Exception(
-                    'BigQuery job failed. Final error was: {}. The job was: {}'.format(
-                        job['status']['errorResult'], job))
-        else:
-            self.log.info('Waiting for job to complete : %s, %s',
-                          self.project_id, self.running_job_id)
-            time.sleep(5)
-        return keep_polling_job
+        warnings.warn(
+            "This method is deprecated. Please use `BigQueryHook.insert_job`",
+            DeprecationWarning
+        )
+        self.running_job_id = self.insert_job(configuration=configuration, project_id=self.project_id)
+        return self.running_job_id
 
     def run_load(self,  # pylint: disable=too-many-locals,too-many-arguments,invalid-name
                  destination_project_dataset_table: str,
