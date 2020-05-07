@@ -902,6 +902,36 @@ You should also consider running it with ``restart`` command when you change the
 This will clean-up the database so that you start with a clean DB and not DB installed in a previous version.
 So typically you'd run it like ``breeze --install-airflow-version=1.10.9 restart``.
 
+Tracking SQL statements
+=======================
+
+You can run tests with SQL statements tracking. To do this, use the ``--trace-sql`` option and pass the
+columns to be displayed as an argument. Each query will be displayed on a separate line.
+Supported values:
+
+* ``no`` -  displays the query number;
+* ``time`` - displays the query execution time;
+* ``trace`` - displays the simplified (one-line) stack trace;
+* ``sql`` - displays the SQL statements;
+* ``parameters`` - display SQL statement parameters.
+
+If you only provide ``no``, then only the final number of queries in the test will be displayed.
+
+By default, pytest does not display output for successful tests, if you still want to see them, you must
+pass the ``--capture=no`` option.
+
+If you run the following command:
+
+.. code-block:: bash
+
+    pytest --debug-sql=no,sql,parameters --capture=no \
+      tests/jobs/test_scheduler_job.py  -k test_process_dags_queries_count_05
+
+On the screen you will see database queries for the given test.
+
+SQL query tracking does not work properly if your test runs subprocesses. Only queries from the main process
+are tracked.
+
 BASH Unit Testing (BATS)
 ========================
 

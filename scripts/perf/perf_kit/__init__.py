@@ -98,7 +98,7 @@ queries in it.
         self.assertEqual(prev_local.isoformat(), "2018-03-24T03:00:00+01:00")
         self.assertEqual(prev.isoformat(), "2018-03-24T02:00:00+00:00")
 
-    from perf_kit.sqlalchemy.sqlalchemy import trace_queries
+    from perf_kit.sqlalchemy import trace_queries
 
     @trace_queries
     def test_bulk_sync_to_db(self):
