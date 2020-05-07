@@ -156,17 +156,16 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         "airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.poll_job_complete",
         side_effect=[False, True]
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_cancel_queries(self, mock_get_service, mock_poll_job_complete):
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_cancel_queries(self, mock_client, mock_poll_job_complete):
         running_job_id = 3
 
         self.hook.running_job_id = running_job_id
         self.hook.cancel_query()
 
         mock_poll_job_complete.has_calls(mock.call(running_job_id), mock.call(running_job_id))
-        mock_get_service.return_value.jobs.return_value.cancel.assert_called_once_with(
-            projectId=PROJECT_ID, jobId=running_job_id
-        )
+        mock_client.assert_called_once_with(project_id=PROJECT_ID, location=None)
+        mock_client.return_value.cancel_job.assert_called_once_with(job_id=running_job_id)
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration")
@@ -561,61 +560,52 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         mock_client.return_value.get_job.assert_called_once_with(job_id=JOB_ID)
         mock_client.return_value.get_job.return_value.done.assert_called_once_with(retry=DEFAULT_RETRY)
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.poll_job_complete")
     @mock.patch("logging.Logger.info")
-    def test_cancel_query_np_jobs_to_cancel(
-        self, mock_logger_info, poll_job_complete, mock_get_service,
+    def test_cancel_query_jobs_to_cancel(
+        self, mock_logger_info, poll_job_complete,
     ):
-        method_jobs = mock_get_service.return_value.jobs
         poll_job_complete.return_value = True
 
         self.hook.running_job_id = JOB_ID
         self.hook.cancel_query()
-        assert method_jobs.call_count == 1
-        assert poll_job_complete.call_count == 1
+        poll_job_complete.assert_called_once_with(job_id=JOB_ID)
         mock_logger_info.has_call(mock.call("No running BigQuery jobs to cancel."))
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.poll_job_complete")
     @mock.patch("time.sleep")
     @mock.patch("logging.Logger.info")
-    def test_cancel_query_np_cancel_timeout(
-        self, mock_logger_info, mock_sleep, poll_job_complete, mock_get_service,
+    def test_cancel_query_cancel_timeout(
+        self, mock_logger_info, mock_sleep, poll_job_complete, mock_client,
     ):
-        method_jobs = mock_get_service.return_value.jobs
-        method_jobs_cancel = method_jobs.return_value.cancel
         poll_job_complete.side_effect = [False] * 13
 
         self.hook.running_job_id = JOB_ID
         self.hook.cancel_query()
-        assert method_jobs.call_count == 1
-        assert method_jobs_cancel.call_count == 1
+        mock_client.return_value.cancel_job.assert_called_once_with(job_id=JOB_ID)
         assert poll_job_complete.call_count == 13
         assert mock_sleep.call_count == 11
         mock_logger_info.has_call(
-            mock.call("Stopping polling due to timeout. Job with id {} "
-                      "has not completed cancel and may or may not finish.".format(JOB_ID))
+            mock.call(f"Stopping polling due to timeout. Job with id {JOB_ID} "
+                      "has not completed cancel and may or may not finish.")
         )
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.poll_job_complete")
     @mock.patch("time.sleep")
     @mock.patch("logging.Logger.info")
-    def test_cancel_query_np_cancel_completed(
-        self, mock_logger_info, mock_sleep, poll_job_complete, mock_get_service,
+    def test_cancel_query_cancel_completed(
+        self, mock_logger_info, mock_sleep, poll_job_complete, mock_client,
     ):
-        method_jobs = mock_get_service.return_value.jobs
-        method_jobs_cancel = method_jobs.return_value.cancel
         poll_job_complete.side_effect = [False] * 12 + [True]
 
         self.hook.running_job_id = JOB_ID
         self.hook.cancel_query()
-        assert method_jobs.call_count == 1
-        assert method_jobs_cancel.call_count == 1
+        mock_client.return_value.cancel_job.assert_called_once_with(job_id=JOB_ID)
         assert poll_job_complete.call_count == 13
         assert mock_sleep.call_count == 11
-        mock_logger_info.has_call(mock.call("Job successfully canceled: {}, {}".format(PROJECT_ID, JOB_ID)))
+        mock_logger_info.has_call(mock.call(f"Job successfully canceled: {PROJECT_ID}, {PROJECT_ID}"))
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_get_schema(self, mock_client):

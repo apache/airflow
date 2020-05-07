@@ -1344,24 +1344,41 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         Cancel all started queries that have not yet completed
         """
-        service = self.get_service()
-        jobs = service.jobs()  # pylint: disable=no-member
-        if (self.running_job_id and
-                not self.poll_job_complete(self.running_job_id)):
-            self.log.info('Attempting to cancel job : %s, %s', self.project_id,
-                          self.running_job_id)
-            if self.location:
-                jobs.cancel(
-                    projectId=self.project_id,
-                    jobId=self.running_job_id,
-                    location=self.location).execute(num_retries=self.num_retries)
-            else:
-                jobs.cancel(
-                    projectId=self.project_id,
-                    jobId=self.running_job_id).execute(num_retries=self.num_retries)
+        warnings.warn(
+            "This method is deprecated. Please use `BigQueryHook.cancel_job`.",
+            DeprecationWarning,
+        )
+        if self.running_job_id:
+            self.cancel_job(job_id=self.running_job_id)
         else:
             self.log.info('No running BigQuery jobs to cancel.')
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def cancel_job(
+        self,
+        job_id: str,
+        project_id: Optional[str] = None,
+        location: Optional[str] = None,
+    ) -> None:
+        """
+        Cancels a job an wait for cancellation to complete
+
+        :param job_id: id of the job.
+        :type job_id: str
+        :param project_id: Google Cloud Project where the job is running
+        :type project_id: str
+        :param location: location the job is running
+        :type location: str
+        """
+        project_id = project_id or self.project_id
+        location = location or self.location
+
+        if self.poll_job_complete(job_id=job_id):
+            self.log.info('No running BigQuery jobs to cancel.')
             return
+
+        self.log.info('Attempting to cancel job : %s, %s', project_id, job_id)
+        self.get_client(location=location, project_id=project_id).cancel_job(job_id=job_id)
 
         # Wait for all the calls to cancel to finish
         max_polling_attempts = 12
@@ -1370,18 +1387,15 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job_complete = False
         while polling_attempts < max_polling_attempts and not job_complete:
             polling_attempts = polling_attempts + 1
-            job_complete = self.poll_job_complete(self.running_job_id)
+            job_complete = self.poll_job_complete(job_id)
             if job_complete:
-                self.log.info('Job successfully canceled: %s, %s',
-                              self.project_id, self.running_job_id)
+                self.log.info('Job successfully canceled: %s, %s', project_id, job_id)
             elif polling_attempts == max_polling_attempts:
                 self.log.info(
                     "Stopping polling due to timeout. Job with id %s "
-                    "has not completed cancel and may or may not finish.",
-                    self.running_job_id)
+                    "has not completed cancel and may or may not finish.", job_id)
             else:
-                self.log.info('Waiting for canceled job with id %s to finish.',
-                              self.running_job_id)
+                self.log.info('Waiting for canceled job with id %s to finish.', job_id)
                 time.sleep(5)
 
     def run_with_configuration(self, configuration: Dict) -> str:
