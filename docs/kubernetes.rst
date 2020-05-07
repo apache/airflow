@@ -40,7 +40,7 @@ that has the ability to mutate pod objects before sending them to the Kubernetes
 for scheduling. It receives a single argument as a reference to pod objects, and
 is expected to alter its attributes.
 
-This could be used, for instance, to add sidecar or init containers
+This could be used, for instance, to add init containers
 to every worker pod launched by KubernetesExecutor or KubernetesPodOperator.
 
 
@@ -48,3 +48,37 @@ to every worker pod launched by KubernetesExecutor or KubernetesPodOperator.
 
     def pod_mutation_hook(pod: Pod):
       pod.annotations['airflow.apache.org/launched-by'] = 'Tests'
+
+
+The structure of 'pod' that is an argument of pod_mutation_hook are as follows.
+
+.. code:: python
+
+    affinity:   {}
+    annotations:  {}
+    args: []
+    cmds: []
+    configmaps:  []
+    dnspolicy:    
+    Noneenvs:   {}
+    hostnetwork: 
+    image: 
+    image_pull_policy:   
+    IfNotPresentimage_pull_secrets: 
+    init_containers:    []
+    labels:   {'airflow_version': '1.10.10', 'kubernetes_pod_operator': 'True'}
+    name:  
+    namespace:    
+    node_selectors:  {}
+    pod_runtime_info_envs:    []
+    ports:    []
+    resources:    
+    Request: [cpu: None, memory: None], Limit: [cpu: None, memory: None, gpu: None]
+    result:  None
+    secrets:    []
+    security_context: {}
+    service_account_name: default
+    tolerations: []
+    volume_mounts:    []
+    volumes:  []
+
