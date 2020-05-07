@@ -35,7 +35,8 @@ class MySQLToS3Operator(BaseOperator):
     """
     Saves data from an specific MySQL query into a file in S3.
 
-    :param query: the sql query to be executed.
+    :param query: the sql query to be executed. If you want to execute a file, place the absolute path of it,
+    ending with .sql extension.
     :type query: str
     :param s3_bucket: bucket where the data will be stored
     :type s3_bucket: str
@@ -60,7 +61,10 @@ class MySQLToS3Operator(BaseOperator):
     :type pd_csv_kwargs: dict
     :param index: wheter to have the index or not in the dataframe
     :type index: str
+    :param header: whether to include header or not into the S3 file
+    :type header: bool
     """
+    template_fields = ('s3_key', 'query', 'pd_csv_kwargs',)
 
     @apply_defaults
     def __init__(
@@ -73,6 +77,7 @@ class MySQLToS3Operator(BaseOperator):
             verify: Optional[Union[bool, str]] = None,
             pd_csv_kwargs: dict = None,
             index: Optional[bool] = False,
+            header: Optional[bool] = False,
             *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.query = query
@@ -88,6 +93,11 @@ class MySQLToS3Operator(BaseOperator):
 
         if "index" not in self.pd_csv_kwargs:
             self.pd_csv_kwargs["index"] = index
+            self.pd_csv_kwargs["header"] = header
+
+        if self.query.endswith('.sql'):
+            query_file = open(self.query, 'r')
+            self.query = query_file.read()
 
     def _fix_int_dtypes(self, df):
         """
