@@ -32,7 +32,6 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.models import DAG, Connection, DagBag, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
-from airflow.operators.subdag_operator import SubDagOperator
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
@@ -246,8 +245,7 @@ class TestStringifiedDAGs(unittest.TestCase):
             )
             return dag_dict
 
-        self.assertEqual(sorted_serialized_dag(ground_truth_dag),
-                         sorted_serialized_dag(json_dag))
+        assert sorted_serialized_dag(ground_truth_dag) == sorted_serialized_dag(json_dag)
 
     def test_deserialization(self):
         """A serialized DAG can be deserialized in another process."""
@@ -273,58 +271,70 @@ class TestStringifiedDAGs(unittest.TestCase):
         for dag_id in stringified_dags:
             self.validate_deserialized_dag(stringified_dags[dag_id], dags[dag_id])
 
-        example_skip_dag = stringified_dags['example_skip_dag']
-        skip_operator_1_task = example_skip_dag.task_dict['skip_operator_1']
-        self.validate_deserialized_task(
-            skip_operator_1_task, 'DummySkipOperator', '#e8b7e4', '#000')
-
-        # Verify that the DAG object has 'full_filepath' attribute
-        # and is equal to fileloc
-        self.assertTrue(hasattr(example_skip_dag, 'full_filepath'))
-        self.assertEqual(example_skip_dag.full_filepath, example_skip_dag.fileloc)
-
-        example_subdag_operator = stringified_dags['example_subdag_operator']
-        section_1_task = example_subdag_operator.task_dict['section-1']
-        self.validate_deserialized_task(
-            section_1_task,
-            SubDagOperator.__name__,
-            SubDagOperator.ui_color,
-            SubDagOperator.ui_fgcolor
-        )
-
     def validate_deserialized_dag(self, serialized_dag, dag):
         """
         Verify that all example DAGs work with DAG Serialization by
         checking fields between Serialized Dags & non-Serialized Dags
         """
-        fields_to_check = [
-            "task_ids", "params", "fileloc", "max_active_runs", "concurrency",
-            "is_paused_upon_creation", "doc_md", "safe_dag_id", "is_subdag",
-            "catchup", "description", "start_date", "end_date", "parent_dag",
-            "template_searchpath", "_access_control", "dagrun_timeout"
-        ]
+        fields_to_check = dag.get_serialized_fields() - {
+            # Doesn't implement __eq__ properly. Check manually
+            'timezone',
 
-        # fields_to_check = dag.get_serialized_fields()
+            # Need to check fields in it, to exclude functions
+            'default_args',
+        }
         for field in fields_to_check:
-            self.assertEqual(getattr(serialized_dag, field), getattr(dag, field))
+            assert getattr(serialized_dag, field) == getattr(dag, field), f'{field} matches'
 
-    def validate_deserialized_task(self, task, task_type, ui_color, ui_fgcolor):
+        if dag.default_args:
+            for k, v in dag.default_args.items():
+                if callable(v):
+                    # Check we stored _someting_.
+                    assert k in serialized_dag.default_args
+                else:
+                    assert v == serialized_dag.default_args[k], f'default_args[{k}] matches'
+
+        assert serialized_dag.timezone.name == dag.timezone.name
+
+        for task_id in dag.task_ids:
+            self.validate_deserialized_task(serialized_dag.get_task(task_id), dag.get_task(task_id))
+
+        # Verify that the DAG object has 'full_filepath' attribute
+        # and is equal to fileloc
+        assert serialized_dag.full_filepath == dag.fileloc
+
+    def validate_deserialized_task(self, serialized_task, task,):
         """Verify non-airflow operators are casted to BaseOperator."""
-        self.assertTrue(isinstance(task, SerializedBaseOperator))
-        # Verify the original operator class is recorded for UI.
-        self.assertTrue(task.task_type == task_type)
-        self.assertTrue(task.ui_color == ui_color)
-        self.assertTrue(task.ui_fgcolor == ui_fgcolor)
+        assert isinstance(serialized_task, SerializedBaseOperator)
+        assert not isinstance(task, SerializedBaseOperator)
+        assert isinstance(task, BaseOperator)
+
+        fields_to_check = task.get_serialized_fields() - {
+            # Checked separately
+            '_task_type', 'subdag',
+
+            # Type is exluded, so don't check it
+            '_log',
+
+            # List vs tuple. Check separately
+            'template_fields',
+
+            # We store the string, real dag has the actual code
+            'on_failure_callback', 'on_success_callback', 'on_retry_callback',
+        }
+
+        assert serialized_task.task_type == task.task_type
+
+        for field in fields_to_check:
+            assert getattr(serialized_task, field) == getattr(task, field), f'{field} matches'
 
         # Check that for Deserialised task, task.subdag is None for all other Operators
         # except for the SubDagOperator where task.subdag is an instance of DAG object
         if task.task_type == "SubDagOperator":
-            self.assertIsNotNone(task.subdag)
-            self.assertTrue(isinstance(task.subdag, DAG))
+            assert serialized_task.subdag is not None
+            assert isinstance(serialized_task.subdag, DAG)
         else:
-            self.assertIsNone(task.subdag)
-        self.assertEqual({}, task.params)
-        self.assertEqual({}, task.executor_config)
+            assert serialized_task.subdag is None
 
     @parameterized.expand([
         (datetime(2019, 8, 1), None, datetime(2019, 8, 1)),
@@ -647,6 +657,23 @@ class TestStringifiedDAGs(unittest.TestCase):
         ignored_keys: set = {"is_subdag", "tasks"}
         dag_params: set = set(dag_schema.keys()) - ignored_keys
         self.assertEqual(set(DAG.get_serialized_fields()), dag_params)
+
+    def test_operator_subclass_changing_base_defaults(self):
+        assert BaseOperator(task_id='dummy').do_xcom_push is True, \
+            "Precondition check! If this fails the test won't make sense"
+
+        class MyOperator(BaseOperator):
+            def __init__(self, do_xcom_push=False, **kwargs):
+                super().__init__(**kwargs)
+                self.do_xcom_push = do_xcom_push
+
+        op = MyOperator(task_id='dummy')
+        assert op.do_xcom_push is False
+
+        blob = SerializedBaseOperator.serialize_operator(op)
+        serialized_op = SerializedBaseOperator.deserialize_operator(blob)
+
+        assert serialized_op.do_xcom_push is False
 
     def test_no_new_fields_added_to_base_operator(self):
         """
