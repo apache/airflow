@@ -25,6 +25,7 @@ import re
 import unittest
 from tempfile import NamedTemporaryFile
 
+import pytest
 from parameterized import parameterized
 from tests.compat import mock
 
@@ -905,30 +906,38 @@ class DagTest(unittest.TestCase):
 
     def test_duplicate_task_ids_raise_warning_with_dag_context_manager(self):
         """Verify tasks with Duplicate task_id show warning"""
-        with self.assertWarnsRegex(
-            PendingDeprecationWarning,
-            "The requested task could not be added to the DAG because a task with "
-            "task_id t1 is already in the DAG. Starting in Airflow 2.0, trying to "
-            "overwrite a task will raise an exception."
-        ):
+
+        deprecation_msg = "The requested task could not be added to the DAG because a task with " \
+                          "task_id t1 is already in the DAG. Starting in Airflow 2.0, trying to " \
+                          "overwrite a task will raise an exception."
+
+        with pytest.warns(PendingDeprecationWarning) as record:
             with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
                 t1 = DummyOperator(task_id="t1")
                 t2 = BashOperator(task_id="t1", bash_command="sleep 1")
                 t1 >> t2
 
-        self.assertEqual(dag.task_dict, {t1.task_id: t1})
+            warning = record[0]
+            assert str(warning.message) == deprecation_msg
+            assert issubclass(PendingDeprecationWarning, warning.category)
+
+            self.assertEqual(dag.task_dict, {t1.task_id: t1})
 
     def test_duplicate_task_ids_raise_warning(self):
         """Verify tasks with Duplicate task_id show warning"""
-        with self.assertWarnsRegex(
-            PendingDeprecationWarning,
-            "The requested task could not be added to the DAG because a task with "
-            "task_id t1 is already in the DAG. Starting in Airflow 2.0, trying to "
-            "overwrite a task will raise an exception."
-        ):
+
+        deprecation_msg = "The requested task could not be added to the DAG because a task with " \
+                          "task_id t1 is already in the DAG. Starting in Airflow 2.0, trying to " \
+                          "overwrite a task will raise an exception."
+
+        with pytest.warns(PendingDeprecationWarning) as record:
             dag = DAG("test_dag", start_date=DEFAULT_DATE)
             t1 = DummyOperator(task_id="t1", dag=dag)
             t2 = BashOperator(task_id="t1", bash_command="sleep 1", dag=dag)
             t1 >> t2
 
-        self.assertEqual(dag.task_dict, {t1.task_id: t1})
+            warning = record[0]
+            assert str(warning.message) == deprecation_msg
+            assert issubclass(PendingDeprecationWarning, warning.category)
+
+            self.assertEqual(dag.task_dict, {t1.task_id: t1})
