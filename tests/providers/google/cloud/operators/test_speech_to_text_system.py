@@ -38,5 +38,5 @@ class GCPTextToSpeechExampleDagSystemTest(GoogleSystemTest):
         super().tearDown()
 
     @provide_gcp_context(GCP_GCS_KEY)
-    def test_run_example_dag_gcp_text_to_speech(self):
+    def test_run_example_dag_gcp_speech_to_text(self):
         self.run_dag("example_gcp_speech_to_text", CLOUD_DAG_FOLDER)
