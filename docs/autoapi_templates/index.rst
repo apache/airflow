@@ -80,6 +80,10 @@ All operators are in the following packages:
 
   airflow/providers/apache/hive/sensors/index
 
+  airflow/providers/apache/kafka/sensors/index
+
+  airflow/providers/apache/kafka/hooks/index
+
   airflow/providers/apache/livy/operators/index
 
   airflow/providers/apache/livy/sensors/index
