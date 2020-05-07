@@ -77,6 +77,7 @@ def trace_sql(request):
     """
     trace_sql_option = request.config.getoption("trace_sql")
     if not trace_sql_option:
+        yield
         return
 
     terminal_reporter = request.config.pluginmanager.getplugin("terminalreporter")
@@ -84,6 +85,7 @@ def trace_sql(request):
     # this can happen when this function executes in a slave node
     # when using pytest-xdist, for example
     if terminal_reporter is None:
+        yield
         return
 
     columns = [col.strip() for col in trace_sql_option.split(",")]
@@ -103,7 +105,7 @@ def trace_sql(request):
         elif any(c for c in ['time', 'trace', 'sql', 'parameters']):
             exit_stack.enter_context(  # pylint: disable=no-member
                 trace_queries(
-                    display_no='num' in columns,
+                    display_num='num' in columns,
                     display_time='time' in columns,
                     display_trace='trace' in columns,
                     display_sql='sql' in columns,
