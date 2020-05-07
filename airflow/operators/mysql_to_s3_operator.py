@@ -91,7 +91,7 @@ class MySQLToS3Operator(BaseOperator):
         if not self.pd_csv_kwargs:
             self.pd_csv_kwargs = {}
 
-        if "index" not in self.pd_csv_kwargs:
+        if "index" not in self.pd_csv_kwargs or "header" not in self.pd_csv_kwargs:
             self.pd_csv_kwargs["index"] = index
             self.pd_csv_kwargs["header"] = header
 
