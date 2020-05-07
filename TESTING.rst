@@ -924,7 +924,7 @@ If you run the following command:
 
 .. code-block:: bash
 
-    pytest --debug-sql=num,sql,parameters --capture=no \
+    pytest --trace-sql=num,sql,parameters --capture=no \
       tests/jobs/test_scheduler_job.py -k test_process_dags_queries_count_05
 
 On the screen you will see database queries for the given test.
