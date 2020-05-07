@@ -86,14 +86,14 @@ purpose and context.
   those runs are already reviewed and confirmed by the committers so they can be used to do some housekeeping
   - for now they are pushing most recent image build in the PR to the Github Private Registry - which is our
   image cache for all the builds.
-* **Scheduled Run** - those runs are results of (nightly) triggered jobs - only for well-defined branches:
-  ``master`` and ``v1-10-test`` they execute nightly. Their main purpose is to check if there was no impact
-  of external dependency changes on the Apache Airflow code (for example transitive dependencies released
-  that fail the build). They also check if the Docker images can be build from the scratch (again - to see
-  if some dependencies have not changed - for example downloaded package releases etc. Another reason for
-  the nightly build is that the builds tags most recent master or v1-10-test code with "master-nightly" and
-  "v1-10-test" tags respectively so that DockerHub build can pick up the moved tag and prepare a nightly
-  "public" build in the DockerHub.
+* **Scheduled Run** - those runs are results of (nightly) triggered job - only for ``master`` branch. The
+  main purpose of the job is to check if there was no impact of external dependency changes on the Apache
+  Airflow code (for example transitive dependencies released that fail the build). It also checks if the
+  Docker images can be build from the scratch (again - to see if some dependencies have not changed - for
+  example downloaded package releases etc. Another reason for the nightly build is that the builds tags most
+  recent master with ``nightly-master`` tag so that DockerHub build can pick up the moved tag and prepare a
+  nightly public master build in the DockerHub registry. The ``v1-10-test`` branch images are build in
+  DockerHub when pushing ``v1-10-stable`` manually.
 
 All runs consist of the same jobs, but the jobs behave slightly differently or they are skipped in different
 run categories. Here is a summary of the run categories with regards of the jobs they are running.

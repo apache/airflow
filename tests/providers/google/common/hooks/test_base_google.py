@@ -724,3 +724,49 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
             ],
             any_order=False
         )
+
+
+class TestNumRetry(unittest.TestCase):
+
+    def test_should_return_int_when_set_int_via_connection(self):
+        instance = hook.GoogleBaseHook(gcp_conn_id="google_cloud_default")
+        instance.extras = {
+            'extra__google_cloud_platform__num_retries': 10,
+        }
+
+        self.assertIsInstance(instance.num_retries, int)
+        self.assertEqual(10, instance.num_retries)
+
+    @mock.patch.dict(
+        'os.environ',
+        AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT=(
+            'google-cloud-platform://?extra__google_cloud_platform__num_retries=5'
+        )
+    )
+    def test_should_return_int_when_set_via_env_var(self):
+        instance = hook.GoogleBaseHook(gcp_conn_id="google_cloud_default")
+        self.assertIsInstance(instance.num_retries, int)
+
+    @mock.patch.dict(
+        'os.environ',
+        AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT=(
+            'google-cloud-platform://?extra__google_cloud_platform__num_retries=cat'
+        )
+    )
+    def test_should_raise_when_invalid_value_via_env_var(self):
+        instance = hook.GoogleBaseHook(gcp_conn_id="google_cloud_default")
+        with self.assertRaisesRegex(
+            AirflowException, re.escape("The num_retries field should be a integer.")
+        ):
+            self.assertIsInstance(instance.num_retries, int)
+
+    @mock.patch.dict(
+        'os.environ',
+        AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT=(
+            'google-cloud-platform://?extra__google_cloud_platform__num_retries='
+        )
+    )
+    def test_should_fallback_when_empty_string_in_env_var(self):
+        instance = hook.GoogleBaseHook(gcp_conn_id="google_cloud_default")
+        self.assertIsInstance(instance.num_retries, int)
+        self.assertEqual(5, instance.num_retries)

@@ -36,10 +36,11 @@ def variables_get(args):
     """Displays variable by a given name"""
     try:
         if args.default is None:
-            Variable.get(
+            var = Variable.get(
                 args.key,
                 deserialize_json=args.json
             )
+            print(var)
         else:
             var = Variable.get(
                 args.key,

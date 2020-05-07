@@ -18,8 +18,10 @@
 
 import copy
 import logging
+import multiprocessing
 import os
 import pathlib
+import re
 import shlex
 import subprocess
 import sys
@@ -158,7 +160,8 @@ class AirflowConfigParser(ConfigParser):
     # about. Mapping of section -> setting -> { old, replace, by_version }
     deprecated_values = {
         'core': {
-            'task_runner': ('BashTaskRunner', 'StandardTaskRunner', '2.0'),
+            'task_runner': (re.compile(r'\ABashTaskRunner\Z'), r'StandardTaskRunner', '2.0'),
+            'hostname_callable': (re.compile(r':'), r'.', '2.0'),
         },
     }
 
@@ -178,6 +181,32 @@ class AirflowConfigParser(ConfigParser):
         self.is_validated = False
 
     def _validate(self):
+
+        self._validate_config_dependencies()
+
+        for section, replacement in self.deprecated_values.items():
+            for name, info in replacement.items():
+                old, new, version = info
+                current_value = self.get(section, name, fallback=None)
+                if self._using_old_value(old, current_value):
+                    new_value = re.sub(old, new, current_value)
+                    self._update_env_var(
+                        section=section, name=name, new_value=new_value)
+                    self._create_future_warning(
+                        name=name,
+                        section=section,
+                        current_value=current_value,
+                        new_value=new_value,
+                        version=version)
+
+        self.is_validated = True
+
+    def _validate_config_dependencies(self):
+        """
+        Validate that config values aren't invalid given other config values
+        or system-level limitations and requirements.
+        """
+
         if (
                 self.get("core", "executor") not in ('DebugExecutor', 'SequentialExecutor') and
                 "sqlite" in self.get('core', 'sql_alchemy_conn')):
@@ -185,27 +214,36 @@ class AirflowConfigParser(ConfigParser):
                 "error: cannot use sqlite with the {}".format(
                     self.get('core', 'executor')))
 
-        for section, replacement in self.deprecated_values.items():
-            for name, info in replacement.items():
-                old, new, version = info
-                if self.get(section, name, fallback=None) == old:
-                    # Make sure the env var option is removed, otherwise it
-                    # would be read and used instead of the value we set
-                    env_var = self._env_var_name(section, name)
-                    os.environ.pop(env_var, None)
+        if self.has_option('core', 'mp_start_method'):
+            mp_start_method = self.get('core', 'mp_start_method')
+            start_method_options = multiprocessing.get_all_start_methods()
 
-                    self.set(section, name, new)
-                    warnings.warn(
-                        'The {name} setting in [{section}] has the old default value '
-                        'of {old!r}. This value has been changed to {new!r} in the '
-                        'running config, but please update your config before Apache '
-                        'Airflow {version}.'.format(
-                            name=name, section=section, old=old, new=new, version=version
-                        ),
-                        FutureWarning
-                    )
+            if mp_start_method not in start_method_options:
+                raise AirflowConfigException(
+                    "mp_start_method should not be " + mp_start_method +
+                    ". Possible values are " + ", ".join(start_method_options))
 
-        self.is_validated = True
+    def _using_old_value(self, old, current_value):
+        return old.search(current_value) is not None
+
+    def _update_env_var(self, section, name, new_value):
+        # Make sure the env var option is removed, otherwise it
+        # would be read and used instead of the value we set
+        env_var = self._env_var_name(section, name)
+        os.environ.pop(env_var, None)
+        self.set(section, name, new_value)
+
+    @staticmethod
+    def _create_future_warning(name, section, current_value, new_value, version):
+        warnings.warn(
+            'The {name} setting in [{section}] has the old default value '
+            'of {current_value!r}. This value has been changed to {new_value!r} in the '
+            'running config, but please update your config before Apache '
+            'Airflow {version}.'.format(
+                name=name, section=section, current_value=current_value, new_value=new_value, version=version
+            ),
+            FutureWarning
+        )
 
     @staticmethod
     def _env_var_name(section, key):

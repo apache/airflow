@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import contextlib
 import importlib
 import os
 import pathlib
@@ -97,56 +97,51 @@ SETTINGS_FILE_EMPTY = """
 SETTINGS_DEFAULT_NAME = 'custom_airflow_local_settings'
 
 
-class settings_context:  # pylint: disable=invalid-name
+@contextlib.contextmanager
+def settings_context(content, directory=None, name='LOGGING_CONFIG'):
     """
     Sets a settings file and puts it in the Python classpath
 
     :param content:
           The content of the settings file
     """
-
-    def __init__(self, content, directory=None, name='LOGGING_CONFIG'):
-        self.content = content
-        self.settings_root = tempfile.mkdtemp()
-        filename = "{}.py".format(SETTINGS_DEFAULT_NAME)
-
+    initial_logging_config = os.environ.get("AIRFLOW__LOGGING__LOGGING_CONFIG_CLASS", "")
+    try:
+        settings_root = tempfile.mkdtemp()
+        filename = f"{SETTINGS_DEFAULT_NAME}.py"
         if directory:
             # Replace slashes by dots
-            self.module = directory.replace('/', '.') + '.' + SETTINGS_DEFAULT_NAME + '.' + name
+            module = directory.replace('/', '.') + '.' + SETTINGS_DEFAULT_NAME + '.' + name
 
             # Create the directory structure
-            dir_path = os.path.join(self.settings_root, directory)
+            dir_path = os.path.join(settings_root, directory)
             pathlib.Path(dir_path).mkdir(parents=True, exist_ok=True)
 
             # Add the __init__ for the directories
             # This is required for Python 2.7
-            basedir = self.settings_root
+            basedir = settings_root
             for part in directory.split('/'):
                 open(os.path.join(basedir, '__init__.py'), 'w').close()
                 basedir = os.path.join(basedir, part)
             open(os.path.join(basedir, '__init__.py'), 'w').close()
 
-            self.settings_file = os.path.join(dir_path, filename)
+            settings_file = os.path.join(dir_path, filename)
         else:
-            self.module = SETTINGS_DEFAULT_NAME + '.' + name
-            self.settings_file = os.path.join(self.settings_root, filename)
+            module = SETTINGS_DEFAULT_NAME + '.' + name
+            settings_file = os.path.join(settings_root, filename)
 
-    def __enter__(self):
-        with open(self.settings_file, 'w') as handle:
-            handle.writelines(self.content)
-        sys.path.append(self.settings_root)
-        conf.set(
-            'logging',
-            'logging_config_class',
-            self.module
-        )
-        return self.settings_file
+        with open(settings_file, 'w') as handle:
+            handle.writelines(content)
+        sys.path.append(settings_root)
 
-    def __exit__(self, *exc_info):
-        # shutil.rmtree(self.settings_root)
-        # Reset config
-        conf.set('logging', 'logging_config_class', '')
-        sys.path.remove(self.settings_root)
+        # Using environment vars instead of conf_vars so value is accessible
+        # to parent and child processes when using 'spawn' for multiprocessing.
+        os.environ["AIRFLOW__LOGGING__LOGGING_CONFIG_CLASS"] = module
+        yield settings_file
+
+    finally:
+        os.environ["AIRFLOW__LOGGING__LOGGING_CONFIG_CLASS"] = initial_logging_config
+        sys.path.remove(settings_root)
 
 
 class TestLoggingSettings(unittest.TestCase):

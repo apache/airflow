@@ -72,8 +72,64 @@ class TestExternalTaskSensor(unittest.TestCase):
             ignore_ti_state=True
         )
 
-    def test_external_dag_sensor(self):
+    def test_catch_overlap_allowed_failed_state(self):
+        with self.assertRaises(AirflowException):
+            ExternalTaskSensor(
+                task_id='test_external_task_sensor_check',
+                external_dag_id=TEST_DAG_ID,
+                external_task_id=TEST_TASK_ID,
+                allowed_states=[State.SUCCESS],
+                failed_states=[State.SUCCESS],
+                dag=self.dag
+            )
 
+    def test_external_task_sensor_wrong_failed_states(self):
+        with self.assertRaises(ValueError):
+            ExternalTaskSensor(
+                task_id='test_external_task_sensor_check',
+                external_dag_id=TEST_DAG_ID,
+                external_task_id=TEST_TASK_ID,
+                failed_states=["invalid_state"],
+                dag=self.dag
+            )
+
+    def test_external_task_sensor_failed_states(self):
+        self.test_time_sensor()
+        op = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id=TEST_DAG_ID,
+            external_task_id=TEST_TASK_ID,
+            failed_states=["failed"],
+            dag=self.dag
+        )
+        op.run(
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            ignore_ti_state=True
+        )
+
+    def test_external_task_sensor_failed_states_as_success(self):
+        self.test_time_sensor()
+        op = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id=TEST_DAG_ID,
+            external_task_id=TEST_TASK_ID,
+            allowed_states=["failed"],
+            failed_states=["success"],
+            dag=self.dag
+        )
+        with self.assertRaises(AirflowException) as cm:
+            op.run(
+                start_date=DEFAULT_DATE,
+                end_date=DEFAULT_DATE,
+                ignore_ti_state=True
+            )
+        self.assertEqual(str(cm.exception),
+                         "The external task "
+                         "time_sensor_check in DAG "
+                         "unit_test_dag failed.")
+
+    def test_external_dag_sensor(self):
         other_dag = DAG(
             'other_dag',
             default_args=self.args,

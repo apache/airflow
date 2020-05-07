@@ -77,6 +77,13 @@ UNPARSEABLE_DAG_FILE_CONTENTS = 'airflow DAG'
 TEMP_DAG_FILENAME = "temp_dag.py"
 
 
+@pytest.fixture(scope="class")
+def disable_load_example():
+    with conf_vars({('core', 'load_examples'): 'false'}):
+        yield
+
+
+@pytest.mark.usefixtures("disable_load_example")
 class TestDagFileProcessor(unittest.TestCase):
     def setUp(self):
         clear_db_runs()
@@ -107,17 +114,6 @@ class TestDagFileProcessor(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = DagBag()
-        cls.old_val = None
-        if conf.has_option('core', 'load_examples'):
-            cls.old_val = conf.get('core', 'load_examples')
-        conf.set('core', 'load_examples', 'false')
-
-    @classmethod
-    def tearDownClass(cls):
-        if cls.old_val is not None:
-            conf.set('core', 'load_examples', cls.old_val)
-        else:
-            conf.remove_option('core', 'load_examples')
 
     def test_dag_file_processor_sla_miss_callback(self):
         """
@@ -1110,6 +1106,16 @@ class TestDagFileProcessor(unittest.TestCase):
             ('test_task_on_execute', 'scheduled'),
             ('test_task_on_success', 'scheduled'),
         }, {(ti.task_id, ti.state) for ti in tis})
+        for state, start_date, end_date, duration in [(ti.state, ti.start_date, ti.end_date, ti.duration) for
+                                                      ti in tis]:
+            if state == 'success':
+                self.assertIsNotNone(start_date)
+                self.assertIsNotNone(end_date)
+                self.assertEqual(0.0, duration)
+            else:
+                self.assertIsNone(start_date)
+                self.assertIsNone(end_date)
+                self.assertIsNone(duration)
 
         dag_file_processor.process_file(
             file_path=dag_file, failure_callback_requests=[]
@@ -1125,6 +1131,16 @@ class TestDagFileProcessor(unittest.TestCase):
             ('test_task_on_execute', 'scheduled'),
             ('test_task_on_success', 'scheduled'),
         }, {(ti.task_id, ti.state) for ti in tis})
+        for state, start_date, end_date, duration in [(ti.state, ti.start_date, ti.end_date, ti.duration) for
+                                                      ti in tis]:
+            if state == 'success':
+                self.assertIsNotNone(start_date)
+                self.assertIsNotNone(end_date)
+                self.assertEqual(0.0, duration)
+            else:
+                self.assertIsNone(start_date)
+                self.assertIsNone(end_date)
+                self.assertIsNone(duration)
 
 
 class TestDagFileProcessorQueriesCount(unittest.TestCase):
@@ -1242,6 +1258,7 @@ class TestDagFileProcessorQueriesCount(unittest.TestCase):
             processor.process_file(ELASTIC_DAG_FILE, [])
 
 
+@pytest.mark.usefixtures("disable_load_example")
 class TestSchedulerJob(unittest.TestCase):
 
     def setUp(self):
@@ -1258,17 +1275,6 @@ class TestSchedulerJob(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = DagBag()
-        cls.old_val = None
-        if conf.has_option('core', 'load_examples'):
-            cls.old_val = conf.get('core', 'load_examples')
-        conf.set('core', 'load_examples', 'false')
-
-    @classmethod
-    def tearDownClass(cls):
-        if cls.old_val is not None:
-            conf.set('core', 'load_examples', cls.old_val)
-        else:
-            conf.remove_option('core', 'load_examples')
 
     def test_is_alive(self):
         job = SchedulerJob(None, heartrate=10, state=State.RUNNING)
@@ -2480,6 +2486,31 @@ class TestSchedulerJob(unittest.TestCase):
         session = settings.Session()
         self.assertEqual(
             len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()), 0)
+
+    @conf_vars({("core", "mp_start_method"): "spawn"})
+    def test_scheduler_multiprocessing_with_spawn_method(self):
+        """
+        Test that the scheduler can successfully queue multiple dags in parallel
+        when using "spawn" mode of multiprocessing. (Fork is default on Linux and older OSX)
+        """
+        dag_ids = ['test_start_date_scheduling', 'test_dagrun_states_success']
+        for dag_id in dag_ids:
+            dag = self.dagbag.get_dag(dag_id)
+            dag.clear()
+
+        scheduler = SchedulerJob(dag_ids=dag_ids,
+                                 executor=self.null_exec,
+                                 subdir=os.path.join(
+                                     TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
+                                 num_runs=1)
+
+        scheduler.run()
+
+        # zero tasks ran
+        dag_id = 'test_start_date_scheduling'
+        with create_session() as session:
+            self.assertEqual(
+                session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).count(), 0)
 
     def test_scheduler_verify_pool_full(self):
         """

@@ -31,7 +31,6 @@ from parameterized import param, parameterized
 from sqlalchemy.orm.session import Session
 
 from airflow import models, settings
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import (
     DAG, DagRun, Pool, RenderedTaskInstanceFields, TaskFail, TaskInstance as TI, TaskReschedule, Variable,
@@ -50,6 +49,7 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from tests.models import DEFAULT_DATE
 from tests.test_utils import db
+from tests.test_utils.config import conf_vars
 
 
 class CallbackWrapper:
@@ -1160,6 +1160,10 @@ class TestTaskInstance(unittest.TestCase):
         self.assertIn('test_email_alert', body)
         self.assertIn('Try 1', body)
 
+    @conf_vars({
+        ('email', 'subject_template'): '/subject/path',
+        ('email', 'html_content_template'): '/html_content/path',
+    })
     @patch('airflow.models.taskinstance.send_email')
     def test_email_alert_with_config(self, mock_send_email):
         dag = models.DAG(dag_id='test_failure_email')
@@ -1172,9 +1176,6 @@ class TestTaskInstance(unittest.TestCase):
 
         ti = TI(
             task=task, execution_date=datetime.datetime.now())
-
-        conf.set('email', 'subject_template', '/subject/path')
-        conf.set('email', 'html_content_template', '/html_content/path')
 
         opener = mock_open(read_data='template: {{ti.task_id}}')
         with patch('airflow.models.taskinstance.open', opener, create=True):

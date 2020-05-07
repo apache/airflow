@@ -28,6 +28,7 @@ from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from datetime import datetime, timedelta
 from importlib import import_module
+from multiprocessing.connection import Connection as MultiprocessingConnection
 from typing import Any, Callable, Dict, KeysView, List, NamedTuple, Optional, Tuple
 
 from setproctitle import setproctitle  # pylint: disable=no-name-in-module
@@ -38,7 +39,6 @@ import airflow.models
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
-from airflow.jobs.local_task_job import LocalTaskJob as LJ
 from airflow.models import errors
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.settings import STORE_SERIALIZED_DAGS
@@ -46,6 +46,7 @@ from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.process_utils import kill_child_processes_by_pids, reap_process_group
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
@@ -282,7 +283,7 @@ class FailureCallbackRequest(NamedTuple):
     msg: str
 
 
-class DagFileProcessorAgent(LoggingMixin):
+class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
     """
     Agent for DAG file processing. It is responsible for all DAG parsing
     related jobs in scheduler process. Mainly it can spin up DagFileProcessorManager
@@ -302,6 +303,10 @@ class DagFileProcessorAgent(LoggingMixin):
     :type processor_factory: (str, str, list) -> (AbstractDagFileProcessorProcess)
     :param processor_timeout: How long to wait before timing out a DAG file processor
     :type processor_timeout: timedelta
+    :param dag_ids: if specified, only schedule tasks with these DAG IDs
+    :type dag_ids: list[str]
+    :param pickle_dags: whether to pickle DAGs.
+    :type: pickle_dags: bool
     :param async_mode: Whether to start agent in async mode
     :type async_mode: bool
     """
@@ -311,6 +316,8 @@ class DagFileProcessorAgent(LoggingMixin):
                  max_runs,
                  processor_factory,
                  processor_timeout,
+                 dag_ids,
+                 pickle_dags,
                  async_mode):
         super().__init__()
         self._file_path_queue = []
@@ -318,6 +325,8 @@ class DagFileProcessorAgent(LoggingMixin):
         self._max_runs = max_runs
         self._processor_factory = processor_factory
         self._processor_timeout = processor_timeout
+        self._dag_ids = dag_ids
+        self._pickle_dags = pickle_dags
         self._async_mode = async_mode
         # Map from file path to the processor
         self._processors = {}
@@ -334,8 +343,11 @@ class DagFileProcessorAgent(LoggingMixin):
         """
         Launch DagFileProcessorManager processor and start DAG parsing loop in manager.
         """
-        self._parent_signal_conn, child_signal_conn = multiprocessing.Pipe()
-        self._process = multiprocessing.Process(
+        mp_start_method = self._get_multiprocessing_start_method()
+        context = multiprocessing.get_context(mp_start_method)
+
+        self._parent_signal_conn, child_signal_conn = context.Pipe()
+        self._process = context.Process(
             target=type(self)._run_processor_manager,
             args=(
                 self._dag_directory,
@@ -343,7 +355,9 @@ class DagFileProcessorAgent(LoggingMixin):
                 self._processor_factory,
                 self._processor_timeout,
                 child_signal_conn,
-                self._async_mode,
+                self._dag_ids,
+                self._pickle_dags,
+                self._async_mode
             )
         )
         self._process.start()
@@ -411,6 +425,8 @@ class DagFileProcessorAgent(LoggingMixin):
                                processor_factory,
                                processor_timeout,
                                signal_conn,
+                               dag_ids,
+                               pickle_dags,
                                async_mode):
 
         # Make this process start as a new process group - that makes it easy
@@ -436,6 +452,8 @@ class DagFileProcessorAgent(LoggingMixin):
                                                     processor_factory,
                                                     processor_timeout,
                                                     signal_conn,
+                                                    dag_ids,
+                                                    pickle_dags,
                                                     async_mode)
 
         processor_manager.start()
@@ -546,7 +564,11 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
     :param processor_timeout: How long to wait before timing out a DAG file processor
     :type processor_timeout: timedelta
     :param signal_conn: connection to communicate signal with processor agent.
-    :type signal_conn: multiprocessing.connection.Connection
+    :type signal_conn: MultiprocessingConnection
+    :param dag_ids: if specified, only schedule tasks with these DAG IDs
+    :type dag_ids: list[str]
+    :param pickle_dags: whether to pickle DAGs.
+    :type pickle_dags: bool
     :param async_mode: whether to start the manager in async mode
     :type async_mode: bool
     """
@@ -559,7 +581,9 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                      AbstractDagFileProcessorProcess
                  ],
                  processor_timeout: timedelta,
-                 signal_conn: multiprocessing.connection.Connection,
+                 signal_conn: MultiprocessingConnection,
+                 dag_ids: List[str],
+                 pickle_dags: bool,
                  async_mode: bool = True):
         super().__init__()
         self._file_paths: List[str] = []
@@ -568,6 +592,8 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         self._max_runs = max_runs
         self._processor_factory = processor_factory
         self._signal_conn = signal_conn
+        self._pickle_dags = pickle_dags
+        self._dag_ids = dag_ids
         self._async_mode = async_mode
         self._parsing_start_time: Optional[datetime] = None
 
@@ -579,6 +605,11 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             )
             self._parallelism = 1
 
+        # How often to mark DAGs as inactive and delete their serializations
+        # if they haven't been processed recently.
+        self._dag_cleanup_interval = conf.getint('scheduler', 'dag_cleanup_interval')
+        self._min_serialized_dag_update_interval = conf.getint('core',
+                                                               'min_serialized_dag_update_interval')
         # Parse and schedule each file no faster than this interval.
         self._file_process_interval = conf.getint('scheduler',
                                                   'min_file_process_interval')
@@ -605,6 +636,8 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         self.last_dag_dir_refresh_time = timezone.make_aware(datetime.fromtimestamp(0))
         # Last time stats were printed
         self.last_stat_print_time = timezone.datetime(2000, 1, 1)
+        # Last time we ran DAG cleanup
+        self.last_dag_cleanup_time = timezone.utcnow()
         # TODO: Remove magic number
         self._zombie_query_interval = 10
         # How long to wait before timing out a process to parse a DAG file
@@ -732,6 +765,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                                               all_files_processed,
                                               )
             self._signal_conn.send(dag_parsing_stat)
+            self._cleanup_stale_dags()
 
             if max_runs_reached:
                 self.log.info("Exiting dag parsing loop as all files "
@@ -772,16 +806,6 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 self.clear_nonexistent_import_errors()  # pylint: disable=no-value-for-parameter
             except Exception:  # pylint: disable=broad-except
                 self.log.exception("Error removing old import errors")
-
-            if STORE_SERIALIZED_DAGS:
-                from airflow.models.serialized_dag import SerializedDagModel
-                from airflow.models.dag import DagModel
-                SerializedDagModel.remove_deleted_dags(self._file_paths)
-                DagModel.deactivate_deleted_dags(self._file_paths)
-
-            if self.store_dag_code:
-                from airflow.models.dagcode import DagCode
-                DagCode.remove_deleted_code(self._file_paths)
 
     def _print_stat(self):
         """
@@ -1065,7 +1089,12 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
             file_path = self._file_path_queue.pop(0)
             callback_to_execute_for_file = self._callback_to_execute[file_path]
-            processor = self._processor_factory(file_path, callback_to_execute_for_file)
+            processor = self._processor_factory(
+                file_path,
+                callback_to_execute_for_file,
+                self._dag_ids,
+                self._pickle_dags)
+
             del self._callback_to_execute[file_path]
             Stats.incr('dag_processing.processes')
 
@@ -1135,6 +1164,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         if not self._last_zombie_query_time or \
                 (now - self._last_zombie_query_time).total_seconds() > self._zombie_query_interval:
             # to avoid circular imports
+            from airflow.jobs.local_task_job import LocalTaskJob as LJ
             self.log.info("Finding 'running' jobs without a recent heartbeat")
             TI = airflow.models.TaskInstance
             DM = airflow.models.DagModel
@@ -1164,6 +1194,39 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 self.log.info("Detected zombie job: %s", request)
                 self._add_callback_to_queue(request)
                 Stats.incr('zombies_killed')
+
+    def _cleanup_stale_dags(self):
+        """
+        Clean up any DAGs that we have not loaded recently.  There are
+        two parts to the cleanup:
+          1. Mark DAGs that haven't been seen as inactive
+          2. Delete any DAG serializations for DAGs that haven't been seen
+        """
+
+        if 0 < self._dag_cleanup_interval < (
+                timezone.utcnow() - self.last_dag_cleanup_time).total_seconds():
+            # In the worst case Every DAG should have been processed within
+            # file_process_interval + processor_timeout + min_serialized_dag_update_interval
+            max_processing_time = self._processor_timeout + \
+                timedelta(seconds=self._file_process_interval) + \
+                timedelta(seconds=self._min_serialized_dag_update_interval)
+            min_last_seen_date = timezone.utcnow() - max_processing_time
+
+            self.log.info(
+                "Deactivating DAGs that haven't been touched since %s",
+                min_last_seen_date.isoformat()
+            )
+            airflow.models.DAG.deactivate_stale_dags(min_last_seen_date)
+
+            if STORE_SERIALIZED_DAGS:
+                from airflow.models.serialized_dag import SerializedDagModel
+                SerializedDagModel.remove_stale_dags(min_last_seen_date)
+
+            if self.store_dag_code:
+                from airflow.models.dagcode import DagCode
+                DagCode.remove_unused_code()
+
+            self.last_dag_cleanup_time = timezone.utcnow()
 
     def _kill_timed_out_processors(self):
         """

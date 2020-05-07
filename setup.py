@@ -427,6 +427,7 @@ all_dbs = (cassandra + cloudant + druid + exasol + hdfs + hive + mongo + mssql +
 ############################################################################################################
 devel = [
     'beautifulsoup4~=4.7.1',
+    'blinker',
     'bowler',
     'click==6.7',
     'contextdecorator;python_version<"3.4"',
@@ -444,7 +445,7 @@ devel = [
     'parameterized',
     'paramiko',
     'pre-commit',
-    'pylint~=2.4',
+    'pylint==2.4.4',
     'pysftp',
     'pytest',
     'pytest-cov',
@@ -560,8 +561,6 @@ EXTRAS_REQUIREMENTS = {
 # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile.ci
 #####################################################################################################
 INSTALL_REQUIREMENTS = [
-    'WTforms<2.3.0',
-    # TODO: Remove after https://github.com/dpgaspar/Flask-AppBuilder/issues/1356 is fixed and released.
     'alembic>=1.2, <2.0',
     'argcomplete~=1.10',
     'attrs~=19.3',
@@ -571,8 +570,9 @@ INSTALL_REQUIREMENTS = [
     'croniter>=0.3.17, <0.4',
     'cryptography>=0.9.3',
     'dill>=0.2.2, <0.4',
+    'email_validator>=1.0.5, <2',   # Needed by WTForms (dependency of FAB)
     'flask>=1.1.0, <2.0',
-    'flask-appbuilder~=2.2',
+    'flask-appbuilder==2.3.2',
     'flask-caching>=1.3.3, <1.4.0',
     'flask-login>=0.3, <0.5',
     'flask-swagger==0.2.13',

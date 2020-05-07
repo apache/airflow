@@ -250,7 +250,19 @@ class GoogleBaseHook(BaseHook):
         :return: the number of times each API request should be retried
         :rtype: int
         """
-        return self._get_field('num_retries') or 5
+        field_value = self._get_field('num_retries', default=5)
+        if field_value is None:
+            return 5
+        if isinstance(field_value, str) and field_value.strip() == '':
+            return 5
+        try:
+            return int(field_value)
+        except ValueError:
+            raise AirflowException(
+                f"The num_retries field should be a integer. "
+                f"Current value: \"{field_value}\" (type: {type(field_value)}). "
+                f"Please check the connection configuration."
+            )
 
     @property
     def client_info(self) -> ClientInfo:

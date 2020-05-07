@@ -135,19 +135,24 @@ def load_entrypoint_plugins():
     Load and register plugins AirflowPlugin subclasses from the entrypoints.
     The entry_point group should be 'airflow.plugins'.
     """
+    global import_errors  # pylint: disable=global-statement
     global plugins  # pylint: disable=global-statement
 
     entry_points = pkg_resources.iter_entry_points('airflow.plugins')
 
     log.debug("Loading plugins from entrypoints")
 
-    for entry_point in entry_points:
+    for entry_point in entry_points:  # pylint: disable=too-many-nested-blocks
         log.debug('Importing entry_point plugin %s', entry_point.name)
-        plugin_obj = entry_point.load()
-        if is_valid_plugin(plugin_obj):
-            if callable(getattr(plugin_obj, 'on_load', None)):
-                plugin_obj.on_load()
-                plugins.append(plugin_obj)
+        try:
+            plugin_obj = entry_point.load()
+            if is_valid_plugin(plugin_obj):
+                if callable(getattr(plugin_obj, 'on_load', None)):
+                    plugin_obj.on_load()
+                    plugins.append(plugin_obj)
+        except Exception as e:  # pylint: disable=broad-except
+            log.exception("Failed to import plugin %s", entry_point.name)
+            import_errors[entry_point.module_name] = str(e)
 
 
 def load_plugins_from_plugin_directory():
