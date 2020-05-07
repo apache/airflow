@@ -59,20 +59,20 @@ The structure of 'pod' that is an argument of pod_mutation_hook are as follows.
     args: []
     cmds: []
     configmaps:  []
-    dnspolicy:    
+    dnspolicy:
     Noneenvs:   {}
-    hostnetwork: 
-    image: 
-    image_pull_policy:   
-    IfNotPresentimage_pull_secrets: 
+    hostnetwork:
+    image:
+    image_pull_policy:
+    IfNotPresentimage_pull_secrets:
     init_containers:    []
     labels:   {'airflow_version': '1.10.10', 'kubernetes_pod_operator': 'True'}
-    name:  
-    namespace:    
+    name:
+    namespace:
     node_selectors:  {}
     pod_runtime_info_envs:    []
     ports:    []
-    resources:    
+    resources:
     Request: [cpu: None, memory: None], Limit: [cpu: None, memory: None, gpu: None]
     result:  None
     secrets:    []
@@ -81,4 +81,3 @@ The structure of 'pod' that is an argument of pod_mutation_hook are as follows.
     tolerations: []
     volume_mounts:    []
     volumes:  []
-
