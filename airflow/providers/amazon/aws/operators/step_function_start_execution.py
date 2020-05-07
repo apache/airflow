@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Dict, Optional, Union
+from typing import Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -36,8 +36,8 @@ class StepFunctionStartExecutionOperator(BaseOperator):
     :type state_machine_arn: str
     :param name: The name of the execution.
     :type name: Optional[str]
-    :param input: JSON data input to pass to the State Machine
-    :type input: Union[Dict[str, any], str, None]
+    :param state_machine_input: JSON data input to pass to the State Machine
+    :type state_machine_input: Union[Dict[str, any], str, None]
     :param aws_conn_id: aws connection to uses
     :type aws_conn_id: str
     :param do_xcom_push: if True, execution_arn is pushed to XCom with key execution_arn.
@@ -49,7 +49,7 @@ class StepFunctionStartExecutionOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self, state_machine_arn: str, name: Optional[str] = None,
-                 input: Union[dict, str, None] = None,
+                 state_machine_input: Union[dict, str, None] = None,
                  aws_conn_id='aws_default', region_name=None,
                  *args, **kwargs):
         if kwargs.get('xcom_push') is not None:
@@ -57,7 +57,7 @@ class StepFunctionStartExecutionOperator(BaseOperator):
         super().__init__(*args, **kwargs)
         self.state_machine_arn = state_machine_arn
         self.name = name
-        self.input = input
+        self.input = state_machine_input
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
 
@@ -72,6 +72,6 @@ class StepFunctionStartExecutionOperator(BaseOperator):
         if self.do_xcom_push:
             context['ti'].xcom_push(key='execution_arn', value=execution_arn)
 
-        self.log.info(f'Started State Machine execution for {self.state_machine_arn}: {execution_arn}')
+        self.log.info('Started State Machine execution for %s: %s', self.state_machine_arn, execution_arn)
 
         return execution_arn

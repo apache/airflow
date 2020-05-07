@@ -59,6 +59,6 @@ class StepFunctionGetExecutionOutputOperator(BaseOperator):
         if self.do_xcom_push:
             context['ti'].xcom_push(key='execution_output', value=execution_output)
 
-        self.log.info(f'Got State Machine Execution output for {self.execution_arn}')
+        self.log.info('Got State Machine Execution output for %s', self.execution_arn)
 
         return execution_output

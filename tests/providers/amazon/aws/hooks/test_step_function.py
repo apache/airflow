@@ -43,7 +43,7 @@ class TestStepFunctionHook(unittest.TestCase):
 
         state_machine_arn = state_machine.get('stateMachineArn', None)
 
-        execution_arn = hook.start_execution(state_machine_arn=state_machine_arn, name=None, input={})
+        execution_arn = hook.start_execution(state_machine_arn=state_machine_arn, name=None, state_machine_input={})
 
         assert execution_arn is not None
 
@@ -55,7 +55,7 @@ class TestStepFunctionHook(unittest.TestCase):
 
         state_machine_arn = state_machine.get('stateMachineArn', None)
 
-        execution_arn = hook.start_execution(state_machine_arn=state_machine_arn, name=None, input={})
+        execution_arn = hook.start_execution(state_machine_arn=state_machine_arn, name=None, state_machine_input={})
         response = hook.describe_execution(execution_arn)
 
         assert 'input' in response

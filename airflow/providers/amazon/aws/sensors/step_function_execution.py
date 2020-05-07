@@ -68,13 +68,12 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
         if state in self.INTERMEDIATE_STATES:
             return False
 
-        self.log.info(f'Doing xcom_push of output')
+        self.log.info('Doing xcom_push of output')
         self.xcom_push(context, 'output', output)
         return True
 
     def get_hook(self):
         """Create and return a StepFunctionHook"""
         if not self.hook:
-            self.log.info(f'region_name: {self.region_name}')
             self.hook = StepFunctionHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         return self.hook

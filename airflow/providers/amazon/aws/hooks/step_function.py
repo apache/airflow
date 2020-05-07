@@ -36,7 +36,7 @@ class StepFunctionHook(AwsBaseHook):
         super().__init__(client_type='stepfunctions', *args, **kwargs)
 
     def start_execution(self, state_machine_arn: str, name: Optional[str] = None,
-                        input: Union[dict, str, None] = None):
+                        state_machine_input: Union[dict, str, None] = None):
         """
         Start Execution of the State Machine.
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/stepfunctions.html#SFN.Client.start_execution
@@ -45,8 +45,8 @@ class StepFunctionHook(AwsBaseHook):
         :type state_machine_arn: str
         :param name: The name of the execution.
         :type name: Optional[str]
-        :param input: JSON data input to pass to the State Machine
-        :type input: Union[Dict[str, any], str, None]
+        :param state_machine_input: JSON data input to pass to the State Machine
+        :type state_machine_input: Union[Dict[str, any], str, None]
         :return: Execution ARN
         :rtype: str
         """
@@ -55,13 +55,13 @@ class StepFunctionHook(AwsBaseHook):
         }
         if name is not None:
             execution_args['name'] = name
-        if input is not None:
-            if isinstance(input, str):
-                execution_args['input'] = input
-            elif isinstance(input, dict):
-                execution_args['input'] = json.dumps(input)
+        if state_machine_input is not None:
+            if isinstance(state_machine_input, str):
+                execution_args['input'] = state_machine_input
+            elif isinstance(state_machine_input, dict):
+                execution_args['input'] = json.dumps(state_machine_input)
 
-        self.log.info(f'Executing Step Function State Machine: {state_machine_arn}')
+        self.log.info('Executing Step Function State Machine: %s', state_machine_arn)
 
         response = self.conn.start_execution(**execution_args)
         return response['executionArn'] if 'executionArn' in response else None

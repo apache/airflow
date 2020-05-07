@@ -44,7 +44,7 @@ class TestStepFunctionStartExecutionOperator(unittest.TestCase):
             task_id=TASK_ID,
             state_machine_arn=STATE_MACHINE_ARN,
             name=NAME,
-            input=INPUT,
+            state_machine_input=INPUT,
             aws_conn_id=AWS_CONN_ID,
             region_name=REGION_NAME
         )
@@ -70,7 +70,7 @@ class TestStepFunctionStartExecutionOperator(unittest.TestCase):
             task_id=TASK_ID,
             state_machine_arn=STATE_MACHINE_ARN,
             name=NAME,
-            input=INPUT,
+            state_machine_input=INPUT,
             aws_conn_id=AWS_CONN_ID,
             region_name=REGION_NAME
         )
