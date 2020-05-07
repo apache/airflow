@@ -38,7 +38,7 @@ class TraceQueries:
     """
     Tracking SQL queries in a code block.
 
-    :param display_no: If True, displays the query number.
+    :param display_num: If True, displays the query number.
     :param display_time: If True, displays the query execution time.
     :param display_trace: If True, displays the simplified (one-line) stack trace
     :param display_sql: If True, displays the SQL statements
@@ -48,14 +48,14 @@ class TraceQueries:
     def __init__(
         self,
         *,
-        display_no: bool = True,
+        display_num: bool = True,
         display_time: bool = True,
         display_trace: bool = True,
         display_sql: bool = False,
         display_parameters: bool = True,
         print_fn: Callable[[str], None] = print
     ):
-        self.display_no = display_no
+        self.display_num = display_num
         self.display_time = display_time
         self.display_trace = display_trace
         self.display_sql = display_sql
@@ -80,7 +80,7 @@ class TraceQueries:
         conn.info.setdefault("query_start_time", []).append(time.monotonic())
 
         output_parts = []
-        if self.display_no:
+        if self.display_num:
             output_parts.append(f"{self.query_count:>3}")
 
         if self.display_time:
@@ -96,7 +96,7 @@ class TraceQueries:
             sql_oneline = statement.replace("\n", " ")
             output_parts.append(f"{_pretty_format_sql(sql_oneline)}")
 
-        if self.display_parameters :
+        if self.display_parameters:
             output_parts.append(f"{parameters}")
 
         self.print_fn(" | ".join(output_parts))

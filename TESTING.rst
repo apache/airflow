@@ -909,13 +909,13 @@ You can run tests with SQL statements tracking. To do this, use the ``--trace-sq
 columns to be displayed as an argument. Each query will be displayed on a separate line.
 Supported values:
 
-* ``no`` -  displays the query number;
+* ``num`` -  displays the query number;
 * ``time`` - displays the query execution time;
 * ``trace`` - displays the simplified (one-line) stack trace;
 * ``sql`` - displays the SQL statements;
 * ``parameters`` - display SQL statement parameters.
 
-If you only provide ``no``, then only the final number of queries in the test will be displayed.
+If you only provide ``num``, then only the final number of queries will be displayed.
 
 By default, pytest does not display output for successful tests, if you still want to see them, you must
 pass the ``--capture=no`` option.
@@ -924,8 +924,8 @@ If you run the following command:
 
 .. code-block:: bash
 
-    pytest --debug-sql=no,sql,parameters --capture=no \
-      tests/jobs/test_scheduler_job.py  -k test_process_dags_queries_count_05
+    pytest --debug-sql=num,sql,parameters --capture=no \
+      tests/jobs/test_scheduler_job.py -k test_process_dags_queries_count_05
 
 On the screen you will see database queries for the given test.
 
