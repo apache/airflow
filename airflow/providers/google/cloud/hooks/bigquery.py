@@ -1314,34 +1314,31 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         table = self.get_client(project_id=project_id).get_table(table_ref)
         return {"fields": [s.to_api_repr for s in table.schema]}
 
-    def poll_job_complete(self, job_id: str) -> bool:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def poll_job_complete(
+        self,
+        job_id: str,
+        project_id: Optional[str] = None,
+        location: Optional[str] = None,
+        retry: Retry = DEFAULT_RETRY,
+    ) -> bool:
         """
         Check if jobs completed.
 
         :param job_id: id of the job.
         :type job_id: str
+        :param project_id: Google Cloud Project where the job is running
+        :type project_id: str
+        :param location: location the job is running
+        :type location: str
+        :param retry: How to retry the RPC.
+        :type retry: google.api_core.retry.Retry
         :rtype: bool
         """
-        service = self.get_service()
-        jobs = service.jobs()  # pylint: disable=no-member
-        try:
-            if self.location:
-                job = jobs.get(projectId=self.project_id,
-                               jobId=job_id,
-                               location=self.location).execute(num_retries=self.num_retries)
-            else:
-                job = jobs.get(projectId=self.project_id,
-                               jobId=job_id).execute(num_retries=self.num_retries)
-            if job['status']['state'] == 'DONE':
-                return True
-        except HttpError as err:
-            if err.resp.status in [500, 503]:
-                self.log.info(
-                    '%s: Retryable error while polling job with id %s',
-                    err.resp.status, job_id)
-            else:
-                raise err
-        return False
+        project_id = project_id or self.project_id
+        location = location or self.location
+        job = self.get_client(project_id=project_id, location=location).get_job(job_id=job_id)
+        return job.done(retry=retry)
 
     def cancel_query(self) -> None:
         """

@@ -36,7 +36,7 @@ CREDENTIALS = "bq-credentials"
 DATASET_ID = "bq_dataset"
 TABLE_ID = "bq_table"
 VIEW_ID = 'bq_view'
-JOB_ID = 1234
+JOB_ID = "1234"
 LOCATION = 'europe-north1'
 TABLE_REFERENCE_REPR = {
     'tableId': TABLE_ID,
@@ -550,54 +550,16 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         )
         self.assertEqual(table_list, result)
 
-    @parameterized.expand([
-        ("US", None, True),
-        (None, None, True),
-        (
-            None,
-            HttpError(resp=type('', (object,), {"status": 500, })(), content=b'Internal Server Error'),
-            False
-        ),
-        (
-            None,
-            HttpError(resp=type('', (object,), {"status": 503, })(), content=b'Service Unavailable'),
-            False
-        ),
-    ])
-    @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
-        return_value=(CREDENTIALS, PROJECT_ID)
-    )
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_poll_job_complete_pass(
-        self, location, exception, expected_result, mock_get_service, mock_get_creds_and_proj_id
-    ):
-        method_jobs = mock_get_service.return_value.jobs
-        method_get = method_jobs.return_value.get
-        method_execute = method_get.return_value.execute
-        method_execute.return_value = {"status": {"state": "DONE"}}
-        method_execute.side_effect = exception
-
-        hook_params = {"location": location} if location else {}
-        bq_hook = BigQueryHook(**hook_params)
-
-        result = bq_hook.poll_job_complete(JOB_ID)
-        self.assertEqual(expected_result, result)
-        method_get.assert_called_once_with(projectId=PROJECT_ID, jobId=JOB_ID, **hook_params)
-        assert method_jobs.call_count == 1
-        assert method_get.call_count == 1
-        assert method_execute.call_count == 1
-
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_pull_job_complete_on_fails(self, mock_get_service):
-        method_jobs = mock_get_service.return_value.jobs
-        method_get = method_jobs.return_value.get
-        method_execute = method_get.return_value.execute
-        resp = type('', (object,), {"status": 404, "reason": "Not Found"})()
-        method_execute.side_effect = HttpError(resp=resp, content=b'Not Found')
-
-        with self.assertRaisesRegex(HttpError, "HttpError 404 \"Not Found\""):
-            self.hook.poll_job_complete(JOB_ID)
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_poll_job_complete(self, mock_client):
+        self.hook.poll_job_complete(
+            job_id=JOB_ID,
+            location=LOCATION,
+            project_id=PROJECT_ID
+        )
+        mock_client.assert_called_once_with(location=LOCATION, project_id=PROJECT_ID)
+        mock_client.return_value.get_job.assert_called_once_with(job_id=JOB_ID)
+        mock_client.return_value.get_job.return_value.done.assert_called_once_with(retry=DEFAULT_RETRY)
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.poll_job_complete")
