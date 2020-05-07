@@ -129,13 +129,10 @@ class TestProjectStructure(unittest.TestCase):
 
 class TestGoogleProviderProjectStructure(unittest.TestCase):
     MISSING_EXAMPLE_DAGS = {
-        ('cloud', 'text_to_speech'),
         ('cloud', 'adls_to_gcs'),
         ('cloud', 'sql_to_gcs'),
         ('cloud', 's3_to_gcs'),
-        ('cloud', 'translate_speech'),
         ('cloud', 'bigquery_to_mysql'),
-        ('cloud', 'speech_to_text'),
         ('cloud', 'cassandra_to_gcs'),
         ('cloud', 'mysql_to_gcs'),
         ('cloud', 'mssql_to_gcs'),
@@ -162,11 +159,8 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         'mysql_to_gcs',
         'postgres_to_gcs',
         's3_to_gcs',
-        'speech_to_text',
         'sql_to_gcs',
         'tasks',
-        'text_to_speech',
-        'translate_speech'
     }
 
     def test_example_dags(self):
