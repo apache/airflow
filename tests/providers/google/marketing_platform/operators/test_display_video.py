@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from typing import Optional
 from unittest import TestCase, mock
 
 from airflow.providers.google.marketing_platform.operators.display_video import (
@@ -26,7 +26,7 @@ from airflow.providers.google.marketing_platform.operators.display_video import 
 
 API_VERSION = "api_version"
 GCP_CONN_ID = "google_cloud_default"
-DELEGATE_TO = None
+DELEGATE_TO: Optional[str] = None
 
 
 class TestGoogleDisplayVideo360CreateReportOperator(TestCase):

@@ -33,7 +33,7 @@ from airflow import settings
 
 log = logging.getLogger(__name__)
 
-import_errors = {}
+import_errors: Dict[str, str] = {}
 
 plugins = None  # type: Optional[List[AirflowPlugin]]
 
