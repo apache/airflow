@@ -1896,14 +1896,13 @@ class DagModel(Base):
             for dag_model in dag_models:
                 dag_model.is_paused = is_paused
             if is_paused:
-                send_email(
-                    self.default_args['email'],
-                    'Airflow DAG {} Paused'.format(self.dag_id),
-                    (
-                        'This is a notification that Airflow DAG: <b>{}</b> has been paused.<br>'
-                        'If this was intentional, feel free to ignore this email.'
-                    ).format(self.dag_id)
-                )
+                to_email_address = self.default_args['email']
+                email_subject = 'Airflow DAG {} Paused'.format(self.dag_id)
+                email_content = (
+                    'This is a notification that Airflow DAG: <b>{}</b> has been paused.<br>'
+                    'If this was intentional, feel free to ignore this email.'
+                ).format(self.dag_id)
+                send_email(to_email_address, email_subject, email_content)
             session.commit()
         except Exception:
             session.rollback()
