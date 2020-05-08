@@ -108,7 +108,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
         self.assertEqual(csargs, (mock_obj, ))
         self.assertEqual(cskwargs['labels'], {'name': 'airflow__adhoc_airflow__unittest'})
         self.assertTrue(cskwargs['name'].startswith('unittest__af_'))
-        self.assertEqual(client_mock.tasks.call_count, 5)
+        self.assertEqual(client_mock.tasks.call_count, 4)
         client_mock.remove_service.assert_called_once_with('some_id')
 
     @mock.patch('airflow.providers.docker.operators.docker.APIClient')

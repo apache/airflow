@@ -143,13 +143,17 @@ class DockerSwarmOperator(DockerOperator):
             self._stream_logs_to_output()
 
         self._block_until_service_terminated()
-        self.log.info('Service status before exiting: %s',
-                      self._service_status())
+
+        # Cache status and service to access it after removing the service
+        status = self._service_status()
+        service_repr = repr(self.service)
+        self.log.info('Service status before exiting: %s', status)
 
         if self.auto_remove:
             self.cli.remove_service(self.service['ID'])
-        if self._service_status() == 'failed':
-            raise AirflowException('Service failed: ' + repr(self.service))
+
+        if status == 'failed':
+            raise AirflowException('Service failed: ' + service_repr)
 
     def _create_service(self):
         return self.cli.create_service(
