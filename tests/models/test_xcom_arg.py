@@ -16,10 +16,13 @@
 # under the License.
 from datetime import datetime, timedelta
 
+import pytest
+
 from airflow import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
+from tests.test_utils.config import conf_vars
 
 DEFAULT_ARGS = {
     "owner": "test",
@@ -33,7 +36,8 @@ VALUE = 42
 
 
 def assert_is_value(num: int):
-    assert num == VALUE
+    if num != VALUE:
+        raise Exception("The test has failed")
 
 
 def build_python_op():
@@ -112,7 +116,9 @@ class TestXComArgBuild:
         assert actual_new_key.key == "another_key_2"
 
 
+@pytest.mark.system("core")
 class TestXComArgRuntime:
+    @conf_vars({("core", "executor"): "DebugExecutor"})
     def test_xcom_pass_to_op(self):
         with DAG(dag_id="test_xcom_pass_to_op", default_args=DEFAULT_ARGS) as dag:
             operator = PythonOperator(
@@ -127,8 +133,9 @@ class TestXComArgRuntime:
                 task_id="assert_is_value_1",
             )
             operator >> operator2
-        dag.run(local=True)
+        dag.run()
 
+    @conf_vars({("core", "executor"): "DebugExecutor"})
     def test_xcom_push_and_pass(self):
         def push_xcom_value(key, value, **context):
             ti = context["task_instance"]
@@ -147,4 +154,4 @@ class TestXComArgRuntime:
                 op_args=[xarg],
             )
             op1 >> op2
-        dag.run(local=True)
+        dag.run()
