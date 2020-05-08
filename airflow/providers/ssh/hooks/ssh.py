@@ -83,6 +83,7 @@ class SSHHook(BaseHook):
         self.no_host_key_check = True
         self.allow_host_key_change = False
         self.host_proxy = None
+        self.look_for_keys = True
 
         # Placeholder for deprecated __enter__
         self.client = None
@@ -121,6 +122,10 @@ class SSHHook(BaseHook):
                         and\
                         str(extra_options["allow_host_key_change"]).lower() == 'true':
                     self.allow_host_key_change = True
+                if "look_for_keys" in extra_options\
+                        and\
+                        str(extra_options["look_for_keys"]).lower() == 'false':
+                    self.look_for_keys = False
 
         if self.pkey and self.key_file:
             raise AirflowException(
@@ -178,7 +183,8 @@ class SSHHook(BaseHook):
             timeout=self.timeout,
             compress=self.compress,
             port=self.port,
-            sock=self.host_proxy
+            sock=self.host_proxy,
+            look_for_keys=self.look_for_keys
         )
 
         if self.password:

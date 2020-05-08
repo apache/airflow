@@ -107,7 +107,8 @@ class TestSSHHook(unittest.TestCase):
                 timeout=10,
                 compress=True,
                 port='port',
-                sock=None
+                sock=None,
+                look_for_keys=True
             )
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
@@ -126,7 +127,8 @@ class TestSSHHook(unittest.TestCase):
                 timeout=10,
                 compress=True,
                 port='port',
-                sock=None
+                sock=None,
+                look_for_keys=True
             )
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder')
@@ -247,5 +249,6 @@ class TestSSHHook(unittest.TestCase):
                 timeout=10,
                 compress=True,
                 port='port',
-                sock=None
+                sock=None,
+                look_for_keys=True
             )
