@@ -167,16 +167,23 @@ def make_user_defined_macro_filter_dag():
     return {dag.dag_id: dag}
 
 
-def collect_dags():
+def collect_dags(dag_folder=None):
     """Collects DAGs to test."""
     dags = {}
     dags.update(make_simple_dag())
     dags.update(make_user_defined_macro_filter_dag())
-    patterns = [
-        "airflow/example_dags",
-        "airflow/providers/*/example_dags",
-        "airflow/providers/*/*/example_dags",
-    ]
+
+    if dag_folder:
+        if isinstance(dag_folder, (list, tuple)):
+            patterns = dag_folder
+        else:
+            patterns = [dag_folder]
+    else:
+        patterns = [
+            "airflow/example_dags",
+            "airflow/providers/*/example_dags",
+            "airflow/providers/*/*/example_dags",
+        ]
     for pattern in patterns:
         for directory in glob(f"{ROOT_FOLDER}/{pattern}"):
             dags.update(make_example_dags(directory))
@@ -186,9 +193,9 @@ def collect_dags():
     return dags
 
 
-def serialize_subprocess(queue):
+def serialize_subprocess(queue, dag_folder):
     """Validate pickle in a subprocess."""
-    dags = collect_dags()
+    dags = collect_dags(dag_folder)
     for dag in dags.values():
         queue.put(SerializedDAG.to_json(dag))
     queue.put(None)
@@ -247,11 +254,15 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         assert sorted_serialized_dag(ground_truth_dag) == sorted_serialized_dag(json_dag)
 
-    def test_deserialization(self):
+    def test_deserialization_across_process(self):
         """A serialized DAG can be deserialized in another process."""
+
+        # Since we need to parse the dags twice here (once in the subprocess,
+        # and once here to get a DAG to compare to) we don't want to load all
+        # dags.
         queue = multiprocessing.Queue()
         proc = multiprocessing.Process(
-            target=serialize_subprocess, args=(queue,))
+            target=serialize_subprocess, args=(queue, "airflow/example_dags"))
         proc.daemon = True
         proc.start()
 
@@ -264,12 +275,23 @@ class TestStringifiedDAGs(unittest.TestCase):
             self.assertTrue(isinstance(dag, DAG))
             stringified_dags[dag.dag_id] = dag
 
-        dags = collect_dags()
-        self.assertTrue(set(stringified_dags.keys()) == set(dags.keys()))
+        dags = collect_dags("airflow/example_dags")
+        assert set(stringified_dags.keys()) == set(dags.keys())
 
         # Verify deserialized DAGs.
         for dag_id in stringified_dags:
             self.validate_deserialized_dag(stringified_dags[dag_id], dags[dag_id])
+
+    def test_roundtrip_provider_example_dags(self):
+        dags = collect_dags([
+            "airflow/providers/*/example_dags",
+            "airflow/providers/*/*/example_dags",
+        ])
+
+        # Verify deserialized DAGs.
+        for dag in dags.values():
+            serialized_dag = SerializedDAG.from_json(SerializedDAG.to_json(dag))
+            self.validate_deserialized_dag(serialized_dag, dag)
 
     def validate_deserialized_dag(self, serialized_dag, dag):
         """
@@ -284,7 +306,8 @@ class TestStringifiedDAGs(unittest.TestCase):
             'default_args',
         }
         for field in fields_to_check:
-            assert getattr(serialized_dag, field) == getattr(dag, field), f'{field} matches'
+            assert getattr(serialized_dag, field) == getattr(dag, field), \
+                f'{dag.dag_id}.{field} does not match'
 
         if dag.default_args:
             for k, v in dag.default_args.items():
@@ -292,7 +315,8 @@ class TestStringifiedDAGs(unittest.TestCase):
                     # Check we stored _someting_.
                     assert k in serialized_dag.default_args
                 else:
-                    assert v == serialized_dag.default_args[k], f'default_args[{k}] matches'
+                    assert v == serialized_dag.default_args[k], \
+                        f'{dag.dag_id}.default_args[{k}] does not match'
 
         assert serialized_dag.timezone.name == dag.timezone.name
 
@@ -326,7 +350,8 @@ class TestStringifiedDAGs(unittest.TestCase):
         assert serialized_task.task_type == task.task_type
 
         for field in fields_to_check:
-            assert getattr(serialized_task, field) == getattr(task, field), f'{field} matches'
+            assert getattr(serialized_task, field) == getattr(task, field), \
+                f'{task.dag.dag_id}.{task.task_id}.{field} does not match'
 
         # Check that for Deserialised task, task.subdag is None for all other Operators
         # except for the SubDagOperator where task.subdag is an instance of DAG object
