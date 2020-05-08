@@ -39,13 +39,14 @@ class KafkaSensor(BaseSensorOperator):
     @apply_defaults
     def __init__(self, topic, host=DEFAULT_HOST, port=DEFAULT_PORT, *args, **kwargs):
         """
-        Initialize the sensor, the connection establish
-        is put off to it's first time usage.
-        :param conn_id:
-            the kafka broker connection whom this sensor
-            subscripts against.
+            Initialize the sensor, the connection establish
+            is put off to it's first time usage.
+
         :param topic:
-            the subscribed topic
+        :param host:
+        :param port:
+        :param args:
+        :param kwargs:
         """
         self.topic = topic
         self.host = host
@@ -55,6 +56,7 @@ class KafkaSensor(BaseSensorOperator):
     @cached_property
     def hook(self):
         """
+            Returns a Kafka Consumer Hook
 
         :return:
         KafkaConsumerHook
@@ -62,13 +64,19 @@ class KafkaSensor(BaseSensorOperator):
         return KafkaConsumerHook(self.topic, self.host, self.port)
 
     def poke(self, context):
+        """
+            Checks to see if messages exist on this topic/partition.
+
+        :param context:
+        :return:
+        """
         logging.info(
             'Poking topic: %s, using hook: %s',
             str(self.topic), str(self.hook))
 
         messages = self.hook.get_messages()
 
-        if not messages:
+        if messages:
             logging.info(
                 'Got messages during poking: %s', str(messages))
             return messages
