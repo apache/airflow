@@ -58,7 +58,7 @@ class KafkaProducerHook(BaseHook):
             )
         return self.producer
 
-    def send_message(self, topic, value=None, key=None, partition=None, timestamp_ms=None) -> FutureRecordMetadata:
+    def send_message(self, topic, value=None, key=None, partition=None, timestamp_ms=None):
         """
             Sends a message on the specified topic and partition.  Keyed messages will be sent in order.
 
