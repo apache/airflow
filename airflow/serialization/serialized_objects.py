@@ -436,8 +436,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             :py:meth:`BaseSerialization._value_is_hardcoded_default`
         """
 
-        def _is_default():
-            nonlocal ctor_params, attrname, value
+        def _is_default(ctor_params, attrname, value):
+            if attrname not in ctor_params:
+                return False
             ctor_default = ctor_params[attrname].default
 
             # Also returns True if the value is an empty list or empty dict.
@@ -448,7 +449,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         for typ in type(instance).mro():
             ctor_params = cls.__constructor_params_for_subclass(typ)
 
-            if attrname in ctor_params and _is_default():
+            if _is_default(ctor_params, attrname, value):
                 if typ is BaseOperator:
                     return True
                 # For added fun, if a subclass sets a different default value to the
