@@ -1435,10 +1435,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         }
         # pylint: disable=protected-access
         supported_jobs = {
-           LoadJob._JOB_TYPE: LoadJob,
-           CopyJob._JOB_TYPE: CopyJob,
-           ExtractJob._JOB_TYPE: ExtractJob,
-           QueryJob._JOB_TYPE: QueryJob,
+            LoadJob._JOB_TYPE: LoadJob,
+            CopyJob._JOB_TYPE: CopyJob,
+            ExtractJob._JOB_TYPE: ExtractJob,
+            QueryJob._JOB_TYPE: QueryJob,
         }
         # pylint: enable=protected-access
         job = None
@@ -1577,6 +1577,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 }
         :type encryption_configuration: dict
         """
+        warnings.warn(
+            "This method is deprecated. Please use `BigQueryHook.insert_job` method.",
+            DeprecationWarning
+        )
+
         if not self.project_id:
             raise ValueError("The project_id should be set")
 
@@ -1708,7 +1713,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if allow_jagged_rows:
             configuration['load']['allowJaggedRows'] = allow_jagged_rows
 
-        return self.run_with_configuration(configuration)
+        self.running_job_id = self.insert_job(configuration=configuration, project_id=self.project_id)
+        return self.running_job_id
 
     def run_copy(self,  # pylint: disable=invalid-name
                  source_project_dataset_tables: Union[List, str],
@@ -1750,6 +1756,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 }
         :type encryption_configuration: dict
         """
+        warnings.warn(
+            "This method is deprecated. Please use `BigQueryHook.insert_job` method.",
+            DeprecationWarning
+        )
         if not self.project_id:
             raise ValueError("The project_id should be set")
 
@@ -1797,7 +1807,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 "destinationEncryptionConfiguration"
             ] = encryption_configuration
 
-        return self.run_with_configuration(configuration)
+        self.running_job_id = self.insert_job(configuration=configuration, project_id=self.project_id)
+        return self.running_job_id
 
     def run_extract(
             self,
@@ -1836,6 +1847,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             passed to BigQuery
         :type labels: dict
         """
+        warnings.warn(
+            "This method is deprecated. Please use `BigQueryHook.insert_job` method.",
+            DeprecationWarning
+        )
         if not self.project_id:
             raise ValueError("The project_id should be set")
 
@@ -1867,7 +1882,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             configuration['extract']['fieldDelimiter'] = field_delimiter
             configuration['extract']['printHeader'] = print_header
 
-        return self.run_with_configuration(configuration)
+        self.running_job_id = self.insert_job(configuration=configuration, project_id=self.project_id)
+        return self.running_job_id
 
     # pylint: disable=too-many-locals,too-many-arguments, too-many-branches
     def run_query(self,
@@ -1969,6 +1985,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 }
         :type encryption_configuration: dict
         """
+        warnings.warn(
+            "This method is deprecated. Please use `BigQueryHook.insert_job` method.",
+            DeprecationWarning
+        )
         if not self.project_id:
             raise ValueError("The project_id should be set")
 
@@ -2107,7 +2127,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 "destinationEncryptionConfiguration"
             ] = encryption_configuration
 
-        return self.run_with_configuration(configuration)
+        self.running_job_id = self.insert_job(configuration=configuration, project_id=self.project_id)
+        return self.running_job_id
 
 
 class BigQueryPandasConnector(GbqConnector):
