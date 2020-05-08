@@ -42,7 +42,7 @@ class AwsGlueJobOperator(BaseOperator):
     :param script_args: etl script arguments and AWS Glue arguments
     :type script_args: dict
     :param retry_limit: The maximum number of times to retry this job if it fails
-    :type retry_limit:Optional[int]
+    :type retry_limit: Optional[int]
     :param num_of_dpus: Number of AWS Glue DPUs to allocate to this Job.
     :type num_of_dpus: int
     :param region_name: aws region name (example: us-east-1)
