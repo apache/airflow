@@ -967,7 +967,7 @@ Other operators and hooks
      - Operator
      - Hook
 
-   * - :doc:`How to use <howto/operator/gcp/translate-speech>`
+   * - :doc:`How to use <howto/operator/gcp/translate_speech>`
      - :mod:`airflow.providers.google.cloud.operators.translate_speech`
      -
 
