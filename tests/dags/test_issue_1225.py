@@ -47,7 +47,7 @@ dag1_task1 = DummyOperator(
     dag=dag1,
     pool='test_backfill_pooled_task_pool',)
 
-# dag2 has been moved to test_past_dagrun_deps.py
+# dag2 has been moved to test_prev_dagrun_dep.py
 
 # DAG tests that a Dag run that doesn't complete is marked failed
 dag3 = DAG(dag_id='test_dagrun_states_fail', default_args=default_args)
