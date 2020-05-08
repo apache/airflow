@@ -365,7 +365,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         dag.resolve_template_files()
         dag.last_loaded = datetime.now()
 
-        for task in dag.tasks:
+        for task in dag.tasks:  # type: BaseOperator
             settings.policy(task)
 
         for subdag in dag.subdags:
@@ -1870,7 +1870,7 @@ class SkipMixin(object):
                 processed_tis_repr.add(repr(downstream_task))
         for downstream_task in all_downstream:
             all_downstream.extend(self.find_all_downstream_skippable(downstream_task, processed_tis_repr))
-            
+
         return all_downstream
 
 
@@ -4492,6 +4492,7 @@ class DagRun(Base):
         # check for removed or restored tasks
         task_ids = []
         for ti in tis_in_db:
+            settings.task_instance_policy(ti)
             task_ids.append(ti.task_id)
             task_from_dag = None
             try:
@@ -4518,6 +4519,7 @@ class DagRun(Base):
 
             if task.task_id not in task_ids:
                 ti = TaskInstance(task, self.execution_date)
+                settings.task_instance_policy(ti)
                 session.add(ti)
 
         session.commit()

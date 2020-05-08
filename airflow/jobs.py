@@ -45,7 +45,7 @@ from tqdm import tqdm
 from airflow import executors, models, settings
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagRun
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.settings import Stats
 from airflow.task_runner import get_task_runner
 from airflow.settings import Stats, PROGRESS_BAR_FORMAT

@@ -98,19 +98,27 @@ engine = None
 Session = None
 
 
-def policy(task_instance):
+def task_instance_policy(task_instance):
+    # type: (TaskInstance) -> None
     """
-    This policy setting allows altering task instances right before they
-    are executed. It allows administrator to rewire some task parameters.
+    This policy setting allows altering task instance right before they
+    are queued by the scheduler.
 
-    Note that the ``TaskInstance`` object has an attribute ``task`` pointing
-    to its related task object, that in turns has a reference to the DAG
-    object. So you can use the attributes of all of these to define your
-    policy.
+    Note: this policy is not applied if the task is executed via
+    airflow {backfill,test}
+    """
+    pass
+
+
+def policy(operator):
+    # type: (BaseOperator) -> None
+    """
+    This policy setting allows altering operator during DagBag loading.
+    It allows administrator to rewire some operator parameters.
 
     To define policy, add a ``airflow_local_settings`` module
     to your PYTHONPATH that defines this ``policy`` function. It receives
-    a ``TaskInstance`` object and can alter it where needed.
+    a ``BaseOperator`` object and can alter it where needed.
 
     Here are a few examples of how this can be useful:
 

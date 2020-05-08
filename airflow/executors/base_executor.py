@@ -15,7 +15,7 @@
 from builtins import range
 
 from airflow import configuration
-from airflow.settings import Stats
+from airflow.settings import Stats, task_instance_policy
 from airflow.utils.state import State
 from airflow.utils.logging import LoggingMixin
 
@@ -75,7 +75,7 @@ class BaseExecutor(LoggingMixin):
             task_instance,
             command,
             priority=task_instance.task.priority_weight_total,
-            queue=task_instance.task.queue)
+            queue=task_instance.queue)
 
     def has_task(self, task_instance):
         """
