@@ -59,7 +59,7 @@ def get_curve_mode(measure_result: str) -> int:
 
 
 def generate_bolt_number(controller_name, program, batch_count=None):
-    if not controller_name or not program or batch_count is None or batch_count is '':
+    if not controller_name or program is None or batch_count is None or batch_count is '':
         raise BaseException(u'{}参数未正确定义'.format('generateBoltNumber'))
     if not isinstance(program, str):
         program = str(program)

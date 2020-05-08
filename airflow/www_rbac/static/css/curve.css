@@ -45,7 +45,8 @@ legend {
 #result-container {
   --width: 25%;
   --height: 100%;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .base-info-item {
@@ -64,15 +65,13 @@ legend {
 }
 
 .base-info-content {
+  --content-height: calc(var(--font-size) * 2);
   text-align: center;
-  /*line-height: calc(var(--font-size) * 2);*/
-  font-size: calc(var(--font-size) * 2);
+  line-height: var(--content-height);
+  font-size: var(--content-height);
+  height: var(--content-height);
   position: relative;
-  word-break: break-all;
-    top: calc(50% - var(--title-font-size) / 2 - var(--padding-width));
-  max-width: 500px;
-  overflow: visible;
-  transform: translateY(-50%);
+  top: calc(50% - var(--content-height) / 2 - var(--title-font-size) / 2 - var(--padding-width));
 }
 
 #actions-container {
@@ -127,6 +126,12 @@ button.margin {
   height: calc(var(--height) - var(--margin-width) * 2 - 2px) !important;
 }
 
+#result_table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+
 .result-content-row {
   min-width: 100%;
   height: 30px;
@@ -134,5 +139,9 @@ button.margin {
 }
 
 .result-content-item {
+  white-space: normal;
+  word-wrap: break-word;
+  word-break: break-all;
+  /*min-height: 30px;*/
 
 }

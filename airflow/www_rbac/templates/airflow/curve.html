@@ -36,11 +36,14 @@
   </div>
   <div style="height:80%" class="flex">
     <div id="result-container" class="card">
-      <table style="width:100%;" id="result_detail">
+      <table id="result_table">
+        <thead>
         <tr class="result-content-row">
           <th>Key</th>
           <th>Value</th>
         </tr>
+        </thead>
+        <tbody id="result_detail"></tbody>
       </table>
     </div>
     <div id="echarts-container" style="flex:1" class="card flex-column">
@@ -179,12 +182,33 @@
     return $tr;
   }
 
+  function parseResultErrorCode(code) {
+    if (!code) {
+      return '';
+    }
+    if (typeof code !== 'string') {
+      return code || '';
+    }
+    if (/[^0-1]/.test(code)) {
+      return code;
+    }
+    const codeArr = code.split('').reverse();
+    const messageArr = [];
+    codeArr.forEach((val, idx) => {
+      if (val === '0') {
+        return;
+      }
+      messageArr.push(resultErrs[`${idx + 1}`] || '');
+    });
+    return messageArr;
+  }
+
   function renderResultDetail() {
     const { measure_result: measureResult, error_code: errorCode, ...rest } = result;
     const $rows = [];
     const isNOK = measureResult.toUpperCase() === 'NOK';
     $rows.push(renderResultTableRow('拧紧结果', measureResult, isNOK));
-    $rows.push(renderResultTableRow('错误代码', resultErrs[errorCode] || errorCode, isNOK));
+    $rows.push(renderResultTableRow('错误代码', parseResultErrorCode(errorCode), isNOK));
     Object.keys(rest).forEach((k) => {
       $rows.push(renderResultTableRow(k, rest[k]));
     });
