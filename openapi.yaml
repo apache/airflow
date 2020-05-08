@@ -769,7 +769,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /dags/{dag_id}/taskInstances/{task_id}/{execution_date}/xcomEntry:
+  /dags/{dag_id}/taskInstances/{task_id}/{execution_date}/xcomEntries:
     parameters:
       - $ref: '#/components/parameters/DAGID'
       - $ref: '#/components/parameters/TaskID'
@@ -823,7 +823,7 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-  /dags/{dag_id}/taskInstances/{task_id}/{execution_date}/xcomValues/{key}:
+  /dags/{dag_id}/taskInstances/{task_id}/{execution_date}/xcomEntries/{key}:
     parameters:
       - $ref: '#/components/parameters/DAGID'
       - $ref: '#/components/parameters/TaskID'
