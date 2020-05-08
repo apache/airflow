@@ -1,0 +1,52 @@
+################################
+## Pgbouncer NetworkPolicy
+#################################
+{{- if and .Values.pgbouncer.enabled .Values.networkPolicies.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-pgbouncer-policy
+  labels:
+    tier: airflow
+    component: airflow-pgbouncer-policy
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+  podSelector:
+    matchLabels:
+      tier: airflow
+      component: pgbouncer
+      release: {{ .Release.Name }}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          tier: airflow
+          release: {{ .Release.Name }}
+{{- if .Values.workers.keda.enabled }}
+{{- if .Values.workers.keda.namespaceLabels }}
+    - namespaceSelector:
+       matchLabels:
+{{ toYaml .Values.workers.keda.namespaceLabels | indent 10}}
+      podSelector:
+{{- else }}
+    - podSelector:
+{{- end }}
+        matchLabels:
+          app: keda-operator
+{{- end}}
+{{- if .Values.pgbouncer.extraNetworkPolicies}}
+{{ toYaml .Values.pgbouncer.extraNetworkPolicies | indent 4}}
+{{- end}}
+    ports:
+    - protocol: TCP
+      port: {{ .Values.ports.pgbouncer }}
+    - protocol: TCP
+      port: {{ .Values.ports.pgbouncerScrape }}
+{{- end }}

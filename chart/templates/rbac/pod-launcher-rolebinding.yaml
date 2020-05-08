@@ -1,0 +1,34 @@
+################################
+## Airflow Pod Launcher Role Binding
+#################################
+{{- if and .Values.rbacEnabled .Values.allowPodLaunching }}
+{{- $grantScheduler := or (eq .Values.executor "LocalExecutor") (eq .Values.executor "SequentialExecutor") (eq .Values.executor "KubernetesExecutor") }}
+{{- $grantWorker := or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "KubernetesExecutor") }}
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ .Release.Name }}-pod-launcher-rolebinding
+  labels:
+    tier: airflow
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ .Release.Name }}-pod-launcher-role
+subjects:
+{{- if $grantScheduler }}
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-scheduler-serviceaccount
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- if $grantWorker }}
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-worker-serviceaccount
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,85 @@
+################################
+## Airflow Flower Deployment
+#################################
+{{- if eq .Values.executor "CeleryExecutor" }}
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: {{ .Release.Name }}-flower
+  labels:
+    tier: airflow
+    component: flower
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+  annotations:
+    checksum/airflow-config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      tier: airflow
+      component: flower
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        tier: airflow
+        component: flower
+        release: {{ .Release.Name }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 8 }}
+{{- end }}
+    spec:
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+      affinity:
+{{ toYaml .Values.affinity | indent 8 }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 8 }}
+      restartPolicy: Always
+      securityContext:
+        runAsUser: {{ .Values.uid }}
+      {{- if or .Values.registry.secretName .Values.registry.connection }}
+      imagePullSecrets:
+        - name: {{ template "registry_secret" . }}
+      {{- end }}
+      containers:
+        - name: flower
+          image: {{ template "flower_image" . }}
+          imagePullPolicy: {{ .Values.images.flower.pullPolicy }}
+          args: ["airflow", "flower"]
+          resources:
+{{ toYaml .Values.flower.resources | indent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: {{ template "airflow_config_path" . }}
+              subPath: airflow.cfg
+              readOnly: true
+          ports:
+            - name: flower-ui
+              containerPort: {{ .Values.ports.flowerUI }}
+          livenessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /
+              port: {{ .Values.ports.flowerUI }}
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          readinessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /
+              port: {{ .Values.ports.flowerUI }}
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          env:
+          {{- include "standard_airflow_environment" . | indent 10 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ template "airflow_config" . }}
+{{- end }}

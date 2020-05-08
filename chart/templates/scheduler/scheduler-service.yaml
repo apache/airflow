@@ -1,0 +1,29 @@
+################################
+## Airflow Scheduler Service
+#################################
+{{- if (or (eq .Values.executor "LocalExecutor") (eq .Values.executor "SequentialExecutor")) }}
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ .Release.Name }}-scheduler
+  labels:
+    tier: airflow
+    component: scheduler
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+  clusterIP: None
+  selector:
+    tier: airflow
+    component: scheduler
+    release: {{ .Release.Name }}
+  ports:
+    - name: task-logs
+      protocol: TCP
+      port: {{ .Values.ports.workerLogs }}
+      targetPort: {{ .Values.ports.workerLogs }}
+{{- end }}

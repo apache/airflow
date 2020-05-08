@@ -1,0 +1,36 @@
+################################
+## Airflow Worker NetworkPolicy
+#################################
+{{- if (and .Values.networkPolicies.enabled (eq .Values.executor "CeleryExecutor")) }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-worker-policy
+  labels:
+    tier: airflow
+    component: airflow-worker-policy
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+  podSelector:
+    matchLabels:
+      tier: airflow
+      component: worker
+      release: {{ .Release.Name }}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          tier: airflow
+          release: {{ .Release.Name }}
+          component: webserver
+    ports:
+    - protocol: TCP
+      port: {{ .Values.ports.workerLogs }}
+{{- end }}

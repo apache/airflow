@@ -1,0 +1,46 @@
+################################
+## Airflow Redis NetworkPolicy
+#################################
+{{- if (and .Values.networkPolicies.enabled (eq .Values.executor "CeleryExecutor")) }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-redis-policy
+  labels:
+    tier: airflow
+    component: redis-policy
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+  podSelector:
+    matchLabels:
+      tier: airflow
+      component: redis
+      release: {{ .Release.Name }}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          tier: airflow
+          component: worker
+          release: {{ .Release.Name }}
+    - podSelector:
+        matchLabels:
+          tier: airflow
+          component: scheduler
+          release: {{ .Release.Name }}
+    - podSelector:
+        matchLabels:
+          tier: airflow
+          component: flower
+          release: {{ .Release.Name }}
+    ports:
+    - protocol: TCP
+      port: {{ .Values.ports.redisDB }}
+{{- end }}

@@ -1,0 +1,26 @@
+################################
+## Airflow Cleanup Role Binding
+#################################
+{{- if and .Values.rbacEnabled .Values.cleanup.enabled }}
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ .Release.Name }}-cleanup-rolebinding
+  labels:
+    tier: airflow
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ .Release.Name }}-cleanup-role
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-cleanup-serviceaccount
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+

@@ -1,0 +1,21 @@
+################################
+## Airflow Namespace ResourceQuota
+#################################
+{{- if .Values.quotas }}
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{ .Release.Name }}-resource-quota
+  labels:
+    tier: resources
+    component: resourcequota
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+  hard:
+{{ toYaml .Values.quotas | indent 4 }}
+{{- end }}

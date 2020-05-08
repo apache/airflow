@@ -1,0 +1,34 @@
+################################
+## Airflow Flower NetworkPolicy
+#################################
+{{- if (and .Values.networkPolicies.enabled (eq .Values.executor "CeleryExecutor")) }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-flower-policy
+  labels:
+    tier: airflow
+    component: airflow-flower-policy
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+  podSelector:
+    matchLabels:
+      tier: airflow
+      component: flower
+      release: {{ .Release.Name }}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+{{- if .Values.flower.extraNetworkPolicies }}
+{{ toYaml .Values.flower.extraNetworkPolicies | indent 4 }}
+{{- end }}
+    ports:
+    - protocol: TCP
+      port: {{ .Values.ports.flowerUI }}
+{{- end }}

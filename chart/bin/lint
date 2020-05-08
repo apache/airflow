@@ -1,0 +1,12 @@
+#!/bin/sh
+
+set -e
+
+# We want the repo name to be airflow-chart
+# but the chart name is 'airflow'. For this reason,
+# we need to have the directory named 'airflow'
+# before we do 'helm lint'
+rm -rf /tmp/airflow-chart-lint/ || true
+mkdir -p /tmp/airflow-chart-lint
+cp -R . /tmp/airflow-chart-lint/airflow
+helm lint /tmp/airflow-chart-lint/airflow

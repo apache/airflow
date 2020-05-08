@@ -1,0 +1,25 @@
+################################
+## Pgbouncer PodDisruptionBudget
+#################################
+{{- if and .Values.pgbouncer.enabled .Values.pgbouncer.podDisruptionBudget.enabled }}
+kind: PodDisruptionBudget
+apiVersion: policy/v1beta1
+metadata:
+  name: {{ .Release.Name }}-pgbouncer-pdb
+  labels:
+    tier: airflow
+    component: pgbouncer
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+  selector:
+    matchLabels:
+      tier: airflow
+      component: pgbouncer
+      release: {{ .Release.Name }}
+{{ toYaml .Values.pgbouncer.podDisruptionBudget.config | indent 2 }}
+{{- end }}

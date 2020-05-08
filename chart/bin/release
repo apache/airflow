@@ -1,0 +1,78 @@
+#!/bin/bash
+
+set -e
+
+if [[ -z "${HELM_CHART_PATH}" ]]; then
+  echo "ERROR: must provide HELM_CHART_PATH pointing to airflow-*.tgz, will not release without an artifact."
+  exit 1
+fi
+
+# Common bash line that sets DIR to the directory of this script
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+REPO_DIR=$DIR/../
+
+# Wed don't need kubectl or kind, so
+# touching placeholders to skip
+# the installations.
+mkdir -p /tmp/bin
+touch /tmp/bin/kubectl
+touch /tmp/bin/kind
+source $DIR/install-ci-tools
+
+# Install other CLI tools for releasing
+OS=$(uname | tr '[:upper:]' '[:lower:]')
+GCLOUD_VERSION="270.0.0"
+CURRENT_DIR=$(pwd)
+cd /tmp
+wget https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-${GCLOUD_VERSION}-${OS}-x86_64.tar.gz
+tar xvzf ./google-cloud-sdk-${GCLOUD_VERSION}-${OS}-x86_64.tar.gz >/dev/null 2>&1
+export PATH=$(pwd)/google-cloud-sdk/bin/:$PATH
+cd $CURRENT_DIR
+sudo apt-get update > /dev/null
+sudo apt-get install -y tree > /dev/null
+
+# Ensure we have a new directory
+rm -rf /tmp/airflow-chart-release || true
+mkdir -p /tmp/airflow-chart-release
+cd /tmp/airflow-chart-release
+
+# Copy the artifact
+cp $HELM_CHART_PATH .
+
+# Unzip the artifact
+tar -xvzf $HELM_CHART_PATH -C .
+
+echo ""
+echo "========================="
+echo ""
+
+# show all the files that are in the unzipped artifact
+echo "Artifact contents:"
+tree ./airflow
+
+echo ""
+echo "========================="
+echo ""
+
+echo "Releasing chart..."
+
+set +x
+
+# This is needed to avoid using the CI's built-in
+# gcloud configurations.
+export BOTO_CONFIG=/dev/null
+
+echo ${GCP_TOKEN} > /tmp/gcs_token.json
+gcloud auth activate-service-account --key-file=/tmp/gcs_token.json
+
+set -xe
+
+# Set up the index.html file
+wget https://helm.astronomer.io/index.yaml -O /tmp/index.yaml.current
+helm repo index . --url https://helm.astronomer.io --merge /tmp/index.yaml.current
+gsutil cp -a public-read $HELM_CHART_PATH gs://helm.astronomer.io
+gsutil cp -a public-read -h "Cache-Control:no-cache,max-age=0" ./index.yaml gs://helm.astronomer.io
+
+set +x
+echo ""
+echo "Chart released!"

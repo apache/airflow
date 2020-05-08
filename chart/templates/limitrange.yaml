@@ -1,0 +1,21 @@
+################################
+## Airflow Namespace LimitRange
+#################################
+{{- if .Values.limits }}
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: {{ .Release.Name }}-limit-range
+  labels:
+    tier: resources
+    component: limitrange
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+  limits:
+{{ toYaml .Values.limits | indent 4 }}
+{{- end }}

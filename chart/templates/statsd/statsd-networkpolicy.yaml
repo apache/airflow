@@ -1,0 +1,40 @@
+################################
+## Airflow StatsD NetworkPolicy
+#################################
+{{- if and .Values.networkPolicies.enabled .Values.statsd.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-statsd-policy
+  labels:
+    tier: airflow
+    component: statsd-policy
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+  podSelector:
+    matchLabels:
+      tier: airflow
+      component: statsd
+      release: {{ .Release.Name }}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          tier: airflow
+          release: {{ .Release.Name }}
+{{- if .Values.statsd.extraNetworkPolicies }}
+{{ toYaml .Values.statsd.extraNetworkPolicies | indent 4 }}
+{{- end }}
+    ports:
+    - protocol: UDP
+      port: {{ .Values.ports.statsdIngest }}
+    - protocol: TCP
+      port: {{ .Values.ports.statsdScrape }}
+{{- end }}

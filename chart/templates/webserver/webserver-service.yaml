@@ -1,0 +1,27 @@
+################################
+## Airflow Webserver Service
+#################################
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ .Release.Name }}-webserver
+  labels:
+    tier: airflow
+    component: webserver
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+  type: ClusterIP
+  selector:
+    tier: airflow
+    component: webserver
+    release: {{ .Release.Name }}
+  ports:
+    - name: airflow-ui
+      protocol: TCP
+      port: {{ .Values.ports.airflowUI }}
+      targetPort: {{ .Values.ports.airflowUI }}

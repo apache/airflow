@@ -1,0 +1,29 @@
+################################
+## Airflow Worker Service
+#################################
+{{- if eq .Values.executor "CeleryExecutor" }}
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ .Release.Name }}-worker
+  labels:
+    tier: airflow
+    component: worker
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+  clusterIP: None
+  selector:
+    tier: airflow
+    component: worker
+    release: {{ .Release.Name }}
+  ports:
+    - name: worker-logs
+      protocol: TCP
+      port: {{ .Values.ports.workerLogs }}
+      targetPort: {{ .Values.ports.workerLogs }}
+{{- end }}

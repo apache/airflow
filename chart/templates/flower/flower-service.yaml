@@ -1,0 +1,29 @@
+################################
+## Airflow Flower Service Component
+#################################
+{{- if eq .Values.executor "CeleryExecutor" }}
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ .Release.Name }}-flower
+  labels:
+    tier: airflow
+    component: flower
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+  type: ClusterIP
+  selector:
+    tier: airflow
+    component: flower
+    release: {{ .Release.Name }}
+  ports:
+    - name: flower-ui
+      protocol: TCP
+      port: {{ .Values.ports.flowerUI }}
+      targetPort: {{ .Values.ports.flowerUI }}
+{{- end }}

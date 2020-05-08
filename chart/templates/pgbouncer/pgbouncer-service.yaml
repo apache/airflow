@@ -1,0 +1,39 @@
+################################
+## Airflow Pgbouncer Service
+#################################
+{{- if .Values.pgbouncer.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-pgbouncer
+  labels:
+    tier: airflow
+    component: pgbouncer
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: {{ .Values.ports.pgbouncerScrape | quote }}
+{{- if .Values.pgbouncer.service.extraAnnotations }}
+{{- toYaml .Values.pgbouncer.service.extraAnnotations | nindent 4 }}
+{{- end }}
+spec:
+  type: ClusterIP
+  selector:
+    tier: airflow
+    component: pgbouncer
+    release: {{ .Release.Name }}
+  ports:
+    - name: pgbouncer
+      protocol: TCP
+      port: {{ .Values.ports.pgbouncer }}
+      targetPort: {{ .Values.ports.pgbouncer }}
+    - name: pgbouncer-metrics
+      protocol: TCP
+      port: {{ .Values.ports.pgbouncerScrape }}
+      targetPort: {{ .Values.ports.pgbouncerScrape }}
+{{- end }}

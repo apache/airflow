@@ -1,0 +1,17 @@
+#!/bin/bash
+
+source $REPO_DIR/bin/install-ci-tools
+
+# Install the postgresql subchart
+echo "Installing Helm subchart(s)..."
+helm init --client-only > /dev/null 2>&1
+helm dep update > /dev/null 2>&1
+
+# Fail fast for helm syntax errors
+echo "Syntax check Helm chart..."
+helm template $REPO_DIR > /dev/null 2>&1
+
+echo "Delete existing kind cluster named 'kind' (if it exists)..."
+kind delete cluster > /dev/null 2>&1 || true
+
+source $REPO_DIR/bin/start-kind-cluster

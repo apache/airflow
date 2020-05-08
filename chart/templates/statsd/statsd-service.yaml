@@ -1,0 +1,39 @@
+################################
+## Airflow StatsD Service
+#################################
+{{- if .Values.statsd.enabled }}
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ .Release.Name }}-statsd
+  labels:
+    tier: airflow
+    component: statsd
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: {{ .Values.ports.statsdScrape | quote }}
+{{- if .Values.statsd.service.extraAnnotations }}
+{{- toYaml .Values.statsd.service.extraAnnotations | nindent 4 }}
+{{- end }}
+spec:
+  type: ClusterIP
+  selector:
+    tier: airflow
+    component: statsd
+    release: {{ .Release.Name }}
+  ports:
+    - name: statsd-ingest
+      protocol: UDP
+      port: {{ .Values.ports.statsdIngest }}
+      targetPort: {{ .Values.ports.statsdIngest }}
+    - name: statsd-scrape
+      protocol: TCP
+      port: {{ .Values.ports.statsdScrape }}
+      targetPort: {{ .Values.ports.statsdScrape }}
+{{- end }}
