@@ -122,7 +122,7 @@ class BaseSerialization:
         """Types excluded from serialization."""
 
         if var is None:
-            if not cls._is_constcutor_param(attrname, instance):
+            if not cls._is_constructor_param(attrname, instance):
                 # Any instance attribute, that is not a constructor argument, we exclude None as the default
                 return True
 
@@ -260,7 +260,7 @@ class BaseSerialization:
         return datetime.timedelta(seconds=seconds)
 
     @classmethod
-    def _is_constcutor_param(cls, attrname: str, instance: Any) -> bool:
+    def _is_constructor_param(cls, attrname: str, instance: Any) -> bool:
         # pylint: disable=unused-argument
         return attrname in cls._CONSTRUCTOR_PARAMS
 
@@ -297,6 +297,11 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     _decorated_fields = {'executor_config'}
 
+    # Calling `signature` is a relatively costly operation, we don't want to
+    # call it each time. But we also need to call it for each operator subclass
+    # we serialize. So we cache the most 128 recently asked for signatures --
+    # each time we ask it goes to the front of the queue, and the oldest are
+    # deleted once the size is exceeded.
     @staticmethod
     @functools.lru_cache(maxsize=128)
     def __constructor_params_for_subclass(typ):
@@ -412,7 +417,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         return op
 
     @classmethod
-    def _is_constcutor_param(cls, attrname: str, instance: Any) -> bool:
+    def _is_constructor_param(cls, attrname: str, instance: Any) -> bool:
         # Check all super classes too
         return any(
             attrname in cls.__constructor_params_for_subclass(typ)
