@@ -70,7 +70,7 @@ class SlackHook(BaseHook):
         **client_args: Any,
     ) -> None:
         super().__init__()
-        token = self.__get_token(token, slack_conn_id)
+        self.token = self.__get_token(token, slack_conn_id)
         self.client = WebClient(token, **client_args)
 
     def __get_token(self, token, slack_conn_id):
