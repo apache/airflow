@@ -65,6 +65,7 @@ class MySQLToS3Operator(BaseOperator):
     :type header: bool
     """
     template_fields = ('s3_key', 'query', 'pd_csv_kwargs',)
+    template_ext = ('.sql')
 
     @apply_defaults
     def __init__(
@@ -95,9 +96,6 @@ class MySQLToS3Operator(BaseOperator):
             self.pd_csv_kwargs["index"] = index
             self.pd_csv_kwargs["header"] = header
 
-        if self.query.endswith('.sql'):
-            query_file = open(self.query, 'r')
-            self.query = query_file.read()
 
     def _fix_int_dtypes(self, df):
         """
