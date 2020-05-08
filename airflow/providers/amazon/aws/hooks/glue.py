@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,9 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import time
+
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-import time
 
 
 class AwsGlueJobHook(AwsBaseHook):
@@ -32,7 +32,7 @@ class AwsGlueJobHook(AwsBaseHook):
     :type desc: Optional[str]
     :param concurrent_run_limit: The maximum number of concurrent runs allowed for a job
     :type concurrent_run_limit: int
-    :param script_location: path to etl script either on s3 or local
+    :param script_location: path to etl script on s3
     :type script_location: Optional[str]
     :param retry_limit: Maximum number of times to retry this job if it fails
     :type retry_limit: int
@@ -45,9 +45,10 @@ class AwsGlueJobHook(AwsBaseHook):
     :param s3_bucket: S3 bucket where logs and local etl script will be uploaded
     :type s3_bucket: Optional[str]
     """
-    JOB_POLL_INTERVAL = 6 # polls job status after every JOB_POLL_INTERVAL seconds
+    JOB_POLL_INTERVAL = 6  # polls job status after every JOB_POLL_INTERVAL seconds
 
     def __init__(self,
+                 s3_bucket=None,
                  job_name=None,
                  desc=None,
                  concurrent_run_limit=1,
@@ -56,7 +57,7 @@ class AwsGlueJobHook(AwsBaseHook):
                  num_of_dpus=10,
                  region_name=None,
                  iam_role_name=None,
-                 s3_bucket, *args, **kwargs):
+                 *args, **kwargs):
         self.job_name = job_name
         self.desc = desc
         self.concurrent_run_limit = concurrent_run_limit
@@ -70,10 +71,16 @@ class AwsGlueJobHook(AwsBaseHook):
         super(AwsGlueJobHook, self).__init__(*args, **kwargs)
 
     def get_conn(self):
+        """
+        :return: connection
+        """
         conn = self.get_client_type('glue', self.region_name)
         return conn
 
     def list_jobs(self):
+        """
+        :return: Lists of Jobs
+        """
         conn = self.get_conn()
         return conn.get_jobs()
 
@@ -97,12 +104,6 @@ class AwsGlueJobHook(AwsBaseHook):
         to run job
         :return:
         """
-        if self.s3_bucket is None:
-            raise AirflowException(
-                'Could not initialize glue job, '
-                'error: Specify Parameter `s3_bucket`'
-            )
-
         glue_client = self.get_conn()
 
         try:
@@ -137,8 +138,9 @@ class AwsGlueJobHook(AwsBaseHook):
                 self.log.info("Exiting Job %s Run State: %s", run_id, job_run_state)
                 return {'JobRunState': job_run_state, 'JobRunId': run_id}
             else:
-                self.log.info("Polling for AWS Glue Job %s current run state with status %s"
-                    , job_name, job_run_state)
+                self.log.info(
+                    "Polling for AWS Glue Job %s current run state with status %s",
+                    job_name, job_run_state)
                 time.sleep(self.JOB_POLL_INTERVAL)
 
     def get_or_create_glue_job(self):
@@ -150,10 +152,16 @@ class AwsGlueJobHook(AwsBaseHook):
         try:
             get_job_response = glue_client.get_job(JobName=self.job_name)
             self.log.info("Job Already exist. Returning Name of the job")
-            return get_job_response['Job']['Name']        
+            return get_job_response['Job']['Name']
+
         except glue_client.exceptions.EntityNotFoundException:
             self.log.info("Job doesnt exist. Now creating and running AWS Glue Job")
-            s3_log_path = f's3://{str(self.s3_bucket)}/{str(self.S3_GLUE_LOGS)}{str(self.job_name)}'
+            if self.s3_bucket is None:
+                raise AirflowException(
+                    'Could not initialize glue job, '
+                    'error: Specify Parameter `s3_bucket`'
+                )
+            s3_log_path = f's3://{self.s3_bucket}/{self.S3_GLUE_LOGS}{self.job_name}'
             execution_role = self.get_iam_execution_role()
             try:
                 create_job_response = glue_client.create_job(
@@ -166,7 +174,7 @@ class AwsGlueJobHook(AwsBaseHook):
                     MaxRetries=self.retry_limit,
                     AllocatedCapacity=self.num_of_dpus
                 )
-                return create_job_response['Name']   
+                return create_job_response['Name']
             except Exception as general_error:
-            self.log.error(f'Failed to create aws glue job, error: {str(general_error)}')
-            raise
+                self.log.error(f'Failed to create aws glue job, error: {str(general_error)}')
+                raise

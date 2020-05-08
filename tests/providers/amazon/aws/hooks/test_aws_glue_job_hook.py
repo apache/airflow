@@ -1,6 +1,7 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
+# TODO: This license is not consistent with license used in the project.
+#       Delete the inconsistent license and above line and rerun pre-commit to insert a good license.
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
 # regarding copyright ownership.  The ASF licenses this file
@@ -14,25 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
 import json
+import unittest
 
+import mock
 
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from airflow.providers.amazon.aws.hooks.glue import AwsGlueJobHook
 
 try:
     from moto import mock_iam
 except ImportError:
     mock_iam = None
 
-
-from airflow.providers.amazon.aws.hooks.glue import AwsGlueJobHook
 
 class TestGlueJobHook(unittest.TestCase):
     def setUp(self):
@@ -64,19 +58,17 @@ class TestGlueJobHook(unittest.TestCase):
         iam_role = hook.get_iam_execution_role()
         self.assertIsNotNone(iam_role)
 
-    @mock.patch.object(AwsGlueJobHook, "_check_script_location")
     @mock.patch.object(AwsGlueJobHook, "get_iam_execution_role")
     @mock.patch.object(AwsGlueJobHook, "get_conn")
     def test_get_or_create_glue_job(self, mock_get_conn,
-                                    mock_get_iam_execution_role,
-                                    mock_script):
+                                    mock_get_iam_execution_role
+                                    ):
         mock_get_iam_execution_role.return_value = \
             mock.MagicMock(Role={'RoleName': 'my_test_role'})
         some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
         some_s3_bucket = "my-includes"
-        mock_script.return_value = mock.Mock(return_value=some_script)
 
-        mock_glue_job = mock_get_conn.return_value.create_job()
+        mock_glue_job = mock_get_conn.return_value.get_job()['Job']['Name']
         glue_job = AwsGlueJobHook(job_name='aws_test_glue_job',
                                   desc='This is test case job from Airflow',
                                   script_location=some_script,

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,17 +18,12 @@
 
 import unittest
 
+import mock
+
 from airflow import configuration
 from airflow.providers.amazon.aws.hooks.glue import AwsGlueJobHook
-from airflow.providers.amazon.aws.operators.glue import AWSGlueJobOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.operators.glue import AwsGlueJobOperator
 
 
 class TestAwsGlueJobOperator(unittest.TestCase):
@@ -40,7 +34,7 @@ class TestAwsGlueJobOperator(unittest.TestCase):
 
         self.glue_hook_mock = glue_hook_mock
         some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
-        self.glue = AWSGlueJobOperator(task_id='test_glue_operator',
+        self.glue = AwsGlueJobOperator(task_id='test_glue_operator',
                                        job_name='my_test_job',
                                        script_location=some_script,
                                        aws_conn_id='aws_default',
@@ -49,7 +43,9 @@ class TestAwsGlueJobOperator(unittest.TestCase):
                                        iam_role_name='my_test_role')
 
     @mock.patch.object(AwsGlueJobHook, 'initialize_job')
-    def test_execute_without_failure(self, mock_initialize_job):
+    @mock.patch.object(AwsGlueJobHook, "get_conn")
+    @mock.patch.object(S3Hook, "load_file")
+    def test_execute_without_failure(self, mock_load_file, mock_get_conn, mock_initialize_job):
         mock_initialize_job.return_value = {'JobRunState': 'RUNNING', 'JobRunId': '11111'}
         self.glue.execute(None)
 
