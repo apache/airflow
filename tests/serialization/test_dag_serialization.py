@@ -70,6 +70,7 @@ serialized_simple_dag_ground_truth = {
                 "bash_command": "echo {{ task.task_id }}",
                 "_task_type": "BashOperator",
                 "_task_module": "airflow.operators.bash",
+                "pool": "default_pool",
             },
             {
                 "task_id": "custom_task",
@@ -84,6 +85,7 @@ serialized_simple_dag_ground_truth = {
                 "template_fields": ['bash_command'],
                 "_task_type": "CustomOperator",
                 "_task_module": "tests.test_utils.mock_operators",
+                "pool": "default_pool",
             },
         ],
         "timezone": "UTC",

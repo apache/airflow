@@ -502,7 +502,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
 
        All GCP services :ref:`[1] <integration:GCP-Discovery>`
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
-     -
+     - :doc:`How to use <howto/operator/amazon/aws/google_api_to_s3_transfer>`
      - :mod:`airflow.providers.amazon.aws.operators.google_api_to_s3_transfer`
 
    * - `Amazon DataSync <https://aws.amazon.com/datasync/>`__
@@ -832,7 +832,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
 
        All services :ref:`[1] <integration:GCP-Discovery>`
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
-     -
+     - :doc:`How to use <howto/operator/amazon/aws/google_api_to_s3_transfer>`
      - :mod:`airflow.providers.amazon.aws.operators.google_api_to_s3_transfer`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__

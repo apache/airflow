@@ -251,6 +251,13 @@ def change_import_paths_to_deprecated():
         .modify(add_provide_context_to_python_operator)
     )
 
+    (
+        qry.select_function("BranchPythonOperator")
+        .is_call()
+        .is_filename(include=r"example_google_api_to_s3_transfer_advanced.py$")
+        .modify(add_provide_context_to_python_operator)
+    )
+
     # Remove new class and rename usages of old
     remove_class(qry, "GKEStartPodOperator")
     (

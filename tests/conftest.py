@@ -18,6 +18,7 @@
 import os
 import subprocess
 import sys
+from contextlib import ExitStack
 
 import pytest
 
@@ -29,6 +30,15 @@ os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.path.join(tests_directory, "dags")
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = (os.environ.get("AWS_DEFAULT_REGION") or "us-east-1")
 os.environ["CREDENTIALS_DIR"] = (os.environ.get('CREDENTIALS_DIR') or "/files/airflow-breeze-config/keys")
+
+perf_directory = os.path.abspath(os.path.join(tests_directory, os.pardir, 'scripts', 'perf'))
+if perf_directory not in sys.path:
+    sys.path.append(perf_directory)
+
+
+from perf_kit.sqlalchemy import (  # noqa: E402 isort:skip # pylint: disable=wrong-import-position
+    count_queries, trace_queries
+)
 
 
 @pytest.fixture()
@@ -55,6 +65,56 @@ def reset_db():
     from airflow.utils import db
     db.resetdb()
     yield
+
+
+ALLOWED_TRACE_SQL_COLUMNS = ['num', 'time', 'trace', 'sql', 'parameters', 'count']
+
+
+@pytest.fixture(autouse=True)
+def trace_sql(request):
+    """
+    Displays queries from the tests to console.
+    """
+    trace_sql_option = request.config.getoption("trace_sql")
+    if not trace_sql_option:
+        yield
+        return
+
+    terminal_reporter = request.config.pluginmanager.getplugin("terminalreporter")
+    # if no terminal reporter plugin is present, nothing we can do here;
+    # this can happen when this function executes in a slave node
+    # when using pytest-xdist, for example
+    if terminal_reporter is None:
+        yield
+        return
+
+    columns = [col.strip() for col in trace_sql_option.split(",")]
+
+    def pytest_print(text):
+        return terminal_reporter.write_line(text)
+
+    with ExitStack() as exit_stack:
+        if columns == ['num']:
+            # It is very unlikely that the user wants to display only numbers, but probably
+            # the user just wants to count the queries.
+            exit_stack.enter_context(  # pylint: disable=no-member
+                count_queries(
+                    print_fn=pytest_print
+                )
+            )
+        elif any(c for c in ['time', 'trace', 'sql', 'parameters']):
+            exit_stack.enter_context(  # pylint: disable=no-member
+                trace_queries(
+                    display_num='num' in columns,
+                    display_time='time' in columns,
+                    display_trace='trace' in columns,
+                    display_sql='sql' in columns,
+                    display_parameters='parameters' in columns,
+                    print_fn=pytest_print
+                )
+            )
+
+        yield
 
 
 def pytest_addoption(parser):
@@ -102,6 +162,16 @@ def pytest_addoption(parser):
         "--include-quarantined",
         action="store_true",
         help="Includes quarantined tests (marked with quarantined marker). They are skipped by default.",
+    )
+    allowed_trace_sql_columns_list = ",".join(ALLOWED_TRACE_SQL_COLUMNS)
+    group.addoption(
+        "--trace-sql",
+        action="store",
+        help=(
+            "Trace SQL statements. As an argument, you must specify the columns to be "
+            f"displayed as a comma-separated list. Supported values: [f{allowed_trace_sql_columns_list}]"
+        ),
+        metavar="COLUMNS",
     )
 
 

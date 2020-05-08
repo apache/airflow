@@ -19,15 +19,18 @@
 Example Airflow DAG that shows how to use DisplayVideo.
 """
 import os
+from typing import Dict
 
 from airflow import models
+from airflow.providers.google.cloud.operators.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.providers.google.marketing_platform.operators.display_video import (
-    GoogleDisplayVideo360CreateReportOperator, GoogleDisplayVideo360DeleteReportOperator,
-    GoogleDisplayVideo360DownloadLineItemsOperator, GoogleDisplayVideo360DownloadReportOperator,
-    GoogleDisplayVideo360RunReportOperator, GoogleDisplayVideo360UploadLineItemsOperator,
+    GoogleDisplayVideo360CreateReportOperator, GoogleDisplayVideo360CreateSDFDownloadTaskOperator,
+    GoogleDisplayVideo360DeleteReportOperator, GoogleDisplayVideo360DownloadLineItemsOperator,
+    GoogleDisplayVideo360DownloadReportOperator, GoogleDisplayVideo360RunReportOperator,
+    GoogleDisplayVideo360SDFtoGCSOperator, GoogleDisplayVideo360UploadLineItemsOperator,
 )
 from airflow.providers.google.marketing_platform.sensors.display_video import (
-    GoogleDisplayVideo360ReportSensor,
+    GoogleDisplayVideo360GetSDFDownloadOperationSensor, GoogleDisplayVideo360ReportSensor,
 )
 from airflow.utils import dates
 
@@ -35,6 +38,15 @@ from airflow.utils import dates
 BUCKET = os.environ.get("GMP_DISPLAY_VIDEO_BUCKET", "gs://test-display-video-bucket")
 ADVERTISER_ID = os.environ.get("GMP_ADVERTISER_ID", 1234567)
 OBJECT_NAME = os.environ.get("GMP_OBJECT_NAME", "files/report.csv")
+PATH_TO_UPLOAD_FILE = os.environ.get(
+    "GCP_GCS_PATH_TO_UPLOAD_FILE", "test-gcs-example.txt"
+)
+PATH_TO_SAVED_FILE = os.environ.get(
+    "GCP_GCS_PATH_TO_SAVED_FILE", "test-gcs-example-download.txt"
+)
+BUCKET_FILE_LOCATION = PATH_TO_UPLOAD_FILE.rpartition("/")[-1]
+SDF_VERSION = os.environ.get("GMP_SDF_VERSION", "SDF_VERSION_5_1")
+BQ_DATA_SET = os.environ.get("GMP_BQ_DATA_SET", "airflow_test")
 
 REPORT = {
     "kind": "doubleclickbidmanager#query",
@@ -55,14 +67,16 @@ REPORT = {
 }
 
 PARAMS = {"dataRange": "LAST_14_DAYS", "timezoneCode": "America/New_York"}
+
+BODY_REQUEST: Dict = {
+    "version": SDF_VERSION,
+    "advertiserId": ADVERTISER_ID,
+    "inventorySourceFilter": {"inventorySourceIds": []},
+}
 # [END howto_display_video_env_variables]
 
 # download_line_items variables
-REQUEST_BODY = {
-    "filterType": ADVERTISER_ID,
-    "format": "CSV",
-    "fileSpec": "EWF"
-}
+REQUEST_BODY = {"filterType": ADVERTISER_ID, "format": "CSV", "fileSpec": "EWF"}
 
 default_args = {"start_date": dates.days_ago(1)}
 
@@ -119,7 +133,47 @@ with models.DAG(
     upload_line_items = GoogleDisplayVideo360UploadLineItemsOperator(
         task_id="upload_line_items",
         bucket_name=BUCKET,
-        object_name=OBJECT_NAME,
+        object_name=BUCKET_FILE_LOCATION,
     )
     # [END howto_google_display_video_upload_line_items_operator]
+
+    # [START howto_google_display_video_create_sdf_download_task_operator]
+    create_sdf_download_task = GoogleDisplayVideo360CreateSDFDownloadTaskOperator(
+        task_id="create_sdf_download_task", body_request=BODY_REQUEST
+    )
+    operation_name = '{{ task_instance.xcom_pull("create_sdf_download_task")["name"] }}'
+    # [END howto_google_display_video_create_sdf_download_task_operator]
+
+    # [START howto_google_display_video_wait_for_operation_sensor]
+    wait_for_operation = GoogleDisplayVideo360GetSDFDownloadOperationSensor(
+        task_id="wait_for_operation", operation_name=operation_name,
+    )
+    # [END howto_google_display_video_wait_for_operation_sensor]
+
+    # [START howto_google_display_video_save_sdf_in_gcs_operator]
+    save_sdf_in_gcs = GoogleDisplayVideo360SDFtoGCSOperator(
+        task_id="save_sdf_in_gcs",
+        operation_name=operation_name,
+        bucket_name=BUCKET,
+        object_name=BUCKET_FILE_LOCATION,
+        gzip=False,
+    )
+    # [END howto_google_display_video_save_sdf_in_gcs_operator]
+
+    # [START howto_google_display_video_gcs_to_big_query_operator]
+    upload_sdf_to_big_query = GCSToBigQueryOperator(
+        task_id="upload_sdf_to_big_query",
+        bucket=BUCKET,
+        source_objects=['{{ task_instance.xcom_pull("upload_sdf_to_bigquery")}}'],
+        destination_project_dataset_table=f"{BQ_DATA_SET}.gcs_to_bq_table",
+        schema_fields=[
+            {"name": "name", "type": "STRING", "mode": "NULLABLE"},
+            {"name": "post_abbr", "type": "STRING", "mode": "NULLABLE"},
+        ],
+        write_disposition="WRITE_TRUNCATE",
+        dag=dag,
+    )
+    # [END howto_google_display_video_gcs_to_big_query_operator]
+
     create_report >> run_report >> wait_for_report >> get_report >> delete_report
+    create_sdf_download_task >> wait_for_operation >> save_sdf_in_gcs >> upload_sdf_to_big_query

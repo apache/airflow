@@ -36,12 +36,30 @@ class TestGoogleDisplayVideo360Hook(TestCase):
         "airflow.providers.google.marketing_platform.hooks."
         "display_video.GoogleDisplayVideo360Hook._authorize"
     )
-    @mock.patch("airflow.providers.google.marketing_platform.hooks."
-                "display_video.build")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks." "display_video.build"
+    )
     def test_gen_conn(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
             "doubleclickbidmanager",
+            API_VERSION,
+            http=mock_authorize.return_value,
+            cache_discovery=False,
+        )
+        self.assertEqual(mock_build.return_value, result)
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook._authorize"
+    )
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks." "display_video.build"
+    )
+    def test_get_conn_to_display_video(self, mock_build, mock_authorize):
+        result = self.hook.get_conn_to_display_video()
+        mock_build.assert_called_once_with(
+            "displayvideo",
             API_VERSION,
             http=mock_authorize.return_value,
             cache_discovery=False,
@@ -239,3 +257,132 @@ class TestGoogleDisplayVideo360Hook(TestCase):
         result = self.hook.upload_line_items(line_items)
 
         self.assertEqual(return_value, result)
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook.get_conn_to_display_video"
+    )
+    def test_create_sdf_download_tasks_called_with_params(
+        self, get_conn_to_display_video
+    ):
+        body_request = {
+            "version": "version",
+            "partnerId": "partner_id",
+            "advertiserId": "advertiser_id",
+            "parentEntityFilter": "parent_entity_filter",
+            "idFilter": "id_filter",
+            "inventorySourceFilter": "inventory_source_filter",
+        }
+
+        self.hook.create_sdf_download_operation(body_request=body_request)
+
+        get_conn_to_display_video.return_value.sdfdownloadtasks.return_value.create.assert_called_once_with(
+            body=body_request
+        )
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook.get_conn_to_display_video"
+    )
+    def test_create_sdf_download_tasks_called_once(self, get_conn_to_display_video):
+        body_request = {
+            "version": "version",
+            "partnerId": "partner_id",
+            "advertiserId": "advertiser_id",
+            "parentEntityFilter": "parent_entity_filter",
+            "idFilter": "id_filter",
+            "inventorySourceFilter": "inventory_source_filter",
+        }
+
+        self.hook.create_sdf_download_operation(body_request=body_request)
+
+        get_conn_to_display_video.return_value.sdfdownloadtasks.return_value.create.assert_called_once()
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook.get_conn_to_display_video"
+    )
+    def test_create_sdf_download_tasks_return_equal_values(
+        self, get_conn_to_display_video
+    ):
+        response = ["name"]
+        body_request = {
+            "version": "version",
+            "partnerId": "partner_id",
+            "advertiserId": "advertiser_id",
+            "parentEntityFilter": "parent_entity_filter",
+            "idFilter": "id_filter",
+            "inventorySourceFilter": "inventory_source_filter",
+        }
+
+        get_conn_to_display_video.return_value.\
+            sdfdownloadtasks.return_value.\
+            create.return_value\
+            .execute.return_value = response
+
+        result = self.hook.create_sdf_download_operation(body_request=body_request)
+        self.assertEqual(response, result)
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook.get_conn_to_display_video"
+    )
+    def test_get_sdf_download_tasks_called_with_params(self, get_conn_to_display_video):
+        operation_name = "operation_name"
+        self.hook.get_sdf_download_operation(operation_name=operation_name)
+        get_conn_to_display_video.return_value.\
+            sdfdownloadtasks.return_value.\
+            operation.return_value.\
+            get.assert_called_once_with(name=operation_name)
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook.get_conn_to_display_video"
+    )
+    def test_get_sdf_download_tasks_called_once(self, get_conn_to_display_video):
+        operation_name = "name"
+        self.hook.get_sdf_download_operation(operation_name=operation_name)
+        get_conn_to_display_video.return_value.\
+            sdfdownloadtasks.return_value.\
+            operation.return_value.\
+            get.assert_called_once()
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook.get_conn_to_display_video"
+    )
+    def get_sdf_download_tasks_return_equal_values(self, get_conn_to_display_video):
+        operation_name = "operation"
+        response = "reposonse"
+
+        get_conn_to_display_video.return_value.\
+            sdfdownloadtasks.return_value.\
+            operation.return_value.get = response
+
+        result = self.hook.get_sdf_download_operation(operation_name=operation_name)
+
+        self.assertEqual(operation_name, result)
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook.get_conn_to_display_video"
+    )
+    def test_download_media_called_once(self, get_conn_to_display_video):
+        resource_name = "resource_name"
+
+        self.hook.download_media(resource_name=resource_name)
+        get_conn_to_display_video.return_value.\
+            media.return_value.\
+            download_media.assert_called_once()
+
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks."
+        "display_video.GoogleDisplayVideo360Hook.get_conn_to_display_video"
+    )
+    def test_download_media_called_once_with_params(self, get_conn_to_display_video):
+        resource_name = "resource_name"
+
+        self.hook.download_media(resource_name=resource_name)
+        get_conn_to_display_video.return_value.\
+            media.return_value.\
+            download_media.assert_called_once_with(resource_name=resource_name)
