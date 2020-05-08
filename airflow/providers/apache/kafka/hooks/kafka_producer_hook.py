@@ -17,6 +17,7 @@
 # under the License.
 
 from kafka import KafkaProducer
+from kafka.producer.future import FutureRecordMetadata
 from airflow.hooks.base_hook import BaseHook
 
 
@@ -36,7 +37,13 @@ class KafkaProducerHook(BaseHook):
         self.producer = None
         self.topic = topic
 
-    def get_conn(self):
+    def get_conn(self) -> KafkaProducer:
+        """
+            Returns a Kafka Producer
+
+        :return:
+            A Kafka Producer object.
+        """
         if not self._conn:
             _conn = self.get_connection(self.conn_id)
             service_options = _conn.extra_dejson
@@ -50,8 +57,9 @@ class KafkaProducerHook(BaseHook):
             )
         return self.producer
 
-    def send_message(self, topic, value=None, key=None, partition=None, timestamp_ms=None):
+    def send_message(self, topic, value=None, key=None, partition=None, timestamp_ms=None) -> FutureRecordMetadata:
         """
+            Sends a message on the specified topic and partition.  Keyed messages will be sent in order.
 
         :param topic:
         :param value:
@@ -70,7 +78,10 @@ class KafkaProducerHook(BaseHook):
 
     def __repr__(self):
         """
-        Pretty the hook with the connection info
+            A pretty version of the connection string.
+
+        :return:
+            A pretty version of the connection string.
         """
         connected = self.producer is not None
         return '<KafkaProducerHook ' \
