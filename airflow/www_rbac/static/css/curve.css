@@ -64,13 +64,15 @@ legend {
 }
 
 .base-info-content {
-  --content-height: calc(var(--font-size) * 2);
   text-align: center;
-  line-height: var(--content-height);
-  font-size: var(--content-height);
-  height: var(--content-height);
+  /*line-height: calc(var(--font-size) * 2);*/
+  font-size: calc(var(--font-size) * 2);
   position: relative;
-  top: calc(50% - var(--content-height) / 2 - var(--title-font-size) / 2 - var(--padding-width));
+  word-break: break-all;
+    top: calc(50% - var(--title-font-size) / 2 - var(--padding-width));
+  max-width: 500px;
+  overflow: visible;
+  transform: translateY(-50%);
 }
 
 #actions-container {

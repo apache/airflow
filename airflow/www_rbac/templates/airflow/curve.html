@@ -18,7 +18,7 @@
   <div id="base-info-container" class="card flex justify-stretch align-stretch">
     <fieldset class="base-info-item card flex-column">
       <legend class="base-info-title">二次确认</legend>
-      <div class="base-info-content" id="double-check-result" style="--content-height:40px">
+      <div class="base-info-content" id="double-check-result">
         {% if task_instance.final_state %}
         {{task_instance.final_state}}
         {% else %}
@@ -36,17 +36,11 @@
   </div>
   <div style="height:80%" class="flex">
     <div id="result-container" class="card">
-      <table style="width:100%;">
+      <table style="width:100%;" id="result_detail">
         <tr class="result-content-row">
           <th>Key</th>
           <th>Value</th>
         </tr>
-        {% for k,v in result.items() %}
-        <tr class="result-content-row">
-          <td class="result-content-item">{{k}}</td>
-          <td class="result-content-item">{{v}}</td>
-        </tr>
-        {% endfor %}
       </table>
     </div>
     <div id="echarts-container" style="flex:1" class="card flex-column">
@@ -87,6 +81,8 @@
   let curveChart = null;
   const result = JSON.parse('{{ result|tojson|safe }}');
   const curve = JSON.parse('{{ curve|tojson|safe }}');
+  const analysisErrs = JSON.parse('{{ analysisErrorMessageMapping|tojson|safe }}');
+  const resultErrs = JSON.parse('{{ resultErrorMessageMapping|tojson|safe }}');
 
 
   function genData(xKey, yKey) {
@@ -108,8 +104,8 @@
         type: 'scroll',
         data: [yName],
       },
-      xAxis: {type: 'value'},
-      yAxis: {type: 'value'},
+      xAxis: { type: 'value' },
+      yAxis: { type: 'value' },
       series: [{
         name: yName,
         type: 'line',
@@ -117,8 +113,8 @@
         symbol: 'none',
         markLine: {
           data: [
-            {type: 'min', name: '最小值'},
-            {type: 'max', name: '最大值'},
+            { type: 'min', name: '最小值' },
+            { type: 'max', name: '最大值' },
           ],
         },
       }],
@@ -162,8 +158,42 @@
     updateChart('cur_w', 'cur_m', '角度', '扭矩');
   }
 
+  function isEmptyValue(val) {
+    return val === undefined || val === null || val === '';
+  }
+
+  function renderResultTableRow(key, value, alert = null) {
+    const $tr = $('<tr class="result-content-row">');
+    const $key = $(`<td class="result-content-item">${key}</td>`);
+    const $value = $(`<td class="result-content-item">${isEmptyValue(value) ? '' : value}</td>`);
+    if (alert === false) {
+      $tr.css({
+        'background-color': '#33ee33',
+      });
+    } else if (alert === true) {
+      $tr.css({
+        'background-color': '#ee3333',
+      });
+    }
+    $tr.append([$key, $value]);
+    return $tr;
+  }
+
+  function renderResultDetail() {
+    const { measure_result: measureResult, error_code: errorCode, ...rest } = result;
+    const $rows = [];
+    const isNOK = measureResult.toUpperCase() === 'NOK';
+    $rows.push(renderResultTableRow('拧紧结果', measureResult, isNOK));
+    $rows.push(renderResultTableRow('错误代码', resultErrs[errorCode] || errorCode, isNOK));
+    Object.keys(rest).forEach((k) => {
+      $rows.push(renderResultTableRow(k, rest[k]));
+    });
+    $('#result_detail').append($rows);
+  }
+
   $(document).ready(() => {
     chartInit();
+    renderResultDetail();
   });
 
   $(window).resize(() => {
@@ -176,37 +206,38 @@
   const info = [
     {
       title: '拧紧结果',
-      content: '{{result.measure_result}}',
+      content: result.measure_result,
     },
     {
       title: '螺栓编号',
-      content: '{{result.nut_no}}',
+      content: result.nut_no,
     },
     {
       title: '工具序列号',
-      content: '{{result.tool_sn}}',
+      content: result.tool_sn,
     },
     {
       title: '拧紧时间',
-      content: '{{result.update_time}}',
+      content: result.update_time,
     },
     {
-      title: '训练结果',
+      title: '分析结果',
       content: '{{task_instance.result}}',
     },
   ];
+  if (!isEmptyValue('{{task_instance.error_code}}')) {
+    info.push({
+      title: '错误信息',
+      content: analysisErrs['{{task_instance.error_code}}'],
+    });
+  }
 
   info.reverse().forEach((i) => {
-    const content = $('<fieldset class="base-info-item card flex-column justify-center">'
-      + '      <legend class="base-info-title">'
-      + i.title
-      + '      </legend>'
-      + '      <span class="base-info-content">'
-      + i.content
-      + '      </span>'
-      + '    </fieldset>');
-
-    $('#base-info-container').prepend(content);
+    const $info = $('<fieldset class="base-info-item card flex-column justify-center">');
+    const $title = $('<legend class="base-info-title">').append([i.title]);
+    const $content = $('<span class="base-info-content">').append([i.content]);
+    $info.append([$title, $content]);
+    $('#base-info-container').prepend($info);
   });
 
   $('#update-chart-w-m').change(() => {
@@ -218,7 +249,6 @@
   });
 
   $('#update-chart-t-w').change(() => {
-    console.log($('#update-chart-t-w')[0].checked);
     updateChart('cur_t', 'cur_w', '时间', '角度');
   });
 
@@ -231,22 +261,22 @@
         final_state: finalState,
         execution_date: '{{task_instance.execution_date}}',
       }),
-      headers: {'X-CSRFToken': '{{ csrf_token() }}'},
+      headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
       dataType: 'json',
       contentType: 'application/json',
-    }).then(function (resp) {
+    }).then((resp) => {
       $('#double-check-result').html(finalState);
       $('#doubleCheckModal').modal('hide');
       if (resp && resp.response === 'ok') {
-        $('#double_check_result').html('二次确认为' + finalState);
+        $('#double_check_result').html(`二次确认为${finalState}`);
       }
     });
   }
 
-  $('#btn_double_check_failed').click(function (e) {
+  $('#btn_double_check_failed').click((e) => {
     submitDoubleCheck('NOK');
   });
-  $('#btn_double_check_success').click(function (e) {
+  $('#btn_double_check_success').click((e) => {
     submitDoubleCheck('OK');
   });
 </script>

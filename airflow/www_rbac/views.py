@@ -60,7 +60,7 @@ from airflow import settings, configuration
 from airflow.configuration import conf
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
-from airflow.models import Connection, DagModel, DagRun, DagTag, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.models import Variable, Connection, DagModel, DagRun, DagTag, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.exceptions import AirflowException
 from airflow.models.dagcode import DagCode
 from airflow.settings import STORE_SERIALIZED_DAGS
@@ -400,8 +400,15 @@ class Airflow(AirflowBaseView):
         except Exception as e:
             logging.error(e)
             curve = {}
+
+        analysis_error_message_mapping = Variable.get('analysis_error_message_mapping', deserialize_json=True,
+                                                      default_var={})
+
+        result_error_message_mapping = Variable.get('result_error_message_mapping', deserialize_json=True,
+                                                    default_var={})
         return self.render_template('airflow/curve.html', task_instance=ti, result=result,
-                                    curve=curve)
+                                    curve=curve, analysisErrorMessageMapping=analysis_error_message_mapping,
+                                    resultErrorMessageMapping=result_error_message_mapping)
 
     @expose('/task_stats', methods=['POST'])
     @has_access
