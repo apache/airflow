@@ -65,8 +65,8 @@ def put_anaylysis_result():
         real_task_id = data.get('real_task_id')
         execution_date = data.get('exec_date')
         entity_id = data.get('entity_id')
-        result = data.get('result')  # OK, NOK
-        if result:
+        result = int(data.get('result'))  # OK, NOK
+        if result is 0:
             rresult = 'OK'
         else:
             rresult = 'NOK'
@@ -90,6 +90,7 @@ def put_anaylysis_result():
                 return response
             ti.result = rresult
             ti.entity_id = entity_id
+            ti.error_code = result
             session.commit()
         if PUSH_TRAINING_NOK == 'True' and rresult == 'NOK':
             training_result = {

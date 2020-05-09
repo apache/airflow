@@ -249,10 +249,12 @@
       content: '{{task_instance.result}}',
     },
   ];
-  if (!isEmptyValue('{{task_instance.error_code}}')) {
+  const errorCode = '{{task_instance.error_code}}';
+  console.log(errorCode);
+  if (!Number.isNaN(+errorCode) && +errorCode !== 0) {
     info.push({
       title: '错误信息',
-      content: analysisErrs['{{task_instance.error_code}}'],
+      content: analysisErrs[+'{{task_instance.error_code}}'] || '{{task_instance.error_code}}',
     });
   }
 

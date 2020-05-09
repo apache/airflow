@@ -166,7 +166,7 @@ class TaskInstance(Base, LoggingMixin):
     executor_config = Column(PickleType(pickler=dill))
 
     result = Column(String(20))  # 分析结果, OK/NOK
-
+    error_code = Column(Integer)
     final_state = Column(String(20))  # 最终状态牵涉2次检验
 
     # If adding new fields here then remember to add them to
