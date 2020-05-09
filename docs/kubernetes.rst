@@ -60,7 +60,7 @@ The structure of 'pod' that is an argument of pod_mutation_hook are as follows.
     cmds: []
     configmaps:  []
     dnspolicy:
-    Noneenvs:   {}
+    envs:   {}
     hostnetwork:
     image:
     image_pull_policy:
