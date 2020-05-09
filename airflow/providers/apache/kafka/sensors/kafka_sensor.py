@@ -56,10 +56,7 @@ class KafkaSensor(BaseSensorOperator):
     @cached_property
     def hook(self):
         """
-            Returns a Kafka Consumer Hook
-
-        :return:
-        KafkaConsumerHook
+        Returns a Kafka Consumer Hook
         """
         return KafkaConsumerHook(self.topic, self.host, self.port)
 
