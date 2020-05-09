@@ -535,7 +535,7 @@ function prepare_command_files() {
 
     # Prepare script for "run test"
     prepare_command_file "${BUILD_CACHE_DIR}/${LAST_DC_TEST_CI_FILE}" \
-        "${DC_RUN_CI_COMMAND}" "${COMPOSE_CI_FILE}" "true" "${AIRFLOW_CI_IMAGE}" '*'
+        "${DC_RUN_CI_COMMAND}" "true" "${COMPOSE_CI_FILE}" "${AIRFLOW_CI_IMAGE}" '*'
 
     # Prepare script for "run docker compose command"
     prepare_command_file "${BUILD_CACHE_DIR}/${LAST_DC_CI_FILE}" \
