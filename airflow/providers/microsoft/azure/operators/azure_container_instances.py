@@ -158,7 +158,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                  fail_if_exists=True,
                  restart_policy='Never',
                  ip_address=None,
-                 network_profile=None,
+                 network_profile='',
                  tags=None,
                  *args,
                  **kwargs):
@@ -180,7 +180,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         self.remove_on_error = remove_on_error
         self.fail_if_exists = fail_if_exists
         self.restart_policy = self._check_restart_policy(restart_policy)
-        self.network_profile = self._check_network_profile(network_profile or dict())
+        self.network_profile = self._check_network_profile(network_profile)
         self.ip_address, self.container_ports = self._check_ip_address(ip_address or dict())
         self._ci_hook = None
         self.tags = tags
