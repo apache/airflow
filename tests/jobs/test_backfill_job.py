@@ -1174,6 +1174,7 @@ class TestBackfillJob(unittest.TestCase):
                 .query(DagRun)
                 .filter(DagRun.dag_id == subdag.dag_id)
                 .filter(DagRun.execution_date == start_date)
+                # pylint: disable=comparison-with-callable
                 .filter(DagRun.state == State.SUCCESS)
                 .count()
             )

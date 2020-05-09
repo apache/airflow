@@ -912,7 +912,7 @@ class TestDag(unittest.TestCase):
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
         self.assertFalse(orm_dag.is_active)
 
-        # CleanUp
+        # pylint: disable=no-member
         session.execute(DagModel.__table__.delete().where(DagModel.dag_id == dag_id))
         session.close()
 

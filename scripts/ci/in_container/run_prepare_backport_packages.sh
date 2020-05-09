@@ -82,18 +82,30 @@ else
 fi
 
 echo "==================================================================================="
-echo " Copying sources and doing refactor for backporting"
+echo " Copying sources and doing refactor for backport packages"
 echo "==================================================================================="
 python3 setup_backport_packages.py prepare
 
+VERSION_SUFFIX=${VERSION_SUFFIX:=""}
+
+
 for BACKPORT_PACKAGE in ${BACKPORT_PACKAGES}
 do
+    LOG_FILE=$(mktemp)
     echo "==================================================================================="
-    echo " Preparing backporting package ${BACKPORT_PACKAGE}"
+    echo " Preparing backport package ${BACKPORT_PACKAGE} with version suffix: '${VERSION_SUFFIX}'"
     echo "-----------------------------------------------------------------------------------"
     python3 setup_backport_packages.py "${BACKPORT_PACKAGE}" clean --all >/dev/null 2>&1
-    python3 setup_backport_packages.py "${BACKPORT_PACKAGE}" sdist bdist_wheel >/dev/null 2>&1
-    echo " Prepared backporting package ${BACKPORT_PACKAGE}"
+    set +e
+    python3 setup_backport_packages.py --version-suffix "${VERSION_SUFFIX}" \
+        "${BACKPORT_PACKAGE}" sdist bdist_wheel >"${LOG_FILE}" 2>&1
+    RES="${?}"
+    if [[ ${RES} != "0" ]]; then
+        cat "${LOG_FILE}"
+        exit "${RES}"
+    fi
+    set -e
+    echo " Prepared backport package ${BACKPORT_PACKAGE}"
 done
 
 cd "${AIRFLOW_SOURCES}" || exit 1

@@ -137,7 +137,9 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | presto              | ``pip install 'apache-airflow[apache.presto]'``     | All Presto related operators & hooks                                 |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| webhdfs             | ``pip install 'apache-airflow[apache.webhdfs]'``    | HDFS hooks and operators                                             |
+| spark               | ``pip install 'apache-airflow[apache.spark]'``      | All Spark related operators & hooks                                  |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| webhdfs             | ``pip install 'apache-airflow[webhdfs]'``           | HDFS hooks and operators                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 
 

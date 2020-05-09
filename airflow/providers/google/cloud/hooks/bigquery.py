@@ -2538,6 +2538,7 @@ class BigQueryCursor(BigQueryBaseCursor):
 
     def fetchone(self) -> Union[List, None]:
         """ Fetch the next row of a query result set. """
+        # pylint: disable=not-callable
         return self.next()
 
     def next(self) -> Union[List, None]:

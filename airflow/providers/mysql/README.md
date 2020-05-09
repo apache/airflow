@@ -1,0 +1,140 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+ -->
+
+
+# Package apache-airflow-backport-providers-mysql
+
+Release: 2020.05.19
+
+**Table of contents**
+
+- [Backport package](#backport-package)
+- [Installation](#installation)
+- [Compatibility](#compatibility)
+- [PIP requirements](#pip-requirements)
+- [Cross provider package dependencies](#cross-provider-package-dependencies)
+- [Provider class summary](#provider-class-summary)
+    - [Operators](#operators)
+        - [New operators](#new-operators)
+        - [Moved operators](#moved-operators)
+    - [Hooks](#hooks)
+        - [Moved hooks](#moved-hooks)
+- [Releases](#releases)
+    - [Release 2020.05.19](#release-20200519)
+
+## Backport package
+
+This is a backport providers package for `mysql` provider. All classes for this provider package
+are in `airflow.providers.mysql` python package.
+
+## Installation
+
+You can install this package on top of an existing airflow 1.10.* installation via
+`pip install apache-airflow-backport-providers-mysql`
+
+## Compatibility
+
+For full compatibility and test status of the backport packages check
+[Airflow Backport Package Compatibility](https://cwiki.apache.org/confluence/display/AIRFLOW/Backported+providers+packages+for+Airflow+1.10.*+series)
+
+## PIP requirements
+
+| PIP package            | Version required   |
+|:-----------------------|:-------------------|
+| mysql-connector-python | &gt;=8.0.11, &lt;=8.0.18 |
+| mysqlclient            | &gt;=1.3.6,&lt;1.4       |
+
+## Cross provider package dependencies
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified backport providers package in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+```bash
+pip install apache-airflow-backport-providers-mysql[amazon]
+```
+
+| Dependent package                                                                                                    | Extra   |
+|:---------------------------------------------------------------------------------------------------------------------|:--------|
+| [apache-airflow-backport-providers-amazon](https://github.com/apache/airflow/tree/master/airflow/providers/amazon)   | amazon  |
+| [apache-airflow-backport-providers-presto](https://github.com/apache/airflow/tree/master/airflow/providers/presto)   | presto  |
+| [apache-airflow-backport-providers-vertica](https://github.com/apache/airflow/tree/master/airflow/providers/vertica) | vertica |
+
+# Provider class summary
+
+All classes in Airflow 2.0 are in `airflow.providers.mysql` package.
+
+
+## Operators
+
+
+### New operators
+
+| New Airflow 2.0 operators: `airflow.providers.mysql` package                                                                              |
+|:------------------------------------------------------------------------------------------------------------------------------------------|
+| [operators.s3_to_mysql.S3ToMySqlTransfer](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/operators/s3_to_mysql.py) |
+
+
+
+### Moved operators
+
+| Airflow 2.0 operators: `airflow.providers.mysql` package                                                                                                 | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                   |
+|:---------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [operators.mysql.MySqlOperator](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/operators/mysql.py)                                | [operators.mysql_operator.MySqlOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/mysql_operator.py)                              |
+| [operators.presto_to_mysql.PrestoToMySqlTransfer](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/operators/presto_to_mysql.py)    | [operators.presto_to_mysql.PrestoToMySqlTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/presto_to_mysql.py)                    |
+| [operators.vertica_to_mysql.VerticaToMySqlTransfer](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/operators/vertica_to_mysql.py) | [contrib.operators.vertica_to_mysql.VerticaToMySqlTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/vertica_to_mysql.py) |
+
+
+
+
+
+## Hooks
+
+
+
+### Moved hooks
+
+| Airflow 2.0 hooks: `airflow.providers.mysql` package                                                          | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                  |
+|:--------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------|
+| [hooks.mysql.MySqlHook](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/hooks/mysql.py) | [hooks.mysql_hook.MySqlHook](https://github.com/apache/airflow/blob/v1-10-stable/airflow/hooks/mysql_hook.py) |
+
+
+
+
+
+
+## Releases
+
+### Release 2020.05.19
+
+| Commit                                                                                         | Committed   | Subject                                                                                     |
+|:-----------------------------------------------------------------------------------------------|:------------|:--------------------------------------------------------------------------------------------|
+| [68d1714f2](https://github.com/apache/airflow/commit/68d1714f296989b7aad1a04b75dc033e76afb747) | 2020-04-04  | [AIRFLOW-6822] AWS hooks should cache boto3 client (#7541)                                  |
+| [329e6a5f7](https://github.com/apache/airflow/commit/329e6a5f72bc2e3fc19391754256d974179a6ce0) | 2020-04-01  | [AIRFLOW-5907] Add S3 to MySql Operator (#6578)                                             |
+| [4bde99f13](https://github.com/apache/airflow/commit/4bde99f1323d72f6c84c1548079d5e98fc0a2a9a) | 2020-03-23  | Make airflow/providers pylint compatible (#7802)                                            |
+| [b39468d28](https://github.com/apache/airflow/commit/b39468d2878554ba60863656364b4a95eda30685) | 2020-03-09  | [AIRFLOW-5922] Add option to specify the mysql client library used in MySqlHook (#6576)     |
+| [9cbd7de6d](https://github.com/apache/airflow/commit/9cbd7de6d115795aba8bfb8addb060bfdfbdf87b) | 2020-02-18  | [AIRFLOW-6792] Remove _operator/_hook/_sensor in providers package and add tests (#7412)    |
+| [94fccca97](https://github.com/apache/airflow/commit/94fccca97030ee59d89f302a98137b17e7b01a33) | 2020-02-04  | [AIRFLOW-XXXX] Add pre-commit check for utf-8 file encoding (#7347)                         |
+| [97a429f9d](https://github.com/apache/airflow/commit/97a429f9d0cf740c5698060ad55f11e93cb57b55) | 2020-02-02  | [AIRFLOW-6714] Remove magic comments about UTF-8 (#7338)                                    |
+| [1e576f123](https://github.com/apache/airflow/commit/1e576f12343b30c2a37ab3f4f62ee3aa30326e77) | 2020-02-02  | [AIRFLOW-6680] Last changes for AIP-21 (#7301)                                              |
+| [057f3ae3a](https://github.com/apache/airflow/commit/057f3ae3a4afedf6d462ecf58b01dd6304d3e135) | 2020-01-29  | [AIRFLOW-6670][depends on AIRFLOW-6669] Move contrib operators to providers package (#7286) |
+| [82c0e5aff](https://github.com/apache/airflow/commit/82c0e5aff6004f636b98e207c3caec40b403fbbe) | 2020-01-28  | [AIRFLOW-6655] Move AWS classes to providers (#7271)                                        |
+| [eee34ee80](https://github.com/apache/airflow/commit/eee34ee8080bb7bc81294c3fbd8be93bbf795367) | 2020-01-24  | [AIRFLOW-4204] Update super() calls (#7248)                                                 |
+| [059eda05f](https://github.com/apache/airflow/commit/059eda05f82fefce4410f44f761f945a27d83daf) | 2020-01-21  | [AIRFLOW-6610] Move software classes to providers package (#7231)                           |
