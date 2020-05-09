@@ -22,7 +22,8 @@ from time import sleep
 from typing import Dict, Sequence
 
 from azure.mgmt.containerinstance.models import (
-    Container, ContainerGroup, EnvironmentVariable, ResourceRequests, ResourceRequirements, VolumeMount,
+    Container, ContainerGroup, EnvironmentVariable, ResourceRequests, ResourceRequirements, VolumeMount, IpAddress,
+    Port, ContainerGroupNetworkProfile, ContainerPort
 )
 from msrestazure.azure_exceptions import CloudError
 
@@ -87,6 +88,23 @@ class AzureContainerInstancesOperator(BaseOperator):
     :param container_timeout: max time allowed for the execution of
         the container instance.
     :type container_timeout: datetime.timedelta
+    :param restart_policy: Restart policy for all containers within the
+     container group.
+        - `Always` Always restart
+        - `OnFailure` Restart on failure
+        - `Never` Never restart
+        . Possible values include: 'Always', 'OnFailure', 'Never'
+        default is 'Never'
+    :type restart_policy: str
+    :param ip_address: IP Address configuration for container Group. Ports are opened ports are always forwarded to
+        the container being run. The following keys can be provided:
+        - type: Either Private or Public
+        - ip: Static IP Address to assign
+        - ports: list of dict ( 'port': Port number, 'protocol': default UDP
+        - dns_name_label: DNS Name
+    :type ip_address: dict[str, str, [dict[str, str]], str]
+    :param network_profile: Network profile id. Required for Private IP configuration
+    :type network_profile: str
     :param tags: azure tags as dict of str:str
     :type tags: dict[str, str]
 
@@ -138,6 +156,9 @@ class AzureContainerInstancesOperator(BaseOperator):
                  command=None,
                  remove_on_error=True,
                  fail_if_exists=True,
+                 restart_policy='Never',
+                 ip_address=None,
+                 network_profile=None,
                  tags=None,
                  *args,
                  **kwargs):
@@ -158,6 +179,9 @@ class AzureContainerInstancesOperator(BaseOperator):
         self.command = command
         self.remove_on_error = remove_on_error
         self.fail_if_exists = fail_if_exists
+        self.restart_policy = self._check_restart_policy(restart_policy)
+        self.network_profile = self._check_network_profile(network_profile or dict())
+        self.ip_address, self.container_ports = self._check_ip_address(ip_address or dict())
         self._ci_hook = None
         self.tags = tags
 
@@ -218,17 +242,33 @@ class AzureContainerInstancesOperator(BaseOperator):
                 image=self.image,
                 resources=resources,
                 command=self.command,
+                ports=self.container_ports,
                 environment_variables=environment_variables,
                 volume_mounts=volume_mounts)
 
-            container_group = ContainerGroup(
-                location=self.region,
-                containers=[container, ],
-                image_registry_credentials=image_registry_credentials,
-                volumes=volumes,
-                restart_policy='Never',
-                os_type='Linux',
-                tags=self.tags)
+            if self.ip_address.type == 'Private':
+                if not self.network_profile:
+                    raise AirflowException("A network profile id must be specified to use a private Network IP")
+                container_group = ContainerGroup(
+                    location=self.region,
+                    containers=[container, ],
+                    image_registry_credentials=image_registry_credentials,
+                    volumes=volumes,
+                    restart_policy=self.restart_policy,
+                    ip_address=self.ip_address,
+                    network_profile=self.network_profile,
+                    os_type='Linux',
+                    tags=self.tags)
+            else:
+                container_group = ContainerGroup(
+                    location=self.region,
+                    containers=[container, ],
+                    image_registry_credentials=image_registry_credentials,
+                    volumes=volumes,
+                    restart_policy=self.restart_policy,
+                    ip_address=self.ip_address,
+                    os_type='Linux',
+                    tags=self.tags)
 
             self._ci_hook.create_or_update(self.resource_group, self.name, container_group)
 
@@ -295,11 +335,11 @@ class AzureContainerInstancesOperator(BaseOperator):
                         self.log.exception("Exception while getting logs from "
                                            "container instance, retrying...")
 
-                if state == "Terminated":
+                if state == "Terminated" and self.restart_policy in ["Never", "OnFailure"]:
                     self.log.error("Container exited with detail_status %s", detail_status)
                     return exit_code
 
-                if state == "Failed":
+                if state == "Failed" and self.restart_policy == "Never":
                     self.log.error("Azure provision failure")
                     return 1
 
@@ -335,6 +375,46 @@ class AzureContainerInstancesOperator(BaseOperator):
             return logs[-1]
         return None
 
+    def _check_ip_address(self, _ip_address):
+        address_type = None
+        container_group_ports = []
+        container_ports = []
+        container_group_ip = None
+        dns_name_label = None
+        if 'type' in _ip_address.keys():
+            if _ip_address['type'] not in ['Private', 'Public']:
+                raise AirflowException("IP Address type must be either 'Private' or 'Public'")
+            address_type = _ip_address['type']
+            if address_type == 'Private' and not self.network_profile:
+                raise AirflowException("You need to provide a valid network profile id when using a private IP Address")
+            if address_type == 'Public' and not self.network_profile:
+                self.log.warning("Network profile is ignored because you have specified a Public IP Address")
+        if 'ports' in _ip_address.keys():
+            for port in _ip_address['ports']:
+                if 'protocol' not in port.keys():
+                    self.log.warning("No protocol specified, defaulting to UDP")
+                    _protocol = 'UDP'
+                else:
+                    _protocol = port['protocol']
+                if port['protocol'] not in ['TCP', 'UDP']:
+                    raise AirflowException("Port protocol must be either 'TCP' or 'UDP'")
+                if 'port' not in port.keys():
+                    raise AirflowException("Port specification must include key 'port'")
+                container_group_ports.append(Port(protocol=port['protocol'], port=port['port']))
+                container_ports.append(ContainerPort(port=port['port'], protocol=_protocol))
+            if len(container_group_ports) == 0:
+                container_group_ports = None
+                container_ports = None
+        if 'ip' in _ip_address.keys():
+            container_group_ip = _ip_address['ip']
+        if 'dns_name_label' in _ip_address:
+            dns_name_label = _ip_address['dns_name_label']
+        ip_address = IpAddress(ports=container_group_ports,
+                               type=address_type,
+                               ip=container_group_ip,
+                               dns_name_label=dns_name_label)
+        return ip_address, container_ports
+
     @staticmethod
     def _check_name(name):
         if '{{' in name:
@@ -346,3 +426,16 @@ class AzureContainerInstancesOperator(BaseOperator):
         if len(name) > 63:
             raise AirflowException('ACI name cannot be longer than 63 characters')
         return name
+
+    @staticmethod
+    def _check_restart_policy(restart_policy):
+        if restart_policy not in ['Never', 'OnFailure', 'Always']:
+            raise AirflowException("Restart policy must be 'Never', 'OnFailure' or 'Always'")
+        return restart_policy
+
+    @staticmethod
+    def _check_network_profile(_network_profile):
+        if _network_profile:
+            return ContainerGroupNetworkProfile(id=_network_profile)
+        return None
+

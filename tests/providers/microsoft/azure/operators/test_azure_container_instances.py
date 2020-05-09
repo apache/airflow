@@ -176,6 +176,119 @@ class TestACIOperator(unittest.TestCase):
 
         self.assertEqual(aci_mock.return_value.delete.call_count, 1)
 
+    @mock.patch("airflow.providers.microsoft.azure.operators."
+                "azure_container_instances.AzureContainerInstanceHook")
+    def test_execute_with_restart_policy(self, aci_mock):
+        expected_c_state = ContainerState(state='Terminated', exit_code=0, detail_status='test')
+        expected_cg = make_mock_cg(expected_c_state)
+
+        aci_mock.return_value.get_state.return_value = expected_cg
+        aci_mock.return_value.exists.return_value = False
+
+        aci = AzureContainerInstancesOperator(ci_conn_id=None,
+                                              registry_conn_id=None,
+                                              resource_group='resource-group',
+                                              name='container-name',
+                                              image='container-image',
+                                              region='region',
+                                              restart_policy='OnFailure',
+                                              task_id='task')
+        aci.execute(None)
+
+        self.assertEqual(aci_mock.return_value.create_or_update.call_count, 1)
+        (called_rg, called_cn, called_cg), _ = \
+            aci_mock.return_value.create_or_update.call_args
+
+        self.assertEqual(called_rg, 'resource-group')
+        self.assertEqual(called_cn, 'container-name')
+
+        self.assertEqual(called_cg.location, 'region')
+        self.assertEqual(called_cg.image_registry_credentials, None)
+        self.assertEqual(called_cg.restart_policy, 'OnFailure')
+        self.assertEqual(called_cg.os_type, 'Linux')
+
+        called_cg_container = called_cg.containers[0]
+        self.assertEqual(called_cg_container.name, 'container-name')
+        self.assertEqual(called_cg_container.image, 'container-image')
+
+        self.assertEqual(aci_mock.return_value.delete.call_count, 1)
+
+    @mock.patch("airflow.providers.microsoft.azure.operators."
+                "azure_container_instances.AzureContainerInstanceHook")
+    def test_execute_with_private_network_profile(self, aci_mock):
+        expected_c_state = ContainerState(state='Terminated', exit_code=0, detail_status='test')
+        expected_cg = make_mock_cg(expected_c_state)
+
+        aci_mock.return_value.get_state.return_value = expected_cg
+        aci_mock.return_value.exists.return_value = False
+
+        aci = AzureContainerInstancesOperator(ci_conn_id=None,
+                                              registry_conn_id=None,
+                                              resource_group='resource-group',
+                                              name='container-name',
+                                              image='container-image',
+                                              region='region',
+                                              ip_address={
+                                                  'type': 'Private',
+                                                  'ip': '0.0.0.0',
+                                                  'ports': [
+                                                      {
+                                                          'protocol': 'UDP',
+                                                          'port': 80
+                                                      }
+                                                  ]
+                                              },
+                                              network_profile='network-profile-id',
+                                              task_id='task')
+        aci.execute(None)
+
+        self.assertEqual(aci_mock.return_value.create_or_update.call_count, 1)
+        (called_rg, called_cn, called_cg), _ = \
+            aci_mock.return_value.create_or_update.call_args
+
+        self.assertEqual(called_rg, 'resource-group')
+        self.assertEqual(called_cn, 'container-name')
+
+        self.assertEqual(called_cg.location, 'region')
+        self.assertEqual(called_cg.image_registry_credentials, None)
+        self.assertEqual(called_cg.restart_policy, 'Never')
+        self.assertEqual(called_cg.os_type, 'Linux')
+        self.assertEqual(called_cg.ip_address.type, 'Private')
+        self.assertEqual(len(called_cg.ip_address.ports), 1)
+        self.assertEqual(called_cg.ip_address.ports[0].port, 80)
+        self.assertEqual(called_cg.ip_address.ip, '0.0.0.0')
+
+        called_cg_container = called_cg.containers[0]
+        self.assertEqual(called_cg_container.name, 'container-name')
+        self.assertEqual(called_cg_container.image, 'container-image')
+
+        self.assertEqual(aci_mock.return_value.delete.call_count, 1)
+
+    def test_invalid_network_configuration(self):
+        with self.assertRaises(AirflowException):
+            _ = AzureContainerInstancesOperator(ci_conn_id=None,
+                                                registry_conn_id=None,
+                                                resource_group='resource-group',
+                                                name='container-name',
+                                                image='container-image',
+                                                region='region',
+                                                ip_address={
+                                                    'type': 'Publish',
+                                                },
+                                                network_profile='network-profile-id',
+                                                task_id='task')
+        with self.assertRaises(AirflowException):
+            _ = AzureContainerInstancesOperator(ci_conn_id=None,
+                                                registry_conn_id=None,
+                                                resource_group='resource-group',
+                                                name='container-name',
+                                                image='container-image',
+                                                region='region',
+                                                ip_address={
+                                                    'type': 'Private',
+                                                },
+                                                task_id='task')
+
     def test_name_checker(self):
         valid_names = ['test-dash', 'name-with-length---63' * 3]
 
@@ -190,3 +303,15 @@ class TestACIOperator(unittest.TestCase):
         for name in valid_names:
             checked_name = AzureContainerInstancesOperator._check_name(name)
             self.assertEqual(checked_name, name)
+
+    def test_restart_policy_checker(self):
+        valid_policies = ['Never', 'OnFailure', 'Always']
+
+        invalid_policies = ['sometimes', 'ondemand']
+        for policy_name in invalid_policies:
+            with self.assertRaises(AirflowException):
+                AzureContainerInstancesOperator._check_restart_policy(policy_name)
+
+        for policy_name in valid_policies:
+            checked_policy = AzureContainerInstancesOperator._check_restart_policy(policy_name)
+            self.assertEqual(checked_policy, policy_name)
