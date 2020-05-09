@@ -18,7 +18,6 @@
 """Serialized DAG and BaseOperator"""
 import datetime
 import enum
-import functools
 import logging
 from inspect import Parameter, signature
 from typing import Any, Dict, Iterable, List, Optional, Set, Union
@@ -283,7 +282,7 @@ class BaseSerialization:
         """
         # pylint: disable=unused-argument
         if attrname in cls._CONSTRUCTOR_PARAMS and \
-                (cls._CONSTRUCTOR_PARAMS[attrname].default is value or (value in [{}, []])):
+                (cls._CONSTRUCTOR_PARAMS[attrname] is value or (value in [{}, []])):
             return True
         return False
 
@@ -297,19 +296,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     _decorated_fields = {'executor_config'}
 
-    # Calling `signature` is a relatively costly operation, we don't want to
-    # call it each time. But we also need to call it for each operator subclass
-    # we serialize. So we cache the most 128 recently asked for signatures --
-    # each time we ask it goes to the front of the queue, and the oldest are
-    # deleted once the size is exceeded.
-    @staticmethod
-    @functools.lru_cache(maxsize=128)
-    def __constructor_params_for_subclass(typ):
-        return {
-            k: v for k, v in signature(typ).parameters.items()
-            if v.default is not v.empty
-        }
-    _CONSTRUCTOR_PARAMS = __constructor_params_for_subclass.__func__(BaseOperator)  # type: ignore
+    _CONSTRUCTOR_PARAMS = {
+        k: v.default for k, v in signature(BaseOperator).parameters.items()
+        if v.default is not v.empty
+    }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -415,60 +405,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 setattr(op, field, None)
 
         return op
-
-    @classmethod
-    def _is_constructor_param(cls, attrname: str, instance: Any) -> bool:
-        # Check all super classes too
-        return any(
-            attrname in cls.__constructor_params_for_subclass(typ)
-            for typ in type(instance).mro()
-        )
-
-    @classmethod
-    def _value_is_hardcoded_default(cls, attrname: str, value: Any, instance: Any) -> bool:
-        """
-        Check if ``value`` is the default value for ``attrname`` as set by the
-        constructor of ``instance``, or any of it's parent classes up
-        to-and-including BaseOperator.
-
-        .. seealso::
-
-            :py:meth:`BaseSerialization._value_is_hardcoded_default`
-        """
-
-        def _is_default(ctor_params, attrname, value):
-            if attrname not in ctor_params:
-                return False
-            ctor_default = ctor_params[attrname].default
-
-            # Also returns True if the value is an empty list or empty dict.
-            # This is done to account for the case where the default value of
-            # the field is None but has the ``field = field or {}`` set.
-            return ctor_default is value or (ctor_default is None and value in [{}, []])
-
-        for typ in type(instance).mro():
-            ctor_params = cls.__constructor_params_for_subclass(typ)
-
-            if _is_default(ctor_params, attrname, value):
-                if typ is BaseOperator:
-                    return True
-                # For added fun, if a subclass sets a different default value to the
-                # same argument, (i.e. a subclass changes default of do_xcom_push from
-                # True to False), we then do want to include it.
-                #
-                # This is because we set defaults based on BaseOperators
-                # defaults, so if we didn't set this when inflating we'd
-                # have the wrong value
-
-                base_op_ctor_params = cls.__constructor_params_for_subclass(BaseOperator)
-                if attrname not in base_op_ctor_params:
-                    return True
-                return base_op_ctor_params[attrname].default == value
-
-            if typ is BaseOperator:
-                break
-
-        return False
 
     @classmethod
     def _is_excluded(cls, var: Any, attrname: str, op: BaseOperator):
@@ -599,7 +535,7 @@ class SerializedDAG(DAG, BaseSerialization):
             'access_control': '_access_control',
         }
         return {
-            param_to_attr.get(k, k): v for k, v in signature(DAG).parameters.items()
+            param_to_attr.get(k, k): v.default for k, v in signature(DAG).parameters.items()
             if v.default is not v.empty
         }
     _CONSTRUCTOR_PARAMS = __get_constructor_defaults.__func__()  # type: ignore

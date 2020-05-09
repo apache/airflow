@@ -345,13 +345,22 @@ class TestStringifiedDAGs(unittest.TestCase):
 
             # We store the string, real dag has the actual code
             'on_failure_callback', 'on_success_callback', 'on_retry_callback',
+
+            # Checked separately
+            'resources',
         }
 
         assert serialized_task.task_type == task.task_type
+        assert set(serialized_task.template_fields) == set(task.template_fields)
 
         for field in fields_to_check:
             assert getattr(serialized_task, field) == getattr(task, field), \
                 f'{task.dag.dag_id}.{task.task_id}.{field} does not match'
+
+        if serialized_task.resources is None:
+            assert task.resources is None or task.resources == []
+        else:
+            assert serialized_task.resources == task.resources
 
         # Check that for Deserialised task, task.subdag is None for all other Operators
         # except for the SubDagOperator where task.subdag is an instance of DAG object
