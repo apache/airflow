@@ -394,8 +394,6 @@ These integrations allow you to perform various operations within the Amazon Web
      - :mod:`airflow.providers.amazon.aws.sensors.glue`
 
    * - `AWS Lambda <https://aws.amazon.com/lambda/>`__
-
-   * - `AWS Lambda <https://aws.amazon.com/lambda/>`__
      -
      - :mod:`airflow.providers.amazon.aws.hooks.lambda_function`
      -
