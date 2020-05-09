@@ -3120,6 +3120,11 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         'extra__grpc__auth_type',
         'extra__grpc__credentials_pem_file',
         'extra__grpc__scopes',
+        'extra__yandexcloud__service_account_json',
+        'extra__yandexcloud__service_account_json_path',
+        'extra__yandexcloud__oauth',
+        'extra__yandexcloud__public_ssh_key',
+        'extra__yandexcloud__folder_id',
     )
     verbose_name = "Connection"
     verbose_name_plural = "Connections"
@@ -3155,6 +3160,11 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         'extra__grpc__auth_type': StringField('Grpc Auth Type'),
         'extra__grpc__credentials_pem_file': StringField('Credential Keyfile Path'),
         'extra__grpc__scopes': StringField('Scopes (comma separated)'),
+        'extra__yandexcloud__service_account_json': PasswordField('Service account auth JSON'),
+        'extra__yandexcloud__service_account_json_path': StringField('Service account auth JSON file path'),
+        'extra__yandexcloud__oauth': PasswordField('OAuth Token'),
+        'extra__yandexcloud__public_ssh_key': StringField('Public SSH key'),
+        'extra__yandexcloud__folder_id': StringField('Default folder ID'),
     }
     form_choices = {
         'conn_type': Connection._types
@@ -3162,7 +3172,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
 
     def on_model_change(self, form, model, is_created):
         formdata = form.data
-        if formdata['conn_type'] in ['jdbc', 'google_cloud_platform', 'gprc']:
+        if formdata['conn_type'] in ['jdbc', 'google_cloud_platform', 'gprc', 'yandexcloud']:
             extra = {
                 key: formdata[key]
                 for key in self.form_extra_fields.keys() if key in formdata}
