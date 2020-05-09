@@ -70,7 +70,7 @@ class AwsGlueJobOperator(BaseOperator):
                  s3_bucket=None,
                  iam_role_name=None,
                  *args, **kwargs
-                 ):
+                 ):  # pylint: disable=too-many-arguments
         super(AwsGlueJobOperator, self).__init__(*args, **kwargs)
         self.job_name = job_name
         self.job_desc = job_desc
@@ -83,8 +83,8 @@ class AwsGlueJobOperator(BaseOperator):
         self.region_name = region_name
         self.s3_bucket = s3_bucket
         self.iam_role_name = iam_role_name
-        self.S3_PROTOCOL = "s3://"
-        self.S3_ARTIFACTS_PREFIX = 'artifacts/glue-scripts/'
+        self.s3_protocol = "s3://"
+        self.s3_artifcats_prefix = 'artifacts/glue-scripts/'
 
     def execute(self, context):
         """
@@ -92,10 +92,10 @@ class AwsGlueJobOperator(BaseOperator):
 
         :return: the id of the current glue job.
         """
-        if self.script_location and not self.script_location.startswith(self.S3_PROTOCOL):
+        if self.script_location and not self.script_location.startswith(self.s3_protocol):
             s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
             script_name = os.path.basename(self.script_location)
-            s3_hook.load_file(self.script_location, self.s3_bucket, self.S3_ARTIFACTS_PREFIX + script_name)
+            s3_hook.load_file(self.script_location, self.s3_bucket, self.s3_artifcats_prefix + script_name)
         glue_job = AwsGlueJobHook(job_name=self.job_name,
                                   desc=self.job_desc,
                                   concurrent_run_limit=self.concurrent_run_limit,

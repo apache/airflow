@@ -67,7 +67,7 @@ class AwsGlueJobHook(AwsBaseHook):
         self.region_name = region_name
         self.s3_bucket = s3_bucket
         self.role_name = iam_role_name
-        self.S3_GLUE_LOGS = 'logs/glue-logs/'
+        self.s3_glue_logs = 'logs/glue-logs/'
         super(AwsGlueJobHook, self).__init__(*args, **kwargs)
 
     def get_conn(self):
@@ -95,7 +95,7 @@ class AwsGlueJobHook(AwsBaseHook):
             self.log.info("Iam Role Name: %s", self.role_name)
             return glue_execution_role
         except Exception as general_error:
-            self.log.error(f'Failed to create aws glue job, error: {str(general_error)}')
+            self.log.error("Failed to create aws glue job, error: %s", general_error)
             raise
 
     def initialize_job(self, script_arguments=None):
@@ -114,7 +114,7 @@ class AwsGlueJobHook(AwsBaseHook):
             )
             return self.job_completion(job_name, job_run['JobRunId'])
         except Exception as general_error:
-            self.log.error(f'Failed to run aws glue job, error: {str(general_error)}')
+            self.log.error("Failed to run aws glue job, error: %s", general_error)
             raise
 
     def job_completion(self, job_name=None, run_id=None):
@@ -161,7 +161,7 @@ class AwsGlueJobHook(AwsBaseHook):
                     'Could not initialize glue job, '
                     'error: Specify Parameter `s3_bucket`'
                 )
-            s3_log_path = f's3://{self.s3_bucket}/{self.S3_GLUE_LOGS}{self.job_name}'
+            s3_log_path = f's3://{self.s3_bucket}/{self.s3_glue_logs}{self.job_name}'
             execution_role = self.get_iam_execution_role()
             try:
                 create_job_response = glue_client.create_job(
@@ -176,5 +176,5 @@ class AwsGlueJobHook(AwsBaseHook):
                 )
                 return create_job_response['Name']
             except Exception as general_error:
-                self.log.error(f'Failed to create aws glue job, error: {str(general_error)}')
+                self.log.error("Failed to create aws glue job, error: %s", general_error)
                 raise
