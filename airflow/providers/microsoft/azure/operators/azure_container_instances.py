@@ -22,8 +22,8 @@ from time import sleep
 from typing import Dict, Sequence
 
 from azure.mgmt.containerinstance.models import (
-    Container, ContainerGroup, EnvironmentVariable, ResourceRequests, ResourceRequirements, VolumeMount,
-    IpAddress, Port, ContainerGroupNetworkProfile, ContainerPort
+    Container, ContainerGroup, ContainerGroupNetworkProfile, ContainerPort, EnvironmentVariable, IpAddress,
+    Port, ResourceRequests, ResourceRequirements, VolumeMount,
 )
 from msrestazure.azure_exceptions import CloudError
 
