@@ -18,8 +18,10 @@
 """Operators that integrat with Google Cloud Build service."""
 import re
 from copy import deepcopy
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, Optional, Union
 from urllib.parse import unquote, urlparse
+
+import yaml
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -39,7 +41,7 @@ class BuildProcessor:
     * It is possible to provide the source as the URL address instead dict.
 
     :param body: The request body.
-        See: https://cloud.google.com/cloud-build/docs/api/reference/rest/Shared.Types/Build
+        See: https://cloud.google.com/cloud-build/docs/api/reference/rest/v1/projects.builds
     :type body: dict
     """
     def __init__(self, body: Dict) -> None:
@@ -83,6 +85,18 @@ class BuildProcessor:
 
         self.body["source"]["storageSource"] = self._convert_storage_url_to_dict(source)
 
+    def _load_body_to_dict(self):
+        """
+        :param file:
+            file path to YAML build config
+        :return: dict
+        """
+        try:
+            with open(self.body, 'r') as f:
+                self.body = yaml.safe_load(f)
+        except yaml.YAMLError as e:
+            raise AirflowException("Exception when loading resource definition: %s\n" % e)
+
     def process_body(self):
         """
         Processes the body passed in the constructor
@@ -90,6 +104,10 @@ class BuildProcessor:
         :return: the body.
         :type: dict
         """
+
+        if isinstance(self.body, str):
+            self._load_body_to_dict()
+            return self.body
         self._verify_source()
         self._reformat_source()
         return self.body
@@ -178,7 +196,7 @@ class CloudBuildCreateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 body: dict,
+                 body: Union[dict, str],
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = "google_cloud_default",
                  api_version: str = "v1",
