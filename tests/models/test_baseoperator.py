@@ -290,6 +290,39 @@ class TestBaseOperator(unittest.TestCase):
         assert op2 in op1.downstream_list
         assert op3 in op1.downstream_list
 
+    def test_set_xcomargs_dependencies_works_recursively(self):
+        class CustomOp(DummyOperator):
+            template_fields = ("field",)
+
+            @apply_defaults
+            def __init__(self, field, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.field = field
+
+        with DAG("test_dag", default_args={"start_date": datetime.today()}):
+            op1 = DummyOperator(task_id="op1")
+            op2 = DummyOperator(task_id="op2")
+            op3 = CustomOp(task_id="op3", field=[op1.output, op2.output])
+            op4 = CustomOp(task_id="op4", field={"op1": op1.output, "op2": op2.output})
+
+        assert op1 in op3.upstream_list
+        assert op2 in op3.upstream_list
+        assert op1 in op4.upstream_list
+        assert op2 in op4.upstream_list
+
+    def test_set_xcomargs_dependencies_error_when_outside_dag(self):
+        class CustomOp(DummyOperator):
+            template_fields = ("field",)
+
+            @apply_defaults
+            def __init__(self, field, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.field = field
+
+        with self.assertRaises(AirflowException):
+            op1 = DummyOperator(task_id="op1")
+            CustomOp(task_id="op2", field=op1.output)
+
 
 class TestBaseOperatorMethods(unittest.TestCase):
     def test_cross_downstream(self):

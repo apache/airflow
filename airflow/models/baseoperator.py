@@ -651,7 +651,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
 
     def _set_xcomargs_dependencies(self) -> None:
         """
-        Resolves upstream dependencies of a task. In this way passing an ``XComArg`
+        Resolves upstream dependencies of a task. In this way passing an ``XComArg``
         as value for a template field will result in creating upstream relation between
         two tasks.
 
@@ -671,10 +671,20 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
 
         """
         from airflow.models.xcom_arg import XComArg
-        for field in self.template_fields:
-            arg = getattr(self, field)
+
+        def apply_set_upstream(arg: Any):
             if isinstance(arg, XComArg):
                 self.set_upstream(arg.operator)
+            elif isinstance(arg, (tuple, set, list)):
+                for elem in arg:
+                    apply_set_upstream(elem)
+            elif isinstance(arg, dict):
+                for elem in arg.values():
+                    apply_set_upstream(elem)
+
+        for field in self.template_fields:
+            arg = getattr(self, field)
+            apply_set_upstream(arg)
 
     @property
     def priority_weight_total(self) -> int:
