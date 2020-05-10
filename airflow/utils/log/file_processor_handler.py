@@ -144,6 +144,6 @@ class FileProcessorHandler(logging.Handler):
                     raise
 
         if not os.path.exists(full_path):
-            open(full_path, "a").close()
+            open(os.path.abspath(full_path), "a").close()
 
         return full_path
