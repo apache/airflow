@@ -70,13 +70,6 @@ class AwsGlueJobHook(AwsBaseHook):
         self.s3_glue_logs = 'logs/glue-logs/'
         super(AwsGlueJobHook, self).__init__(client_type='glue', *args, **kwargs)
 
-    def get_conn(self):
-        """
-        :return: connection
-        """
-        conn = self.get_client_type('glue', self.region_name)
-        return conn
-
     def list_jobs(self):
         """
         :return: Lists of Jobs

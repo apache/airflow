@@ -32,11 +32,6 @@ class TestGlueJobHook(unittest.TestCase):
     def setUp(self):
         self.some_aws_region = "us-west-2"
 
-    @mock.patch.object(AwsGlueJobHook, 'get_conn')
-    def test_get_conn_returns_a_boto3_connection(self, mock_get_conn):
-        hook = AwsGlueJobHook(job_name='aws_test_glue_job', s3_bucket='some_bucket')
-        self.assertIsNotNone(hook.get_conn())
-
     @unittest.skipIf(mock_iam is None, 'mock_iam package not present')
     @mock_iam
     def test_get_iam_execution_role(self):
