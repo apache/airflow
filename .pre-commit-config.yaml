@@ -323,6 +323,12 @@ repos:
         entry: "(airflow\\.){0,1}utils\\.dates\\.days_ago"
         files: \.py$
         pass_filenames: true
+      - id: restrict-start_date-in-default_args-in-example_dags
+        language: pygrep
+        name: "'start_date' should not be defined in default_args in example_dags"
+        entry: "default_args\\s*=\\s*{\\s*(\"|')start_date(\"|')"
+        files: \.*example_dags.*.py$
+        pass_filenames: true
       - id: check-integrations
         name: Check if integration list is aligned
         entry: ./scripts/ci/pre_commit/pre_commit_check_integrations.sh

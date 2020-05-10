@@ -95,8 +95,8 @@ UPDATE_POLICY = {
 
 with models.DAG(
     'example_gcp_compute_igm',
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=['example'],
 ) as dag:
     # [START howto_operator_gce_igm_copy_template]

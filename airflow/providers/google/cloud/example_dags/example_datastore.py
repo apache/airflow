@@ -33,12 +33,10 @@ from airflow.utils import dates
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 BUCKET = os.environ.get("GCP_DATASTORE_BUCKET", "datastore-system-test")
 
-default_args = {"start_date": dates.days_ago(1)}
-
 with models.DAG(
     "example_gcp_datastore",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=dates.days_ago(1),
     tags=['example'],
 ) as dag:
     export_task = CloudDatastoreExportEntitiesOperator(

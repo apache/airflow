@@ -34,8 +34,6 @@ S3_KEY = getenv("S3_KEY", "key")
 REDSHIFT_TABLE = getenv("REDSHIFT_TABLE", "test_table")
 # [END howto_operator_s3_to_redshift_env_variables]
 
-default_args = {"start_date": days_ago(1)}
-
 
 def _add_sample_data_to_s3():
     s3_hook = S3Hook()
@@ -50,7 +48,7 @@ def _remove_sample_data_from_s3():
 
 with DAG(
     dag_id="example_s3_to_redshift",
-    default_args=default_args,
+    start_date=days_ago(1),
     schedule_interval=None,
     tags=['example']
 ) as dag:

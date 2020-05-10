@@ -133,12 +133,11 @@ PIPELINE = {
 }
 # [END howto_data_fusion_env_variables]
 
-default_args = {"start_date": dates.days_ago(1)}
 
 with models.DAG(
     "example_data_fusion",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=dates.days_ago(1)
 ) as dag:
     # [START howto_cloud_data_fusion_create_instance_operator]
     create_instance = CloudDataFusionCreateInstanceOperator(

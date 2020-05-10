@@ -59,7 +59,6 @@ DATASET = {
 
 IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [GCP_AUTOML_DATASET_BUCKET]}}
 
-default_args = {"start_date": days_ago(1)}
 extract_object_id = CloudAutoMLHook.extract_object_id
 
 
@@ -76,8 +75,8 @@ def get_target_column_spec(columns_specs: List[Dict], column_name: str) -> str:
 # Example DAG to create dataset, train model_id and deploy it.
 with models.DAG(
     "example_create_and_deploy",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     user_defined_macros={
         "get_target_column_spec": get_target_column_spec,
         "target": TARGET,
@@ -184,8 +183,8 @@ with models.DAG(
 # Example DAG for AutoML datasets operations
 with models.DAG(
     "example_automl_dataset",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     user_defined_macros={"extract_object_id": extract_object_id},
 ) as example_dag:
     create_dataset_task = AutoMLCreateDatasetOperator(
@@ -249,8 +248,9 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_get_deploy",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
+    tags=["example"],
 ) as get_deploy_dag:
     # [START howto_operator_get_model]
     get_model_task = AutoMLGetModelOperator(
@@ -273,8 +273,9 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_predict",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
+    tags=["example"],
 ) as predict_dag:
     # [START howto_operator_prediction]
     predict_task = AutoMLPredictOperator(

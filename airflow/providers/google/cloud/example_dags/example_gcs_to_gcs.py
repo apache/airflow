@@ -26,8 +26,6 @@ from airflow.providers.google.cloud.operators.gcs import GCSSynchronizeBucketsOp
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.utils.dates import days_ago
 
-default_args = {"start_date": days_ago(1)}
-
 BUCKET_1_SRC = os.environ.get("GCP_GCS_BUCKET_1_SRC", "test-gcs-sync-1-src")
 BUCKET_1_DST = os.environ.get("GCP_GCS_BUCKET_1_DST", "test-gcs-sync-1-dst")
 
@@ -41,7 +39,7 @@ OBJECT_1 = os.environ.get("GCP_GCS_OBJECT_1", "test-gcs-to-gcs-1")
 OBJECT_2 = os.environ.get("GCP_GCS_OBJECT_2", "test-gcs-to-gcs-2")
 
 with models.DAG(
-    "example_gcs_to_gcs", default_args=default_args, schedule_interval=None, tags=['example']
+    "example_gcs_to_gcs", start_date=days_ago(1), schedule_interval=None, tags=['example']
 ) as dag:
     # [START howto_synch_bucket]
     sync_bucket = GCSSynchronizeBucketsOperator(

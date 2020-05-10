@@ -53,12 +53,10 @@ FIRST_INSTANCE = {"tier": Instance.Tier.BASIC, "memory_size_gb": 1}
 SECOND_INSTANCE = {"tier": Instance.Tier.STANDARD_HA, "memory_size_gb": 3}
 
 
-default_args = {"start_date": dates.days_ago(1)}
-
 with models.DAG(
     "gcp_cloud_memorystore",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=dates.days_ago(1),
     tags=['example'],
 ) as dag:
     # [START howto_operator_create_instance]

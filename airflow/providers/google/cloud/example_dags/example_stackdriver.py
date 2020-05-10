@@ -106,12 +106,10 @@ TEST_NOTIFICATION_CHANNEL_2 = {
     "type": "slack"
 }
 
-default_args = {"start_date": days_ago(1)}
-
 with models.DAG(
     'example_stackdriver',
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=['example']
 ) as dag:
     # [START howto_operator_gcp_stackdriver_upsert_notification_channel]

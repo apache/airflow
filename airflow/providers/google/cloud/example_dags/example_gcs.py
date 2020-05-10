@@ -34,8 +34,6 @@ from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesyste
 from airflow.utils.dates import days_ago
 from airflow.utils.state import State
 
-default_args = {"start_date": days_ago(1)}
-
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-id")
 BUCKET_1 = os.environ.get("GCP_GCS_BUCKET_1", "test-gcs-example-bucket")
 GCS_ACL_ENTITY = os.environ.get("GCS_ACL_ENTITY", "allUsers")
@@ -57,7 +55,7 @@ PATH_TO_SAVED_FILE = os.environ.get(
 BUCKET_FILE_LOCATION = PATH_TO_UPLOAD_FILE.rpartition("/")[-1]
 
 with models.DAG(
-    "example_gcs", default_args=default_args, schedule_interval=None, tags=['example'],
+    "example_gcs", start_date=days_ago(1), schedule_interval=None, tags=['example'],
 ) as dag:
     create_bucket1 = GCSCreateBucketOperator(
         task_id="create_bucket1", bucket_name=BUCKET_1, project_id=PROJECT_ID
