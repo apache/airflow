@@ -136,15 +136,3 @@ class TestSnowflakeHook(unittest.TestCase):
         self.conn.password = None
         params = self.db_hook._get_conn_params()
         self.assertTrue('private_key' in params)
-
-    def test_authenticator(self):
-        self.conn.extra_dejson = {'database': 'db',
-                                  'account': 'airflow',
-                                  'warehouse': 'af_wh',
-                                  'region': 'af_region',
-                                  'role': 'af_role',
-                                  'authenticator': 'externalbrowser'}
-
-        uri_shouldbe = 'snowflake://user:pw@airflow/db/public?warehouse=af_wh&role=af_role' \
-                       '&authenticator=externalbrowser'
-        self.assertEqual(uri_shouldbe, self.db_hook.get_uri())
