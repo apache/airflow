@@ -22,8 +22,8 @@ from time import sleep
 from typing import Dict, Sequence
 
 from azure.mgmt.containerinstance.models import (
-    Container, ContainerGroup, EnvironmentVariable, ResourceRequests, ResourceRequirements, VolumeMount, IpAddress,
-    Port, ContainerGroupNetworkProfile, ContainerPort
+    Container, ContainerGroup, EnvironmentVariable, ResourceRequests, ResourceRequirements, VolumeMount,
+    IpAddress, Port, ContainerGroupNetworkProfile, ContainerPort
 )
 from msrestazure.azure_exceptions import CloudError
 
@@ -89,15 +89,11 @@ class AzureContainerInstancesOperator(BaseOperator):
         the container instance.
     :type container_timeout: datetime.timedelta
     :param restart_policy: Restart policy for all containers within the
-     container group.
-        - `Always` Always restart
-        - `OnFailure` Restart on failure
-        - `Never` Never restart
-        . Possible values include: 'Always', 'OnFailure', 'Never'
-        default is 'Never'
+        container group. default is 'Never'
+        Possible values include: 'Always', 'OnFailure', 'Never'
     :type restart_policy: str
-    :param ip_address: IP Address configuration for container Group. Ports are opened ports are always forwarded to
-        the container being run. The following keys can be provided:
+    :param ip_address: IP Address configuration for container Group. Ports are opened ports are always
+        forwarded to the container being run. The following keys can be provided:
         - type: Either Private or Public
         - ip: Static IP Address to assign
         - ports: list of dict ( 'port': Port number, 'protocol': default UDP
@@ -158,7 +154,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                  fail_if_exists=True,
                  restart_policy='Never',
                  ip_address=None,
-                 network_profile='',
+                 network_profile=None,
                  tags=None,
                  *args,
                  **kwargs):
@@ -224,6 +220,10 @@ class AzureContainerInstancesOperator(BaseOperator):
                                              mount_path=mount_path,
                                              read_only=read_only))
 
+        if self.ip_address.type == 'Private' and not self.network_profile:
+            raise AirflowException("A network profile id must be specified "
+                                   "to use a private Network IP")
+
         exit_code = 1
         try:
             self.log.info("Starting container group with %.1f cpu %.1f mem",
@@ -246,29 +246,16 @@ class AzureContainerInstancesOperator(BaseOperator):
                 environment_variables=environment_variables,
                 volume_mounts=volume_mounts)
 
-            if self.ip_address.type == 'Private':
-                if not self.network_profile:
-                    raise AirflowException("A network profile id must be specified to use a private Network IP")
-                container_group = ContainerGroup(
-                    location=self.region,
-                    containers=[container, ],
-                    image_registry_credentials=image_registry_credentials,
-                    volumes=volumes,
-                    restart_policy=self.restart_policy,
-                    ip_address=self.ip_address,
-                    network_profile=self.network_profile,
-                    os_type='Linux',
-                    tags=self.tags)
-            else:
-                container_group = ContainerGroup(
-                    location=self.region,
-                    containers=[container, ],
-                    image_registry_credentials=image_registry_credentials,
-                    volumes=volumes,
-                    restart_policy=self.restart_policy,
-                    ip_address=self.ip_address,
-                    os_type='Linux',
-                    tags=self.tags)
+            container_group = ContainerGroup(
+                location=self.region,
+                containers=[container, ],
+                image_registry_credentials=image_registry_credentials,
+                volumes=volumes,
+                restart_policy=self.restart_policy,
+                os_type='Linux',
+                ip_address=self.ip_address,
+                network_profile=self.network_profile,
+                tags=self.tags)
 
             self._ci_hook.create_or_update(self.resource_group, self.name, container_group)
 
@@ -386,9 +373,11 @@ class AzureContainerInstancesOperator(BaseOperator):
                 raise AirflowException("IP Address type must be either 'Private' or 'Public'")
             address_type = _ip_address['type']
             if address_type == 'Private' and not self.network_profile:
-                raise AirflowException("You need to provide a valid network profile id when using a private IP Address")
+                raise AirflowException("You need to provide a valid network profile id when "
+                                       "using a private IP Address")
             if address_type == 'Public' and not self.network_profile:
-                self.log.warning("Network profile is ignored because you have specified a Public IP Address")
+                self.log.warning("Network profile is ignored because you have specified "
+                                 "a Public IP Address")
         if 'ports' in _ip_address.keys():
             for port in _ip_address['ports']:
                 if 'protocol' not in port.keys():
@@ -438,4 +427,3 @@ class AzureContainerInstancesOperator(BaseOperator):
         if _network_profile:
             return ContainerGroupNetworkProfile(id=_network_profile)
         return None
-
