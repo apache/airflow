@@ -33,7 +33,7 @@
       {% else %}
         <input id="pause_resume" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
         <span style="color:#aaa;">DAG:</span> <span>{{ dag.dag_id }}</span>
-        <small class="text-muted"> {{ dag.description_unicode[0:150] + '...' if dag.description_unicode and dag.description_unicode|length > 150 else dag.description_unicode|default('', true) }} </small>
+        <small class="text-muted"> {{ dag.description[0:150] + '...' if dag.description and dag.description|length > 150 else dag.description|default('', true) }} </small>
       {% endif %}
       {% if root %}
         <span style="color:#aaa;">ROOT:</span> <span>{{ root }}</span>
