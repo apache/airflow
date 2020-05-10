@@ -46,7 +46,7 @@ class CheckJobRunning(Enum):
 
 class DataflowCreateJavaJobOperator(BaseOperator):
     """
-    Start a Java Cloud DataFlow batch job. The parameters of the operation
+    Start a Java Cloud Dataflow job. The parameters of the operation
     will be passed to the job.
 
     **Example**: ::
@@ -70,7 +70,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
 
         dag = DAG('test-dag', default_args=default_args)
 
-        task = DataFlowJavaOperator(
+        task = DataflowCreateJavaJobOperator(
             gcp_conn_id='gcp_default',
             task_id='normalize-cal',
             jar='{{var.value.gcp_dataflow_base}}pipeline-ingress-cal-normalize-1.0.jar',
@@ -87,9 +87,9 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         For more detail on job submission have a look at the reference:
         https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 
-    :param jar: The reference to a self executing DataFlow jar (templated).
+    :param jar: The reference to a self executing Dataflow jar (templated).
     :type jar: str
-    :param job_name: The 'jobName' to use when executing the DataFlow job
+    :param job_name: The 'jobName' to use when executing the Dataflow job
         (templated). This ends up being set in the pipeline options, so any entry
         with key ``'jobName'`` in ``options`` will be overwritten.
     :type job_name: str
@@ -129,7 +129,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
     :type job_class: str
 
     :param multiple_jobs: If pipeline creates multiple jobs then monitor all jobs
-    :type multiple_jobs: boolean
+    :type multiple_jobs: bool
     :param check_if_running: before running job, validate that a previous run is not in process
     :type check_if_running: CheckJobRunning(IgnoreJob = do not check if running, FinishIfRunning=
         if job is running finish with nothing, WaitForRun= wait until job finished and the run job)
@@ -160,7 +160,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
 
     .. code-block:: python
 
-       t1 = DataFlowJavaOperator(
+       t1 = DataflowCreateJavaJobOperator(
            task_id='dataflow_example',
            jar='{{var.value.gcp_dataflow_base}}pipeline/build/libs/pipeline-example-1.0.jar',
            options={
@@ -270,12 +270,12 @@ class DataflowCreateJavaJobOperator(BaseOperator):
 
 class DataflowTemplatedJobStartOperator(BaseOperator):
     """
-    Start a Templated Cloud DataFlow batch job. The parameters of the operation
+    Start a Templated Cloud Dataflow job. The parameters of the operation
     will be passed to the job.
 
-    :param template: The reference to the DataFlow template.
+    :param template: The reference to the Dataflow template.
     :type template: str
-    :param job_name: The 'jobName' to use when executing the DataFlow template
+    :param job_name: The 'jobName' to use when executing the Dataflow template
         (templated).
     :param options: Map of job runtime environment options.
 
@@ -329,7 +329,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
 
     .. code-block:: python
 
-       t1 = DataflowTemplateOperator(
+       t1 = DataflowTemplatedJobStartOperator(
            task_id='dataflow_example',
            template='{{var.value.gcp_dataflow_base}}',
            parameters={
@@ -437,7 +437,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
     :param py_file: Reference to the python dataflow pipeline file.py, e.g.,
         /some/local/file/path/to/your/python/pipeline/file. (templated)
     :type py_file: str
-    :param job_name: The 'job_name' to use when executing the DataFlow job
+    :param job_name: The 'job_name' to use when executing the Dataflow job
         (templated). This ends up being set in the pipeline options, so any entry
         with key ``'jobName'`` or ``'job_name'`` in ``options`` will be overwritten.
     :type job_name: str
@@ -474,6 +474,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         See virtualenv documentation for more information.
 
         This option is only relevant if the ``py_requirements`` parameter is passed.
+    :type py_system_site_packages: bool
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
     :param project_id: Optional, the GCP project ID in which to start a job.

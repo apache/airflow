@@ -40,6 +40,10 @@ GCS_JAR_PARTS = urlparse(GCS_JAR)
 GCS_JAR_BUCKET_NAME = GCS_JAR_PARTS.netloc
 GCS_JAR_OBJECT_NAME = GCS_JAR_PARTS.path[1:]
 
+GCS_PYTHON_PARTS = urlparse(GCS_PYTHON)
+GCS_PYTHON_BUCKET_NAME = GCS_PYTHON_PARTS.netloc
+GCS_PYTHON_OBJECT_NAME = GCS_PYTHON_PARTS.path[1:]
+
 default_args = {
     "start_date": days_ago(1),
     'dataflow_default_options': {
@@ -77,6 +81,7 @@ with models.DAG(
         filename="/tmp/dataflow-{{ ds_nodash }}.jar",
     )
 
+    # [START howto_operator_start_local_java_job]
     start_java_job_local = DataflowCreateJavaJobOperator(
         task_id="start-java-job-local",
         jar="/tmp/dataflow-{{ ds_nodash }}.jar",
@@ -88,6 +93,7 @@ with models.DAG(
         job_class='org.apache.beam.examples.WordCount',
         check_if_running=CheckJobRunning.WaitForRun,
     )
+    # [END howto_operator_start_local_java_job]
     jar_to_local >> start_java_job_local
 
     # [START howto_operator_start_python_job]
@@ -108,9 +114,16 @@ with models.DAG(
     )
     # [END howto_operator_start_python_job]
 
+    py_to_local = GCSToLocalOperator(
+        task_id="py-to-local",
+        bucket=GCS_PYTHON_BUCKET_NAME,
+        object_name=GCS_PYTHON_OBJECT_NAME,
+        filename="/tmp/dataflow-{{ ds_nodash }}.py",
+    )
+
     start_python_job_local = DataflowCreatePythonJobOperator(
         task_id="start-python-job-local",
-        py_file='apache_beam.examples.wordcount',
+        py_file='/tmp/dataflow-{{ ds_nodash }}.py',
         py_options=['-m'],
         job_name='{{task.task_id}}',
         options={
@@ -122,7 +135,9 @@ with models.DAG(
         py_interpreter='python3',
         py_system_site_packages=False
     )
+    py_to_local >> start_python_job_local
 
+    # [START howto_operator_start_template_job]
     start_template_job = DataflowTemplatedJobStartOperator(
         task_id="start-template-job",
         template='gs://dataflow-templates/latest/Word_Count',
@@ -132,3 +147,21 @@ with models.DAG(
         },
         location='europe-west3'
     )
+    # [END howto_operator_start_template_job]
+
+    # [START howto_operator_streaming_python]
+    start_python_job_streaming = DataflowCreatePythonJobOperator(
+        task_id="start-python-job-streaming",
+        py_file='/tmp/apache_beam/examples/streaming_wordcount.py',
+        py_options=['-m'],
+        job_name='{{task.task_id}}',
+        options={
+            'streaming': 'true',
+        },
+        py_requirements=[
+            'apache-beam[gcp]>=2.14.0'
+        ],
+        py_interpreter='python3',
+        py_system_site_packages=False
+    )
+    # [END howto_operator_streaming_python]

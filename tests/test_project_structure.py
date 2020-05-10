@@ -142,7 +142,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         'bigquery_to_gcs',
         'bigquery_to_mysql',
         'cassandra_to_gcs',
-        'dataflow',
         'datastore',
         'dlp',
         'gcs_to_bigquery',

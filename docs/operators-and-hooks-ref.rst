@@ -694,7 +694,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Dataflow <https://cloud.google.com/dataflow/>`__
-     -
+     - :doc:`How to use <howto/operator/gcp/dataflow>`
      - :mod:`airflow.providers.google.cloud.hooks.dataflow`
      - :mod:`airflow.providers.google.cloud.operators.dataflow`
      -

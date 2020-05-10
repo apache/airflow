@@ -615,6 +615,7 @@ class DataflowHook(GoogleBaseHook):
             If None, this defaults to the python3.
             To track python versions supported by beam and related
             issues check: https://issues.apache.org/jira/browse/BEAM-1251
+        :type py_interpreter: str
         :param py_requirements: Additional python package(s) to install.
             If a value is passed to this parameter, a new virtual environment has been created with
             additional packages installed.
@@ -626,7 +627,7 @@ class DataflowHook(GoogleBaseHook):
             See virtualenv documentation for more information.
 
             This option is only relevant if the ``py_requirements`` parameter is passed.
-        :type py_interpreter: str
+        :type py_system_site_packages: bool
         :param append_job_name: True if unique suffix has to be appended to job name.
         :type append_job_name: bool
         :param project_id: Optional, the GCP project ID in which to start a job.
