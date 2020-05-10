@@ -68,7 +68,7 @@ class AwsGlueJobHook(AwsBaseHook):
         self.s3_bucket = s3_bucket
         self.role_name = iam_role_name
         self.s3_glue_logs = 'logs/glue-logs/'
-        super(AwsGlueJobHook, self).__init__(*args, **kwargs)
+        super(AwsGlueJobHook, self).__init__(client_type='glue', *args, **kwargs)
 
     def get_conn(self):
         """
