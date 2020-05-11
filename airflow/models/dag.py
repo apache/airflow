@@ -1721,14 +1721,11 @@ class DAG(BaseDag, LoggingMixin):
             # DAG runs. At minimum they could have duration SLA misses.
             .filter(DR.run_id.notlike(f"{DagRunType.BACKFILL_JOB.value}__%"))
             .filter(DR.external_trigger == False) # noqa E712
-            # We don't filter on state here so that it's cheaper to get the
-            # latest scheduled run, which can be in any state.
+            # If the DAGRun is SUCCEEDED, then everything has gone
+            # according to plan. But if it's FAILED, someone may be
+            # coming to fix it, and SLAs for tasks in it will matter.
+            .filter(DR.state != State.SUCCESS)
             .order_by(desc(DR.execution_date))
-            # We set a fixed limit here to avoid losing performance over time
-            # as failed DagRuns accumulate. If we have a cheap way to determine
-            # if a DagRun is free from SLA check, we should use that to filter
-            # out those DagRuns and remove this limit.
-            .limit(100)
             .all()
         )
         scheduled_dagrun_ids = [d.id for d in scheduled_dagruns]
@@ -1757,11 +1754,6 @@ class DAG(BaseDag, LoggingMixin):
                 ))
                 # Only look at specified DagRuns
                 .filter(DR.id.in_(scheduled_dagrun_ids))
-                # If the DAGRun is SUCCEEDED, then everything has gone
-                # according to plan. But if it's FAILED, someone may be
-                # coming to fix it, and SLAs for tasks in it will still
-                # matter.
-                .filter(DR.state != State.SUCCESS)
                 .order_by(asc(DR.execution_date))
                 .all()
             )
@@ -1775,7 +1767,7 @@ class DAG(BaseDag, LoggingMixin):
         # We need to examine unscheduled DAGRuns, too. If there are concurrency
         # limitations, it's possible that a task instance will miss its SLA
         # before its corresponding DAGRun even gets created.
-        last_dagrun = scheduled_dagruns[0] if scheduled_dagruns else None
+        last_dagrun = DR.get_latest_run(self.dag_id, session)
 
         def unscheduled_tis(last_dagrun):
             for dag_run in yield_uncreated_runs(self, last_dagrun, ts):

@@ -528,8 +528,27 @@ class DagRun(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def get_latest_runs(cls, session=None):
-        """Returns the latest DagRun for each DAG"""
+    def get_latest_run(cls, dag_id, session):
+        """Returns the latest DagRun for a given dag_id"""
+        subquery = (
+            session
+            .query(func.max(cls.execution_date)).label('execution_date')
+            .filter(cls.dag_id == dag_id)
+            .subquery()
+        )
+        dagrun = (
+            session
+            .query(cls)
+            .filter(cls.dag_id == dag_id,
+                    cls.execution_date == subquery)
+            .first()
+        )
+        return dagrun
+
+    @classmethod
+    @provide_session
+    def get_latest_runs(cls, session):
+        """Returns the latest DagRun for each DAG. """
         subquery = (
             session
             .query(
