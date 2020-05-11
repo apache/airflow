@@ -352,7 +352,9 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
             args=(
                 self._dag_directory,
                 self._max_runs,
-                self._processor_factory,
+                # getattr allows pickling by making _processor_factory get
+                # treated as a function, not an instance method.
+                getattr(self, "_processor_factory"),
                 self._processor_timeout,
                 child_signal_conn,
                 self._dag_ids,
