@@ -406,9 +406,12 @@ class Airflow(AirflowBaseView):
 
         result_error_message_mapping = Variable.get('result_error_message_mapping', deserialize_json=True,
                                                     default_var={})
+        result_keys_translation_mapping = Variable.get('result_keys_translation_mapping', deserialize_json=True,
+                                                    default_var={})
         return self.render_template('airflow/curve.html', task_instance=ti, result=result,
                                     curve=curve, analysisErrorMessageMapping=analysis_error_message_mapping,
-                                    resultErrorMessageMapping=result_error_message_mapping)
+                                    resultErrorMessageMapping=result_error_message_mapping,
+                                    resultKeysTranslationMapping=result_keys_translation_mapping)
 
     @expose('/task_stats', methods=['POST'])
     @has_access

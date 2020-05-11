@@ -86,6 +86,7 @@
   const curve = JSON.parse('{{ curve|tojson|safe }}');
   const analysisErrs = JSON.parse('{{ analysisErrorMessageMapping|tojson|safe }}');
   const resultErrs = JSON.parse('{{ resultErrorMessageMapping|tojson|safe }}');
+  const resultKeys = JSON.parse('{{ resultKeysTranslationMapping|tojson|safe }}');
 
 
   function genData(xKey, yKey) {
@@ -207,10 +208,10 @@
     const { measure_result: measureResult, error_code: errorCode, ...rest } = result;
     const $rows = [];
     const isNOK = measureResult.toUpperCase() === 'NOK';
-    $rows.push(renderResultTableRow('拧紧结果', measureResult, isNOK));
-    $rows.push(renderResultTableRow('错误代码', parseResultErrorCode(errorCode), isNOK));
+    $rows.push(renderResultTableRow(resultKeys.measure_result || 'measure_result', measureResult, isNOK));
+    $rows.push(renderResultTableRow(resultKeys.error_code || 'error_code', parseResultErrorCode(errorCode), isNOK));
     Object.keys(rest).forEach((k) => {
-      $rows.push(renderResultTableRow(k, rest[k]));
+      $rows.push(renderResultTableRow(resultKeys[k] || k, rest[k]));
     });
     $('#result_detail').append($rows);
   }
@@ -247,14 +248,20 @@
     {
       title: '分析结果',
       content: '{{task_instance.result}}',
+      css: {
+        color: '{{task_instance.result}}' === 'NOK' ? '#ee3333' : '#33ee33',
+      },
     },
   ];
   const errorCode = '{{task_instance.error_code}}';
-  console.log(errorCode);
+
   if (!Number.isNaN(+errorCode) && +errorCode !== 0) {
     info.push({
       title: '错误信息',
       content: analysisErrs[+'{{task_instance.error_code}}'] || '{{task_instance.error_code}}',
+      css: {
+        color: '#ee3333',
+      },
     });
   }
 
@@ -263,6 +270,9 @@
     const $title = $('<legend class="base-info-title">').append([i.title]);
     const $content = $('<span class="base-info-content">').append([i.content]);
     $info.append([$title, $content]);
+    if (i.css) {
+      $info.css(i.css);
+    }
     $('#base-info-container').prepend($info);
   });
 
