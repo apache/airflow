@@ -69,9 +69,6 @@ class StepFunctionStartExecutionOperator(BaseOperator):
         if execution_arn is None:
             raise AirflowException(f'Failed to start State Machine execution for: {self.state_machine_arn}')
 
-        if self.do_xcom_push:
-            context['ti'].xcom_push(key='execution_arn', value=execution_arn)
-
         self.log.info('Started State Machine execution for %s: %s', self.state_machine_arn, execution_arn)
 
         return execution_arn
