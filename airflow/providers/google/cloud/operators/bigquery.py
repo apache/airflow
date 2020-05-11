@@ -123,7 +123,7 @@ class BigQueryCheckOperator(CheckOperator):
     :param use_legacy_sql: Whether to use legacy SQL (true)
         or standard SQL (false).
     :type use_legacy_sql: bool
-    :param location: The geographic location of the job.
+    :param location: The geographic location of the job. See details at:
         https://cloud.google.com/bigquery/docs/locations#specifying_your_location
     :type location: str
     """
@@ -175,7 +175,7 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
     :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud Platform.
         This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type bigquery_conn_id: str
-    :param location: The geographic location of the job.
+    :param location: The geographic location of the job. See details at:
         https://cloud.google.com/bigquery/docs/locations#specifying_your_location
     :type location: str
     """
@@ -247,7 +247,7 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
     :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud Platform.
         This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type bigquery_conn_id: str
-    :param location: The geographic location of the job.
+    :param location: The geographic location of the job. See details at:
         https://cloud.google.com/bigquery/docs/locations#specifying_your_location
     :type location: str
     """
