@@ -600,7 +600,7 @@ class BaseOperator(Operator, LoggingMixin):
                 "The DAG assigned to {} can not be changed.".format(self))
         elif self.task_id not in dag.task_dict:
             dag.add_task(self)
-        elif self.task_id in dag.task_dict and dag.task_dict[self.task_id] != self:
+        elif self.task_id in dag.task_dict and dag.task_dict[self.task_id] is not self:
             raise DuplicateTaskIdFound(
                 "Task id '{}' has already been added to the DAG".format(self.task_id))
 
