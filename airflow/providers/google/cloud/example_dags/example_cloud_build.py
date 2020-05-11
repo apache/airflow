@@ -106,5 +106,3 @@ with models.DAG(
     create_build_from_storage >> create_build_from_storage_result  # pylint: disable=pointless-statement
 
     create_build_from_repo >> create_build_from_repo_result  # pylint: disable=pointless-statement
-
-    create_build_from_file  # pylint: disable=pointless-statement
