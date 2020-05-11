@@ -804,12 +804,17 @@ class BaseOperator(Operator, LoggingMixin):
         if not jinja_env:
             jinja_env = self.get_template_env()
 
+        # Imported here to avoid ciruclar dependency
+        from airflow.models.xcom_arg import XComArg
+
         if isinstance(content, str):
             if any(content.endswith(ext) for ext in self.template_ext):
                 # Content contains a filepath
                 return jinja_env.get_template(content).render(**context)
             else:
                 return jinja_env.from_string(content).render(**context)
+        elif isinstance(content, XComArg):
+            return content.resolve(context)
 
         if isinstance(content, tuple):
             if type(content) is not tuple:  # pylint: disable=unidiomatic-typecheck
@@ -1064,10 +1069,23 @@ class BaseOperator(Operator, LoggingMixin):
                        task_or_task_list: Union['BaseOperator', List['BaseOperator']],
                        upstream: bool = False) -> None:
         """Sets relatives for the task or task list."""
-        try:
-            task_list = list(task_or_task_list)  # type: ignore
-        except TypeError:
-            task_list = [task_or_task_list]  # type: ignore
+        from airflow.models.xcom_arg import XComArg
+
+        if isinstance(task_or_task_list, XComArg):
+            # otherwise we will start to iterate over xcomarg
+            # because of the "list" check below
+            # with current XComArg.__getitem__ implementation
+            task_list = [task_or_task_list.operator]
+        else:
+            try:
+                task_list = list(task_or_task_list)  # type: ignore
+            except TypeError:
+                task_list = [task_or_task_list]  # type: ignore
+
+            task_list = [
+                t.operator if isinstance(t, XComArg) else t  # type: ignore
+                for t in task_list
+            ]
 
         for task in task_list:
             if not isinstance(task, BaseOperator):
@@ -1120,6 +1138,12 @@ class BaseOperator(Operator, LoggingMixin):
         task.
         """
         self._set_relatives(task_or_task_list, upstream=True)
+
+    @property
+    def output(self):
+        """Returns default XComArg for the operator"""
+        from airflow.models.xcom_arg import XComArg
+        return XComArg(operator=self)
 
     @staticmethod
     def xcom_push(

@@ -70,6 +70,28 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
             )
         return self._conn
 
+    @staticmethod
+    def erf_uri(partner_id, entity_type) -> List[str]:
+        """
+        Return URI for all Entity Read Files in bucket.
+
+        For example, if you were generating a file name to retrieve the entity read file
+        for partner 123 accessing the line_item table from April 2, 2013, your filename
+        would look something like this:
+        gdbm-123/entity/20130402.0.LineItem.json
+
+        More information:
+        https://developers.google.com/bid-manager/guides/entity-read/overview
+
+        :param partner_id The numeric ID of your Partner.
+        :type partner_id: int
+        :param entity_type: The type of file Partner, Advertiser, InsertionOrder,
+        LineItem, Creative, Pixel, InventorySource, UserList, UniversalChannel, and summary.
+        :type entity_type: str
+        """
+
+        return [f"gdbm-{partner_id}/entity/{{{{ ds_nodash }}}}.*.{entity_type}.json"]
+
     def create_query(self, query: Dict[str, Any]) -> Dict:
         """
         Creates a query.
@@ -125,7 +147,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
             .listqueries()
             .execute(num_retries=self.num_retries)
         )
-        return response.get("queries", [])
+        return response.get('queries', [])
 
     def run_query(self, query_id: str, params: Dict[str, Any]) -> None:
         """

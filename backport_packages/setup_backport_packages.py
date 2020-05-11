@@ -294,7 +294,7 @@ def get_providers_package_folder(provider_package: str):
 
 
 def get_provider_package_name(provider_package: str):
-    return "apache-airflow-providers-" + provider_package.replace(".", "-")
+    return "apache-airflow-backport-providers-" + provider_package.replace(".", "-")
 
 
 def copy_provider_sources():
@@ -341,10 +341,8 @@ def get_long_description(provider_package: str):
 def do_setup_package_providers(provider_package: str, deps: List[str], extras: Dict[str, List[str]]):
     setup.write_version()
     provider_package_name = get_provider_package_name(provider_package)
-    package_name = f'{provider_package_name}' if provider_package != "providers" \
-        else f'apache-airflow-providers'
-    package_prefix = f'airflow.providers.{provider_package}' if provider_package != 'providers' \
-        else 'airflow.providers'
+    package_name = f'{provider_package_name}'
+    package_prefix = f'airflow.providers.{provider_package}'
     found_packages = find_packages()
     found_packages = [package for package in found_packages if package.startswith(package_prefix)]
     setuptools_setup(

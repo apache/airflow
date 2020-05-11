@@ -954,7 +954,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Detailed usage for command: docker-compose
 
-  breeze [FLAGS] docker-compose -- <EXTRA_ARGS>
+  breeze [FLAGS] docker-compose <DOCKER_COMPOSE_COMMAND> -- <EXTRA_ARGS>
 
         Run docker-compose command instead of entering the environment. Use 'help' as command
         to see available commands. The <EXTRA_ARGS> passed after -- are treated
@@ -1046,15 +1046,21 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Detailed usage for command: static-check
 
-  breeze [FLAGS] static-check -- <EXTRA_ARGS>
+  breeze [FLAGS] static-check <STATIC_CHECK> -- <EXTRA_ARGS>
 
         Run selected static checks for currently changed files. You should specify static check that
         you would like to run or 'all' to run all checks. One of:
 
-                 all all-but-pylint bat-tests check-apache-license check-executables-have-shebangs
-                 check-hooks-apply check-merge-conflict check-xml debug-statements doctoc
-                 detect-private-key end-of-file-fixer flake8 forbid-tabs insert-license
-                 lint-dockerfile mixed-line-ending mypy pylint pylint-test setup-order shellcheck
+                 all all-but-pylint airflow-config-yaml base-operator bat-tests build
+                 build-providers-dependencies check-apache-license check-executables-have-shebangs
+                 check-hooks-apply check-integrations check-merge-conflict check-xml
+                 consistent-pylint daysago-import-check debug-statements detect-private-key doctoc
+                 end-of-file-fixer fix-encoding-pragma flake8 forbid-tabs
+                 incorrect-use-of-LoggingMixin insert-license isort lint-dockerfile mixed-line-ending
+                 mypy provide-create-sessions pydevd pylint pylint-tests python-no-log-warn
+                 rst-backticks setup-order shellcheck stylelint trailing-whitespace
+                 update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
+                 yamllint
 
         You can pass extra arguments including options to to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
@@ -1072,15 +1078,21 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Detailed usage for command: static-check-all-files
 
-  breeze [FLAGS] static-check-all-files -- <EXTRA_ARGS>
+  breeze [FLAGS] static-check-all-files <STATIC_CHECK> -- <EXTRA_ARGS>
 
         Run selected static checks for all applicable files. You should specify static check that
         you would like to run or 'all' to run all checks. One of:
 
-                 all all-but-pylint bat-tests check-apache-license check-executables-have-shebangs
-                 check-hooks-apply check-merge-conflict check-xml debug-statements doctoc
-                 detect-private-key end-of-file-fixer flake8 forbid-tabs insert-license
-                 lint-dockerfile mixed-line-ending mypy pylint pylint-test setup-order shellcheck
+                 all all-but-pylint airflow-config-yaml base-operator bat-tests build
+                 build-providers-dependencies check-apache-license check-executables-have-shebangs
+                 check-hooks-apply check-integrations check-merge-conflict check-xml
+                 consistent-pylint daysago-import-check debug-statements detect-private-key doctoc
+                 end-of-file-fixer fix-encoding-pragma flake8 forbid-tabs
+                 incorrect-use-of-LoggingMixin insert-license isort lint-dockerfile mixed-line-ending
+                 mypy provide-create-sessions pydevd pylint pylint-tests python-no-log-warn
+                 rst-backticks setup-order shellcheck stylelint trailing-whitespace
+                 update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
+                 yamllint
 
         You can pass extra arguments including options to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
@@ -1098,7 +1110,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Detailed usage for command: test-target
 
-  breeze [FLAGS] test-target -- <EXTRA_ARGS>
+  breeze [FLAGS] test-target <TEST_TARGET> -- <EXTRA_ARGS>
 
         Run the specified unit test target. There might be multiple
         targets specified separated with comas. The <EXTRA_ARGS> passed after -- are treated

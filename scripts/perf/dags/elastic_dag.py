@@ -178,7 +178,7 @@ for dag_no in range(1, DAG_COUNT + 1):
 
     elastic_dag_tasks = [
         BashOperator(
-            task_id="__".join(["tasks", f"{i}_of_{TASKS_COUNT}"]), bash_command='echo test"', dag=dag
+            task_id="__".join(["tasks", f"{i}_of_{TASKS_COUNT}"]), bash_command='echo test', dag=dag
         )
         for i in range(1, TASKS_COUNT + 1)
     ]

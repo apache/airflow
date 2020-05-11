@@ -15,14 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
 
 import pytest
 
+from airflow.providers.google.cloud.example_dags.example_speech_to_text import BUCKET_NAME
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
-
-TARGET_BUCKET_NAME = os.environ.get("GCP_SPEECH_TEST_BUCKET", "gcp-speech-test-bucket")
 
 
 @pytest.mark.backend("mysql", "postgres")
@@ -32,13 +30,13 @@ class GCPTextToSpeechExampleDagSystemTest(GoogleSystemTest):
     @provide_gcp_context(GCP_GCS_KEY)
     def setUp(self):
         super().setUp()
-        self.create_gcs_bucket(TARGET_BUCKET_NAME)
+        self.create_gcs_bucket(BUCKET_NAME)
 
     @provide_gcp_context(GCP_GCS_KEY)
     def tearDown(self):
-        self.delete_gcs_bucket(TARGET_BUCKET_NAME)
+        self.delete_gcs_bucket(BUCKET_NAME)
         super().tearDown()
 
     @provide_gcp_context(GCP_GCS_KEY)
-    def test_run_example_dag_gcp_text_to_speech(self):
-        self.run_dag("example_gcp_speech", CLOUD_DAG_FOLDER)
+    def test_run_example_dag_gcp_speech_to_text(self):
+        self.run_dag("example_gcp_speech_to_text", CLOUD_DAG_FOLDER)
