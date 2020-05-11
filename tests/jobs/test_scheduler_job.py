@@ -34,6 +34,8 @@ from tempfile import mkdtemp
 import psutil
 import pytest
 import six
+from freezegun import freeze_time
+
 from airflow.models.taskinstance import TaskInstance
 from parameterized import parameterized
 
@@ -83,6 +85,13 @@ class SchedulerJobTest(unittest.TestCase):
         # Speed up some tests by not running the tasks, just look at what we
         # enqueue!
         self.null_exec = MockExecutor()
+
+    def tearDown(self):
+        clear_db_runs()
+        clear_db_pools()
+        clear_db_dags()
+        clear_db_sla_miss()
+        clear_db_errors()
 
     def create_test_dag(self, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE + timedelta(hours=1), **kwargs):
         dag = DAG(
@@ -1383,6 +1392,52 @@ class SchedulerJobTest(unittest.TestCase):
         dr = scheduler.create_dag_run(dag)
         self.assertIsNotNone(dr)
         dr = scheduler.create_dag_run(dag)
+        self.assertIsNone(dr)
+
+    @freeze_time(timezone.datetime(2020, 1, 5))
+    def test_scheduler_dagrun_with_timedelta_schedule_and_catchup_false(self):
+        """
+        Test that the dag file processor does not create multiple dagruns
+        if a dag is scheduled with 'timedelta' and catchup=False
+        """
+        dag = DAG(
+            'test_scheduler_dagrun_once_with_timedelta_and_catchup_false',
+            start_date=timezone.datetime(2015, 1, 1),
+            schedule_interval=timedelta(days=1),
+            catchup=False)
+
+        scheduler_job = SchedulerJob()
+        dag.clear()
+        dr = scheduler_job.create_dag_run(dag)
+        self.assertIsNotNone(dr)
+        self.assertEqual(dr.execution_date, timezone.datetime(2020, 1, 4))
+        dr = scheduler_job.create_dag_run(dag)
+        self.assertIsNone(dr)
+
+    @freeze_time(timezone.datetime(2020, 5, 4))
+    def test_scheduler_dagrun_with_timedelta_schedule_and_catchup_true(self):
+        """
+        Test that the dag file processor creates multiple dagruns
+        if a dag is scheduled with 'timedelta' and catchup=True
+        """
+        dag = DAG(
+            'test_scheduler_dagrun_once_with_timedelta_and_catchup_true',
+            start_date=timezone.datetime(2020, 5, 1),
+            schedule_interval=timedelta(days=1),
+            catchup=True)
+
+        scheduler_job = SchedulerJob()
+        dag.clear()
+        dr = scheduler_job.create_dag_run(dag)
+        self.assertIsNotNone(dr)
+        self.assertEqual(dr.execution_date, timezone.datetime(2020, 5, 1))
+        dr = scheduler_job.create_dag_run(dag)
+        self.assertIsNotNone(dr)
+        self.assertEqual(dr.execution_date, timezone.datetime(2020, 5, 2))
+        dr = scheduler_job.create_dag_run(dag)
+        self.assertIsNotNone(dr)
+        self.assertEqual(dr.execution_date, timezone.datetime(2020, 5, 3))
+        dr = scheduler_job.create_dag_run(dag)
         self.assertIsNone(dr)
 
     @parameterized.expand([
