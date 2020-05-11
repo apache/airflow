@@ -717,7 +717,8 @@ class DagTest(unittest.TestCase):
         self.assertEqual(orm_dag.get_default_view(), "graph")
 
     @patch('airflow.models.dag.DagBag')
-    def test_is_paused_subdag(self, mock_dag_bag):
+    @patch('airflow.utils.email.send_email')
+    def test_is_paused_subdag(self, mock_send_email, mock_dag_bag):
         subdag_id = 'dag.subdag'
         subdag = DAG(
             subdag_id,
@@ -732,6 +733,9 @@ class DagTest(unittest.TestCase):
         dag = DAG(
             dag_id,
             start_date=DEFAULT_DATE,
+            default_args={
+                'email': 'test@test.com'
+            }
         )
 
         with dag:
@@ -756,6 +760,15 @@ class DagTest(unittest.TestCase):
         self.assertEqual(2, unpaused_dags)
 
         DagModel.get_dagmodel(dag.dag_id).set_is_paused(is_paused=True)
+
+        mock_send_email.assert_called_once_with(
+            'test@test.com',
+            'Airflow DAG {} Toggled OFF'.format(dag.dag_id),
+            (
+                'This is a notification that Airflow DAG: <b>{}</b> has been toggled OFF.<br>'
+                'If this was intentional, feel free to ignore this email.'
+            ).format(dag.dag_id),
+        )
 
         paused_dags = session.query(
             DagModel

@@ -1895,12 +1895,13 @@ class DagModel(Base):
         try:
             for dag_model in dag_models:
                 dag_model.is_paused = is_paused
+            toggle_state_str = 'OFF' if is_paused else 'ON'
             to_email_address = self.default_args['email']
-            email_subject = 'Airflow DAG {} Toggled On/Off'.format(self.dag_id)
+            email_subject = 'Airflow DAG {} Toggled {}'.format(self.dag_id, toggle_state_str)
             email_content = (
-                'This is a notification that Airflow DAG: <b>{}</b> has been toggled on/off.<br>'
+                'This is a notification that Airflow DAG: <b>{}</b> has been toggled {}.<br>'
                 'If this was intentional, feel free to ignore this email.'
-            ).format(self.dag_id)
+            ).format(self.dag_id, toggle_state_str)
             send_email(to_email_address, email_subject, email_content)
             session.commit()
         except Exception:
