@@ -389,7 +389,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             dataset_reference["location"] = dataset_reference.get("location", location)
 
         dataset = Dataset.from_api_repr(dataset_reference)
-        self.get_client().create_dataset(dataset=dataset, exists_ok=True)
+        self.get_client(location=location).create_dataset(dataset=dataset, exists_ok=True)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_dataset_tables(
@@ -420,8 +420,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type retry: google.api_core.retry.Retry
         :return: List of tables associated with the dataset.
         """
-        project_id = project_id or self.project_id
-
         tables = self.get_client().list_tables(
             dataset=DatasetReference(project=project_id, dataset_id=dataset_id),
             max_results=max_results,
@@ -451,7 +449,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param retry: How to retry the RPC.
         :type retry: google.api_core.retry.Retry
         """
-        project_id = project_id or self.project_id
         self.log.info('Deleting from project: %s  Dataset:%s', project_id, dataset_id)
         self.get_client(project_id=project_id).delete_dataset(
             dataset=DatasetReference(project=project_id, dataset_id=dataset_id),
@@ -562,7 +559,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             "pass passing the `table_resource` object. This gives more flexibility than this method.",
             DeprecationWarning,
         )
-        project_id = project_id or self.project_id
         location = location or self.location
         src_fmt_configs = src_fmt_configs or {}
         source_format = source_format.upper()
@@ -672,7 +668,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         )
 
         table = Table.from_api_repr(table_resource)
-        self.log.info('Updating table %s.%s.%s', project_id, dataset_id, table_id)
+        self.log.info('Updating table: %s', table_resource["tableReference"])
         table_object = self.get_client().update_table(table=table, fields=fields)
         self.log.info('Table %s.%s.%s updated successfully', project_id, dataset_id, table_id)
         return table_object.to_api_repr()
@@ -756,7 +752,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             "This method is deprecated, please use ``BigQueryHook.update_table`` method.",
             DeprecationWarning,
         )
-        project_id = project_id or self.project_id
         table_resource: Dict[str, Any] = {}
 
         if description is not None:
@@ -832,10 +827,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             even if any insertion errors occur.
         :type fail_on_error: bool
         """
-        dataset_project_id = project_id or self.project_id
-
         self.log.info(
-            'Inserting %s row(s) into table %s:%s.%s', len(rows), dataset_project_id, dataset_id, table_id
+            'Inserting %s row(s) into table %s:%s.%s', len(rows), project_id, dataset_id, table_id
         )
 
         table = self._resolve_table_reference(
@@ -855,7 +848,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         else:
             self.log.info(
                 'All row(s) inserted successfully: %s:%s.%s',
-                dataset_project_id, dataset_id, table_id
+                project_id, dataset_id, table_id
             )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -894,8 +887,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param retry: How to retry the RPC.
         :type retry: google.api_core.retry.Retry
         """
-        project_id = project_id or self.project_id
-
         dataset_resource["datasetReference"] = dataset_resource.get("datasetReference", {})
 
         for key, value in zip(["datasetId", "projectId"], [dataset_id, project_id]):
@@ -936,7 +927,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             "This method is deprecated. Please use ``update_dataset``.",
             DeprecationWarning
         )
-
+        project_id = project_id or self.project_id
         if not dataset_id or not isinstance(dataset_id, str):
             raise ValueError(
                 "dataset_id argument must be provided and has "
@@ -944,7 +935,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             )
 
         service = self.get_service()
-        dataset_project_id = project_id if project_id else self.project_id
+        dataset_project_id = project_id or self.project_id
 
         dataset = (
             service.datasets()  # pylint: disable=no-member
@@ -988,6 +979,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             "This method is deprecated. Please use ``get_dataset_tables``.",
             DeprecationWarning
         )
+        project_id = project_id or self.project_id
         tables = self.get_client().list_tables(
             dataset=DatasetReference(project=project_id, dataset_id=dataset_id),
             max_results=max_results,
@@ -1033,7 +1025,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param retry: How to retry the RPC.
         :type retry: google.api_core.retry.Retry
         """
-        project_id = project_id or self.project_id
         datasets = self.get_client(project_id=project_id).list_datasets(
             project=project_id,
             include_all=include_all,
@@ -1062,7 +1053,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 For more information, see Dataset Resource content:
                 https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
         """
-        project_id = project_id or self.project_id
         dataset = self.get_client(project_id=project_id).get_dataset(
             dataset_ref=DatasetReference(project_id, dataset_id)
         )
@@ -1104,8 +1094,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 "Parameter ``source_project`` is deprecated. Use ``project_id``.",
                 DeprecationWarning,
             )
-        project_id = project_id or self.project_id
-        view_project = view_project if view_project else self.project_id
+        view_project = view_project or project_id
         view_access = AccessEntry(
             role=None,
             entity_type="view",
@@ -1158,7 +1147,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             project will be self.project_id.
         :return:
         """
-        project_id = project_id or self.project_id
         table_id = table_resource['tableReference']['tableId']
         table_resource = self._resolve_table_reference(
             table_resource=table_resource,
@@ -1217,7 +1205,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param project_id: the project used to perform the request
         :type project_id: str
         """
-        project_id = project_id or self.project_id
         self.get_client(project_id=project_id).delete_table(
             table=Table.from_string(table_id),
             not_found_ok=not_found_ok,
@@ -1281,7 +1268,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param location: Default location for job.
         :return: list of rows
         """
-        project_id = project_id or self.project_id
         location = location or self.location
         selected_fields = selected_fields or []
         if isinstance(selected_fields, str):
@@ -1337,7 +1323,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type retry: google.api_core.retry.Retry
         :rtype: bool
         """
-        project_id = project_id or self.project_id
         location = location or self.location
         job = self.get_client(project_id=project_id, location=location).get_job(job_id=job_id)
         return job.done(retry=retry)
@@ -1372,7 +1357,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param location: location the job is running
         :type location: str
         """
-        project_id = project_id or self.project_id
         location = location or self.location
 
         if self.poll_job_complete(job_id=job_id):
@@ -1422,7 +1406,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param location: location the job is running
         :type location: str
         """
-        project_id = project_id or self.project_id
         location = location or self.location
         client = self.get_client(project_id=project_id, location=location)
         job_data = {
