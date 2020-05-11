@@ -282,7 +282,7 @@ def fetch_celery_task_state(async_result: AsyncResult) -> Tuple[str, Union[str, 
             # to get the current state of the task
             return async_result.task_id, async_result.state
     except Exception as e:  # pylint: disable=broad-except
-        exception_traceback = "Celery Task ID: {}\n{}".format(async_result, traceback.format_exc())
+        exception_traceback = f"Celery Task ID: {async_result}\n{traceback.format_exc()}"
         return async_result.task_id, ExceptionWithTraceback(e, exception_traceback)
 
 
