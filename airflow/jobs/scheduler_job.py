@@ -309,6 +309,10 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
             raise AirflowException("Tried to get start time before it started!")
         return self._start_time
 
+    @property
+    def waitable_handle(self):
+        return self._process.sentinel
+
 
 class DagFileProcessor(LoggingMixin):
     """
