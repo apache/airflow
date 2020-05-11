@@ -217,6 +217,7 @@
 
       const DAGS_INDEX = "{{ url_for('admin.index') }}";
       const ENTER_KEY_CODE = 13;
+      const STATE_COLOR = {{ state_color|tojson }};
 
       $('#dag_query').on('keypress', function (e) {
         // check for key press on ENTER (key code 13) to trigger the search
@@ -349,7 +350,7 @@
               })
               .attr('stroke', function(d) {
                   if (d.count > 0)
-                    return d.color;
+                    return STATE_COLOR[d.state];
                   else {
                     return 'gainsboro';
                   }
@@ -428,7 +429,7 @@
               })
               .attr('stroke', function(d) {
                   if (d.count > 0)
-                    return d.color;
+                    return STATE_COLOR[d.state];
                   else {
                     return 'gainsboro';
                   }

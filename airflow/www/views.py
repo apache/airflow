@@ -602,8 +602,7 @@ class Airflow(AirflowViewMixin, BaseView):
                 count = d.get(state, 0)
                 payload[dag_id].append({
                     'state': state,
-                    'count': count,
-                    'color': State.color(state)
+                    'count': count
                 })
         return wwwutils.json_response(payload)
 
@@ -685,8 +684,7 @@ class Airflow(AirflowViewMixin, BaseView):
                 count = data.get(dag_id, {}).get(state, 0)
                 payload[dag_id].append({
                     'state': state,
-                    'count': count,
-                    'color': State.color(state)
+                    'count': count
                 })
         return wwwutils.json_response(payload)
 
@@ -2319,11 +2317,15 @@ class HomeView(AirflowViewMixin, AdminIndexView):
             auto_complete_data.add(row.dag_id)
             auto_complete_data.add(row.owners)
 
+        state_color_mapping = State.state_color.copy()
+        state_color_mapping["null"] = state_color_mapping.pop(None)
+
         return self.render(
             'airflow/dags.html',
             dags=dags,
             hide_paused=hide_paused,
             current_page=current_page,
+            state_color=state_color_mapping,
             search_query=arg_search_query if arg_search_query else '',
             page_size=dags_per_page,
             num_of_pages=num_of_pages,
