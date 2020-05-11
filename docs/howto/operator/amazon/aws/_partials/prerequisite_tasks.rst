@@ -24,7 +24,7 @@ To use these operators, you must do a few things:
 
     .. code-block:: bash
 
-      pip install 'apache-airflow[aws]'
+      pip install 'apache-airflow[amazon]'
 
     Detailed information is available :doc:`/installation`
 

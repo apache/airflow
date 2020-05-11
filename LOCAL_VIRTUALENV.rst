@@ -61,7 +61,7 @@ of required packages.
 Extra Packages
 --------------
 
-You can also install extra packages (like ``[gcp]``, etc) via
+You can also install extra packages (like ``[ssh]``, etc) via
 ``pip install -e [EXTRA1,EXTRA2 ...]``. However, some of them may
 have additional install and setup requirements for your local system.
 

@@ -155,9 +155,16 @@ START_DATE_ENV = os.environ.get("PERF_START_AGO", "1h")
 START_DATE = datetime.now() - parse_time_delta(START_DATE_ENV)
 SCHEDULE_INTERVAL_ENV = os.environ.get("PERF_SCHEDULE_INTERVAL", "@once")
 SCHEDULE_INTERVAL = parse_schedule_interval(SCHEDULE_INTERVAL_ENV)
+
 SHAPE = DagShape(os.environ["PERF_SHAPE"])
 
 args = {"owner": "airflow", "start_date": START_DATE}
+
+if "PERF_MAX_RUNS" in os.environ:
+    if isinstance(SCHEDULE_INTERVAL, str):
+        raise ValueError("Can't set max runs with string-based schedule_interval")
+    num_runs = int(os.environ["PERF_MAX_RUNS"])
+    args['end_date'] = START_DATE + (SCHEDULE_INTERVAL * (num_runs - 1))
 
 for dag_no in range(1, DAG_COUNT + 1):
     dag = DAG(
