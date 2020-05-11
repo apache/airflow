@@ -214,6 +214,15 @@ class GoogleBaseHook(BaseHook):
         """
         credentials = self._get_credentials()
         http = httplib2.Http()
+
+        # Since Google Drive APIs use 308 status code as "Resume Incomplete" for resumable uploads,
+        # explicitly tell httplib2 to not redirect/ follow 308 status code.
+        try:
+            http.redirect_codes = http.redirect_codes - {308}
+        except AttributeError:
+            # http.redirect_codes does not exist for httplib2<0.17.0
+            pass
+
         http = set_user_agent(http, "airflow/" + version.version)
         authed_http = google_auth_httplib2.AuthorizedHttp(credentials, http=http)
         return authed_http

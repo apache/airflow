@@ -616,6 +616,14 @@ class TestGoogleBaseHook(unittest.TestCase):
         self.assertEqual(response, new_response)
         self.assertEqual(content, new_content)
 
+    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials")
+    def test_authorize_assert_308_is_excluded(self, mock_get_credentials):
+        """
+        Verify that 308 status code is excluded from httplib2's redirect codes
+        """
+        http_authorized = self.instance._authorize()
+        self.assertTrue(308 not in http_authorized.http.redirect_codes)
+
 
 class TestProvideAuthorizedGcloud(unittest.TestCase):
     def setUp(self):
