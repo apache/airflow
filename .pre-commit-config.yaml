@@ -242,17 +242,6 @@ repos:
         files: \.py$
         exclude: ^airflow/_vendor|^dev/
         pass_filenames: true
-      - id: check-providers-package
-        language: pygrep
-        name: Find providers package added in 2.0.*
-        entry: >
-          (?x)
-            (
-                ^.*airflow\.providers.*     # Matches import airflow.providers
-            )$
-        files: \.py$
-        exclude: ^airflow/_vendor
-        pass_filenames: true
       - id: python2-compile
         name: Compile code using python2
         language: system
