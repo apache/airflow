@@ -44,12 +44,14 @@ pip install . --constraint requirements/requirements-python3.7.txt
 # You can also install Airflow with extras specified. The list of available extras:
 # START EXTRAS HERE
 
-all, all_dbs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant, dask, databricks,
-datadog, devel, devel_ci, devel_hadoop, doc, docker, druid, elasticsearch, exasol, facebook, gcp,
-gcp_api, github_enterprise, google_auth, grpc, hashicorp, hdfs, hive, jdbc, jira, kerberos,
-kubernetes, ldap, mongo, mssql, mysql, odbc, oracle, pagerduty, papermill, password, pinot,
-postgres, presto, qds, rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry, singularity,
-slack, snowflake, ssh, statsd, tableau, vertica, virtualenv, webhdfs, winrm, yandexcloud
+all, all_dbs, amazon, apache.atlas, apache.cassandra, apache.druid, apache.hdfs, apache.hive,
+apache.pinot, apache.webhdfs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant,
+cncf.kubernetes, dask, databricks, datadog, devel, devel_ci, devel_hadoop, doc, docker, druid,
+elasticsearch, exasol, facebook, gcp, gcp_api, github_enterprise, google, google_auth, grpc,
+hashicorp, hdfs, hive, jdbc, jira, kerberos, kubernetes, ldap, microsoft.azure, microsoft.mssql,
+microsoft.winrm, mongo, mssql, mysql, odbc, oracle, pagerduty, papermill, password, pinot, postgres,
+presto, qds, rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry, singularity, slack,
+snowflake, ssh, statsd, tableau, vertica, virtualenv, webhdfs, winrm, yandexcloud
 
 # END EXTRAS HERE
 

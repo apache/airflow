@@ -583,7 +583,7 @@ class DagFileProcessor(LoggingMixin):
             now = timezone.utcnow()
             next_start = dag.following_schedule(now)
             last_start = dag.previous_schedule(now)
-            if next_start <= now:
+            if next_start <= now or isinstance(dag.schedule_interval, timedelta):
                 new_start = last_start
             else:
                 new_start = dag.previous_schedule(last_start)

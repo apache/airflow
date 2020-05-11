@@ -79,7 +79,7 @@ import setup  # From AIRFLOW_SOURCES/setup.py # noqa  # isort:skip
 
 
 PROVIDERS_DEPENDENCIES: Dict[str, List[str]] = {
-    "amazon": setup.aws,
+    "amazon": setup.amazon,
     "apache.cassandra": setup.cassandra,
     "apache.druid": setup.druid,
     "apache.hdfs": setup.hdfs,
@@ -102,7 +102,7 @@ PROVIDERS_DEPENDENCIES: Dict[str, List[str]] = {
     "exasol": setup.exasol,
     "facebook": setup.facebook,
     "ftp": [],
-    "google": setup.gcp,
+    "google": setup.google,
     "grpc": setup.grpc,
     "hashicorp": setup.hashicorp,
     "http": [],

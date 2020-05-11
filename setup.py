@@ -173,6 +173,10 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
 # 'Start dependencies group' and 'Start dependencies group' are mark for ./test/test_order_setup.py
 # If you change this mark you should also change ./test/test_order_setup.py function test_main_dependent_group
 # Start dependencies group
+amazon = [
+    'boto3>=1.12.0,<2.0.0',
+    'watchtower~=0.7.3',
+]
 async_packages = [
     'eventlet>= 0.9.7',
     'gevent>=0.13',
@@ -180,10 +184,6 @@ async_packages = [
 ]
 atlas = [
     'atlasclient>=0.1.2',
-]
-aws = [
-    'boto3>=1.12.0,<2.0.0',
-    'watchtower~=0.7.3',
 ]
 azure = [
     'azure-batch>=8.0.0',
@@ -249,7 +249,7 @@ flask_oauth = [
     'oauthlib!=2.0.3,!=2.0.4,!=2.0.5,<3.0.0,>=1.1.2',
     'requests-oauthlib==1.1.0',
 ]
-gcp = [
+google = [
     'PyOpenSSL',
     'google-ads>=4.0.0',
     'google-api-python-client>=1.6.0, <2.0.0dev',
@@ -474,8 +474,8 @@ else:
 devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
 devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
 
-devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + dask + datadog + devel + doc + docker +
-             elasticsearch + exasol + facebook + gcp + grpc + hashicorp + jdbc + jenkins + kerberos +
+devel_all = (all_dbs + amazon + atlas + azure + celery + cgroups + dask + datadog + devel + doc + docker +
+             elasticsearch + exasol + facebook + google + grpc + hashicorp + jdbc + jenkins + kerberos +
              kubernetes + ldap + odbc + oracle + pagerduty + papermill + password + redis + salesforce +
              samba + segment + sendgrid + sentry + singularity + slack + snowflake + ssh + statsd + tableau +
              virtualenv + webhdfs + yandexcloud + zendesk)
@@ -490,14 +490,23 @@ else:
 EXTRAS_REQUIREMENTS = {
     'all': devel_all,
     'all_dbs': all_dbs,
+    'amazon': amazon,
+    'apache.atlas': atlas,
+    "apache.cassandra": cassandra,
+    "apache.druid": druid,
+    "apache.hdfs": hdfs,
+    "apache.hive": hive,
+    "apache.pinot": pinot,
+    "apache.webhdfs": webhdfs,
     'async': async_packages,
-    'atlas': atlas,
-    'aws': aws,
-    'azure': azure,
-    'cassandra': cassandra,
+    'atlas': atlas,  # TODO: remove this in Airflow 2.1
+    'aws': amazon,  # TODO: remove this in Airflow 2.1
+    'azure': azure,  # TODO: remove this in Airflow 2.1
+    'cassandra': cassandra,  # TODO: remove this in Airflow 2.1
     'celery': celery,
     'cgroups': cgroups,
     'cloudant': cloudant,
+    'cncf.kubernetes': kubernetes,
     'dask': dask,
     'databricks': databricks,
     'datadog': datadog,
@@ -506,32 +515,36 @@ EXTRAS_REQUIREMENTS = {
     'devel_hadoop': devel_hadoop,
     'doc': doc,
     'docker': docker,
-    'druid': druid,
+    'druid': druid,  # TODO: remove this in Airflow 2.1
     'elasticsearch': elasticsearch,
     'exasol': exasol,
     'facebook': facebook,
-    'gcp': gcp,
-    'gcp_api': gcp,  # TODO: remove this in Airflow 2.1
+    'gcp': google,  # TODO: remove this in Airflow 2.1
+    'gcp_api': google,  # TODO: remove this in Airflow 2.1
     'github_enterprise': flask_oauth,
+    'google': google,
     'google_auth': flask_oauth,
     'grpc': grpc,
     'hashicorp': hashicorp,
-    'hdfs': hdfs,
-    'hive': hive,
+    'hdfs': hdfs,  # TODO: remove this in Airflow 2.1
+    'hive': hive,  # TODO: remove this in Airflow 2.1
     'jdbc': jdbc,
     'jira': jira,
     'kerberos': kerberos,
-    'kubernetes': kubernetes,
+    'kubernetes': kubernetes,   # TODO: remove this in Airflow 2.1
     'ldap': ldap,
+    "microsoft.azure": azure,
+    "microsoft.mssql": mssql,
+    "microsoft.winrm": winrm,
     'mongo': mongo,
-    'mssql': mssql,
+    'mssql': mssql,  # TODO: remove this in Airflow 2.1
     'mysql': mysql,
     'odbc': odbc,
     'oracle': oracle,
     'pagerduty': pagerduty,
     'papermill': papermill,
     'password': password,
-    'pinot': pinot,
+    'pinot': pinot,  # TODO: remove this in Airflow 2.1
     'postgres': postgres,
     'presto': presto,
     'qds': qds,
@@ -550,8 +563,8 @@ EXTRAS_REQUIREMENTS = {
     'tableau': tableau,
     'vertica': vertica,
     'virtualenv': virtualenv,
-    'webhdfs': webhdfs,
-    'winrm': winrm,
+    'webhdfs': webhdfs,  # TODO: remove this in Airflow 2.1
+    'winrm': winrm,  # TODO: remove this in Airflow 2.1
     'yandexcloud': yandexcloud,
 }
 

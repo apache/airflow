@@ -127,12 +127,12 @@ class BaseOperator(Operator, LoggingMixin):
     :param end_date: if specified, the scheduler won't go beyond this date
     :type end_date: datetime.datetime
     :param depends_on_past: when set to true, task instances will run
-        sequentially while relying on the previous task's schedule to
-        succeed. The task instance for the start_date is allowed to run.
+        sequentially and only if the previous instance has succeeded or has been skipped.
+        The task instance for the start_date is allowed to run.
     :type depends_on_past: bool
     :param wait_for_downstream: when set to true, an instance of task
         X will wait for tasks immediately downstream of the previous instance
-        of task X to finish successfully before it runs. This is useful if the
+        of task X to finish successfully or be skipped before it runs. This is useful if the
         different instances of a task X alter the same asset, and this asset
         is used by tasks downstream of task X. Note that depends_on_past
         is forced to True wherever wait_for_downstream is used. Also note that
