@@ -138,7 +138,7 @@ class FileProcessorHandler(logging.Handler):
 
         if not os.path.exists(directory):
             try:
-                os.makedirs(directory)
+                os.makedirs(os.path.abspath(directory))
             except OSError:
                 if not os.path.isdir(directory):
                     raise
