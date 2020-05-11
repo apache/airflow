@@ -837,14 +837,17 @@ function parse_arguments() {
           COMMAND_TO_RUN="cleanup_image"
           shift ;;
         docker-compose)
-          if [[ "$#" -lt 2 ]]; then
-            echo "You should specify docker compose command to run"
-            exit 1
-          fi
           LAST_SUBCOMMAND="${1}"
-          DOCKER_COMPOSE_COMMAND="${2}"
+          if [[ $# -lt 2 ]]; then
+            echo "You should specify docker compose command to run"
+            shift
+            RUN_HELP="true"
+          else
+            DOCKER_COMPOSE_COMMAND="${2}"
+            shift 2
+          fi
           COMMAND_TO_RUN="run_docker_compose"
-          shift 2 ;;
+          ;;
         execute-command)
           LAST_SUBCOMMAND="${1}"
           COMMAND_TO_RUN="run_in_bash"
@@ -869,34 +872,56 @@ function parse_arguments() {
           LAST_SUBCOMMAND="${1}"
           COMMAND_TO_RUN="perform_static_checks"
           if [[ "$#" -lt 2 ]]; then
-            echo "You should specify static check that you would like to run or 'all' to run all checks."
-            echo "One of [${_BREEZE_ALLOWED_STATIC_CHECKS:=}]."
-            echo
-            echo "For example:"
-            echo "${CMDNAME} static-check MyPy"
-            exit 1
+            if [[ ${RUN_HELP} != "true" ]]; then
+              echo "You should specify static check that you would like to run or 'all' to run all checks."
+              echo
+              echo "One of :"
+              echo
+              echo "${_BREEZE_ALLOWED_STATIC_CHECKS:=}"
+              echo
+              echo "For example:"
+              echo
+              echo "${CMDNAME} static-check mypy"
+              echo
+              exit 1
+            else
+              shift
+            fi
+          else
+            export PYTHON_MAJOR_MINOR_VERSION=${STATIC_CHECK_PYTHON_MAJOR_MINOR_VERSION}
+            export STATIC_CHECK="${2:-}"
+            export STATIC_CHECK_ALL_FILES="false"
+            EXTRA_STATIC_CHECK_OPTIONS+=("--show-diff-on-failure")
+            shift 2
           fi
-          export PYTHON_MAJOR_MINOR_VERSION=${STATIC_CHECK_PYTHON_MAJOR_MINOR_VERSION}
-          export STATIC_CHECK="${2}"
-          export STATIC_CHECK_ALL_FILES="false"
-          EXTRA_STATIC_CHECK_OPTIONS+=("--show-diff-on-failure")
-          shift 2 ;;
+          ;;
         static-check-all-files)
           LAST_SUBCOMMAND="${1}"
-          if [[ "$#" -lt 2 ]]; then
-            echo "You should specify static check that you would like to run or 'all' to run all checks."
-            echo "One of [${_BREEZE_ALLOWED_STATIC_CHECKS:=}]."
-            echo
-            echo "For example:"
-            echo "${CMDNAME} static-check-all-files MyPy"
-            exit 1
-          fi
           COMMAND_TO_RUN="perform_static_checks"
-          export PYTHON_MAJOR_MINOR_VERSION=${STATIC_CHECK_PYTHON_MAJOR_MINOR_VERSION}
-          export STATIC_CHECK="${2}"
-          export STATIC_CHECK_ALL_FILES="true"
-          EXTRA_STATIC_CHECK_OPTIONS+=("--all-files" "--show-diff-on-failure")
-          shift 2 ;;
+          if [[ "$#" -lt 2 ]]; then
+            if [[ ${RUN_HELP} != "true" ]]; then
+              echo "You should specify static check that you would like to run or 'all' to run all checks."
+              echo
+              echo "One of :"
+              echo
+              echo "${_BREEZE_ALLOWED_STATIC_CHECKS:=}"
+              echo
+              echo "For example:"
+              echo
+              echo "${CMDNAME} static-check-all-files mypy"
+              echo
+              exit 1
+            else
+              shift
+            fi
+          else
+            export PYTHON_MAJOR_MINOR_VERSION=${STATIC_CHECK_PYTHON_MAJOR_MINOR_VERSION}
+            export STATIC_CHECK="${2:-}"
+            export STATIC_CHECK_ALL_FILES="true"
+            EXTRA_STATIC_CHECK_OPTIONS+=("--all-files" "--show-diff-on-failure")
+            shift 2
+          fi
+          ;;
         stop)
           LAST_SUBCOMMAND="${1}"
           COMMAND_TO_RUN="run_docker_compose"
@@ -913,13 +938,14 @@ function parse_arguments() {
           shift ;;
         test-target)
           LAST_SUBCOMMAND="${1}"
-          if [[ "${TEST_TARGET}" == "." ]]; then
-              export TEST_TARGET=""
+          if [[ $# -lt 2 ]]; then
+            RUN_HELP="true"
+            shift
           else
-              export TEST_TARGET="${2}"
+            export TEST_TARGET="${2}"
+            shift 2
           fi
-          COMMAND_TO_RUN="run_tests"
-          shift 2 ;;
+          COMMAND_TO_RUN="run_tests" ;;
         toggle-suppress-cheatsheet)
           LAST_SUBCOMMAND="${1}"
           if [[ -f "${SUPPRESS_CHEATSHEET_FILE}" ]]; then
@@ -1289,11 +1315,21 @@ Help commands:
 # Prints detailed usage for command specified
 function detailed_usage() {
       SUBCOMMAND=${1}
+      COMMAND_PARAMETER=""
+      if [[ ${SUBCOMMAND} == "static-check" ]]; then
+        COMMAND_PARAMETER="<STATIC_CHECK> "
+      elif [[ ${SUBCOMMAND} == "static-check-all-files" ]]; then
+        COMMAND_PARAMETER="<STATIC_CHECK> "
+      elif [[ ${SUBCOMMAND} == "test-target" ]]; then
+        COMMAND_PARAMETER="<TEST_TARGET> "
+      elif [[ ${SUBCOMMAND} == "docker-compose" ]]; then
+        COMMAND_PARAMETER="<DOCKER_COMPOSE_COMMAND> "
+      fi
       echo "
 
 Detailed usage for command: ${SUBCOMMAND}
 
-${CMDNAME} [FLAGS] ${SUBCOMMAND} -- <EXTRA_ARGS>
+${CMDNAME} [FLAGS] ${SUBCOMMAND} ${COMMAND_PARAMETER}-- <EXTRA_ARGS>
 $(get_detailed_usage "${SUBCOMMAND}")
 
 "
