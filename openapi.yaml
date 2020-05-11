@@ -573,9 +573,10 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-  /dags/{dag_id}/taskInstances:
+  /dags/{dag_id}/dagRuns/{execution_date}/taskInstances:
     parameters:
       - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/ExecutionDate'
       - $ref: '#/components/parameters/FilterExecutionDateStartRange'
       - $ref: '#/components/parameters/FilterExecutionDateEndRange'
       - $ref: '#/components/parameters/FilterStartDateStartRange'
@@ -590,7 +591,8 @@ paths:
     get:
       summary: Get list of task instance of DAG.
       description: >
-        This endpoint support reading resources across multiple DAGs by specifying a "-" as a dag_id.
+        This endpoint support reading resources across multiple DAGs by specifying a "-" as a dag_id
+        or an execution date.
       operationId: getTaskInstances
       tags: [Pool]
       parameters:
@@ -610,11 +612,11 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-  /dags/{dag_id}/taskInstances/{task_id}/{execution_date}:
+  /dags/{dag_id}/dagRuns/{execution_date}/taskInstances/{task_id}:
     parameters:
       - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/TaskID'
       - $ref: '#/components/parameters/ExecutionDate'
+      - $ref: '#/components/parameters/TaskID'
 
     get:
       summary: Get a task instance
@@ -769,11 +771,11 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /dags/{dag_id}/taskInstances/{task_id}/{execution_date}/xcomEntries:
+  /dags/{dag_id}/dagRuns/{execution_date}/taskInstances/{task_id}/xcomEntries:
     parameters:
       - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/TaskID'
       - $ref: '#/components/parameters/ExecutionDate'
+      - $ref: '#/components/parameters/TaskID'
 
     get:
       summary: Get all XCom entry
@@ -823,11 +825,11 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-  /dags/{dag_id}/taskInstances/{task_id}/{execution_date}/xcomEntries/{key}:
+  /dags/{dag_id}/dagRuns/{execution_date}/taskInstances/{task_id}/xcomEntries/{key}:
     parameters:
       - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/TaskID'
       - $ref: '#/components/parameters/ExecutionDate'
+      - $ref: '#/components/parameters/TaskID'
       - $ref: '#/components/parameters/XComKey'
 
     get:
@@ -892,11 +894,11 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
 
   # Non-database resources
-  /dags/{dag_id}/taskInstances/{task_id}/{execution_date}/links:
+  /dags/{dag_id}/dagRuns/{execution_date}/taskInstances/{task_id}/links:
     parameters:
       - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/TaskID'
       - $ref: '#/components/parameters/ExecutionDate'
+      - $ref: '#/components/parameters/TaskID'
 
     get:
       summary: Get extra links for task instance
@@ -916,11 +918,11 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /dags/{dag_id}/taskInstances/{task_id}/{execution_date}/logs/{task_try_number}:
+  /dags/{dag_id}/dagRuns/{execution_date}/taskInstances/{task_id}/logs/{task_try_number}:
     parameters:
       - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/TaskID'
       - $ref: '#/components/parameters/ExecutionDate'
+      - $ref: '#/components/parameters/TaskID'
       - $ref: '#/components/parameters/TaskTryNumber'
       - $ref: '#/components/parameters/NoChunking'
       - $ref: '#/components/parameters/ContinuationToken'
