@@ -70,11 +70,10 @@ class TestStepFunctionExecutionSensor(unittest.TestCase):
         with self.assertRaises(AirflowException):
             sensor.poke(self.mock_context)
 
-    @parameterized.expand([('RUNNING',), ('SUCCEEDED',)])
     @mock.patch('airflow.providers.amazon.aws.sensors.step_function_execution.StepFunctionHook')
-    def test_returns(self, mock_status, mock_hook):
+    def test_running(self, mock_hook):
         hook_response = {
-            'status': mock_status
+            'status': 'RUNNING'
         }
 
         hook_instance = mock_hook.return_value
@@ -87,7 +86,22 @@ class TestStepFunctionExecutionSensor(unittest.TestCase):
             region_name=REGION_NAME
         )
 
-        if mock_status == 'RUNNING':
-            self.assertFalse(sensor.poke(self.mock_context))
-        else:
-            self.assertTrue(sensor.poke(self.mock_context))
+        self.assertFalse(sensor.poke(self.mock_context))
+
+    @mock.patch('airflow.providers.amazon.aws.sensors.step_function_execution.StepFunctionHook')
+    def test_succeeded(self, mock_hook):
+        hook_response = {
+            'status': 'SUCCEEDED'
+        }
+
+        hook_instance = mock_hook.return_value
+        hook_instance.describe_execution.return_value = hook_response
+
+        sensor = StepFunctionExecutionSensor(
+            task_id=TASK_ID,
+            execution_arn=EXECUTION_ARN,
+            aws_conn_id=AWS_CONN_ID,
+            region_name=REGION_NAME
+        )
+
+        self.assertTrue(sensor.poke(self.mock_context))
