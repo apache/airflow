@@ -532,7 +532,7 @@ class DagRun(Base, LoggingMixin):
         """Returns the latest DagRun for a given dag_id"""
         subquery = (
             session
-            .query(func.max(cls.execution_date)).label('execution_date')
+            .query(func.max(cls.execution_date).label('execution_date'))
             .filter(cls.dag_id == dag_id)
             .subquery()
         )

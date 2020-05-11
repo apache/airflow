@@ -512,6 +512,23 @@ class TestDagRun(unittest.TestCase):
         ti = dag_run.get_task_instance('test_short_circuit_false')
         self.assertEqual(None, ti)
 
+    def test_get_latest_run(self):
+        session = settings.Session()
+        dag_1 = DAG(
+            dag_id='test_latest_run_1',
+            start_date=DEFAULT_DATE)
+        dag_2 = DAG(
+            dag_id='test_latest_run_2',
+            start_date=DEFAULT_DATE)
+        self.create_dag_run(dag_1, execution_date=timezone.datetime(2015, 1, 1))
+        self.create_dag_run(dag_1, execution_date=timezone.datetime(2015, 1, 2))
+        self.create_dag_run(dag_1, execution_date=timezone.datetime(2015, 1, 3))
+        self.create_dag_run(dag_2, execution_date=timezone.datetime(2015, 1, 3))
+        dagrun = models.DagRun.get_latest_run(dag_1.dag_id, session)
+        session.close()
+        self.assertEqual(dagrun.dag_id, dag_1.dag_id)
+        self.assertEqual(dagrun.execution_date, timezone.datetime(2015, 1, 3))
+
     def test_get_latest_runs(self):
         session = settings.Session()
         dag = DAG(
