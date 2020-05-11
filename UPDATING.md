@@ -62,6 +62,35 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Standardised "extra" requirements
+
+We standardised the Extras names and synchronized providers package names with the main airflow extras.
+
+We deprecated a number of extras in 2.0.
+
+| Deprecated extras | New extras       |
+|-------------------|------------------|
+| atlas             | apache.atlas     |
+| aws               | amazon           |
+| azure             | microsoft.azure  |
+| cassandra         | apache.cassandra |
+| druid             | apache.druid     |
+| gcp               | google           |
+| gcp_api           | google           |
+| hdfs              | apache.hdfs      |
+| hive              | apache.hive      |
+| kubernetes        | cncf.kubernetes  |
+| mssql             | microsoft.mssql  |
+| pinot             | apache.pinot     |
+| webhdfs           | apache.webhdfs   |
+| winrm             | apache.winrm     |
+
+For example instead of `pip install apache-airflow[atlas]` you should use
+`pip install apache-airflow[apache.atlas]` .
+
+The deprecated extras will be removed in 2.1:
+
+
 ### Skipped tasks can satisfy wait_for_downstream
 
 Previously, a task instance with `wait_for_downstream=True` will only run if the downstream task of
