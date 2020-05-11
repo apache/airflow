@@ -746,6 +746,35 @@ class DagTest(unittest.TestCase):
         )
 
     @patch('airflow.models.dag.DagBag')
+    @patch('airflow.models.dag.send_email')
+    def test_dag_unpause_triggers_email(self, mock_send_email, mock_dag_bag):
+        mock_send_email.return_value = None
+        dag_id = 'dag'
+        dag = DAG(
+            dag_id,
+            start_date=DEFAULT_DATE,
+            default_args={
+                'email': 'test@test.com'
+            }
+        )
+
+        mock_dag_bag.return_value.get_dag.return_value = dag
+
+        session = settings.Session()
+        dag.sync_to_db(session=session)
+
+        DagModel.get_dagmodel(dag.dag_id).set_is_paused(is_paused=False)
+
+        mock_send_email.assert_called_once_with(
+            'test@test.com',
+            'Airflow DAG {} Toggled ON'.format(dag.dag_id),
+            (
+                'This is a notification that Airflow DAG: <b>{}</b> has been toggled ON.<br>'
+                'If this was intentional, feel free to ignore this email.'
+            ).format(dag.dag_id),
+        )
+
+    @patch('airflow.models.dag.DagBag')
     def test_is_paused_subdag(self, mock_dag_bag):
         subdag_id = 'dag.subdag'
         subdag = DAG(
