@@ -33,7 +33,7 @@ class TestStepFunctionHook(unittest.TestCase):
     @mock_stepfunctions
     def test_get_conn_returns_a_boto3_connection(self):
         hook = StepFunctionHook(aws_conn_id='aws_default')
-        self.assertIsNotNone(hook.get_conn())
+        self.assertEquals('stepfunctions', hook.get_conn().meta.service_model.service_name)
 
     @mock_stepfunctions
     def test_start_execution(self):
