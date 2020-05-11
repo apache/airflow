@@ -1885,8 +1885,8 @@ class DagModel(Base):
         :param session: session
         """
         dag_ids = [self.dag_id]  # type: List[str]
+        dag = self.get_dag(store_serialized_dags)
         if including_subdags:
-            dag = self.get_dag(store_serialized_dags)
             if dag is None:
                 raise DagNotFound("Dag id {} not found".format(self.dag_id))
             subdags = dag.subdags
@@ -1896,7 +1896,7 @@ class DagModel(Base):
             for dag_model in dag_models:
                 dag_model.is_paused = is_paused
             toggle_state_str = 'OFF' if is_paused else 'ON'
-            to_email_address = self.default_args['email']
+            to_email_address = dag.default_args['email']
             email_subject = 'Airflow DAG {} Toggled {}'.format(self.dag_id, toggle_state_str)
             email_content = (
                 'This is a notification that Airflow DAG: <b>{}</b> has been toggled {}.<br>'
