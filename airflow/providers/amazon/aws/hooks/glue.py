@@ -116,7 +116,7 @@ class AwsGlueJobHook(AwsBaseHook):
         :type job_name: str
         :param run_id: The job-run ID of the predecessor job run
         :type run_id: str
-        :return:
+        :return: Status of the Job if succeeded or stopped
         """
         while True:
             glue_client = self.get_conn()
@@ -126,10 +126,15 @@ class AwsGlueJobHook(AwsBaseHook):
                 PredecessorsIncluded=True
             )
             job_run_state = job_status['JobRun']['JobRunState']
-            done_states = ['FAILED', 'STOPPED', 'SUCCEEDED']
-            if job_run_state in done_states:
+            failed_states = ['FAILED', 'TIMEOUT']
+            finished_states = ['SUCCEEDED', 'STOPPED']
+            if job_run_state in finished_states:
                 self.log.info("Exiting Job %s Run State: %s", run_id, job_run_state)
                 return {'JobRunState': job_run_state, 'JobRunId': run_id}
+            if job_run_state in failed_states:
+                job_error_message = "Exiting Job " + run_id + " Run State: " + job_run_state
+                self.log.info(job_error_message)
+                raise AirflowException(job_error_message)
             else:
                 self.log.info(
                     "Polling for AWS Glue Job %s current run state with status %s",
