@@ -25,7 +25,7 @@ from inspect import signature
 from itertools import islice
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Callable, Dict, Iterable, List, Optional, Union
+from typing import Callable, Dict, Iterable, List, Optional
 
 import dill
 
@@ -154,7 +154,7 @@ class _PythonFunctionalOperator(BaseOperator):
     :param python_callable: A reference to an object that is callable
     :type python_callable: python callable
     :param multiple_outputs: if set, function return value will be
-        unrolled to multiple XCom values. List will unroll to xcom values
+        unrolled to multiple XCom values. List/Tuples will unroll to xcom values
         with index as key. Dict will unroll to xcom values with keys as keys.
         Defaults to False.
     :type multiple_outputs: bool
@@ -208,12 +208,14 @@ class _PythonFunctionalOperator(BaseOperator):
     def __call__(self, *args, **kwargs):
         # If args/kwargs are set, then operator has been called. Raise exception
         if self._op_args is not None or self._op_kwargs is not None:
-            raise AirflowException('PythonFunctionalOperator can only be called once. If you need to reuse it several '
-                                   'times in a DAG, use the `copy` method.')
+            raise AirflowException('PythonFunctionalOperator can only be called once. If you need to reuse '
+                                   'it several times in a DAG, use the `copy` method.')
 
         # If we have no DAG, reinitialize class to capture DAGContext and DAG default args.
         if not self.has_dag():
-            self.__init__(python_callable=self.python_callable, multiple_outputs=self.multiple_outputs, **self._kwargs)
+            self.__init__(python_callable=self.python_callable,
+                          multiple_outputs=self.multiple_outputs,
+                          **self._kwargs)
 
         # Capture args/kwargs
         self._op_args = args
@@ -251,7 +253,7 @@ class _PythonFunctionalOperator(BaseOperator):
         return return_value
 
 
-def task(python_callable: Optional[Callable] = None, **kwargs):
+def task_decorator(python_callable: Optional[Callable] = None, **kwargs):
     """
     Python task decorator. Wraps a function into an Airflow operator.
     Accepts kwargs for operator kwarg. Will try to wrap operator into DAG at declaration or
@@ -260,7 +262,7 @@ def task(python_callable: Optional[Callable] = None, **kwargs):
     :param python_callable: Function to decorate
     :type python_callable: Optional[Callable]
     :param multiple_outputs: if set, function return value will be
-        unrolled to multiple XCom values. List will unroll to xcom values
+        unrolled to multiple XCom values. List/Tuples will unroll to xcom values
         with index as key. Dict will unroll to xcom values with keys as keys.
         Defaults to False.
     :type multiple_outputs: bool

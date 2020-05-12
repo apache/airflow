@@ -1318,6 +1318,11 @@ class DAG(BaseDag, LoggingMixin):
         for t in self.roots:
             get_downstream(t)
 
+    @property
+    def task(self):
+        from airflow.operators.python import task_decorator
+        return functools.partial(task_decorator, dag=self)
+
     def add_task(self, task):
         """
         Add a task to the DAG
