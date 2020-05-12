@@ -29,7 +29,7 @@ import psutil
 import pytest
 import six
 from freezegun import freeze_time
-from mock import MagicMock, patch
+from mock import patch
 from parameterized import parameterized
 
 import airflow.example_dags
