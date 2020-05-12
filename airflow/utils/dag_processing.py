@@ -547,7 +547,8 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
                 self._dag_directory,
                 self._file_paths,
                 self._max_runs,
-                self._processor_factory,
+                # getattr prevents error while pickling an instance method.
+                getattr(self, "_processor_factory"),
                 self._processor_timeout,
                 child_signal_conn,
                 self._dag_ids,
