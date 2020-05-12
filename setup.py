@@ -184,7 +184,7 @@ aws = [
     'boto3~=1.10',
 ]
 azure_blob_storage = [
-    'azure-storage>=0.34.0',
+    'azure-storage>=0.34.0,<0.37.0',
     'azure-storage-blob<12.0',
 ]
 azure_container_instances = [
