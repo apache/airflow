@@ -35,6 +35,10 @@ DEFAULT_CONN_ID = 'databricks_default'
 NOTEBOOK_TASK = {
     'notebook_path': '/test'
 }
+SPARK_PYTHON_TASK = {
+    'python_file': 'test.py',
+    'parameters': ['--param', '123']
+}
 NEW_CLUSTER = {
     'spark_version': '2.0.x-scala2.10',
     'node_type_id': 'r3.xlarge',
@@ -283,6 +287,26 @@ class TestDatabricksHook(unittest.TestCase):
             submit_run_endpoint(HOST),
             json={
                 'notebook_task': NOTEBOOK_TASK,
+                'new_cluster': NEW_CLUSTER,
+            },
+            auth=(LOGIN, PASSWORD),
+            headers=USER_AGENT_HEADER,
+            timeout=self.hook.timeout_seconds)
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_spark_python_submit_run(self, mock_requests):
+        mock_requests.post.return_value.json.return_value = {'run_id': '1'}
+        data = {
+            'spark_python_task': SPARK_PYTHON_TASK,
+            'new_cluster': NEW_CLUSTER
+        }
+        run_id = self.hook.submit_run(data)
+
+        self.assertEqual(run_id, '1')
+        mock_requests.post.assert_called_once_with(
+            submit_run_endpoint(HOST),
+            json={
+                'spark_python_task': SPARK_PYTHON_TASK,
                 'new_cluster': NEW_CLUSTER,
             },
             auth=(LOGIN, PASSWORD),
