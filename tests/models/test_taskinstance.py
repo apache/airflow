@@ -373,20 +373,20 @@ class TestTaskInstance(unittest.TestCase):
         """
         test that updating the executor_config propogates to the TaskInstance DB
         """
-        dag = models.DAG(dag_id='test_run_pooling_task')
-        task = DummyOperator(task_id='test_run_pooling_task_op', dag=dag, owner='airflow',
-                             executor_config={'foo': 'bar'},
-                             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+        with models.DAG(dag_id='test_run_pooling_task') as dag:
+            task = DummyOperator(task_id='test_run_pooling_task_op', owner='airflow',
+                                 executor_config={'foo': 'bar'},
+                                 start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
         ti = TI(
             task=task, execution_date=timezone.utcnow())
 
         ti.run(session=session)
         tis = dag.get_task_instances()
         self.assertEqual({'foo': 'bar'}, tis[0].executor_config)
-
-        task2 = DummyOperator(task_id='test_run_pooling_task_op', dag=dag, owner='airflow',
-                              executor_config={'bar': 'baz'},
-                              start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+        with models.DAG(dag_id='test_run_pooling_task') as dag:
+            task2 = DummyOperator(task_id='test_run_pooling_task_op', owner='airflow',
+                                  executor_config={'bar': 'baz'},
+                                  start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
 
         ti = TI(
             task=task2, execution_date=timezone.utcnow())
