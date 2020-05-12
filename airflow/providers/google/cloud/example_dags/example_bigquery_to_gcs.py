@@ -56,7 +56,7 @@ with models.DAG(
     )
 
     create_table = BigQueryCreateEmptyTableOperator(
-        task_id=f"create_table",
+        task_id="create_table",
         dataset_id=DATASET_NAME,
         table_id=TABLE,
         schema_fields=[
