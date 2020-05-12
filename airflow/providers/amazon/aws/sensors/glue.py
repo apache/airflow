@@ -33,7 +33,7 @@ class AwsGlueJobSensor(BaseSensorOperator):
     :type run_id: str
     """
     template_fields = ('job_name', 'run_id')
-    JOB_POLL_INTERVAL = 6
+
     @apply_defaults
     def __init__(self,
                  job_name,
