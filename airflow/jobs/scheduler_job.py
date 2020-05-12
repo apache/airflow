@@ -561,12 +561,11 @@ class DagFileProcessor(LoggingMixin):
         # this query should be replaced by find dagrun
         qry = (
             session.query(func.max(DagRun.execution_date))
-                .filter_by(dag_id=dag.dag_id)
-                .filter(or_(
-                    DagRun.external_trigger == False,  # noqa: E712 pylint: disable=singleton-comparison
-                    # add % as a wildcard for the like query
-                    DagRun.run_id.like(f"{DagRunType.SCHEDULED.value}__%")
-                )
+            .filter_by(dag_id=dag.dag_id)
+            .filter(or_(
+                DagRun.external_trigger == False,  # noqa: E712 pylint: disable=singleton-comparison
+                # add % as a wildcard for the like query
+                DagRun.run_id.like(f"{DagRunType.SCHEDULED.value}__%"))
             )
         )
         last_scheduled_run = qry.scalar()
