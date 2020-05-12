@@ -67,9 +67,7 @@ class KafkaSensor(BaseSensorOperator):
         :param context:
         :return:
         """
-        logging.info(
-            'Poking topic: %s, using hook: %s',
-            str(self.topic), str(self.hook))
+        self.log.info('Poking topic: %s, using hook: %s', str(self.topic), str(self.hook))
 
         messages = self.hook.get_messages()
 
