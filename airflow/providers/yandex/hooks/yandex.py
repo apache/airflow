@@ -36,7 +36,7 @@ class YandexCloudBaseHook(BaseHook):
                  default_folder_id=None,
                  default_public_ssh_key=None
                  ):
-        super().__init__()
+        # parent class constructor is not called to provide Airflow 1.10 compatibility
         self.connection_id = connection_id or 'yandexcloud_default'
         self.connection = self.get_connection(self.connection_id)
         self.extras = self.connection.extra_dejson
