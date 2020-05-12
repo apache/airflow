@@ -86,9 +86,6 @@ class TraceQueries:
         if self.display_time:
             output_parts.append(f"{total:.5f}")
 
-        if self.display_time:
-            output_parts.append(f"{total:.5f}")
-
         if self.display_trace:
             output_parts.extend([f"{file_name}", f"{stack_info}"])
 
