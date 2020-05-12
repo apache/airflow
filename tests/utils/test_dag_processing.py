@@ -171,7 +171,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             session.query(TI).delete()
             session.query(LJ).delete()
 
-    def test_handle_failure_callback_with_zobmies_are_correctly_passed_to_dag_file_processor(self):
+    def test_handle_failure_callback_with_zombies_are_correctly_passed_to_dag_file_processor(self):
         """
         Check that the same set of failure callback with zombies are passed to the dag
         file processors until the next zombie detection logic is invoked.
@@ -327,7 +327,6 @@ class TestDagFileProcessorAgent(unittest.TestCase):
             # reload the logging module.
             test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
             async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
-
             log_file_loc = conf.get('logging', 'DAG_PROCESSOR_MANAGER_LOG_LOCATION')
 
             try:

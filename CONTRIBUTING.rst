@@ -305,7 +305,7 @@ Extras
 
 There are a number of extras that can be specified when installing Airflow. Those
 extras can be specified after the usual pip install - for example
-``pip install -e .[gcp]``. For development purpose there is a ``devel`` extra that
+``pip install -e .[ssh]``. For development purpose there is a ``devel`` extra that
 installs all development dependencies. There is also ``devel_ci`` that installs
 all dependencies needed in the CI environment.
 
@@ -313,12 +313,14 @@ This is the full list of those extras:
 
   .. START EXTRAS HERE
 
-all, all_dbs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant, dask, databricks,
-datadog, devel, devel_ci, devel_hadoop, doc, docker, druid, elasticsearch, exasol, facebook, gcp,
-gcp_api, github_enterprise, google_auth, grpc, hashicorp, hdfs, hive, jdbc, jira, kerberos,
-kubernetes, ldap, mongo, mssql, mysql, odbc, oracle, pagerduty, papermill, password, pinot,
-postgres, presto, qds, rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry, singularity,
-slack, snowflake, ssh, statsd, tableau, vertica, virtualenv, webhdfs, winrm, yandexcloud
+all, all_dbs, amazon, apache.atlas, apache.cassandra, apache.druid, apache.hdfs, apache.hive,
+apache.pinot, apache.webhdfs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant,
+cncf.kubernetes, dask, databricks, datadog, devel, devel_ci, devel_hadoop, doc, docker, druid,
+elasticsearch, exasol, facebook, gcp, gcp_api, github_enterprise, google, google_auth, grpc,
+hashicorp, hdfs, hive, jdbc, jira, kerberos, kubernetes, ldap, microsoft.azure, microsoft.mssql,
+microsoft.winrm, mongo, mssql, mysql, odbc, oracle, pagerduty, papermill, password, pinot, postgres,
+presto, qds, rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry, singularity, slack,
+snowflake, ssh, statsd, tableau, vertica, virtualenv, webhdfs, winrm, yandexcloud
 
   .. END EXTRAS HERE
 
@@ -372,14 +374,14 @@ This works also with extras - for example:
 
 .. code-block:: bash
 
-  pip install .[gcp] --constraint requirements/requirements-python3.6.txt
+  pip install .[ssh] --constraint requirements/requirements-python3.6.txt
 
 
 It is also possible to use constraints directly from github using tag/version name:
 
 .. code-block:: bash
 
-  pip install apache-airflow[gcp]==1.10.10 \
+  pip install apache-airflow[ssh]==1.10.10 \
       --constraint https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.6.txt
 
 There are different set of fixed requirements for different python major/minor versions and you should
@@ -425,8 +427,9 @@ in the ``airflow/providers/dependencies.json``. Pre-commits are also used to gen
 The dependency list is automatically used during pypi packages generation.
 
 Cross-dependencies between provider packages are converted into extras - if you need functionality from
-the other provider package you can install it adding [extra] after the apache-airflow-providers-PROVIDER
-for example ``pip install apache-airflow-providers-google[amazon]`` in case you want to use GCP's
+the other provider package you can install it adding [extra] after the
+apache-airflow-backport-providers-PROVIDER for example ``pip install
+apache-airflow-backport-providers-google[amazon]`` in case you want to use GCP
 transfer operators from Amazon ECS.
 
 If you add a new dependency between different providers packages, it will be detected automatically during
@@ -1008,7 +1011,7 @@ prepare such packages on your own easily.
   adding cross-dependencies between packages.
 
 * This creates a wheel package in your ``dist`` folder with a name similar to:
-  ``apache_airflow_providers-0.0.1-py2.py3-none-any.whl``
+  ``apache_airflow_backport_providers-0.0.1-py2.py3-none-any.whl``
 
 * You can install this package with ``pip install <PACKAGE_FILE>``
 
@@ -1019,7 +1022,8 @@ prepare such packages on your own easily.
 Each package has description generated from the the general ``backport_packages/README.md`` file with the
 following replacements:
 
-* ``{{ PACKAGE_NAME }}`` is replaced with the name of the package (``apache-airflow-providers-<NAME>``)
+* ``{{ PACKAGE_NAME }}`` is replaced with the name of the package
+(``apache-airflow-backport-providers-<NAME>``)
 * ``{{ PACKAGE_DEPENDENCIES }}`` is replaced with list of optional dependencies for the package
 * ``{{ PACKAGE_BACKPORT_README }}`` is replaced with the content of ``BACKPORT_README.md`` file in the
   package folder if it exists.

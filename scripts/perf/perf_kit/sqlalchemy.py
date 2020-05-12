@@ -15,31 +15,59 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import contextlib
 import os
 import time
 import traceback
+from typing import Callable
 
 from sqlalchemy import event
 
 
-@contextlib.contextmanager
-def trace_queries(display_time=True, display_trace=True, display_sql=False, display_parameters=True):
-    """
-    Tracking SQL queries in a code block. The result is displayed directly on the screen - ``print``
+def _pretty_format_sql(text: str):
+    import pygments
 
+    from pygments.formatters.terminal import TerminalFormatter
+    from pygments.lexers.sql import SqlLexer
+    text = pygments.highlight(
+        code=text, formatter=TerminalFormatter(), lexer=SqlLexer()
+    ).rstrip()
+    return text
+
+
+class TraceQueries:
+    """
+    Tracking SQL queries in a code block.
+
+    :param display_num: If True, displays the query number.
     :param display_time: If True, displays the query execution time.
     :param display_trace: If True, displays the simplified (one-line) stack trace
     :param display_sql: If True, displays the SQL statements
     :param display_parameters: If True, display SQL statement parameters
-    :return:
+    :param print_fn: The function used to display the text. By default,``builtins.print``
     """
-    import airflow.settings
+    def __init__(
+        self,
+        *,
+        display_num: bool = True,
+        display_time: bool = True,
+        display_trace: bool = True,
+        display_sql: bool = False,
+        display_parameters: bool = True,
+        print_fn: Callable[[str], None] = print
+    ):
+        self.display_num = display_num
+        self.display_time = display_time
+        self.display_trace = display_trace
+        self.display_sql = display_sql
+        self.display_parameters = display_parameters
+        self.print_fn = print_fn
+        self.query_count = 0
 
-    def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+    def before_cursor_execute(self, conn, cursor, statement, parameters, context, executemany):
         conn.info.setdefault("query_start_time", []).append(time.monotonic())
+        self.query_count += 1
 
-    def after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+    def after_cursor_execute(self, conn, cursor, statement, parameters, context, executemany):
         total = time.monotonic() - conn.info["query_start_time"].pop()
         file_names = [
             f"{f.filename}:{f.name}:{f.lineno}"
@@ -52,28 +80,40 @@ def trace_queries(display_time=True, display_trace=True, display_sql=False, disp
         conn.info.setdefault("query_start_time", []).append(time.monotonic())
 
         output_parts = []
-        if display_time:
+        if self.display_num:
+            output_parts.append(f"{self.query_count:>3}")
+
+        if self.display_time:
             output_parts.append(f"{total:.5f}")
 
-        if display_trace:
+        if self.display_time:
+            output_parts.append(f"{total:.5f}")
+
+        if self.display_trace:
             output_parts.extend([f"{file_name}", f"{stack_info}"])
 
-        if display_sql:
+        if self.display_sql:
             sql_oneline = statement.replace("\n", " ")
-            output_parts.append(f"{sql_oneline}")
+            output_parts.append(f"{_pretty_format_sql(sql_oneline)}")
 
-        if display_parameters:
+        if self.display_parameters:
             output_parts.append(f"{parameters}")
 
-        print(" | ".join(output_parts))
+        self.print_fn(" | ".join(output_parts))
 
-    event.listen(airflow.settings.engine, "before_cursor_execute", before_cursor_execute)
-    event.listen(airflow.settings.engine, "after_cursor_execute", after_cursor_execute)
-    try:
-        yield
-    finally:
-        event.remove(airflow.settings.engine, "before_cursor_execute", before_cursor_execute)
-        event.remove(airflow.settings.engine, "after_cursor_execute", after_cursor_execute)
+    def __enter__(self):
+        import airflow.settings
+
+        event.listen(airflow.settings.engine, "before_cursor_execute", self.before_cursor_execute)
+        event.listen(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
+
+    def __exit__(self, type_, value, traceback):
+        import airflow.settings
+        event.remove(airflow.settings.engine, "before_cursor_execute", self.before_cursor_execute)
+        event.remove(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
+
+
+trace_queries = TraceQueries  # pylint: disable=invalid-name
 
 
 class CountQueriesResult:
@@ -87,10 +127,13 @@ class CountQueries:
 
     Does not support multiple processes. When a new process is started in context, its queries will
     not be included.
+
+    :param print_fn: The function used to display the text. By default, ``builtins.print``
     """
 
-    def __init__(self):
+    def __init__(self, print_fn: Callable[[str], None] = print):
         self.result = CountQueriesResult()
+        self.print_fn = print_fn
 
     def __enter__(self):
         import airflow.settings
@@ -102,7 +145,7 @@ class CountQueries:
         import airflow.settings
 
         event.remove(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
-        print(f"Count queries: {self.result.count}")
+        self.print_fn(f"Count SQL queries: {self.result.count}")
 
     def after_cursor_execute(self, *args, **kwargs):
         self.result.count += 1

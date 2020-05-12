@@ -855,6 +855,38 @@ class TestTaskInstance(unittest.TestCase):
         self.assertEqual(completed, expect_completed)
         self.assertEqual(ti.state, expect_state)
 
+    def test_respects_prev_dagrun_dep(self):
+        with DAG(dag_id='test_dag'):
+            task = DummyOperator(task_id='task', start_date=DEFAULT_DATE)
+        ti = TI(task, DEFAULT_DATE)
+        failing_status = [TIDepStatus('test fail status name', False, 'test fail reason')]
+        passing_status = [TIDepStatus('test pass status name', True, 'test passing reason')]
+        with patch('airflow.ti_deps.deps.prev_dagrun_dep.PrevDagrunDep.get_dep_statuses',
+                   return_value=failing_status):
+            self.assertFalse(ti.are_dependencies_met())
+        with patch('airflow.ti_deps.deps.prev_dagrun_dep.PrevDagrunDep.get_dep_statuses',
+                   return_value=passing_status):
+            self.assertTrue(ti.are_dependencies_met())
+
+    @parameterized.expand([
+        (State.SUCCESS, True),
+        (State.SKIPPED, True),
+        (State.RUNNING, False),
+        (State.FAILED, False),
+        (State.NONE, False),
+    ])
+    def test_are_dependents_done(self, downstream_ti_state, expected_are_dependents_done):
+        with DAG(dag_id='test_dag'):
+            task = DummyOperator(task_id='task', start_date=DEFAULT_DATE)
+            downstream_task = DummyOperator(task_id='downstream_task', start_date=DEFAULT_DATE)
+            task >> downstream_task
+
+        ti = TI(task, DEFAULT_DATE)
+        downstream_ti = TI(downstream_task, DEFAULT_DATE)
+
+        downstream_ti.set_state(downstream_ti_state)
+        self.assertEqual(ti.are_dependents_done(), expected_are_dependents_done)
+
     def test_xcom_pull(self):
         """
         Test xcom_pull, using different filtering methods.

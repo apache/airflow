@@ -48,7 +48,6 @@ with DAG(
     jdbc_to_spark_job = SparkJDBCOperator(
         cmd_type='jdbc_to_spark',
         jdbc_table="foo",
-        spark_conf={},
         spark_jars="${SPARK_HOME}/jars/postgresql-42.2.12.jar",
         jdbc_driver="org.postgresql.Driver",
         metastore_table="bar",
@@ -60,7 +59,6 @@ with DAG(
     spark_to_jdbc_job = SparkJDBCOperator(
         cmd_type='spark_to_jdbc',
         jdbc_table="foo",
-        spark_conf={},
         spark_jars="${SPARK_HOME}/jars/postgresql-42.2.12.jar",
         jdbc_driver="org.postgresql.Driver",
         metastore_table="bar",

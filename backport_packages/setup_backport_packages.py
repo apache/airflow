@@ -79,7 +79,7 @@ import setup  # From AIRFLOW_SOURCES/setup.py # noqa  # isort:skip
 
 
 PROVIDERS_DEPENDENCIES: Dict[str, List[str]] = {
-    "amazon": setup.aws,
+    "amazon": setup.amazon,
     "apache.cassandra": setup.cassandra,
     "apache.druid": setup.druid,
     "apache.hdfs": setup.hdfs,
@@ -102,7 +102,7 @@ PROVIDERS_DEPENDENCIES: Dict[str, List[str]] = {
     "exasol": setup.exasol,
     "facebook": setup.facebook,
     "ftp": [],
-    "google": setup.gcp,
+    "google": setup.google,
     "grpc": setup.grpc,
     "hashicorp": setup.hashicorp,
     "http": [],
@@ -251,6 +251,13 @@ def change_import_paths_to_deprecated():
         .modify(add_provide_context_to_python_operator)
     )
 
+    (
+        qry.select_function("BranchPythonOperator")
+        .is_call()
+        .is_filename(include=r"example_google_api_to_s3_transfer_advanced.py$")
+        .modify(add_provide_context_to_python_operator)
+    )
+
     # Remove new class and rename usages of old
     remove_class(qry, "GKEStartPodOperator")
     (
@@ -287,7 +294,7 @@ def get_providers_package_folder(provider_package: str):
 
 
 def get_provider_package_name(provider_package: str):
-    return "apache-airflow-providers-" + provider_package.replace(".", "-")
+    return "apache-airflow-backport-providers-" + provider_package.replace(".", "-")
 
 
 def copy_provider_sources():
@@ -334,10 +341,8 @@ def get_long_description(provider_package: str):
 def do_setup_package_providers(provider_package: str, deps: List[str], extras: Dict[str, List[str]]):
     setup.write_version()
     provider_package_name = get_provider_package_name(provider_package)
-    package_name = f'{provider_package_name}' if provider_package != "providers" \
-        else f'apache-airflow-providers'
-    package_prefix = f'airflow.providers.{provider_package}' if provider_package != 'providers' \
-        else 'airflow.providers'
+    package_name = f'{provider_package_name}'
+    package_prefix = f'airflow.providers.{provider_package}'
     found_packages = find_packages()
     found_packages = [package for package in found_packages if package.startswith(package_prefix)]
     setuptools_setup(
@@ -411,7 +416,7 @@ def usage():
     for package in packages:
         out += f"{package} "
     out_array = textwrap.wrap(out, 80)
-    print(f"Available packages: ")
+    print("Available packages: ")
     print()
     for text in out_array:
         print(text)

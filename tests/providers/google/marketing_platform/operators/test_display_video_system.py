@@ -16,14 +16,16 @@
 # under the License.
 import pytest
 
+from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.marketing_platform.example_dags.example_display_video import BUCKET
-from tests.providers.google.cloud.utils.gcp_authenticator import GMP_KEY
+from tests.providers.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY, GMP_KEY
 from tests.test_utils.gcp_system_helpers import MARKETING_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 # Requires the following scope:
 SCOPES = [
     "https://www.googleapis.com/auth/doubleclickbidmanager",
-    "https://www.googleapis.com/auth/cloud-platform"
+    "https://www.googleapis.com/auth/cloud-platform",
+    "https://www.googleapis.com/auth/display-video"
 ]
 
 
@@ -37,7 +39,10 @@ class DisplayVideoSystemTest(GoogleSystemTest):
 
     def tearDown(self):
         self.delete_gcs_bucket(BUCKET)
-        super().tearDown()
+        with provide_gcp_context(GCP_BIGQUERY_KEY, scopes=SCOPES):
+            hook = BigQueryHook()
+            hook.delete_dataset(dataset_id='airflow_test', delete_contents=True)
+            super().tearDown()
 
     @provide_gcp_context(GMP_KEY, scopes=SCOPES)
     def test_run_example_dag(self):

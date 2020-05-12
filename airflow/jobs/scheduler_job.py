@@ -561,12 +561,11 @@ class DagFileProcessor(LoggingMixin):
         # this query should be replaced by find dagrun
         qry = (
             session.query(func.max(DagRun.execution_date))
-                .filter_by(dag_id=dag.dag_id)
-                .filter(or_(
-                    DagRun.external_trigger == False,  # noqa: E712 pylint: disable=singleton-comparison
-                    # add % as a wildcard for the like query
-                    DagRun.run_id.like(f"{DagRunType.SCHEDULED.value}__%")
-                )
+            .filter_by(dag_id=dag.dag_id)
+            .filter(or_(
+                DagRun.external_trigger == False,  # noqa: E712 pylint: disable=singleton-comparison
+                # add % as a wildcard for the like query
+                DagRun.run_id.like(f"{DagRunType.SCHEDULED.value}__%"))
             )
         )
         last_scheduled_run = qry.scalar()
@@ -583,7 +582,7 @@ class DagFileProcessor(LoggingMixin):
             now = timezone.utcnow()
             next_start = dag.following_schedule(now)
             last_start = dag.previous_schedule(now)
-            if next_start <= now:
+            if next_start <= now or isinstance(dag.schedule_interval, timedelta):
                 new_start = last_start
             else:
                 new_start = dag.previous_schedule(last_start)

@@ -26,7 +26,7 @@ To use these operators, you must do a few things:
 
     .. code-block:: bash
 
-      pip install 'apache-airflow[gcp]'
+      pip install 'apache-airflow[google]'
 
     Detailed information is available :doc:`../../../../installation`
 

@@ -19,11 +19,14 @@
 # Assume all the scripts are sourcing the _utils.sh from the scripts/ci directory
 # and MY_DIR variable is set to this directory. It can be overridden however
 
+# extra flags passed to the docker run for CI image commands (as Bash array)
 declare -a EXTRA_DOCKER_FLAGS
+# extra flags passed to the docker run for PROD image commands(as Bash array)
 declare -a EXTRA_DOCKER_PROD_BUILD_FLAGS
 export EXTRA_DOCKER_FLAGS
 export EXTRA_DOCKER_PROD_BUILD_FLAGS
 
+# In case "VERBOSE_COMMANDS" is set to "true" set -x is used to enable debugging
 function check_verbose_setup {
     if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
         set -x
@@ -33,6 +36,8 @@ function check_verbose_setup {
 }
 
 
+# In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all docker commands run will be
+# printed before execution
 function verbose_docker {
     if [[ ${VERBOSE:="false"} == "true" ]]; then
         echo "docker" "${@}"
@@ -42,28 +47,36 @@ function verbose_docker {
 
 # Common environment that is initialized by both Breeze and CI scripts
 function initialize_common_environment {
-    # default python version
+    # default python Major/Minor version
     PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:="3.6"}
 
+    # Sets to where airflow sources are located
     AIRFLOW_SOURCES=${AIRFLOW_SOURCES:=$(cd "${MY_DIR}/../../" && pwd)}
     export AIRFLOW_SOURCES
 
+    # Sets to the build cache directory - status of build and convenience scripts are stored there
     BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
     export BUILD_CACHE_DIR
 
+    # File to keep the last forced answer. This is useful for pre-commits where you need to
+    # only answer once if the image should be rebuilt or not and your answer is used for
+    # All the subsequent questions
     LAST_FORCE_ANSWER_FILE="${BUILD_CACHE_DIR}/last_force_answer.sh"
 
-    # Create directories if needed
+    # Create useful directories if not yet created
     mkdir -p "${AIRFLOW_SOURCES}/.mypy_cache"
     mkdir -p "${AIRFLOW_SOURCES}/logs"
     mkdir -p "${AIRFLOW_SOURCES}/tmp"
     mkdir -p "${AIRFLOW_SOURCES}/files"
     mkdir -p "${AIRFLOW_SOURCES}/dist"
 
+    # Read common values used across Breeze and CI scripts
     # shellcheck source=common/_common_values.sh
     . "${AIRFLOW_SOURCES}/common/_common_values.sh"
+    # Read image-specific values used across Breeze and CI scripts
     # shellcheck source=common/_image_variables.sh
     . "${AIRFLOW_SOURCES}/common/_image_variables.sh"
+    # Read information about files that are checked if image should be rebuilt
     # shellcheck source=common/_files_for_rebuild_check.sh
     . "${AIRFLOW_SOURCES}/common/_files_for_rebuild_check.sh"
 
@@ -79,7 +92,8 @@ function initialize_common_environment {
     export POSTGRES_VERSION=${POSTGRES_VERSION:="9.6"}
     export MYSQL_VERSION=${MYSQL_VERSION:="5.7"}
 
-    # Do not push images from here by default (push them directly from the build script on Dockerhub)
+    # Do not push images by default (push them directly from the build script on Dockerhub or when
+    # --push-images flag is specified
     export PUSH_IMAGES=${PUSH_IMAGES:="false"}
 
     # Disable writing .pyc files - slightly slower imports but not messing around when switching
@@ -92,24 +106,28 @@ function initialize_common_environment {
     # Sets mounting of host volumes to container for static checks
     # unless MOUNT_HOST_AIRFLOW_VOLUME is not true
     #
-    # Note that this cannot be function because we need the EXTRA_DOCKER_FLAGS array variable
-    #
     MOUNT_HOST_AIRFLOW_VOLUME=${MOUNT_HOST_AIRFLOW_VOLUME:="true"}
     export MOUNT_HOST_AIRFLOW_VOLUME
 
     # If this variable is set, we mount the whole sources directory to the host rather than
-    # selected volumes
+    # selected volumes. This is needed to check ALL source files during licence check
+    # for example
     MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS=${MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="false"}
     export MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS
 
-    # Set host user id to current user
+    # Set host user id to current user. This is used to set the ownership properly when exiting
+    # The container on Linux - all files created inside docker are created with root user
+    # but they should be restored back to the host user
     HOST_USER_ID="$(id -ur)"
     export HOST_USER_ID
 
-    # Set host group id to current group
+    # Set host group id to current group This is used to set the ownership properly when exiting
+    # The container on Linux - all files created inside docker are created with root user
+    # but they should be restored back to the host user
     HOST_GROUP_ID="$(id -gr)"
     export HOST_GROUP_ID
 
+    # Add the right volume mount for sources, depending which mount strategy is used
     if [[ ${MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS} == "true" ]]; then
         print_info
         print_info "Mount whole airflow source directory for static checks (make sure all files are in container)"
@@ -137,6 +155,8 @@ function initialize_common_environment {
         )
     fi
 
+    # In case of the CI build get environment variables from codecov.io and
+    # set it as the extra docker flags. As described in https://docs.codecov.io/docs/testing-with-docker
     if [[ ${CI:=} == "true" ]]; then
         CI_CODECOV_ENV="$(bash <(curl -s https://codecov.io/env))"
         for ENV_PARAM in ${CI_CODECOV_ENV}
@@ -147,31 +167,37 @@ function initialize_common_environment {
     EXTRA_DOCKER_PROD_BUILD_FLAGS=()
 
     # We use pulled docker image cache by default to speed up the builds
+    # but we can also set different docker caching strategy (for example we can use local cache
+    # to build the images in case we iterate with the image
     export DOCKER_CACHE=${DOCKER_CACHE:="pulled"}
 
-    # By default we are not upgrading to latest requirements
-    # This will only be done in cron jobs and when run with breeze
+    # By default we are not upgrading to latest requirements when building Docker CI image
+    # This will only be done in cron jobs
     export UPGRADE_TO_LATEST_REQUIREMENTS=${UPGRADE_TO_LATEST_REQUIREMENTS:="false"}
 
+    # In case of MacOS we need to use gstat - gnu version of the stats
     STAT_BIN=stat
     if [[ "${OSTYPE}" == "darwin"* ]]; then
         STAT_BIN=gstat
     fi
 
+    # Read airflow version from the version.py
     AIRFLOW_VERSION=$(grep version "airflow/version.py" | awk '{print $3}' | sed "s/['+]//g")
     export AIRFLOW_VERSION
 
-    # default version for dockerhub images
+    # default version of python used to tag the "master" and "latest" images in DockerHub
     export DEFAULT_PYTHON_MAJOR_MINOR_VERSION=3.6
 
-
+    # In case we are not in CI - we assume we run locally. There are subtle changes if you run
+    # CI scripts locally - for example requirements are eagerly updated if you do local run
+    # in generate requirements
     if [[ ${CI:="false"} == "true" ]]; then
         export LOCAL_RUN="false"
     else
         export LOCAL_RUN="true"
     fi
 
-    # upgrade while generating requirements should only happen in localy run
+    # eager upgrade while generating requirements should only happen in locally run
     # pre-commits or in cron job
     if [[ ${LOCAL_RUN} == "true" ]]; then
         export UPGRADE_WHILE_GENERATING_REQUIREMENTS="true"
@@ -179,27 +205,35 @@ function initialize_common_environment {
         export UPGRADE_WHILE_GENERATING_REQUIREMENTS=${UPGRADE_WHILE_GENERATING_REQUIREMENTS:="false"}
     fi
 
+    # Default extras used for building CI image
     export DEFAULT_CI_EXTRAS="devel_ci"
 
 
+    # Default extras used for building Production image. The master of this information is in the Dockerfile
     DEFAULT_PROD_EXTRAS=$(grep "ARG AIRFLOW_EXTRAS=" "${AIRFLOW_SOURCES}/Dockerfile"|
             awk 'BEGIN { FS="=" } { print $2 }' | tr -d '"')
 
-    # By default we build CI images  but when we specify --producton-image we switch to production image
+    # By default we build CI images  but when we specify `--producton-image` we switch to production image
     export PRODUCTION_IMAGE="false"
 
-    export SQLITE_VERSION="sqlite:////root/airflow/airflow.db"
+    # The SQLlite URL used for sqlite runs
+    export SQLITE_URL="sqlite:////root/airflow/airflow.db"
 
+    # Determines if airflow should be installed from a specified reference in GitHub
     export INSTALL_AIRFLOW_REFERENCE=""
 }
 
-
+# Prints verbose information in case VERBOSE variable is set
 function print_info() {
     if [[ ${VERBOSE:="false"} == "true" ]]; then
         echo "$@"
     fi
 }
 
+# Those are files that are mounted locally when mounting local sources is requested
+# By default not the whole airflow sources directory is mounted because there are often
+# artifacts created there (for example .egg-info files) that are breaking the capability
+# of running different python versions in Breeze. So we only mount what is needed by default.
 LOCAL_MOUNTS="
 .bash_aliases /root/
 .bash_history /root/
@@ -235,8 +269,9 @@ tests /opt/airflow/
 tmp /opt/airflow/
 "
 
-# parse docker-compose-local.yaml file to convert volumes entries
-# from airflow section to "-v" "volume mapping" series of options
+# Converts the local mounts that we defined above to the right set of -v
+# volume mappings in docker-compose file. This is needed so that we only
+# maintain the volumes in one place (above)
 function convert_local_mounts_to_docker_params() {
     echo "${LOCAL_MOUNTS}" |sed '/^$/d' | awk -v AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
     '
@@ -247,6 +282,9 @@ function convert_local_mounts_to_docker_params() {
     { print "-v"; print AIRFLOW_SOURCES "/" $1 ":" $2 basename($1) ":cached" }'
 }
 
+# Fixes a file that is expected to be a file. If - for whatever reason - the local file is not created
+# When mounting it to container, docker assumes it is a missing directory and creates it. Such mistakenly
+# Created directories should be removed and replaced with files
 function sanitize_file() {
     if [[ -d "${1}" ]]; then
         rm -rf "${1}"
@@ -254,14 +292,22 @@ function sanitize_file() {
     touch "${1}"
 
 }
+
+# Those files are mounted into container when run locally
+# .bash_history is preserved and you can modify .bash_aliases and .inputrc
+# according to your liking
 function sanitize_mounted_files() {
     sanitize_file "${AIRFLOW_SOURCES}/.bash_history"
     sanitize_file "${AIRFLOW_SOURCES}/.bash_aliases"
     sanitize_file "${AIRFLOW_SOURCES}/.inputrc"
+
+    # When KinD cluster is created, the folder keeps authentication information
+    # across sessions
+    mkdir -p "${MY_DIR}/.kube" >/dev/null 2>&1
 }
 
 #
-# Creates cache directory where we will keep temporary files needed for the build
+# Creates cache directory where we will keep temporary files needed for the docker build
 #
 # This directory will be automatically deleted when the script is killed or exists (via trap)
 # Unless SKIP_CACHE_DELETION variable is set. You can set this variable and then see
@@ -281,6 +327,7 @@ function create_cache_directory() {
     export OUTPUT_LOG
 }
 
+# Removes the cache temporary directory
 function remove_cache_directory() {
     if [[ -d ${CACHE_TMP_FILE_DIR} ]]; then
         rm -rf "${CACHE_TMP_FILE_DIR}"
@@ -481,20 +528,20 @@ function assert_not_in_container() {
     fi
 }
 
+# Removes the "Forced answer" (yes/no/quit) given previously, unles you specifically want to remember it.
+#
+# This is the default behaviour of all rebuild scripts to ask independently whether you want to
+# rebuild the image or not. Sometimes however we want to remember answer previously given. For
+# example if you answered "no" to rebuild the image, the assumption is that you do not
+# want to rebuild image also for other rebuilds in the same pre-commit execution.
+#
+# All the pre-commit checks therefore have `export REMEMBER_LAST_ANSWER="true"` set
+# So that in case they are run in a sequence of commits they will not rebuild. Similarly if your most
+# recent answer was "no" and you run `pre-commit run mypy` (for example) it will also reuse the
+# "no" answer given previously. This happens until you run any of the breeze commands or run all
+# precommits `pre-commit run` - then the "LAST_FORCE_ANSWER_FILE" will be removed and you will
+# be asked again.
 function forget_last_answer() {
-    # Removes the "Forced answer" (yes/no/quit) given previously, unles you specifically want to remember it.
-    #
-    # This is the default behaviour of all rebuild scripts to ask independently whether you want to
-    # rebuild the image or not. Sometimes however we want to remember answer previously given. For
-    # example if you answered "no" to rebuild the image, the assumption is that you do not
-    # want to rebuild image also for other rebuilds in the same pre-commit execution.
-    #
-    # All the pre-commit checks therefore have `export REMEMBER_LAST_ANSWER="true"` set
-    # So that in case they are run in a sequence of commits they will not rebuild. Similarly if your most
-    # recent answer was "no" and you run `pre-commit run mypy` (for example) it will also reuse the
-    # "no" answer given previously. This happens until you run any of the breeze commands or run all
-    # precommits `pre-commit run` - then the "LAST_FORCE_ANSWER_FILE" will be removed and you will
-    # be asked again.
     if [[ ${REMEMBER_LAST_ANSWER:="false"} != "true" ]]; then
         print_info
         print_info "Forgetting last answer from ${LAST_FORCE_ANSWER_FILE}:"
@@ -510,6 +557,11 @@ function forget_last_answer() {
     fi
 }
 
+# Confirms if hte image should be rebuild and interactively checks it with the user.
+# In case iit needs to be rebuild. It only ask the user if it determines that the rebuild
+# is needed and that the rebuild is not already forced. It asks the user using available terminals
+# So that the script works also from within pre-commit run via git hooks - where stdin is not
+# available - it tries to find usable terminal and ask the user via this terminal.
 function confirm_image_rebuild() {
     ACTION="rebuild"
     if [[ ${FORCE_PULL_IMAGES:=} == "true" ]]; then
@@ -517,7 +569,7 @@ function confirm_image_rebuild() {
     fi
     if [[ -f "${LAST_FORCE_ANSWER_FILE}" ]]; then
         # set variable from last answered response given in the same pre-commit run - so that it can be
-        # set in one pre-commit check (build) and then used in another (pylint/mypy/flake8 etc).
+        # answered in teh first pre-commit check (build) and then used in another (pylint/mypy/flake8 etc).
         # shellcheck disable=SC1090
         source "${LAST_FORCE_ANSWER_FILE}"
     fi
@@ -594,7 +646,7 @@ function confirm_image_rebuild() {
 }
 
 # Builds local image manifest
-# It contiains .json file - result of docker inspect - decscribing the image
+# It contains only one .json file - result of docker inspect - describing the image
 # We cannot use docker registry APIs as they are available only with authorisation
 # But this image can be pulled without authentication
 function build_ci_image_manifest() {
@@ -613,8 +665,8 @@ EOF
 }
 
 #
-# Retrieve information about layers in the local IMAGE
-# it stores list of SHAS of image layers in the file pointed at by TMP_MANIFEST_LOCAL_SHA
+# Retrieves information about layers in the local IMAGE
+# it stores list of SHAs of image layers in the file pointed at by TMP_MANIFEST_LOCAL_SHA
 #
 function get_local_image_info() {
     TMP_MANIFEST_LOCAL_JSON=$(mktemp)
@@ -639,8 +691,8 @@ function get_local_image_info() {
 }
 
 #
-# Retrieve information about layers in the remote IMAGE
-# it stores list of SHAS of image layers in the file pointed at by TMP_MANIFEST_REMTOE_SHA
+# Retrieves information about layers in the remote IMAGE
+# it stores list of SHAs of image layers in the file pointed at by TMP_MANIFEST_REMOTE_SHA
 # This cannot be done easily with existing APIs of Dockerhub because they require additional authentication
 # even for public images. Therefore instead we are downloading a specially prepared manifest image
 # which is built together with the main image. This special manifest image is prepared during
@@ -670,7 +722,7 @@ function get_remote_image_info() {
     verbose_docker rm --force "remote-airflow-manifest" >/dev/null 2>&1
 }
 
-# The Number is determines the cut-off between local building time and pull + build time.
+# The Number determines the cut-off between local building time and pull + build time.
 # It is a bit experimental and it will have to be kept
 # updated as we keep on changing layers. The cut-off point is at the moment when we do first
 # pip install "https://github.com/apache/airflow/archive/${AIRFLOW_BRANCH}.tar...
@@ -680,7 +732,7 @@ function get_remote_image_info() {
 #
 # This command returns the number of layer in docker history where pip uninstall is called. This is the
 # line that will take a lot of time to run and at this point it's worth to pull the image from repo
-# if there are at least NN chaanged layers in your docker file, you should pull the image.
+# if there are at least NN changed layers in your docker file, you should pull the image.
 #
 # Note that this only matters if you have any of the important files changed since the last build
 # of your image such as Dockerfile.ci, setup.py etc.
@@ -714,6 +766,11 @@ function compare_layers() {
     fi
 }
 
+# Only rebuilds CI image if needed. It checks if the docker image build is needed
+# because any of the important source files (from common/_files_for_rebuild_check.sh) has
+# changed or in any of the edge cases (docker image removed, .build cache removed etc.
+# In case rebuild is needed, it determines (by comparing layers in local and remote image)
+# Whether pull is needed before rebuild.
 function rebuild_ci_image_if_needed() {
     if [[ ${SKIP_CI_IMAGE_CHECK:="false"} == "true" ]]; then
         echo
@@ -783,9 +840,9 @@ function rebuild_ci_image_if_needed() {
     fi
 }
 
-
 #
-# Starts the script/ If VERBOSE_COMMANDS variable is set to true, it enables verbose output of commands executed
+# Starts the script.
+# If VERBOSE_COMMANDS variable is set to true, it enables verbose output of commands executed
 # Also prints some useful diagnostics information at start of the script if VERBOSE is set to true
 #
 function script_start {
@@ -812,8 +869,10 @@ function script_start {
 }
 
 #
-#
-# Disables verbosity in the script
+# Trap function executed always at the end of the script. In case of verbose output it also
+# Prints the exit code that the script exits with. Removes verbosity of commands in case it was run with
+# command verbosity and in case the script was not run from Breeze (so via ci scripts) it displays
+# total time spent in the script so that we can easily see it.
 #
 function script_end {
     #shellcheck disable=2181
@@ -838,6 +897,7 @@ function script_end {
     remove_cache_directory
 }
 
+# Changes directory to local sources
 function go_to_airflow_sources {
     print_info
     pushd "${AIRFLOW_SOURCES}" &>/dev/null || exit 1
@@ -857,6 +917,7 @@ function basic_sanity_checks() {
     sanitize_mounted_files
 }
 
+# In case of the pylint checks we filter out some files which are still in pylint_todo.txt list
 function filter_out_files_from_pylint_todo_list() {
   FILTERED_FILES=()
   set +e
@@ -874,6 +935,9 @@ function filter_out_files_from_pylint_todo_list() {
   export FILTERED_FILES
 }
 
+# Interactive version of confirming the ci image that is used in pre-commits
+# it displays additional information - what the user should do in order to bring the local images
+# back to state that pre-commit will be happy with
 function rebuild_ci_image_if_needed_and_confirmed() {
     NEEDS_DOCKER_BUILD="false"
     THE_IMAGE_TYPE="CI"
@@ -897,7 +961,7 @@ function rebuild_ci_image_if_needed_and_confirmed() {
         echo "You have those options:"
         echo "   * Rebuild the images now by answering 'y' (this might take some time!)"
         echo "   * Skip rebuilding the images and hope changes are not big (you will be asked again)"
-        echo "   * Quit and manually rebuild the images using one of the following commmands"
+        echo "   * Quit and manually rebuild the images using one of the following commands"
         echo "        * ./breeze build-image"
         echo "        * ./breeze build-image --force-pull-images"
         echo
@@ -913,7 +977,8 @@ function rebuild_ci_image_if_needed_and_confirmed() {
     fi
 }
 
-
+# Checks if any of the files match the regexp specified the parameters here should be
+# match_files_regexp REGEXP FILE FILE ...
 function match_files_regexp() {
     FILE_MATCHES="false"
     REGEXP=${1}
@@ -931,6 +996,11 @@ function match_files_regexp() {
     export FILE_MATCHES
 }
 
+# Retrieves CI environment variables needed - depending on the CI system we run it in.
+# We try to be CI - agnostic and our scripts should run the same way on different CI systems
+# (This makes it easy to move between different CI systems)
+# This function maps CI-specific variables into a generic ones (prefixed with CI_) that
+# we used in other scripts
 function get_ci_environment() {
     export CI_EVENT_TYPE="manual"
     export CI_TARGET_REPO="apache/airflow"
@@ -983,7 +1053,9 @@ function get_ci_environment() {
     echo
 }
 
-
+# Builds the CI image in the CI environment.
+# Depending on the type of build (push/pr/scheduled) it will either build it incrementally or
+# from the scratch without cache (the latter for scheduled builds only)
 function build_ci_image_on_ci() {
     get_ci_environment
 
@@ -1006,20 +1078,27 @@ function build_ci_image_on_ci() {
 
     rebuild_ci_image_if_needed
 
-    # Disable force pulling forced above
+    # Disable force pulling forced above this is needed for the subsequent scripts so that
+    # They do not try to pull/build images again
     unset FORCE_PULL_IMAGES
     unset FORCE_BUILD
 }
 
+# Reads environment variable passed as first parameter from the .build cache file
 function read_from_file {
     cat "${BUILD_CACHE_DIR}/.$1" 2>/dev/null || true
 }
 
+# Saves environment variable passed as first parameter to the .build cache file
 function save_to_file {
     # shellcheck disable=SC2005
     echo "$(eval echo "\$$1")" > "${BUILD_CACHE_DIR}/.$1"
 }
 
+# check if parameter set for the variable is allowed (should be on the _BREEZE_ALLOWED list)
+# and if it is, it saves it to .build cache file. In case the parameter is wrong, the
+# saved variable is removed (so that bad value is not used again in case it comes from there)
+# and exits with an error
 function check_and_save_allowed_param {
     _VARIABLE_NAME="${1}"
     _VARIABLE_DESCRIPTIVE_NAME="${2}"
@@ -1046,6 +1125,7 @@ function check_and_save_allowed_param {
     save_to_file "${_VARIABLE_NAME}"
 }
 
+# Docker command to build documentation
 function run_docs() {
     verbose_docker run "${EXTRA_DOCKER_FLAGS[@]}" -t \
             --entrypoint "/usr/local/bin/dumb-init"  \
@@ -1060,6 +1140,7 @@ function run_docs() {
             | tee -a "${OUTPUT_LOG}"
 }
 
+# Pulls image in case it is needed (either has never been pulled or pulling was forced
 # Should be run with set +e
 # Parameters:
 #   $1 -> image to pull
@@ -1083,6 +1164,9 @@ function pull_image_if_needed() {
     fi
 }
 
+# Pulls image if needed but tries to pull it from cache (for example GitHub registry) before
+# It attempts to pull it from the main repository. This is used to speed up the builds
+# In GitHub Actions.
 # Parameters:
 #   $1 -> image to pull
 #   $2 -> cache image to pull first
@@ -1106,6 +1190,7 @@ function pull_image_possibly_from_cache() {
     set -e
 }
 
+# Pulls CI image in case caching strategy is "pulled" and the image needs to be pulled
 function pull_ci_image_if_needed() {
     # Whether to force pull images to populate cache
     export FORCE_PULL_IMAGES=${FORCE_PULL_IMAGES:="false"}
@@ -1128,6 +1213,7 @@ Docker pulling ${PYTHON_BASE_IMAGE}.
 }
 
 
+# Pulls PROD image in case caching strategy is "pulled" and the image needs to be pulled
 function pull_prod_images_if_needed() {
     # Whether to force pull images to populate cache
     export FORCE_PULL_IMAGES=${FORCE_PULL_IMAGES:="false"}
@@ -1147,12 +1233,16 @@ function pull_prod_images_if_needed() {
     fi
 }
 
+# Prints summary of the build parameters
 function print_build_info() {
     print_info
     print_info "Airflow ${AIRFLOW_VERSION} Python: ${PYTHON_MAJOR_MINOR_VERSION}. Image description: ${IMAGE_DESCRIPTION}"
     print_info
 }
 
+# Function to spin ASCII spinner during pull and build in pre-commits to give the user indication that
+# Pull/Build is happening. It only spins if the output log changes, so if pull/build is stalled
+# The spinner will not move.
 function spin() {
     local FILE_TO_MONITOR=${1}
     local SPIN=("-" "\\" "|" "/")
@@ -1186,6 +1276,10 @@ Build log: ${FILE_TO_MONITOR}
     done
 }
 
+# Builds CI image - depending on the caching strategy (pulled, local, no-cache) it
+# passes the necessary docker build flags via DOCKER_CACHE_CI_DIRECTIVE array
+# it also passes the right Build args depending on the configuration of the build
+# selected by Breeze flags or environment variables.
 function build_ci_image() {
     print_build_info
     if [[ -n ${DETECTED_TERMINAL:=""} ]]; then
@@ -1241,6 +1335,11 @@ Docker building ${AIRFLOW_CI_IMAGE}.
     fi
 }
 
+# Builds PROD image - depending on the caching strategy (pulled, local, no-cache) it
+# passes the necessary docker build flags via DOCKER_CACHE_PROD_DIRECTIVE and
+# DOCKER_CACHE_PROD_BUILD_DIRECTIVE (separate caching options are needed for "build" segment of the image)
+# it also passes the right Build args depending on the configuration of the build
+# selected by Breeze flags or environment variables.
 function build_prod_image() {
     print_build_info
     pull_prod_images_if_needed
@@ -1292,7 +1391,7 @@ function build_prod_image() {
     fi
 }
 
-
+# Removes airflow CI and base images
 function remove_all_images() {
     echo
     "${AIRFLOW_SOURCES}/confirm" "Removing all local images ."
@@ -1329,6 +1428,7 @@ function filterout_deleted_files {
   xargs -0 "$STAT_BIN" --printf '%n\0' 2>/dev/null || true;
 }
 
+# Fixes permissions for groups for all the files that are quickly filtered using the filterout_deleted_files
 function fix_group_permissions() {
     if [[ ${PERMISSIONS_FIXED:=} == "true" ]]; then
         echo
@@ -1349,6 +1449,8 @@ function fix_group_permissions() {
     export PERMISSIONS_FIXED="true"
 }
 
+# Prepares all variables needed by the CI build. Depending on the configuration used (python version
+# DockerHub user etc. the variables are set so that other functions can use those variables.
 function prepare_ci_build() {
     export AIRFLOW_CI_BASE_TAG="${DEFAULT_BRANCH}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
     export AIRFLOW_CI_LOCAL_MANIFEST_IMAGE="local/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
@@ -1382,6 +1484,9 @@ function prepare_ci_build() {
     fix_group_permissions
 }
 
+# For remote installation of airflow (from GitHub or Pypi) when building the image, you need to
+# pass build flags depending on the version and method of the installation (for example to
+# get proper requirement constraint files)
 function add_build_args_for_remote_install() {
     # entrypoint is used as AIRFLOW_SOURCES_FROM/TO in order to avoid costly copying of all sources of
     # Airflow - those are not needed for remote install at all. Entrypoint is later overwritten by
@@ -1416,6 +1521,8 @@ function add_build_args_for_remote_install() {
     fi
 }
 
+# Prepares all variables needed by the CI build. Depending on the configuration used (python version
+# DockerHub user etc. the variables are set so that other functions can use those variables.
 function prepare_prod_build() {
     export AIRFLOW_PROD_BASE_TAG="${DEFAULT_BRANCH}-python${PYTHON_MAJOR_MINOR_VERSION}"
     export AIRFLOW_PROD_BUILD_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}-build"
@@ -1466,6 +1573,8 @@ function prepare_prod_build() {
     go_to_airflow_sources
 }
 
+# Pushes Ci image and it's manifest to the registry. In case the image was taken from cache registry
+# it is also pushed to the cache, not to the main registry. Manifest is only pushed to the main registry
 function push_ci_image() {
     if [[ ${CACHED_AIRFLOW_CI_IMAGE:=} != "" ]]; then
         verbose_docker tag "${AIRFLOW_CI_IMAGE}" "${CACHED_AIRFLOW_CI_IMAGE}"
@@ -1484,6 +1593,8 @@ function push_ci_image() {
     fi
 }
 
+# Pushes PROD image to the registry. In case the image was taken from cache registry
+# it is also pushed to the cache, not to the main registry
 function push_prod_images() {
     if [[ ${CACHED_AIRFLOW_PROD_IMAGE:=} != "" ]]; then
         verbose_docker tag "${AIRFLOW_PROD_IMAGE}" "${CACHED_AIRFLOW_PROD_IMAGE}"
@@ -1504,6 +1615,7 @@ function push_prod_images() {
     fi
 }
 
+# Docker command to generate constraint requirement files.
 function run_generate_requirements() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
@@ -1521,6 +1633,7 @@ function run_generate_requirements() {
         | tee -a "${OUTPUT_LOG}"
 }
 
+# ocker command to prepare backport packages
 function run_prepare_packages() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
@@ -1540,7 +1653,8 @@ function run_prepare_packages() {
         | tee -a "${OUTPUT_LOG}"
 }
 
-
+# Retrieves version of airflow stored in the production image (used to display the actual
+# Version we use if it was build from PyPI or GitHub
 function get_airflow_version_from_production_image() {
      docker run --entrypoint /bin/bash "${AIRFLOW_PROD_IMAGE}" -c 'echo "${AIRFLOW_VERSION}"'
 }
