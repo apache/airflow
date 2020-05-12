@@ -121,7 +121,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7]
+        python-version: [3.6, 3.7, 3.8]
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       CI_JOB_TYPE: "Prod image"
@@ -173,7 +173,7 @@ jobs:
     needs: [static-checks-1, static-checks-2, pyfiles]
     strategy:
       matrix:
-        python-version: [3.6, 3.7]
+        python-version: [3.6, 3.7, 3.8]
         postgres-version: [9.6, 10]
         test-type: [Core, Integration]
       fail-fast: false
@@ -205,7 +205,7 @@ jobs:
     needs: [static-checks-1, static-checks-2, pyfiles]
     strategy:
       matrix:
-        python-version: [3.6, 3.7]
+        python-version: [3.6, 3.7, 3.8]
         mysql-version: [5.7]
         test-type: [Core, Integration]
       fail-fast: false
@@ -237,7 +237,7 @@ jobs:
     needs: [static-checks-1, static-checks-2, pyfiles]
     strategy:
       matrix:
-        python-version: [3.6, 3.7]
+        python-version: [3.6, 3.7, 3.8]
         test-type: [Core, Integration]
       fail-fast: false
     env:
@@ -299,7 +299,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7]
+        python-version: [3.6, 3.7, 3.8]
       fail-fast: false
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
@@ -331,7 +331,7 @@ jobs:
     if: github.ref == 'refs/heads/master' && github.event_name != 'schedule'
     strategy:
       matrix:
-        python-version: [3.6, 3.7]
+        python-version: [3.6, 3.7, 3.8]
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       CI_JOB_TYPE: "Prod image"
@@ -359,7 +359,7 @@ jobs:
     if: github.ref == 'refs/heads/master' && github.event_name != 'schedule'
     strategy:
       matrix:
-        python-version: [3.6, 3.7]
+        python-version: [3.6, 3.7, 3.8]
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       CI_JOB_TYPE: "Prod image"
