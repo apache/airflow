@@ -348,12 +348,12 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
 
         self._parent_signal_conn, child_signal_conn = context.Pipe()
         self._process = context.Process(
-            # Access attribute from type to allow pickling.
             target=type(self)._run_processor_manager,
             args=(
                 self._dag_directory,
                 self._max_runs,
-                type(self)._processor_factory,
+                # getattr prevents error while pickling an instance method.
+                getattr(self, "_processor_factory"),
                 self._processor_timeout,
                 child_signal_conn,
                 self._dag_ids,
