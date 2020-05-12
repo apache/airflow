@@ -1156,16 +1156,15 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         )
 
         tables_list_resp = self.get_dataset_tables(dataset_id=dataset_id, project_id=project_id)
-        for tab in tables_list_resp:
-            if tab['tableId'] == table_id:
-                self.log.info('Table %s:%s.%s exists, updating.', project_id, dataset_id, table_id)
-                return self.update_table(table_resource=table_resource)
-
-        self.log.info('Table %s:%s.%s does not exist. creating.', project_id, dataset_id, table_id)
-        table = self.create_empty_table(
-            table_resource=table_resource, project_id=project_id
-        )
-        return table.to_api_repr()
+        if any(table['tableId'] == table_id for table in tables_list_resp):
+            self.log.info('Table %s:%s.%s exists, updating.', project_id, dataset_id, table_id)
+            table = self.update_table(table_resource=table_resource)
+        else:
+            self.log.info('Table %s:%s.%s does not exist. creating.', project_id, dataset_id, table_id)
+            table = self.create_empty_table(
+                table_resource=table_resource, project_id=project_id
+            ).to_api_repr()
+        return table
 
     def run_table_delete(self, deletion_dataset_table: str, ignore_if_missing: bool = False) -> None:
         """
