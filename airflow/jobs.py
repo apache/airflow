@@ -1272,7 +1272,7 @@ class SchedulerJob(BaseJob):
             if last_runtime is not None:
                 Stats.gauge('last_runtime.{}'.format(name), last_runtime)
             if last_run is not None:
-                unixtime = last_run.strftime("%s")
+                unixtime = int(last_run.strftime("%s"))
                 seconds_ago = (datetime.now() - last_run).total_seconds()
                 Stats.gauge('last_run.unixtime.{}'.format(name), unixtime)
                 Stats.gauge('last_run.seconds_ago.{}'.format(name), seconds_ago)

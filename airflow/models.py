@@ -4519,6 +4519,7 @@ class DagRun(Base):
                 logging.info("Restoring task '{}' which was previously removed from DAG '{}'".format(ti, dag))
                 Stats.incr("task_restored_to_dag.{}".format(dag.dag_id), 1, 1)
                 ti.state = State.NONE
+            session.merge(ti)
 
         # check for missing tasks
         for task in dag.tasks:
