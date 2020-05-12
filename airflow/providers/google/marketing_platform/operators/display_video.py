@@ -565,7 +565,7 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
     :type delegate_to: str
     """
 
-    template_fields = ("operation_name", "bucket_name", "object_name", "body_request")
+    template_fields = ("operation_name", "bucket_name", "object_name")
 
     @apply_defaults
     def __init__(
