@@ -55,7 +55,7 @@ class TestSqlSensor(TestHiveEnvironment):
     @pytest.mark.backend("mysql")
     def test_sql_sensor_mysql(self):
         op1 = SqlSensor(
-            task_id='sql_sensor_check',
+            task_id='sql_sensor_check_1',
             conn_id='mysql_default',
             sql="SELECT count(1) FROM INFORMATION_SCHEMA.TABLES",
             dag=self.dag
@@ -63,7 +63,7 @@ class TestSqlSensor(TestHiveEnvironment):
         op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         op2 = SqlSensor(
-            task_id='sql_sensor_check',
+            task_id='sql_sensor_check_2',
             conn_id='mysql_default',
             sql="SELECT count(%s) FROM INFORMATION_SCHEMA.TABLES",
             parameters=["table_name"],
