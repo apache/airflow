@@ -93,7 +93,7 @@ def write_config(yaml_config_file_path: str, default_cfg_file_path: str):
                 configfile.write("\n")
                 for single_line_desc in section_description:
                     if single_line_desc == "":
-                        configfile.write(f"#\n")
+                        configfile.write("#\n")
                     else:
                         configfile.write(f"# {single_line_desc}\n")
 
@@ -108,7 +108,7 @@ def write_config(yaml_config_file_path: str, default_cfg_file_path: str):
                         configfile.write("\n")
                     for single_line_desc in option_description:
                         if single_line_desc == "":
-                            configfile.write(f"#\n")
+                            configfile.write("#\n")
                         else:
                             configfile.write(f"# {single_line_desc}\n")
 

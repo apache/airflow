@@ -193,7 +193,7 @@ azure = [
     'azure-mgmt-containerinstance>=1.5.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
-    'azure-storage>=0.34.0',
+    'azure-storage>=0.34.0,<0.37.0',
     'azure-storage-blob<12.0',
 ]
 cassandra = [
@@ -380,7 +380,7 @@ sentry = [
 ]
 singularity = ['spython>=0.0.56']
 slack = [
-    'slackclient>=1.0.0,<2.0.0',
+    'slackclient>=2.0.0,<3.0.0',
 ]
 snowflake = [
     'snowflake-connector-python>=1.5.2',

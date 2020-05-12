@@ -171,7 +171,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             session.query(TI).delete()
             session.query(LJ).delete()
 
-    def test_handle_failure_callback_with_zobmies_are_correctly_passed_to_dag_file_processor(self):
+    def test_handle_failure_callback_with_zombies_are_correctly_passed_to_dag_file_processor(self):
         """
         Check that the same set of failure callback with zombies are passed to the dag
         file processors until the next zombie detection logic is invoked.

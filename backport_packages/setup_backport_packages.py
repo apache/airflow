@@ -416,7 +416,7 @@ def usage():
     for package in packages:
         out += f"{package} "
     out_array = textwrap.wrap(out, 80)
-    print(f"Available packages: ")
+    print("Available packages: ")
     print()
     for text in out_array:
         print(text)
