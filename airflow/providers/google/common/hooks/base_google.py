@@ -32,7 +32,6 @@ import google.auth
 import google.auth.credentials
 import google.oauth2.service_account
 import google_auth_httplib2
-import httplib2
 import tenacity
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
 from google.api_core.gapic_v1.client_info import ClientInfo
@@ -207,20 +206,13 @@ class GoogleBaseHook(BaseHook):
         """
         return self._get_credentials().token
 
-    @staticmethod
-    def _build_http() -> httplib2.Http:
-        """
-        Returns a HTTP object using the defaults from google api client
-        """
-        return build_http()
-
     def _authorize(self) -> google_auth_httplib2.AuthorizedHttp:
         """
         Returns an authorized HTTP object to be used to build a Google cloud
         service hook connection.
         """
         credentials = self._get_credentials()
-        http = self._build_http()
+        http = build_http()
         http = set_user_agent(http, "airflow/" + version.version)
         authed_http = google_auth_httplib2.AuthorizedHttp(credentials, http=http)
         return authed_http
