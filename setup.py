@@ -146,7 +146,7 @@ async_packages = [
     'gevent>=0.13'
 ]
 atlas = ['atlasclient>=0.1.2']
-azure_blob_storage = ['azure-storage>=0.34.0']
+azure_blob_storage = ['azure-storage>=0.34.0,<0.37.0']
 azure_data_lake = [
     'azure-mgmt-resource>=2.2.0',
     'azure-mgmt-datalake-store>=0.5.0',
