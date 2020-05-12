@@ -624,6 +624,14 @@ class TestGoogleBaseHook(unittest.TestCase):
         http_authorized = self.instance._authorize()
         self.assertTrue(308 not in http_authorized.http.redirect_codes)
 
+    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials")
+    def test_authorize_assert_timeout_is_present(self, mock_get_credentials):
+        """
+        Verify that http client has a timeout set
+        """
+        http_authorized = self.instance._authorize()
+        self.assertNotEqual(http_authorized.http.timeout, None)
+
 
 class TestProvideAuthorizedGcloud(unittest.TestCase):
     def setUp(self):
