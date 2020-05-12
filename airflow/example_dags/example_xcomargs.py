@@ -27,28 +27,32 @@ args = {
     'start_date': days_ago(2),
 }
 
-dag = DAG(
+
+def dummy(*args, **kwargs):
+    """Dummy function"""
+    return "pass"
+
+
+with DAG(
     dag_id='example_xcom_args',
     default_args=args,
     schedule_interval=None,
     tags=['example']
-)
+) as dag:
+    task1 = PythonOperator(
+        task_id='task1',
+        python_callable=dummy,
+    )
 
+    task2 = PythonOperator(
+        task_id='task2',
+        python_callable=dummy,
+        op_kwargs={"dummy": task1.output},
+    )
 
-def dummy(*args, **kwargs):
-    """Dummy function"""
-    pass
+    task3 = PythonOperator(
+        task_id='task3',
+        python_callable=dummy,
+    )
 
-
-task1 = PythonOperator(
-    task_id='task1',
-    python_callable=dummy,
-    dag=dag,
-)
-
-task2 = PythonOperator(
-    task_id='task2',
-    python_callable=dummy,
-    op_kwargs={"dummy": task1.output},
-    dag=dag,
-)
+    task3.op_kwargs = {"dummy": task2.output}

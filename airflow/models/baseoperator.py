@@ -60,25 +60,9 @@ from airflow.utils.weight_rule import WeightRule
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
 
-class BaseOperatorMeta(type):
-    """
-    Base metaclass of BaseOperator.
-    """
-    def __call__(cls, *args, **kwargs):
-        """
-        Called when you call BaseOperator(). In this way we are able to perform an action
-        after initializing an operator no matter where  the ``super().__init__`` is called
-        (before or after assign of new attributes in a custom operator).
-        """
-        obj = type.__call__(cls, *args, **kwargs)
-        # Set upstream task defined by XComArgs passed to template fields of an operator
-        obj._set_xcomargs_dependencies()  # pylint: disable=protected-access
-        return obj
-
-
 # pylint: disable=too-many-instance-attributes,too-many-public-methods
 @functools.total_ordering
-class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
+class BaseOperator(Operator, LoggingMixin):
     """
     Abstract base class for all operators. Since operators create objects that
     become nodes in the dag, BaseOperator contains many recursive methods for
@@ -649,7 +633,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
             NotPreviouslySkippedDep(),
         }
 
-    def _set_xcomargs_dependencies(self) -> None:
+    def set_xcomargs_dependencies(self) -> None:
         """
         Resolves upstream dependencies of a task. In this way passing an ``XComArg``
         as value for a template field will result in creating upstream relation between
