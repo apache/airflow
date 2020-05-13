@@ -19,6 +19,8 @@
 import datetime
 import unittest
 
+import mock
+
 from airflow import models, settings
 from airflow.models import DAG, TaskInstance as TI, clear_task_instances
 from airflow.models.dagrun import DagRun
@@ -552,3 +554,24 @@ class TestDagRun(unittest.TestCase):
         dagrun.verify_integrity()
         flaky_ti.refresh_from_db()
         self.assertEqual(State.NONE, flaky_ti.state)
+
+    @mock.patch('airflow.models.dagrun.task_instance_mutation_hook')
+    def test_task_instance_mutation_hook(self, mock_hook):
+        def mutate_task_instance(task_instance):
+            if task_instance.queue == 'queue1':
+                task_instance.queue = 'queue2'
+            else:
+                task_instance.queue = 'queue1'
+
+        mock_hook.side_effect = mutate_task_instance
+
+        dag = DAG('test_task_instance_mutation_hook', start_date=DEFAULT_DATE)
+        dag.add_task(DummyOperator(task_id='task_to_mutate', owner='test', queue='queue1'))
+
+        dagrun = self.create_dag_run(dag)
+        task = dagrun.get_task_instances()[0]
+        assert task.queue == 'queue2'
+
+        dagrun.verify_integrity()
+        task = dagrun.get_task_instances()[0]
+        assert task.queue == 'queue1'
