@@ -2873,7 +2873,7 @@ class TestSchedulerJob(unittest.TestCase):
     def test_add_unparseable_file_before_sched_start_creates_import_error(self):
         dags_folder = mkdtemp()
         try:
-            with conf_vars({('core', 'dags_folder'): dags_folder}):
+            with env_vars({('core', 'dags_folder'): dags_folder}):
                 unparseable_filename = os.path.join(dags_folder, TEMP_DAG_FILENAME)
                 with open(unparseable_filename, 'w') as unparseable_file:
                     unparseable_file.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
