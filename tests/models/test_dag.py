@@ -984,7 +984,7 @@ class TestDag(unittest.TestCase):
         with self.assertRaisesRegex(
             DuplicateTaskIdFound, "Task id 't1' has already been added to the DAG"
         ):
-            dag = DAG("test_dag", default_args={'start_date': DEFAULT_DATE})
+            dag = DAG("test_dag", start_date=DEFAULT_DATE)
             op1 = DummyOperator(task_id="t1", dag=dag)
             op2 = DummyOperator(task_id="t1", dag=dag)
             op1 >> op2
