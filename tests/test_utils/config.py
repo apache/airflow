@@ -38,6 +38,7 @@ def conf_vars(overrides):
         else:
             original[(section, key)] = None
         if value is not None:
+            os.environ[env] = value
             conf.set(section, key, value)
         else:
             conf.remove_option(section, key)
