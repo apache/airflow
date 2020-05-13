@@ -30,10 +30,12 @@ class LocalFilesystemToGCSOperator(BaseOperator):
     Uploads a file to Google Cloud Storage.
     Optionally can compress the file for upload.
 
-    :param src: Path to the local file. (templated)
-    :type src: str
-    :param dst: Destination path within the specified bucket, it must be the full file path
-        to destination object on GCS, including GCS object (ex. `path/to/file.txt`) (templated)
+    :param src: Path to the local file, or list of local files. Path can be either absolute
+        (e.g. /path/to/file.ext) or relative (e.g. ../../foo/*/*.csv). (templated)
+    :type src: str or list
+    :param dst: Destination path within the specified bucket on GCS (e.g. /path/to/file.ext).
+        If multiple files are being uploaded, specify object prefix with trailing backslash
+        (e.g. /path/to/directory/) (templated)
     :type dst: str
     :param bucket: The bucket to upload to. (templated)
     :type bucket: str
