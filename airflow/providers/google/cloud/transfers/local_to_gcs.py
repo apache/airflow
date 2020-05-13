@@ -34,9 +34,12 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:LocalFilesystemToGCSOperator`
 
-    :param src: Path to the local file. (templated)
-    :type src: str
-    :param dst: The object name to set when uploading the file. (templated)
+    :param src: Path to the local file, or list of local files. Path can be either absolute
+        (e.g. /path/to/file.ext) or relative (e.g. ../../foo/*/*.csv). (templated)
+    :type src: str or list
+    :param dst: Destination path within the specified bucket on GCS (e.g. /path/to/file.ext).
+        If multiple files are being uploaded, specify object prefix with trailing backslash
+        (e.g. /path/to/directory/) (templated)
     :type dst: str
     :param bucket: The bucket to upload to. (templated)
     :type bucket: str

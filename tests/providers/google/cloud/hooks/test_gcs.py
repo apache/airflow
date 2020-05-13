@@ -23,6 +23,7 @@ import re
 import tempfile
 import unittest
 from datetime import datetime, timedelta
+from glob import glob
 from unittest import mock
 
 import dateutil
@@ -753,6 +754,10 @@ class TestGCSHookUpload(unittest.TestCase):
         self.testfile = tempfile.NamedTemporaryFile(delete=False)
         self.testfile.write(b"x" * 393216)
         self.testfile.flush()
+        self.testfile2 = tempfile.NamedTemporaryFile(delete=False)
+        self.testfile2.write(b"x" * 393216)
+        self.testfile2.flush()
+        self.testfiles = [self.testfile.name, self.testfile2.name]
         self.testdata_bytes = b"x" * 393216
         self.testdata_str = "x" * 393216
 
@@ -777,6 +782,40 @@ class TestGCSHookUpload(unittest.TestCase):
         )
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
+    def test_upload_list_of_files(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object/'
+
+        upload_method = mock_service.return_value.bucket.return_value\
+            .blob.return_value.upload_from_filename
+
+        self.gcs_hook.upload(test_bucket,
+                             test_object,
+                             filename=self.testfiles)
+
+        calls = [mock.call(filename=testfile,
+                           content_type='application/octet-stream')
+                 for testfile in self.testfiles]
+        upload_method.assert_has_calls(calls)
+
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
+    def test_upload_wildcard_string(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object/'
+
+        upload_method = mock_service.return_value.bucket.return_value\
+            .blob.return_value.upload_from_filename
+
+        self.gcs_hook.upload(test_bucket,
+                             test_object,
+                             filename='/tmp/tmp[0-9].*')
+
+        calls = [mock.call(filename=testfile,
+                           content_type='application/octet-stream')
+                 for testfile in glob('/tmp/tmp[0-9].*')]
+        upload_method.assert_has_calls(calls)
+
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_upload_file_gzip(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
@@ -786,6 +825,30 @@ class TestGCSHookUpload(unittest.TestCase):
                              filename=self.testfile.name,
                              gzip=True)
         self.assertFalse(os.path.exists(self.testfile.name + '.gz'))
+
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
+    def test_upload_list_of_files_gzip(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object/'
+
+        self.gcs_hook.upload(test_bucket,
+                             test_object,
+                             filename=self.testfiles,
+                             gzip=True)
+        for testfile in self.testfiles:
+            self.assertFalse(os.path.exists(testfile + '.gz'))
+
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
+    def test_upload_wildcard_string_gzip(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object/'
+
+        self.gcs_hook.upload(test_bucket,
+                             test_object,
+                             filename='/tmp/tmp[0-9].*',
+                             gzip=True)
+        for testfile in glob('/tmp/tmp[0-9].*'):
+            self.assertFalse(os.path.exists(testfile + '.gz'))
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_upload_data_str(self, mock_service):

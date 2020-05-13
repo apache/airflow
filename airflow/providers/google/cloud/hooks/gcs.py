@@ -25,10 +25,11 @@ import os
 import shutil
 import warnings
 from contextlib import contextmanager
+from glob import glob
 from io import BytesIO
 from os import path
 from tempfile import NamedTemporaryFile
-from typing import Optional, Set, Tuple, TypeVar, Union
+from typing import List, Optional, Set, Tuple, TypeVar, Union
 from urllib.parse import urlparse
 
 from google.api_core.exceptions import NotFound
@@ -297,7 +298,7 @@ class GCSHook(GoogleBaseHook):
             tmp_file.flush()
             yield tmp_file
 
-    def upload(self, bucket_name: str, object_name: str, filename: Optional[str] = None,
+    def upload(self, bucket_name: str, object_name: str, filename: Optional[Union[str, List[str]]] = None,
                data: Optional[Union[str, bytes]] = None, mime_type: Optional[str] = None, gzip: bool = False,
                encoding: str = 'utf-8') -> None:
         """
@@ -305,10 +306,12 @@ class GCSHook(GoogleBaseHook):
 
         :param bucket_name: The bucket to upload to.
         :type bucket_name: str
-        :param object_name: The object name to set when uploading the file.
+        :param object_name: The object name to set when uploading the file. If uploading
+            multiple files specify directory with trailing backslash e.g /path/to/directory/
         :type object_name: str
-        :param filename: The local file path to the file to be uploaded.
-        :type filename: str
+        :param filename: The local Unix style filepath (supports wildcards via glob -->
+            https://docs.python.org/3/library/glob.html) or list of file paths to be uploaded.
+        :type filename: str or List[str]
         :param data: The file's data as a string or bytes to be uploaded.
         :type data: str
         :param mime_type: The file's mime type set when uploading the file.
@@ -320,28 +323,47 @@ class GCSHook(GoogleBaseHook):
         """
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
-        blob = bucket.blob(blob_name=object_name)
+
         if filename and data:
             raise ValueError("'filename' and 'data' parameter provided. Please "
                              "specify a single parameter, either 'filename' for "
                              "local file uploads or 'data' for file content uploads.")
         elif filename:
+            filepaths = filename if isinstance(filename, list) else glob(filename)
+            if os.path.basename(object_name):
+                if len(filepaths) > 1:
+                    raise ValueError("'object_name' parameter references filepath. Please "
+                                     "specifiy directory (with trailing backslash) to upload "
+                                     "multiple files. e.g. /path/to/directory/")
+                object_paths = [object_name]
+            else:
+                object_paths = [os.path.join(object_name, os.path.basename(filepath))
+                                for filepath in filepaths]
+
             if not mime_type:
                 mime_type = 'application/octet-stream'
-            if gzip:
-                filename_gz = filename + '.gz'
 
-                with open(filename, 'rb') as f_in:
-                    with gz.open(filename_gz, 'wb') as f_out:
-                        shutil.copyfileobj(f_in, f_out)
-                        filename = filename_gz
-
-            blob.upload_from_filename(filename=filename,
-                                      content_type=mime_type)
             if gzip:
-                os.remove(filename)
-            self.log.info('File %s uploaded to %s in %s bucket', filename, object_name, bucket_name)
+                filepaths_gz = [filepath + '.gz' for filepath in filepaths]
+                for filepath, filepath_gz in zip(filepaths, filepaths_gz):
+                    self.log.info('Compressing %s into %s for upload', filepath, filepath_gz)
+                    with open(filepath, 'rb') as f_in:
+                        with gz.open(filepath_gz, 'wb') as f_out:
+                            shutil.copyfileobj(f_in, f_out)
+                filepaths = filepaths_gz
+
+            for filepath, object_path in zip(filepaths, object_paths):
+                blob = bucket.blob(blob_name=object_path)
+                blob.upload_from_filename(filename=filepath,
+                                          content_type=mime_type)
+                self.log.info('File %s uploaded to %s in %s bucket', filepath, object_path, bucket_name)
+
+            if gzip:
+                for filepath in filepaths:
+                    os.remove(filepath)
+
         elif data:
+            blob = bucket.blob(blob_name=object_name)
             if not mime_type:
                 mime_type = 'text/plain'
             if gzip:
