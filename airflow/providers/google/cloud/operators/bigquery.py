@@ -1264,22 +1264,21 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
     :type delegate_to: str
-
-    :rtype: dict
-        .. seealso:: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/list#response-body
     """
     template_fields = ('dataset_id', 'project_id')
     ui_color = BigQueryUIColors.DATASET.value
 
     @apply_defaults
-    def __init__(self,
-                 dataset_id: str,
-                 project_id: Optional[str] = None,
-                 max_results: Optional[int] = None,
-                 page_token: Optional[str] = None,
-                 gcp_conn_id: Optional[str] = 'google_cloud_default',
-                 delegate_to: Optional[str] = None,
-                 *args, **kwargs) -> None:
+    def __init__(
+        self,
+        dataset_id: str,
+        project_id: Optional[str] = None,
+        max_results: Optional[int] = None,
+        page_token: Optional[str] = None,
+        gcp_conn_id: Optional[str] = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        *args, **kwargs
+    ) -> None:
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.max_results = max_results
@@ -1289,16 +1288,17 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
         super().__init__(*args, **kwargs)
 
     def execute(self, context):
-        bq_hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id,
-                               delegate_to=self.delegate_to)
-
-        self.log.info('Start getting tables list from dataset: %s:%s', self.project_id, self.dataset_id)
+        bq_hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+        )
 
         return bq_hook.get_dataset_tables(
             dataset_id=self.dataset_id,
             project_id=self.project_id,
             max_results=self.max_results,
-            page_token=self.page_token)
+            page_token=self.page_token,
+        )
 
 
 class BigQueryPatchDatasetOperator(BaseOperator):

@@ -430,6 +430,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type retry: google.api_core.retry.Retry
         :return: List of tables associated with the dataset.
         """
+        self.log.info('Start getting tables list from dataset: %s.%s', project_id, dataset_id)
         tables = self.get_client().list_tables(
             dataset=DatasetReference(project=project_id, dataset_id=dataset_id),
             max_results=max_results,
