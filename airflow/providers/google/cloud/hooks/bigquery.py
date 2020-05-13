@@ -341,11 +341,14 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_empty_dataset(self,
-                             dataset_id: Optional[str] = None,
-                             project_id: Optional[str] = None,
-                             location: Optional[str] = None,
-                             dataset_reference: Optional[Dict[str, Any]] = None) -> None:
+    def create_empty_dataset(
+        self,
+        dataset_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        location: Optional[str] = None,
+        dataset_reference: Optional[Dict[str, Any]] = None,
+        exists_ok: bool = True,
+    ) -> None:
         """
         Create a new empty dataset:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert
@@ -361,6 +364,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param dataset_reference: Dataset reference that could be provided with request body. More info:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
         :type dataset_reference: dict
+        :param exists_ok: If ``True``, ignore "already exists" errors when creating the DATASET.
+        :type exists_ok: bool
         """
 
         dataset_reference = dataset_reference or {"datasetReference": {}}
@@ -391,8 +396,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if location:
             dataset_reference["location"] = dataset_reference.get("location", location)
 
-        dataset = Dataset.from_api_repr(dataset_reference)
-        self.get_client(location=location).create_dataset(dataset=dataset, exists_ok=True)
+        dataset: Dataset = Dataset.from_api_repr(dataset_reference)
+        self.log.info('Creating dataset: %s in project: %s ', dataset.dataset_id, dataset.project)
+        self.get_client(location=location).create_dataset(dataset=dataset, exists_ok=exists_ok)
+        self.log.info('Dataset created successfully.')
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_dataset_tables(

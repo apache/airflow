@@ -28,7 +28,6 @@ from typing import Any, Dict, Iterable, List, Optional, SupportsAbs, Union
 import attr
 from google.api_core.exceptions import Conflict
 from google.cloud.bigquery import TableReference
-from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -38,7 +37,7 @@ from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.utils.decorators import apply_defaults
 
-BIGQUERY_JOB_DETAILS_LINK_FMT = 'https://console.cloud.google.com/bigquery?j={job_id}'
+BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={job_id}"
 
 _DEPRECATION_MSG = "The bigquery_conn_id parameter has been deprecated. " \
                    "You should pass the gcp_conn_id parameter."
@@ -1122,17 +1121,14 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
 
 class BigQueryCreateEmptyDatasetOperator(BaseOperator):
     """
-    This operator is used to create new dataset for your Project in Big query.
+    This operator is used to create new dataset for your Project in BigQuery.
     https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
 
     :param project_id: The name of the project where we want to create the dataset.
-        Don't need to provide, if projectId in dataset_reference.
     :type project_id: str
-    :param dataset_id: The id of dataset. Don't need to provide,
-        if datasetId in dataset_reference.
+    :param dataset_id: The id of dataset. Don't need to provide, if datasetId in dataset_reference.
     :type dataset_id: str
-    :param location: (Optional) The geographic location where the dataset should reside.
-        There is no default value but the dataset will be created in US if nothing is provided.
+    :param location: The geographic location where the dataset should reside.
     :type location: str
     :param dataset_reference: Dataset reference that could be provided with request body.
         More info:
@@ -1156,12 +1152,12 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
     :type location: str
     """
 
-    template_fields = ('dataset_id', 'project_id')
+    template_fields = ('dataset_id', 'project_id', 'dataset_reference')
     ui_color = BigQueryUIColors.DATASET.value
 
     @apply_defaults
     def __init__(self,
-                 dataset_id: str,
+                 dataset_id: Optional[str] = None,
                  project_id: Optional[str] = None,
                  dataset_reference: Optional[Dict] = None,
                  location: Optional[str] = None,
@@ -1186,24 +1182,23 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         super().__init__(*args, **kwargs)
 
     def execute(self, context):
-        self.log.info('Dataset id: %s Project id: %s', self.dataset_id, self.project_id)
-
-        bq_hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id,
-                               delegate_to=self.delegate_to,
-                               location=self.location)
+        bq_hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            location=self.location
+        )
 
         try:
-            self.log.info('Creating Dataset: %s in project: %s ', self.dataset_id, self.project_id)
             bq_hook.create_empty_dataset(
                 project_id=self.project_id,
                 dataset_id=self.dataset_id,
                 dataset_reference=self.dataset_reference,
-                location=self.location)
-            self.log.info('Dataset created successfully.')
-        except HttpError as err:
-            if err.resp.status != 409:
-                raise
-            self.log.info('Dataset %s already exists.', self.dataset_id)
+                location=self.location,
+                exists_ok=False,
+            )
+        except Conflict:
+            dataset_id = self.dataset_reference.get("datasetReference", {}).get("datasetId", self.dataset_id)
+            self.log.info('Dataset %s already exists.', dataset_id)
 
 
 class BigQueryGetDatasetOperator(BaseOperator):

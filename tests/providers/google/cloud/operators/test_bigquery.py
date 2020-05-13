@@ -233,14 +233,13 @@ class TestBigQueryCreateEmptyDatasetOperator(unittest.TestCase):
         )
 
         operator.execute(None)
-        mock_hook.return_value \
-            .create_empty_dataset \
-            .assert_called_once_with(
-                dataset_id=TEST_DATASET,
-                project_id=TEST_GCP_PROJECT_ID,
-                location=TEST_DATASET_LOCATION,
-                dataset_reference={}
-            )
+        mock_hook.return_value.create_empty_dataset.assert_called_once_with(
+            dataset_id=TEST_DATASET,
+            project_id=TEST_GCP_PROJECT_ID,
+            location=TEST_DATASET_LOCATION,
+            dataset_reference={},
+            exists_ok=False,
+        )
 
 
 class TestBigQueryGetDatasetOperator(unittest.TestCase):
