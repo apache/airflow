@@ -357,7 +357,7 @@ qds = [
     'qds-sdk>=1.10.4',
 ]
 rabbitmq = [
-    'librabbitmq>=1.6.1',
+    'amqp',
 ]
 redis = [
     'redis~=3.2',
@@ -476,9 +476,9 @@ devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
 
 devel_all = (all_dbs + amazon + atlas + azure + celery + cgroups + dask + datadog + devel + doc + docker +
              elasticsearch + exasol + facebook + google + grpc + hashicorp + jdbc + jenkins + kerberos +
-             kubernetes + ldap + odbc + oracle + pagerduty + papermill + password + redis + salesforce +
-             samba + segment + sendgrid + sentry + singularity + slack + snowflake + ssh + statsd + tableau +
-             virtualenv + webhdfs + yandexcloud + zendesk)
+             kubernetes + ldap + odbc + oracle + pagerduty + papermill + password + rabbitmq + redis +
+             salesforce + samba + segment + sendgrid + sentry + singularity + slack + snowflake + ssh +
+             statsd + tableau + virtualenv + webhdfs + yandexcloud + zendesk)
 
 # Snakebite is not Python 3 compatible :'(
 if PY3:
