@@ -341,7 +341,7 @@ qds = [
     'qds-sdk>=1.10.4',
 ]
 rabbitmq = [
-    'librabbitmq>=1.6.1',
+    'amqp',
 ]
 redis = [
     'redis~=3.2',
@@ -450,7 +450,7 @@ devel_all = (all_dbs + atlas + aws +
              celery + cgroups + crypto + datadog + devel + doc + docker +
              elasticsearch + gcp + grpc + hashicorp + jdbc + jenkins + kerberos + kubernetes + ldap +
              oracle + papermill + password +
-             redis + samba + segment + sendgrid + sentry + slack + snowflake + ssh +
+             rabbitmq + redis + samba + segment + sendgrid + sentry + slack + snowflake + ssh +
              virtualenv + webhdfs + zendesk)
 
 # Snakebite is not Python 3 compatible :'(
