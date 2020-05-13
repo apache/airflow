@@ -15,12 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import pytest
-
 from tests.test_utils.amazon_system_helpers import AWS_DAG_FOLDER, AmazonSystemTest
 
 
-@pytest.mark.system("amazon")
 class EmrSystemTest(AmazonSystemTest):
     """
     System tests for AWS EMR operators
