@@ -17,8 +17,7 @@
 
 import pytest
 
-from tests.test_utils.aws_system_helpers import AWS_DAG_FOLDER
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.amazon_system_helpers import AWS_DAG_FOLDER, AmazonSystemTest
 from tests.utils.logging_command_executor import get_executor
 
 
@@ -36,7 +35,7 @@ def create_emr_default_roles():
 
 @pytest.mark.system("amazon")
 @pytest.mark.usefixtures("create_emr_default_roles")
-class TestSystemAwsEmr(SystemTest):
+class EmrSystemTest(AmazonSystemTest):
     """
     System tests for AWS EMR operators
     """
