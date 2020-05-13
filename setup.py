@@ -583,9 +583,8 @@ INSTALL_REQUIREMENTS = [
     'croniter>=0.3.17, <0.4',
     'cryptography>=0.9.3',
     'dill>=0.2.2, <0.4',
-    'email_validator>=1.0.5, <2',   # Needed by WTForms (dependency of FAB)
     'flask>=1.1.0, <2.0',
-    'flask-appbuilder==2.3.2',
+    'flask-appbuilder~=2.3.4',
     'flask-caching>=1.3.3, <1.4.0',
     'flask-login>=0.3, <0.5',
     'flask-swagger==0.2.13',
