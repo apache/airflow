@@ -188,3 +188,12 @@ class ConnectionForm(DynamicForm):
     extra__grpc__scopes = StringField(
         lazy_gettext('Scopes (comma separated)'),
         widget=BS3TextFieldWidget())
+
+
+class ErrorTagForm(DynamicForm):
+    value = StringField(
+        lazy_gettext('Value'),
+        widget=BS3TextFieldWidget())
+    label = StringField(
+        lazy_gettext('Label'),
+        widget=BS3TextFieldWidget())

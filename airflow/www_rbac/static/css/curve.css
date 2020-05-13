@@ -32,21 +32,41 @@ legend {
 #root {
   width: 100vw;
   height: 100vh;
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr 3fr;
+  grid-template-rows: 25% auto 1fr;
+  grid-auto-flow: row dense;
 }
 
 #base-info-container {
   --width: 100%;
-  --height: 20%;
+  --height: quto;
+  grid-row: span 1;
+  grid-column: span 2;
 }
 
 #result-container {
-  --width: 25%;
+  --width: 100%;
   --height: 100%;
+  grid-row: span 2;
+  grid-column: span 1;
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+#error-tag-container {
+  --width: 100%;
+  --height: 100%;
+  grid-row: span 1;
+  grid-column: span 1;
+}
+
+#error-tag-label-container{
+  width: 100%;
+  padding:0 10px ;
+  justify-content: space-between;
+  align-items: center
 }
 
 .base-info-item {

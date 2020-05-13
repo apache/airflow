@@ -63,6 +63,7 @@ from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_suc
 from airflow.models import Variable, Connection, DagModel, DagRun, DagTag, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.exceptions import AirflowException
 from airflow.models.dagcode import DagCode
+from airflow.models.error_tag import ErrorTag
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import timezone
@@ -76,7 +77,7 @@ from airflow.www_rbac.app import app, appbuilder
 from airflow.www_rbac.decorators import action_logging, gzipped, has_dag_access
 from airflow.www_rbac.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                     DateTimeWithNumRunsWithDagRunsForm, VariableForm,
-                                    DagRunForm, ConnectionForm)
+                                    DagRunForm, ConnectionForm, ErrorTagForm)
 from airflow.www_rbac.widgets import AirflowModelListWidget
 from flask_wtf.csrf import CSRFProtect
 from airflow.www_rbac.api.experimental.endpoints import get_curve, get_result
@@ -2352,6 +2353,32 @@ class ConnectionModelView(AirflowModelView):
             if value:
                 field = getattr(form, field)
                 field.data = value
+
+class ErrorTagModelView(AirflowModelView):
+    route_base = '/error_tag'
+
+    datamodel = AirflowModelView.CustomSQLAInterface(ErrorTag)
+
+    base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete']
+
+    extra_fields = []
+    list_columns = [ 'value', 'label']
+    add_columns = edit_columns = ['value', 'label'] + extra_fields
+    add_form = edit_form = ErrorTagForm
+    add_template = 'airflow/error_tag_create.html'
+    edit_template = 'airflow/error_tag_edit.html'
+
+    base_order = ('id', 'asc')
+
+    @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?',
+            single=False)
+    @has_dag_access(can_dag_edit=True)
+    def action_muldelete(self, items):
+        self.datamodel.delete_all(items)
+        self.update_redirect()
+        return redirect(self.get_redirect())
+
+
 
 
 class PoolModelView(AirflowModelView):
