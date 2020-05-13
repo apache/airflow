@@ -1081,14 +1081,16 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
     ui_color = BigQueryUIColors.DATASET.value
 
     @apply_defaults
-    def __init__(self,
-                 dataset_id: str,
-                 project_id: Optional[str] = None,
-                 delete_contents: bool = False,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 bigquery_conn_id: Optional[str] = None,
-                 delegate_to: Optional[str] = None,
-                 *args, **kwargs) -> None:
+    def __init__(
+        self,
+        dataset_id: str,
+        project_id: Optional[str] = None,
+        delete_contents: bool = False,
+        gcp_conn_id: str = 'google_cloud_default',
+        bigquery_conn_id: Optional[str] = None,
+        delegate_to: Optional[str] = None,
+        *args, **kwargs
+    ) -> None:
         if bigquery_conn_id:
             warnings.warn(
                 "The bigquery_conn_id parameter has been deprecated. You should pass "
@@ -1106,8 +1108,10 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
     def execute(self, context):
         self.log.info('Dataset id: %s Project id: %s', self.dataset_id, self.project_id)
 
-        bq_hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id,
-                               delegate_to=self.delegate_to)
+        bq_hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to
+        )
 
         bq_hook.delete_dataset(
             project_id=self.project_id,
