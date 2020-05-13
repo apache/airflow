@@ -709,7 +709,7 @@ class TestBigQueryTableDeleteOperator(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
     def test_execute(self, mock_hook):
         ignore_if_missing = True
-        deletion_dataset_table = '{}.{}'.format(TEST_DATASET, TEST_TABLE_ID)
+        deletion_dataset_table = f'{TEST_DATASET}.{TEST_TABLE_ID}'
 
         operator = BigQueryDeleteTableOperator(
             task_id=TASK_ID,
@@ -718,12 +718,10 @@ class TestBigQueryTableDeleteOperator(unittest.TestCase):
         )
 
         operator.execute(None)
-        mock_hook.return_value \
-            .run_table_delete \
-            .assert_called_once_with(
-                deletion_dataset_table=deletion_dataset_table,
-                ignore_if_missing=ignore_if_missing
-            )
+        mock_hook.return_value.delete_table.assert_called_once_with(
+            table_id=deletion_dataset_table,
+            not_found_ok=ignore_if_missing
+        )
 
 
 class TestBigQueryGetDatasetTablesOperator(unittest.TestCase):

@@ -1449,15 +1449,17 @@ class BigQueryDeleteTableOperator(BaseOperator):
     ui_color = BigQueryUIColors.TABLE.value
 
     @apply_defaults
-    def __init__(self,
-                 deletion_dataset_table: str,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 bigquery_conn_id: Optional[str] = None,
-                 delegate_to: Optional[str] = None,
-                 ignore_if_missing: bool = False,
-                 location: Optional[str] = None,
-                 *args,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        deletion_dataset_table: str,
+        gcp_conn_id: str = 'google_cloud_default',
+        bigquery_conn_id: Optional[str] = None,
+        delegate_to: Optional[str] = None,
+        ignore_if_missing: bool = False,
+        location: Optional[str] = None,
+        *args,
+        **kwargs,
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         if bigquery_conn_id:
@@ -1474,12 +1476,15 @@ class BigQueryDeleteTableOperator(BaseOperator):
 
     def execute(self, context):
         self.log.info('Deleting: %s', self.deletion_dataset_table)
-        hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to,
-                            location=self.location)
-        hook.run_table_delete(
-            deletion_dataset_table=self.deletion_dataset_table,
-            ignore_if_missing=self.ignore_if_missing)
+        hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            location=self.location
+        )
+        hook.delete_table(
+            table_id=self.deletion_dataset_table,
+            not_found_ok=self.ignore_if_missing
+        )
 
 
 class BigQueryUpsertTableOperator(BaseOperator):
