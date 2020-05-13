@@ -378,8 +378,7 @@ class BigQueryGetDataOperator(BaseOperator):
         self.location = location
 
     def execute(self, context):
-        self.log.info('Fetching Data from:')
-        self.log.info('Dataset: %s ; Table: %s ; Max Results: %s',
+        self.log.info('Fetching Data from %s.%s max results: %s',
                       self.dataset_id, self.table_id, self.max_results)
 
         hook = BigQueryHook(
@@ -395,7 +394,7 @@ class BigQueryGetDataOperator(BaseOperator):
             location=self.location
         )
 
-        self.log.info('Total Extracted rows: %s', len(rows))
+        self.log.info('Total extracted rows: %s', len(rows))
 
         table_data = [row.values() for row in rows]
         return table_data
