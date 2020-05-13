@@ -1598,6 +1598,7 @@ class TestBigQueryWithKMS(_BigQueryBaseTestClass):
             table_resource=body,
             project_id=PROJECT_ID,
             location=None,
+            exists_ok=True,
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")

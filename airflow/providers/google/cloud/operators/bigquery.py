@@ -27,6 +27,7 @@ from typing import Any, Dict, Iterable, List, Optional, SupportsAbs, Union
 
 import attr
 from google.api_core.exceptions import Conflict
+from google.cloud.bigquery import TableReference
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
@@ -839,7 +840,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
 # pylint: disable=too-many-instance-attributes
 class BigQueryCreateExternalTableOperator(BaseOperator):
     """
-    Creates a new external table in the dataset with the data in Google Cloud
+    Creates a new external table in the dataset with the data from Google Cloud
     Storage.
 
     The schema to be used for the BigQuery table may be specified in one of
@@ -850,8 +851,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     :param bucket: The bucket to point the external table to. (templated)
     :type bucket: str
     :param source_objects: List of Google Cloud Storage URIs to point
-        table to. (templated)
-        If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
+        table to. If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
     :type source_objects: list
     :param destination_project_dataset_table: The dotted ``(<project>.)<dataset>.<table>``
         BigQuery table to load data into (templated). If ``<project>`` is not included,
@@ -866,6 +866,10 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}]
 
         Should not be set when source_format is 'DATASTORE_BACKUP'.
+    :param table_resource: Table resource as described in documentation:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
+        If provided all other parameters are ignored. External schema from object will be resolved.
+    :type table_resource: Dict[str, Any]
     :type schema_fields: list
     :param schema_object: If set, a GCS object path pointing to a .json file that
         contains the schema for the table. (templated)
@@ -920,34 +924,43 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     :param location: The location used for the operation.
     :type location: str
     """
-    template_fields = ('bucket', 'source_objects',
-                       'schema_object', 'destination_project_dataset_table', 'labels')
+    template_fields = (
+        'bucket',
+        'source_objects',
+        'schema_object',
+        'destination_project_dataset_table',
+        'labels',
+        'table_resource',
+    )
     ui_color = BigQueryUIColors.TABLE.value
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self,
-                 bucket: str,
-                 source_objects: List,
-                 destination_project_dataset_table: str,
-                 schema_fields: Optional[List] = None,
-                 schema_object: Optional[str] = None,
-                 source_format: str = 'CSV',
-                 compression: str = 'NONE',
-                 skip_leading_rows: int = 0,
-                 field_delimiter: str = ',',
-                 max_bad_records: int = 0,
-                 quote_character: Optional[str] = None,
-                 allow_quoted_newlines: bool = False,
-                 allow_jagged_rows: bool = False,
-                 bigquery_conn_id: str = 'google_cloud_default',
-                 google_cloud_storage_conn_id: str = 'google_cloud_default',
-                 delegate_to: Optional[str] = None,
-                 src_fmt_configs: Optional[dict] = None,
-                 labels: Optional[Dict] = None,
-                 encryption_configuration: Optional[Dict] = None,
-                 location: Optional[str] = None,
-                 *args, **kwargs) -> None:
+    def __init__(
+        self,
+        bucket: str,
+        source_objects: List,
+        destination_project_dataset_table: str,
+        table_resource: Optional[Dict[str, Any]] = None,
+        schema_fields: Optional[List] = None,
+        schema_object: Optional[str] = None,
+        source_format: str = 'CSV',
+        compression: str = 'NONE',
+        skip_leading_rows: int = 0,
+        field_delimiter: str = ',',
+        max_bad_records: int = 0,
+        quote_character: Optional[str] = None,
+        allow_quoted_newlines: bool = False,
+        allow_jagged_rows: bool = False,
+        bigquery_conn_id: str = 'google_cloud_default',
+        google_cloud_storage_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        src_fmt_configs: Optional[dict] = None,
+        labels: Optional[Dict] = None,
+        encryption_configuration: Optional[Dict] = None,
+        location: Optional[str] = None,
+        *args, **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         # GCS config
@@ -956,6 +969,15 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         self.schema_object = schema_object
 
         # BQ config
+        if not table_resource:
+            warnings.warn(
+                "Passing table parameters via key words arguments will be deprecated. "
+                "Please use provide table definition using `table_resource` parameter."
+                "You can still use external `schema_object`. ",
+                DeprecationWarning, stacklevel=2
+            )
+
+        self.table_resource = table_resource
         self.destination_project_dataset_table = destination_project_dataset_table
         self.schema_fields = schema_fields
         self.source_format = source_format
@@ -977,24 +999,35 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         self.location = location
 
     def execute(self, context):
-        bq_hook = BigQueryHook(gcp_conn_id=self.bigquery_conn_id,
-                               delegate_to=self.delegate_to,
-                               location=self.location)
+        bq_hook = BigQueryHook(
+            gcp_conn_id=self.bigquery_conn_id,
+            delegate_to=self.delegate_to,
+            location=self.location
+        )
 
         if not self.schema_fields and self.schema_object and self.source_format != 'DATASTORE_BACKUP':
             gcs_hook = GCSHook(
                 google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
                 delegate_to=self.delegate_to)
-            schema_fields = json.loads(gcs_hook.download(
-                self.bucket,
-                self.schema_object).decode("utf-8"))
+            schema_object = gcs_hook.download(self.bucket, self.schema_object)
+            schema_fields = json.loads(schema_object.decode("utf-8"))
         else:
             schema_fields = self.schema_fields
 
-        source_uris = ['gs://{}/{}'.format(self.bucket, source_object)
-                       for source_object in self.source_objects]
+        if schema_fields and self.table_resource:
+            self.table_resource["externalDataConfiguration"]["schema"] = schema_fields
 
-        try:
+        source_uris = [f"gs://{self.bucket}/{source_object}" for source_object in self.source_objects]
+
+        if self.table_resource:
+            tab_ref = TableReference.from_string(self.destination_project_dataset_table)
+            bq_hook.create_empty_table(
+                table_resource=self.table_resource,
+                project_id=tab_ref.project,
+                table_id=tab_ref.table_id,
+                dataset_id=tab_ref.dataset_id,
+            )
+        else:
             bq_hook.create_external_table(
                 external_project_dataset_table=self.destination_project_dataset_table,
                 schema_fields=schema_fields,
@@ -1011,9 +1044,6 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                 labels=self.labels,
                 encryption_configuration=self.encryption_configuration
             )
-        except HttpError as err:
-            if err.resp.status != 409:
-                raise
 
 
 class BigQueryDeleteDatasetOperator(BaseOperator):

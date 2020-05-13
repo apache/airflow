@@ -483,7 +483,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                               project_id: Optional[str] = None,
                               ) -> None:
         """
-        Creates a new external table in the dataset with the data in Google
+        Creates a new external table in the dataset with the data from Google
         Cloud Storage. See here:
 
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource
@@ -622,7 +622,12 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table.encryption_configuration = EncryptionConfiguration.from_api_repr(encryption_configuration)
 
         self.log.info('Creating external table: %s', external_project_dataset_table)
-        self.create_empty_table(table_resource=table.to_api_repr(), project_id=project_id, location=location)
+        self.create_empty_table(
+            table_resource=table.to_api_repr(),
+            project_id=project_id,
+            location=location,
+            exists_ok=True
+        )
         self.log.info('External table created successfully: %s', external_project_dataset_table)
 
     @GoogleBaseHook.fallback_to_default_project_id
