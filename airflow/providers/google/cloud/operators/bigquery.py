@@ -1362,8 +1362,10 @@ class BigQueryPatchDatasetOperator(BaseOperator):
 class BigQueryUpdateDatasetOperator(BaseOperator):
     """
     This operator is used to update dataset for your Project in BigQuery.
-    The update method replaces the entire dataset resource, whereas the patch
-    method only replaces fields that are provided in the submitted dataset resource.
+    Use ``fields`` to specify which fields of dataset to update. If a field
+    is listed in ``fields`` and is ``None`` in dataset, it will be deleted.
+    If no ``fields`` are provided then all fields of provided ``dataset_reources``
+    will be used.
 
     :param dataset_id: The id of dataset. Don't need to provide,
         if datasetId in dataset_reference.
@@ -1371,6 +1373,8 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
     :param dataset_resource: Dataset resource that will be provided with request body.
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
     :type dataset_resource: dict
+    :param fields: The properties of dataset to change (e.g. "friendly_name").
+    :type fields: Sequence[str]
     :param project_id: The name of the project where we want to create the dataset.
         Don't need to provide, if projectId in dataset_reference.
     :type project_id: str
@@ -1384,27 +1388,30 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
     ui_color = BigQueryUIColors.DATASET.value
 
     @apply_defaults
-    def __init__(self,
-                 dataset_resource: dict,
-                 dataset_id: Optional[str] = None,
-                 project_id: Optional[str] = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 delegate_to: Optional[str] = None,
-                 *args, **kwargs) -> None:
+    def __init__(
+        self,
+        dataset_resource: dict,
+        fields: Optional[List[str]] = None,
+        dataset_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        *args, **kwargs
+    ) -> None:
         self.dataset_id = dataset_id
         self.project_id = project_id
+        self.fields = fields
         self.gcp_conn_id = gcp_conn_id
         self.dataset_resource = dataset_resource
         self.delegate_to = delegate_to
         super().__init__(*args, **kwargs)
 
     def execute(self, context):
-        bq_hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id,
-                               delegate_to=self.delegate_to)
-
-        self.log.info('Start updating dataset: %s:%s', self.project_id, self.dataset_id)
-
-        fields = list(self.dataset_resource.keys())
+        bq_hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+        )
+        fields = self.fields or list(self.dataset_resource.keys())
 
         dataset = bq_hook.update_dataset(
             dataset_resource=self.dataset_resource,

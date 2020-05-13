@@ -910,6 +910,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             if value and not spec_value:
                 dataset_resource["datasetReference"][key] = value
 
+        self.log.info('Start updating dataset')
         dataset = self.get_client(project_id=project_id).update_dataset(
             dataset=Dataset.from_api_repr(dataset_resource),
             fields=fields,
