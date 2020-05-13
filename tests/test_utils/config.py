@@ -38,7 +38,6 @@ def conf_vars(overrides):
         else:
             original[(section, key)] = None
         if value is not None:
-            os.environ[env] = value
             conf.set(section, key, value)
         else:
             conf.remove_option(section, key)
@@ -54,3 +53,18 @@ def conf_vars(overrides):
         for env, value in original_env_vars.items():
             os.environ[env] = value
         settings.configure_vars()
+
+
+@contextlib.contextmanager
+def env_vars(overrides):
+    original = {}
+    for (section, key), value in overrides.items():
+        env = conf._env_var_name(section, key)
+
+        original[env] = os.environ.pop(env, '')
+        os.environ[env] = value
+    try:
+        yield
+    finally:
+        for env, value in original.items():
+            os.environ[env] = value
