@@ -18,27 +18,17 @@
 import pytest
 
 from tests.test_utils.amazon_system_helpers import AWS_DAG_FOLDER, AmazonSystemTest
-from tests.utils.logging_command_executor import get_executor
-
-
-@pytest.fixture
-def create_emr_default_roles():
-    """Create EMR Default roles for running system test
-
-    This will create the default IAM roles:
-    - `EMR_EC2_DefaultRole`
-    - `EMR_DefaultRole`
-    """
-    executor = get_executor()
-    executor.execute_cmd(["aws", "emr", "create-default-roles"])
 
 
 @pytest.mark.system("amazon")
-@pytest.mark.usefixtures("create_emr_default_roles")
 class EmrSystemTest(AmazonSystemTest):
     """
     System tests for AWS EMR operators
     """
+    @classmethod
+    def setup_class(cls):
+        cls.create_emr_default_roles()
+
     def test_run_example_dag_emr_automatic_steps(self):
         self.run_dag('emr_job_flow_automatic_steps_dag', AWS_DAG_FOLDER)
 
