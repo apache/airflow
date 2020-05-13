@@ -1325,13 +1325,20 @@ class BigQueryPatchDatasetOperator(BaseOperator):
     ui_color = BigQueryUIColors.DATASET.value
 
     @apply_defaults
-    def __init__(self,
-                 dataset_id: str,
-                 dataset_resource: dict,
-                 project_id: Optional[str] = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 delegate_to: Optional[str] = None,
-                 *args, **kwargs) -> None:
+    def __init__(
+        self,
+        dataset_id: str,
+        dataset_resource: dict,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        *args, **kwargs,
+    ) -> None:
+
+        warnings.warn(
+            "This operator is deprecated. Please use BigQueryUpdateDatasetOperator.",
+            DeprecationWarning, stacklevel=3
+        )
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
@@ -1340,15 +1347,16 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         super().__init__(*args, **kwargs)
 
     def execute(self, context):
-        bq_hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id,
-                               delegate_to=self.delegate_to)
-
-        self.log.info('Start patching dataset: %s:%s', self.project_id, self.dataset_id)
+        bq_hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+        )
 
         return bq_hook.patch_dataset(
             dataset_id=self.dataset_id,
             dataset_resource=self.dataset_resource,
-            project_id=self.project_id)
+            project_id=self.project_id,
+        )
 
 
 class BigQueryUpdateDatasetOperator(BaseOperator):

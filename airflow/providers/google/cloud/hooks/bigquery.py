@@ -953,6 +953,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         service = self.get_service()
         dataset_project_id = project_id or self.project_id
 
+        self.log.info('Start patching dataset: %s:%s',dataset_project_id, dataset_id)
         dataset = (
             service.datasets()  # pylint: disable=no-member
             .patch(
