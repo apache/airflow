@@ -85,6 +85,7 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
                 view=None,
                 encryption_configuration=None,
                 table_resource=None,
+                exists_ok=False,
             )
 
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
@@ -110,6 +111,7 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
                 view=VIEW_DEFINITION,
                 encryption_configuration=None,
                 table_resource=None,
+                exists_ok=False,
             )
 
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
@@ -160,6 +162,7 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
                 view=None,
                 encryption_configuration=None,
                 table_resource=None,
+                exists_ok=False,
             )
 
 

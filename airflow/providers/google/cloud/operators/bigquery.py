@@ -828,6 +828,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 view=self.view,
                 encryption_configuration=self.encryption_configuration,
                 table_resource=self.table_resource,
+                exists_ok=False,
             )
             self.log.info('Table %s.%s.%s created successfully',
                           table.project, table.dataset_id, table.table_id)
@@ -1513,20 +1514,22 @@ class BigQueryUpsertTableOperator(BaseOperator):
     :param location: The location used for the operation.
     :type location: str
     """
-    template_fields = ('dataset_id', 'table_resource',)
+    template_fields = ('dataset_id', 'table_resource')
     ui_color = BigQueryUIColors.TABLE.value
 
     @apply_defaults
-    def __init__(self,
-                 dataset_id: str,
-                 table_resource: dict,
-                 project_id: Optional[str] = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 bigquery_conn_id: Optional[str] = None,
-                 delegate_to: Optional[str] = None,
-                 location: Optional[str] = None,
-                 *args,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        dataset_id: str,
+        table_resource: dict,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        bigquery_conn_id: Optional[str] = None,
+        delegate_to: Optional[str] = None,
+        location: Optional[str] = None,
+        *args,
+        **kwargs,
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         if bigquery_conn_id:
@@ -1544,10 +1547,13 @@ class BigQueryUpsertTableOperator(BaseOperator):
 
     def execute(self, context):
         self.log.info('Upserting Dataset: %s with table_resource: %s', self.dataset_id, self.table_resource)
-        hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to,
-                            location=self.location)
+        hook = BigQueryHook(
+            bigquery_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            location=self.location,
+        )
         hook.run_table_upsert(
             dataset_id=self.dataset_id,
             table_resource=self.table_resource,
-            project_id=self.project_id)
+            project_id=self.project_id,
+        )
