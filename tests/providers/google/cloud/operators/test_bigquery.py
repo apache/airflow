@@ -65,14 +65,15 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
 
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
     def test_execute(self, mock_hook):
-        operator = BigQueryCreateEmptyTableOperator(task_id=TASK_ID,
-                                                    dataset_id=TEST_DATASET,
-                                                    project_id=TEST_GCP_PROJECT_ID,
-                                                    table_id=TEST_TABLE_ID)
+        operator = BigQueryCreateEmptyTableOperator(
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            project_id=TEST_GCP_PROJECT_ID,
+            table_id=TEST_TABLE_ID
+        )
 
         operator.execute(None)
-        mock_hook.return_value \
-            .create_empty_table \
+        mock_hook.return_value.create_empty_table \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
                 project_id=TEST_GCP_PROJECT_ID,
@@ -82,20 +83,22 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
                 cluster_fields=None,
                 labels=None,
                 view=None,
-                encryption_configuration=None
+                encryption_configuration=None,
+                table_resource=None,
             )
 
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
     def test_create_view(self, mock_hook):
-        operator = BigQueryCreateEmptyTableOperator(task_id=TASK_ID,
-                                                    dataset_id=TEST_DATASET,
-                                                    project_id=TEST_GCP_PROJECT_ID,
-                                                    table_id=TEST_TABLE_ID,
-                                                    view=VIEW_DEFINITION)
+        operator = BigQueryCreateEmptyTableOperator(
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            project_id=TEST_GCP_PROJECT_ID,
+            table_id=TEST_TABLE_ID,
+            view=VIEW_DEFINITION
+        )
 
         operator.execute(None)
-        mock_hook.return_value \
-            .create_empty_table \
+        mock_hook.return_value.create_empty_table \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
                 project_id=TEST_GCP_PROJECT_ID,
@@ -105,7 +108,8 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
                 cluster_fields=None,
                 labels=None,
                 view=VIEW_DEFINITION,
-                encryption_configuration=None
+                encryption_configuration=None,
+                table_resource=None,
             )
 
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
@@ -133,18 +137,18 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
             "field": "date_hired"
         }
         cluster_fields = ["date_birth"]
-        operator = BigQueryCreateEmptyTableOperator(task_id=TASK_ID,
-                                                    dataset_id=TEST_DATASET,
-                                                    project_id=TEST_GCP_PROJECT_ID,
-                                                    table_id=TEST_TABLE_ID,
-                                                    schema_fields=schema_fields,
-                                                    time_partitioning=time_partitioning,
-                                                    cluster_fields=cluster_fields
-                                                    )
+        operator = BigQueryCreateEmptyTableOperator(
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            project_id=TEST_GCP_PROJECT_ID,
+            table_id=TEST_TABLE_ID,
+            schema_fields=schema_fields,
+            time_partitioning=time_partitioning,
+            cluster_fields=cluster_fields
+        )
 
         operator.execute(None)
-        mock_hook.return_value \
-            .create_empty_table \
+        mock_hook.return_value.create_empty_table \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
                 project_id=TEST_GCP_PROJECT_ID,
@@ -154,7 +158,8 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
                 cluster_fields=cluster_fields,
                 labels=None,
                 view=None,
-                encryption_configuration=None
+                encryption_configuration=None,
+                table_resource=None,
             )
 
 

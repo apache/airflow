@@ -233,6 +233,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         retry: Optional[Retry] = DEFAULT_RETRY,
         num_retries: Optional[int] = None,
         location: Optional[str] = None,
+        exists_ok: bool = True
     ) -> Table:
         """
         Creates a new, empty table in the dataset.
@@ -293,6 +294,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type encryption_configuration: dict
         :param num_retries: Maximum number of retries in case of connection problems.
         :type num_retries: int
+        :param exists_ok: If ``True``, ignore "already exists" errors when creating the table.
+        :type exists_ok: bool
         :return: Created table
         """
         if num_retries:
@@ -333,7 +336,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         table = Table.from_api_repr(table_resource)
         return self.get_client(project_id=project_id, location=location).create_table(
             table=table,
-            exists_ok=True,
+            exists_ok=exists_ok,
             retry=retry
         )
 

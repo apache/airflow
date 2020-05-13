@@ -26,6 +26,7 @@ import warnings
 from typing import Any, Dict, Iterable, List, Optional, SupportsAbs, Union
 
 import attr
+from google.api_core.exceptions import Conflict
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
@@ -72,7 +73,7 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
 
     @property
     def name(self) -> str:
-        return 'BigQuery Console #{index}'.format(index=self.index + 1)
+        return f'BigQuery Console #{self.index + 1}'
 
     def get_link(self, operator, dttm):
         ti = TaskInstance(task=operator, execution_date=dttm)
@@ -343,21 +344,23 @@ class BigQueryGetDataOperator(BaseOperator):
     :param location: The location used for the operation.
     :type location: str
     """
-    template_fields = ('dataset_id', 'table_id', 'max_results')
+    template_fields = ('dataset_id', 'table_id', 'max_results', 'selected_fields')
     ui_color = BigQueryUIColors.QUERY.value
 
     @apply_defaults
-    def __init__(self,
-                 dataset_id: str,
-                 table_id: str,
-                 max_results: int = 100,
-                 selected_fields: Optional[str] = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 bigquery_conn_id: Optional[str] = None,
-                 delegate_to: Optional[str] = None,
-                 location: Optional[str] = None,
-                 *args,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        dataset_id: str,
+        table_id: str,
+        max_results: int = 100,
+        selected_fields: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        bigquery_conn_id: Optional[str] = None,
+        delegate_to: Optional[str] = None,
+        location: Optional[str] = None,
+        *args,
+        **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         if bigquery_conn_id:
@@ -647,6 +650,10 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     :type dataset_id: str
     :param table_id: The Name of the table to be created. (templated)
     :type table_id: str
+    :param table_resource: Table resource as described in documentation:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
+        If provided all other parameters are ignored.
+    :type table_resource: Dict[str, Any]
     :param schema_fields: If set, the schema field list as defined here:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
 
@@ -741,28 +748,38 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#clustering.fields
     :type cluster_fields: list
     """
-    template_fields = ('dataset_id', 'table_id', 'project_id',
-                       'gcs_schema_object', 'labels', 'view')
+    template_fields = (
+        'dataset_id',
+        'table_id',
+        'project_id',
+        'gcs_schema_object',
+        'labels',
+        'view'
+    )
+
     ui_color = BigQueryUIColors.TABLE.value
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self,
-                 dataset_id: str,
-                 table_id: str,
-                 project_id: Optional[str] = None,
-                 schema_fields: Optional[List] = None,
-                 gcs_schema_object: Optional[str] = None,
-                 time_partitioning: Optional[Dict] = None,
-                 bigquery_conn_id: str = 'google_cloud_default',
-                 google_cloud_storage_conn_id: str = 'google_cloud_default',
-                 delegate_to: Optional[str] = None,
-                 labels: Optional[Dict] = None,
-                 view: Optional[Dict] = None,
-                 encryption_configuration: Optional[Dict] = None,
-                 location: Optional[str] = None,
-                 cluster_fields: Optional[List[str]] = None,
-                 *args, **kwargs) -> None:
+    def __init__(
+        self,
+        dataset_id: str,
+        table_id: str,
+        table_resource: Optional[Dict[str, Any]] = None,
+        project_id: Optional[str] = None,
+        schema_fields: Optional[List] = None,
+        gcs_schema_object: Optional[str] = None,
+        time_partitioning: Optional[Dict] = None,
+        bigquery_conn_id: str = 'google_cloud_default',
+        google_cloud_storage_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        labels: Optional[Dict] = None,
+        view: Optional[Dict] = None,
+        encryption_configuration: Optional[Dict] = None,
+        location: Optional[str] = None,
+        cluster_fields: Optional[List[str]] = None,
+        *args, **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         self.project_id = project_id
@@ -779,16 +796,17 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.encryption_configuration = encryption_configuration
         self.location = location
         self.cluster_fields = cluster_fields
+        self.table_resource = table_resource
 
     def execute(self, context):
-        bq_hook = BigQueryHook(gcp_conn_id=self.bigquery_conn_id,
-                               delegate_to=self.delegate_to,
-                               location=self.location)
+        bq_hook = BigQueryHook(
+            gcp_conn_id=self.bigquery_conn_id,
+            delegate_to=self.delegate_to,
+            location=self.location
+        )
 
         if not self.schema_fields and self.gcs_schema_object:
-
             gcs_bucket, gcs_object = _parse_gcs_url(self.gcs_schema_object)
-
             gcs_hook = GCSHook(
                 google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
                 delegate_to=self.delegate_to)
@@ -799,9 +817,8 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
             schema_fields = self.schema_fields
 
         try:
-            self.log.info('Creating Table %s:%s.%s',
-                          self.project_id, self.dataset_id, self.table_id)
-            bq_hook.create_empty_table(
+            self.log.info('Creating table')
+            table = bq_hook.create_empty_table(
                 project_id=self.project_id,
                 dataset_id=self.dataset_id,
                 table_id=self.table_id,
@@ -810,16 +827,13 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 cluster_fields=self.cluster_fields,
                 labels=self.labels,
                 view=self.view,
-                encryption_configuration=self.encryption_configuration
+                encryption_configuration=self.encryption_configuration,
+                table_resource=self.table_resource,
             )
-            self.log.info('Table created successfully: %s:%s.%s',
-                          self.project_id, self.dataset_id, self.table_id)
-        except HttpError as err:
-            if err.resp.status != 409:
-                raise
-            else:
-                self.log.info('Table %s:%s.%s already exists.', self.project_id,
-                              self.dataset_id, self.table_id)
+            self.log.info('Table %s.%s.%s created successfully',
+                          table.project, table.dataset_id, table.table_id)
+        except Conflict:
+            self.log.info('Table %s.%s already exists.', self.dataset_id, self.table_id)
 
 
 # pylint: disable=too-many-instance-attributes
