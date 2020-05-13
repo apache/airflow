@@ -70,18 +70,17 @@ class TestBaseSensor(unittest.TestCase):
             state=State.RUNNING
         )
 
-    def _make_sensor(self, return_value, **kwargs):
+    def _make_sensor(self, return_value, task_id=SENSOR_OP, **kwargs):
         poke_interval = 'poke_interval'
         timeout = 'timeout'
-        task_id = 'task_id'
+
         if poke_interval not in kwargs:
             kwargs[poke_interval] = 0
         if timeout not in kwargs:
             kwargs[timeout] = 0
-        if task_id not in kwargs:
-            kwargs[task_id] = SENSOR_OP
 
         sensor = DummySensor(
+            task_id=task_id,
             return_value=return_value,
             dag=self.dag,
             **kwargs
