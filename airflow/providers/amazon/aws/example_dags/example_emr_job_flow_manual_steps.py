@@ -39,7 +39,7 @@ DEFAULT_ARGS = {
     'email_on_retry': False
 }
 
-SPARK_TEST_STEPS = [
+SPARK_STEPS = [
     {
         'Name': 'calculate_pi',
         'ActionOnFailure': 'CONTINUE',
@@ -93,7 +93,7 @@ with DAG(
         task_id='add_steps',
         job_flow_id="{{ task_instance.xcom_pull(task_ids='create_job_flow', key='return_value') }}",
         aws_conn_id='aws_default',
-        steps=SPARK_TEST_STEPS
+        steps=SPARK_STEPS
     )
 
     step_checker = EmrStepSensor(

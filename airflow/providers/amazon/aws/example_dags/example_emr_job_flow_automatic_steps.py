@@ -34,7 +34,7 @@ DEFAULT_ARGS = {
     'email_on_retry': False
 }
 
-SPARK_TEST_STEPS = [
+SPARK_STEPS = [
     {
         'Name': 'calculate_pi',
         'ActionOnFailure': 'CONTINUE',
@@ -65,7 +65,7 @@ JOB_FLOW_OVERRIDES = {
         'KeepJobFlowAliveWhenNoSteps': False,
         'TerminationProtected': False,
     },
-    'Steps': SPARK_TEST_STEPS,
+    'Steps': SPARK_STEPS,
     'JobFlowRole': 'EMR_EC2_DefaultRole',
     'ServiceRole': 'EMR_DefaultRole',
 }
