@@ -36,10 +36,8 @@ from airflow.utils.decorators import apply_defaults
 class BaseSensorOperator(BaseOperator, SkipMixin):
     """
     Sensor operators are derived from this class and inherit these attributes.
-
     Sensor operators keep executing at a time interval and succeed when
     a criteria is met and fail if and when they time out.
-
     :param soft_fail: Set to true to mark the task as SKIPPED on failure
     :type soft_fail: bool
     :param poke_interval: Time in seconds that the job should wait in
@@ -122,7 +120,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 # give it a chance and fail with timeout.
                 # This gives the ability to set up non-blocking AND soft-fail sensors.
                 if self.soft_fail and not context['ti'].is_eligible_to_retry():
-                    self._do_skip_downstream_tasks(context)
                     raise AirflowSkipException(
                         f"Snap. Time is OUT. DAG id: {log_dag_id}")
                 else:
@@ -136,12 +133,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 sleep(self._get_next_poke_interval(started_at, try_number))
                 try_number += 1
         self.log.info("Success criteria met. Exiting.")
-
-    def _do_skip_downstream_tasks(self, context: Dict) -> None:
-        downstream_tasks = context['task'].get_flat_relatives(upstream=False)
-        self.log.debug("Downstream task_ids %s", downstream_tasks)
-        if downstream_tasks:
-            self.skip(context['dag_run'], context['ti'].execution_date, downstream_tasks)
 
     def _get_next_poke_interval(self, started_at, try_number):
         """
@@ -188,10 +179,8 @@ def poke_mode_only(cls):
     """
     Class Decorator for child classes of BaseSensorOperator to indicate
     that instances of this class are only safe to use poke mode.
-
     Will decorate all methods in the class to assert they did not change
     the mode from 'poke'.
-
     :param cls: BaseSensor class to enforce methods only use 'poke' mode.
     :type cls: type
     """
