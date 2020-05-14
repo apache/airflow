@@ -21,6 +21,7 @@ from datetime import datetime
 from unittest.mock import MagicMock
 
 import mock
+from google.cloud.exceptions import Conflict
 from parameterized import parameterized
 
 from airflow import models
@@ -31,8 +32,8 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator,
     BigQueryDeleteDatasetOperator, BigQueryDeleteTableOperator, BigQueryExecuteQueryOperator,
     BigQueryGetDataOperator, BigQueryGetDatasetOperator, BigQueryGetDatasetTablesOperator,
-    BigQueryIntervalCheckOperator, BigQueryPatchDatasetOperator, BigQueryUpdateDatasetOperator,
-    BigQueryUpsertTableOperator, BigQueryValueCheckOperator,
+    BigQueryInsertJobOperator, BigQueryIntervalCheckOperator, BigQueryPatchDatasetOperator,
+    BigQueryUpdateDatasetOperator, BigQueryUpsertTableOperator, BigQueryValueCheckOperator,
 )
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import Session
@@ -788,3 +789,65 @@ class TestBigQueryUpsertTableOperator(unittest.TestCase):
                 project_id=TEST_GCP_PROJECT_ID,
                 table_resource=TEST_TABLE_RESOURCES
             )
+
+
+class TestBigQueryInsertJobOperator:
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
+    def test_execute(self, mock_hook):
+        job_id = "123456"
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
+        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=job_id)
+
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID
+        )
+        result = op.execute({})
+
+        mock_hook.return_value.insert_job.assert_called_once_with(
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+
+        assert result == job_id
+
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
+    def test_execute_idempotency(self, mock_hook):
+        job_id = "123456"
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
+        mock_hook.return_value.insert_job.return_value.result.side_effect = Conflict("any")
+        mock_hook.return_value.get_job.return_value = MagicMock(
+            job_id=job_id,
+            state="DONE",
+        )
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID
+        )
+        result = op.execute({})
+
+        mock_hook.return_value.get_job.assert_called_once_with(
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+
+        assert result == job_id

@@ -27,7 +27,7 @@ from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator, BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator,
     BigQueryDeleteDatasetOperator, BigQueryExecuteQueryOperator, BigQueryGetDataOperator,
-    BigQueryIntervalCheckOperator, BigQueryValueCheckOperator,
+    BigQueryInsertJobOperator, BigQueryIntervalCheckOperator, BigQueryValueCheckOperator,
 )
 from airflow.utils.dates import days_ago
 
@@ -40,10 +40,10 @@ TABLE_2 = "table2"
 INSERT_DATE = datetime.now().strftime("%Y-%m-%d")
 
 # [START howto_operator_bigquery_query]
-INSERT_ROWS_QUERY = f"""
-INSERT INTO {DATASET_NAME}.{TABLE_1} VALUES (42, "monthy python", "{INSERT_DATE}");
-INSERT INTO {DATASET_NAME}.{TABLE_1} VALUES (42, "fishy fish", "{INSERT_DATE}");
-"""
+INSERT_ROWS_QUERY = \
+    f"INSERT {DATASET_NAME}.{TABLE_1} VALUES " \
+    f"(42, 'monthy python', '{INSERT_DATE}'), " \
+    f"(42, 'fishy fish', '{INSERT_DATE}');"
 # [END howto_operator_bigquery_query]
 
 SCHEMA = [
@@ -82,6 +82,16 @@ with models.DAG(
 
     delete_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete_dataset", dataset_id=DATASET_NAME, delete_contents=True
+    )
+
+    insert_query_job = BigQueryInsertJobOperator(
+        task_id="insert_query_job",
+        configuration={
+            "query": {
+                "query": INSERT_ROWS_QUERY,
+                "useLegacySql": False,
+            }
+        },
     )
 
     # [START howto_operator_bigquery_execute_query]
@@ -137,7 +147,7 @@ with models.DAG(
     check_value = BigQueryValueCheckOperator(
         task_id="check_value",
         sql=f"SELECT COUNT(*) FROM {DATASET_NAME}.{TABLE_1}",
-        pass_value=2,
+        pass_value=4,
         use_legacy_sql=False,
     )
     # [END howto_operator_bigquery_value_check]
@@ -152,8 +162,9 @@ with models.DAG(
     )
     # [END howto_operator_bigquery_interval_check]
 
-    [create_table_1, create_table_2] >> execute_insert_query
+    [create_table_1, create_table_2] >> insert_query_job
 
+    insert_query_job >> execute_insert_query
     execute_insert_query >> get_data >> get_data_result >> delete_dataset
     execute_insert_query >> execute_query_save >> bigquery_execute_multi_query >> delete_dataset
     execute_insert_query >> [check_count, check_value, check_interval] >> delete_dataset

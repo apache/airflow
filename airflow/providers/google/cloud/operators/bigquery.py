@@ -23,6 +23,7 @@ This module contains Google BigQuery operators.
 import enum
 import json
 import warnings
+from time import sleep
 from typing import Any, Dict, Iterable, List, Optional, SupportsAbs, Union
 
 import attr
@@ -1570,3 +1571,76 @@ class BigQueryUpsertTableOperator(BaseOperator):
             table_resource=self.table_resource,
             project_id=self.project_id,
         )
+
+
+class BigQueryInsertJobOperator(BaseOperator):
+    """
+    Executes a BigQuery job. Waits for the job to complete and returns job id.
+    See here:
+
+        https://cloud.google.com/bigquery/docs/reference/v2/jobs
+
+    :param configuration: The configuration parameter maps directly to BigQuery's
+    configuration field in the job  object. For more details see
+        https://cloud.google.com/bigquery/docs/reference/v2/jobs
+    :type configuration: Dict[str, Any]
+    :param job_id: The ID of the job. The ID must contain only letters (a-z, A-Z),
+        numbers (0-9), underscores (_), or dashes (-). The maximum length is 1,024
+        characters. If not provided then uuid will be generated.
+    :type job_id: str
+    :param project_id: Google Cloud Project where the job is running
+    :type project_id: str
+    :param location: location the job is running
+    :type location: str
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    """
+
+    template_fields = ("configuration", "job_id")
+    ui_color = BigQueryUIColors.QUERY.value
+
+    def __init__(
+        self,
+        configuration: Dict[str, Any],
+        project_id: Optional[str] = None,
+        location: Optional[str] = None,
+        job_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.configuration = configuration
+        self.location = location
+        self.job_id = job_id
+        self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+
+    def execute(self, context: Any):
+        hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+        )
+
+        try:
+            job = hook.insert_job(
+                configuration=self.configuration,
+                project_id=self.project_id,
+                location=self.location,
+                job_id=self.job_id,
+            )
+            # Start the job and wait for it to complete and get the result.
+            job.result()
+        except Conflict:
+            job = hook.get_job(
+                project_id=self.project_id,
+                location=self.location,
+                job_id=self.job_id,
+            )
+            # Get existing job and wait for it to be ready
+            while not job.done():
+                sleep(10)
+                job.reload()
+        return job.job_id
