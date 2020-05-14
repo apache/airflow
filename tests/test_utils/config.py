@@ -57,14 +57,19 @@ def conf_vars(overrides):
 
 @contextlib.contextmanager
 def env_vars(overrides):
-    original = {}
+    orig_vars = {}
+    new_vars = []
     for (section, key), value in overrides.items():
         env = conf._env_var_name(section, key)
-
-        original[env] = os.environ.pop(env, '')
+        if env in os.environ:
+            orig_vars[env] = os.environ.pop(env, '')
+        else:
+            new_vars.append(env)
         os.environ[env] = value
     try:
         yield
     finally:
-        for env, value in original.items():
+        for env, value in orig_vars.items():
             os.environ[env] = value
+        for env in new_vars:
+            os.environ.pop(env)
