@@ -48,7 +48,7 @@ Two example_dags are provided which showcase these operators in action.
  - example_emr_job_flow_manual_steps.py
 
 .. note::
-    In order to run the 2 examples sucessfully, you need to create the IAM Service Roles (``EMR_EC2_DefaultRole`` and ``EMR_DefaultRole``)for Amazon EMR.
+    In order to run the 2 examples sucessfully, you need to create the IAM Service Roles (``EMR_EC2_DefaultRole`` and ``EMR_DefaultRole``) for Amazon EMR.
 
     You can create these roles using the AWS CLI: ``aws emr create-default-roles``
 
@@ -105,8 +105,6 @@ Defining tasks
 """"""""""""""
 
 Here is the task definitions for our DAG.
-
-[END howto_operator_emr_manual_steps_tasks]
 
 .. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_emr_job_flow_manual_steps.py
     :language: python
