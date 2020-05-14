@@ -106,10 +106,6 @@ class TestSalesforceHook(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.salesforce_hook.write_object_to_file(query_results=[], filename="test", fmt="test")
 
-    def test_write_object_to_file_no_filename(self):
-        with self.assertRaises(ValueError):
-            self.salesforce_hook.write_object_to_file(query_results=[], filename=None)
-
     @patch(
         "airflow.providers.salesforce.hooks.salesforce.pd.DataFrame.from_records",
         return_value=pd.DataFrame({"test": [1, 2, 3], "dict": [None, None, {"foo": "bar"}]}),
