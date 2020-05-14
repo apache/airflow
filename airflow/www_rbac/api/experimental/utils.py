@@ -95,7 +95,7 @@ def get_task_params(task_instance, entity_id):
 def get_result_args():
     return {
         "bucket": 'desoutter',
-        "url": Variable.get('influxdb_url', '10.1.1.44:9999'),
+        "url": Variable.get('influxdb_url', '127.0.0.1:9999'),
         "ou": 'desoutter',
         "token": Variable.get('influxdb_token',
                               'PP4zVtAxld9oOISOTeWx0uuVXUQfvHi8hnFe47U-pef70eh8eaKzfxlVv0dUuggoXe4-3WOnedV3u-xp2-5sQ=='),
@@ -107,7 +107,7 @@ def get_result_args():
 def get_curve_args():
     return {
         "bucket": "desoutter",
-        "endpoint": Variable.get('oss_url', '10.1.1.44:9000'),
+        "endpoint": Variable.get('oss_url', '127.0.0.1:9000'),
         "access_key": Variable.get('oss_key', 'minio'),
         "secret_key": Variable.get('oss_secret', 'minio123'),
         "secure": False

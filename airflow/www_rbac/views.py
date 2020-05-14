@@ -408,11 +408,13 @@ class Airflow(AirflowBaseView):
         result_error_message_mapping = Variable.get('result_error_message_mapping', deserialize_json=True,
                                                     default_var={})
         result_keys_translation_mapping = Variable.get('result_keys_translation_mapping', deserialize_json=True,
-                                                    default_var={})
+                                                       default_var={})
+        error_tags = ErrorTag.get_all()
         return self.render_template('airflow/curve.html', task_instance=ti, result=result,
                                     curve=curve, analysisErrorMessageMapping=analysis_error_message_mapping,
                                     resultErrorMessageMapping=result_error_message_mapping,
-                                    resultKeysTranslationMapping=result_keys_translation_mapping)
+                                    resultKeysTranslationMapping=result_keys_translation_mapping,
+                                    errorTags=error_tags)
 
     @expose('/task_stats', methods=['POST'])
     @has_access
@@ -2354,6 +2356,7 @@ class ConnectionModelView(AirflowModelView):
                 field = getattr(form, field)
                 field.data = value
 
+
 class ErrorTagModelView(AirflowModelView):
     route_base = '/error_tag'
 
@@ -2362,7 +2365,7 @@ class ErrorTagModelView(AirflowModelView):
     base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete']
 
     extra_fields = []
-    list_columns = [ 'value', 'label']
+    list_columns = ['value', 'label']
     add_columns = edit_columns = ['value', 'label'] + extra_fields
     add_form = edit_form = ErrorTagForm
     add_template = 'airflow/error_tag_create.html'
@@ -2377,8 +2380,6 @@ class ErrorTagModelView(AirflowModelView):
         self.datamodel.delete_all(items)
         self.update_redirect()
         return redirect(self.get_redirect())
-
-
 
 
 class PoolModelView(AirflowModelView):

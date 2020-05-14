@@ -51,11 +51,9 @@
     <label for="error-tag-select" id="error-tag-label-container" class="flex">
       曲线标签
       <select class="error-tag-select-input" id="error-tag-select" name="states[]" multiple>
-        <option value="Amsterdam">Amsterdam</option>
-        <option value="Washington">Washington</option>
-        <option value="Sydney">Sydney</option>
-        <option value="Beijing">Beijing</option>
-        <option value="Cairo">Cairo</option>
+        {% for err in errorTags %}
+        <option value="{{err.value}}" data-id="{{err.id}}">{{err.label}}</option>
+        {% endfor %}
       </select>
   </div>
   <div id="echarts-container" style="flex:1" class="card flex-column">

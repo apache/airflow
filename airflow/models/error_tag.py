@@ -1,8 +1,7 @@
-from sqlalchemy import Column, Integer, String, Text, Index
+from sqlalchemy import Column, Integer, String
 
-from airflow.models.base import Base, ID_LEN
-from airflow.utils import timezone
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.models.base import Base
+from airflow.utils.db import provide_session
 
 
 class ErrorTag(Base):
@@ -15,3 +14,9 @@ class ErrorTag(Base):
     id = Column(Integer, primary_key=True, nullable=False, autoincrement=True)
     label = Column(String(1000), nullable=False)
     value = Column(String(1000), nullable=False)
+
+    @classmethod
+    @provide_session
+    def get_all(cls, session=None):
+        objs = session.query(cls)
+        return objs.all()
