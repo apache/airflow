@@ -282,7 +282,6 @@ will automatically load the registered plugins from the entrypoint list.
       operators = [MyOperator]
       hooks = [MyHook]
 
-
 .. code-block:: python
 
     from setuptools import setup
@@ -297,7 +296,7 @@ will automatically load the registered plugins from the entrypoint list.
         }
     )
 
-
 This will create a hook, and an operator accessible at:
- - ``airflow.hooks.my_namespace.MyHook``
- - ``airflow.operators.my_namespace.MyOperator``
+
+- ``airflow.hooks.my_namespace.MyHook``
+- ``airflow.operators.my_namespace.MyOperator``
