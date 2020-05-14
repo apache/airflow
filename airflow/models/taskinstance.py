@@ -550,6 +550,13 @@ class TaskInstance(Base, LoggingMixin):
             session.commit()
 
     @provide_session
+    def set_error_tag(self, error_tag, session=None, commit=True):
+        self.error_tag = error_tag
+        session.merge(self)
+        if commit:
+            session.commit()
+
+    @provide_session
     def set_final_state(self, final_state, session=None, commit=True):
         self.final_state = final_state
         self.start_date = timezone.utcnow()

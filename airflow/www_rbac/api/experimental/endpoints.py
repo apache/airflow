@@ -43,6 +43,7 @@ from airflow.entities.result_storage import ClsResultStorage
 from airflow.entities.curve_storage import ClsCurveStorage
 import airflow.entities as entities
 import os
+import json
 
 _log = LoggingMixin().log
 
@@ -108,6 +109,36 @@ def put_anaylysis_result():
         resp = jsonify({'error': str(e)})
         resp.status_code = 500
         return resp
+
+
+@csrf.exempt
+@api_experimental.route('/error_tag/dags/<string:dag_id>/tasks/<string:task_id>/<string:execution_date>',
+                        methods=['POST'])
+@requires_authentication
+def save_curve_error_tag(dag_id, task_id, execution_date):
+    try:
+        execution_date = timezone.parse(execution_date)
+    except ValueError:
+        error_message = (
+            'Given execution date, {}, could not be identified '
+            'as a date. Example date format: 2015-11-16T14:34:15+00:00'
+                .format(execution_date))
+        _log.info(error_message)
+        response = jsonify({'error': error_message})
+        response.status_code = 400
+
+        return response
+    try:
+        params = request.get_json(force=True)  # success failed
+        error_tags = json.dumps(params.get('error_tags', []))
+        task = get_task_instance(dag_id, task_id, execution_date)
+        task.set_error_tag(error_tags)
+        return jsonify({'response': 'ok'})
+    except AirflowException as err:
+        _log.info(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
 
 
 @csrf.exempt

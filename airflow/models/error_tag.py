@@ -15,8 +15,17 @@ class ErrorTag(Base):
     label = Column(String(1000), nullable=False)
     value = Column(String(1000), nullable=False)
 
+    @staticmethod
+    def _error_tag_data(error_tag):
+        return {
+            'id': error_tag.id,
+            'label': error_tag.label,
+            'value': error_tag.value
+        }
+
     @classmethod
     @provide_session
     def get_all(cls, session=None):
-        objs = session.query(cls)
-        return objs.all()
+        objs = session.query(cls).all()
+        dataArr = map(cls._error_tag_data, objs)
+        return dataArr

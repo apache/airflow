@@ -9,8 +9,6 @@
 <link rel="stylesheet" type="text/css"
       href="{{ url_for('static', filename='css/main.css') }}">
 <link rel="stylesheet" type="text/css"
-      href="{{ url_for('static', filename='css/bootstrap-tagsinput.css') }}">
-<link rel="stylesheet" type="text/css"
       href="{{ url_for('static', filename='css/select2.min.css') }}">
 <script src="{{ url_for('static', filename='js/echarts.js') }}" type="text/javascript"></script>
 {% endblock %}
@@ -50,11 +48,12 @@
   <div id="error-tag-container" class="card">
     <label for="error-tag-select" id="error-tag-label-container" class="flex">
       曲线标签
-      <select class="error-tag-select-input" id="error-tag-select" name="states[]" multiple>
+      <select class="error-tag-select-input" id="error-tag-select" name="error_tags[]" multiple disabled>
         {% for err in errorTags %}
-        <option value="{{err.value}}" data-id="{{err.id}}">{{err.label}}</option>
+        <option value="{{err.id}}" data-value="{{err.value}}">{{err.label}}</option>
         {% endfor %}
       </select>
+      <button id="error-tag-button">编辑</button>
   </div>
   <div id="echarts-container" style="flex:1" class="card flex-column">
     <div class="flex" id="actions-container">
@@ -89,6 +88,7 @@
 
 {% block tail_js %}
 {{ super() }}
+<script src="{{ url_for('static', filename='js/select2.min.js') }}" type="text/javascript"></script>
 <script type="text/javascript">
   let curveChart = null;
   const result = JSON.parse('{{ result|tojson|safe }}');
@@ -216,7 +216,7 @@
   function renderResultDetail() {
     const { measure_result: measureResult, error_code: errorCode, ...rest } = result;
     const $rows = [];
-    const isNOK = measureResult.toUpperCase() === 'NOK';
+    const isNOK = (measureResult||'').toUpperCase() === 'NOK';
     $rows.push(renderResultTableRow(resultKeys.measure_result || 'measure_result', measureResult, isNOK));
     $rows.push(renderResultTableRow(resultKeys.error_code || 'error_code', parseResultErrorCode(errorCode), isNOK));
     Object.keys(rest).forEach((k) => {
@@ -224,11 +224,6 @@
     });
     $('#result_detail').append($rows);
   }
-
-  $(document).ready(() => {
-    chartInit();
-    renderResultDetail();
-  });
 
   $(window).resize(() => {
     if (!curveChart) {
@@ -324,13 +319,56 @@
   $('#btn_double_check_success').click((e) => {
     submitDoubleCheck('OK');
   });
+
+  function saveErrorTags(errorTags) {
+    const errorTagsArr = (errorTags || []).map(t => {
+      return JSON.parse(t);
+    });
+    $.ajax({
+      type: 'POST',
+      url: "{{ url_for('api_experimental.save_curve_error_tag',dag_id=task_instance.dag_id, task_id=task_instance.task_id, execution_date=task_instance.execution_date ) }}",
+      data: JSON.stringify({
+        csrf_token: '{{ csrf_token() }}',
+        error_tags: errorTagsArr,
+      }),
+      headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
+      dataType: 'json',
+      contentType: 'application/json',
+    }).then((resp) => {
+      console.log(resp);
+    });
+  }
+
+  function getTaskErrorTags() {
+    try {
+      return JSON.parse('{{task_instance.error_tag}}');
+    } catch (e) {
+      return [];
+    }
+  }
+
   $(document).ready(() => {
-    $('.error-tag-select-input').select2({
-      width: '90%',
+    chartInit();
+    renderResultDetail();
+    const $errorTagInput = $('.error-tag-select-input');
+    const $errorTagButton = $('#error-tag-button');
+    $errorTagInput.select2({
+      width: '85%',
+    });
+
+    $errorTagInput.val(getTaskErrorTags().map(t => `${t}`)).trigger('change');
+
+    $errorTagButton.click((e) => {
+      const editing = !$errorTagInput.attr('disabled');
+      if (editing) {
+        $errorTagInput.attr('disabled', true);
+        $errorTagButton.html('编辑');
+        saveErrorTags($errorTagInput.val());
+        return;
+      }
+      $errorTagInput.attr('disabled', false);
+      $errorTagButton.html('保存');
     });
   });
 </script>
-<script src="{{ url_for('static', filename='js/select2.min.js') }}" type="text/javascript"></script>
-<script src="{{ url_for('static', filename='js/bootstrap-tagsinput.min.js') }}" type="text/javascript"></script>
-
 {% endblock %}
