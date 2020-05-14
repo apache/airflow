@@ -15,8 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# [START howto_operator_gcp_create_build_from_yaml_body]
 steps:
   - name: 'ubuntu'
     args: ['echo', 'hello world, the day is {{ ds }} ']
-# [END howto_operator_gcp_create_build_from_yaml_body]

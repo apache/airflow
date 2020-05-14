@@ -99,10 +99,11 @@ with models.DAG(
         task_id="create_build_from_repo_result",
     )
 
+    # [START howto_operator_gcp_create_build_from_yaml_body]
     create_build_from_file = CloudBuildCreateOperator(
         task_id="create_build_from_file", project_id=GCP_PROJECT_ID, body='example_cloud_build.yaml'
     )
-
+    # [END howto_operator_gcp_create_build_from_yaml_body]
     create_build_from_storage >> create_build_from_storage_result  # pylint: disable=pointless-statement
 
     create_build_from_repo >> create_build_from_repo_result  # pylint: disable=pointless-statement
