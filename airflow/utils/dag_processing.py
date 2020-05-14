@@ -688,6 +688,10 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             "Checking for new files in %s every %s seconds", self._dag_directory, self.dag_dir_list_interval
         )
 
+        return self._run_parsing_loop()
+
+    def _run_parsing_loop(self):
+
         # In sync mode we want timeout=None -- wait forever until a message is received
         if self._async_mode:
             poll_time = 0.0

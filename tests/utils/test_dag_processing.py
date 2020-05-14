@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import multiprocessing
 import os
 import sys
 import unittest
@@ -30,7 +31,8 @@ from airflow.models import DagBag, TaskInstance as TI
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.utils import timezone
 from airflow.utils.dag_processing import (
-    DagFileProcessorAgent, DagFileProcessorManager, DagFileStat, FailureCallbackRequest,
+    DagFileProcessorAgent, DagFileProcessorManager, DagFileStat, DagParsingSignal, DagParsingStat,
+    FailureCallbackRequest,
 )
 from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
 from airflow.utils.session import create_session
@@ -84,6 +86,22 @@ class FakeDagFileProcessorRunner(DagFileProcessorProcess):
 class TestDagFileProcessorManager(unittest.TestCase):
     def setUp(self):
         clear_db_runs()
+
+    def run_processor_manager_one_loop(self, manager, parent_pipe):
+        if not manager._async_mode:
+            parent_pipe.send(DagParsingSignal.AGENT_RUN_ONCE)
+
+        results = []
+
+        while True:
+            manager._run_parsing_loop()
+
+            while parent_pipe.poll(timeout=0.01):
+                obj = parent_pipe.recv()
+                if not isinstance(obj, DagParsingStat):
+                    results.append(obj)
+                elif obj.done:
+                    return results
 
     def test_set_file_paths_when_processor_file_path_not_in_new_file_paths(self):
         manager = DagFileProcessorManager(
@@ -149,10 +167,11 @@ class TestDagFileProcessorManager(unittest.TestCase):
             ti = TI(task, DEFAULT_DATE, State.RUNNING)
             local_job = LJ(ti)
             local_job.state = State.SHUTDOWN
-            local_job.id = 1
-            ti.job_id = local_job.id
 
             session.add(local_job)
+            session.commit()
+
+            ti.job_id = local_job.id
             session.add(ti)
             session.commit()
 
@@ -189,12 +208,15 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 ti = TI(task, DEFAULT_DATE, State.RUNNING)
                 local_job = LJ(ti)
                 local_job.state = State.SHUTDOWN
-                local_job.id = 1
-                ti.job_id = local_job.id
-
                 session.add(local_job)
-                session.add(ti)
                 session.commit()
+
+                # TODO: If there was an actual Relationshop between TI and Job
+                # we wouldn't need this extra commit
+                session.add(ti)
+                ti.job_id = local_job.id
+                session.commit()
+
                 fake_failure_callback_requests = [
                     FailureCallbackRequest(
                         full_filepath=dag.full_filepath,
@@ -205,28 +227,28 @@ class TestDagFileProcessorManager(unittest.TestCase):
 
             test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_example_bash_operator.py')
 
+            child_pipe, parent_pipe = multiprocessing.Pipe()
             async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
-            processor_agent = DagFileProcessorAgent(test_dag_path,
-                                                    1,
-                                                    FakeDagFileProcessorRunner._fake_dag_processor_factory,
-                                                    timedelta.max,
-                                                    [],
-                                                    False,
-                                                    async_mode)
-            processor_agent.start()
-            parsing_result = []
-            if not async_mode:
-                processor_agent.run_single_parsing_loop()
-            while not processor_agent.done:
-                if not async_mode:
-                    processor_agent.wait_until_finished()
-                parsing_result.extend(processor_agent.harvest_simple_dags())
+
+            manager = DagFileProcessorManager(
+                dag_directory=test_dag_path,
+                max_runs=1,
+                processor_factory=FakeDagFileProcessorRunner._fake_dag_processor_factory,
+                processor_timeout=timedelta.max,
+                signal_conn=child_pipe,
+                dag_ids=[],
+                pickle_dags=False,
+                async_mode=async_mode)
+
+            parsing_result = self.run_processor_manager_one_loop(manager, parent_pipe)
 
             self.assertEqual(len(fake_failure_callback_requests), len(parsing_result))
             self.assertEqual(
                 set(zombie.simple_task_instance.key for zombie in fake_failure_callback_requests),
                 set(result.simple_task_instance.key for result in parsing_result)
             )
+            child_pipe.close()
+            parent_pipe.close()
 
     @mock.patch("airflow.jobs.scheduler_job.DagFileProcessorProcess.pid", new_callable=PropertyMock)
     @mock.patch("airflow.jobs.scheduler_job.DagFileProcessorProcess.kill")
