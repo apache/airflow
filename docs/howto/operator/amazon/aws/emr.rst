@@ -33,7 +33,7 @@ Prerequisite Tasks
 Overview
 --------
 
-Airflow to AWS EMR integraion provides several operators to create and interact with EMR service.
+Airflow to AWS EMR integration provides several operators to create and interact with EMR service.
 
  - :class:`~airflow.providers.amazon.aws.sensors.emr_step.EmrJobFlowSensor`
  - :class:`~airflow.providers.amazon.aws.sensors.emr_step.EmrStepSensor`
