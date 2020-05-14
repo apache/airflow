@@ -559,7 +559,8 @@ class GCSFileTransformOperator(BaseOperator):
     :type gcp_conn_id: str
     """
 
-    template_fields = ('source_bucket', 'destination_bucket', 'transform_script')
+    template_fields = ('source_bucket', 'source_object','destination_bucket',
+                       'destination_object', 'transform_script')
 
     @apply_defaults
     def __init__(
