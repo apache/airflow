@@ -34,6 +34,7 @@ DEFAULT_ARGS = {
     'email_on_retry': False
 }
 
+# [START howto_operator_emr_automatic_steps_config]
 SPARK_STEPS = [
     {
         'Name': 'calculate_pi',
@@ -69,6 +70,7 @@ JOB_FLOW_OVERRIDES = {
     'JobFlowRole': 'EMR_EC2_DefaultRole',
     'ServiceRole': 'EMR_DefaultRole',
 }
+# [END howto_operator_emr_automatic_steps_config]
 
 with DAG(
     dag_id='emr_job_flow_automatic_steps_dag',
@@ -78,6 +80,7 @@ with DAG(
     tags=['example'],
 ) as dag:
 
+    # [START howto_operator_emr_automatic_steps_tasks]
     job_flow_creator = EmrCreateJobFlowOperator(
         task_id='create_job_flow',
         job_flow_overrides=JOB_FLOW_OVERRIDES,
@@ -92,3 +95,4 @@ with DAG(
     )
 
     job_flow_creator >> job_sensor
+    # [END howto_operator_emr_automatic_steps_tasks]

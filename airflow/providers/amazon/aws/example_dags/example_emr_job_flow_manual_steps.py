@@ -82,6 +82,7 @@ with DAG(
     tags=['example'],
 ) as dag:
 
+    # [START howto_operator_emr_manual_steps_tasks]
     cluster_creator = EmrCreateJobFlowOperator(
         task_id='create_job_flow',
         job_flow_overrides=JOB_FLOW_OVERRIDES,
@@ -110,3 +111,4 @@ with DAG(
     )
 
     cluster_creator >> step_adder >> step_checker >> cluster_remover
+    # [END howto_operator_emr_manual_steps_tasks]
