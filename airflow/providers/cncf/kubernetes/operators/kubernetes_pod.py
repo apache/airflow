@@ -324,7 +324,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         @param labels:
         @param launcher:
         @return:
-        '''
+        """
         if not (self.full_pod_spec or self.pod_template_file):
             # Add Airflow Version to the label
             # And a label to identify that pod is launched by KubernetesPodOperator
