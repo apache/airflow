@@ -25,7 +25,7 @@ import unittest.mock
 from collections import namedtuple
 from datetime import date, timedelta
 from subprocess import CalledProcessError
-from typing import List, Optional
+from typing import List
 
 import funcsigs
 import pytest
@@ -36,7 +36,7 @@ from airflow.models.taskinstance import clear_task_instances
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import (
-    BranchPythonOperator, PythonOperator, PythonVirtualenvOperator, ShortCircuitOperator, task_decorator,
+    BranchPythonOperator, operator, PythonOperator, PythonVirtualenvOperator, ShortCircuitOperator,
 )
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -333,13 +333,6 @@ class TestAirflowTask(unittest.TestCase):
                 'start_date': DEFAULT_DATE})
         self.addCleanup(self.dag.clear)
 
-        # Methods need self and we don't support that.
-        @task_decorator
-        def do_run():
-            return 4
-
-        self.do_run = do_run
-
     def tearDown(self):
         super().tearDown()
 
@@ -370,7 +363,7 @@ class TestAirflowTask(unittest.TestCase):
         the python_callable argument is callable."""
         not_callable = {}
         with pytest.raises(AirflowException):
-            task_decorator(not_callable, dag=self.dag)
+            operator(not_callable, dag=self.dag)
 
     def test_python_callable_arguments_are_templatized(self):
         """Test @task op_args are templatized"""
@@ -381,7 +374,7 @@ class TestAirflowTask(unittest.TestCase):
         Named = namedtuple('Named', ['var1', 'var2'])
         named_tuple = Named('{{ ds }}', 'unchanged')
 
-        task = task_decorator(
+        task = operator(
             # a Mock instance cannot be used as a callable function or test fails with a
             # TypeError: Object of type Mock is not JSON serializable
             build_recording_function(recorded_calls),
@@ -410,7 +403,7 @@ class TestAirflowTask(unittest.TestCase):
         """Test PythonOperator op_kwargs are templatized"""
         recorded_calls = []
 
-        task = task_decorator(
+        task = operator(
             # a Mock instance cannot be used as a callable function or test fails with a
             # TypeError: Object of type Mock is not JSON serializable
             build_recording_function(recorded_calls),
@@ -436,20 +429,27 @@ class TestAirflowTask(unittest.TestCase):
 
     def test_copy_in_dag(self):
         """Test copy method to reuse tasks in a DAG"""
+
+        @operator
+        def do_run():
+            return 4
         with self.dag:
-            self.do_run()
+            do_run()
             assert ['do_run'] == self.dag.task_ids
-            do_run_1 = self.do_run.copy()
-            do_run_2 = self.do_run.copy()
+            do_run_1 = do_run.copy()
+            do_run_2 = do_run.copy()
         assert do_run_1.task_id == 'do_run__1'
         assert do_run_2.task_id == 'do_run__2'
 
     def test_copy(self):
         """Test copy method outside of a DAG"""
-        do_run_1 = self.do_run.copy()
-        do_run_2 = self.do_run.copy()
+        @operator
+        def do_run():
+            return 4
+        do_run_1 = do_run.copy()
+        do_run_2 = do_run.copy()
         with self.dag:
-            self.do_run()
+            do_run()
             assert ['do_run'] == self.dag.task_ids
             do_run_1()
             do_run_2()
@@ -460,7 +460,7 @@ class TestAirflowTask(unittest.TestCase):
     def test_dict_outputs(self):
         """Tests pushing multiple outputs as a dictionary"""
 
-        @task_decorator(multiple_outputs=True)
+        @operator(multiple_outputs=True)
         def return_dict(number: int):
             return {
                 'number': number + 1,
@@ -488,7 +488,7 @@ class TestAirflowTask(unittest.TestCase):
     def test_tuple_outputs(self):
         """Tests pushing multiple outputs as tuple"""
 
-        @task_decorator(multiple_outputs=True)
+        @operator(multiple_outputs=True)
         def return_tuple(number: int):
             return number + 1, 43
 
@@ -513,7 +513,7 @@ class TestAirflowTask(unittest.TestCase):
     def test_list_outputs(self):
         """Tests pushing multiple outputs as list"""
 
-        @task_decorator(multiple_outputs=True)
+        @operator(multiple_outputs=True)
         def return_tuple(number: int):
             return [number + 1, 43]
 
@@ -538,12 +538,12 @@ class TestAirflowTask(unittest.TestCase):
     def test_xcom_arg(self):
         """Tests that returned key in XComArg is returned correctly"""
 
-        @task_decorator
+        @operator
         def add_2(number: int):
             return number + 2
 
-        @task_decorator
-        def add_num(number: int, num2: Optional[int] = 2):
+        @operator
+        def add_num(number: int, num2: int = 2):
             return number + num2
 
         test_number = 10
@@ -563,12 +563,12 @@ class TestAirflowTask(unittest.TestCase):
         add_num.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         ti = dr.get_task_instances()[1]
         assert ti.task_id == 'add_num'
-        assert ti.xcom_pull(key=ret.key) == (test_number + 2) * 2 # pylint: disable=maybe-no-member
+        assert ti.xcom_pull(key=ret.key) == (test_number + 2) * 2  # pylint: disable=maybe-no-member
 
     def test_dag_task(self):
         """Tests dag.task property to generate task"""
 
-        @self.dag.task
+        @self.dag.operator
         def add_2(number: int):
             return number + 2
 
@@ -585,12 +585,12 @@ class TestAirflowTask(unittest.TestCase):
         add_2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         ti = dr.get_task_instances()[0]
-        assert ti.xcom_pull(key=ret.key) == test_number + 2 # pylint: disable=maybe-no-member
+        assert ti.xcom_pull(key=ret.key) == test_number + 2  # pylint: disable=maybe-no-member
 
     def test_dag_task_multiple_outputs(self):
         """Tests dag.task property to generate task with multiple outputs"""
 
-        @self.dag.task(multiple_outputs=True)
+        @self.dag.operator(multiple_outputs=True)
         def add_2(number: int):
             return number + 2, 42
 
@@ -607,14 +607,15 @@ class TestAirflowTask(unittest.TestCase):
         add_2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         ti = dr.get_task_instances()[0]
-        assert ti.xcom_pull(key=ret[0].key) == test_number + 2 # pylint: disable=maybe-no-member
-        assert ti.xcom_pull(key=ret[1].key) == 42 # pylint: disable=maybe-no-member
-        assert ti.xcom_pull(key=ret.key) == [test_number + 2, 42] # pylint: disable=maybe-no-member
+        assert ti.xcom_pull(key=ret[0].key) == test_number + 2  # pylint: disable=maybe-no-member
+        assert ti.xcom_pull(key=ret[1].key) == 42  # pylint: disable=maybe-no-member
+        assert ti.xcom_pull(key=ret.key) == [test_number + 2, 42]  # pylint: disable=maybe-no-member
 
     def test_airflow_task(self):
         """Tests airflow.task decorator to generate task"""
-        import airflow
-        @airflow.task
+        from airflow import operator
+
+        @operator
         def add_2(number: int):
             return number + 2
 
@@ -632,7 +633,7 @@ class TestAirflowTask(unittest.TestCase):
         add_2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         ti = dr.get_task_instances()[0]
-        assert test_number + 2 == ti.xcom_pull(key=ret.key) # pylint: disable=maybe-no-member
+        assert test_number + 2 == ti.xcom_pull(key=ret.key)  # pylint: disable=maybe-no-member
 
 
 class TestBranchOperator(unittest.TestCase):

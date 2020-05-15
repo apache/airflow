@@ -116,6 +116,47 @@ DAGs can be used as context managers to automatically assign new operators to th
 
     op.dag is dag # True
 
+.. _concepts:functional_dags:
+
+Functional DAGs
+---------------
+*Added in Airflow 1.10.11*
+
+DAGs can be defined using functional abstractions. Outputs and inputs are sent between tasks using
+:ref:`XComs <concepts:xcom>` values. In addition, you can wrap functions as tasks using the
+:ref:`operator decorator <concepts:operator_decorator>`. Dependencies are automatically inferred from
+the message dependencies.
+
+Example DAG with functional abstraction
+
+.. code:: python
+
+  with DAG(
+      'send_server_ip', default_args=default_args, schedule_interval=None
+  ) as dag:
+
+    # Using default connection as it's set to httpbin.org by default
+    get_ip = SimpleHttpOperator(
+        task_id='get_ip', endpoint='get', method='GET', xcom_push=True
+    )
+
+    @dag.operator(multiple_outputs=True)
+    def prepare_email(raw_json: str) -> str:
+      external_ip = json.loads(raw_json)['origin']
+      return {
+        'subject':f'Server connected from {external_ip}',
+        'body': f'Seems like today your server executing Airflow is connected from the external IP {external_ip}<br>'
+      }
+
+    email_info = prepare_email(get_ip.output)
+
+    send_email = EmailOperator(
+        task_id='send_email',
+        to='example@example.com',
+        subject=email_info['subject'],
+        html_content=email_info['body']
+    )
+
 .. _concepts:dagruns:
 
 DAG Runs
@@ -172,6 +213,43 @@ Each task is a node in our DAG, and there is a dependency from task_1 to task_2:
 
 We can say that task_1 is *upstream* of task_2, and conversely task_2 is *downstream* of task_1.
 When a DAG Run is created, task_1 will start running and task_2 waits for task_1 to complete successfully before it may start.
+
+.. _concepts:operator_decorator:
+
+Python operator decorator
+-------------------------
+*Added in Airflow 1.10.11*
+
+
+Airflow ``operator`` decorator converts any Python decorated function to a Python Airflow operator.
+The decorated function can be called to set the arguments and key arguments for operator execution.
+
+.. code:: python
+
+  with DAG('my_dag', start_date=datetime(2020, 5, 15)) as dag:
+
+    @dag.operator
+    def hello_world():
+      print('hello world!')
+
+
+    # Also...
+
+    from airflow import operator
+
+    @operator
+    def hello_name(name: str):
+      print(f'hello {name}!')
+
+    hello_name('Airflow users')
+
+Operator decorator captures returned values and sends them to the :ref:`XCom backend <concepts:xcom>`. By default, returned
+value is saved as a single XCom value. You can set ``multiple_outputs`` key argument to ``True`` to unroll dictionaries,
+lists or tuples into seprate XCom values. This can be used with regular operators to create
+:ref:`functional DAGs <concepts:functional_dags>`.
+
+Calling a decorated function returns an ``XComArg`` instance. You can use it to set templated fields on downstream
+operators.
 
 Task Instances
 ==============

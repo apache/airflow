@@ -25,7 +25,7 @@ from inspect import signature
 from itertools import islice
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Callable, Dict, Iterable, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 import dill
 
@@ -188,7 +188,7 @@ class _PythonFunctionalOperator(BaseOperator):
             kwargs['task_id'] = f'{prefix}__{num}'
 
         if not kwargs.get('do_xcom_push', True) and not multiple_outputs:
-            raise AirflowException('PythonFunctionalOperator needs to have either do_xcom_push=True or '
+            raise AirflowException('@operator needs to have either do_xcom_push=True or '
                                    'multiple_outputs=True.')
         if not callable(python_callable):
             raise AirflowException('`python_callable` param must be callable')
@@ -197,18 +197,19 @@ class _PythonFunctionalOperator(BaseOperator):
         self.python_callable = python_callable
         self.multiple_outputs = multiple_outputs
         self._kwargs = kwargs
-        self._op_args = None
-        self._op_kwargs = None
+        self._op_args: List[Any] = []
+        self._called = False
+        self._op_kwargs: Dict[str, Any] = {}
 
     @staticmethod
     def _fail_if_method(python_callable):
         if 'self' in signature(python_callable).parameters.keys():
-            raise AirflowException('@task does not support methods')
+            raise AirflowException('@operator does not support methods')
 
     def __call__(self, *args, **kwargs):
         # If args/kwargs are set, then operator has been called. Raise exception
-        if self._op_args is not None or self._op_kwargs is not None:
-            raise AirflowException('PythonFunctionalOperator can only be called once. If you need to reuse '
+        if self._called:
+            raise AirflowException('@operator decorated functions can only be called once. If you need to reuse '
                                    'it several times in a DAG, use the `copy` method.')
 
         # If we have no DAG, reinitialize class to capture DAGContext and DAG default args.
@@ -220,11 +221,12 @@ class _PythonFunctionalOperator(BaseOperator):
         # Capture args/kwargs
         self._op_args = args
         self._op_kwargs = kwargs
+        self._called = True
         return XComArg(self)
 
     def copy(self, task_id: Optional[str] = None, **kwargs):
         """
-        Create a copy of the PythonFunctionalOperator, allow to overwrite ctor kwargs if needed.
+        Create a copy of the task, allow to overwrite ctor kwargs if needed.
 
         If alias is created a new DAGContext, apply defaults and set new DAG as the operator DAG.
 
@@ -253,9 +255,9 @@ class _PythonFunctionalOperator(BaseOperator):
         return return_value
 
 
-def task_decorator(python_callable: Optional[Callable] = None, **kwargs):
+def operator(python_callable: Optional[Callable] = None, **kwargs):
     """
-    Python task decorator. Wraps a function into an Airflow operator.
+    Python operator decorator. Wraps a function into an Airflow operator.
     Accepts kwargs for operator kwarg. Will try to wrap operator into DAG at declaration or
     on function invocation. Use alias to reuse function in the DAG.
 
@@ -276,7 +278,7 @@ def task_decorator(python_callable: Optional[Callable] = None, **kwargs):
     if callable(python_callable):
         return wrapper(python_callable)
     elif python_callable is not None:
-        raise AirflowException('No args allowed while using @task, use kwargs instead')
+        raise AirflowException('No args allowed while using @operator, use kwargs instead')
     return wrapper
 
 
