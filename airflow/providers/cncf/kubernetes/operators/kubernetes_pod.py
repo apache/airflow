@@ -318,7 +318,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         return re.sub(r'[^a-z0-9.-]+', '-', name.lower())
 
     def create_new_pod_for_operator(self, labels, launcher) -> Tuple[State, k8s.V1Pod, Optional[str]]:
-        '''
+        """
         Creates a new pod and monitors for duration of task
 
         @param labels:
