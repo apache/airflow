@@ -748,7 +748,7 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-  /variables/lookup:
+  /variables/lookup/{variable_key}:
     parameters:
       - $ref: '#/components/parameters/VariableKey'
 
@@ -1933,7 +1933,7 @@ components:
       description: The Variable ID.
 
     VariableKey:
-      in: query
+      in: path
       name: variable_key
       schema:
         type: string
