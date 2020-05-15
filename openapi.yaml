@@ -339,7 +339,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Pool'
+                $ref: '#/components/schemas/DAGRun'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
