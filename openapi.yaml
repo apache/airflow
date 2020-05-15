@@ -594,7 +594,7 @@ paths:
         This endpoint support reading resources across multiple DAGs by specifying a "-" as a dag_id
         or an execution date.
       operationId: getTaskInstances
-      tags: [Pool]
+      tags: [TaskInstance]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
