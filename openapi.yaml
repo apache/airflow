@@ -1214,7 +1214,7 @@ components:
     EventLog:
       type: object
       properties:
-        id:
+        event_log_id:
           type: integer
           readOnly: true
         dttm:
@@ -1250,7 +1250,7 @@ components:
     ImportError:
       type: object
       properties:
-        id:
+        import_error_id:
           type: integer
           readOnly: true
         timestamp:
@@ -1275,7 +1275,7 @@ components:
     Pool:
       type: object
       properties:
-        id:
+        pool_id:
           type: integer
           readOnly: true
         name:
@@ -1410,8 +1410,6 @@ components:
       # Divided into two schemas for sensitive data protection
       type: object
       properties:
-        id:
-          type: string
         key:
           type: string
 
