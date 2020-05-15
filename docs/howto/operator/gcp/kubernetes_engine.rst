@@ -17,5 +17,5 @@
 
 
 
-Google Google Kubernetes Engine Operators
-=========================================
+Google Kubernetes Engine Operators
+==================================
