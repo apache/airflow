@@ -95,7 +95,6 @@ class DagRunForm(DynamicForm):
         # TODO: This is probably better done as a custom field type so we can
         # set TZ at parse time
         super().populate_obj(item)
-        # item.execution_date = timezone.make_aware(item.execution_date)
         if item.conf:
             item.conf = json.loads(item.conf)
 
