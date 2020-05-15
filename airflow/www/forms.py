@@ -82,7 +82,8 @@ class DagRunForm(DynamicForm):
         widget=Select2Widget())
     execution_date = DateTimeField(
         lazy_gettext('Execution Date'),
-        widget=AirflowDateTimePickerWidget())
+        widget=AirflowDateTimePickerWidget(),
+        format='%Y-%m-%d %H:%M:%S%z')
     external_trigger = BooleanField(
         lazy_gettext('External Trigger'))
     conf = TextAreaField(
@@ -94,7 +95,7 @@ class DagRunForm(DynamicForm):
         # TODO: This is probably better done as a custom field type so we can
         # set TZ at parse time
         super().populate_obj(item)
-        item.execution_date = timezone.make_aware(item.execution_date)
+        # item.execution_date = timezone.make_aware(item.execution_date)
         if item.conf:
             item.conf = json.loads(item.conf)
 
