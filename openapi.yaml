@@ -268,6 +268,38 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthenticated'
 
+  /dags/~/dagRuns/list:
+    post:
+      summary: Get all DAG Runs.
+      description: >
+        It allows you to fetch DAG Runs from many DAGs.
+      operationId: getDagRunsBatch
+      tags: [DAGRun]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListDagRunsForm'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ListDagRunsForm'
+      responses:
+        '200':
+          description: List of DAG Runs.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DAGRunCollection'
+                  - $ref: '#/components/schemas/CollectionInfo'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
   /dags/{dag_id}/dagRuns/{execution_date}:
     parameters:
       - $ref: '#/components/parameters/DAGID'
@@ -629,6 +661,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TaskInstance'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /dags/~/dagRuns/~/taskInstances/list:
+    post:
+      summary: Get list of task instance.
+      operationId: getTaskInstancesBatch
+      tags: [TaskInstance]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListTaskInstanceForm'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ListTaskInstanceForm'
+
+      responses:
+        '200':
+          description: List of task instances.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/TaskInstanceCollection'
+                  - $ref: '#/components/schemas/CollectionInfo'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -1688,6 +1751,161 @@ components:
         reset_dag_runs:
           description: Set state of DAG Runs to RUNNING.
           type: boolean
+
+    ListDagRunsForm:
+      type: object
+      properties:
+        page_offset:
+          type: integer
+          minimum: 0
+          description: The number of items to skip before starting to collect the result set.
+
+        page_limit:
+          type: integer
+          minimum: 1
+          default: 100
+          description: The numbers of items to return.
+
+        dag_ids:
+          type: array
+          items:
+            type: string
+          description:
+            Return objectss with specific DAG IDS.
+
+            The value can be repeated to retrieve multiple matching values (OR condition).
+
+        execution_date_gte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects greater or equal to the specified date.
+
+            This can be combined with execution_date_lte key to receive only the selected period.
+
+        execution_date_lte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects less than or equal to the specified date.
+
+            This can be combined with execution_date_gte key to receive only the selected period.
+
+        start_date_gte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects greater or equal the specified date.
+
+            This can be combined with start_date_lte key to receive only the selected period.
+
+        start_date_lte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects less or equal the specified date.
+
+            This can be combined with start_date_gte parameter to receive only the selected period
+
+        end_date_gte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects greater or equal the specified date.
+
+            This can be combined with end_date_lte parameter to receive only the selected period.
+        end_date_lte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects less than or equal to the specified date.
+
+            This can be combined with end_date_gte parameter to receive only the selected period.
+
+    ListTaskInstanceForm:
+      type: object
+      properties:
+        dag_ids:
+          type: array
+          items:
+            type: string
+          description:
+            Return objectss with specific DAG IDS.
+
+            The value can be repeated to retrieve multiple matching values (OR condition).
+
+        execution_date_gte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects greater or equal to the specified date.
+
+            This can be combined with execution_date_lte parameter to receive only the selected period.
+        execution_date_lte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects less than or equal to the specified date.
+
+            This can be combined with execution_date_gte parameter to receive only the selected period.
+        start_date_gte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects greater or equal the specified date.
+
+            This can be combined with startd_ate_lte parameter to receive only the selected period.
+        start_date_lte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects less or equal the specified date.
+
+            This can be combined with start_date_gte parameter to receive only the selected period.
+        end_date_gte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects greater or equal the specified date.
+
+            This can be combined with start_date_lte parameter to receive only the selected period.
+        end_date_lte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects less than or equal to the specified date.
+
+            This can be combined with start_date_gte parameter to receive only the selected period.
+        duration_gte:
+          type: number
+          description: >
+            Returns objects greater than or equal to the specified values.
+
+            This can be combined with duration_lte parameter to receive only the selected period.
+        duration_lte:
+          type: number
+          description: >
+            Returns objects less than or equal to the specified values.
+
+            This can be combined with duration_gte parameter to receive only the selected range.
+        State:
+          type: array
+          items:
+            type: string
+          description:
+            The value can be repeated to retrieve multiple matching values (OR condition).
+        Pool:
+          type: array
+          items:
+            type: string
+          description:
+            The value can be repeated to retrieve multiple matching values (OR condition).
+        Queue:
+          type: array
+          items:
+            type: string
+          description:
+            The value can be repeated to retrieve multiple matching values (OR condition).
 
     # Common data type
     ScheduleInterval:
