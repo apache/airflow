@@ -2297,7 +2297,7 @@ components:
         The value can be repeated to retrieve multiple matching values (OR condition).
     FilterQueue:
       in: query
-      name: Qqueue
+      name: Queue
       schema:
         type: array
         items:
