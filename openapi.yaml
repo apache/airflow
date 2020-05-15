@@ -250,12 +250,12 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/FilterExecutionDateStartRange'
-        - $ref: '#/components/parameters/FilterExecutionDateEndRange'
-        - $ref: '#/components/parameters/FilterStartDateStartRange'
-        - $ref: '#/components/parameters/FilterStartDateEndRange'
-        - $ref: '#/components/parameters/FilterEndDateStartRange'
-        - $ref: '#/components/parameters/FilterEndDateEndRange'
+        - $ref: '#/components/parameters/FilterExecutionDateGTE'
+        - $ref: '#/components/parameters/FilterExecutionDateLTE'
+        - $ref: '#/components/parameters/FilterStartDateGTE'
+        - $ref: '#/components/parameters/FilterStartDateLTE'
+        - $ref: '#/components/parameters/FilterEndDateGTE'
+        - $ref: '#/components/parameters/FilterEndDateLTE'
       responses:
         '200':
           description: List of DAG Runs.
@@ -577,14 +577,14 @@ paths:
     parameters:
       - $ref: '#/components/parameters/DAGID'
       - $ref: '#/components/parameters/ExecutionDate'
-      - $ref: '#/components/parameters/FilterExecutionDateStartRange'
-      - $ref: '#/components/parameters/FilterExecutionDateEndRange'
-      - $ref: '#/components/parameters/FilterStartDateStartRange'
-      - $ref: '#/components/parameters/FilterStartDateEndRange'
-      - $ref: '#/components/parameters/FilterEndDateStartRange'
-      - $ref: '#/components/parameters/FilterEndDateEndRange'
-      - $ref: '#/components/parameters/FilterDurationStartRange'
-      - $ref: '#/components/parameters/FilterDurationEndRange'
+      - $ref: '#/components/parameters/FilterExecutionDateGTE'
+      - $ref: '#/components/parameters/FilterExecutionDateLTE'
+      - $ref: '#/components/parameters/FilterStartDateGTE'
+      - $ref: '#/components/parameters/FilterStartDateLTE'
+      - $ref: '#/components/parameters/FilterEndDateGTE'
+      - $ref: '#/components/parameters/FilterEndDateLTE'
+      - $ref: '#/components/parameters/FilterDurationGTE'
+      - $ref: '#/components/parameters/FilterDurationLTE'
       - $ref: '#/components/parameters/FilterState'
       - $ref: '#/components/parameters/FilterPool'
       - $ref: '#/components/parameters/FilterQueue'
@@ -1979,95 +1979,95 @@ components:
       required: true
       description: The XCom Key.
     # Filter
-    FilterExecutionDateStartRange:
+    FilterExecutionDateGTE:
       in: query
-      name: ExecutionDateStartRange
+      name: execution_date_gte
       schema:
         type: string
         format: date-time
       required: false
       description: >
-        Returns objects after the specified date.
+        Returns objects greater or equal to the specified date.
 
-        This can be combined with ExecutionDateEndRange parameter to receive only the selected period.
-    FilterExecutionDateEndRange:
+        This can be combined with execution_date_lte parameter to receive only the selected period.
+    FilterExecutionDateLTE:
       in: query
-      name: ExecutionDateEndRange
+      name: execution_date_lte
       schema:
         type: string
         format: date-time
       required: false
       description: >
-        Returns objects before the specified date.
+        Returns objects less than or equal to the specified date.
 
-        This can be combined with ExecutionDateStartRange parameter to receive only the selected period.
-    FilterStartDateStartRange:
+        This can be combined with execution_date_gte parameter to receive only the selected period.
+    FilterStartDateGTE:
       in: query
-      name: StartDateStartRange
+      name: start_date_gte
       schema:
         type: string
         format: date-time
       required: false
       description: >
-        Returns objects after the specified date.
+        Returns objects greater or equal the specified date.
 
-        This can be combined with StartDateEndRange parameter to receive only the selected period.
-    FilterStartDateEndRange:
+        This can be combined with startd_ate_lte parameter to receive only the selected period.
+    FilterStartDateLTE:
       in: query
-      name: StartDateEndRange
+      name: start_date_lte
       schema:
         type: string
         format: date-time
       required: false
       description: >
-        Returns objects before the specified date.
+        Returns objects less or equal the specified date.
 
-        This can be combined with StartDateEndRange parameter to receive only the selected period
-    FilterEndDateStartRange:
+        This can be combined with start_date_gte parameter to receive only the selected period.
+    FilterEndDateGTE:
       in: query
-      name: EndDateStartRange
+      name: end_date_gte
       schema:
         type: string
         format: date-time
       required: false
       description: >
-        Returns objects after the specified date.
+        Returns objects greater or equal the specified date.
 
-        This can be combined with StartDateEndRange parameter to receive only the selected period.
-    FilterEndDateEndRange:
+        This can be combined with start_date_lte parameter to receive only the selected period.
+    FilterEndDateLTE:
       in: query
-      name: EndDateEndRange
+      name: end_date_lte
       schema:
         type: string
         format: date-time
       required: false
       description: >
-        Returns objects before the specified date.
+        Returns objects less than or equal to the specified date.
 
-        This can be combined with StartDateEndRange parameter to receive only the selected period.
-    FilterDurationStartRange:
+        This can be combined with start_date_gte parameter to receive only the selected period.
+    FilterDurationGTE:
       in: query
-      name: DurationStartRange
+      name: duration_gte
       schema:
         type: number
       required: false
       description: >
         Returns objects greater than or equal to the specified values.
 
-        This can be combined with DurationEndRange parameter to receive only the selected period.
-    FilterDurationEndRange:
+        This can be combined with duration_lte parameter to receive only the selected period.
+    FilterDurationLTE:
       in: query
-      name: DurationEndRange
+      name: duration_lte
       schema:
         type: number
       required: false
       description: >
         Returns objects less than or equal to the specified values.
 
-        This can be combined with DurationStartRange parameter to receive only the selected range.
+        This can be combined with duration_gte parameter to receive only the selected range.
     FilterState:
       in: query
-      name: State
+      name: state
       schema:
         type: array
         items:
@@ -2077,7 +2077,7 @@ components:
         The value can be repeated to retrieve multiple matching values (OR condition).
     FilterPool:
       in: query
-      name: Pool
+      name: pool
       schema:
         type: array
         items:
@@ -2087,7 +2087,7 @@ components:
         The value can be repeated to retrieve multiple matching values (OR condition).
     FilterQueue:
       in: query
-      name: Queue
+      name: Qqueue
       schema:
         type: array
         items:
