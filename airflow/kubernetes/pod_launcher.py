@@ -119,7 +119,7 @@ class PodLauncher(LoggingMixin):
         Monitors a pod and returns the final state
 
         :param pod: pod spec that will be monitored
-        :@type V1Pod:
+        :type pod : V1Pod
         :param get_logs: whether to read the logs locally
         :return:  Tuple[State, Optional[str]]
         """
