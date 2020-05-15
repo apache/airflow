@@ -1011,6 +1011,13 @@
       type: string
       example: ~
       default: "30"
+    - name: locally_sync_dagbag
+      description: |
+        Have the webserver save the dagbag to the DB every refresh. Set to true if you're
+        running without a scheduler and want DAGS to show up in the webserver
+      version_added: 1.10.10
+      type: boolean
+      default: "False"
 
 - name: email
   description: |
