@@ -13,7 +13,7 @@
 
 alembic
 atlasclient
-azure-storage>=0.34.0
+azure-storage>=0.34.0<0.37.0
 bcrypt
 bleach
 boto
