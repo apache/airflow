@@ -1874,14 +1874,6 @@ components:
       required: true
       description: The DAG ID.
 
-    DAGRunID:
-      in: path
-      name: dag_run_id
-      schema:
-        type: string
-      required: true
-      description: The DAG Run ID.
-
     TaskID:
       in: path
       name: task_id
