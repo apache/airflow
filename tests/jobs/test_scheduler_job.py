@@ -2813,8 +2813,10 @@ class TestSchedulerJob(unittest.TestCase):
                                  num_runs=1)
         scheduler.run()
         with create_session() as session:
+            tis = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()
             self.assertEqual(
-                len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()), 1)
+                len(tis), 1,
+                repr(tis))
 
     def test_dag_get_active_runs(self):
         """
