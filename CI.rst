@@ -76,7 +76,9 @@ purpose and context.
   (container registry, code repository). This is necessary as the code in those PRs (including CI job
   definition) might be modified by people who are not committers for the Apache Airflow Code Repository.
   The main purpose of those jobs is to check if PR builds cleanly, if the test run properly and if
-  the PR is ready to review and merge.
+  the PR is ready to review and merge. The runs are using cached images from the Private GitHub registry -
+  CI, Production Images as well as base Python images that are also cached in the Private GitHub registry.
+
 * **Direct Push/Merge Run** - Those runs are results of direct pushes done by the committers or as result
   of merge of a Pull Request by the committers. Those runs execute in the context of the Apache Airflow
   Code Repository and have also write permission for GitHub resources (container registry, code repository).
@@ -85,7 +87,16 @@ purpose and context.
   multiple PRs might cause build and test failures after merge even if they do not fail in isolation. Also
   those runs are already reviewed and confirmed by the committers so they can be used to do some housekeeping
   - for now they are pushing most recent image build in the PR to the Github Private Registry - which is our
-  image cache for all the builds.
+  image cache for all the builds. Another purpose of those runs is to refresh latest Python base images.
+  Python base images are refreshed with varying frequency (once every few months usually but sometimes
+  several times per week) with the latest security and bug fixes. Those patch level images releases can
+  occasionally break Airflow builds (specifically Docker image builds based on those images) therefore
+  in PRs we always use latest "good" python image that we store in the private GitHub cache. The direct
+  push/master builds are not using registry cache to pull the python images - they are directly
+  pulling the images from DockerHub, therefore they will try the latest images after they are released
+  and in case they are fine, CI Docker image is build and tests are passing - those jobs will push the base
+  images to the private GitHub Registry so that they be used by subsequent PR runs.
+
 * **Scheduled Run** - those runs are results of (nightly) triggered job - only for ``master`` branch. The
   main purpose of the job is to check if there was no impact of external dependency changes on the Apache
   Airflow code (for example transitive dependencies released that fail the build). It also checks if the
@@ -120,11 +131,15 @@ Those jobs often have matrix run strategy which runs several different variation
 +---------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------+---------------------------------+----------------------------------------------------------------------+
 | Quarantined tests         | Those are tests that are flaky and we need to fix them                                                         | Yes (if pyfiles count >0)          | Yes                             | Yes *                                                                |
 +---------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------+---------------------------------+----------------------------------------------------------------------+
-| Requirements              | Checks if requirement constraints in the code are up-to-date                                                   | Yes (fails if missing requirement) | YesFails if missing requirement | Yes (Eager dependency upgradeDoes not fail for changed requirements) |
+| Requirements              | Checks if requirement constraints in the code are up-to-date                                                   | Yes (fails if missing requirement) | Yes (fails missing requirement) | Yes (Eager dependency upgrade - does not fail changed requirements)  |
 +---------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------+---------------------------------+----------------------------------------------------------------------+
-| Push Prod image           | Pushes production images to GitHub Private Image RegistryThis is to cache the build images for following runs. | -                                  | Yes                             | -                                                                    |
+| Pull python from cache    | Pulls Python base images from Github Private Image registry to keep the last good python image used in PRs     | Yes                                | No                              | -                                                                    |
 +---------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------+---------------------------------+----------------------------------------------------------------------+
-| Push CI image             | Pushes CI images to GitHub Private Image RegistryThis is to cache the build images for following runs.         | -                                  | Yes                             | -                                                                    |
+| Push python to cache      | Pushes Python base images to Github Private Image registry - checks if latest image is fine and pushes if so   | No                                 | Yes                             | -                                                                    |
 +---------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------+---------------------------------+----------------------------------------------------------------------+
-| Tag Repo nightly          | Tags the repository with nightly tagIt is a lightweight tag that moves nightly                                 | -                                  | -                               | Yes.Triggers DockerHub build for public registry                     |
+| Push Prod image           | Pushes production images to GitHub Private Image Registry to cache the build images for following runs         | -                                  | Yes                             | -                                                                    |
++---------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------+---------------------------------+----------------------------------------------------------------------+
+| Push CI image             | Pushes CI images to GitHub Private Image Registry to cache the build images for following runs                 | -                                  | Yes                             | -                                                                    |
++---------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------+---------------------------------+----------------------------------------------------------------------+
+| Tag Repo nightly          | Tags the repository with nightly tagIt is a lightweight tag that moves nightly                                 | -                                  | -                               | Yes. Triggers DockerHub build for public registry                    |
 +---------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------+---------------------------------+----------------------------------------------------------------------+

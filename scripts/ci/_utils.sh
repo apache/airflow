@@ -96,6 +96,9 @@ function initialize_common_environment {
     # --push-images flag is specified
     export PUSH_IMAGES=${PUSH_IMAGES:="false"}
 
+    # Whether base python images should be pulled from cache
+    export PULL_PYTHON_BASE_IMAGES_FROM_CACHE=${PULL_PYTHON_BASE_IMAGES_FROM_CACHE:="true"}
+
     # Disable writing .pyc files - slightly slower imports but not messing around when switching
     # Python version and avoids problems with root-owned .pyc files in host
     export PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE:="true"}
@@ -1212,7 +1215,11 @@ function pull_ci_image_if_needed() {
 Docker pulling ${PYTHON_BASE_IMAGE}.
                     " > "${DETECTED_TERMINAL}"
             fi
-            verbose_docker pull "${PYTHON_BASE_IMAGE}" | tee -a "${OUTPUT_LOG}"
+            if [[ ${PULL_PYTHON_BASE_IMAGES_FROM_CACHE:="true"} == "true" ]]; then
+                pull_image_possibly_from_cache "${PYTHON_BASE_IMAGE}" "${CACHED_PYTHON_BASE_IMAGE}"
+            else
+                verbose_docker pull "${PYTHON_BASE_IMAGE}" | tee -a "${OUTPUT_LOG}"
+            fi
             echo
         fi
         pull_image_possibly_from_cache "${AIRFLOW_CI_IMAGE}" "${CACHED_AIRFLOW_CI_IMAGE}"
@@ -1230,7 +1237,11 @@ function pull_prod_images_if_needed() {
             echo
             echo "Force pull base image ${PYTHON_BASE_IMAGE}"
             echo
-            verbose_docker pull "${PYTHON_BASE_IMAGE}" | tee -a "${OUTPUT_LOG}"
+            if [[ ${PULL_PYTHON_BASE_IMAGES_FROM_CACHE:="true"} == "true" ]]; then
+                pull_image_possibly_from_cache "${PYTHON_BASE_IMAGE}" "${CACHED_PYTHON_BASE_IMAGE}"
+            else
+                verbose_docker pull "${PYTHON_BASE_IMAGE}" | tee -a "${OUTPUT_LOG}"
+            fi
             echo
         fi
         # "Build" segment of production image
@@ -1469,8 +1480,10 @@ function prepare_ci_build() {
             --password-stdin \
             "${CACHE_REGISTRY}"
         export CACHED_AIRFLOW_CI_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_CI_BASE_TAG}"
+        export CACHED_PYTHON_BASE_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster"
     else
         export CACHED_AIRFLOW_CI_IMAGE=""
+        export CACHED_PYTHON_BASE_IMAGE=""
     fi
     export AIRFLOW_BUILD_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}/${AIRFLOW_CI_BASE_TAG}"
     export AIRFLOW_CI_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DEFAULT_BRANCH}-ci"
@@ -1552,9 +1565,11 @@ function prepare_prod_build() {
             "${CACHE_REGISTRY}"
         export CACHED_AIRFLOW_PROD_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_PROD_BASE_TAG}"
         export CACHED_AIRFLOW_PROD_BUILD_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_PROD_BASE_TAG}-build"
+        export CACHED_PYTHON_BASE_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster"
     else
         export CACHED_AIRFLOW_PROD_IMAGE=""
         export CACHED_AIRFLOW_PROD_BUILD_IMAGE=""
+        export CACHED_PYTHON_BASE_IMAGE=""
     fi
 
     if [[ "${INSTALL_AIRFLOW_REFERENCE:=}" != "" ]]; then
@@ -1581,7 +1596,7 @@ function prepare_prod_build() {
 }
 
 # Pushes Ci image and it's manifest to the registry. In case the image was taken from cache registry
-# it is also pushed to the cache, not to the main registry. Manifest is only pushed to the main registry
+# it is pushed to the cache, not to the main registry. Manifest is only pushed to the main registry
 function push_ci_image() {
     if [[ ${CACHED_AIRFLOW_CI_IMAGE:=} != "" ]]; then
         verbose_docker tag "${AIRFLOW_CI_IMAGE}" "${CACHED_AIRFLOW_CI_IMAGE}"
@@ -1598,6 +1613,11 @@ function push_ci_image() {
             verbose_docker push "${DEFAULT_IMAGE}"
         fi
     fi
+    if [[ ${CACHED_PYTHON_BASE_IMAGE} != "" ]]; then
+        verbose_docker tag "${PYTHON_BASE_IMAGE}" "${CACHED_PYTHON_BASE_IMAGE}"
+        verbose_docker push "${CACHED_PYTHON_BASE_IMAGE}"
+    fi
+
 }
 
 # Pushes PROD image to the registry. In case the image was taken from cache registry
@@ -1620,6 +1640,8 @@ function push_prod_images() {
     if [[ -n ${DEFAULT_IMAGE:=""} && ${CACHED_AIRFLOW_PROD_IMAGE} == "" ]]; then
         verbose_docker push "${DEFAULT_IMAGE}"
     fi
+
+    # we do not need to push PYTHON base image here - they are already pushed in the CI push
 }
 
 # Docker command to generate constraint requirement files.

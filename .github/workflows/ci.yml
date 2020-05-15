@@ -363,6 +363,7 @@ jobs:
       matrix:
         python-version: [3.6, 3.7]
     env:
+      PULL_PYTHON_BASE_IMAGES_FROM_CACHE: "false"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       CI_JOB_TYPE: "Prod image"
     steps:
