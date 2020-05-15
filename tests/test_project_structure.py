@@ -152,7 +152,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         'datastore',
         'dlp',
         'gcs_to_bigquery',
-        'kubernetes_engine',
         'local_to_gcs',
         'mlengine',
         'mssql_to_gcs',
