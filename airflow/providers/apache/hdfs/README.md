@@ -101,6 +101,7 @@ All classes in Airflow 2.0 are in `airflow.providers.apache.hdfs` package.
 
 | Commit                                                                                         | Committed   | Subject                                                                        |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------|
+| [92585ca4c](https://github.com/apache/airflow/commit/92585ca4cb375ac879f4ab331b3a063106eb7b92) | 2020-05-15  | Added automated release notes generation for backport operators (#8807)        |
 | [87969a350](https://github.com/apache/airflow/commit/87969a350ddd41e9e77776af6d780b31e363eaca) | 2020-04-09  | [AIRFLOW-6515] Change Log Levels from Info/Warn to Error (#8170)               |
 | [6c670870a](https://github.com/apache/airflow/commit/6c670870aa6ea5d82a86f912bb6de8b88e711ca5) | 2020-03-25  | [AIRFLOW-6833] HA for webhdfs connection (#7454)                               |
 | [7e6372a68](https://github.com/apache/airflow/commit/7e6372a681a2a543f4710b083219aeb53b074388) | 2020-03-23  | Add call to Super call in apache providers (#7820)                             |

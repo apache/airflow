@@ -102,6 +102,7 @@ All classes in Airflow 2.0 are in `airflow.providers.apache.spark` package.
 
 | Commit                                                                                         | Committed   | Subject                                                                                          |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------|
+| [92585ca4c](https://github.com/apache/airflow/commit/92585ca4cb375ac879f4ab331b3a063106eb7b92) | 2020-05-15  | Added automated release notes generation for backport operators (#8807)                          |
 | [7506c73f1](https://github.com/apache/airflow/commit/7506c73f1721151e9c50ef8bdb70d2136a16190b) | 2020-05-10  | Add default `conf` parameter to Spark JDBC Hook (#8787)                                          |
 | [487b5cc50](https://github.com/apache/airflow/commit/487b5cc50c5b28a045cb12a1527a5453b0a6a7af) | 2020-05-06  | Add guide for Apache Spark operators (#8305)                                                     |
 | [87969a350](https://github.com/apache/airflow/commit/87969a350ddd41e9e77776af6d780b31e363eaca) | 2020-04-09  | [AIRFLOW-6515] Change Log Levels from Info/Warn to Error (#8170)                                 |

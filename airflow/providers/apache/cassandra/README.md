@@ -98,6 +98,7 @@ All classes in Airflow 2.0 are in `airflow.providers.apache.cassandra` package.
 
 | Commit                                                                                         | Committed   | Subject                                                                          |
 |:-----------------------------------------------------------------------------------------------|:------------|:---------------------------------------------------------------------------------|
+| [92585ca4c](https://github.com/apache/airflow/commit/92585ca4cb375ac879f4ab331b3a063106eb7b92) | 2020-05-15  | Added automated release notes generation for backport operators (#8807)          |
 | [7e6372a68](https://github.com/apache/airflow/commit/7e6372a681a2a543f4710b083219aeb53b074388) | 2020-03-23  | Add call to Super call in apache providers (#7820)                               |
 | [97a429f9d](https://github.com/apache/airflow/commit/97a429f9d0cf740c5698060ad55f11e93cb57b55) | 2020-02-02  | [AIRFLOW-6714] Remove magic comments about UTF-8 (#7338)                         |
 | [2f2f89c14](https://github.com/apache/airflow/commit/2f2f89c148e2b694aee9402707f68065ee7320f8) | 2019-12-01  | [AIRFLOW-6139] Consistent spaces in pylint enable/disable (#6701)                |

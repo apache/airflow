@@ -4,6 +4,7 @@
 
 | Commit                                                                                         | Committed   | Subject                                                                          |
 |:-----------------------------------------------------------------------------------------------|:------------|:---------------------------------------------------------------------------------|
+| [92585ca4c](https://github.com/apache/airflow/commit/92585ca4cb375ac879f4ab331b3a063106eb7b92) | 2020-05-15  | Added automated release notes generation for backport operators (#8807)          |
 | [87969a350](https://github.com/apache/airflow/commit/87969a350ddd41e9e77776af6d780b31e363eaca) | 2020-04-09  | [AIRFLOW-6515] Change Log Levels from Info/Warn to Error (#8170)                 |
 | [954619283](https://github.com/apache/airflow/commit/95461928365f255c79ab4a164ce60d8eebea29d7) | 2020-03-26  | bumping simple-salesforce to 1.0.0 (#7857)                                       |
 | [31efc931e](https://github.com/apache/airflow/commit/31efc931e32841b7da8decd576cafa1e5a6f6d95) | 2020-03-23  | Add missing call to Super class in &#39;salesforce&#39; provider (#7824)                 |

@@ -100,6 +100,7 @@ All classes in Airflow 2.0 are in `airflow.providers.hashicorp` package.
 
 | Commit                                                                                         | Committed   | Subject                                                                   |
 |:-----------------------------------------------------------------------------------------------|:------------|:--------------------------------------------------------------------------|
+| [92585ca4c](https://github.com/apache/airflow/commit/92585ca4cb375ac879f4ab331b3a063106eb7b92) | 2020-05-15  | Added automated release notes generation for backport operators (#8807)   |
 | [d8cb0b5dd](https://github.com/apache/airflow/commit/d8cb0b5ddb02d194742e374d9ac90dd8231f6e80) | 2020-05-04  | Support k8s auth method in Vault Secrets provider (#8640)                 |
 | [87969a350](https://github.com/apache/airflow/commit/87969a350ddd41e9e77776af6d780b31e363eaca) | 2020-04-09  | [AIRFLOW-6515] Change Log Levels from Info/Warn to Error (#8170)          |
 | [c1c88abfe](https://github.com/apache/airflow/commit/c1c88abfede7a36c3b1d1b511fbc6c03af46d363) | 2020-03-28  | Get Airflow Variables from Hashicorp Vault (#7944)                        |

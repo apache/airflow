@@ -129,6 +129,7 @@ All classes in Airflow 2.0 are in `airflow.providers.sftp` package.
 
 | Commit                                                                                         | Committed   | Subject                                                                    |
 |:-----------------------------------------------------------------------------------------------|:------------|:---------------------------------------------------------------------------|
+| [92585ca4c](https://github.com/apache/airflow/commit/92585ca4cb375ac879f4ab331b3a063106eb7b92) | 2020-05-15  | Added automated release notes generation for backport operators (#8807)    |
 | [bac0ab27c](https://github.com/apache/airflow/commit/bac0ab27cfc89e715efddc97214fcd7738084361) | 2020-03-30  | close sftp connection without error (#7953)                                |
 | [42eef3821](https://github.com/apache/airflow/commit/42eef38217e709bc7a7f71bf0286e9e61293a43e) | 2020-03-07  | [AIRFLOW-6877] Add cross-provider dependencies as extras (#7506)           |
 | [97a429f9d](https://github.com/apache/airflow/commit/97a429f9d0cf740c5698060ad55f11e93cb57b55) | 2020-02-02  | [AIRFLOW-6714] Remove magic comments about UTF-8 (#7338)                   |

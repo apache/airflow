@@ -119,6 +119,8 @@ All classes in Airflow 2.0 are in `airflow.providers.cncf.kubernetes` package.
 
 | Commit                                                                                         | Committed   | Subject                                                                                  |
 |:-----------------------------------------------------------------------------------------------|:------------|:-----------------------------------------------------------------------------------------|
+| [92585ca4c](https://github.com/apache/airflow/commit/92585ca4cb375ac879f4ab331b3a063106eb7b92) | 2020-05-15  | Added automated release notes generation for backport operators (#8807)                  |
+| [f82ad452b](https://github.com/apache/airflow/commit/f82ad452b0f4ebd1428bc9669641a632dc87bb8c) | 2020-05-15  | Fix KubernetesPodOperator pod name length validation (#8829)                             |
 | [1ccafc617](https://github.com/apache/airflow/commit/1ccafc617c4cb9622e3460ad7c190f3ee67c3b32) | 2020-04-02  | Add spark_kubernetes system test (#7875)                                                 |
 | [cd546b664](https://github.com/apache/airflow/commit/cd546b664fa35a2bf85acd77af578c909a327d92) | 2020-03-23  | Add missing call to Super class in &#39;cncf&#39; &amp; &#39;docker&#39; providers (#7825)                   |
 | [6c39a3bf9](https://github.com/apache/airflow/commit/6c39a3bf97414ba2438669894db65c36ccbeb61a) | 2020-03-10  | [AIRFLOW-6542] Add spark-on-k8s operator/hook/sensor (#7163)                             |
