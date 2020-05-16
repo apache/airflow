@@ -128,14 +128,11 @@ def settings_context(content, directory=None, name='LOGGING_CONFIG'):
     :param content:
           The content of the settings file
     """
-    # initial_logging_config = os.environ.get("AIRFLOW__LOGGING__LOGGING_CONFIG_CLASS", "")
-    # try:
     settings_root = tempfile.mkdtemp()
     filename = f"{SETTINGS_DEFAULT_NAME}.py"
     if directory:
         # Replace slashes by dots
         module = directory.replace('/', '.') + '.' + SETTINGS_DEFAULT_NAME + '.' + name
-        # breakpoint()
 
         # Create the directory structure
         dir_path = os.path.join(settings_root, directory)
@@ -152,7 +149,6 @@ def settings_context(content, directory=None, name='LOGGING_CONFIG'):
         settings_file = os.path.join(dir_path, filename)
     else:
         module = SETTINGS_DEFAULT_NAME + '.' + name
-        # breakpoint()
         settings_file = os.path.join(settings_root, filename)
 
     with open(settings_file, 'w') as handle:
