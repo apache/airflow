@@ -1051,8 +1051,8 @@ In case you want to apply cluster-wide mutations to the Airflow tasks,
 you can either mutate the task right after the DAG is loaded or
 mutate the task instance before task execution.
 
-Mutate task after DAG loaded
-----------------------------
+Mutate tasks after DAG loaded
+-----------------------------
 
 To mutate the task right after the DAG is parsed, you can define
 a ``policy`` function in ``airflow_local_settings.py`` that mutates the
@@ -1080,24 +1080,21 @@ attributes defined in DAG meaning if ``task.sla`` is defined
 in dag and also mutated via cluster policy then later will have precedence.
 
 
-Mutate task instance before task execution
-------------------------------------------
+Mutate task instances before task execution
+-------------------------------------------
 
 To mutate the task instance before the task execution, you can define a
 ``task_instance_mutation_hook`` function in ``airflow_local_settings.py``
 that mutates the task instance.
 
-For example, this function re-route the task to execute in a different
+For example, this function re-routes the task to execute in a different
 queue during retries:
 
-
-.. code-block:: python
+.. code:: python
 
     def task_instance_mutation_hook(ti):
         if ti.try_number >= 1:
             ti.queue = 'retry_queue'
-
-
 
 
 Where to put ``airflow_local_settings.py``?
