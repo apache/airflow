@@ -107,7 +107,14 @@ class DockerSwarmOperator(DockerOperator):
         self.enable_logging = enable_logging
         self.service = None
 
-    def _run_image(self):
+    def execute(self, context):
+        self.cli = self._get_cli()
+
+        self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
+
+        return self._run_service()
+
+    def _run_service(self):
         self.log.info('Starting docker service from image %s', self.image)
 
         self.service = self.cli.create_service(

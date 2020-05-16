@@ -20,6 +20,7 @@ import copy
 import logging
 import os
 import pathlib
+import re
 import shlex
 import subprocess
 import sys
@@ -34,6 +35,7 @@ import yaml
 from cryptography.fernet import Fernet
 
 from airflow.exceptions import AirflowConfigException
+from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
 
@@ -157,7 +159,8 @@ class AirflowConfigParser(ConfigParser):
     # about. Mapping of section -> setting -> { old, replace, by_version }
     deprecated_values = {
         'core': {
-            'task_runner': ('BashTaskRunner', 'StandardTaskRunner', '2.0'),
+            'task_runner': (re.compile(r'\ABashTaskRunner\Z'), r'StandardTaskRunner', '2.0'),
+            'hostname_callable': (re.compile(r':'), r'.', '2.0'),
         },
     }
 
@@ -187,24 +190,41 @@ class AirflowConfigParser(ConfigParser):
         for section, replacement in self.deprecated_values.items():
             for name, info in replacement.items():
                 old, new, version = info
-                if self.get(section, name, fallback=None) == old:
-                    # Make sure the env var option is removed, otherwise it
-                    # would be read and used instead of the value we set
-                    env_var = self._env_var_name(section, name)
-                    os.environ.pop(env_var, None)
-
-                    self.set(section, name, new)
-                    warnings.warn(
-                        'The {name} setting in [{section}] has the old default value '
-                        'of {old!r}. This value has been changed to {new!r} in the '
-                        'running config, but please update your config before Apache '
-                        'Airflow {version}.'.format(
-                            name=name, section=section, old=old, new=new, version=version
-                        ),
-                        FutureWarning
-                    )
+                current_value = self.get(section, name, fallback=None)
+                if self._using_old_value(old, current_value):
+                    new_value = re.sub(old, new, current_value)
+                    self._update_env_var(
+                        section=section, name=name, new_value=new_value)
+                    self._create_future_warning(
+                        name=name,
+                        section=section,
+                        current_value=current_value,
+                        new_value=new_value,
+                        version=version)
 
         self.is_validated = True
+
+    def _using_old_value(self, old, current_value):
+        return old.search(current_value) is not None
+
+    def _update_env_var(self, section, name, new_value):
+        # Make sure the env var option is removed, otherwise it
+        # would be read and used instead of the value we set
+        env_var = self._env_var_name(section, name)
+        os.environ.pop(env_var, None)
+        self.set(section, name, new_value)
+
+    @staticmethod
+    def _create_future_warning(name, section, current_value, new_value, version):
+        warnings.warn(
+            'The {name} setting in [{section}] has the old default value '
+            'of {current_value!r}. This value has been changed to {new_value!r} in the '
+            'running config, but please update your config before Apache '
+            'Airflow {version}.'.format(
+                name=name, section=section, current_value=current_value, new_value=new_value, version=version
+            ),
+            FutureWarning
+        )
 
     @staticmethod
     def _env_var_name(section, key):
@@ -303,6 +323,27 @@ class AirflowConfigParser(ConfigParser):
 
     def getfloat(self, section, key, **kwargs):
         return float(self.get(section, key, **kwargs))
+
+    def getimport(self, section, key, **kwargs):
+        """
+        Reads options, imports the full qualified name, and returns the object.
+
+        In case of failure, it throws an exception a clear message with the key aad the section names
+
+        :return: The object or None, if the option is empty
+        """
+        full_qualified_path = conf.get(section=section, key=key, **kwargs)
+        if not full_qualified_path:
+            return None
+
+        try:
+            return import_string(full_qualified_path)
+        except ImportError as e:
+            log.error(e)
+            raise AirflowConfigException(
+                f'The object could not be loaded. Please check "{key}" key in "{section}" section. '
+                f'Current value: "{full_qualified_path}".'
+            )
 
     def read(self, filenames, **kwargs):
         super().read(filenames, **kwargs)

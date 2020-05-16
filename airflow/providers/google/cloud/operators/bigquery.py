@@ -20,7 +20,7 @@
 """
 This module contains Google BigQuery operators.
 """
-
+import enum
 import json
 import warnings
 from typing import Any, Dict, Iterable, List, Optional, SupportsAbs, Union
@@ -37,6 +37,49 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.utils.decorators import apply_defaults
 
 BIGQUERY_JOB_DETAILS_LINK_FMT = 'https://console.cloud.google.com/bigquery?j={job_id}'
+
+
+class BigQueryUIColors(enum.Enum):
+    """Hex colors for BigQuery operators"""
+    CHECK = "#C0D7FF"
+    QUERY = "#A1BBFF"
+    TABLE = "#81A0FF"
+    DATASET = "#5F86FF"
+
+
+class BigQueryConsoleLink(BaseOperatorLink):
+    """
+    Helper class for constructing BigQuery link.
+    """
+    name = 'BigQuery Console'
+
+    def get_link(self, operator, dttm):
+        ti = TaskInstance(task=operator, execution_date=dttm)
+        job_id = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
+        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ''
+
+
+@attr.s(auto_attribs=True)
+class BigQueryConsoleIndexableLink(BaseOperatorLink):
+    """
+    Helper class for constructing BigQuery link.
+    """
+
+    index: int = attr.ib()
+
+    @property
+    def name(self) -> str:
+        return 'BigQuery Console #{index}'.format(index=self.index + 1)
+
+    def get_link(self, operator, dttm):
+        ti = TaskInstance(task=operator, execution_date=dttm)
+        job_ids = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
+        if not job_ids:
+            return None
+        if len(job_ids) < self.index:
+            return None
+        job_id = job_ids[self.index]
+        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id)
 
 
 class BigQueryCheckOperator(CheckOperator):
@@ -85,6 +128,7 @@ class BigQueryCheckOperator(CheckOperator):
 
     template_fields = ('sql', 'gcp_conn_id',)
     template_ext = ('.sql',)
+    ui_color = BigQueryUIColors.CHECK.value
 
     @apply_defaults
     def __init__(self,
@@ -130,6 +174,7 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
 
     template_fields = ('sql', 'gcp_conn_id', 'pass_value',)
     template_ext = ('.sql',)
+    ui_color = BigQueryUIColors.CHECK.value
 
     @apply_defaults
     def __init__(self, sql: str,
@@ -186,7 +231,8 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
     :type bigquery_conn_id: str
     """
 
-    template_fields = ('table', 'gcp_conn_id',)
+    template_fields = ('table', 'gcp_conn_id', 'sql1', 'sql2')
+    ui_color = BigQueryUIColors.CHECK.value
 
     @apply_defaults
     def __init__(self,
@@ -269,7 +315,7 @@ class BigQueryGetDataOperator(BaseOperator):
     :type location: str
     """
     template_fields = ('dataset_id', 'table_id', 'max_results')
-    ui_color = '#e4f0e8'
+    ui_color = BigQueryUIColors.QUERY.value
 
     @apply_defaults
     def __init__(self,
@@ -328,41 +374,6 @@ class BigQueryGetDataOperator(BaseOperator):
             table_data.append(single_row)
 
         return table_data
-
-
-class BigQueryConsoleLink(BaseOperatorLink):
-    """
-    Helper class for constructing BigQuery link.
-    """
-    name = 'BigQuery Console'
-
-    def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        job_id = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
-        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ''
-
-
-@attr.s(auto_attribs=True)
-class BigQueryConsoleIndexableLink(BaseOperatorLink):
-    """
-    Helper class for constructing BigQuery link.
-    """
-
-    index: int = attr.ib()
-
-    @property
-    def name(self) -> str:
-        return 'BigQuery Console #{index}'.format(index=self.index + 1)
-
-    def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        job_ids = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
-        if not job_ids:
-            return None
-        if len(job_ids) < self.index:
-            return None
-        job_id = job_ids[self.index]
-        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id)
 
 
 # pylint: disable=too-many-instance-attributes
@@ -461,7 +472,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
 
     template_fields = ('sql', 'destination_dataset_table', 'labels', 'query_params')
     template_ext = ('.sql', )
-    ui_color = '#e4f0e8'
+    ui_color = BigQueryUIColors.QUERY.value
 
     @property
     def operator_extra_links(self):
@@ -710,7 +721,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     """
     template_fields = ('dataset_id', 'table_id', 'project_id',
                        'gcs_schema_object', 'labels', 'view')
-    ui_color = '#f0eee4'
+    ui_color = BigQueryUIColors.TABLE.value
 
     # pylint: disable=too-many-arguments
     @apply_defaults
@@ -875,7 +886,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     """
     template_fields = ('bucket', 'source_objects',
                        'schema_object', 'destination_project_dataset_table', 'labels')
-    ui_color = '#f0eee4'
+    ui_color = BigQueryUIColors.TABLE.value
 
     # pylint: disable=too-many-arguments
     @apply_defaults
@@ -1001,7 +1012,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
     """
 
     template_fields = ('dataset_id', 'project_id')
-    ui_color = '#f00004'
+    ui_color = BigQueryUIColors.DATASET.value
 
     @apply_defaults
     def __init__(self,
@@ -1076,7 +1087,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
     """
 
     template_fields = ('dataset_id', 'project_id')
-    ui_color = '#f0eee4'
+    ui_color = BigQueryUIColors.DATASET.value
 
     @apply_defaults
     def __init__(self,
@@ -1142,7 +1153,7 @@ class BigQueryGetDatasetOperator(BaseOperator):
     """
 
     template_fields = ('dataset_id', 'project_id')
-    ui_color = '#f0eee4'
+    ui_color = BigQueryUIColors.DATASET.value
 
     @apply_defaults
     def __init__(self,
@@ -1163,9 +1174,10 @@ class BigQueryGetDatasetOperator(BaseOperator):
 
         self.log.info('Start getting dataset: %s:%s', self.project_id, self.dataset_id)
 
-        return bq_hook.get_dataset(
+        dataset = bq_hook.get_dataset(
             dataset_id=self.dataset_id,
             project_id=self.project_id)
+        return dataset.to_api_repr()
 
 
 class BigQueryGetDatasetTablesOperator(BaseOperator):
@@ -1193,7 +1205,7 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
         .. seealso:: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/list#response-body
     """
     template_fields = ('dataset_id', 'project_id')
-    ui_color = '#f00004'
+    ui_color = BigQueryUIColors.DATASET.value
 
     @apply_defaults
     def __init__(self,
@@ -1246,7 +1258,7 @@ class BigQueryPatchDatasetOperator(BaseOperator):
     """
 
     template_fields = ('dataset_id', 'project_id')
-    ui_color = '#f0eee4'
+    ui_color = BigQueryUIColors.DATASET.value
 
     @apply_defaults
     def __init__(self,
@@ -1297,12 +1309,12 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
     """
 
     template_fields = ('dataset_id', 'project_id')
-    ui_color = '#f0eee4'
+    ui_color = BigQueryUIColors.DATASET.value
 
     @apply_defaults
     def __init__(self,
-                 dataset_id: str,
                  dataset_resource: dict,
+                 dataset_id: Optional[str] = None,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
@@ -1320,10 +1332,15 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
 
         self.log.info('Start updating dataset: %s:%s', self.project_id, self.dataset_id)
 
-        return bq_hook.update_dataset(
-            dataset_id=self.dataset_id,
+        fields = list(self.dataset_resource.keys())
+
+        dataset = bq_hook.update_dataset(
             dataset_resource=self.dataset_resource,
-            project_id=self.project_id)
+            project_id=self.project_id,
+            dataset_id=self.dataset_id,
+            fields=fields,
+        )
+        return dataset.to_api_repr()
 
 
 class BigQueryDeleteTableOperator(BaseOperator):
@@ -1350,7 +1367,7 @@ class BigQueryDeleteTableOperator(BaseOperator):
     :type location: str
     """
     template_fields = ('deletion_dataset_table',)
-    ui_color = '#ffd1dc'
+    ui_color = BigQueryUIColors.TABLE.value
 
     @apply_defaults
     def __init__(self,
@@ -1413,6 +1430,7 @@ class BigQueryUpsertTableOperator(BaseOperator):
     :type location: str
     """
     template_fields = ('dataset_id', 'table_resource',)
+    ui_color = BigQueryUIColors.TABLE.value
 
     @apply_defaults
     def __init__(self,

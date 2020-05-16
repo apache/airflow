@@ -17,6 +17,7 @@
 # under the License.
 import io
 import os
+import re
 import tempfile
 import unittest
 import warnings
@@ -39,10 +40,6 @@ from tests.test_utils.reset_warning_registry import reset_warning_registry
     'AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD': 'echo -n "NOT OK"'
 })
 class TestConf(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        conf.set('core', 'percent', 'with%%inside')
 
     def test_airflow_home_default(self):
         with unittest.mock.patch.dict('os.environ'):
@@ -72,6 +69,7 @@ class TestConf(unittest.TestCase):
                 get_airflow_config('/home//airflow'),
                 '/path/to/airflow/airflow.cfg')
 
+    @conf_vars({("core", "percent"): "with%%inside"})
     def test_case_sensitivity(self):
         # section and key are case insensitive for get method
         # note: this is not the case for as_dict method
@@ -99,6 +97,7 @@ class TestConf(unittest.TestCase):
         'os.environ',
         AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY='nested'
     )
+    @conf_vars({("core", "percent"): "with%%inside"})
     def test_conf_as_dict(self):
         cfg_dict = conf.as_dict()
 
@@ -134,6 +133,7 @@ class TestConf(unittest.TestCase):
         self.assertEqual(
             cfg_dict['testsection']['testkey'], ('testvalue', 'env var'))
 
+    @conf_vars({("core", "percent"): "with%%inside"})
     def test_conf_as_dict_raw(self):
         # test display_sensitive
         cfg_dict = conf.as_dict(raw=True, display_sensitive=True)
@@ -382,10 +382,8 @@ AIRFLOW_HOME = /root/airflow
             with mock.patch.dict('os.environ', AIRFLOW__CELERY__CELERYD_CONCURRENCY="99"):
                 self.assertEqual(conf.getint('celery', 'worker_concurrency'), 99)
 
-        with self.assertWarns(DeprecationWarning):
-            conf.set('celery', 'celeryd_concurrency', '99')
+        with self.assertWarns(DeprecationWarning), conf_vars({('celery', 'celeryd_concurrency'): '99'}):
             self.assertEqual(conf.getint('celery', 'worker_concurrency'), 99)
-            conf.remove_option('celery', 'celeryd_concurrency')
 
     @conf_vars({
         ('logging', 'logging_level'): None,
@@ -406,10 +404,8 @@ AIRFLOW_HOME = /root/airflow
             with mock.patch.dict('os.environ', AIRFLOW__CORE__LOGGING_LEVEL="VALUE"):
                 self.assertEqual(conf.get('logging', 'logging_level'), "VALUE")
 
-        with self.assertWarns(DeprecationWarning):
-            conf.set('core', 'logging_level', 'VALUE')
+        with self.assertWarns(DeprecationWarning), conf_vars({('core', 'logging_level'): 'VALUE'}):
             self.assertEqual(conf.get('logging', 'logging_level'), "VALUE")
-            conf.remove_option('core', 'logging_level')
 
     @conf_vars({
         ("celery", "result_backend"): None,
@@ -423,15 +419,14 @@ AIRFLOW_HOME = /root/airflow
         conf.as_command_stdout.add(('celery', 'celery_result_backend'))
 
         conf.remove_option('celery', 'result_backend')
-        conf.set('celery', 'celery_result_backend_cmd', '/bin/echo 99')
-
-        with self.assertWarns(DeprecationWarning):
-            tmp = None
-            if 'AIRFLOW__CELERY__RESULT_BACKEND' in os.environ:
-                tmp = os.environ.pop('AIRFLOW__CELERY__RESULT_BACKEND')
-            self.assertEqual(conf.getint('celery', 'result_backend'), 99)
-            if tmp:
-                os.environ['AIRFLOW__CELERY__RESULT_BACKEND'] = tmp
+        with conf_vars({('celery', 'celery_result_backend_cmd'): '/bin/echo 99'}):
+            with self.assertWarns(DeprecationWarning):
+                tmp = None
+                if 'AIRFLOW__CELERY__RESULT_BACKEND' in os.environ:
+                    tmp = os.environ.pop('AIRFLOW__CELERY__RESULT_BACKEND')
+                self.assertEqual(conf.getint('celery', 'result_backend'), 99)
+                if tmp:
+                    os.environ['AIRFLOW__CELERY__RESULT_BACKEND'] = tmp
 
     def test_deprecated_values(self):
         def make_config():
@@ -440,7 +435,8 @@ AIRFLOW_HOME = /root/airflow
             # lookup even if we remove this explicit fallback
             test_conf.deprecated_values = {
                 'core': {
-                    'task_runner': ('BashTaskRunner', 'StandardTaskRunner', '2.0'),
+                    'task_runner': (re.compile(r'\ABashTaskRunner\Z'), r'StandardTaskRunner', '2.0'),
+                    'hostname_callable': (re.compile(r':'), r'.', '2.0'),
                 },
             }
             test_conf.read_dict({
@@ -448,6 +444,7 @@ AIRFLOW_HOME = /root/airflow
                     'executor': 'SequentialExecutor',
                     'task_runner': 'BashTaskRunner',
                     'sql_alchemy_conn': 'sqlite://',
+                    'hostname_callable': 'socket:getfqdn',
                 },
             })
             return test_conf
@@ -455,18 +452,29 @@ AIRFLOW_HOME = /root/airflow
         with self.assertWarns(FutureWarning):
             test_conf = make_config()
             self.assertEqual(test_conf.get('core', 'task_runner'), 'StandardTaskRunner')
+            self.assertEqual(test_conf.get('core', 'hostname_callable'), 'socket.getfqdn')
 
         with self.assertWarns(FutureWarning):
             with unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__TASK_RUNNER='BashTaskRunner'):
                 test_conf = make_config()
 
                 self.assertEqual(test_conf.get('core', 'task_runner'), 'StandardTaskRunner')
+
+        with self.assertWarns(FutureWarning):
+            with unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__HOSTNAME_CALLABLE='socket:getfqdn'):
+                test_conf = make_config()
+
+                self.assertEqual(test_conf.get('core', 'hostname_callable'), 'socket.getfqdn')
+
         with reset_warning_registry():
             with warnings.catch_warnings(record=True) as warning:
-                with unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__TASK_RUNNER='NotBashTaskRunner'):
+                with unittest.mock.patch.dict('os.environ',
+                                              AIRFLOW__CORE__TASK_RUNNER='NotBashTaskRunner',
+                                              AIRFLOW__CORE__HOSTNAME_CALLABLE='CarrierPigeon'):
                     test_conf = make_config()
 
                     self.assertEqual(test_conf.get('core', 'task_runner'), 'NotBashTaskRunner')
+                    self.assertEqual(test_conf.get('core', 'hostname_callable'), 'CarrierPigeon')
 
                     self.assertListEqual([], warning)
 

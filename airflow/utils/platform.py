@@ -14,3 +14,34 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+"""
+Platform and system specific function.
+"""
+import os
+import sys
+
+
+def is_tty():
+    """
+    Checks if the standard output is s connected (is associated with a terminal device) to a tty(-like) device
+    """
+    if not hasattr(sys.stdout, "isatty"):
+        return False
+    return sys.stdout.isatty()
+
+
+def is_terminal_support_colors() -> bool:
+    """"
+    Try to determine if the current terminal supports colors.
+    """
+    if sys.platform == "win32":
+        return False
+    if is_tty():
+        return False
+    if "COLORTERM" in os.environ:
+        return True
+    term = os.environ.get("TERM", "dumb").lower()
+    if term in ("xterm", "linux") or "color" in term:
+        return True
+    return False
