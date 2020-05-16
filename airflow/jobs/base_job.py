@@ -271,6 +271,7 @@ class BaseJob(Base, LoggingMixin):
                         TI.dag_id == DR.dag_id,
                         TI.execution_date == DR.execution_date))
                 .filter(
+                    # pylint: disable=comparison-with-callable
                     DR.state == State.RUNNING,
                     DR.run_id.notlike(f"{DagRunType.BACKFILL_JOB.value}__%"),
                     TI.state.in_(resettable_states))).all()

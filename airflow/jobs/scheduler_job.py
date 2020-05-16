@@ -309,6 +309,10 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
             raise AirflowException("Tried to get start time before it started!")
         return self._start_time
 
+    @property
+    def waitable_handle(self):
+        return self._process.sentinel
+
 
 class DagFileProcessor(LoggingMixin):
     """
@@ -1091,6 +1095,7 @@ class SchedulerJob(BaseJob):
             .filter(models.TaskInstance.dag_id.in_(simple_dag_bag.dag_ids)) \
             .filter(models.TaskInstance.state.in_(old_states)) \
             .filter(or_(
+                # pylint: disable=comparison-with-callable
                 models.DagRun.state != State.RUNNING,
                 models.DagRun.state.is_(None)))  # pylint: disable=no-member
         # We need to do this for mysql as well because it can cause deadlocks

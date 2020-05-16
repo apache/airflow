@@ -1,0 +1,123 @@
+{#
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+#}
+
+# Package {{ PACKAGE_PIP_NAME }}
+
+Release: {{ RELEASE }}
+
+**Table of contents**
+
+- [Backport package](#backport-package)
+- [Installation](#installation)
+- [Compatibility](#compatibility)
+{%- if PIP_REQUIREMENTS %}
+- [PIP requirements](#pip-requirements)
+{%- endif %}
+{%- if CROSS_PROVIDERS_DEPENDENCIES %}
+- [Cross provider package dependencies](#cross-provider-package-dependencies)
+{%- endif %}
+- [Provider class summary](#provider-class-summary)
+{%- if NEW_OPERATORS or MOVED_OPERATORS %}
+    - [Operators](#operators)
+    {%- if NEW_OPERATORS %}
+        - [New operators](#new-operators)
+    {%- endif %}
+    {%- if MOVED_OPERATORS %}
+        - [Moved operators](#moved-operators)
+    {%- endif %}
+{%- endif %}
+{%- if NEW_SENSORS or MOVED_SENSORS %}
+    - [Sensors](#sensors)
+    {%- if NEW_SENSORS %}
+        - [New sensors](#new-sensors)
+    {%- endif %}
+    {%- if MOVED_SENSORS %}
+        - [Moved sensors](#moved-sensors)
+    {%- endif %}
+{%- endif %}
+{%- if NEW_HOOKS or MOVED_HOOKS %}
+    - [Hooks](#hooks)
+    {%- if NEW_HOOKS %}
+        - [New hooks](#new-hooks)
+    {%- endif %}
+    {%- if MOVED_HOOKS %}
+        - [Moved hooks](#moved-hooks)
+    {%- endif %}
+{%- endif %}
+{%- if NEW_PROTOCOLS or MOVED_PROTOCOLS %}
+    - [Protocols](#protocols)
+    {%- if NEW_PROTOCOLS %}
+        - [New protocols](#new-protocols)
+    {%- endif %}
+    {%- if MOVED_PROTOCOLS %}
+        - [Moved protocols](#moved-protocols)
+    {%- endif %}
+{%- endif %}
+{%- if NEW_SECRETS or MOVED_SECRETS %}
+    - [Secrets](#secrets)
+    {%- if NEW_SECRETS %}
+        - [New secrets](#new-secrets)
+    {%- endif %}
+    {%- if MOVED_SECRETS %}
+        - [Moved secrets](#moved-secrets)
+    {%- endif %}
+{%- endif %}
+- [Releases](#releases)
+    {%- for release in RELEASES %}
+    - [Release {{release.release_version}}](#release-{{release.release_version.replace(".","")}})
+    {%-  endfor %}
+
+## Backport package
+
+This is a backport providers package for `{{PROVIDER_PACKAGE_ID}}` provider. All classes for this provider package
+are in `{{FULL_PACKAGE_NAME}}` python package.
+
+## Installation
+
+You can install this package on top of an existing airflow 1.10.* installation via
+`pip install {{PACKAGE_PIP_NAME}}`
+
+## Compatibility
+
+For full compatibility and test status of the backport packages check
+[Airflow Backport Package Compatibility](https://cwiki.apache.org/confluence/display/AIRFLOW/Backported+providers+packages+for+Airflow+1.10.*+series)
+
+{%- if PIP_REQUIREMENTS %}
+
+## PIP requirements
+
+{{  PIP_REQUIREMENTS_TABLE }}
+
+{%- endif %}
+{%- if CROSS_PROVIDERS_DEPENDENCIES %}
+
+## Cross provider package dependencies
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified backport providers package in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+```bash
+pip install {{ PACKAGE_PIP_NAME }}[{{ CROSS_PROVIDERS_DEPENDENCIES[0] }}]
+```
+
+{{ CROSS_PROVIDERS_DEPENDENCIES_TABLE }}
+
+{%- endif %}

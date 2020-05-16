@@ -655,6 +655,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
     cleanup-image                            Cleans up the container image created
     exec                                     Execs into running breeze container in new terminal
     generate-requirements                    Generates pinned requirements for pip dependencies
+    generate-backport-readme                 Generates backport packages readme files
+    prepare-backport-packages                Prepares backport packages
     initialize-local-virtualenv              Initializes local virtualenv
     setup-autocomplete                       Sets up autocomplete for breeze
     stop                                     Stops the docker-compose environment
@@ -860,6 +862,84 @@ This is the current syntax for  `./breeze <./breeze>`_:
           One of:
 
                  3.6 3.7
+
+  -v, --verbose
+          Show verbose information about executed commands (enabled by default for running test).
+          Note that you can further increase verbosity and see all the commands executed by breeze
+          by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: generate-backport-readme
+
+  breeze [FLAGS] generate-backport-readme -- <EXTRA_ARGS>
+
+        Prepares README.md files for backport packages. You can provide (after --) optional version
+        in the form of YYYY.MM.DD, optionally followed by the list of packages to generate readme for.
+        If the first parameter is not formatted as a date, then today is used as version.
+        If no packages are specified, readme for all packages are generated.
+        If no date is specified, current date + 3 days is used (allowing for PMC votes to pass).
+
+        Examples:
+
+        'breeze generate-backport-readme' or
+        'breeze generate-backport-readme -- 2020.05.10' or
+        'breeze generate-backport-readme -- 2020.05.10 https google amazon'
+
+        General form:
+
+        'breeze generate-backport-readme -- YYYY.MM.DD <PACKAGE_ID> ...'
+
+        * YYYY.MM.DD - is the CALVER version of the package to prepare. Note that this date
+          cannot be earlier than the already released version (the script will fail if it
+          will be). It can be set in the future anticipating the future release date.
+
+        * <PACKAGE_ID> is usually directory in the airflow/providers folder (for example
+          'google' but in several cases, it might be one level deeper separated with
+          '.' for example 'apache.hive'
+
+  Flags:
+
+  -v, --verbose
+          Show verbose information about executed commands (enabled by default for running test).
+          Note that you can further increase verbosity and see all the commands executed by breeze
+          by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: prepare-backport-packages
+
+  breeze [FLAGS] prepare-backport-packages -- <EXTRA_ARGS>
+
+        Builds backport packages. You can provide (after --) optional list of packages to prepare.
+        If no packages are specified, readme for all packages are generated. You can specify optional
+        --version-suffix flag to generate rc candidates for the packages.
+
+        Make sure to set the right version in './backport_packages/setup_backport_packages.py'
+
+        Examples:
+
+        'breeze prepare-backport-packages' or
+        'breeze prepare-backport-packages -- google' or
+        'breeze prepare-backport-packages --version-suffix rc1 -- http google amazon'
+
+        General form:
+
+        'breeze prepare-backport-packages -- <PACKAGE_ID> ...'
+
+        * <PACKAGE_ID> is usually directory in the airflow/providers folder (for example
+          'google'), but in several cases, it might be one level deeper separated with '.'
+          for example 'apache.hive'
+
+  Flags:
+
+  -S, --version-suffix
+          Adds optional suffix to the generated backport package version. It can be used to generate
+          rc1/rc2 ... versions of the packages.
 
   -v, --verbose
           Show verbose information about executed commands (enabled by default for running test).
@@ -1339,6 +1419,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -H, --dockerhub-repo
           DockerHub repository used to pull, push, build images. Default: airflow.
+
+  ****************************************************************************************************
+   Flags for generation of the backport packages
+
+  -S, --version-suffix
+          Adds optional suffix to the generated backport package version. It can be used to generate
+          rc1/rc2 ... versions of the packages.
 
   ****************************************************************************************************
    Increase verbosity of the scripts

@@ -26,7 +26,7 @@ import unittest
 from importlib import util
 from os.path import dirname
 from textwrap import wrap
-from typing import List
+from typing import Dict, Iterable, List
 
 from setuptools import Command, find_packages, setup
 
@@ -176,6 +176,9 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
 amazon = [
     'boto3>=1.12.0,<2.0.0',
     'watchtower~=0.7.3',
+]
+apache_beam = [
+    'apache-beam[gcp]<2.20.0',
 ]
 async_packages = [
     'eventlet>= 0.9.7',
@@ -386,6 +389,9 @@ snowflake = [
     'snowflake-connector-python>=1.5.2',
     'snowflake-sqlalchemy>=1.1.0',
 ]
+spark = [
+    'pyspark',
+]
 ssh = [
     'paramiko>=2.6.0',
     'pysftp>=0.2.9',
@@ -444,6 +450,7 @@ devel = [
     'moto>=1.3.14,<2.0.0',
     'parameterized',
     'paramiko',
+    'pipdeptree',
     'pre-commit',
     'pylint==2.4.4',
     'pysftp',
@@ -474,24 +481,72 @@ else:
 devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
 devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
 
-devel_all = (all_dbs + amazon + atlas + azure + celery + cgroups + dask + datadog + devel + doc + docker +
-             elasticsearch + exasol + facebook + google + grpc + hashicorp + jdbc + jenkins + kerberos +
-             kubernetes + ldap + odbc + oracle + pagerduty + papermill + password + rabbitmq + redis +
-             salesforce + samba + segment + sendgrid + sentry + singularity + slack + snowflake + ssh +
-             statsd + tableau + virtualenv + webhdfs + yandexcloud + zendesk)
+PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
+    "amazon": amazon,
+    "apache.cassandra": cassandra,
+    "apache.druid": druid,
+    "apache.hdfs": hdfs,
+    "apache.hive": hive,
+    "apache.livy": [],
+    "apache.pig": [],
+    "apache.pinot": pinot,
+    "apache.spark": spark,
+    "apache.sqoop": [],
+    "celery": celery,
+    "cloudant": cloudant,
+    "cncf.kubernetes": kubernetes,
+    "databricks": databricks,
+    "datadog": datadog,
+    "dingding": [],
+    "discord": [],
+    "docker": docker,
+    "email": [],
+    "elasticsearch": [],
+    "exasol": exasol,
+    "facebook": facebook,
+    "ftp": [],
+    "google": google,
+    "grpc": grpc,
+    "hashicorp": hashicorp,
+    "http": [],
+    "imap": [],
+    "jdbc": jdbc,
+    "jenkins": jenkins,
+    "jira": jira,
+    "microsoft.azure": azure,
+    "microsoft.mssql": mssql,
+    "microsoft.winrm": winrm,
+    "mongo": mongo,
+    "mysql": mysql,
+    "odbc": odbc,
+    "openfaas": [],
+    "opsgenie": [],
+    "oracle": oracle,
+    "pagerduty": pagerduty,
+    "papermill": papermill,
+    "postgres": postgres,
+    "presto": presto,
+    "qubole": qds,
+    "redis": redis,
+    "salesforce": salesforce,
+    "samba": samba,
+    "segment": segment,
+    "sftp": ssh,
+    "singularity": singularity,
+    "slack": slack,
+    "snowflake": snowflake,
+    "sqlite": [],
+    "ssh": ssh,
+    "vertica": vertica,
+    "yandex": yandexcloud,
+    "zendesk": zendesk,
+}
 
-# Snakebite is not Python 3 compatible :'(
-if PY3:
-    devel_ci = [package for package in devel_all if package not in
-                ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']]
-else:
-    devel_ci = devel_all
-
-EXTRAS_REQUIREMENTS = {
-    'all': devel_all,
+EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     'all_dbs': all_dbs,
     'amazon': amazon,
     'apache.atlas': atlas,
+    'apache_beam': apache_beam,
     "apache.cassandra": cassandra,
     "apache.druid": druid,
     "apache.hdfs": hdfs,
@@ -511,7 +566,6 @@ EXTRAS_REQUIREMENTS = {
     'databricks': databricks,
     'datadog': datadog,
     'devel': devel_minreq,
-    'devel_ci': devel_ci,
     'devel_hadoop': devel_hadoop,
     'doc': doc,
     'docker': docker,
@@ -558,6 +612,7 @@ EXTRAS_REQUIREMENTS = {
     'singularity': singularity,
     'slack': slack,
     'snowflake': snowflake,
+    'spark': spark,
     'ssh': ssh,
     'statsd': statsd,
     'tableau': tableau,
@@ -567,6 +622,53 @@ EXTRAS_REQUIREMENTS = {
     'winrm': winrm,  # TODO: remove this in Airflow 2.1
     'yandexcloud': yandexcloud,
 }
+
+# Make devel_all contain all providers + extras + unique
+devel_all = list(set(devel +
+                     [req for req_list in EXTRAS_REQUIREMENTS.values() for req in req_list] +
+                     [req for req_list in PROVIDERS_REQUIREMENTS.values() for req in req_list]))
+
+PACKAGES_EXCLUDED_FOR_ALL = [
+]
+
+if PY3:
+    # Snakebite is not Python 3 compatible :'(
+    PACKAGES_EXCLUDED_FOR_ALL.extend([
+        'snakebite',
+    ])
+
+# Those packages are excluded because they break tests (downgrading mock) and they are
+# not needed to run our test suite.
+PACKAGES_EXCLUDED_FOR_CI = [
+    'apache-beam',
+]
+
+
+def is_package_excluded(package: str, exclusion_list: List[str]):
+    """
+    Checks if package should be excluded.
+    :param package: package name (beginning of it)
+    :param exclusion_list: list of excluded packages
+    :return: true if package should be excluded
+    """
+    return any([package.startswith(excluded_package) for excluded_package in exclusion_list])
+
+
+devel_all = [package for package in devel_all if not is_package_excluded(
+    package=package,
+    exclusion_list=PACKAGES_EXCLUDED_FOR_ALL)
+]
+devel_ci = [package for package in devel_all if not is_package_excluded(
+    package=package,
+    exclusion_list=PACKAGES_EXCLUDED_FOR_CI + PACKAGES_EXCLUDED_FOR_ALL)
+]
+
+EXTRAS_REQUIREMENTS.update(
+    {
+        'all': devel_all,
+        'devel_ci': devel_ci,
+    }
+)
 
 #####################################################################################################
 # IMPORTANT NOTE!!!!!!!!!!!!!!!

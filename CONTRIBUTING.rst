@@ -313,14 +313,15 @@ This is the full list of those extras:
 
   .. START EXTRAS HERE
 
-all, all_dbs, amazon, apache.atlas, apache.cassandra, apache.druid, apache.hdfs, apache.hive,
-apache.pinot, apache.webhdfs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant,
-cncf.kubernetes, dask, databricks, datadog, devel, devel_ci, devel_hadoop, doc, docker, druid,
+all_dbs, amazon, apache.atlas, apache_beam, apache.cassandra, apache.druid, apache.hdfs,
+apache.hive, apache.pinot, apache.webhdfs, async, atlas, aws, azure, cassandra, celery, cgroups,
+cloudant, cncf.kubernetes, dask, databricks, datadog, devel, devel_hadoop, doc, docker, druid,
 elasticsearch, exasol, facebook, gcp, gcp_api, github_enterprise, google, google_auth, grpc,
 hashicorp, hdfs, hive, jdbc, jira, kerberos, kubernetes, ldap, microsoft.azure, microsoft.mssql,
 microsoft.winrm, mongo, mssql, mysql, odbc, oracle, pagerduty, papermill, password, pinot, postgres,
 presto, qds, rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry, singularity, slack,
-snowflake, ssh, statsd, tableau, vertica, virtualenv, webhdfs, winrm, yandexcloud
+snowflake, spark, ssh, statsd, tableau, vertica, virtualenv, webhdfs, winrm, yandexcloud, all,
+devel_ci
 
   .. END EXTRAS HERE
 
@@ -981,52 +982,3 @@ Resources & Links
 - `Airflow’s official documentation <http://airflow.apache.org/>`__
 
 - `More resources and links to Airflow related content on the Wiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links>`__
-
-Preparing backport packages
-===========================
-
-As part of preparation to Airflow 2.0 we decided to prepare backport of providers package that will be
-possible to install in the Airflow 1.10.*, Python 3.6+ environment.
-Some of those packages will be soon (after testing) officially released via PyPi, but you can build and
-prepare such packages on your own easily.
-
-* The setuptools.py script only works in python3.6+. This is also our minimally supported python
-  version to use the packages in.
-
-* Make sure you have ``setuptools`` and ``wheel`` installed in your python environment. The easiest way
-  to do it is to run ``pip install setuptools wheel``
-
-* Run the following command:
-
-  .. code-block:: bash
-
-    ./scripts/ci/ci_prepare_packages.sh
-
-* Usually you only build some of the providers package. The ``providers`` directory is separated into
-  separate providers. You can see the list of all available providers by running
-  ``./scripts/ci/ci_prepare_packages.sh --help``. You can build the backport package
-  by running ``./scripts/ci/ci_prepare_packages.sh <PROVIDER_NAME>``. Note that there
-  might be (and are) dependencies between some packages that might prevent subset of the packages
-  to be used without installing the packages they depend on. This will be solved soon by
-  adding cross-dependencies between packages.
-
-* This creates a wheel package in your ``dist`` folder with a name similar to:
-  ``apache_airflow_backport_providers-0.0.1-py2.py3-none-any.whl``
-
-* You can install this package with ``pip install <PACKAGE_FILE>``
-
-
-* You can also build sdist (source distribution packages) by running
-  ``python setup.py <PROVIDER_NAME> sdist`` but this is only needed in case of distribution of the packages.
-
-Each package has description generated from the the general ``backport_packages/README.md`` file with the
-following replacements:
-
-* ``{{ PACKAGE_NAME }}`` is replaced with the name of the package
-(``apache-airflow-backport-providers-<NAME>``)
-* ``{{ PACKAGE_DEPENDENCIES }}`` is replaced with list of optional dependencies for the package
-* ``{{ PACKAGE_BACKPORT_README }}`` is replaced with the content of ``BACKPORT_README.md`` file in the
-  package folder if it exists.
-
-Note that those are unofficial packages yet - they are not yet released in PyPi, but you might use them to
-test the master versions of operators/hooks/sensors in Airflow 1.10.* environment  with Python3.6+

@@ -819,5 +819,20 @@ class TestKubernetesPodOperator(unittest.TestCase):
         self.expected_pod['spec']['priorityClassName'] = priority_class_name
         self.assertEqual(self.expected_pod, actual_pod)
 
+    def test_pod_name(self):
+        pod_name_too_long = "a" * 221
+        with self.assertRaises(AirflowException):
+            KubernetesPodOperator(
+                namespace='default',
+                image="ubuntu:16.04",
+                cmds=["bash", "-cx"],
+                arguments=["echo 10"],
+                labels={"foo": "bar"},
+                name=pod_name_too_long,
+                task_id="task",
+                in_cluster=False,
+                do_xcom_push=False,
+            )
+
 
 # pylint: enable=unused-argument

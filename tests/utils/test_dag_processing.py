@@ -21,6 +21,7 @@ import os
 import sys
 import unittest
 from datetime import datetime, timedelta
+from tempfile import TemporaryDirectory
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
 
@@ -52,6 +53,11 @@ class FakeDagFileProcessorRunner(DagFileProcessorProcess):
     # as its processing result w/o actually parsing anything.
     def __init__(self, file_path, pickle_dags, dag_id_white_list, zombies):
         super().__init__(file_path, pickle_dags, dag_id_white_list, zombies)
+        # We need a "real" selectable handle for waitable_handle to work
+        readable, writable = multiprocessing.Pipe(duplex=False)
+        writable.send('abc')
+        writable.close()
+        self._waitable_handle = readable
         self._result = zombies, 0
 
     def start(self):
@@ -82,6 +88,10 @@ class FakeDagFileProcessorRunner(DagFileProcessorProcess):
             zombies
         )
 
+    @property
+    def waitable_handle(self):
+        return self._waitable_handle
+
 
 class TestDagFileProcessorManager(unittest.TestCase):
     def setUp(self):
@@ -102,6 +112,28 @@ class TestDagFileProcessorManager(unittest.TestCase):
                     results.append(obj)
                 elif obj.done:
                     return results
+            raise RuntimeError("Shouldn't get here - nothing to read, but manager not finished!")
+
+    @conf_vars({('core', 'load_examples'): 'False'})
+    def test_max_runs_when_no_files(self):
+
+        child_pipe, parent_pipe = multiprocessing.Pipe()
+
+        with TemporaryDirectory(prefix="empty-airflow-dags-") as dags_folder:
+            async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
+            manager = DagFileProcessorManager(
+                dag_directory=dags_folder,
+                max_runs=1,
+                processor_factory=FakeDagFileProcessorRunner._fake_dag_processor_factory,
+                processor_timeout=timedelta.max,
+                signal_conn=child_pipe,
+                dag_ids=[],
+                pickle_dags=False,
+                async_mode=async_mode)
+
+            self.run_processor_manager_one_loop(manager, parent_pipe)
+        child_pipe.close()
+        parent_pipe.close()
 
     def test_set_file_paths_when_processor_file_path_not_in_new_file_paths(self):
         manager = DagFileProcessorManager(

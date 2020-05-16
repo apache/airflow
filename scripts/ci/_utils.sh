@@ -221,6 +221,9 @@ function initialize_common_environment {
 
     # Determines if airflow should be installed from a specified reference in GitHub
     export INSTALL_AIRFLOW_REFERENCE=""
+
+    # Version suffix for the generated backport packages
+    export VERSION_SUFFIX=""
 }
 
 # Prints verbose information in case VERBOSE variable is set
@@ -250,6 +253,7 @@ LICENSE /opt/airflow/
 MANIFEST.in /opt/airflow/
 NOTICE /opt/airflow/
 airflow /opt/airflow/
+backport_packages/setup_backport_packages.py /opt/airflow/backport_packages/
 common /opt/airflow/
 dags /opt/airflow/
 dev /opt/airflow/
@@ -1633,8 +1637,29 @@ function run_generate_requirements() {
         | tee -a "${OUTPUT_LOG}"
 }
 
-# ocker command to prepare backport packages
-function run_prepare_packages() {
+# Docker command to prepare backport packages
+function run_prepare_backport_packages() {
+    docker run "${EXTRA_DOCKER_FLAGS[@]}" \
+        --entrypoint "/usr/local/bin/dumb-init"  \
+        --env PYTHONDONTWRITEBYTECODE \
+        --env VERBOSE \
+        --env VERBOSE_COMMANDS \
+        --env HOST_USER_ID="$(id -ur)" \
+        --env HOST_GROUP_ID="$(id -gr)" \
+        --env UPGRADE_WHILE_GENERATING_REQUIREMENTS \
+        --env PYTHON_MAJOR_MINOR_VERSION \
+        --env CHECK_REQUIREMENTS_ONLY \
+        --env VERSION_SUFFIX \
+        -t \
+        -v "${AIRFLOW_SOURCES}:/opt/airflow" \
+        --rm \
+        "${AIRFLOW_CI_IMAGE}" \
+        "--" "/opt/airflow/scripts/ci/in_container/run_prepare_backport_packages.sh" "${@}" \
+        | tee -a "${OUTPUT_LOG}"
+}
+
+# Docker command to generate release notes for backport packages
+function run_generate_backport_readme() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
         --env PYTHONDONTWRITEBYTECODE \
@@ -1649,7 +1674,7 @@ function run_prepare_packages() {
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
         --rm \
         "${AIRFLOW_CI_IMAGE}" \
-        "--" "/opt/airflow/scripts/ci/in_container/run_prepare_packages.sh" "${@}" \
+        "--" "/opt/airflow/scripts/ci/in_container/run_generate_backport_readme.sh" "${@}" \
         | tee -a "${OUTPUT_LOG}"
 }
 

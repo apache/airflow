@@ -2814,8 +2814,12 @@ class TestSchedulerJob(unittest.TestCase):
                                  num_runs=1)
         scheduler.run()
         with create_session() as session:
-            self.assertEqual(
-                len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()), 1)
+            tis = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()
+            # Since this dag has no end date, and there's a chance that we'll
+            # start a and finish two dag parsing processes twice in one loop!
+            self.assertGreaterEqual(
+                len(tis), 1,
+                repr(tis))
 
     def test_dag_get_active_runs(self):
         """

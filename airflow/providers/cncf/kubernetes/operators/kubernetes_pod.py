@@ -49,8 +49,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :param image: Docker image you wish to launch. Defaults to hub.docker.com,
         but fully qualified URLS will point to custom repositories.
     :type image: str
-    :param name: name of the pod in which the task will run, will be used to
-        generate a pod id (DNS-1123 subdomain, containing only [a-z0-9.-]).
+    :param name: name of the pod in which the task will run, will be used (plus a random
+        suffix) to generate a pod id (DNS-1123 subdomain, containing only [a-z0-9.-]).
     :type name: str
     :param cmds: entrypoint of the container. (templated)
         The docker images's entrypoint is used if this is not provided.
@@ -322,5 +322,5 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     def _set_name(self, name):
         if self.pod_template_file or self.full_pod_spec:
             return None
-        validate_key(name, max_length=63)
+        validate_key(name, max_length=220)
         return re.sub(r'[^a-z0-9.-]+', '-', name.lower())
