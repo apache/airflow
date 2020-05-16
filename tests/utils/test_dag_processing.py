@@ -39,7 +39,7 @@ from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.test_logging_config import SETTINGS_FILE_VALID, settings_context
-from tests.test_utils.config import conf_vars
+from tests.test_utils.config import conf_vars, env_vars
 from tests.test_utils.db import clear_db_runs
 
 TEST_DAG_FOLDER = os.path.join(
@@ -377,34 +377,35 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         logger should not be configured.
         """
         with settings_context(SETTINGS_FILE_VALID):
-            # Launch a process through DagFileProcessorAgent, which will try
-            # reload the logging module.
-            test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
-            async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
-            log_file_loc = conf.get('logging', 'DAG_PROCESSOR_MANAGER_LOG_LOCATION')
+            with env_vars({('logging', 'logging_config_class'): 'custom_airflow_local_settings.LOGGING_CONFIG'}):
+                # Launch a process through DagFileProcessorAgent, which will try
+                # reload the logging module.
+                test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
+                async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
+                log_file_loc = conf.get('logging', 'DAG_PROCESSOR_MANAGER_LOG_LOCATION')
 
-            try:
-                os.remove(log_file_loc)
-            except OSError:
-                pass
+                try:
+                    os.remove(log_file_loc)
+                except OSError:
+                    pass
 
-            # Starting dag processing with 0 max_runs to avoid redundant operations.
-            processor_agent = DagFileProcessorAgent(test_dag_path,
-                                                    0,
-                                                    type(self)._processor_factory,
-                                                    timedelta.max,
-                                                    [],
-                                                    False,
-                                                    async_mode)
-            processor_agent.start()
-            if not async_mode:
-                processor_agent.run_single_parsing_loop()
+                # Starting dag processing with 0 max_runs to avoid redundant operations.
+                processor_agent = DagFileProcessorAgent(test_dag_path,
+                                                        0,
+                                                        type(self)._processor_factory,
+                                                        timedelta.max,
+                                                        [],
+                                                        False,
+                                                        async_mode)
+                processor_agent.start()
+                if not async_mode:
+                    processor_agent.run_single_parsing_loop()
 
-            processor_agent._process.join()
-            # Since we are reloading logging config not creating this file,
-            # we should expect it to be nonexistent.
+                processor_agent._process.join()
+                # Since we are reloading logging config not creating this file,
+                # we should expect it to be nonexistent.
 
-            self.assertFalse(os.path.isfile(log_file_loc))
+                self.assertFalse(os.path.isfile(log_file_loc))
 
     def test_parse_once(self):
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
