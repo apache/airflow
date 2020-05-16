@@ -1220,6 +1220,8 @@ This example illustrates some possibilities
 
 .. code:: python
 
+  from airflow.exceptions import AirflowFailException, AirflowSkipException
+
   def fetch_data():
       try:
           data = get_some_data(get_api_key())
