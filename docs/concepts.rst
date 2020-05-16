@@ -650,7 +650,7 @@ Note that XComs are similar to `Variables`_, but are specifically designed
 for inter-task communication rather than global settings.
 
 Custom XCom backend
-'''''''''''''''''''
+-------------------
 
 It is possible to change ``XCom`` behaviour os serialization and deserialization of tasks' result.
 To do this one have to change ``xcom_backend`` parameter in Airflow config. Provided value should point

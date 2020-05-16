@@ -181,7 +181,7 @@ def main(num_runs, repeat, pre_create_dag_runs, dag_ids):  # pylint: disable=too
     # Turn on unit test mode so that we don't do any sleep() in the scheduler
     # loop - not needed on master, but this script can run against older
     # releases too!
-    os.environ['AIRFLOW__CORE_UNIT_TEST_MODE'] = 'True'
+    os.environ['AIRFLOW__CORE__UNIT_TEST_MODE'] = 'True'
 
     os.environ['AIRFLOW__CORE__DAG_CONCURRENCY'] = '500'
 

@@ -503,8 +503,23 @@ class TestAirflowBaseViews(TestBase):
         self.assertIsNone(None, resp_json['scheduler']['latest_scheduler_heartbeat'])
 
     def test_home(self):
-        resp = self.client.get('home', follow_redirects=True)
-        self.check_content_in_response('DAGs', resp)
+        with self.capture_templates() as templates:
+            resp = self.client.get('home', follow_redirects=True)
+            self.check_content_in_response('DAGs', resp)
+            val_state_color_mapping = 'const STATE_COLOR = {"failed": "red", ' \
+                                      '"null": "lightblue", "queued": "gray", ' \
+                                      '"removed": "lightgrey", "running": "lime", ' \
+                                      '"scheduled": "tan", "shutdown": "blue", ' \
+                                      '"skipped": "pink", "success": "green", ' \
+                                      '"up_for_reschedule": "turquoise", ' \
+                                      '"up_for_retry": "gold", "upstream_failed": "orange"};'
+            self.check_content_in_response(val_state_color_mapping, resp)
+
+        self.assertEqual(len(templates), 1)
+        self.assertEqual(templates[0].name, 'airflow/dags.html')
+        state_color_mapping = State.state_color.copy()
+        state_color_mapping["null"] = state_color_mapping.pop(None)
+        self.assertEqual(templates[0].local_context['state_color'], state_color_mapping)
 
     def test_users_list(self):
         resp = self.client.get('users/list', follow_redirects=True)
@@ -585,7 +600,7 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.post('task_stats', follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(set(list(resp.json.items())[0][1][0].keys()),
-                         {'state', 'count', 'color'})
+                         {'state', 'count'})
 
     @conf_vars({("webserver", "show_recent_stats_for_completed_runs"): "False"})
     def test_task_stats_only_noncompleted(self):
@@ -1681,7 +1696,7 @@ class TestDagACLView(TestBase):
         resp = self.client.post('dag_stats', follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
         self.assertEqual(set(list(resp.json.items())[0][1][0].keys()),
-                         {'state', 'count', 'color'})
+                         {'state', 'count'})
 
     def test_dag_stats_failure(self):
         self.logout()

@@ -1,0 +1,98 @@
+{#
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+#}
+
+# Provider class summary
+
+All classes in Airflow 2.0 are in `{{FULL_PACKAGE_NAME}}` package.
+
+{% if NEW_OPERATORS or MOVED_OPERATORS %}
+## Operators
+
+{% if NEW_OPERATORS %}
+### New operators
+
+{{NEW_OPERATORS_TABLE}}
+{% endif %}
+
+{% if MOVED_OPERATORS %}
+### Moved operators
+
+{{MOVED_OPERATORS_TABLE}}
+{% endif %}
+{% endif %}
+
+{% if NEW_SENSORS or MOVED_SENSORS %}
+## Sensors
+
+{% if NEW_SENSORS %}
+### New sensors
+
+{{NEW_SENSORS_TABLE}}
+{% endif %}
+{% if MOVED_SENSORS %}
+### Moved sensors
+
+{{MOVED_SENSORS_TABLE}}
+{% endif %}
+{% endif %}
+{% if NEW_HOOKS or MOVED_HOOKS %}
+## Hooks
+
+{% if NEW_HOOKS %}
+### New hooks
+
+{{NEW_HOOKS_TABLE}}
+{% endif %}
+{% if MOVED_HOOKS %}
+### Moved hooks
+
+{{MOVED_HOOKS_TABLE}}
+{% endif %}
+{% endif %}
+{% if NEW_PROTOCOLS or MOVED_PROTOCOLS %}
+## Protocols
+
+{% if NEW_PROTOCOLS %}
+### New protocols
+
+{{NEW_PROTOCOLS_TABLE}}
+{% endif %}
+{% if MOVED_PROTOCOLS %}
+### Moved protocols
+
+{{MOVED_PROTOCOLS_TABLE}}
+{% endif %}
+{% endif %}
+{% if NEW_SECRETS or MOVED_SECRETS %}
+## Secrets
+
+{% if NEW_SECRETS %}
+### New secrets
+
+{{NEW_SECRETS_TABLE}}
+{% endif %}
+{% if MOVED_SECRETS %}
+### Moved secrets
+
+{{MOVED_SECRETS_TABLE}}
+{% endif %}
+{% endif %}
+
+
+## Releases

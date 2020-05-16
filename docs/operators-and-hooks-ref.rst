@@ -387,6 +387,12 @@ These integrations allow you to perform various operations within the Amazon Web
      -
      - :mod:`airflow.providers.amazon.aws.sensors.glue_catalog_partition`
 
+   * - `AWS Glue <https://aws.amazon.com/glue/>`__
+     -
+     - :mod:`airflow.providers.amazon.aws.hooks.glue`
+     - :mod:`airflow.providers.amazon.aws.operators.glue`
+     - :mod:`airflow.providers.amazon.aws.sensors.glue`
+
    * - `AWS Lambda <https://aws.amazon.com/lambda/>`__
      -
      - :mod:`airflow.providers.amazon.aws.hooks.lambda_function`
@@ -418,13 +424,20 @@ These integrations allow you to perform various operations within the Amazon Web
      -
 
    * - `Amazon EC2 <https://aws.amazon.com/ec2/>`__
+     -
+     - :mod:`airflow.providers.amazon.aws.hooks.ec2`
+     - :mod:`airflow.providers.amazon.aws.operators.ec2_start_instance`,
+       :mod:`airflow.providers.amazon.aws.operators.ec2_stop_instance`,
+     - :mod:`airflow.providers.amazon.aws.sensors.ec2_instance_state`
+
+   * - `Amazon ECS <https://aws.amazon.com/ecs/>`__
      - :doc:`How to use <howto/operator/amazon/aws/ecs>`
      -
      - :mod:`airflow.providers.amazon.aws.operators.ecs`
      -
 
    * - `Amazon EMR <https://aws.amazon.com/emr/>`__
-     -
+     - :doc:`How to use <howto/operator/amazon/aws/emr>`
      - :mod:`airflow.providers.amazon.aws.hooks.emr`
      - :mod:`airflow.providers.amazon.aws.operators.emr_add_steps`,
        :mod:`airflow.providers.amazon.aws.operators.emr_create_job_flow`,
@@ -558,7 +571,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
 
    * - `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
-     -
+     - :doc:`How to use <howto/operator/amazon/aws/imap_attachment_to_s3>`
      - :mod:`airflow.providers.amazon.aws.operators.imap_attachment_to_s3`
 
    * - `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
@@ -754,7 +767,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Cloud Speech-to-Text <https://cloud.google.com/speech-to-text/>`__
-     - :doc:`How to use <howto/operator/gcp/speech>`
+     - :doc:`How to use <howto/operator/gcp/speech_to_text>`
      - :mod:`airflow.providers.google.cloud.hooks.speech_to_text`
      - :mod:`airflow.providers.google.cloud.operators.speech_to_text`
      -
@@ -790,7 +803,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Cloud Text-to-Speech <https://cloud.google.com/text-to-speech/>`__
-     - :doc:`How to use <howto/operator/gcp/speech>`
+     - :doc:`How to use <howto/operator/gcp/text_to_speech>`
      - :mod:`airflow.providers.google.cloud.hooks.text_to_speech`
      - :mod:`airflow.providers.google.cloud.operators.text_to_speech`
      -
@@ -967,7 +980,7 @@ Other operators and hooks
      - Operator
      - Hook
 
-   * - :doc:`How to use <howto/operator/gcp/translate-speech>`
+   * - :doc:`How to use <howto/operator/gcp/translate_speech>`
      - :mod:`airflow.providers.google.cloud.operators.translate_speech`
      -
 
@@ -1584,7 +1597,7 @@ These integrations allow you to copy data.
 
    * - `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
-     -
+     - :doc:`How to use <howto/operator/amazon/aws/imap_attachment_to_s3>`
      - :mod:`airflow.providers.amazon.aws.operators.imap_attachment_to_s3`
 
    * - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__

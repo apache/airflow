@@ -38,8 +38,8 @@ except ModuleNotFoundError:
 SMTP_PORT = 587
 SMTP_SERVER = "mail-relay.apache.org"
 MAILING_LIST = {
-    "dev": f"dev@airflow.apache.org",
-    "users": f"users@airflow.apache.org"
+    "dev": "dev@airflow.apache.org",
+    "users": "users@airflow.apache.org"
 }
 
 

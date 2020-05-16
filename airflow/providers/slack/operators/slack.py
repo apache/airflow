@@ -19,7 +19,6 @@
 import json
 from typing import Dict, List, Optional
 
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook
 from airflow.utils.decorators import apply_defaults
@@ -30,14 +29,17 @@ class SlackAPIOperator(BaseOperator):
     Base Slack Operator
     The SlackAPIPostOperator is derived from this operator.
     In the future additional Slack API Operators will be derived from this class as well
+    Only one of `slack_conn_id` and `token` is required.
 
-    :param slack_conn_id: Slack connection ID which its password is Slack API token
+    :param slack_conn_id: Slack connection ID which its password is Slack API token. Optional
     :type slack_conn_id: str
-    :param token: Slack API token (https://api.slack.com/web)
+    :param token: Slack API token (https://api.slack.com/web). Optional
     :type token: str
-    :param method: The Slack API Method to Call (https://api.slack.com/methods)
+    :param method: The Slack API Method to Call (https://api.slack.com/methods). Optional
     :type method: str
-    :param api_params: API Method call parameters (https://api.slack.com/methods)
+    :param api_params: API Method call parameters (https://api.slack.com/methods). Optional
+    :type api_params: dict
+    :param client_args: Slack Hook parameters. Optional. Check airflow.providers.slack.hooks.SlackHook
     :type api_params: dict
     """
 
@@ -49,12 +51,6 @@ class SlackAPIOperator(BaseOperator):
                  api_params: Optional[Dict] = None,
                  *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-
-        if token is None and slack_conn_id is None:
-            raise AirflowException('No valid Slack token nor slack_conn_id supplied.')
-        if token is not None and slack_conn_id is not None:
-            raise AirflowException('Cannot determine Slack credential '
-                                   'when both token and slack_conn_id are supplied.')
 
         self.token = token  # type: Optional[str]
         self.slack_conn_id = slack_conn_id  # type: Optional[str]
@@ -73,6 +69,9 @@ class SlackAPIOperator(BaseOperator):
         which sets self.api_call_params with a dict of
         API call parameters (https://api.slack.com/methods)
         """
+        raise NotImplementedError(
+            "SlackAPIOperator should not be used directly. Chose one of the subclasses instead"
+        )
 
     def execute(self, **kwargs):
         """
@@ -82,12 +81,24 @@ class SlackAPIOperator(BaseOperator):
         if not self.api_params:
             self.construct_api_call_params()
         slack = SlackHook(token=self.token, slack_conn_id=self.slack_conn_id)
-        slack.call(self.method, self.api_params)
+        slack.call(self.method, json=self.api_params)
 
 
 class SlackAPIPostOperator(SlackAPIOperator):
     """
     Posts messages to a slack channel
+
+    Examples:
+
+    .. code-block:: python
+
+        slack = SlackAPIPostOperator(
+            task_id="post_hello",
+            dag=dag,
+            token="XXX",
+            text="hello there!",
+            channel="#random",
+        )
 
     :param channel: channel in which to post message on slack name (#general) or
         ID (C12318391). (templated)

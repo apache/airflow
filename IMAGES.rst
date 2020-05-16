@@ -98,7 +98,7 @@ This will build the image using command similar to:
 
 .. code-block::
 
-    pip install apache-airflow[gcp]==1.10.9 \
+    pip install apache-airflow[sendgrid]==1.10.9 \
        --constraint https://raw.githubusercontent.com/apache/airflow/v1-10-test/requirements/requirements-python3.7.txt
 
 This will also download entrypoint script from https://raw.githubusercontent.com/apache/airflow/v1-10-test/entrypoint.sh

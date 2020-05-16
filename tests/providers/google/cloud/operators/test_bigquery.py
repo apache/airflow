@@ -680,22 +680,24 @@ class TestBigQueryGetDataOperator(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
     def test_execute(self, mock_hook):
 
-        max_results = '100'
+        max_results = 100
         selected_fields = 'DATE'
         operator = BigQueryGetDataOperator(task_id=TASK_ID,
                                            dataset_id=TEST_DATASET,
                                            table_id=TEST_TABLE_ID,
                                            max_results=max_results,
                                            selected_fields=selected_fields,
+                                           location=TEST_DATASET_LOCATION,
                                            )
         operator.execute(None)
         mock_hook.return_value \
-            .get_tabledata \
+            .list_rows \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
                 table_id=TEST_TABLE_ID,
                 max_results=max_results,
                 selected_fields=selected_fields,
+                location=TEST_DATASET_LOCATION,
             )
 
 

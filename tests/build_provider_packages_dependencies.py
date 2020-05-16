@@ -22,7 +22,7 @@ from collections import defaultdict
 from os.path import dirname, sep
 from typing import Dict, List, Optional
 
-from backport_packages.setup_backport_packages import PROVIDERS_DEPENDENCIES
+from setup import PROVIDERS_REQUIREMENTS
 
 sys.path.append(os.path.join(dirname(__file__), os.pardir))
 
@@ -52,7 +52,7 @@ def find_provider(provider_elements: List[str]) -> Optional[str]:
     """
     provider = ""
     separator = ""
-    provider_keys = PROVIDERS_DEPENDENCIES.keys()
+    provider_keys = PROVIDERS_REQUIREMENTS.keys()
     for element in provider_elements:
         provider = provider + separator + element
         if provider in provider_keys:

@@ -126,8 +126,8 @@ with models.DAG(
     )
 
     # [START howto_operator_gcs_delete_bucket]
-    delete_bucket_1 = GCSDeleteBucketOperator(task_id="delete_bucket", bucket_name=BUCKET_1)
-    delete_bucket_2 = GCSDeleteBucketOperator(task_id="delete_bucket", bucket_name=BUCKET_2)
+    delete_bucket_1 = GCSDeleteBucketOperator(task_id="delete_bucket_1", bucket_name=BUCKET_1)
+    delete_bucket_2 = GCSDeleteBucketOperator(task_id="delete_bucket_2", bucket_name=BUCKET_2)
     # [END howto_operator_gcs_delete_bucket]
 
     [create_bucket1, create_bucket2] >> list_buckets >> list_buckets_result

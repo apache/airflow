@@ -20,6 +20,8 @@ from unittest import TestCase, mock
 from moto import mock_ssm
 
 from airflow.providers.amazon.aws.secrets.systems_manager import SystemsManagerParameterStoreBackend
+from airflow.secrets import initialize_secrets_backends
+from tests.test_utils.config import conf_vars
 
 
 class TestSsmSecrets(TestCase):
@@ -94,3 +96,19 @@ class TestSsmSecrets(TestCase):
         ssm_backend.client.put_parameter(**param)
 
         self.assertIsNone(ssm_backend.get_variable("test_mysql"))
+
+    @conf_vars({
+        ('secrets', 'backend'): 'airflow.providers.amazon.aws.secrets.systems_manager.'
+                                'SystemsManagerParameterStoreBackend',
+        ('secrets', 'backend_kwargs'): '{"use_ssl": false}'
+    })
+    @mock.patch("airflow.providers.amazon.aws.secrets.systems_manager.boto3.Session.client")
+    def test_passing_client_kwargs(self, mock_ssm_client):
+        backends = initialize_secrets_backends()
+        systems_manager = [
+            backend for backend in backends
+            if backend.__class__.__name__ == 'SystemsManagerParameterStoreBackend'
+        ][0]
+
+        systems_manager.client
+        mock_ssm_client.assert_called_once_with('ssm', use_ssl=False)

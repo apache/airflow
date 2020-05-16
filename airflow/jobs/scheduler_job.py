@@ -309,6 +309,10 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
             raise AirflowException("Tried to get start time before it started!")
         return self._start_time
 
+    @property
+    def waitable_handle(self):
+        return self._process.sentinel
+
 
 class DagFileProcessor(LoggingMixin):
     """
@@ -478,6 +482,7 @@ class DagFileProcessor(LoggingMixin):
                     email_sent = True
                     notification_sent = True
                 except Exception:  # pylint: disable=broad-except
+                    Stats.incr('sla_email_notification_failure')
                     self.log.exception("Could not send SLA Miss email notification for"
                                        " DAG %s", dag.dag_id)
             # If we sent any notification, update the sla_miss table
@@ -561,12 +566,11 @@ class DagFileProcessor(LoggingMixin):
         # this query should be replaced by find dagrun
         qry = (
             session.query(func.max(DagRun.execution_date))
-                .filter_by(dag_id=dag.dag_id)
-                .filter(or_(
-                    DagRun.external_trigger == False,  # noqa: E712 pylint: disable=singleton-comparison
-                    # add % as a wildcard for the like query
-                    DagRun.run_id.like(f"{DagRunType.SCHEDULED.value}__%")
-                )
+            .filter_by(dag_id=dag.dag_id)
+            .filter(or_(
+                DagRun.external_trigger == False,  # noqa: E712 pylint: disable=singleton-comparison
+                # add % as a wildcard for the like query
+                DagRun.run_id.like(f"{DagRunType.SCHEDULED.value}__%"))
             )
         )
         last_scheduled_run = qry.scalar()
@@ -583,7 +587,7 @@ class DagFileProcessor(LoggingMixin):
             now = timezone.utcnow()
             next_start = dag.following_schedule(now)
             last_start = dag.previous_schedule(now)
-            if next_start <= now:
+            if next_start <= now or isinstance(dag.schedule_interval, timedelta):
                 new_start = last_start
             else:
                 new_start = dag.previous_schedule(last_start)
@@ -1091,6 +1095,7 @@ class SchedulerJob(BaseJob):
             .filter(models.TaskInstance.dag_id.in_(simple_dag_bag.dag_ids)) \
             .filter(models.TaskInstance.state.in_(old_states)) \
             .filter(or_(
+                # pylint: disable=comparison-with-callable
                 models.DagRun.state != State.RUNNING,
                 models.DagRun.state.is_(None)))  # pylint: disable=no-member
         # We need to do this for mysql as well because it can cause deadlocks
