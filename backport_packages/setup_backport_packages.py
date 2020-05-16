@@ -988,7 +988,13 @@ def update_release_notes_for_package(provider_package_id: str, current_release_v
     git_cmd = get_git_command(previous_release)
     changes = subprocess.check_output(git_cmd, cwd=provider_package_path, universal_newlines=True)
     if changes == "":
-        print(f"The code has not changed since last release {last_release}. Skipping generating README.")
+        print(f"No change since {last_release}")
+        print("Skipping generating README.")
+        return
+    if len(changes.splitlines()) == 1:
+        print(f"Only one change since {last_release}")
+        print(f"The change is about committing the README: ${changes}.")
+        print("Skipping generating README.")
         return
     changes_table = convert_git_changes_to_table(
         changes,
