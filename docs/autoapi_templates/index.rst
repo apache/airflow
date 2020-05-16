@@ -119,6 +119,17 @@ persisted in the database.
 
   airflow/models/index
 
+.. _pythonapi:exceptions:
+
+Exceptions
+----------
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  airflow/exceptions/index
 
 Core and community package
 --------------------------
@@ -131,7 +142,7 @@ added only to the contrib package.
 
 Secrets Backends
 ----------------
-Airflow uses relies on secrets backends to retrieve :class:`~airflow.models.connection.Connection` objects.
+Airflow relies on secrets backends to retrieve :class:`~airflow.models.connection.Connection` objects.
 All secrets backends derive from :class:`~airflow.secrets.BaseSecretsBackend`.
 
 .. toctree::
