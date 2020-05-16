@@ -104,6 +104,7 @@ on the operator:
     :end-before: [END howto_operator_gke_start_pod_xcom]
 
 And then use it in other operators:
+
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_kubernetes_engine.py
     :language: python
     :dedent: 4
