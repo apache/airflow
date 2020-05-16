@@ -103,7 +103,7 @@ secret: []
 #   secretName: ""
 #   secretKey: ""
 
-# Astronomer Airflow database config
+# Airflow database config
 data:
   # If secret names are provided, use those secrets
   metadataSecretName: ~
