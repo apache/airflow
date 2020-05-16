@@ -16,7 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import datetime
 import mock
+import unittest
+
 from parameterized import parameterized
 
 from airflow import models, settings
