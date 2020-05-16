@@ -17,9 +17,9 @@
 # under the License.
 
 import datetime
-import mock
 import unittest
 
+import mock
 from parameterized import parameterized
 
 from airflow import models, settings
