@@ -19,3 +19,103 @@
 
 Google Kubernetes Engine Operators
 ==================================
+
+`Google Kubernetes Engine (GKE) <https://cloud.google.com/kubernetes-engine/>`__ provides a managed environment for
+deploying, managing, and scaling your containerized applications using Google infrastructure. The GKE environment
+consists of multiple machines (specifically, Compute Engine instances) grouped together to form a cluster.
+
+.. contents::
+  :depth: 1
+  :local:
+
+Prerequisite Tasks
+^^^^^^^^^^^^^^^^^^
+
+.. include:: _partials/prerequisite_tasks.rst
+
+Manage GKE cluster
+^^^^^^^^^^^^^^^^^^
+
+A cluster is the foundation of GKE - all workloads run on on top of the cluster. It is made up on a cluster master
+and worker nodes. The lifecycle of the master is managed by GKE when creating or deleting a cluster.
+The worker nodes are represented as Compute Engine VM instances that GKE creates on your behalf when creating a cluster.
+
+.. _howto/operator:GKECreateClusterOperator:
+
+Create GKE cluster
+""""""""""""""""""
+
+Here is an example of a cluster definition:
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_kubernetes_engine.py
+    :language: python
+    :start-after: [START howto_operator_gcp_gke_create_cluster_definition]
+    :end-before: [END howto_operator_gcp_gke_create_cluster_definition]
+
+A dict object like this, or a
+:class:`~google.cloud.container_v1.types.Cluster`
+definition, is required when creating a cluster with
+:class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKECreateClusterOperator`.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_kubernetes_engine.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gke_create_cluster]
+    :end-before: [END howto_operator_gke_create_cluster]
+
+.. _howto/operator:GKEDeleteClusterOperator:
+
+Delete GKE cluster
+""""""""""""""""""
+
+To delete a cluster, use
+:class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEDeleteClusterOperator`.
+This would also delete all the nodes allocated to the cluster.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_kubernetes_engine.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gke_delete_cluster]
+    :end-before: [END howto_operator_gke_delete_cluster]
+
+Manage workloads on a GKE cluster
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+GKE works with containerized applications, such as those created on Docker, and deploys them to run on the cluster.
+These are called workloads, and when deployed on the cluster they leverage the CPU and memory resources of the cluster
+to run effectively.
+
+.. _howto/operator:GKEStartPodOperator:
+
+Run a Pod on a GKE cluster
+""""""""""""""""""""""""""
+
+To run a Kubernetes Pod on a GKE cluster, use
+:class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`.
+It is worth noting that this extends
+:class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`
+so many of the same arguments can be used. We can enable the usage of :ref:`XCom <concepts:xcom>`
+on the operator:
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_kubernetes_engine.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gke_start_pod_xcom]
+    :end-before: [END howto_operator_gke_start_pod_xcom]
+
+And then use it in other operators:
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_kubernetes_engine.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gke_xcom_result]
+    :end-before: [END howto_operator_gke_xcom_result]
+
+Reference
+^^^^^^^^^
+
+For further information, look at:
+
+* `GKE API Documentation <https://cloud.google.com/kubernetes-engine/docs/reference/rest>`__
+* `Product Documentation <https://cloud.google.com/kubernetes-engine/docs/>`__
+* `Kubernetes Documentation <https://kubernetes.io/docs/home/>`__
+* `Kubernetes Documentation <https://kubernetes.io/docs/home/>`__
