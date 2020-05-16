@@ -90,21 +90,12 @@ to run effectively.
 Run a Pod on a GKE cluster
 """"""""""""""""""""""""""
 
-There are two operators available in order to run a pod on a GKE cluster:
-
-* :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`
-* :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`
-
-``GKEStartPodOperator`` extends ``KubernetesPodOperator`` to provide authorization using Google Cloud credentials.
-There is no need to manage the ``kube_config`` file, as it will be generated automatically.
-All Kubernetes  parameters (except ``config_file``) are also valid for the ``GKEStartPodOperator``.
-For more information on ``KubernetesPodOperator``, please look at: :ref:`howto/operator:KubernetesPodOperator` guide.
-
-We can enable the usage of :ref:`XCom <concepts:xcom>` on the operator. This works by launching a sidecar container
-with the pod specified. The sidecar is automatically mounted when the XCom usage is specified and it's mount point
-is the path ``/airflow/xcom``. To provide values to the XCom, ensure your Pod writes it into a file called
-``return.json`` in the sidecar. The contents of this can then be used downstream in your DAG.
-Here is an example of it being used:
+To run a Kubernetes Pod on a GKE cluster, use
+:class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`.
+It is worth noting that this extends
+:class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`
+so many of the same arguments can be used. We can enable the usage of :ref:`XCom <concepts:xcom>`
+on the operator:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_kubernetes_engine.py
     :language: python
@@ -113,7 +104,6 @@ Here is an example of it being used:
     :end-before: [END howto_operator_gke_start_pod_xcom]
 
 And then use it in other operators:
-
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_kubernetes_engine.py
     :language: python
     :dedent: 4
@@ -127,4 +117,5 @@ For further information, look at:
 
 * `GKE API Documentation <https://cloud.google.com/kubernetes-engine/docs/reference/rest>`__
 * `Product Documentation <https://cloud.google.com/kubernetes-engine/docs/>`__
+* `Kubernetes Documentation <https://kubernetes.io/docs/home/>`__
 * `Kubernetes Documentation <https://kubernetes.io/docs/home/>`__
