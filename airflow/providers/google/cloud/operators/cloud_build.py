@@ -200,9 +200,9 @@ class CloudBuildCreateOperator(BaseOperator):
 
     def prepare_template(self) -> None:
         # if no file is specified, skip
-        if not isinstance(self.body, str):
+        if not isinstance(self.body_raw, str):
             return
-        with open(self.body, 'r') as file:
+        with open(self.body_raw, 'r') as file:
             if any(self.body_raw.endswith(ext) for ext in ['.yaml', '.yml']):
                 self.body = yaml.load(file.read(), Loader=yaml.FullLoader)
             if self.body_raw.endswith('.json'):
