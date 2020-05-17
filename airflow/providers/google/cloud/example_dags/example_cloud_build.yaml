@@ -17,4 +17,4 @@
 
 steps:
   - name: 'ubuntu'
-    args: ['echo', 'hello world, the day is {{ ds }} ']
+    args: ['echo', 'Hello {{ params.name}}']
