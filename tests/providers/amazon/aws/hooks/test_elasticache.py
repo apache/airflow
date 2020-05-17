@@ -112,7 +112,7 @@ class TestElastiCacheHook(unittest.TestCase):
         """
         Test waiting for availability of replication group
         """
-        self.hhook.create_replication_group(config=self.replication_group_config)
+        self.hook.create_replication_group(config=self.replication_group_config)
         response = self.hook.wait_for_availability(replication_group_id=self.replication_group_id)
 
         assert response in (True, False)
@@ -124,7 +124,7 @@ class TestElastiCacheHook(unittest.TestCase):
         """
         self.hook.create_replication_group(config=self.replication_group_config)
         self.hook.wait_for_availability(replication_group_id=self.replication_group_id)
-        response = self.hhook.delete_replication_group(replication_group_id=self.replication_group_id)
+        response = self.hook.delete_replication_group(replication_group_id=self.replication_group_id)
 
         assert response["ReplicationGroup"]["ReplicationGroupId"] == self.replication_group_id
         assert response["ReplicationGroup"]["Status"] == "deleting"
