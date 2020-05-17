@@ -20,7 +20,6 @@ import json
 from operator import itemgetter
 
 import pendulum
-
 from flask_appbuilder.fieldwidgets import (
     BS3PasswordFieldWidget, BS3TextAreaFieldWidget, BS3TextFieldWidget, Select2Widget,
 )
@@ -29,7 +28,7 @@ from flask_babel import lazy_gettext
 from flask_wtf import FlaskForm
 from wtforms import validators, widgets
 from wtforms.fields import (
-    Field, BooleanField, DateTimeField, IntegerField, PasswordField, SelectField, StringField, TextAreaField,
+    BooleanField, DateTimeField, Field, IntegerField, PasswordField, SelectField, StringField, TextAreaField,
 )
 
 from airflow.models import Connection
