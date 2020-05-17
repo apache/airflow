@@ -732,6 +732,16 @@ You can use them in your DAGs as:
     Variables set using Environment Variables would not appear in the Airflow UI but you will
     be able to use it in your DAG file.
 
+
+Custom Variable backend
+-----------------------
+
+You can provide a custom ``Variable`` implementation by creating a class
+that subclass :class:`~airflow.models.variable.BaseVariable` and set
+``variable_backend`` in the ``[core]`` section to the path of the custom
+class.
+
+
 Branching
 =========
 
