@@ -379,14 +379,8 @@ def do_setup_package_providers(provider_package_id: str,
         long_description_content_type='text/markdown',
         license='Apache License 2.0',
         version=get_package_release_version(
-            provider_package_id=provider_package_id,
-            version_suffix=version_suffix),
+            provider_package_id=provider_package_id),
         packages=found_packages,
-        package_data={
-            '': ["airflow/providers/cncf/kubernetes/example_dags/*.yaml"],
-        },
-
-        include_package_data=True,
         zip_safe=False,
         install_requires=install_requires,
         extras_require=extras,
@@ -823,7 +817,13 @@ PROVIDERS_CHANGES_PREFIX = "PROVIDERS_CHANGES_"
 """
 Keeps information about historical releases.
 """
-ReleaseInfo = collections.namedtuple("ReleaseInfo", "release_version last_commit_hash content file_name")
+ReleaseInfo = collections.namedtuple(
+    "ReleaseInfo",
+    "release_version release_version_no_leading_zeros last_commit_hash content file_name")
+
+
+def strip_leading_zeros(release_version: str) -> str:
+    return release_version.replace(".0", ".")
 
 
 def get_all_releases(provider_package_path: str) -> List[ReleaseInfo]:
@@ -845,10 +845,12 @@ def get_all_releases(provider_package_path: str) -> List[ReleaseInfo]:
                 raise Exception(f"Commit not found in {changes_file_path}. Something is wrong there.")
             last_commit_hash = found.group(1)
             release_version = file_name[len(PROVIDERS_CHANGES_PREFIX):][:-3]
-            past_releases.append(ReleaseInfo(release_version=release_version,
-                                             last_commit_hash=last_commit_hash,
-                                             content=content,
-                                             file_name=file_name))
+            past_releases.append(
+                ReleaseInfo(release_version=release_version,
+                            release_version_no_leading_zeros=strip_leading_zeros(release_version),
+                            last_commit_hash=last_commit_hash,
+                            content=content,
+                            file_name=file_name))
     return past_releases
 
 
@@ -1009,6 +1011,7 @@ def update_release_notes_for_package(provider_package_id: str, current_release_v
         "PACKAGE_PIP_NAME": f"apache-airflow-backport-providers-{provider_package_id.replace('.', '-')}",
         "FULL_PACKAGE_NAME": full_package_name,
         "RELEASE": current_release_version,
+        "RELEASE_NO_LEADING_ZEROS": strip_leading_zeros(current_release_version),
         "CURRENT_CHANGES_TABLE": changes_table,
         "CROSS_PROVIDERS_DEPENDENCIES": cross_providers_dependencies,
         "CROSS_PROVIDERS_DEPENDENCIES_TABLE": cross_providers_dependencies_table,
@@ -1092,14 +1095,6 @@ if __name__ == "__main__":
         print()
         usage()
         exit(1)
-    if sys.argv[1] == "--version-suffix":
-        if len(sys.argv) < 3:
-            print()
-            print("ERROR! --version-suffix needs parameter!")
-            print()
-            usage()
-        suffix = sys.argv[2]
-        sys.argv = [sys.argv[0]] + sys.argv[3:]
     elif "--help" in sys.argv or "-h" in sys.argv or len(sys.argv) < 2:
         usage()
         exit(0)

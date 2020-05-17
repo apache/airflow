@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-google
 
-Release: 2020.05.19
+Release: 2020.5.20
 
 **Table of contents**
 
@@ -42,7 +42,7 @@ Release: 2020.05.19
     - [Secrets](#secrets)
         - [Moved secrets](#moved-secrets)
 - [Releases](#releases)
-    - [Release 2020.05.19](#release-20200519)
+    - [Release 2020.5.20](#release-2020520)
 
 ## Backport package
 
@@ -513,10 +513,11 @@ All classes in Airflow 2.0 are in `airflow.providers.google` package.
 
 ## Releases
 
-### Release 2020.05.19
+### Release 2020.5.20
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [f3521fb0e](https://github.com/apache/airflow/commit/f3521fb0e36733d8bd356123e56a453fd37a6dca) | 2020-05-16  | Regenerate readme files for backport package release (#8886)                                                                                                       |
 | [15273f0ea](https://github.com/apache/airflow/commit/15273f0ea05ec579c631ce26b5d620233ebdc4d2) | 2020-05-16  | Check for same task instead of Equality to detect Duplicate Tasks (#8828)                                                                                          |
 | [92585ca4c](https://github.com/apache/airflow/commit/92585ca4cb375ac879f4ab331b3a063106eb7b92) | 2020-05-15  | Added automated release notes generation for backport operators (#8807)                                                                                            |
 | [e1e833bb2](https://github.com/apache/airflow/commit/e1e833bb260879ecb9a1f80f28450a3656c0e598) | 2020-05-13  | Update GoogleBaseHook to not follow 308 and use 60s timeout (#8816)                                                                                                |

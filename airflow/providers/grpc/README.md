@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-grpc
 
-Release: 2020.05.19
+Release: 2020.5.20
 
 **Table of contents**
 
@@ -34,7 +34,7 @@ Release: 2020.05.19
     - [Hooks](#hooks)
         - [New hooks](#new-hooks)
 - [Releases](#releases)
-    - [Release 2020.05.19](#release-20200519)
+    - [Release 2020.5.20](#release-2020520)
 
 ## Backport package
 
@@ -94,10 +94,11 @@ All classes in Airflow 2.0 are in `airflow.providers.grpc` package.
 
 ## Releases
 
-### Release 2020.05.19
+### Release 2020.5.20
 
 | Commit                                                                                         | Committed   | Subject                                                                       |
 |:-----------------------------------------------------------------------------------------------|:------------|:------------------------------------------------------------------------------|
+| [f3521fb0e](https://github.com/apache/airflow/commit/f3521fb0e36733d8bd356123e56a453fd37a6dca) | 2020-05-16  | Regenerate readme files for backport package release (#8886)                  |
 | [92585ca4c](https://github.com/apache/airflow/commit/92585ca4cb375ac879f4ab331b3a063106eb7b92) | 2020-05-15  | Added automated release notes generation for backport operators (#8807)       |
 | [cb0bf4a14](https://github.com/apache/airflow/commit/cb0bf4a142656ee40b43a01660b6f6b08a9840fa) | 2020-03-30  | Remove sql like function in base_hook (#7901)                                 |
 | [be2b2baa7](https://github.com/apache/airflow/commit/be2b2baa7c5f53c2d73646e4623cdb6731551b70) | 2020-03-23  | Add missing call to Super class in &#39;http&#39;, &#39;grpc&#39; &amp; &#39;slack&#39; providers (#7826) |

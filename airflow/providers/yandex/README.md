@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-yandex
 
-Release: 2020.05.19
+Release: 2020.5.20
 
 **Table of contents**
 
@@ -34,7 +34,7 @@ Release: 2020.05.19
     - [Hooks](#hooks)
         - [New hooks](#new-hooks)
 - [Releases](#releases)
-    - [Release 2020.05.19](#release-20200519)
+    - [Release 2020.5.20](#release-2020520)
 
 ## Backport package
 
@@ -100,10 +100,11 @@ All classes in Airflow 2.0 are in `airflow.providers.yandex` package.
 
 ## Releases
 
-### Release 2020.05.19
+### Release 2020.5.20
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [f3521fb0e](https://github.com/apache/airflow/commit/f3521fb0e36733d8bd356123e56a453fd37a6dca) | 2020-05-16  | Regenerate readme files for backport package release (#8886)                                                                                                       |
 | [92585ca4c](https://github.com/apache/airflow/commit/92585ca4cb375ac879f4ab331b3a063106eb7b92) | 2020-05-15  | Added automated release notes generation for backport operators (#8807)                                                                                            |
 | [59a4f2669](https://github.com/apache/airflow/commit/59a4f26699125b1594496940d62be78d7732b4be) | 2020-04-17  | stop rendering some class docs in wrong place (#8095)                                                                                                              |
 | [3320e432a](https://github.com/apache/airflow/commit/3320e432a129476dbc1c55be3b3faa3326a635bc) | 2020-02-24  | [AIRFLOW-6817] Lazy-load `airflow.DAG` to keep user-facing API untouched (#7517)                                                                                   |

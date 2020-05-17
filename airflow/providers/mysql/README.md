@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-mysql
 
-Release: 2020.05.19
+Release: 2020.5.20
 
 **Table of contents**
 
@@ -36,7 +36,7 @@ Release: 2020.05.19
     - [Hooks](#hooks)
         - [Moved hooks](#moved-hooks)
 - [Releases](#releases)
-    - [Release 2020.05.19](#release-20200519)
+    - [Release 2020.5.20](#release-2020520)
 
 ## Backport package
 
@@ -122,10 +122,11 @@ All classes in Airflow 2.0 are in `airflow.providers.mysql` package.
 
 ## Releases
 
-### Release 2020.05.19
+### Release 2020.5.20
 
 | Commit                                                                                         | Committed   | Subject                                                                                     |
 |:-----------------------------------------------------------------------------------------------|:------------|:--------------------------------------------------------------------------------------------|
+| [f3521fb0e](https://github.com/apache/airflow/commit/f3521fb0e36733d8bd356123e56a453fd37a6dca) | 2020-05-16  | Regenerate readme files for backport package release (#8886)                                |
 | [92585ca4c](https://github.com/apache/airflow/commit/92585ca4cb375ac879f4ab331b3a063106eb7b92) | 2020-05-15  | Added automated release notes generation for backport operators (#8807)                     |
 | [68d1714f2](https://github.com/apache/airflow/commit/68d1714f296989b7aad1a04b75dc033e76afb747) | 2020-04-04  | [AIRFLOW-6822] AWS hooks should cache boto3 client (#7541)                                  |
 | [329e6a5f7](https://github.com/apache/airflow/commit/329e6a5f72bc2e3fc19391754256d974179a6ce0) | 2020-04-01  | [AIRFLOW-5907] Add S3 to MySql Operator (#6578)                                             |

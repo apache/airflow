@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-amazon
 
-Release: 2020.05.19
+Release: 2020.5.20
 
 **Table of contents**
 
@@ -44,7 +44,7 @@ Release: 2020.05.19
     - [Secrets](#secrets)
         - [Moved secrets](#moved-secrets)
 - [Releases](#releases)
-    - [Release 2020.05.19](#release-20200519)
+    - [Release 2020.5.20](#release-2020520)
 
 ## Backport package
 
@@ -245,10 +245,11 @@ All classes in Airflow 2.0 are in `airflow.providers.amazon` package.
 
 ## Releases
 
-### Release 2020.05.19
+### Release 2020.5.20
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [f3521fb0e](https://github.com/apache/airflow/commit/f3521fb0e36733d8bd356123e56a453fd37a6dca) | 2020-05-16  | Regenerate readme files for backport package release (#8886)                                                                                                       |
 | [f4edd90a9](https://github.com/apache/airflow/commit/f4edd90a94b8f91bbefbbbfba367372399559596) | 2020-05-16  | Speed up TestAwsLambdaHook by not actually running a function (#8882)                                                                                              |
 | [92585ca4c](https://github.com/apache/airflow/commit/92585ca4cb375ac879f4ab331b3a063106eb7b92) | 2020-05-15  | Added automated release notes generation for backport operators (#8807)                                                                                            |
 | [85bbab27d](https://github.com/apache/airflow/commit/85bbab27dbb4f55f6f322b894fe3d54797076c15) | 2020-05-15  | Add EMR operators howto docs (#8863)                                                                                                                               |

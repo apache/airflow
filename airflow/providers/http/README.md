@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-http
 
-Release: 2020.05.19
+Release: 2020.5.20
 
 **Table of contents**
 
@@ -35,7 +35,7 @@ Release: 2020.05.19
     - [Hooks](#hooks)
         - [Moved hooks](#moved-hooks)
 - [Releases](#releases)
-    - [Release 2020.05.19](#release-20200519)
+    - [Release 2020.5.20](#release-2020520)
 
 ## Backport package
 
@@ -100,10 +100,11 @@ All classes in Airflow 2.0 are in `airflow.providers.http` package.
 
 ## Releases
 
-### Release 2020.05.19
+### Release 2020.5.20
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [f3521fb0e](https://github.com/apache/airflow/commit/f3521fb0e36733d8bd356123e56a453fd37a6dca) | 2020-05-16  | Regenerate readme files for backport package release (#8886)                                                                                                       |
 | [92585ca4c](https://github.com/apache/airflow/commit/92585ca4cb375ac879f4ab331b3a063106eb7b92) | 2020-05-15  | Added automated release notes generation for backport operators (#8807)                                                                                            |
 | [249e80b96](https://github.com/apache/airflow/commit/249e80b960ab3453763903493bbb77651be9073b) | 2020-04-30  | Add http system test (#8591)                                                                                                                                       |
 | [ddd005e3b](https://github.com/apache/airflow/commit/ddd005e3b97e82ce715dc6604ff60ed5768de6ea) | 2020-04-18  | [AIRFLOW-5156] Fixed doc strigns for HttpHook (#8434)                                                                                                              |

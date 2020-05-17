@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-cncf-kubernetes
 
-Release: 2020.05.19
+Release: 2020.5.20
 
 **Table of contents**
 
@@ -37,7 +37,7 @@ Release: 2020.05.19
     - [Hooks](#hooks)
         - [New hooks](#new-hooks)
 - [Releases](#releases)
-    - [Release 2020.05.19](#release-20200519)
+    - [Release 2020.5.20](#release-2020520)
 
 ## Backport package
 
@@ -115,10 +115,12 @@ All classes in Airflow 2.0 are in `airflow.providers.cncf.kubernetes` package.
 
 ## Releases
 
-### Release 2020.05.19
+### Release 2020.5.20
 
 | Commit                                                                                         | Committed   | Subject                                                                                  |
 |:-----------------------------------------------------------------------------------------------|:------------|:-----------------------------------------------------------------------------------------|
+| [8985df0bf](https://github.com/apache/airflow/commit/8985df0bfcb5f2b2cd69a21b9814021f9f8ce953) | 2020-05-16  | Monitor pods by labels instead of names (#6377)                                          |
+| [f3521fb0e](https://github.com/apache/airflow/commit/f3521fb0e36733d8bd356123e56a453fd37a6dca) | 2020-05-16  | Regenerate readme files for backport package release (#8886)                             |
 | [92585ca4c](https://github.com/apache/airflow/commit/92585ca4cb375ac879f4ab331b3a063106eb7b92) | 2020-05-15  | Added automated release notes generation for backport operators (#8807)                  |
 | [f82ad452b](https://github.com/apache/airflow/commit/f82ad452b0f4ebd1428bc9669641a632dc87bb8c) | 2020-05-15  | Fix KubernetesPodOperator pod name length validation (#8829)                             |
 | [1ccafc617](https://github.com/apache/airflow/commit/1ccafc617c4cb9622e3460ad7c190f3ee67c3b32) | 2020-04-02  | Add spark_kubernetes system test (#7875)                                                 |

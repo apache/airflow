@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-snowflake
 
-Release: 2020.05.19
+Release: 2020.5.20
 
 **Table of contents**
 
@@ -34,7 +34,7 @@ Release: 2020.05.19
     - [Hooks](#hooks)
         - [New hooks](#new-hooks)
 - [Releases](#releases)
-    - [Release 2020.05.19](#release-20200519)
+    - [Release 2020.5.20](#release-2020520)
 
 ## Backport package
 
@@ -96,10 +96,12 @@ All classes in Airflow 2.0 are in `airflow.providers.snowflake` package.
 
 ## Releases
 
-### Release 2020.05.19
+### Release 2020.5.20
 
 | Commit                                                                                         | Committed   | Subject                                                                 |
 |:-----------------------------------------------------------------------------------------------|:------------|:------------------------------------------------------------------------|
+| [a546a10b1](https://github.com/apache/airflow/commit/a546a10b13b1f7a119071d8d2001cb17ccdcbbf7) | 2020-05-16  | Add Snowflake system test (#8422)                                       |
+| [f3521fb0e](https://github.com/apache/airflow/commit/f3521fb0e36733d8bd356123e56a453fd37a6dca) | 2020-05-16  | Regenerate readme files for backport package release (#8886)            |
 | [92585ca4c](https://github.com/apache/airflow/commit/92585ca4cb375ac879f4ab331b3a063106eb7b92) | 2020-05-15  | Added automated release notes generation for backport operators (#8807) |
 | [cd635dd7d](https://github.com/apache/airflow/commit/cd635dd7d57cab2f41efac2d3d94e8f80a6c96d6) | 2020-05-10  | [AIRFLOW-5906] Add authenticator parameter to snowflake_hook (#8642)    |
 | [297ad3088](https://github.com/apache/airflow/commit/297ad30885eeb77c062f37df78a78f381e7d140e) | 2020-04-20  | Fix Snowflake hook conn id (#8423)                                      |
