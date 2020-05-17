@@ -232,9 +232,9 @@ class TestVariableModelView(TestBase):
                                 follow_redirects=True)
 
         # update the variable with a wrong value, given that is encrypted
-        Var = models.Variable
-        (self.session.query(Var)
-            .filter(Var.key == self.variable['key'])
+        var = models.Variable
+        (self.session.query(var)
+            .filter(var.key == self.variable['key'])
             .update({
                 'val': 'failed_value_not_encrypted'
             }, synchronize_session=False))
