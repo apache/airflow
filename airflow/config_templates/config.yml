@@ -366,6 +366,13 @@
       type: string
       example: "path.to.CustomXCom"
       default: "airflow.models.xcom.BaseXCom"
+    - name: variable_backend
+      description: |
+        Path to custom Variable class that will be used to store Airflow variables.
+      version_added: 2.0.0
+      type: string
+      example: "path.to.CustomVariable"
+      default: "airflow.models.variable.BaseVariable"
 
 - name: logging
   description: ~
