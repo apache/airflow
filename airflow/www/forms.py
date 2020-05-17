@@ -19,21 +19,49 @@
 import json
 from operator import itemgetter
 
+import pendulum
+
 from flask_appbuilder.fieldwidgets import (
     BS3PasswordFieldWidget, BS3TextAreaFieldWidget, BS3TextFieldWidget, Select2Widget,
 )
 from flask_appbuilder.forms import DynamicForm
 from flask_babel import lazy_gettext
 from flask_wtf import FlaskForm
-from wtforms import validators
+from wtforms import validators, widgets
 from wtforms.fields import (
-    BooleanField, DateTimeField, IntegerField, PasswordField, SelectField, StringField, TextAreaField,
+    Field, BooleanField, DateTimeField, IntegerField, PasswordField, SelectField, StringField, TextAreaField,
 )
 
 from airflow.models import Connection
 from airflow.utils import timezone
 from airflow.www.validators import ValidJson
 from airflow.www.widgets import AirflowDateTimePickerWidget
+
+
+class DateTimeWithTimezoneField(Field):
+    """
+    A text field which stores a `datetime.datetime` matching a format.
+    """
+    widget = widgets.TextInput()
+
+    def __init__(self, label=None, validators=None, format='%Y-%m-%d %H:%M:%S%Z', **kwargs):
+        super(DateTimeWithTimezoneField, self).__init__(label, validators, **kwargs)
+        self.format = format
+
+    def _value(self):
+        if self.raw_data:
+            return ' '.join(self.raw_data)
+        else:
+            return self.data and self.data.strftime(self.format) or ''
+
+    def process_formdata(self, valuelist):
+        if valuelist:
+            date_str = ' '.join(valuelist)
+            try:
+                self.data = pendulum.parse(date_str)
+            except ValueError:
+                self.data = None
+                raise ValueError(self.gettext('Not a valid datetime value'))
 
 
 class DateTimeForm(FlaskForm):
@@ -80,10 +108,9 @@ class DagRunForm(DynamicForm):
         lazy_gettext('State'),
         choices=(('success', 'success'), ('running', 'running'), ('failed', 'failed'),),
         widget=Select2Widget())
-    execution_date = DateTimeField(
+    execution_date = DateTimeWithTimezoneField(
         lazy_gettext('Execution Date'),
-        widget=AirflowDateTimePickerWidget(),
-        format='%Y-%m-%d %H:%M:%S%z')
+        widget=AirflowDateTimePickerWidget())
     external_trigger = BooleanField(
         lazy_gettext('External Trigger'))
     conf = TextAreaField(
@@ -92,8 +119,6 @@ class DagRunForm(DynamicForm):
         widget=BS3TextAreaFieldWidget())
 
     def populate_obj(self, item):
-        # TODO: This is probably better done as a custom field type so we can
-        # set TZ at parse time
         super().populate_obj(item)
         if item.conf:
             item.conf = json.loads(item.conf)
