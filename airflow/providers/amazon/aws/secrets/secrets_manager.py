@@ -18,7 +18,7 @@
 """
 Objects relating to sourcing secrets from AWS Secrets Manager
 """
-
+import ast
 from typing import Optional
 
 import boto3
@@ -60,15 +60,15 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     def __init__(
         self,
-        connections_prefix: str = 'airflow/connections',
-        variables_prefix: str = 'airflow/variables',
+        connections_prefix: str = None,
+        variables_prefix: str = None,
         profile_name: Optional[str] = None,
-        sep: str = "/",
+        sep: str = None,
         **kwargs
     ):
         super().__init__(**kwargs)
-        self.connections_prefix = connections_prefix.rstrip("/")
-        self.variables_prefix = variables_prefix.rstrip('/')
+        self.connections_prefix = connections_prefix.rstrip(sep)
+        self.variables_prefix = variables_prefix.rstrip(sep)
         self.profile_name = profile_name
         self.sep = sep
         self.kwargs = kwargs
@@ -90,7 +90,23 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: connection id
         :type conn_id: str
         """
-        return self._get_secret(self.connections_prefix, conn_id)
+        try:
+            secret_string = self._get_secret(conn_id)
+            secret = ast.literal_eval(secret_string)
+            user = secret['user']
+            password = secret['pass']
+            host = secret['host']
+            port = secret['port']
+            database = secret['database']
+            engine = secret['engine']
+
+            if engine in ('redshift', 'postgresql'):
+                conn_string = f'postgresql://{user}:{password}@{host}:{port}/{database}'
+            else:
+                conn_string = f'mysql://{user}:{password}@{host}:{port}/{database}'
+            return conn_string
+        except KeyError:
+            return self._get_secret(self.connections_prefix, conn_id)
 
     def get_variable(self, key: str) -> Optional[str]:
         """
