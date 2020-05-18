@@ -30,6 +30,7 @@ import unittest
 import urllib
 from contextlib import contextmanager
 from datetime import datetime as dt, timedelta
+from datetime import timezone as tz
 from typing import Any, Dict, Generator, List, NamedTuple
 from unittest import mock
 from urllib.parse import quote_plus
@@ -2601,7 +2602,7 @@ class TestDagRunModelView(TestBase):
 
         dr = self.session.query(models.DagRun).one()
 
-        self.assertEqual(dr.execution_date, dt.fromisoformat('2018-07-06 05:04:03-02:00'))
+        self.assertEqual(dr.execution_date, dt(2018, 7, 6, 5, 4, 3, tzinfo=tz(timedelta(hours=-2))))
 
     def test_create_dagrun_valid_conf(self):
         conf_value = dict(Valid=True)
