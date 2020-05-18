@@ -104,7 +104,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     :type build: Union[dict, `google.cloud.devtools.cloudbuild_v1.types.Build`]
     :param body: (Deprecated) The build resource to create.
         This parameter has been deprecated. You should pass the build parameter instead.
-    :type body: dict
+    :type body: optional[dict]
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
         If set to None or missing, the default project_id from the GCP connection is used.
     :type project_id: Optional[str]
@@ -130,7 +130,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     def __init__(
         self,
         build: Union[Dict, Build],
-        body: Dict = None,
+        body: Optional[Dict] = None,
         project_id: Optional[str] = None,
         wait: bool = True,
         retry: Optional[Retry] = None,
