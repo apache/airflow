@@ -92,11 +92,10 @@ class ElastiCacheHook(AwsBaseHook):
 
     def is_replication_group_available(self, replication_group_id):
         """
-        Helper for checking if replication is available or not
+        Helper for checking if replication group is available or not
 
         :param replication_group_id: ID of replication group to check for availability
         :return: True if available else False
-        replication group
         """
         return self.get_replication_group_status(replication_group_id) == self.STATUS_AVAILABLE
 
@@ -105,8 +104,7 @@ class ElastiCacheHook(AwsBaseHook):
         Helper for checking if we should stop poking replication group for availability or not
 
         :param replication_group_id: ID of replication group to check
-        :return: Flag to check if availability check should be stopped or not and current status of
-        replication group
+        :return: Flag to check if availability check should be stopped or not and current status
         """
         status = self.get_replication_group_status(replication_group_id=replication_group_id)
 
