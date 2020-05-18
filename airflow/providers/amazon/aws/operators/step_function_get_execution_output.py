@@ -17,7 +17,6 @@
 
 import json
 
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 from airflow.utils.decorators import apply_defaults
