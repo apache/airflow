@@ -102,7 +102,7 @@ class TestElastiCacheHook(unittest.TestCase):
         Test if we should stop poking replication group for availability
         """
         self.hook.create_replication_group(config=self.replication_group_config)
-        stop_poking, status = self.hook.should_stop_poking(replication_group_id=self.replication_group_id)
+        stop_poking, status = self.hook._has_reached_terminal_state(replication_group_id=self.replication_group_id)
 
         assert stop_poking in (True, False)
         assert status in self.valid_status
