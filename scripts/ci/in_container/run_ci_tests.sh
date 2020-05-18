@@ -31,7 +31,7 @@ pytest "${PYTEST_ARGS[@]}"
 RES=$?
 
 set +x
-if [[ "${RES}" == "0" && ${CI} == "true" ]]; then
+if [[ "${RES}" == "0" && ${CI:="false"} == "true" ]]; then
     echo "All tests successful"
     bash <(curl -s https://codecov.io/bash)
 fi

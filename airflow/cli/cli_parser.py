@@ -629,41 +629,41 @@ ARG_INCLUDE_SECRETS = Arg(
     default=False)
 # users
 ARG_USERNAME = Arg(
-    ('--username',),
+    ('-u', '--username'),
     help='Username of the user',
     required=True,
     type=str)
 ARG_USERNAME_OPTIONAL = Arg(
-    ('--username',),
+    ('-u', '--username'),
     help='Username of the user',
     type=str)
 ARG_FIRSTNAME = Arg(
-    ('--firstname',),
+    ('-f', '--firstname'),
     help='First name of the user',
     required=True,
     type=str)
 ARG_LASTNAME = Arg(
-    ('--lastname',),
+    ('-l', '--lastname'),
     help='Last name of the user',
     required=True,
     type=str)
 ARG_ROLE = Arg(
-    ('--role',),
+    ('-r', '--role'),
     help='Role of the user. Existing roles include Admin, '
          'User, Op, Viewer, and Public',
     required=True,
     type=str,)
 ARG_EMAIL = Arg(
-    ('--email',),
+    ('-e', '--email'),
     help='Email of the user',
     required=True,
     type=str)
 ARG_EMAIL_OPTIONAL = Arg(
-    ('--email',),
+    ('-e', '--email'),
     help='Email of the user',
     type=str)
 ARG_PASSWORD = Arg(
-    ('--password',),
+    ('-p', '--password'),
     help='Password of the user, required to create a user '
          'without --use-random-password',
     type=str)

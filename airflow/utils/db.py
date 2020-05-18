@@ -245,15 +245,12 @@ def create_default_connections(session=None):
         Connection(
             conn_id="facebook_default",
             conn_type="facebook_social",
-            schema="""
-            {
-                "facebook_ads_client": {
-                    "account_id": "act_123456789",
-                    "app_id": "1234567890",
-                    "app_secret": "1f45tghxxxx12345",
-                    "access_token": "ABcdEfghiJKlmnoxxyz"
+            extra="""
+                {   "account_id": "<AD_ACCOUNNT_ID>",
+                    "app_id": "<FACEBOOK_APP_ID>",
+                    "app_secret": "<FACEBOOK_APP_SECRET>",
+                    "access_token": "<FACEBOOK_AD_ACCESS_TOKEN>"
                 }
-            }
             """,
         ),
         session

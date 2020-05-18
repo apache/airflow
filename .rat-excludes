@@ -75,6 +75,7 @@ rat-results.txt
 apache-airflow-.*\+source.tar.gz.*
 apache-airflow-.*\+bin.tar.gz.*
 PULL_REQUEST_TEMPLATE.md
+PROVIDERS_CHANGES*.md
 
 # vendored modules
 _vendor/*

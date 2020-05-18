@@ -56,6 +56,42 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
             )
         return self._conn
 
+    def get_conn_to_display_video(self) -> Resource:
+        """
+        Retrieves connection to DisplayVideo.
+        """
+        if not self._conn:
+            http_authorized = self._authorize()
+            self._conn = build(
+                "displayvideo",
+                self.api_version,
+                http=http_authorized,
+                cache_discovery=False,
+            )
+        return self._conn
+
+    @staticmethod
+    def erf_uri(partner_id, entity_type) -> List[str]:
+        """
+        Return URI for all Entity Read Files in bucket.
+
+        For example, if you were generating a file name to retrieve the entity read file
+        for partner 123 accessing the line_item table from April 2, 2013, your filename
+        would look something like this:
+        gdbm-123/entity/20130402.0.LineItem.json
+
+        More information:
+        https://developers.google.com/bid-manager/guides/entity-read/overview
+
+        :param partner_id The numeric ID of your Partner.
+        :type partner_id: int
+        :param entity_type: The type of file Partner, Advertiser, InsertionOrder,
+        LineItem, Creative, Pixel, InventorySource, UserList, UniversalChannel, and summary.
+        :type entity_type: str
+        """
+
+        return [f"gdbm-{partner_id}/entity/{{{{ ds_nodash }}}}.*.{entity_type}.json"]
+
     def create_query(self, query: Dict[str, Any]) -> Dict:
         """
         Creates a query.
@@ -170,3 +206,54 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
         return response["lineItems"]
+
+    def create_sdf_download_operation(self, body_request: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Creates an SDF Download Task and Returns an Operation.
+
+        :param body_request: Body request.
+        :type body_request: Dict[str, Any]
+
+        More information about body request n be found here:
+        https://developers.google.com/display-video/api/reference/rest/v1/sdfdownloadtasks/create
+        """
+
+        result = (
+            self.get_conn_to_display_video()  # pylint: disable=no-member
+            .sdfdownloadtasks()
+            .create(body=body_request)
+            .execute(num_retries=self.num_retries)
+        )
+        return result
+
+    def get_sdf_download_operation(self, operation_name: str):
+        """
+        Gets the latest state of an asynchronous SDF download task operation.
+
+        :param operation_name: The name of the operation resource.
+        :type operation_name: str
+        """
+
+        result = (
+            self.get_conn_to_display_video()  # pylint: disable=no-member
+            .sdfdownloadtasks()
+            .operation()
+            .get(name=operation_name)
+            .execute(num_retries=self.num_retries)
+        )
+        return result
+
+    def download_media(self, resource_name: str):
+        """
+        Downloads media.
+
+        :param resource_name: of the media that is being downloaded.
+        :type resource_name: str
+        """
+
+        request = (
+            self.get_conn_to_display_video()  # pylint: disable=no-member
+            .media()
+            .download_media(resource_name=resource_name)
+        )
+        return request

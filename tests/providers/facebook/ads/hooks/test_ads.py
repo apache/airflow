@@ -22,12 +22,10 @@ from airflow.providers.facebook.ads.hooks.ads import FacebookAdsReportingHook
 
 API_VERSION = "api_version"
 EXTRAS = {
-    "facebook_ads_client": {
-        "account_id": "act_12345",
-        "app_id": "12345",
-        "app_secret": "1fg444",
-        "access_token": "Ab35gf7E"
-    }
+    "account_id": "act_12345",
+    "app_id": "12345",
+    "app_secret": "1fg444",
+    "access_token": "Ab35gf7E"
 }
 FIELDS = [
     "campaign_name",
@@ -55,11 +53,10 @@ class TestFacebookAdsReportingHook:
     def test_get_service(self, mock_api, mock_hook):
         mock_hook._get_service()
         api = mock_api.init
-        creds = EXTRAS["facebook_ads_client"]
-        api.assert_called_once_with(app_id=creds["app_id"],
-                                    app_secret=creds["app_secret"],
-                                    access_token=creds["access_token"],
-                                    account_id=creds["account_id"],
+        api.assert_called_once_with(app_id=EXTRAS["app_id"],
+                                    app_secret=EXTRAS["app_secret"],
+                                    access_token=EXTRAS["access_token"],
+                                    account_id=EXTRAS["account_id"],
                                     api_version=API_VERSION)
 
     @mock.patch("airflow.providers.facebook.ads.hooks.ads.AdAccount")

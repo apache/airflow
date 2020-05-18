@@ -57,6 +57,20 @@ class TestConnectionsFromSecrets(unittest.TestCase):
     @conf_vars({
         ("secrets", "backend"):
             "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+        ("secrets", "backend_kwargs"): '{"use_ssl": false}',
+    })
+    def test_backends_kwargs(self):
+        backends = initialize_secrets_backends()
+        systems_manager = [
+            backend for backend in backends
+            if backend.__class__.__name__ == 'SystemsManagerParameterStoreBackend'
+        ][0]
+
+        self.assertEqual(systems_manager.kwargs, {'use_ssl': False})
+
+    @conf_vars({
+        ("secrets", "backend"):
+            "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
         ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
     })
     @mock.patch.dict('os.environ', {

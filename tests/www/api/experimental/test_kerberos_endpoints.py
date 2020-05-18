@@ -26,28 +26,19 @@ from unittest import mock
 import pytest
 
 from airflow.api.auth.backend.kerberos_auth import CLIENT_AUTH
-from airflow.configuration import conf
 from airflow.www import app as application
+from tests.test_utils.config import conf_vars
+
+KRB5_KTNAME = os.environ.get("KRB5_KTNAME")
 
 
 @pytest.mark.integration("kerberos")
 class TestApiKerberos(unittest.TestCase):
+    @conf_vars({
+        ("api", "auth_backend"): "airflow.api.auth.backend.kerberos_auth",
+        ("kerberos", "keytab"): KRB5_KTNAME,
+    })
     def setUp(self):
-        try:
-            conf.add_section("api")
-        except Exception:  # pylint: disable=broad-except
-            pass
-        conf.set("api",
-                 "auth_backend",
-                 "airflow.api.auth.backend.kerberos_auth")
-        try:
-            conf.add_section("kerberos")
-        except Exception:  # pylint: disable=broad-except
-            pass
-        conf.set("kerberos",
-                 "keytab",
-                 os.environ['KRB5_KTNAME'])
-
         self.app, _ = application.create_app(testing=True)
 
     def test_trigger_dag(self):

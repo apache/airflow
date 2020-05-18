@@ -479,10 +479,10 @@ run Google Cloud system tests.
 
   # install any packages from dist folder if they are available
   if [[ ${RUN_AIRFLOW_1_10:=} == "true" ]]; then
-      pip install /dist/apache_airflow_providers_{google,postgres,mysql}*.whl || true
+      pip install /dist/apache_airflow_backport_providers_{google,postgres,mysql}*.whl || true
   fi
 
-To execute system tests, specify the ``--system SYSTEM`
+To execute system tests, specify the ``--system SYSTEM``
 flag where ``SYSTEM`` is a system to run the system tests for. It can be repeated.
 
 
@@ -510,7 +510,7 @@ tests are run in our CI system. But to enable the test automation, we encourage 
 tests whenever an operator/hook/sensor is added/modified in a given system.
 
 * To add your own system tests, derive them from the
-  ``tests.test_utils.system_tests_class.SystemTest` class and mark with the
+  ``tests.test_utils.system_tests_class.SystemTest`` class and mark with the
   ``@pytest.mark.system(SYSTEM_NAME)`` marker. The system name should follow the path defined in
   the ``providers`` package (for example, the system tests from ``tests.providers.google.cloud``
   package should be marked with ``@pytest.mark.system("google.cloud")``.
@@ -547,12 +547,12 @@ Preparing backport packages for System Tests for Airflow 1.10.* series
 ----------------------------------------------------------------------
 
 To run system tests with old Airflow version you need to prepare backport packages. This
-can be done by running ``./scripts/ci/ci_prepare_backport_packages.sh <PACKAGES TO BUILD>``. For
+can be done by running ``./breeze prepare-backport-packages -- <PACKAGES TO BUILD>``. For
 example the below command will build google postgres and mysql packages:
 
 .. code-block:: bash
 
-  ./scripts/ci/ci_prepare_backport_packages.sh google postgres mysql
+  ./breeze prepare-backport-packages -- google postgres mysql
 
 Those packages will be prepared in ./dist folder. This folder is mapped to /dist folder
 when you enter Breeze, so it is easy to automate installing those packages for testing.
@@ -588,7 +588,7 @@ Typically the command in you variables.env file will be similar to:
 
   # install any packages from dist folder if they are available
   if [[ ${RUN_AIRFLOW_1_10:=} == "true" ]]; then
-      pip install /dist/apache_airflow_providers_{google,postgres,mysql}*.whl || true
+      pip install /dist/apache_airflow_backport_providers_{google,postgres,mysql}*.whl || true
   fi
 
 The command above will automatically install backported google, postgres, and mysql packages if they
@@ -606,7 +606,7 @@ want to add ``-o faulthandler_timeout=2400`` (2400s = 40 minutes for example) to
 pytest command.
 
 The typical system test session
----------------------------
+-------------------------------
 
 Here is the typical session that you need to do to run system tests:
 
@@ -614,7 +614,7 @@ Here is the typical session that you need to do to run system tests:
 
 .. code-block:: bash
 
-  ./scripts/ci/ci_prepare_backport_packages.sh google postgres mysql
+  ./breeze prepare-backport-packages -- google postgres mysql
 
 2. Enter breeze with installing Airflow 1.10.*, forwarding credentials and installing
    backported packages (you need an appropriate line in ``./files/airflow-breeze-config/variables.env``)
@@ -686,7 +686,7 @@ The typical session then looks as follows:
 
 .. code-block:: bash
 
-  ./scripts/ci/ci_prepare_backport_packages.sh google postgres mysql
+  ./breeze prepare-backport-packages -- google postgres mysql
 
 2. Enter breeze with installing Airflow 1.10.*, forwarding credentials and installing
    backported packages (you need an appropriate line in ``./files/airflow-breeze-config/variables.env``)
@@ -716,14 +716,14 @@ In the host:
 
 .. code-block:: bash
 
-  ./scripts/ci/ci_prepare_backport_packages.sh google
+  ./breeze prepare-backport-packages -- google
 
 In the container:
 
 .. code-block:: bash
 
-  pip uninstall apache-airflow-providers-google
-  pip install /dist/apache_airflow_providers_google-*.whl
+  pip uninstall apache-airflow-backport-providers-google
+  pip install /dist/apache_airflow_backport_providers_google-*.whl
 
 The points 4. and 5. can be repeated multiple times without leaving the container
 
@@ -901,6 +901,36 @@ Otherwise, the released version of Airflow is installed.
 You should also consider running it with ``restart`` command when you change the installed version.
 This will clean-up the database so that you start with a clean DB and not DB installed in a previous version.
 So typically you'd run it like ``breeze --install-airflow-version=1.10.9 restart``.
+
+Tracking SQL statements
+=======================
+
+You can run tests with SQL statements tracking. To do this, use the ``--trace-sql`` option and pass the
+columns to be displayed as an argument. Each query will be displayed on a separate line.
+Supported values:
+
+* ``num`` -  displays the query number;
+* ``time`` - displays the query execution time;
+* ``trace`` - displays the simplified (one-line) stack trace;
+* ``sql`` - displays the SQL statements;
+* ``parameters`` - display SQL statement parameters.
+
+If you only provide ``num``, then only the final number of queries will be displayed.
+
+By default, pytest does not display output for successful tests, if you still want to see them, you must
+pass the ``--capture=no`` option.
+
+If you run the following command:
+
+.. code-block:: bash
+
+    pytest --trace-sql=num,sql,parameters --capture=no \
+      tests/jobs/test_scheduler_job.py -k test_process_dags_queries_count_05
+
+On the screen you will see database queries for the given test.
+
+SQL query tracking does not work properly if your test runs subprocesses. Only queries from the main process
+are tracked.
 
 BASH Unit Testing (BATS)
 ========================

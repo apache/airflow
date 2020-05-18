@@ -72,7 +72,8 @@ class TestECSOperator(unittest.TestCase):
                     'securityGroups': ['sg-123abc'],
                     'subnets': ['subnet-123456ab']
                 }
-            }
+            },
+            'propagate_tags': 'TASK_DEFINITION'
         }
         self.ecs = ECSOperator(**self.ecs_operator_args, **kwargs)
         self.ecs.get_hook()
@@ -137,6 +138,7 @@ class TestECSOperator(unittest.TestCase):
                     'subnets': ['subnet-123456ab']
                 }
             },
+            propagateTags='TASK_DEFINITION',
             **extend_args
         )
 
@@ -173,7 +175,8 @@ class TestECSOperator(unittest.TestCase):
                     'securityGroups': ['sg-123abc'],
                     'subnets': ['subnet-123456ab'],
                 }
-            }
+            },
+            propagateTags='TASK_DEFINITION'
         )
 
     def test_wait_end_tasks(self):

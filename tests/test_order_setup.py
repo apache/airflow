@@ -84,19 +84,6 @@ class TestOrderSetup(unittest.TestCase):
             alphabetical = sorted(src)
             self.assertListEqual(alphabetical, src)
 
-    def test_devel_all(self):
-        """
-        Test for an order of dependencies groups
-        devel_all = (dependent_group_1 + ... + dependent_group_n) in setup.py
-        """
-        pattern = re.compile('devel_all = \\((.*?)\\)', re.DOTALL)
-        dependent = pattern.findall(self.setup_context)[0]
-        pattern_new_line = re.compile('\\n *')
-
-        src = pattern_new_line.sub(' ', dependent).split(' + ')
-        alphabetical = sorted(src)
-        self.assertListEqual(alphabetical, src)
-
     def test_install_and_setup_requires(self):
         """
         Test for an order of dependencies in function do_setup section
@@ -120,7 +107,22 @@ class TestOrderSetup(unittest.TestCase):
         Test for an order of dependencies in function do_setup section
         extras_require in setup.py
         """
-        pattern_extras_requires = re.compile('EXTRAS_REQUIREMENTS = \\{(.*?)\\}', re.DOTALL)
+        pattern_extras_requires = re.compile(
+            r'EXTRAS_REQUIREMENTS: Dict\[str, Iterable\[str\]] = {(.*?)}', re.DOTALL)
+        extras_requires = pattern_extras_requires.findall(self.setup_context)[0]
+
+        pattern_dependent = re.compile('\'(.*?)\'')
+        src = pattern_dependent.findall(extras_requires)
+        alphabetical = sorted(src)
+        self.assertListEqual(alphabetical, src)
+
+    def test_provider_requirements(self):
+        """
+        Test for an order of dependencies in function do_setup section
+        extras_require in setup.py
+        """
+        pattern_extras_requires = re.compile(
+            r'PROVIDERS_REQUIREMENTS: Dict\[str, Iterable\[str\]\] = {(.*?)}', re.DOTALL)
         extras_requires = pattern_extras_requires.findall(self.setup_context)[0]
 
         pattern_dependent = re.compile('\'(.*?)\'')

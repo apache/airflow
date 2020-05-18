@@ -47,6 +47,14 @@ class SnowflakeOperator(BaseOperator):
     :param role: name of role (will overwrite any role defined in
         connection's extra JSON)
     :type role: str
+    :param authenticator: authenticator for Snowflake.
+        'snowflake' (default) to use the internal Snowflake authenticator
+        'externalbrowser' to authenticate using your web browser and
+        Okta, ADFS or any other SAML 2.0-compliant identify provider
+        (IdP) that has been defined for your account
+        'https://<your_okta_account_name>.okta.com' to authenticate
+        through native Okta.
+    :type authenticator: str
     """
 
     template_fields = ('sql',)
@@ -57,7 +65,7 @@ class SnowflakeOperator(BaseOperator):
     def __init__(
             self, sql, snowflake_conn_id='snowflake_default', parameters=None,
             autocommit=True, warehouse=None, database=None, role=None,
-            schema=None, *args, **kwargs):
+            schema=None, authenticator=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.snowflake_conn_id = snowflake_conn_id
         self.sql = sql
@@ -67,6 +75,7 @@ class SnowflakeOperator(BaseOperator):
         self.database = database
         self.role = role
         self.schema = schema
+        self.authenticator = authenticator
 
     def get_hook(self):
         """
@@ -76,7 +85,7 @@ class SnowflakeOperator(BaseOperator):
         """
         return SnowflakeHook(snowflake_conn_id=self.snowflake_conn_id,
                              warehouse=self.warehouse, database=self.database,
-                             role=self.role, schema=self.schema)
+                             role=self.role, schema=self.schema, authenticator=self.authenticator)
 
     def execute(self, context):
         """

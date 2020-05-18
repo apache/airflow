@@ -294,12 +294,22 @@ class Airflow(AirflowBaseView):
             active_dags = dags_query.filter(~DagModel.is_paused)
             paused_dags = dags_query.filter(DagModel.is_paused)
 
+            is_paused_count = dict(
+                all_dags.with_entities(DagModel.is_paused, func.count(DagModel.dag_id))
+                .group_by(DagModel.is_paused).all()
+            )
+            status_count_active = is_paused_count.get(False, 0)
+            status_count_paused = is_paused_count.get(True, 0)
+            all_dags_count = status_count_active + status_count_paused
             if arg_status_filter == 'active':
                 current_dags = active_dags
+                num_of_all_dags = status_count_active
             elif arg_status_filter == 'paused':
                 current_dags = paused_dags
+                num_of_all_dags = status_count_paused
             else:
                 current_dags = all_dags
+                num_of_all_dags = all_dags_count
 
             dags = current_dags.order_by(DagModel.dag_id).options(
                 joinedload(DagModel.tags)).offset(start).limit(dags_per_page).all()
@@ -325,12 +335,10 @@ class Airflow(AirflowBaseView):
                     filename=filename),
                 "error")
 
-        num_of_all_dags = current_dags.count()
         num_of_pages = int(math.ceil(num_of_all_dags / float(dags_per_page)))
 
-        status_count_active = active_dags.count()
-        status_count_paused = paused_dags.count()
-        status_count_all = status_count_active + status_count_paused
+        state_color_mapping = State.state_color.copy()
+        state_color_mapping["null"] = state_color_mapping.pop(None)
 
         return self.render_template(
             'airflow/dags.html',
@@ -348,8 +356,9 @@ class Airflow(AirflowBaseView):
                                            status=arg_status_filter if arg_status_filter else None),
             num_runs=num_runs,
             tags=tags,
+            state_color=state_color_mapping,
             status_filter=arg_status_filter,
-            status_count_all=status_count_all,
+            status_count_all=all_dags_count,
             status_count_active=status_count_active,
             status_count_paused=status_count_paused)
 
@@ -394,8 +403,7 @@ class Airflow(AirflowBaseView):
                 count = data.get(dag_id, {}).get(state, 0)
                 payload[dag_id].append({
                     'state': state,
-                    'count': count,
-                    'color': State.color(state)
+                    'count': count
                 })
 
         return wwwutils.json_response(payload)
@@ -494,8 +502,7 @@ class Airflow(AirflowBaseView):
                 count = data.get(dag_id, {}).get(state, 0)
                 payload[dag_id].append({
                     'state': state,
-                    'count': count,
-                    'color': State.color(state)
+                    'count': count
                 })
         return wwwutils.json_response(payload)
 
@@ -1666,11 +1673,11 @@ class Airflow(AirflowBaseView):
         TF = TaskFail
         ti_fails = (
             session.query(TF)
-                   .filter(TF.dag_id == dag.dag_id,
-                           TF.execution_date >= min_date,
-                           TF.execution_date <= base_date,
-                           TF.task_id.in_([t.task_id for t in dag.tasks]))
-                   .all()  # noqa
+            .filter(TF.dag_id == dag.dag_id,
+                    TF.execution_date >= min_date,
+                    TF.execution_date <= base_date,
+                    TF.task_id.in_([t.task_id for t in dag.tasks]))
+            .all()
         )
 
         fails_totals = defaultdict(int)
@@ -2626,6 +2633,8 @@ class TaskInstanceModelView(AirflowModelView):
                     'start_date', 'end_date', 'duration', 'job_id', 'hostname',
                     'unixname', 'priority_weight', 'queue', 'queued_dttm', 'try_number',
                     'pool', 'log_url']
+
+    order_columns = [item for item in list_columns if item not in ['try_number', 'log_url']]
 
     search_columns = ['state', 'dag_id', 'task_id', 'execution_date', 'hostname',
                       'queue', 'pool', 'operator', 'start_date', 'end_date']

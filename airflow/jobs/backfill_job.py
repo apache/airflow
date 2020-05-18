@@ -30,8 +30,7 @@ from airflow.exceptions import (
     AirflowException, BackfillUnfinished, DagConcurrencyLimitReached, NoAvailablePoolSlot, PoolNotFound,
     TaskConcurrencyLimitReached,
 )
-from airflow.executors.local_executor import LocalExecutor
-from airflow.executors.sequential_executor import SequentialExecutor
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagPickle
 from airflow.models.dagrun import DagRun
@@ -502,7 +501,9 @@ class BackfillJob(BaseJob):
                         session.merge(ti)
 
                         cfg_path = None
-                        if executor.__class__ in (LocalExecutor, SequentialExecutor):
+                        if self.executor_class in (
+                            ExecutorLoader.LOCAL_EXECUTOR, ExecutorLoader.SEQUENTIAL_EXECUTOR
+                        ):
                             cfg_path = tmp_configuration_copy()
 
                         executor.queue_task_instance(
@@ -773,13 +774,9 @@ class BackfillJob(BaseJob):
         # picklin'
         pickle_id = None
 
-        try:
-            from airflow.executors.dask_executor import DaskExecutor
-        except ImportError:
-            DaskExecutor = None
-
-        if not self.donot_pickle and \
-                self.executor.__class__ not in (LocalExecutor, SequentialExecutor, DaskExecutor):
+        if not self.donot_pickle and self.executor_class not in (
+            ExecutorLoader.LOCAL_EXECUTOR, ExecutorLoader.SEQUENTIAL_EXECUTOR, ExecutorLoader.DASK_EXECUTOR,
+        ):
             pickle = DagPickle(self.dag)
             session.add(pickle)
             session.commit()

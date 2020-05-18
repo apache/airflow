@@ -81,7 +81,7 @@ class BaseJob(Base, LoggingMixin):
             *args, **kwargs):
         self.hostname = get_hostname()
         self.executor = executor or ExecutorLoader.get_default_executor()
-        self.executor_class = executor.__class__.__name__
+        self.executor_class = self.executor.__class__.__name__
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
         if heartrate is not None:
@@ -271,6 +271,7 @@ class BaseJob(Base, LoggingMixin):
                         TI.dag_id == DR.dag_id,
                         TI.execution_date == DR.execution_date))
                 .filter(
+                    # pylint: disable=comparison-with-callable
                     DR.state == State.RUNNING,
                     DR.run_id.notlike(f"{DagRunType.BACKFILL_JOB.value}__%"),
                     TI.state.in_(resettable_states))).all()

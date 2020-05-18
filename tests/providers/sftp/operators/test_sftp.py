@@ -75,7 +75,7 @@ class TestSFTPOperator(unittest.TestCase):
 
         # put test file to remote
         put_test_task = SFTPOperator(
-            task_id="test_sftp",
+            task_id="put_test_task",
             ssh_hook=self.hook,
             local_filepath=self.test_local_filepath,
             remote_filepath=self.test_remote_filepath,
@@ -89,7 +89,7 @@ class TestSFTPOperator(unittest.TestCase):
 
         # check the remote file content
         check_file_task = SSHOperator(
-            task_id="test_check_file",
+            task_id="check_file_task",
             ssh_hook=self.hook,
             command="cat {0}".format(self.test_remote_filepath),
             do_xcom_push=True,
@@ -99,7 +99,7 @@ class TestSFTPOperator(unittest.TestCase):
         ti3 = TaskInstance(task=check_file_task, execution_date=timezone.utcnow())
         ti3.run()
         self.assertEqual(
-            ti3.xcom_pull(task_ids='test_check_file', key='return_value').strip(),
+            ti3.xcom_pull(task_ids=check_file_task.task_id, key='return_value').strip(),
             test_local_file_content)
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
@@ -178,7 +178,7 @@ class TestSFTPOperator(unittest.TestCase):
 
         # put test file to remote
         put_test_task = SFTPOperator(
-            task_id="test_sftp",
+            task_id="put_test_task",
             ssh_hook=self.hook,
             local_filepath=self.test_local_filepath,
             remote_filepath=self.test_remote_filepath,
@@ -191,7 +191,7 @@ class TestSFTPOperator(unittest.TestCase):
 
         # check the remote file content
         check_file_task = SSHOperator(
-            task_id="test_check_file",
+            task_id="check_file_task",
             ssh_hook=self.hook,
             command="cat {0}".format(self.test_remote_filepath),
             do_xcom_push=True,
@@ -201,7 +201,7 @@ class TestSFTPOperator(unittest.TestCase):
         ti3 = TaskInstance(task=check_file_task, execution_date=timezone.utcnow())
         ti3.run()
         self.assertEqual(
-            ti3.xcom_pull(task_ids='test_check_file', key='return_value').strip(),
+            ti3.xcom_pull(task_ids=check_file_task.task_id, key='return_value').strip(),
             b64encode(test_local_file_content).decode('utf-8'))
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
@@ -362,7 +362,7 @@ class TestSFTPOperator(unittest.TestCase):
         with self.assertRaisesRegex(AirflowException,
                                     "Cannot operate without ssh_hook or ssh_conn_id."):
             task_0 = SFTPOperator(
-                task_id="test_sftp",
+                task_id="test_sftp_0",
                 local_filepath=self.test_local_filepath,
                 remote_filepath=self.test_remote_filepath,
                 operation=SFTPOperation.PUT,
@@ -372,7 +372,7 @@ class TestSFTPOperator(unittest.TestCase):
 
         # if ssh_hook is invalid/not provided, use ssh_conn_id to create SSHHook
         task_1 = SFTPOperator(
-            task_id="test_sftp",
+            task_id="test_sftp_1",
             ssh_hook="string_rather_than_SSHHook",  # invalid ssh_hook
             ssh_conn_id=TEST_CONN_ID,
             local_filepath=self.test_local_filepath,
@@ -387,7 +387,7 @@ class TestSFTPOperator(unittest.TestCase):
         self.assertEqual(task_1.ssh_hook.ssh_conn_id, TEST_CONN_ID)
 
         task_2 = SFTPOperator(
-            task_id="test_sftp",
+            task_id="test_sftp_2",
             ssh_conn_id=TEST_CONN_ID,  # no ssh_hook provided
             local_filepath=self.test_local_filepath,
             remote_filepath=self.test_remote_filepath,
@@ -402,7 +402,7 @@ class TestSFTPOperator(unittest.TestCase):
 
         # if both valid ssh_hook and ssh_conn_id are provided, ignore ssh_conn_id
         task_3 = SFTPOperator(
-            task_id="test_sftp",
+            task_id="test_sftp_3",
             ssh_hook=self.hook,
             ssh_conn_id=TEST_CONN_ID,
             local_filepath=self.test_local_filepath,

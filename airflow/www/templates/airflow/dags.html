@@ -246,6 +246,7 @@
 
     const DAGS_INDEX = "{{ url_for('Airflow.index') }}";
     const ENTER_KEY_CODE = 13;
+    const STATE_COLOR = {{ state_color|tojson }};
 
     $('#tags_filter').select2({
       placeholder: "Filter dags",
@@ -414,7 +415,7 @@
           })
           .attr('stroke', function(d) {
             if (d.count > 0)
-              return d.color;
+              return STATE_COLOR[d.state];
             else {
               return 'gainsboro';
             }
@@ -491,7 +492,7 @@
           })
           .attr('stroke', function(d) {
             if (d.count > 0)
-              return d.color;
+              return STATE_COLOR[d.state];
             else {
               return 'gainsboro';
             }

@@ -558,7 +558,7 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
     :type gcp_conn_id: str
     """
 
-    template_fields = ("dataset", "update_mask", "location", "project_id")
+    template_fields = ("dataset", "update_mask", "location")
 
     @apply_defaults
     def __init__(

@@ -31,8 +31,7 @@ from parameterized import param, parameterized
 from sqlalchemy.orm.session import Session
 
 from airflow import models, settings
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowFailException, AirflowSkipException
 from airflow.models import (
     DAG, DagRun, Pool, RenderedTaskInstanceFields, TaskFail, TaskInstance as TI, TaskReschedule, Variable,
 )
@@ -50,6 +49,7 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from tests.models import DEFAULT_DATE
 from tests.test_utils import db
+from tests.test_utils.config import conf_vars
 
 
 class CallbackWrapper:
@@ -373,20 +373,20 @@ class TestTaskInstance(unittest.TestCase):
         """
         test that updating the executor_config propogates to the TaskInstance DB
         """
-        dag = models.DAG(dag_id='test_run_pooling_task')
-        task = DummyOperator(task_id='test_run_pooling_task_op', dag=dag, owner='airflow',
-                             executor_config={'foo': 'bar'},
-                             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+        with models.DAG(dag_id='test_run_pooling_task') as dag:
+            task = DummyOperator(task_id='test_run_pooling_task_op', owner='airflow',
+                                 executor_config={'foo': 'bar'},
+                                 start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
         ti = TI(
             task=task, execution_date=timezone.utcnow())
 
         ti.run(session=session)
         tis = dag.get_task_instances()
         self.assertEqual({'foo': 'bar'}, tis[0].executor_config)
-
-        task2 = DummyOperator(task_id='test_run_pooling_task_op', dag=dag, owner='airflow',
-                              executor_config={'bar': 'baz'},
-                              start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+        with models.DAG(dag_id='test_run_pooling_task') as dag:
+            task2 = DummyOperator(task_id='test_run_pooling_task_op', owner='airflow',
+                                  executor_config={'bar': 'baz'},
+                                  start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
 
         ti = TI(
             task=task2, execution_date=timezone.utcnow())
@@ -855,6 +855,38 @@ class TestTaskInstance(unittest.TestCase):
         self.assertEqual(completed, expect_completed)
         self.assertEqual(ti.state, expect_state)
 
+    def test_respects_prev_dagrun_dep(self):
+        with DAG(dag_id='test_dag'):
+            task = DummyOperator(task_id='task', start_date=DEFAULT_DATE)
+        ti = TI(task, DEFAULT_DATE)
+        failing_status = [TIDepStatus('test fail status name', False, 'test fail reason')]
+        passing_status = [TIDepStatus('test pass status name', True, 'test passing reason')]
+        with patch('airflow.ti_deps.deps.prev_dagrun_dep.PrevDagrunDep.get_dep_statuses',
+                   return_value=failing_status):
+            self.assertFalse(ti.are_dependencies_met())
+        with patch('airflow.ti_deps.deps.prev_dagrun_dep.PrevDagrunDep.get_dep_statuses',
+                   return_value=passing_status):
+            self.assertTrue(ti.are_dependencies_met())
+
+    @parameterized.expand([
+        (State.SUCCESS, True),
+        (State.SKIPPED, True),
+        (State.RUNNING, False),
+        (State.FAILED, False),
+        (State.NONE, False),
+    ])
+    def test_are_dependents_done(self, downstream_ti_state, expected_are_dependents_done):
+        with DAG(dag_id='test_dag'):
+            task = DummyOperator(task_id='task', start_date=DEFAULT_DATE)
+            downstream_task = DummyOperator(task_id='downstream_task', start_date=DEFAULT_DATE)
+            task >> downstream_task
+
+        ti = TI(task, DEFAULT_DATE)
+        downstream_ti = TI(downstream_task, DEFAULT_DATE)
+
+        downstream_ti.set_state(downstream_ti_state)
+        self.assertEqual(ti.are_dependents_done(), expected_are_dependents_done)
+
     def test_xcom_pull(self):
         """
         Test xcom_pull, using different filtering methods.
@@ -1160,6 +1192,10 @@ class TestTaskInstance(unittest.TestCase):
         self.assertIn('test_email_alert', body)
         self.assertIn('Try 1', body)
 
+    @conf_vars({
+        ('email', 'subject_template'): '/subject/path',
+        ('email', 'html_content_template'): '/html_content/path',
+    })
     @patch('airflow.models.taskinstance.send_email')
     def test_email_alert_with_config(self, mock_send_email):
         dag = models.DAG(dag_id='test_failure_email')
@@ -1172,9 +1208,6 @@ class TestTaskInstance(unittest.TestCase):
 
         ti = TI(
             task=task, execution_date=datetime.datetime.now())
-
-        conf.set('email', 'subject_template', '/subject/path')
-        conf.set('email', 'html_content_template', '/html_content/path')
 
         opener = mock_open(read_data='template: {{ti.task_id}}')
         with patch('airflow.models.taskinstance.open', opener, create=True):
@@ -1480,6 +1513,62 @@ class TestTaskInstance(unittest.TestCase):
 
         context_arg_2 = mock_on_retry_2.call_args[0][0]
         assert context_arg_2 and "task_instance" in context_arg_2
+
+        # test the scenario where normally we would retry but have been asked to fail
+        mock_on_failure_3 = mock.MagicMock()
+        mock_on_retry_3 = mock.MagicMock()
+        task3 = DummyOperator(task_id="test_handle_failure_on_force_fail",
+                              on_failure_callback=mock_on_failure_3,
+                              on_retry_callback=mock_on_retry_3,
+                              retries=1,
+                              dag=dag)
+        ti3 = TI(task=task3, execution_date=start_date)
+        ti3.state = State.FAILED
+        ti3.handle_failure("test force_fail handling", force_fail=True)
+
+        context_arg_3 = mock_on_failure_3.call_args[0][0]
+        assert context_arg_3 and "task_instance" in context_arg_3
+        mock_on_retry_3.assert_not_called()
+
+    def test_does_not_retry_on_airflow_fail_exception(self):
+        def fail():
+            raise AirflowFailException("hopeless")
+
+        dag = models.DAG(dag_id='test_does_not_retry_on_airflow_fail_exception')
+        task = PythonOperator(
+            task_id='test_raise_airflow_fail_exception',
+            dag=dag,
+            python_callable=fail,
+            owner='airflow',
+            start_date=timezone.datetime(2016, 2, 1, 0, 0, 0),
+            retries=1
+        )
+        ti = TI(task=task, execution_date=timezone.utcnow())
+        try:
+            ti.run()
+        except AirflowFailException:
+            pass  # expected
+        self.assertEqual(State.FAILED, ti.state)
+
+    def test_retries_on_other_exceptions(self):
+        def fail():
+            raise AirflowException("maybe this will pass?")
+
+        dag = models.DAG(dag_id='test_retries_on_other_exceptions')
+        task = PythonOperator(
+            task_id='test_raise_other_exception',
+            dag=dag,
+            python_callable=fail,
+            owner='airflow',
+            start_date=timezone.datetime(2016, 2, 1, 0, 0, 0),
+            retries=1
+        )
+        ti = TI(task=task, execution_date=timezone.utcnow())
+        try:
+            ti.run()
+        except AirflowException:
+            pass  # expected
+        self.assertEqual(State.UP_FOR_RETRY, ti.state)
 
     def _env_var_check_callback(self):
         self.assertEqual('test_echo_env_variables', os.environ['AIRFLOW_CTX_DAG_ID'])

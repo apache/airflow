@@ -68,7 +68,7 @@ def _find_clazzes(directory, base_class):
 
 prog = "./" + os.path.basename(sys.argv[0])
 
-HELP = f"""\
+HELP = """\
 List operators, hooks, sensors, secrets backend in the installed Airflow.
 
 You can combine this script with other tools e.g. awk, grep, cut, uniq, sort.

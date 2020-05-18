@@ -62,6 +62,55 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Standardised "extra" requirements
+
+We standardised the Extras names and synchronized providers package names with the main airflow extras.
+
+We deprecated a number of extras in 2.0.
+
+| Deprecated extras | New extras       |
+|-------------------|------------------|
+| atlas             | apache.atlas     |
+| aws               | amazon           |
+| azure             | microsoft.azure  |
+| cassandra         | apache.cassandra |
+| druid             | apache.druid     |
+| gcp               | google           |
+| gcp_api           | google           |
+| hdfs              | apache.hdfs      |
+| hive              | apache.hive      |
+| kubernetes        | cncf.kubernetes  |
+| mssql             | microsoft.mssql  |
+| pinot             | apache.pinot     |
+| webhdfs           | apache.webhdfs   |
+| winrm             | apache.winrm     |
+
+For example instead of `pip install apache-airflow[atlas]` you should use
+`pip install apache-airflow[apache.atlas]` .
+
+The deprecated extras will be removed in 2.1:
+
+
+### Skipped tasks can satisfy wait_for_downstream
+
+Previously, a task instance with `wait_for_downstream=True` will only run if the downstream task of
+the previous task instance is successful. Meanwhile, a task instance with `depends_on_past=True`
+will run if the previous task instance is either successful or skipped. These two flags are close siblings
+yet they have different behavior. This inconsistency in behavior made the API less intuitive to users.
+To maintain consistent behavior, both successful or skipped downstream task can now satisfy the
+`wait_for_downstream=True` flag.
+
+
+### Ability to patch Pool.DEFAULT_POOL_NAME in BaseOperator
+It was not possible to patch pool in BaseOperator as the signature sets the default value of pool
+as Pool.DEFAULT_POOL_NAME.
+While using subdagoperator in unittest(without initializing the sqlite db), it was throwing the
+following error:
+```
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: slot_pool.
+```
+Fix for this, https://github.com/apache/airflow/pull/8587
+
 ### Change signature of BigQueryGetDatasetTablesOperator
 Was:
 ```python
@@ -79,6 +128,9 @@ The previous option used a colon(`:`) to split the module from function. Now the
 The change aims to unify the format of all options that refer to objects in the `airflow.cfg` file.
 
 ### Changes in BigQueryHook
+In general all hook methods are decorated with `@GoogleBaseHook.fallback_to_default_project_id` thus
+parameters to hook can only be passed via keyword arguments.
+
 - `create_empty_table` method accepts now `table_resource` parameter. If provided all
 other parameters are ignored.
 - `create_empty_dataset` will now use values from `dataset_reference` instead of raising error
@@ -88,6 +140,8 @@ changed.
 - `update_dataset` requires now new `fields` argument (breaking change)
 - `delete_dataset` has new signature (dataset_id, project_id, ...)
 previous one was (project_id, dataset_id, ...) (breaking change)
+- `get_tabledata` returns list of rows instead of API response in dict format. This method is deprecated in
+ favor of `list_rows`. (breaking change)
 
 ### Added mypy plugin to preserve types of decorated functions
 

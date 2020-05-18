@@ -69,7 +69,8 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all JINJA template files
-        files: ^airflow/www/templates/.*\.html$|^docs/templates/.*\.html$|^airflow/contrib/plugins/metastore_browser/templates/.*\.html$  # yamllint disable-line rule:line-length
+        files: "^airflow/www/templates/.*\\.html$|^docs/templates/.*\\.html$|^airflow/contrib/plugins/\
+metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         exclude: ^\.github/.*$|^airflow/_vendor/.*$
         args:
           - --comment-style
@@ -120,7 +121,7 @@ repos:
       - id: insert-license
         name: Add license for all md files
         files: \.md$
-        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$|^airflow/_vendor/.*|PROVIDERS_CHANGES.*\.md
         args:
           - --comment-style
           - "<!--|| -->"
@@ -132,16 +133,10 @@ repos:
     hooks:
       - id: doctoc
         name: Add TOC for md files
-        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.md$|^dev/README\.md$
+        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.md$|^dev/README\.md$|^dev/BACKPORT_PACKAGES.md$
         args:
           - "--maxlevel"
           - "2"
-  - repo: https://github.com/thlorenz/doctoc.git
-    rev: v1.4.0
-    hooks:
-      - id: doctoc
-        name: Add TOC for backport readme files
-        files: BACKPORT_README\.md$
   - repo: meta
     hooks:
       - id: check-hooks-apply
@@ -277,7 +272,8 @@ repos:
           ^airflow/contrib/.*\.py$
       - id: provide-create-sessions
         language: pygrep
-        name: To avoid import cycles make sure provide_session and create_session are imported from airflow.utils.session  # yamllint disable-line rule:line-length
+        name: To avoid import cycles make sure provide_session and create_session are imported from
+              airflow.utils.session
         entry: "from airflow\\.utils\\.db import.* (provide_session|create_session)"
         files: \.py$
         pass_filenames: true
