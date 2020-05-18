@@ -178,7 +178,7 @@ class CloudDLPHook(GoogleBaseHook):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         wait_until_finished: bool = True,
-        time_to_sleep_in_seconds: int = 1
+        time_to_sleep_in_seconds: int = 60
     ) -> DlpJob:
         """
         Creates a new job to inspect storage or calculate risk metrics.
