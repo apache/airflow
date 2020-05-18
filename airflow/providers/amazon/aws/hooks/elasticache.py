@@ -37,6 +37,8 @@ class ElastiCacheHook(AwsBaseHook):
     STATUS_AVAILABLE = 'available'
     STATUS_DELETING = 'deleting'
     STATUS_CREATE_FAILED = 'create-failed'
+    STATUS_MODIFYING = 'modifying'
+    STATUS_SNAPSHOTTING = 'snapshotting'
 
     def __init__(
         self, max_retries=10, exponential_back_off_factor=1, initial_poke_interval=60, *args, **kwargs
@@ -184,8 +186,7 @@ class ElastiCacheHook(AwsBaseHook):
         exponential_back_off_factor = exponential_back_off_factor or self.exponential_back_off_factor
         max_retries = max_retries or self.max_retries
         num_retries = 0
-
-        response = self.delete_replication_group(replication_group_id=replication_group_id)
+        response = None
 
         while not deleted and num_retries < max_retries:
             try:
@@ -197,10 +198,30 @@ class ElastiCacheHook(AwsBaseHook):
                     status
                 )
 
+                # Can only delete if status is `available`
+                # Status becomes `deleting` after this call so this will only run once
+                if status == self.STATUS_AVAILABLE:
+                    response = self.delete_replication_group(replication_group_id=replication_group_id)
+
             except self.conn.exceptions.ReplicationGroupNotFoundFault:
                 self.log.info("Replication group with ID : '%s' does not exist", replication_group_id)
 
                 deleted = True
+
+            # This should never occur as we only issue a delete request when status is `creating`
+            # which is a valid status for deletion. Still handling for safety.
+            except self.conn.exceptions.InvalidReplicationGroupStateFault as exp:
+                """
+                status      Error Response
+                creating  - Cache cluster <cluster_id> is not in a valid state to be deleted.
+                deleting  - Replication group <replication_group_id> has status deleting which is not valid
+                            for deletion.
+                modifying - Replication group <replication_group_id> has status deleting which is not valid
+                            for deletion.
+                """
+                message = exp.response['Error']['Message']
+
+                self.log.info('Received message : %s', message)
 
             if not deleted:
                 num_retries += 1
