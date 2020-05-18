@@ -17,6 +17,7 @@
 # under the License.
 
 import json
+from datetime import datetime as dt
 from operator import itemgetter
 
 import pendulum
@@ -31,6 +32,7 @@ from wtforms.fields import (
     BooleanField, DateTimeField, Field, IntegerField, PasswordField, SelectField, StringField, TextAreaField,
 )
 
+from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.utils import timezone
 from airflow.www.validators import ValidJson
@@ -57,7 +59,19 @@ class DateTimeWithTimezoneField(Field):
         if valuelist:
             date_str = ' '.join(valuelist)
             try:
-                self.data = pendulum.parse(date_str)
+                # Check if the datetime string is in the format without timezone, if so convert it to the
+                # default timezone
+                if len(date_str) == 19:
+                    parsed_datetime = dt.strptime(date_str, '%Y-%m-%d %H:%M:%S')
+                    defualt_timezone = pendulum.timezone('UTC')
+                    tz = conf.get("core", "default_timezone")
+                    if tz == "system":
+                        defualt_timezone = pendulum.local_timezone()
+                    else:
+                        defualt_timezone = pendulum.timezone(tz)
+                    self.data = defualt_timezone.convert(parsed_datetime)
+                else:
+                    self.data = pendulum.parse(date_str)
             except ValueError:
                 self.data = None
                 raise ValueError(self.gettext('Not a valid datetime value'))
