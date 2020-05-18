@@ -66,7 +66,7 @@ class Pod:
     :param cmds: The command to be run on the pod
     :type cmds: list[str]
     :param secrets: Secrets to be launched to the pod
-    :type secrets: list[airflow.contrib.kubernetes.secret.Secret]
+    :type secrets: list[airflow.kubernetes.secret.Secret]
     :param result: The result that will be returned to the operator after
         successful execution of the pod
     :type result: any

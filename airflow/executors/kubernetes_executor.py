@@ -33,9 +33,9 @@ from kubernetes.client.rest import ApiException
 from urllib3.exceptions import HTTPError, ReadTimeoutError
 
 from airflow.configuration import conf
-from airflow.contrib.kubernetes.pod_launcher import PodLauncher
-from airflow.contrib.kubernetes.kube_client import get_kube_client
-from airflow.contrib.kubernetes.worker_configuration import WorkerConfiguration
+from airflow.kubernetes.pod_launcher import PodLauncher
+from airflow.kubernetes.kube_client import get_kube_client
+from airflow.kubernetes.worker_configuration import WorkerConfiguration
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors import Executors
 from airflow.models import KubeResourceVersion, KubeWorkerIdentifier, TaskInstance
