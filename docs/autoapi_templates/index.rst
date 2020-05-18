@@ -107,9 +107,6 @@ All executors are in the following packages:
 
   airflow/executors/index
 
-  airflow/contrib/executors/index
-
-
 Models
 ------
 Models are built on top of the SQLAlchemy ORM Base class, and instances are

@@ -21,8 +21,8 @@ import warnings
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.contrib.kubernetes import kube_client, pod_generator, pod_launcher
-from airflow.contrib.kubernetes.pod import Resources
+from airflow.kubernetes import kube_client, pod_generator, pod_launcher
+from airflow.kubernetes.pod import Resources
 from airflow.utils.helpers import validate_key
 from airflow.utils.state import State
 from airflow.version import version as airflow_version

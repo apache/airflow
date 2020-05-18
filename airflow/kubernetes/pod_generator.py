@@ -15,9 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.contrib.kubernetes.pod import Pod, Port
-from airflow.contrib.kubernetes.volume import Volume
-from airflow.contrib.kubernetes.volume_mount import VolumeMount
+from airflow.kubernetes.pod import Pod, Port
+from airflow.kubernetes.volume import Volume
+from airflow.kubernetes.volume_mount import VolumeMount
+
 import uuid
 
 

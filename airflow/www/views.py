@@ -616,7 +616,7 @@ class Airflow(AirflowViewMixin, BaseView):
 
         LastDagRun = (
             session.query(DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('execution_date'))
-                .join(Dag, Dag.dag_id == DagRun.dag_id)
+                .join(Dag, Dag.dag_id == DagRun.dag_id)  # noqa: E131
                 .filter(DagRun.state != State.RUNNING)
                 .filter(Dag.is_active == True)  # noqa: E712
                 .filter(Dag.is_subdag == False)  # noqa: E712
@@ -625,7 +625,7 @@ class Airflow(AirflowViewMixin, BaseView):
 
         RunningDagRun = (
             session.query(DagRun.dag_id, DagRun.execution_date)
-                .join(Dag, Dag.dag_id == DagRun.dag_id)
+                .join(Dag, Dag.dag_id == DagRun.dag_id)  # noqa: E131
                 .filter(DagRun.state == State.RUNNING)
                 .filter(Dag.is_active == True)  # noqa: E712
                 .filter(Dag.is_subdag == False)  # noqa: E712
@@ -1136,7 +1136,7 @@ class Airflow(AirflowViewMixin, BaseView):
             pass
 
         try:
-            from airflow.contrib.executors.kubernetes_executor import KubernetesExecutor
+            from airflow.executors.kubernetes_executor import KubernetesExecutor
             valid_kubernetes_config = isinstance(executor, KubernetesExecutor)
         except ImportError:
             pass

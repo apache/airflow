@@ -16,17 +16,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+# flake8: noqa: E402
+import inspect
 from future import standard_library  # noqa
-standard_library.install_aliases()  # noqa
+standard_library.install_aliases()  # noqa: E402
+from builtins import str
 
 import functools
-import inspect
 import json
 import time
 import markdown
 
-from builtins import str
 from past.builtins import basestring
 
 from pygments import highlight, lexers
