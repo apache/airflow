@@ -377,7 +377,9 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         logger should not be configured.
         """
         with settings_context(SETTINGS_FILE_VALID):
-            with env_vars({('logging', 'logging_config_class'): 'custom_airflow_local_settings.LOGGING_CONFIG'}):
+            with env_vars(
+                {('logging', 'logging_config_class'): 'custom_airflow_local_settings.LOGGING_CONFIG'}
+            ):
                 # Launch a process through DagFileProcessorAgent, which will try
                 # reload the logging module.
                 test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
