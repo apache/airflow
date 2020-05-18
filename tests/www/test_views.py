@@ -2587,7 +2587,7 @@ class TestDagRunModelView(TestBase):
     def tearDown(self):
         self.clear_table(models.DagRun)
 
-    def test_create_dagrun_execution_date_with_timezone_UTC(self):
+    def test_create_dagrun_execution_date_with_timezone_utc(self):
         data = {
             "state": "running",
             "dag_id": "example_bash_operator",
@@ -2603,7 +2603,7 @@ class TestDagRunModelView(TestBase):
 
         self.assertEqual(dr.execution_date, dt(2018, 7, 6, 5, 4, 3, tzinfo=tz.utc))
 
-    def test_create_dagrun_execution_date_with_timezone_EDT(self):
+    def test_create_dagrun_execution_date_with_timezone_edt(self):
         data = {
             "state": "running",
             "dag_id": "example_bash_operator",
@@ -2619,7 +2619,7 @@ class TestDagRunModelView(TestBase):
 
         self.assertEqual(dr.execution_date, dt(2018, 7, 6, 5, 4, 3, tzinfo=tz(timedelta(hours=-4))))
 
-    def test_create_dagrun_execution_date_with_timezone_PST(self):
+    def test_create_dagrun_execution_date_with_timezone_pst(self):
         data = {
             "state": "running",
             "dag_id": "example_bash_operator",
@@ -2636,7 +2636,7 @@ class TestDagRunModelView(TestBase):
         self.assertEqual(dr.execution_date, dt(2018, 7, 6, 5, 4, 3, tzinfo=tz(timedelta(hours=-8))))
 
     @conf_vars({("core", "default_timezone"): "America/Toronto"})
-    def test_create_dagrun_execution_date_without_timezone_default_EDT(self):
+    def test_create_dagrun_execution_date_without_timezone_default_edt(self):
         data = {
             "state": "running",
             "dag_id": "example_bash_operator",
@@ -2652,7 +2652,7 @@ class TestDagRunModelView(TestBase):
 
         self.assertEqual(dr.execution_date, dt(2018, 7, 6, 5, 4, 3, tzinfo=tz(timedelta(hours=-4))))
 
-    def test_create_dagrun_execution_date_without_timezone_default_UTC(self):
+    def test_create_dagrun_execution_date_without_timezone_default_utc(self):
         data = {
             "state": "running",
             "dag_id": "example_bash_operator",
