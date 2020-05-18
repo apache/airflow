@@ -49,8 +49,6 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
     @apply_defaults
     def __init__(self, execution_arn: str, aws_conn_id='aws_default', region_name=None,
                  *args, **kwargs):
-        if kwargs.get('xcom_push') is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
         super().__init__(*args, **kwargs)
         self.execution_arn = execution_arn
         self.aws_conn_id = aws_conn_id

@@ -52,8 +52,6 @@ class StepFunctionStartExecutionOperator(BaseOperator):
                  state_machine_input: Union[dict, str, None] = None,
                  aws_conn_id='aws_default', region_name=None,
                  *args, **kwargs):
-        if kwargs.get('xcom_push') is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
         super().__init__(*args, **kwargs)
         self.state_machine_arn = state_machine_arn
         self.name = name
