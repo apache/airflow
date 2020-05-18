@@ -206,8 +206,8 @@ class CloudDLPHook(GoogleBaseHook):
             until it is set to DONE.
         :type wait_until_finished: bool
         :rtype: google.cloud.dlp_v2.types.DlpJob
-        :param time_to_sleep_in_seconds: (Optional) Time to sleep between active checks
-            of the operation results. Defaults to 1.
+        :param time_to_sleep_in_seconds: (Optional) Time to sleep, in seconds, between active checks
+            of the operation results. Defaults to 60.
         :type time_to_sleep_in_seconds: int
         """
 
