@@ -69,8 +69,12 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         super().__init__(**kwargs)
         if connections_prefix:
             self.connections_prefix = connections_prefix.rstrip('/')
+        else:
+            self.connections_prefix = None
         if variables_prefix:
             self.variables_prefix = variables_prefix.rstrip('/')
+        else:
+            self.connections_prefix = None
         self.profile_name = profile_name
         self.sep = sep
         self.kwargs = kwargs
