@@ -43,6 +43,7 @@ TABLE_INPUT = {
     }
 }
 
+
 @unittest.skipIf(mock_glue is None,
                  "Skipping test because moto.mock_glue is not available")
 class TestAwsGlueCatalogHook(unittest.TestCase):

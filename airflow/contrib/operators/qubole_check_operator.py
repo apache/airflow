@@ -223,6 +223,6 @@ def handle_airflow_exception(airflow_exception, hook):
                                 '\nQubole Command Results:' \
                                 '\n{qubole_command_results}'.format(
                 qubole_command_id=qubole_command_id,  # noqa: E122
-                qubole_command_results=qubole_command_results)
+                qubole_command_results=qubole_command_results)  # noqa: E122
             raise AirflowException(str(airflow_exception) + exception_message)
     raise AirflowException(str(airflow_exception))
