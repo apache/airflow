@@ -60,15 +60,15 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     def __init__(
         self,
-        connections_prefix: str = None,
-        variables_prefix: str = None,
+        connections_prefix: Optional[str] = None,
+        variables_prefix: Optional[str] = None,
         profile_name: Optional[str] = None,
-        sep: str = None,
+        sep: Optional[str] = None,
         **kwargs
     ):
         super().__init__(**kwargs)
-        self.connections_prefix = connections_prefix.rstrip(sep)
-        self.variables_prefix = variables_prefix.rstrip(sep)
+        self.connections_prefix = connections_prefix.rstrip('/')
+        self.variables_prefix = variables_prefix.rstrip('/')
         self.profile_name = profile_name
         self.sep = sep
         self.kwargs = kwargs
@@ -90,6 +90,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: connection id
         :type conn_id: str
         """
+        if self.connections_prefix and self.sep:
+            conn_id = self.build_path(path_prefix, secret_id, self.sep)
+
         try:
             secret_string = self._get_secret(conn_id)
             secret = ast.literal_eval(secret_string)
@@ -106,7 +109,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
                 conn_string = f'mysql://{user}:{password}@{host}:{port}/{database}'
             return conn_string
         except KeyError:
-            return self._get_secret(self.connections_prefix, conn_id)
+            return self._get_secret(conn_id)
 
     def get_variable(self, key: str) -> Optional[str]:
         """
@@ -115,21 +118,21 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param key: Variable Key
         :return: Variable Value
         """
-        return self._get_secret(self.variables_prefix, key)
+        if self.variables_prefix and self.sep:
+            key = self.build_path(path_prefix, secret_id, self.sep)
+        return self._get_secret(key)
 
-    def _get_secret(self, path_prefix: str, secret_id: str) -> Optional[str]:
+    def _get_secret(self, secret_id: str) -> Optional[str]:
         """
         Get secret value from Secrets Manager
 
-        :param path_prefix: Prefix for the Path to get Secret
-        :type path_prefix: str
-        :param secret_id: Secret Key
+        :param secret_id: Secret Key, including prefix if exists
         :type secret_id: str
         """
-        secrets_path = self.build_path(path_prefix, secret_id, self.sep)
+
         try:
             response = self.client.get_secret_value(
-                SecretId=secrets_path,
+                SecretId=secret_id,
             )
             return response.get('SecretString')
         except self.client.exceptions.ResourceNotFoundException:
