@@ -21,6 +21,7 @@ from datetime import date, datetime
 from unittest import mock
 
 import jinja2
+import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -30,8 +31,6 @@ from airflow.models.baseoperator import chain, cross_downstream
 from airflow.models.serialized_dag import SerializedDagModel as SDM
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.utils.state import State
-from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
 from tests.test_utils import TEST_DAGS_FOLDER
 from tests.test_utils.mock_operators import MockNamedTuple, MockOperator
@@ -353,65 +352,37 @@ class TestBaseOperatorMethods(unittest.TestCase):
         self.assertEqual(task4.get_outlet_defs(), [inlet, outlet, extra])
 
 
+@pytest.fixture(scope="class")
+def provide_test_dag_bag():
+    yield DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False)
+
+
 class TestXComArgsRelationsAreResolved:
-    @mock.patch("airflow.models.dag.DagRun")
-    def test_upstream_is_set_when_template_field_is_xcomarg(self, _):
-        class CustomOp(DummyOperator):
-            template_fields = ("field",)
-
-            @apply_defaults
-            def __init__(self, field, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.field = field
-
-        with DAG("test_dag", default_args={"start_date": datetime.today()}) as dag:
-            op1 = DummyOperator(task_id="op1")
-            op2 = CustomOp(task_id="op2", field=op1.output)
-
-        dag.create_dagrun(session=mock.MagicMock(), state=State.NONE, run_id=DagRunType.MANUAL.value)
+    def test_upstream_is_set_when_template_field_is_xcomarg(
+        self, provide_test_dag_bag  # pylint: disable=redefined-outer-name
+    ):
+        dag: DAG = provide_test_dag_bag.get_dag("xcomargs_test_1")
+        op1, op2 = sorted(dag.tasks, key=lambda t: t.task_id)
 
         assert op1 in op2.upstream_list
         assert op2 in op1.downstream_list
 
-    @mock.patch("airflow.models.dag.DagRun")
-    def test_set_xcomargs_dependencies_works_recursively(self, _):
-        class CustomOp(DummyOperator):
-            template_fields = ("field",)
-
-            @apply_defaults
-            def __init__(self, field, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.field = field
-
-        with DAG("test_dag", default_args={"start_date": datetime.today()}) as dag:
-            op1 = DummyOperator(task_id="op1")
-            op2 = DummyOperator(task_id="op2")
-            op3 = CustomOp(task_id="op3", field=[op1.output, op2.output])
-            op4 = CustomOp(task_id="op4", field={"op1": op1.output, "op2": op2.output})
-
-        dag.create_dagrun(session=mock.MagicMock(), state=State.NONE, run_id=DagRunType.MANUAL.value)
+    def test_set_xcomargs_dependencies_works_recursively(
+        self, provide_test_dag_bag  # pylint: disable=redefined-outer-name
+    ):
+        dag: DAG = provide_test_dag_bag.get_dag("xcomargs_test_2")
+        op1, op2, op3, op4 = sorted(dag.tasks, key=lambda t: t.task_id)
 
         assert op1 in op3.upstream_list
         assert op2 in op3.upstream_list
         assert op1 in op4.upstream_list
         assert op2 in op4.upstream_list
 
-    @mock.patch("airflow.models.dag.DagRun")
-    def test_set_xcomargs_dependencies_works_when_set_after_init(self, _):
-        class CustomOp(DummyOperator):
-            template_fields = ("field",)
-
-            @apply_defaults
-            def __init__(self, field, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.field = field
-
-        with DAG("test_dag", default_args={"start_date": datetime.today()}) as dag:
-            op1 = DummyOperator(task_id="op1")
-            op2 = CustomOp(task_id="op2", field="")
-            op2.field = op1.output
-
-        dag.create_dagrun(session=mock.MagicMock(), state=State.NONE, run_id=DagRunType.MANUAL.value)
+    def test_set_xcomargs_dependencies_works_when_set_after_init(
+        self, provide_test_dag_bag  # pylint: disable=redefined-outer-name
+    ):
+        dag: DAG = provide_test_dag_bag.get_dag("xcomargs_test_3")
+        op1, op2, _ = sorted(dag.tasks, key=lambda t: t.task_id)
 
         assert op1 in op2.upstream_list
 
@@ -426,14 +397,6 @@ class TestXComArgsRelationsAreResolved:
 
         op1 = DummyOperator(task_id="op1")
         CustomOp(task_id="op2", field=op1.output)
-
-    def test_set_xcomargs_dependencies_when_creating_dagbag_no_serialization(self):
-        bag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False)
-        dag: DAG = bag.get_dag("example_xcom_args")
-        op1, op2, op3 = sorted(dag.tasks, key=lambda t: t.task_id)
-
-        assert op1 in op2.upstream_list
-        assert op2 in op3.upstream_list
 
     def test_set_xcomargs_dependencies_when_creating_dagbag_with_serialization(self):
         # Persist DAG

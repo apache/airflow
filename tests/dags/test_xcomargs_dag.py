@@ -17,10 +17,22 @@
 # under the License.
 
 """Example DAG demonstrating the usage of the XComArgs."""
+from datetime import datetime
 
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.dates import days_ago
+from airflow.utils.decorators import apply_defaults
+
+
+class CustomOp(DummyOperator):
+    template_fields = ("field",)
+
+    @apply_defaults
+    def __init__(self, field=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.field = field
+
 
 args = {
     'owner': 'airflow',
@@ -33,26 +45,20 @@ def dummy(*args, **kwargs):
     return "pass"
 
 
-with DAG(
-    dag_id='example_xcom_args',
-    default_args=args,
-    schedule_interval=None,
-    tags=['example']
-) as dag:
-    task1 = PythonOperator(
-        task_id='task1',
-        python_callable=dummy,
-    )
+with DAG("xcomargs_test_1", default_args={"start_date": datetime.today()}) as dag1:
+    op1 = DummyOperator(task_id="op1")
+    CustomOp(task_id="op2", field=op1.output)
 
-    task2 = PythonOperator(
-        task_id='task2',
-        python_callable=dummy,
-        op_kwargs={"dummy": task1.output},
-    )
 
-    task3 = PythonOperator(
-        task_id='task3',
-        python_callable=dummy,
-    )
+with DAG("xcomargs_test_2", default_args={"start_date": datetime.today()}) as dag2:
+    op1 = DummyOperator(task_id="op1")
+    op2 = DummyOperator(task_id="op2")
+    CustomOp(task_id="op3", field=[op1.output, op2.output])
+    CustomOp(task_id="op4", field={"op1": op1.output, "op2": op2.output})
 
-    task3.op_kwargs = {"dummy": task2.output}
+
+with DAG(dag_id='xcomargs_test_3', default_args={"start_date": datetime.today()}) as dag3:
+    op1 = DummyOperator(task_id="op1")
+    op2 = CustomOp(task_id="op2", field=op1.output)
+    op3 = CustomOp(task_id="op3")
+    op3.field = op2.output
