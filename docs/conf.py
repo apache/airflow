@@ -211,9 +211,13 @@ exclude_patterns: List[str] = [
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 
 # Generate top-level
+
+# do not exclude these top-level modules from the doc build:
+allowed_top_level = ("exceptions.py",)
+
 for path in glob(f"{ROOT_DIR}/airflow/*"):
     name = os.path.basename(path)
-    if os.path.isfile(path):
+    if os.path.isfile(path) and not path.endswith(allowed_top_level):
         exclude_patterns.append(f"_api/airflow/{name.rpartition('.')[0]}")
     browsable_packages = ["operators", "hooks", "sensors", "providers", "executors", "models", "secrets"]
     if os.path.isdir(path) and name not in browsable_packages:

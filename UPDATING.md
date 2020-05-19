@@ -128,6 +128,9 @@ The previous option used a colon(`:`) to split the module from function. Now the
 The change aims to unify the format of all options that refer to objects in the `airflow.cfg` file.
 
 ### Changes in BigQueryHook
+In general all hook methods are decorated with `@GoogleBaseHook.fallback_to_default_project_id` thus
+parameters to hook can only be passed via keyword arguments.
+
 - `create_empty_table` method accepts now `table_resource` parameter. If provided all
 other parameters are ignored.
 - `create_empty_dataset` will now use values from `dataset_reference` instead of raising error
@@ -137,6 +140,8 @@ changed.
 - `update_dataset` requires now new `fields` argument (breaking change)
 - `delete_dataset` has new signature (dataset_id, project_id, ...)
 previous one was (project_id, dataset_id, ...) (breaking change)
+- `get_tabledata` returns list of rows instead of API response in dict format. This method is deprecated in
+ favor of `list_rows`. (breaking change)
 
 ### Added mypy plugin to preserve types of decorated functions
 

@@ -120,7 +120,7 @@ class SerializedDagModelTest(unittest.TestCase):
     @mock.patch('airflow.models.serialized_dag.STORE_SERIALIZED_DAGS', True)
     def test_bulk_sync_to_db(self):
         dags = [
-            DAG(f"dag_1"), DAG(f"dag_2"), DAG(f"dag_3"),
+            DAG("dag_1"), DAG("dag_2"), DAG("dag_3"),
         ]
         with assert_queries_count(7):
             SDM.bulk_sync_to_db(dags)

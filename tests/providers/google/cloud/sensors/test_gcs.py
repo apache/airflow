@@ -205,7 +205,7 @@ class TestGCSUploadSessionCompleteSensor(TestCase):
         self.dag = dag
 
         self.sensor = GCSUploadSessionCompleteSensor(
-            task_id='sensor',
+            task_id='sensor_1',
             bucket='test-bucket',
             prefix='test-prefix/path',
             inactivity_period=12,
@@ -227,7 +227,7 @@ class TestGCSUploadSessionCompleteSensor(TestCase):
     @mock.patch('airflow.providers.google.cloud.sensors.gcs.get_time', mock_time)
     def test_files_deleted_between_pokes_allow_delete(self):
         self.sensor = GCSUploadSessionCompleteSensor(
-            task_id='sensor',
+            task_id='sensor_2',
             bucket='test-bucket',
             prefix='test-prefix/path',
             inactivity_period=12,

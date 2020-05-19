@@ -85,6 +85,7 @@ Name                                    Description
 ``scheduler.tasks.killed_externally``   Number of tasks killed externally
 ``scheduler.tasks.running``             Number of tasks running in executor
 ``scheduler.tasks.starving``            Number of tasks that cannot be scheduled because of no open slot in pool
+``sla_email_notification_failure``      Number of failed SLA miss email notification attempts
 ======================================= ================================================================
 
 Gauges

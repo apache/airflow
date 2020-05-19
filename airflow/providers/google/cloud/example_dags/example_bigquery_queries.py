@@ -115,7 +115,7 @@ with models.DAG(
         task_id="get_data",
         dataset_id=DATASET_NAME,
         table_id=TABLE_1,
-        max_results="10",
+        max_results=10,
         selected_fields="value,name",
     )
     # [END howto_operator_bigquery_get_data]

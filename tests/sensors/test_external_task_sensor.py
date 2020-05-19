@@ -278,7 +278,7 @@ exit 0
         self.test_time_sensor()
         # check that the execution_fn works
         op1 = ExternalTaskSensor(
-            task_id='test_external_task_sensor_check_delta',
+            task_id='test_external_task_sensor_check_delta_1',
             external_dag_id=TEST_DAG_ID,
             external_task_id=TEST_TASK_ID,
             execution_date_fn=lambda dt: dt + timedelta(0),
@@ -292,7 +292,7 @@ exit 0
         )
         # double check that the execution is being called by failing the test
         op2 = ExternalTaskSensor(
-            task_id='test_external_task_sensor_check_delta',
+            task_id='test_external_task_sensor_check_delta_2',
             external_dag_id=TEST_DAG_ID,
             external_task_id=TEST_TASK_ID,
             execution_date_fn=lambda dt: dt + timedelta(days=1),
@@ -325,7 +325,7 @@ exit 0
     def test_catch_invalid_allowed_states(self):
         with self.assertRaises(ValueError):
             ExternalTaskSensor(
-                task_id='test_external_task_sensor_check',
+                task_id='test_external_task_sensor_check_1',
                 external_dag_id=TEST_DAG_ID,
                 external_task_id=TEST_TASK_ID,
                 allowed_states=['invalid_state'],
@@ -334,7 +334,7 @@ exit 0
 
         with self.assertRaises(ValueError):
             ExternalTaskSensor(
-                task_id='test_external_task_sensor_check',
+                task_id='test_external_task_sensor_check_2',
                 external_dag_id=TEST_DAG_ID,
                 external_task_id=None,
                 allowed_states=['invalid_state'],

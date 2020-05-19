@@ -38,7 +38,7 @@ default_args = {"start_date": days_ago(1)}
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 BQ_LOCATION = "europe-north1"
 
-DATASET_NAME = os.environ.get("GCP_BIGQUERY_DATASET_NAME", "test_dataset")
+DATASET_NAME = os.environ.get("GCP_BIGQUERY_DATASET_NAME", "test_dataset_operations")
 LOCATION_DATASET_NAME = "{}_location".format(DATASET_NAME)
 DATA_SAMPLE_GCS_URL = os.environ.get(
     "GCP_BIGQUERY_DATA_GCS_URL",
@@ -71,7 +71,7 @@ with models.DAG(
     # [START howto_operator_bigquery_delete_table]
     delete_table = BigQueryDeleteTableOperator(
         task_id="delete_table",
-        deletion_dataset_table="{}.test_table".format(DATASET_NAME),
+        deletion_dataset_table=f"{PROJECT_ID}.{DATASET_NAME}.test_table",
     )
     # [END howto_operator_bigquery_delete_table]
 
@@ -89,7 +89,7 @@ with models.DAG(
 
     # [START howto_operator_bigquery_delete_view]
     delete_view = BigQueryDeleteTableOperator(
-        task_id="delete_view", deletion_dataset_table=f"{DATASET_NAME}.test_view"
+        task_id="delete_view", deletion_dataset_table=f"{PROJECT_ID}.{DATASET_NAME}.test_view"
     )
     # [END howto_operator_bigquery_delete_view]
 

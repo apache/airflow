@@ -140,6 +140,7 @@ class SerializedDagModel(Base):
         :param dag_id: dag_id to be deleted
         :param session: ORM Session
         """
+        # pylint: disable=no-member
         session.execute(cls.__table__.delete().where(cls.dag_id == dag_id))
 
     @classmethod
@@ -158,6 +159,7 @@ class SerializedDagModel(Base):
                   "scheduler since %s from %s table ", expiration_date, cls.__tablename__)
 
         session.execute(
+            # pylint: disable=no-member
             cls.__table__.delete().where(cls.last_updated < expiration_date)
         )
 

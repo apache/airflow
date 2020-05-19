@@ -38,6 +38,9 @@ from airflow.utils.decorators import apply_defaults
 
 BIGQUERY_JOB_DETAILS_LINK_FMT = 'https://console.cloud.google.com/bigquery?j={job_id}'
 
+_DEPRECATION_MSG = "The bigquery_conn_id parameter has been deprecated. " \
+                   "You should pass the gcp_conn_id parameter."
+
 
 class BigQueryUIColors(enum.Enum):
     """Hex colors for BigQuery operators"""
@@ -120,8 +123,7 @@ class BigQueryCheckOperator(CheckOperator):
     :param use_legacy_sql: Whether to use legacy SQL (true)
         or standard SQL (false).
     :type use_legacy_sql: bool
-    :param location: The geographic location of the job. Required except for
-        US and EU. See details at
+    :param location: The geographic location of the job. See details at:
         https://cloud.google.com/bigquery/docs/locations#specifying_your_location
     :type location: str
     """
@@ -131,18 +133,19 @@ class BigQueryCheckOperator(CheckOperator):
     ui_color = BigQueryUIColors.CHECK.value
 
     @apply_defaults
-    def __init__(self,
-                 sql: str,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 bigquery_conn_id: Optional[str] = None,
-                 use_legacy_sql: bool = True,
-                 location=None,
-                 *args, **kwargs) -> None:
+    def __init__(
+        self,
+        sql: str,
+        gcp_conn_id: str = 'google_cloud_default',
+        bigquery_conn_id: Optional[str] = None,
+        use_legacy_sql: bool = True,
+        location: Optional[str] = None,
+        *args,
+        **kwargs,
+    ) -> None:
         super().__init__(sql=sql, *args, **kwargs)
         if bigquery_conn_id:
-            warnings.warn(
-                "The bigquery_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+            warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=3)
             gcp_conn_id = bigquery_conn_id  # type: ignore
 
         self.gcp_conn_id = gcp_conn_id
@@ -150,10 +153,12 @@ class BigQueryCheckOperator(CheckOperator):
         self.use_legacy_sql = use_legacy_sql
         self.location = location
 
-    def get_db_hook(self):
-        return BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
-                            use_legacy_sql=self.use_legacy_sql,
-                            location=self.location)
+    def get_db_hook(self) -> BigQueryHook:
+        return BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            use_legacy_sql=self.use_legacy_sql,
+            location=self.location
+        )
 
 
 class BigQueryValueCheckOperator(ValueCheckOperator):
@@ -170,6 +175,9 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
     :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud Platform.
         This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type bigquery_conn_id: str
+    :param location: The geographic location of the job. See details at:
+        https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+    :type location: str
     """
 
     template_fields = ('sql', 'gcp_conn_id', 'pass_value',)
@@ -177,29 +185,39 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
     ui_color = BigQueryUIColors.CHECK.value
 
     @apply_defaults
-    def __init__(self, sql: str,
-                 pass_value: Any,
-                 tolerance: Any = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 bigquery_conn_id: Optional[str] = None,
-                 use_legacy_sql: bool = True,
-                 *args, **kwargs) -> None:
+    def __init__(
+        self,
+        sql: str,
+        pass_value: Any,
+        tolerance: Any = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        bigquery_conn_id: Optional[str] = None,
+        use_legacy_sql: bool = True,
+        location: Optional[str] = None,
+        *args,
+        **kwargs,
+    ) -> None:
         super().__init__(
-            sql=sql, pass_value=pass_value, tolerance=tolerance,
-            *args, **kwargs)
+            sql=sql,
+            pass_value=pass_value,
+            tolerance=tolerance,
+            *args, **kwargs
+        )
 
         if bigquery_conn_id:
-            warnings.warn(
-                "The bigquery_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+            warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=3)
             gcp_conn_id = bigquery_conn_id
 
+        self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.use_legacy_sql = use_legacy_sql
 
-    def get_db_hook(self):
-        return BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
-                            use_legacy_sql=self.use_legacy_sql)
+    def get_db_hook(self) -> BigQueryHook:
+        return BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            use_legacy_sql=self.use_legacy_sql,
+            location=self.location
+        )
 
 
 class BigQueryIntervalCheckOperator(IntervalCheckOperator):
@@ -229,39 +247,50 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
     :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud Platform.
         This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type bigquery_conn_id: str
+    :param location: The geographic location of the job. See details at:
+        https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+    :type location: str
     """
 
     template_fields = ('table', 'gcp_conn_id', 'sql1', 'sql2')
     ui_color = BigQueryUIColors.CHECK.value
 
     @apply_defaults
-    def __init__(self,
-                 table: str,
-                 metrics_thresholds: dict,
-                 date_filter_column: str = 'ds',
-                 days_back: SupportsAbs[int] = -7,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 bigquery_conn_id: Optional[str] = None,
-                 use_legacy_sql: bool = True,
-                 *args,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        table: str,
+        metrics_thresholds: dict,
+        date_filter_column: str = 'ds',
+        days_back: SupportsAbs[int] = -7,
+        gcp_conn_id: str = 'google_cloud_default',
+        bigquery_conn_id: Optional[str] = None,
+        use_legacy_sql: bool = True,
+        location: Optional[str] = None,
+        *args,
+        **kwargs,
+    ) -> None:
         super().__init__(
-            table=table, metrics_thresholds=metrics_thresholds,
-            date_filter_column=date_filter_column, days_back=days_back,
-            *args, **kwargs)
+            table=table,
+            metrics_thresholds=metrics_thresholds,
+            date_filter_column=date_filter_column,
+            days_back=days_back,
+            *args, **kwargs
+        )
 
         if bigquery_conn_id:
-            warnings.warn(
-                "The bigquery_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+            warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=3)
             gcp_conn_id = bigquery_conn_id
 
         self.gcp_conn_id = gcp_conn_id
         self.use_legacy_sql = use_legacy_sql
+        self.location = location
 
-    def get_db_hook(self):
-        return BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
-                            use_legacy_sql=self.use_legacy_sql)
+    def get_db_hook(self) -> BigQueryHook:
+        return BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            use_legacy_sql=self.use_legacy_sql,
+            location=self.location,
+        )
 
 
 class BigQueryGetDataOperator(BaseOperator):
@@ -298,7 +327,7 @@ class BigQueryGetDataOperator(BaseOperator):
     :type table_id: str
     :param max_results: The maximum number of records (rows) to be fetched
         from the table. (templated)
-    :type max_results: str
+    :type max_results: int
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.
     :type selected_fields: str
@@ -321,7 +350,7 @@ class BigQueryGetDataOperator(BaseOperator):
     def __init__(self,
                  dataset_id: str,
                  table_id: str,
-                 max_results: str = '100',
+                 max_results: int = 100,
                  selected_fields: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  bigquery_conn_id: Optional[str] = None,
@@ -339,7 +368,7 @@ class BigQueryGetDataOperator(BaseOperator):
 
         self.dataset_id = dataset_id
         self.table_id = table_id
-        self.max_results = max_results
+        self.max_results = int(max_results)
         self.selected_fields = selected_fields
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
@@ -350,29 +379,22 @@ class BigQueryGetDataOperator(BaseOperator):
         self.log.info('Dataset: %s ; Table: %s ; Max Results: %s',
                       self.dataset_id, self.table_id, self.max_results)
 
-        hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to,
-                            location=self.location)
+        hook = BigQueryHook(
+            bigquery_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to
+        )
 
-        response = hook.get_tabledata(dataset_id=self.dataset_id,
-                                      table_id=self.table_id,
-                                      max_results=self.max_results,
-                                      selected_fields=self.selected_fields)
+        rows = hook.list_rows(
+            dataset_id=self.dataset_id,
+            table_id=self.table_id,
+            max_results=self.max_results,
+            selected_fields=self.selected_fields,
+            location=self.location
+        )
 
-        total_rows = int(response['totalRows'])
-        self.log.info('Total Extracted rows: %s', total_rows)
+        self.log.info('Total Extracted rows: %s', len(rows))
 
-        table_data = []
-        if total_rows == 0:
-            return table_data
-
-        rows = response['rows']
-        for dict_row in rows:
-            single_row = []
-            for fields in dict_row['f']:
-                single_row.append(fields['v'])
-            table_data.append(single_row)
-
+        table_data = [row.values() for row in rows]
         return table_data
 
 

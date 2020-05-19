@@ -139,7 +139,7 @@ def _parse_secret_file(file_path: str) -> Dict[str, Any]:
 
     if parse_errors:
         raise AirflowFileParseException(
-            f"Failed to load the secret file.", file_path=file_path, parse_errors=parse_errors
+            "Failed to load the secret file.", file_path=file_path, parse_errors=parse_errors
         )
 
     return secrets

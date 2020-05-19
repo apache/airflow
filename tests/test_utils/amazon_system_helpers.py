@@ -81,3 +81,14 @@ class AmazonSystemTest(SystemTest):
         cls.execute_with_ctx(cmd)
         cmd = ["aws", "s3api", "delete-bucket", "--bucket", name]
         cls.execute_with_ctx(cmd)
+
+    @classmethod
+    def create_emr_default_roles(cls) -> None:
+        """Create EMR Default roles for running system test
+
+        This will create the default IAM roles:
+        - `EMR_EC2_DefaultRole`
+        - `EMR_DefaultRole`
+        """
+        cmd = ["aws", "emr", "create-default-roles"]
+        cls.execute_with_ctx(cmd)

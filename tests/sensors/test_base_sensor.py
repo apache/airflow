@@ -70,16 +70,17 @@ class TestBaseSensor(unittest.TestCase):
             state=State.RUNNING
         )
 
-    def _make_sensor(self, return_value, **kwargs):
+    def _make_sensor(self, return_value, task_id=SENSOR_OP, **kwargs):
         poke_interval = 'poke_interval'
         timeout = 'timeout'
+
         if poke_interval not in kwargs:
             kwargs[poke_interval] = 0
         if timeout not in kwargs:
             kwargs[timeout] = 0
 
         sensor = DummySensor(
-            task_id=SENSOR_OP,
+            task_id=task_id,
             return_value=return_value,
             dag=self.dag,
             **kwargs
@@ -471,17 +472,20 @@ class TestBaseSensor(unittest.TestCase):
         positive_poke_interval = 10
         with self.assertRaises(AirflowException):
             self._make_sensor(
+                task_id='test_sensor_task_1',
                 return_value=None,
                 poke_interval=negative_poke_interval,
                 timeout=25)
 
         with self.assertRaises(AirflowException):
             self._make_sensor(
+                task_id='test_sensor_task_2',
                 return_value=None,
                 poke_interval=non_number_poke_interval,
                 timeout=25)
 
         self._make_sensor(
+            task_id='test_sensor_task_3',
             return_value=None,
             poke_interval=positive_poke_interval,
             timeout=25)
@@ -492,17 +496,20 @@ class TestBaseSensor(unittest.TestCase):
         positive_timeout = 25
         with self.assertRaises(AirflowException):
             self._make_sensor(
+                task_id='test_sensor_task_1',
                 return_value=None,
                 poke_interval=10,
                 timeout=negative_timeout)
 
         with self.assertRaises(AirflowException):
             self._make_sensor(
+                task_id='test_sensor_task_2',
                 return_value=None,
                 poke_interval=10,
                 timeout=non_number_timeout)
 
         self._make_sensor(
+            task_id='test_sensor_task_3',
             return_value=None,
             poke_interval=10,
             timeout=positive_timeout)

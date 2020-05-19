@@ -387,6 +387,12 @@ These integrations allow you to perform various operations within the Amazon Web
      -
      - :mod:`airflow.providers.amazon.aws.sensors.glue_catalog_partition`
 
+   * - `AWS Glue <https://aws.amazon.com/glue/>`__
+     -
+     - :mod:`airflow.providers.amazon.aws.hooks.glue`
+     - :mod:`airflow.providers.amazon.aws.operators.glue`
+     - :mod:`airflow.providers.amazon.aws.sensors.glue`
+
    * - `AWS Lambda <https://aws.amazon.com/lambda/>`__
      -
      - :mod:`airflow.providers.amazon.aws.hooks.lambda_function`
@@ -431,7 +437,7 @@ These integrations allow you to perform various operations within the Amazon Web
      -
 
    * - `Amazon EMR <https://aws.amazon.com/emr/>`__
-     -
+     - :doc:`How to use <howto/operator/amazon/aws/emr>`
      - :mod:`airflow.providers.amazon.aws.hooks.emr`
      - :mod:`airflow.providers.amazon.aws.operators.emr_add_steps`,
        :mod:`airflow.providers.amazon.aws.operators.emr_create_job_flow`,
