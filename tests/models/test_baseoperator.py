@@ -27,12 +27,13 @@ from airflow.exceptions import AirflowException
 from airflow.lineage.entities import File
 from airflow.models import DAG, DagBag
 from airflow.models.baseoperator import chain, cross_downstream
+from airflow.models.serialized_dag import SerializedDagModel as SDM
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
-from tests.test_utils import EXAMPLE_DAGS_FOLDER
+from tests.test_utils import TEST_DAGS_FOLDER
 from tests.test_utils.mock_operators import MockNamedTuple, MockOperator
 
 
@@ -426,8 +427,24 @@ class TestXComArgsRelationsAreResolved:
         op1 = DummyOperator(task_id="op1")
         CustomOp(task_id="op2", field=op1.output)
 
-    def test_set_xcomargs_dependencies_when_creating_dagbag(self):
-        bag = DagBag(dag_folder=EXAMPLE_DAGS_FOLDER, include_examples=False)
+    def test_set_xcomargs_dependencies_when_creating_dagbag_no_serialization(self):
+        bag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False)
+        dag: DAG = bag.get_dag("example_xcom_args")
+        op1, op2, op3 = sorted(dag.tasks, key=lambda t: t.task_id)
+
+        assert op1 in op2.upstream_list
+        assert op2 in op3.upstream_list
+
+    def test_set_xcomargs_dependencies_when_creating_dagbag_with_serialization(self):
+        # Persist DAG
+        dag_id = "example_xcom_args"
+        dagbag = DagBag(TEST_DAGS_FOLDER, include_examples=False)
+        for dag in dagbag.dags.values():
+            if dag.dag_id == dag_id:
+                SDM.write_dag(dag)
+
+        # Retrieve the DAG
+        bag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False, store_serialized_dags=True)
         dag: DAG = bag.get_dag("example_xcom_args")
         op1, op2, op3 = sorted(dag.tasks, key=lambda t: t.task_id)
 
