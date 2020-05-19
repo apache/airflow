@@ -26,4 +26,4 @@ prepare_ci_build
 
 rebuild_ci_image_if_needed
 
-run_generate_backport_readme "$@"
+run_prepare_backport_readme "$@"

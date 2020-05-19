@@ -98,7 +98,7 @@ l a: t: d:
 v y n q f
 F P I E: C L
 D: R: u
-S:
+S: N:
 "
 
 _BREEZE_LONG_OPTIONS="
@@ -110,7 +110,7 @@ verbose assume-yes assume-no assume-quit forward-credentials
 force-build-images force-pull-images production-image extras: force-clean-images use-local-cache
 dockerhub-user: dockerhub-repo: push-images
 postgres-version: mysql-version:
-version-suffix:
+version-suffix-for-pypi: version-suffix-for-svn:
 "
 
 export BREEZE_COMMANDS="
@@ -120,7 +120,7 @@ build-image
 cleanup-image
 exec
 generate-requirements
-generate-backport-readme
+prepare-backport-readme
 prepare-backport-packages
 initialize-local-virtualenv
 setup-autocomplete

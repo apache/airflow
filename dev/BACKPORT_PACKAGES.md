@@ -27,9 +27,8 @@
 - [Content of the release notes](#content-of-the-release-notes)
 - [Preparing backport packages](#preparing-backport-packages)
 - [Releasing the packages](#releasing-the-packages)
-  - [Building an RC](#building-an-rc)
-  - [Make sure your public key is on id.apache.org and in KEYS](#make-sure-your-public-key-is-on-idapacheorg-and-in-keys)
-  - [Publishing to PyPi](#publishing-to-pypi)
+  - [Building an RC for SVN apache upload](#building-an-rc-for-svn-apache-upload)
+  - [Publishing the RC to PyPI](#publishing-the-rc-to-pypi)
   - [Voting on RC candidates](#voting-on-rc-candidates)
   - [Publishing the final release](#publishing-the-final-release)
 
@@ -71,7 +70,7 @@ separately.
 When you want to prepare release notes for a package, you need to run:
 
 ```
-./breeze generate-backport-readme -- YYYY.MM.DD <PACKAGE_ID> ...
+./breeze prepare-backport-readme -- YYYY.MM.DD <PACKAGE_ID> ...
 ```
 
 
@@ -145,19 +144,35 @@ providers by running:
 ./breeze prepare-backport-packages -- --help
 ```
 
-* To build the release packages (release candidates) run the following command:
+The examples below show how you can build selected packages, but you can also build all packages by
+omitting the package ids altogether.
+
+* To build the release candidate packages for SVN Apache upload run the following command:
 
 ```bash
-./breeze prepare-backport-packages --version-suffux=rc1 -- [PACKAGE_ID] ...
+./breeze prepare-backport-packages --version-suffix-for-svn=rc1 -- [PACKAGE_ID] ...
 ```
 
 for example:
 
 ```bash
-./breeze prepare-backport-packages --version-suffix=rc1 -- http ...
+./breeze prepare-backport-packages --version-suffix-for-svn=rc1 -- http ...
 ```
 
-* To build the release packages run the following command:
+* To build the release candidate packages for PyPI upload run the following command:
+
+```bash
+./breeze prepare-backport-packages --version-suffix-for-pypi=rc1 -- [PACKAGE_ID] ...
+```
+
+for example:
+
+```bash
+./breeze prepare-backport-packages --version-suffix-for-pypi=rc1 -- http ...
+```
+
+
+* To build the final release packages run the following command:
 
 ```bash
 ./breeze prepare-backport-packages -- [PACKAGE_ID] ...
@@ -168,32 +183,72 @@ for example:
 ./breeze prepare-backport-packages -- http ...
 ```
 
-You can also build all packages by omitting the package id altogether.
+* For each package, this creates a wheel package and source distribution package in your `dist` folder with
+  names following the patterns:
 
-* This creates a wheel package and source distribution packages in your `dist` folder with
-  names similar to the below:
+  * `apache_airflow_backport_providers_<PROVIDER>_YYYY.[M]M.[D]D[suffix]-py3-none-any.whl`
+  * `apache-airflow-backport-providers-<PROVIDER>-YYYY.[M]M.[D]D[suffix].tar.gz`
 
-  * `apache_airflow_backport_providers_<PROVIDER>_YYYY.MM.DD-py2.py3-none-any.whl`
-  * `apache-airflow-backport-providers-<PROVIDER>-YYYY.MM.DD.tar.gz`
+Note! Even if we always use the two-digit month and day when generating the readme files,
+the version in PyPI does not contain the leading 0s in version name - therefore the artifacts generated
+also do not container the leading 0s.
 
-* You can install this package with `pip install <PACKAGE_FILE>`
-
+* You can install the .whl packages with `pip install <PACKAGE_FILE>`
 
 # Releasing the packages
 
-## Building an RC
+## Building an RC for SVN apache upload
 
 The Release Candidate artifacts we vote upon should be the exact ones we vote against, without any
-modification than renaming – i.e. the contents of the files must be the same between voted
+modification than renaming i.e. the contents of the files must be the same between voted
 release candidate and final release. Because of this the version in the built artifacts
-that will become the official Apache releases must not include the rcN suffix.
+that will become the official Apache releases must not include the rcN suffix. They also need
+to be signed and have checksum files. You can generate the checksum/signature files by running
+the "dev/sign.sh" script (assuming you have the right PGP key set-up for signing). The script
+generates corresponding .asc and .sha512 files for each file to sign.
 
-Note! that the version in PyPI does not contain the leading 0s in version name.
+
+### Make sure your public key is on id.apache.org and in KEYS
+
+You will need to sign the release artifacts with your pgp key. After you have created a key, make sure you:
+
+* Add your GPG pub key to [KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS) ,
+  follow the instructions at the top of that file. Upload your GPG public key to https://pgp.mit.edu
+
+* Add your key fingerprint to [https://id.apache.org]/https://id.apache.org/ (login with your apache
+  credentials, paste your fingerprint into the pgp fingerprint field and hit save).
+
+* In case you do not have your key you can generate one using this command. Ideally use your `@apache.org`
+  id for the key.
+
+```bash
+# Create PGP Key
+gpg --gen-key
+```
+
+* Update your key in the committer's key repo
+
+```bash
+# Checkout ASF dist repo
+svn checkout https://dist.apache.org/repos/dist/release/airflow
+cd airflow
+
+
+# Add your GPG pub key to KEYS file. Replace "<Your ID>" with your @apache.org id
+(gpg --list-sigs "<Your ID>" && gpg --armor --export "<Your ID>" ) >> KEYS
+
+
+# Commit the changes
+svn commit -m "Add PGP key for <Your ID>>"
+```
+
+### Building and signing the packages
+
 
 * Set environment variables (version and root of airflow repo)
 
 ```bash
-export VERSION=2020.5.19rc2
+export VERSION=2020.5.20rc2
 export AIRFLOW_REPO_ROOT=$(pwd)
 
 ```
@@ -201,7 +256,7 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 * Tag the release
 
 ```bash
-git tag ${VERSION}
+git tag backport-providers-${VERSION}
 ```
 
 * Clean the checkout
@@ -213,15 +268,25 @@ git clean -fxd
 * Tarball the sources
 
 ```bash
-git archive --format=tar.gz ${VERSION} --prefix=apache-airflow-${VERSION}/ -o apache-airflow-backport-providers-${VERSION}-source.tar.gz
+git archive \
+    --format=tar.gz \
+    backport-providers-${VERSION} \
+    --prefix=apache-airflow-backport-providers-${VERSION}/ \
+    -o apache-airflow-backport-providers-${VERSION}-source.tar.gz
 ```
 
-* Generate the packages (specify the version suffix, optionally list of packages).
-
-This will clean up dist folder before generating the packages
+* Generate the packages - since we are preparing packages for SVN repo, we should use the right switch. Note
+  that this will clean up dist folder before generating the packages, so it will only contain the packages
+  you intended to build.
 
 ```bash
-./breeze prepare-backport-packages --version-suffix rc2 -- [PACKAGE ...]
+./breeze prepare-backport-packages --version-suffix-for-svn rc1
+```
+
+if you ony build few packages, run:
+
+```bash
+./breeze prepare-backport-packages --version-suffix-for-svn rc1 -- PACKAGE PACKAGE ....
 ```
 
 * Move the source tarball to dist folder
@@ -233,8 +298,7 @@ mv apache-airflow-backport-providers-${VERSION}-source.tar.gz dist
 * Sign all your packages
 
 ```bash
-cd dist
-../dev/sign.sh *.tar.gz *.whl
+./dev/sign.sh dist/*
 ```
 
 * Push tags
@@ -243,54 +307,52 @@ cd dist
 git push --tags
 ```
 
+### Committing the packages to Apache SVN repo
+
 * Push the artifacts to ASF dev dist repo
 
 ```bash
-# First clone the repo
+# First clone the repo if you do not have it
 svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
 
-# Create a new folder for the release
+# update the repo in case you have it already
+cd airflow-dev
+svn update
+
+# Create a new folder for the release.
 cd airflow-dev/backport-providers
 svn mkdir ${VERSION}
 
-# Move the artifacts to svn folder & commit
-mv ${AIRFLOW_REPO_ROOT}/dist/apache{-,_}airflow-${VERSION}* ${VERSION}/
-mv ${AIRFLOW_REPO_ROOT}/apache-airflow-backport-providers-${VERSION}-source.tar.gz ${VERSION}/
+# Move the artifacts to svn folder
+mv ${AIRFLOW_REPO_ROOT}/dist/* ${VERSION}/
 
-cd ${VERSION}
-svn add *
+# Add and commit
+svn add ${VERSION}/*
 svn commit -m "Add artifacts for Airflow ${VERSION}"
+
 cd ${AIRFLOW_REPO_ROOT}
 ```
 
-## Make sure your public key is on id.apache.org and in KEYS
-
-You will need to sign the release artifacts with your pgp key. After you have created a key, make sure you:
-
-* Add your GPG pub key to [KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS) ,
-  follow the instructions at the top of that file. Upload your GPG public key to https://pgp.mit.edu
-* Add your key fingerprint to [https://id.apache.org]/https://id.apache.org/ (login with your apache
-  credentials, paste your fingerprint into the pgp fingerprint field and hit save).
-
-```bash
-# Create PGP Key
-gpg --gen-key
-
-# Checkout ASF dist repo
-svn checkout https://dist.apache.org/repos/dist/release/airflow
-cd airflow
+Verify that the files are available at
+[backport-providers](https://dist.apache.org/repos/dist/dev/airflow/backport-providers/)
 
 
-# Add your GPG pub key to KEYS file. Replace "Kaxil Naik" with your name
-(gpg --list-sigs "Kaxil Naik" && gpg --armor --export "Kaxil Naik" ) >> KEYS
+## Publishing the RC to PyPI
+
+In order to publish to PyPI you just need to build and release packages. The packages should however
+contain the rcN suffix in the version name as well, so you need to use `--version-suffix-for-pypi` switch
+to prepare those packages. Note that these are different packages than the ones used for SVN upload
+though they should be generated from the same sources.
+
+### Configure your PyPI uploads
+
+In order to not reveal your password in plain text, it's best if you create and configure API Upload tokens.
+You can add and copy the tokens here:
+
+* [Test PyPI](https://test.pypi.org/manage/account/token/)
+* [Prod PyPI](https://pypi.org/manage/account/token/)
 
 
-# Commit the changes
-svn commit -m "Add PGP keys of Airflow developers"
-```
-
-
-## Publishing to PyPi
 Create a ~/.pypirc file:
 
 ```bash
@@ -300,11 +362,14 @@ index-servers =
   pypitest
 
 [pypi]
-username=your-username
+username=__token__
+password=<API Upload Token>
 
 [pypitest]
 repository=https://test.pypi.org/legacy/
-username=your-username
+username=__token__
+password=<API Upload Token>
+
 ```
 
 Set proper permissions for the pypirc file:
@@ -319,6 +384,21 @@ $ chmod 600 ~/.pypirc
 pip install twine
 ```
 
+### Generate PyPI packages
+
+* Generate the packages with the right RC version (specify the version suffix with PyPI switch). Note that
+this will clean up dist folder before generating the packages so you will only have the right packages there.
+
+```bash
+./breeze prepare-backport-packages --version-suffix-for-pypi rc1
+```
+
+if you ony build few packages, run:
+
+```bash
+./breeze prepare-backport-packages --version-suffix-for-pypi rc1 -- PACKAGE PACKAGE ....
+```
+
 * Verify the artifacts that would be uploaded:
 
 ```bash
@@ -331,8 +411,8 @@ twine check dist/*
 twine upload -r pypitest dist/*
 ```
 
-* Verify that the test packages looks good by downloading it and installing them into a virtual environment.
-Twine prints the package linksas output - separately for each package.
+* Verify that the test packages look good by downloading it and installing them into a virtual environment.
+Twine prints the package links as output - separately for each package.
 
 * Upload the package to PyPi's production environment:
 
@@ -342,42 +422,51 @@ twine upload -r pypi dist/*
 
 Copy the list of links to the uploaded packages - they will be useful in preparing VOTE email.
 
-* Again, confirm that the packages are available under the links displayed.
+* Again, confirm that the packages are available under the links printed.
 
 ## Voting on RC candidates
 
 Make sure the packages are in https://dist.apache.org/repos/dist/dev/airflow/backport-providers/
 
-Use the dev/airflow-jira script to generate a list of Airflow JIRAs that were closed in the release.
+Send out a vote to the dev@airflow.apache.org mailing list. Here you can prepare text of the
+email using the ${VERSION} variable you already set in the command line.
 
-Send out a vote to the dev@airflow.apache.org mailing list:
+```bash
+cat <<EOF
 
-```text
-[VOTE] Airflow Backport Providers 2020.5.19rc2
+[VOTE] Airflow Backport Providers ${VERSION}
 
 Hey all,
 
-I have cut Airflow Backport Providers 2020.5.19rc2. This email is calling a vote on the release,
-which will last for 72 hours - which means that it will end on YYYY,MM.DD TZN.
+I have cut Airflow Backport Providers ${VERSION}. This email is calling a vote on the release,
+which will last for 72 hours - which means that it will end on $(date -d '+3 days').
 
 Consider this my (binding) +1.
 
-Airflow Backport Providers 2020.5.19rc2 are available at:
-https://dist.apache.org/repos/dist/dev/airflow/backport-providers/2020.5.19/
+Airflow Backport Providers ${VERSION} are available at:
+https://dist.apache.org/repos/dist/dev/airflow/backport-providers/${VERSION}/
 
-*apache-airflow-backport-providers-2020.5.19rc2-source.tar.gz* is a source release that comes
-with INSTALL instructions.
+*apache-airflow-backport-providers-${VERSION}-source.tar.gz* is a source release that comes
+ with INSTALL instructions.
 
-*apache-airflow-backport-providers-PROVIDER-2020.5.19rc2-bin.tar.gz* is the binary Python "sdist" release.
+*apache-airflow-backport-providers-<PROVIDER>-${VERSION}-bin.tar.gz* are the binary
+ Python "sdist" release.
 
 Public keys are available at:
 https://dist.apache.org/repos/dist/release/airflow/KEYS
 
+Please vote accordingly:
+
+[ ] +1 approve
+[ ] +0 no opinion
+[ ] -1 disapprove with the reason
+
+
 Only votes from PMC members are binding, but members of the community are
 encouraged to test the release and vote with "(non-binding)".
 
-Please note that the version number excludes the `rcX` string, so it's now
-simply 2020.5.19. This will allow us to rename the artifact without modifying
+Please note that the version number excludes the 'rcX' string, so it's now
+simply ${VERSION%rc?}. This will allow us to rename the artifact without modifying
 the artifact checksums when we actually release.
 
 Each of the packages contains detailed changelog. Here is the list of links to
@@ -386,20 +475,25 @@ the released packages and changelogs:
 TODO: Paste the result of twine upload
 
 Cheers,
-<your name>
+<TODO: Your Name>
+
+EOF
+
 ```
 
 * Once the vote has been passed, you will need to send a result vote to dev@airflow.apache.org:
 
-```text
-[RESULT][VOTE] Airflow Backport Providers 2020.5.19rc2
+```bash
+
+cat <<EOF
+[RESULT][VOTE] Airflow Backport Providers ${VERSION}
 
 
 Hey all,
 
-Airflow Backport Providers 2020.5.19 (based on RC2) has been accepted.
+Airflow Backport Providers ${VERSION%rc?} (based on the rc candidate) has been accepted.
 
-N “+1” binding votes received:
+N "+1" binding votes received:
 - PMC Member  (binding)
 ...
 
@@ -408,15 +502,53 @@ N "+1" non-binding votes received:
 - COMMITER (non-binding)
 
 Vote thread:
-https://lists.apache.org/thread.html/NNNN@%3Cdev.airflow.apache.org%3E
+https://lists.apache.org/thread.html/<TODO:REPLACE_ME_WITH_THE_VOTING_THREAD>@%3Cdev.airflow.apache.org%3E
 
 I'll continue with the release process and the release announcement will follow shortly.
 
 Cheers,
-<your name>
+<TODO: Your Name>
+
+EOF
 
 ```
 
 ## Publishing the final release
 
-TODO:
+After the votes pass (see above), you need to migrate the RC artifacts that passed to this repository:
+https://dist.apache.org/repos/dist/release/airflow/
+The migration should include renaming of the files so that they no longer have the RC number in their
+filenames.
+
+### Copying latest release candidates to releae
+
+The best way of doing this is to svn cp  between the two repos (this avoids having to upload the binaries
+again, and gives a clearer history in the svn commit logs.
+
+We also need to archive older releases before copying the new ones
+[Release policy](http://www.apache.org/legal/release-policy.html#when-to-archive)
+
+
+```bash
+# Set the variables
+export VERSION_RC=2020.5.20rc2
+export VERSION=${RC/rc?/}
+
+# First clone the repo if it's not done yet
+svn checkout https://dist.apache.org/repos/dist/release/airflow airflow-release
+
+# Create new folder for the release
+cd airflow-release
+svn update
+
+# Create backport-providers folder if it does not exist
+# All latest releases are ketp in this one folder without version sub-folder
+mkdir backport-providers
+
+# Move the artifacts to svn folder & delete old releases
+# TODO: develop script to do it
+
+
+# Commit to SVN
+svn commit -m "Release Airflow ${VERSION} from ${VERSION_RC}"
+```
