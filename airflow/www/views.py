@@ -1498,6 +1498,13 @@ class Airflow(AirflowBaseView):
                 node['extra_links'] = task.extra_links
             return node
 
+        latest_execution_date = dag.get_latest_execution_date()
+        next_scheduled_run = (
+            dag.following_schedule(latest_execution_date)
+            if latest_execution_date
+            else None
+        )
+
         data = {
             'name': '[DAG]',
             'children': [recurse_nodes(t, set()) for t in dag.roots],
@@ -1523,7 +1530,9 @@ class Airflow(AirflowBaseView):
             form=form,
             dag=dag,
             data=data,
-            blur=blur, num_runs=num_runs,
+            blur=blur,
+            num_runs=num_runs,
+            next_scheduled_run=next_scheduled_run,
             show_external_logs=bool(external_logs))
 
     @expose('/graph')

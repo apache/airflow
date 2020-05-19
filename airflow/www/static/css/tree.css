@@ -114,3 +114,9 @@ g.axis path {
 g.tick line {
   shape-rendering: crispEdges;
 }
+
+.middle-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
