@@ -57,8 +57,8 @@ class FileToWasbOperator(BaseOperator):
         """Upload a file to Azure Blob Storage."""
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         self.log.info(
-            'Uploading {} to wasb://{} '
-            'as {}'.format(self.file_path, self.container_name, self.blob_name)
+            'Uploading %s to wasb://%s '  # noqa: F523
+            'as %s'.format(self.file_path, self.container_name, self.blob_name)  # noqa: F523
         )
         hook.load_file(self.file_path, self.container_name,
                        self.blob_name, **self.load_options)
