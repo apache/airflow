@@ -439,7 +439,6 @@ devel = [
     'click==6.7',
     'contextdecorator;python_version<"3.4"',
     'coverage',
-    'Cython>=0.29.17',
     'docutils',
     'flake8>=3.6.0',
     'flake8-colors',
