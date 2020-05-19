@@ -41,7 +41,7 @@
       {% endif %}
     </h3>
     <h4 class="pull-right">
-      <a class="label label-default" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}" style="user-select: none;">
+      <a class="label label-default" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}" style="user-select: none;-moz-user-select: auto;">
         schedule: {{ dag.schedule_interval }}
       </a>
     </h4>
