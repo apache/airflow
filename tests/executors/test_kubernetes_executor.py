@@ -39,11 +39,12 @@ try:
     from airflow.executors.kubernetes_executor import KubeConfig
     from airflow.executors.kubernetes_executor import KubernetesExecutorConfig
     from airflow.kubernetes.worker_configuration import WorkerConfiguration
-    from airflw.exceptions import AirflowConfigException
+    from airflow.exceptions import AirflowConfigException
     from airflow.utils.state import State
     from airflow.version import version as airflow_version
     from airflow.kubernetes.secret import Secret
-except ImportError:
+except ImportError as e:
+    print(e)
     AirflowKubernetesScheduler = None  # type: ignore
 
 if six.PY2:
