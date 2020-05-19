@@ -32,14 +32,14 @@ from tests.test_utils.config import conf_vars
 
 try:
     from kubernetes.client.rest import ApiException
-    from airflow import configuration  # flake8: noqa
-    from airflow.configuration import conf  # flake8: noqa
+    from airflow import configuration  # noqa: F401
+    from airflow.configuration import conf  # noqa: F401
     from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler
     from airflow.executors.kubernetes_executor import KubernetesExecutor
     from airflow.executors.kubernetes_executor import KubeConfig
     from airflow.executors.kubernetes_executor import KubernetesExecutorConfig
     from airflow.kubernetes.worker_configuration import WorkerConfiguration
-    from airflow.exceptions import AirflowConfigException
+    from airflw.exceptions import AirflowConfigException
     from airflow.utils.state import State
     from airflow.version import version as airflow_version
     from airflow.kubernetes.secret import Secret

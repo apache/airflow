@@ -220,6 +220,7 @@ exclude_patterns = [
     '_api/airflow/www',
     '_api/airflow/www_rbac',
     '_api/main',
+    '_api/mesos_executor',
     'autoapi_templates',
     'howto/operator/gcp/_partials',
 ]
