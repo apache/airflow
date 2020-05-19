@@ -100,21 +100,6 @@
       type: string
       example: ~
       default: "5"
-    - name: sql_alchemy_max_overflow
-      description: |
-        The maximum overflow size of the pool.
-        When the number of checked-out connections reaches the size set in pool_size,
-        additional connections will be returned up to this limit.
-        When those additional connections are returned to the pool, they are disconnected and discarded.
-        It follows then that the total number of simultaneous connections the pool will allow
-        is pool_size + max_overflow,
-        and the total number of "sleeping" connections the pool will allow is pool_size.
-        max_overflow can be set to -1 to indicate no overflow limit;
-        no limit will be placed on the total number of concurrent connections. Defaults to 10.
-      version_added: 1.10.4
-      type: string
-      example: ~
-      default: "10"
     - name: sql_alchemy_pool_recycle
       description: |
         The SqlAlchemy pool recycle is the number of seconds a connection

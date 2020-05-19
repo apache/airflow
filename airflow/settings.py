@@ -28,7 +28,7 @@ from sqlalchemy import create_engine, exc
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.orm.session import Session as SASession
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import NullPool, SingletonThreadPool
 
 # noinspection PyUnresolvedReferences
 from airflow import api
@@ -132,14 +132,14 @@ def configure_vars():
     )
 
 
-def configure_orm(disable_connection_pool=False):
+def configure_orm():
     log.debug("Setting up DB connection pool (PID %s)" % os.getpid())
     global engine
     global Session
-    engine_args = {}
+    engine_args = {'poolclass': SingletonThreadPool}
 
     pool_connections = conf.getboolean('core', 'SQL_ALCHEMY_POOL_ENABLED')
-    if disable_connection_pool or not pool_connections:
+    if not pool_connections:
         engine_args['poolclass'] = NullPool
         log.debug("settings.configure_orm(): Using NullPool")
     elif 'sqlite' not in SQL_ALCHEMY_CONN:
@@ -147,18 +147,6 @@ def configure_orm(disable_connection_pool=False):
         # If no config value is defined for the pool size, select a reasonable value.
         # 0 means no limit, which could lead to exceeding the Database connection limit.
         pool_size = conf.getint('core', 'SQL_ALCHEMY_POOL_SIZE', fallback=5)
-
-        # The maximum overflow size of the pool.
-        # When the number of checked-out connections reaches the size set in pool_size,
-        # additional connections will be returned up to this limit.
-        # When those additional connections are returned to the pool, they are disconnected and discarded.
-        # It follows then that the total number of simultaneous connections
-        # the pool will allow is pool_size + max_overflow,
-        # and the total number of “sleeping” connections the pool will allow is pool_size.
-        # max_overflow can be set to -1 to indicate no overflow limit;
-        # no limit will be placed on the total number
-        # of concurrent connections. Defaults to 10.
-        max_overflow = conf.getint('core', 'SQL_ALCHEMY_MAX_OVERFLOW', fallback=10)
 
         # The DB server already has a value for wait_timeout (number of seconds after
         # which an idle sleeping connection should be killed). Since other DBs may
@@ -173,12 +161,11 @@ def configure_orm(disable_connection_pool=False):
         # https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
         pool_pre_ping = conf.getboolean('core', 'SQL_ALCHEMY_POOL_PRE_PING', fallback=True)
 
-        log.debug("settings.configure_orm(): Using pool settings. pool_size=%d, max_overflow=%d, "
-                  "pool_recycle=%d, pid=%d", pool_size, max_overflow, pool_recycle, os.getpid())
+        log.debug("settings.configure_orm(): Using pool settings. pool_size=%d, "
+                  "pool_recycle=%d, pid=%d", pool_size, pool_recycle, os.getpid())
         engine_args['pool_size'] = pool_size
         engine_args['pool_recycle'] = pool_recycle
         engine_args['pool_pre_ping'] = pool_pre_ping
-        engine_args['max_overflow'] = max_overflow
 
     # Allow the user to specify an encoding for their DB otherwise default
     # to utf-8 so jobs & users with non-latin1 characters can still use us.

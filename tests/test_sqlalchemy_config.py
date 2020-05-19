@@ -19,7 +19,7 @@
 import unittest
 
 from mock import patch
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import NullPool, SingletonThreadPool
 
 from airflow import settings
 from airflow.exceptions import AirflowConfigException
@@ -58,9 +58,9 @@ class TestSqlAlchemySettings(unittest.TestCase):
         settings.configure_orm()
         mock_create_engine.assert_called_once_with(
             settings.SQL_ALCHEMY_CONN,
+            poolclass=SingletonThreadPool,
             connect_args={},
             encoding='utf-8',
-            max_overflow=10,
             pool_pre_ping=True,
             pool_recycle=1800,
             pool_size=5

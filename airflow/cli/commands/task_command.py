@@ -155,11 +155,7 @@ def task_run(args, dag=None):
         conf.read_dict(conf_dict, source=args.cfg_path)
         settings.configure_vars()
 
-    # IMPORTANT, have to use the NullPool, otherwise, each "run" command may leave
-    # behind multiple open sleeping connections while heartbeating, which could
-    # easily exceed the database connection limit when
-    # processing hundreds of simultaneous tasks.
-    settings.configure_orm(disable_connection_pool=True)
+    settings.configure_orm()
 
     if dag and args.pickle:
         raise AirflowException("You cannot use the --pickle option when using DAG.cli() method.")
