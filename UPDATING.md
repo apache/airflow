@@ -132,11 +132,11 @@ and the user wants to treat any files as new.
 Example of Updating usage of this sensor:
 Users who used to call:
 
-``GCSUploadSessionCompleteSensor('my_bucket', 'my_prefix', previous_num_objects=1)``
+``GCSUploadSessionCompleteSensor(bucket='my_bucket', prefix='my_prefix', previous_num_objects=1)``
 
 Will now call:
 
-``GCSUploadSessionCompleteSensor('my_bucket', 'my_prefix', previous_num_objects={'.keep'})``
+``GCSUploadSessionCompleteSensor(bucket='my_bucket', prefix='my_prefix', previous_num_objects={'.keep'})``
 
 Where '.keep' is a single file at your prefix that the sensor should not consider new.
 
