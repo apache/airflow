@@ -111,6 +111,8 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
                 else:
                     conn_string = f'mysql://{user}:{password}@{host}:{port}/{database}'
                 return conn_string
+            else:
+                raise KeyError
         except KeyError:
             return self._get_secret(conn_id)
 
