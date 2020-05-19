@@ -36,7 +36,7 @@ from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, DuplicateTaskIdFound
+from airflow.exceptions import AirflowException
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.base import Operator
 from airflow.models.pool import Pool
@@ -600,9 +600,8 @@ class BaseOperator(Operator, LoggingMixin):
                 "The DAG assigned to {} can not be changed.".format(self))
         elif self.task_id not in dag.task_dict:
             dag.add_task(self)
-        elif self.task_id in dag.task_dict and dag.task_dict[self.task_id] != self:
-            raise DuplicateTaskIdFound(
-                "Task id '{}' has already been added to the DAG".format(self.task_id))
+        elif self.task_id in dag.task_dict and dag.task_dict[self.task_id] is not self:
+            dag.add_task(self)
 
         self._dag = dag  # pylint: disable=attribute-defined-outside-init
 

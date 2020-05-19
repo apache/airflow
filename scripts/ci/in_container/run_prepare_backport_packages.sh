@@ -37,7 +37,6 @@ rm -rf -- *.egg-info
 
 if [[ -z "$*" ]]; then
     BACKPORT_PACKAGES=$(python3 setup_backport_packages.py list-backport-packages)
-    BUILD_AIRFLOW_PACKAGE="true"
 
     PACKAGE_ERROR="false"
     # Check if all providers are included
@@ -78,7 +77,6 @@ else
         exit
     fi
     BACKPORT_PACKAGES="$*"
-    BUILD_AIRFLOW_PACKAGE="false"
 fi
 
 echo "==================================================================================="
@@ -93,11 +91,11 @@ for BACKPORT_PACKAGE in ${BACKPORT_PACKAGES}
 do
     LOG_FILE=$(mktemp)
     echo "==================================================================================="
-    echo " Preparing backport package ${BACKPORT_PACKAGE} with version suffix: '${VERSION_SUFFIX}'"
+    echo " Preparing backport package ${BACKPORT_PACKAGE}"
     echo "-----------------------------------------------------------------------------------"
     python3 setup_backport_packages.py "${BACKPORT_PACKAGE}" clean --all >/dev/null 2>&1
     set +e
-    python3 setup_backport_packages.py --version-suffix "${VERSION_SUFFIX}" \
+    python3 setup_backport_packages.py \
         "${BACKPORT_PACKAGE}" sdist bdist_wheel >"${LOG_FILE}" 2>&1
     RES="${?}"
     if [[ ${RES} != "0" ]]; then
@@ -110,16 +108,21 @@ done
 
 cd "${AIRFLOW_SOURCES}" || exit 1
 
-if [[ ${BUILD_AIRFLOW_PACKAGE} == "true" ]]; then
-    echo "==================================================================================="
-    echo " Preparing apache-airflow package"
-    echo "==================================================================================="
-    python3 setup.py clean --all
-    python3 setup.py sdist bdist_wheel >/dev/null
-fi
-echo "==================================================================================="
+pushd dist
+for FILE in *.tar.gz
+do
+    mv "${FILE}" "${FILE//\.tar\.gz/${VERSION_SUFFIX}-bin.tar.gz}"
+done
 
-AIRFLOW_PACKAGES_TGZ_FILE="/tmp/airflow-packages-$(date +"%Y%m%d-%H%M%S").tar.gz"
+for FILE in *.whl
+do
+    if [[ ${VERSION_SUFFIX} != "" ]]; then
+        mv "${FILE}" "${FILE//\-py2\.py3/${VERSION_SUFFIX}-py2.py3}"
+    fi
+done
+popd
+
+AIRFLOW_PACKAGES_TGZ_FILE="/tmp/airflow-packages-$(date +"%Y%m%d-%H%M%S")-${VERSION_SUFFIX}.tar.gz"
 
 tar -cvzf "${AIRFLOW_PACKAGES_TGZ_FILE}" dist/*.whl dist/*.tar.gz
 echo

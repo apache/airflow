@@ -51,7 +51,7 @@ class S3ToSnowflakeTransfer(BaseOperator):
                  table,
                  stage,
                  file_format,
-                 schema,
+                 schema,  # TODO: shouldn't be required, rely on session/user defaults
                  columns_array=None,
                  autocommit=True,
                  snowflake_conn_id='snowflake_default',

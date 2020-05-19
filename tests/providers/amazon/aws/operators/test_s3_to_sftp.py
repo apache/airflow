@@ -133,7 +133,7 @@ class TestS3ToSFTPOperator(unittest.TestCase):
     def delete_remote_resource(self):
         # check the remote file content
         remove_file_task = SSHOperator(
-            task_id="test_check_file",
+            task_id="test_rm_file",
             ssh_hook=self.hook,
             command="rm {0}".format(self.sftp_path),
             do_xcom_push=True,

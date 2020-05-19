@@ -19,7 +19,7 @@
 
 # Package {{ PACKAGE_PIP_NAME }}
 
-Release: {{ RELEASE }}
+Release: {{ RELEASE_NO_LEADING_ZEROS }}
 
 **Table of contents**
 
@@ -80,7 +80,7 @@ Release: {{ RELEASE }}
 {%- endif %}
 - [Releases](#releases)
     {%- for release in RELEASES %}
-    - [Release {{release.release_version}}](#release-{{release.release_version.replace(".","")}})
+    - [Release {{release.release_version_no_leading_zeros}}](#release-{{release.release_version_no_leading_zeros.replace(".","")}})
     {%-  endfor %}
 
 ## Backport package

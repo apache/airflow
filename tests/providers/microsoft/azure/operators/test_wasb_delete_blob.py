@@ -42,7 +42,7 @@ class TestWasbDeleteBlobOperator(unittest.TestCase):
 
     def test_init(self):
         operator = WasbDeleteBlobOperator(
-            task_id='wasb_operator',
+            task_id='wasb_operator_1',
             dag=self.dag,
             **self._config
         )
@@ -53,7 +53,7 @@ class TestWasbDeleteBlobOperator(unittest.TestCase):
         self.assertEqual(operator.ignore_if_missing, False)
 
         operator = WasbDeleteBlobOperator(
-            task_id='wasb_operator',
+            task_id='wasb_operator_2',
             dag=self.dag,
             is_prefix=True,
             ignore_if_missing=True,

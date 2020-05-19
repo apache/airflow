@@ -27,6 +27,11 @@
 - [Content of the release notes](#content-of-the-release-notes)
 - [Preparing backport packages](#preparing-backport-packages)
 - [Releasing the packages](#releasing-the-packages)
+  - [Building an RC](#building-an-rc)
+  - [Make sure your public key is on id.apache.org and in KEYS](#make-sure-your-public-key-is-on-idapacheorg-and-in-keys)
+  - [Publishing to PyPi](#publishing-to-pypi)
+  - [Voting on RC candidates](#voting-on-rc-candidates)
+  - [Publishing the final release](#publishing-the-final-release)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -176,4 +181,242 @@ You can also build all packages by omitting the package id altogether.
 
 # Releasing the packages
 
-TODO: describe how to tag the repo and release the packages for testing/announcing/voting/final release
+## Building an RC
+
+The Release Candidate artifacts we vote upon should be the exact ones we vote against, without any
+modification than renaming – i.e. the contents of the files must be the same between voted
+release candidate and final release. Because of this the version in the built artifacts
+that will become the official Apache releases must not include the rcN suffix.
+
+Note! that the version in PyPI does not contain the leading 0s in version name.
+
+* Set environment variables (version and root of airflow repo)
+
+```bash
+export VERSION=2020.5.19rc2
+export AIRFLOW_REPO_ROOT=$(pwd)
+
+```
+
+* Tag the release
+
+```bash
+git tag ${VERSION}
+```
+
+* Clean the checkout
+
+```bash
+git clean -fxd
+```
+
+* Tarball the sources
+
+```bash
+git archive --format=tar.gz ${VERSION} --prefix=apache-airflow-${VERSION}/ -o apache-airflow-backport-providers-${VERSION}-source.tar.gz
+```
+
+* Generate the packages (specify the version suffix, optionally list of packages).
+
+This will clean up dist folder before generating the packages
+
+```bash
+./breeze prepare-backport-packages --version-suffix rc2 -- [PACKAGE ...]
+```
+
+* Move the source tarball to dist folder
+
+```bash
+mv apache-airflow-backport-providers-${VERSION}-source.tar.gz dist
+```
+
+* Sign all your packages
+
+```bash
+cd dist
+../dev/sign.sh *.tar.gz *.whl
+```
+
+* Push tags
+
+```bash
+git push --tags
+```
+
+* Push the artifacts to ASF dev dist repo
+
+```bash
+# First clone the repo
+svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
+
+# Create a new folder for the release
+cd airflow-dev/backport-providers
+svn mkdir ${VERSION}
+
+# Move the artifacts to svn folder & commit
+mv ${AIRFLOW_REPO_ROOT}/dist/apache{-,_}airflow-${VERSION}* ${VERSION}/
+mv ${AIRFLOW_REPO_ROOT}/apache-airflow-backport-providers-${VERSION}-source.tar.gz ${VERSION}/
+
+cd ${VERSION}
+svn add *
+svn commit -m "Add artifacts for Airflow ${VERSION}"
+cd ${AIRFLOW_REPO_ROOT}
+```
+
+## Make sure your public key is on id.apache.org and in KEYS
+
+You will need to sign the release artifacts with your pgp key. After you have created a key, make sure you:
+
+* Add your GPG pub key to [KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS) ,
+  follow the instructions at the top of that file. Upload your GPG public key to https://pgp.mit.edu
+* Add your key fingerprint to [https://id.apache.org]/https://id.apache.org/ (login with your apache
+  credentials, paste your fingerprint into the pgp fingerprint field and hit save).
+
+```bash
+# Create PGP Key
+gpg --gen-key
+
+# Checkout ASF dist repo
+svn checkout https://dist.apache.org/repos/dist/release/airflow
+cd airflow
+
+
+# Add your GPG pub key to KEYS file. Replace "Kaxil Naik" with your name
+(gpg --list-sigs "Kaxil Naik" && gpg --armor --export "Kaxil Naik" ) >> KEYS
+
+
+# Commit the changes
+svn commit -m "Add PGP keys of Airflow developers"
+```
+
+
+## Publishing to PyPi
+Create a ~/.pypirc file:
+
+```bash
+[distutils]
+index-servers =
+  pypi
+  pypitest
+
+[pypi]
+username=your-username
+
+[pypitest]
+repository=https://test.pypi.org/legacy/
+username=your-username
+```
+
+Set proper permissions for the pypirc file:
+
+```bash
+$ chmod 600 ~/.pypirc
+```
+
+*  Install twine if you do not have it already.
+
+```bash
+pip install twine
+```
+
+* Verify the artifacts that would be uploaded:
+
+```bash
+twine check dist/*
+```
+
+* Upload the package to PyPi's test environment:
+
+```bash
+twine upload -r pypitest dist/*
+```
+
+* Verify that the test packages looks good by downloading it and installing them into a virtual environment.
+Twine prints the package linksas output - separately for each package.
+
+* Upload the package to PyPi's production environment:
+
+```bash
+twine upload -r pypi dist/*
+```
+
+Copy the list of links to the uploaded packages - they will be useful in preparing VOTE email.
+
+* Again, confirm that the packages are available under the links displayed.
+
+## Voting on RC candidates
+
+Make sure the packages are in https://dist.apache.org/repos/dist/dev/airflow/backport-providers/
+
+Use the dev/airflow-jira script to generate a list of Airflow JIRAs that were closed in the release.
+
+Send out a vote to the dev@airflow.apache.org mailing list:
+
+```text
+[VOTE] Airflow Backport Providers 2020.5.19rc2
+
+Hey all,
+
+I have cut Airflow Backport Providers 2020.5.19rc2. This email is calling a vote on the release,
+which will last for 72 hours - which means that it will end on YYYY,MM.DD TZN.
+
+Consider this my (binding) +1.
+
+Airflow Backport Providers 2020.5.19rc2 are available at:
+https://dist.apache.org/repos/dist/dev/airflow/backport-providers/2020.5.19/
+
+*apache-airflow-backport-providers-2020.5.19rc2-source.tar.gz* is a source release that comes
+with INSTALL instructions.
+
+*apache-airflow-backport-providers-PROVIDER-2020.5.19rc2-bin.tar.gz* is the binary Python "sdist" release.
+
+Public keys are available at:
+https://dist.apache.org/repos/dist/release/airflow/KEYS
+
+Only votes from PMC members are binding, but members of the community are
+encouraged to test the release and vote with "(non-binding)".
+
+Please note that the version number excludes the `rcX` string, so it's now
+simply 2020.5.19. This will allow us to rename the artifact without modifying
+the artifact checksums when we actually release.
+
+Each of the packages contains detailed changelog. Here is the list of links to
+the released packages and changelogs:
+
+TODO: Paste the result of twine upload
+
+Cheers,
+<your name>
+```
+
+* Once the vote has been passed, you will need to send a result vote to dev@airflow.apache.org:
+
+```text
+[RESULT][VOTE] Airflow Backport Providers 2020.5.19rc2
+
+
+Hey all,
+
+Airflow Backport Providers 2020.5.19 (based on RC2) has been accepted.
+
+N “+1” binding votes received:
+- PMC Member  (binding)
+...
+
+N "+1" non-binding votes received:
+
+- COMMITER (non-binding)
+
+Vote thread:
+https://lists.apache.org/thread.html/NNNN@%3Cdev.airflow.apache.org%3E
+
+I'll continue with the release process and the release announcement will follow shortly.
+
+Cheers,
+<your name>
+
+```
+
+## Publishing the final release
+
+TODO:
