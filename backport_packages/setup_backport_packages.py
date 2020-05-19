@@ -1114,7 +1114,7 @@ def get_all_backportable_providers() -> List[str]:
     For now remove cncf.kubernetes as it has no chances to work with current core of Airflow 2.0
     :return: list of providers that are considered for backport packages
     """
-    # TODO: Maybe we should fix it and release cnncf.kubernetes separately
+    # TODO: Maybe we should fix it and release cncf.kubernetes separately
     excluded_providers = ["cncf.kubernetes"]
     return [prov for prov in PROVIDERS_REQUIREMENTS.keys() if prov not in excluded_providers]
 
