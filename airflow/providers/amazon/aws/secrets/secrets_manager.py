@@ -70,11 +70,11 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         if connections_prefix:
             self.connections_prefix = connections_prefix.rstrip('/')
         else:
-            self.connections_prefix = None
+            self.connections_prefix = connections_prefix
         if variables_prefix:
             self.variables_prefix = variables_prefix.rstrip('/')
         else:
-            self.connections_prefix = None
+            self.connections_prefix = variables_prefix
         self.profile_name = profile_name
         self.sep = sep
         self.kwargs = kwargs
