@@ -29,7 +29,7 @@ from flask_babel import lazy_gettext
 from flask_wtf import FlaskForm
 from wtforms import validators, widgets
 from wtforms.fields import (
-    BooleanField, DateTimeField, Field, IntegerField, PasswordField, SelectField, StringField, TextAreaField,
+    BooleanField, Field, IntegerField, PasswordField, SelectField, StringField, TextAreaField,
 )
 
 from airflow.configuration import conf
@@ -79,14 +79,14 @@ class DateTimeWithTimezoneField(Field):
 
 class DateTimeForm(FlaskForm):
     # Date filter form needed for task views
-    execution_date = DateTimeField(
+    execution_date = DateTimeWithTimezoneField(
         "Execution date", widget=AirflowDateTimePickerWidget())
 
 
 class DateTimeWithNumRunsForm(FlaskForm):
     # Date time and number of runs form for tree view, task duration
     # and landing times
-    base_date = DateTimeField(
+    base_date = DateTimeWithTimezoneField(
         "Anchor date", widget=AirflowDateTimePickerWidget(), default=timezone.utcnow())
     num_runs = SelectField("Number of runs", default=25, choices=(
         (5, "5"),
@@ -107,10 +107,10 @@ class DagRunForm(DynamicForm):
         lazy_gettext('Dag Id'),
         validators=[validators.DataRequired()],
         widget=BS3TextFieldWidget())
-    start_date = DateTimeField(
+    start_date = DateTimeWithTimezoneField(
         lazy_gettext('Start Date'),
         widget=AirflowDateTimePickerWidget())
-    end_date = DateTimeField(
+    end_date = DateTimeWithTimezoneField(
         lazy_gettext('End Date'),
         widget=AirflowDateTimePickerWidget())
     run_id = StringField(
