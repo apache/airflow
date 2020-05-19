@@ -1,6 +1,7 @@
 # Editable install with no version control (apache-airflow==2.0.0.dev0)
-Authlib==0.14.2
+Authlib==0.14.3
 Babel==2.8.0
+Cython==0.29.18
 Flask-AppBuilder==2.3.4
 Flask-Babel==1.0.0
 Flask-Bcrypt==0.7.1
@@ -14,7 +15,7 @@ Flask-WTF==0.14.3
 Flask==1.1.2
 GitPython==3.1.2
 HeapDict==1.0.1
-JPype1==0.7.4
+JPype1==0.7.5
 JayDeBeApi==1.1.1
 Jinja2==2.10.3
 Mako==1.1.2
@@ -72,9 +73,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.3.0
 black==19.10b0
 blinker==1.4
-boto3==1.13.9
+boto3==1.13.12
 boto==2.49.0
-botocore==1.16.9
+botocore==1.16.12
 bowler==0.8.0
 cached-property==1.5.1
 cachetools==4.1.0
@@ -118,8 +119,8 @@ entrypoints==0.3
 enum34==1.1.10
 eventlet==0.25.2
 execnet==1.7.1
-facebook-business==7.0.0
-fastavro==0.23.3
+facebook-business==7.0.1
+fastavro==0.23.4
 filelock==3.0.12
 fissix==20.5.1
 flake8-colors==0.1.6
@@ -140,7 +141,7 @@ google-api-core==1.17.0
 google-api-python-client==1.8.3
 google-auth-httplib2==0.0.3
 google-auth-oauthlib==0.4.1
-google-auth==1.14.3
+google-auth==1.15.0
 google-cloud-automl==0.10.0
 google-cloud-bigquery-datatransfer==1.0.0
 google-cloud-bigquery==1.24.0
@@ -171,7 +172,7 @@ graphviz==0.14
 greenlet==0.4.15
 grpc-google-iam-v1==0.12.3
 grpcio-gcp==0.2.2
-grpcio==1.28.1
+grpcio==1.29.0
 gunicorn==19.10.0
 hdfs==2.5.8
 hmsclient==0.1.1
@@ -215,18 +216,18 @@ mccabe==0.6.1
 mock==4.0.2
 mongomock==3.19.0
 monotonic==1.5
-more-itertools==8.2.0
+more-itertools==8.3.0
 moto==1.3.14
 msgpack==1.0.0
-msrest==0.6.13
+msrest==0.6.14
 msrestazure==0.6.3
 multi-key-dict==2.0.3
-multidict==4.7.5
+multidict==4.7.6
 mypy-extensions==0.4.3
 mypy==0.770
 mysql-connector-python==8.0.18
 mysqlclient==1.3.14
-nbclient==0.2.0
+nbclient==0.3.0
 nbformat==5.0.6
 nest-asyncio==1.3.3
 networkx==2.4
@@ -255,14 +256,14 @@ pre-commit==2.4.0
 presto-python-client==0.7.0
 prison==0.1.3
 prompt-toolkit==3.0.5
-protobuf==3.11.3
+protobuf==3.12.0
 psutil==5.7.0
 psycopg2-binary==2.8.5
 ptyprocess==0.6.0
 py4j==0.10.7
 py==1.8.1
 pyOpenSSL==19.1.0
-pyarrow==0.17.0
+pyarrow==0.17.1
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
 pycodestyle==2.6.0
@@ -302,7 +303,7 @@ pytzdata==2019.3
 pywinrm==0.4.1
 pyzmq==19.0.1
 qds-sdk==1.15.2
-redis==3.5.1
+redis==3.5.2
 regex==2020.5.14
 requests-kerberos==0.12.0
 requests-mock==1.8.0
@@ -328,7 +329,7 @@ snowballstemmer==2.0.0
 snowflake-connector-python==2.2.6
 snowflake-sqlalchemy==1.2.3
 sortedcontainers==2.1.0
-soupsieve==2.0
+soupsieve==2.0.1
 sphinx-argparse==0.2.5
 sphinx-autoapi==1.0.0
 sphinx-jinja==1.1.1
@@ -375,7 +376,7 @@ websocket-client==0.57.0
 wrapt==1.11.2
 xmltodict==0.12.0
 yamllint==1.23.0
-yandexcloud==0.37.0
+yandexcloud==0.38.0
 yarl==1.4.2
 zdesk==2.7.1
 zict==2.0.0
