@@ -335,7 +335,7 @@ ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}
 
 RUN echo "Installing with extras: ${AIRFLOW_EXTRAS}."
 
-ARG AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="true"
+ARG AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="false"
 ENV AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD=${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}
 
 # By changing the CI build epoch we can force reinstalling Arflow from the current master
