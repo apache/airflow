@@ -16,16 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import unittest
+
 import mock
 from parameterized import parameterized
-
-import unittest
 
 from airflow import PY38
 from airflow.models import Connection
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 from airflow.providers.odbc.hooks.odbc import OdbcHook
-
 
 if not PY38:
     from airflow.providers.microsoft.mssql.operators.mssql import MsSqlOperator

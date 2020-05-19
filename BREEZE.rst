@@ -741,7 +741,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Python version used for the image. This is always major/minor version.
           One of:
 
-                 3.6 3.7
+                 3.6 3.7 3.8
 
   -a, --install-airflow-version <INSTALL_AIRFLOW_VERSION>
           If specified, installs Airflow directly from PIP released version. This happens at
@@ -818,7 +818,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Python version used for the image. This is always major/minor version.
           One of:
 
-                 3.6 3.7
+                 3.6 3.7 3.8
 
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
@@ -861,7 +861,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Python version used for the image. This is always major/minor version.
           One of:
 
-                 3.6 3.7
+                 3.6 3.7 3.8
 
   -v, --verbose
           Show verbose information about executed commands (enabled by default for running test).
@@ -966,7 +966,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Python version used for the image. This is always major/minor version.
           One of:
 
-                 3.6 3.7
+                 3.6 3.7 3.8
 
 
   ####################################################################################################
@@ -1048,7 +1048,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Python version used for the image. This is always major/minor version.
           One of:
 
-                 3.6 3.7
+                 3.6 3.7 3.8
 
   -b, --backend <BACKEND>
           Backend to use for tests - it determines which database is used.
@@ -1095,7 +1095,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Python version used for the image. This is always major/minor version.
           One of:
 
-                 3.6 3.7
+                 3.6 3.7 3.8
 
   -b, --backend <BACKEND>
           Backend to use for tests - it determines which database is used.
@@ -1247,7 +1247,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Python version used for the image. This is always major/minor version.
           One of:
 
-                 3.6 3.7
+                 3.6 3.7 3.8
 
   ****************************************************************************************************
    Choose backend to run for Airflow

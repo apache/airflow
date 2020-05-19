@@ -20,6 +20,7 @@
 import unittest
 from collections import OrderedDict
 from unittest.mock import Mock, PropertyMock, patch
+
 from airflow import PY38
 
 if not PY38:
