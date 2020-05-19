@@ -119,4 +119,3 @@ For further information, look at:
 * `GKE API Documentation <https://cloud.google.com/kubernetes-engine/docs/reference/rest>`__
 * `Product Documentation <https://cloud.google.com/kubernetes-engine/docs/>`__
 * `Kubernetes Documentation <https://kubernetes.io/docs/home/>`__
-* `Kubernetes Documentation <https://kubernetes.io/docs/home/>`__
