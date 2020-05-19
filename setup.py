@@ -41,6 +41,7 @@ spec.loader.exec_module(mod)  # type: ignore
 version = mod.version  # type: ignore
 
 PY3 = sys.version_info[0] == 3
+PY38 = PY3 and sys.version_info[1] == 8
 
 my_dir = dirname(__file__)
 
@@ -193,7 +194,7 @@ azure = [
     'azure-mgmt-containerinstance>=1.5.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
-    'azure-storage>=0.34.0',
+    'azure-storage>=0.34.0, <0.37.0',
     'azure-storage-blob<12.0',
 ]
 cassandra = [
@@ -480,6 +481,9 @@ devel_all = (all_dbs + amazon + atlas + azure + celery + cgroups + dask + datado
              kubernetes + ldap + odbc + oracle + pagerduty + papermill + password + redis + salesforce +
              samba + segment + sendgrid + sentry + singularity + slack + snowflake + ssh + statsd + tableau +
              virtualenv + webhdfs + yandexcloud + zendesk)
+
+if PY38:
+    devel_all = [package for package in devel_all if package not in ['pymssql~=2.1.1']]
 
 # Snakebite is not Python 3 compatible :'(
 if PY3:
