@@ -105,7 +105,8 @@ with models.DAG(
     # [START howto_operator_gcp_create_build_from_yaml_body]
     create_build_from_file = CloudBuildCreateOperator(
         task_id="create_build_from_file", project_id=GCP_PROJECT_ID,
-        body=str(CURRENT_FOLDER.joinpath('example_cloud_build.yaml'))
+        body=str(CURRENT_FOLDER.joinpath('example_cloud_build.yaml')),
+        params={'name': 'Airflow'}
     )
     # [END howto_operator_gcp_create_build_from_yaml_body]
     create_build_from_storage >> create_build_from_storage_result  # pylint: disable=pointless-statement

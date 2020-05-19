@@ -167,9 +167,10 @@ class CloudBuildCreateOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudBuildCreateOperator`
 
-    :param body: The request body.
-        See: https://cloud.google.com/cloud-build/docs/api/reference/rest/Shared.Types/Build
-    :type body: dict
+    :param body: The build config with instructions to perform with CloudBuild.
+        Can be a dictionary or path to a file type like YAML or JSON.
+        See: https://cloud.google.com/cloud-build/docs/api/reference/rest/v1/projects.builds
+    :type body: dict or string
     :param project_id: ID of the Google Cloud project if None then
         default project_id is used.
     :type project_id: str
