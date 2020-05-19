@@ -61,6 +61,9 @@ function generateTooltipDateTimes(startDate, endDate, dagTZ) {
 
 export default function tiTooltip(ti, {includeTryNumber = false} = {}) {
   let tt = '';
+  if (ti.state !== undefined) {
+    tt += `<strong>Status:</strong> ${escapeHtml(ti.state)}<br><br>`;
+  }
   if (ti.task_id !== undefined) {
     tt += `Task_id: ${escapeHtml(ti.task_id)}<br>`;
   }
