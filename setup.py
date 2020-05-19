@@ -265,7 +265,7 @@ devel = [
     'beautifulsoup4~=4.7.1',
     'click==6.7',
     'contextdecorator;python_version<"3.4"',
-    'flake8>=3.6.0',
+    'flake8>=3.6.0, <3.8.0',
     'flake8-colors',
     'freezegun',
     'ipdb',
