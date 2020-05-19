@@ -23,7 +23,7 @@ import tempfile
 import unittest
 from tests.compat import MagicMock, Mock, call, patch
 
-from airflow.contrib.kubernetes.pod import Pod
+from airflow.kubernetes.pod import Pod
 
 
 SETTINGS_FILE_POLICY = """

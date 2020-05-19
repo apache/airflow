@@ -71,7 +71,7 @@ class PodGenerator:
         Adds a Port to the generator
 
         :param port: ports for generated pod
-        :type port: airflow.contrib.kubernetes.pod.Port
+        :type port: airflow.kubernetes.pod.Port
         """
         self.ports.append({'name': port.name, 'containerPort': port.container_port})
 
@@ -80,7 +80,7 @@ class PodGenerator:
         Adds a Volume to the generator
 
         :param volume: volume for generated pod
-        :type volume: airflow.contrib.kubernetes.volume.Volume
+        :type volume: airflow.kubernetes.volume.Volume
         """
 
         self._add_volume(name=volume.name, configs=volume.configs)
@@ -141,7 +141,7 @@ class PodGenerator:
         Adds a VolumeMount to the generator
 
         :param volume_mount: volume for generated pod
-        :type volume_mount: airflow.contrib.kubernetes.volume_mount.VolumeMount
+        :type volume_mount: airflow.kubernetes.volume_mount.VolumeMount
         """
         self._add_mount(
             name=volume_mount.name,

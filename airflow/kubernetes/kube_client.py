@@ -26,7 +26,7 @@ try:
     from kubernetes.client.rest import ApiException  # pylint: disable=unused-import
     from kubernetes.client.api_client import ApiClient
     from kubernetes.client import Configuration
-    from airflow.contrib.kubernetes.refresh_config import (  # pylint: disable=ungrouped-imports
+    from airflow.kubernetes.refresh_config import (  # pylint: disable=ungrouped-imports
         load_kube_config,
         RefreshConfiguration,
     )
