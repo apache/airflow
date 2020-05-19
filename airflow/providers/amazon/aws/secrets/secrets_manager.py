@@ -67,8 +67,10 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         **kwargs
     ):
         super().__init__(**kwargs)
-        self.connections_prefix = connections_prefix.rstrip('/')
-        self.variables_prefix = variables_prefix.rstrip('/')
+        if connections_prefix:
+            self.connections_prefix = connections_prefix.rstrip('/')
+        if variables_prefix:
+            self.variables_prefix = variables_prefix.rstrip('/')
         self.profile_name = profile_name
         self.sep = sep
         self.kwargs = kwargs
@@ -91,23 +93,24 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :type conn_id: str
         """
         if self.connections_prefix and self.sep:
-            conn_id = self.build_path(path_prefix, secret_id, self.sep)
+            conn_id = self.build_path(self.connections_prefix, conn_id, self.sep)
 
         try:
             secret_string = self._get_secret(conn_id)
-            secret = ast.literal_eval(secret_string)
-            user = secret['user']
-            password = secret['pass']
-            host = secret['host']
-            port = secret['port']
-            database = secret['database']
-            engine = secret['engine']
+            if secret_string is not None:
+                secret = ast.literal_eval(secret_string)
+                user = secret['user']
+                password = secret['pass']
+                host = secret['host']
+                port = secret['port']
+                database = secret['database']
+                engine = secret['engine']
 
-            if engine in ('redshift', 'postgresql'):
-                conn_string = f'postgresql://{user}:{password}@{host}:{port}/{database}'
-            else:
-                conn_string = f'mysql://{user}:{password}@{host}:{port}/{database}'
-            return conn_string
+                if engine in ('redshift', 'postgresql'):
+                    conn_string = f'postgresql://{user}:{password}@{host}:{port}/{database}'
+                else:
+                    conn_string = f'mysql://{user}:{password}@{host}:{port}/{database}'
+                return conn_string
         except KeyError:
             return self._get_secret(conn_id)
 
@@ -119,7 +122,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :return: Variable Value
         """
         if self.variables_prefix and self.sep:
-            key = self.build_path(path_prefix, secret_id, self.sep)
+            key = self.build_path(self.variables_prefix, key, self.sep)
         return self._get_secret(key)
 
     def _get_secret(self, secret_id: str) -> Optional[str]:
@@ -132,13 +135,13 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         try:
             response = self.client.get_secret_value(
-                SecretId=secret_id,
+                SecretId=secret_id
             )
             return response.get('SecretString')
         except self.client.exceptions.ResourceNotFoundException:
             self.log.debug(
                 "An error occurred (ResourceNotFoundException) when calling the "
                 "get_secret_value operation: "
-                "Secret %s not found.", secrets_path
+                "Secret %s not found.", secret_id
             )
             return None
