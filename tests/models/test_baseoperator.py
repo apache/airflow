@@ -400,7 +400,7 @@ class TestXComArgsRelationsAreResolved:
 
     def test_set_xcomargs_dependencies_when_creating_dagbag_with_serialization(self):
         # Persist DAG
-        dag_id = "example_xcom_args"
+        dag_id = "xcomargs_test_3"
         dagbag = DagBag(TEST_DAGS_FOLDER, include_examples=False)
         for dag in dagbag.dags.values():
             if dag.dag_id == dag_id:
@@ -408,7 +408,7 @@ class TestXComArgsRelationsAreResolved:
 
         # Retrieve the DAG
         bag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False, store_serialized_dags=True)
-        dag: DAG = bag.get_dag("example_xcom_args")
+        dag: DAG = bag.get_dag("xcomargs_test_3")
         op1, op2, op3 = sorted(dag.tasks, key=lambda t: t.task_id)
 
         assert op1 in op2.upstream_list

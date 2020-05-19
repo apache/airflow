@@ -665,6 +665,9 @@ class BaseOperator(Operator, LoggingMixin):
             elif isinstance(arg, dict):
                 for elem in arg.values():
                     apply_set_upstream(elem)
+            elif hasattr(arg, "template_fields"):
+                for elem in arg.template_fields:
+                    apply_set_upstream(elem)
 
         for field in self.template_fields:
             arg = getattr(self, field)
