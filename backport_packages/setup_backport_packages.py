@@ -374,12 +374,13 @@ def do_setup_package_providers(provider_package_id: str,
     install_requires.extend(package_dependencies),
     setuptools_setup(
         name=package_name,
-        description=f'Back-ported {package_name} package for Airflow 1.10.*',
+        description=f'Back-ported {package_prefix}.* package for Airflow 1.10.*',
         long_description=get_long_description(provider_package_id),
         long_description_content_type='text/markdown',
         license='Apache License 2.0',
         version=get_package_release_version(
-            provider_package_id=provider_package_id),
+            provider_package_id=provider_package_id,
+            version_suffix=version_suffix),
         packages=found_packages,
         zip_safe=False,
         install_requires=install_requires,
@@ -445,7 +446,9 @@ def usage() -> None:
     for text in out_array:
         print(text)
     print()
-    print("You can see all packages configured by specifying list-backport-packages as first argument")
+    print("You can see all packages configured by specifying list-providers-packages as first argument")
+    print()
+    print("You can see all backportable packages by specifying list-backportable-packages as first argument")
     print()
     print("You can generate release notes by specifying: update-package-release-notes YYYY.MM.DD [PACKAGES]")
     print()
@@ -970,6 +973,31 @@ def get_package_path(provider_package_id: str) -> str:
     return provider_package_path
 
 
+def get_additional_package_info(provider_package_path: str) -> str:
+    """
+    Returns additional info for the package.
+
+    :param provider_package_path: path for the package
+    :return: additional information for the path (empty string if missing)
+    """
+    additional_info_file_path = os.path.join(provider_package_path, "ADDITIONAL_INFO.md")
+    if os.path.isfile(additional_info_file_path):
+        with open(additional_info_file_path, "rt") as additional_info_file:
+            additional_info = additional_info_file.read()
+
+        additional_info_lines = additional_info.splitlines(keepends=True)
+        result = ""
+        skip_comment = True
+        for line in additional_info_lines:
+            if line.startswith(" -->"):
+                skip_comment = False
+                continue
+            if not skip_comment:
+                result += line
+        return result
+    return ""
+
+
 def update_release_notes_for_package(provider_package_id: str, current_release_version: str) -> None:
     """
     Updates release notes (README.md) for the package.
@@ -1013,6 +1041,7 @@ def update_release_notes_for_package(provider_package_id: str, current_release_v
         "RELEASE": current_release_version,
         "RELEASE_NO_LEADING_ZEROS": strip_leading_zeros(current_release_version),
         "CURRENT_CHANGES_TABLE": changes_table,
+        "ADDITIONAL_INFO": get_additional_package_info(provider_package_path=provider_package_path),
         "CROSS_PROVIDERS_DEPENDENCIES": cross_providers_dependencies,
         "CROSS_PROVIDERS_DEPENDENCIES_TABLE": cross_providers_dependencies_table,
         "PIP_REQUIREMENTS": PROVIDERS_REQUIREMENTS[provider_package_id],
@@ -1074,19 +1103,32 @@ def update_release_notes_for_packages(package_ids: List[str], release_version: s
     import_all_classes(package_ids)
     make_sure_remote_apache_exists()
     if len(package_ids) == 0:
-        package_ids = list(PROVIDERS_REQUIREMENTS.keys())
+        package_ids = get_all_backportable_providers()
     for package in package_ids:
         update_release_notes_for_package(package, release_version)
 
 
+def get_all_backportable_providers() -> List[str]:
+    """
+    Returns all providers that should be taken into account when preparing backports.
+    For now remove cncf.kubernetes as it has no chances to work with current core of Airflow 2.0
+    :return: list of providers that are considered for backport packages
+    """
+    # TODO: Maybe we should fix it and release cncf.kubernetes separately
+    excluded_providers = ["cncf.kubernetes"]
+    return [prov for prov in PROVIDERS_REQUIREMENTS.keys() if prov not in excluded_providers]
+
+
 if __name__ == "__main__":
     PREPARE = "prepare"
-    LIST_BACKPORT_PACKAGES = "list-backport-packages"
+    LIST_PROVIDERS_PACKAGES = "list-providers-packages"
+    LIST_BACKPORTABLE_PACKAGES = "list-backportable-packages"
     UPDATE_PACKAGE_RELEASE_NOTES = "update-package-release-notes"
     suffix = ""
 
     possible_first_params = get_provider_packages()
-    possible_first_params.append(LIST_BACKPORT_PACKAGES)
+    possible_first_params.append(LIST_PROVIDERS_PACKAGES)
+    possible_first_params.append(LIST_BACKPORTABLE_PACKAGES)
     possible_first_params.append(UPDATE_PACKAGE_RELEASE_NOTES)
     possible_first_params.append(PREPARE)
     if len(sys.argv) == 1:
@@ -1095,6 +1137,15 @@ if __name__ == "__main__":
         print()
         usage()
         exit(1)
+    if sys.argv[1] == "--version-suffix":
+        if len(sys.argv) < 3:
+            print()
+            print("ERROR! --version-suffix needs parameter!")
+            print()
+            usage()
+            exit(1)
+        suffix = sys.argv[2]
+        sys.argv = [sys.argv[0]] + sys.argv[3:]
     elif "--help" in sys.argv or "-h" in sys.argv or len(sys.argv) < 2:
         usage()
         exit(0)
@@ -1111,9 +1162,15 @@ if __name__ == "__main__":
         print("Copying sources and doing refactor")
         copy_and_refactor_sources()
         exit(0)
-    elif sys.argv[1] == LIST_BACKPORT_PACKAGES:
-        for key in PROVIDERS_REQUIREMENTS:
-            print(key)
+    elif sys.argv[1] == LIST_PROVIDERS_PACKAGES:
+        providers = PROVIDERS_REQUIREMENTS.keys()
+        for provider in providers:
+            print(provider)
+        exit(0)
+    elif sys.argv[1] == LIST_BACKPORTABLE_PACKAGES:
+        providers = get_all_backportable_providers()
+        for provider in providers:
+            print(provider)
         exit(0)
     elif sys.argv[1] == UPDATE_PACKAGE_RELEASE_NOTES:
         if len(sys.argv) == 2 or not re.match(r'\d{4}\.\d{2}\.\d{2}', sys.argv[2]):

@@ -42,7 +42,7 @@ TEST_DAG_ID = 'unit_tests_gcs_sensor'
 DEFAULT_DATE = datetime(2015, 1, 1)
 
 MOCK_DATE_ARRAY = [datetime(2019, 2, 24, 12, 0, 0) - i * timedelta(seconds=10)
-                   for i in range(20)]
+                   for i in range(25)]
 
 
 def next_time_side_effect():
@@ -212,7 +212,6 @@ class TestGCSUploadSessionCompleteSensor(TestCase):
             poke_interval=10,
             min_objects=1,
             allow_delete=False,
-            previous_num_objects=0,
             dag=self.dag
         )
 
@@ -220,9 +219,9 @@ class TestGCSUploadSessionCompleteSensor(TestCase):
 
     @mock.patch('airflow.providers.google.cloud.sensors.gcs.get_time', mock_time)
     def test_files_deleted_between_pokes_throw_error(self):
-        self.sensor.is_bucket_updated(2)
+        self.sensor.is_bucket_updated({'a', 'b'})
         with self.assertRaises(AirflowException):
-            self.sensor.is_bucket_updated(1)
+            self.sensor.is_bucket_updated({'a'})
 
     @mock.patch('airflow.providers.google.cloud.sensors.gcs.get_time', mock_time)
     def test_files_deleted_between_pokes_allow_delete(self):
@@ -234,48 +233,49 @@ class TestGCSUploadSessionCompleteSensor(TestCase):
             poke_interval=10,
             min_objects=1,
             allow_delete=True,
-            previous_num_objects=0,
             dag=self.dag
         )
-        self.sensor.is_bucket_updated(2)
+        self.sensor.is_bucket_updated({'a', 'b'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated(1)
-        self.assertEqual(self.sensor.previous_num_objects, 1)
+        self.sensor.is_bucket_updated({'a'})
+        self.assertEqual(len(self.sensor.previous_objects), 1)
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated(2)
+        self.sensor.is_bucket_updated({'a', 'c'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated(2)
+        self.sensor.is_bucket_updated({'a', 'd'})
+        self.assertEqual(self.sensor.inactivity_seconds, 0)
+        self.sensor.is_bucket_updated({'a', 'd'})
         self.assertEqual(self.sensor.inactivity_seconds, 10)
-        self.assertTrue(self.sensor.is_bucket_updated(2))
+        self.assertTrue(self.sensor.is_bucket_updated({'a', 'd'}))
 
     @mock.patch('airflow.providers.google.cloud.sensors.gcs.get_time', mock_time)
     def test_incoming_data(self):
-        self.sensor.is_bucket_updated(2)
+        self.sensor.is_bucket_updated({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated(3)
+        self.sensor.is_bucket_updated({'a', 'b'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated(4)
+        self.sensor.is_bucket_updated({'a', 'b', 'c'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
 
     @mock.patch('airflow.providers.google.cloud.sensors.gcs.get_time', mock_time)
     def test_no_new_data(self):
-        self.sensor.is_bucket_updated(2)
+        self.sensor.is_bucket_updated({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated(2)
+        self.sensor.is_bucket_updated({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 10)
 
     @mock.patch('airflow.providers.google.cloud.sensors.gcs.get_time', mock_time)
     def test_no_new_data_success_criteria(self):
-        self.sensor.is_bucket_updated(2)
+        self.sensor.is_bucket_updated({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated(2)
+        self.sensor.is_bucket_updated({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 10)
-        self.assertTrue(self.sensor.is_bucket_updated(2))
+        self.assertTrue(self.sensor.is_bucket_updated({'a'}))
 
     @mock.patch('airflow.providers.google.cloud.sensors.gcs.get_time', mock_time)
     def test_not_enough_objects(self):
-        self.sensor.is_bucket_updated(0)
+        self.sensor.is_bucket_updated(set())
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated(0)
+        self.sensor.is_bucket_updated(set())
         self.assertEqual(self.sensor.inactivity_seconds, 10)
-        self.assertFalse(self.sensor.is_bucket_updated(0))
+        self.assertFalse(self.sensor.is_bucket_updated(set()))
