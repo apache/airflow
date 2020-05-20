@@ -121,13 +121,11 @@ RUN adduser airflow \
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
-    && echo "deb http://ftp.us.debian.org/debian sid main" \
-        > /etc/apt/sources.list.d/openjdk.list \
     && apt-get update \
     && apt-get install --no-install-recommends -y \
       gnupg \
       libgcc-8-dev \
-      openjdk-8-jdk \
+      default-jre-headless \
       apt-transport-https \
       bash-completion \
       ca-certificates \
@@ -150,8 +148,6 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
-ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
 
 # Install Hadoop and Hive
 # It is done in one step to share variables.
