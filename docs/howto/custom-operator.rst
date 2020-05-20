@@ -206,3 +206,27 @@ Define an operator extra link
 For your operator, you can :doc:`Define an extra link <define_extra_link>` that can
 redirect users to external systems. For example, you can add a link that redirects
 the user to the operator's manual.
+
+Sensors
+^^^^^^^^
+Airflow provides a primitive for a special kind of operator, whose purpose is to
+poll some state (e.g. presence of a file) on a regular interval until a
+success criteria is met.
+
+You can create any sensor your want by extending the :class:`airflow.sensors.base_sensor_operator.BaseSensorOperator`
+defining a ``poke`` method to poll your external state and evaluate the success criteria.
+
+Sensors have a powerful feature called ``'reschedule'`` mode which allows the sensor to
+task to be rescheduled, rather than blocking a worker slot between pokes.
+This is useful when you can tolerate a longer poll interval and expect to be
+polling for a long time.
+
+Reschedule mode comes with a caveat that your sensor cannot maintain internal state
+between rescheduled executions. In this case you should decorate your sensor with
+:meth:`airflow.sensors.base_sensor_operator.poke_mode_only`. This will let users know
+that your sensor is not suitable for use with reschedule mode.
+
+An example of a sensor that keeps internal state and cannot be used with reschedule mode
+is :class:`airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor`.
+It polls the number of objects at a prefix (this number is the internal state of the sensor)
+and succeeds when there a certain amount of time has passed without the number of objects changing.
