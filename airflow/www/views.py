@@ -360,7 +360,8 @@ class Airflow(AirflowBaseView):
             status_filter=arg_status_filter,
             status_count_all=all_dags_count,
             status_count_active=status_count_active,
-            status_count_paused=status_count_paused)
+            status_count_paused=status_count_paused,
+            dagbag=dagbag)
 
     @expose('/dag_stats', methods=['POST'])
     @has_access

@@ -291,6 +291,19 @@ label[for="timezone-other"],
   display: block;
 }
 
+.dag-schedule-info {
+  align-items: center;
+  display: flex;
+  float: right;
+  font-size: 18px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.dag-schedule-pill {
+  margin-right: 1em;
+}
+
 /* stylelint-disable declaration-block-single-line-max-declarations */
 .hll { background-color: #ffc; }
 .c { color: #408080; font-style: italic; } /* Comment */

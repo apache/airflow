@@ -777,6 +777,35 @@ class DAG(BaseDag, LoggingMixin):
         )
         return self.get_latest_execution_date()
 
+    @functools.lru_cache(maxsize=1)
+    @provide_session
+    def schedulable_at(self, session=None):
+        """
+        Returns the earliest time at which the DAG will next be eligible for
+        execution by the scheduler
+        """
+        next_run_date = self.get_latest_execution_date(session)
+        if next_run_date is None:
+            next_run_date = self.normalize_schedule(self.start_date)
+
+        period_end = self.following_schedule(next_run_date)
+        return period_end
+
+    @functools.lru_cache(maxsize=1)
+    @provide_session
+    def schedulable_in(self, session=None):
+        """
+        Returns the duration before the next schedulable time
+        of the DAG
+
+        :rtype: pendulum.Period or None
+        """
+        schedulable_at = self.schedulable_at(session)
+        if schedulable_at is None:
+            return None
+
+        return schedulable_at - timezone.utcnow()
+
     @property
     def subdags(self):
         """

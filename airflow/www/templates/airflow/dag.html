@@ -40,7 +40,15 @@
         <span style="color:#aaa;">ROOT:</span> <span>{{ root }}</span>
       {% endif %}
     </h3>
-    <h4 class="pull-right">
+    <div class="dag-schedule-info">
+      <div class="label label-default dag-schedule-pill">
+        {% set schedulable_in = dag.schedulable_in() %}
+        {% if schedulable_in.total_seconds() > 0 %}
+           Next execution due
+        {% else %}
+          Schedulable in: {{ dag.schedulable_in() }}
+        {% endif %}
+      </div>
       <a class="label label-default" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}" style="user-select: none;-moz-user-select: auto;">
         schedule: {{ dag.schedule_interval }}
       </a>

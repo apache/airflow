@@ -87,6 +87,9 @@
             <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of all previous DAG runs."></span>
             <img class="loading-dag-stats"  width="15" src="{{ url_for("static", filename="loading.gif") }}">
           </th>
+          <th>Scheduled in
+            <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Earliest time at which the DAG will next be scheduled."></span>
+          </th>
           <th class="text-center">Links</th>
         </tr>
       </thead>
@@ -157,6 +160,24 @@
             </td>
 
             <!-- Column 9: Links -->
+            <td>
+                {% set real_dag = dagbag.get_dag(dag.dag_id) %}
+                  {{ real_dag.get_latest_execution_date() }}
+                {% set schedulable_in = real_dag.schedulable_in() %}
+                {% if schedulable_in is none %}
+                  &nbsp;
+                {% else %}
+                <div class="label label-default dag-schedule-pill" title="{{ real_dag.schedulable_at() }}">
+                  {% if schedulable_in.total_seconds() > -1 %}
+                    Overdue
+                  {% else %}
+                    {{ real_dag.schedulable_in() }}
+                  {% endif %}
+                  </div>
+                {% endif %}
+            </td>
+
+            <!-- Column 10: Links -->
             <td class="text-center" style="display:flex;flex-direction:row;justify-content:space-around;">
               {% if dag %}
                 <!-- Trigger Dag -->
