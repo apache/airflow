@@ -42,7 +42,7 @@ ROOT_FOLDER = os.path.realpath(
 
 class TestBase(unittest.TestCase):
     def setUp(self):
-        self.app, self.appbuilder = application.create_app(session=Session, testing=True)
+        self.app, self.appbuilder = application.create_app(testing=True)
         self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///'
         self.app.config['SECRET_KEY'] = 'secret_key'
         self.app.config['CSRF_ENABLED'] = False
