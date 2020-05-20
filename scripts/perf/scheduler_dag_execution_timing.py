@@ -128,7 +128,6 @@ def create_dag_runs(dag, num_runs, session):
     '''
     Create  `num_runs` of dag runs for sub-sequent schedules
     '''
-    from airflow.models.dagrun import DagRun
     from airflow.utils import timezone
     from airflow.utils.state import State
 
@@ -136,7 +135,7 @@ def create_dag_runs(dag, num_runs, session):
 
     for _ in range(num_runs):
         dag.create_dagrun(
-            run_id=DagRun.ID_PREFIX + next_run_date.isoformat(),
+            run_id="scheduled__" + next_run_date.isoformat(),
             execution_date=next_run_date,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
