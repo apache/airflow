@@ -175,7 +175,7 @@ grpcio==1.28.1
 gunicorn==19.10.0
 hdfs==2.5.8
 hmsclient==0.1.1
-httplib2==0.17.3
+httplib2==0.18.0
 humanize==0.5.1
 hvac==0.10.1
 identify==1.4.15
