@@ -189,7 +189,7 @@ def main(num_runs, repeat, pre_create_dag_runs, dag_ids):  # pylint: disable=too
     os.environ['AIRFLOW_BENCHMARK_MAX_DAG_RUNS'] = str(num_runs)
 
     if pre_create_dag_runs:
-        os.environ['AIRFLOW__SCHEDULER__USE_JOB_SCHEDULER'] = 'False'
+        os.environ['AIRFLOW__SCHEDULER__USE_JOB_SCHEDULE'] = 'False'
 
     from airflow.jobs.scheduler_job import SchedulerJob
     from airflow.models.dagbag import DagBag
