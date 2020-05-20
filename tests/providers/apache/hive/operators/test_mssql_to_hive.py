@@ -25,11 +25,10 @@ from airflow import PY38
 
 if not PY38:
     from airflow.providers.apache.hive.operators.mssql_to_hive import MsSqlToHiveTransfer
-
-try:
-    import pymssql
-except ImportError:
-    pymssql = None
+    try:
+        import pymssql
+    except ImportError:
+        pymssql = None
 
 
 @unittest.skipIf(PY38, "Mssql package not avaible when Python >= 3.8.")
