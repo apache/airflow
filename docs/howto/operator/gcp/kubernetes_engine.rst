@@ -90,12 +90,17 @@ to run effectively.
 Run a Pod on a GKE cluster
 """"""""""""""""""""""""""
 
-To run a Kubernetes Pod on a GKE cluster, use
-:class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`.
-It is worth noting that this extends
-:class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`
-so many of the same arguments can be used. We can enable the usage of :ref:`XCom <concepts:xcom>`
-on the operator:
+There are two operators available in order to run a pod on a GKE cluster:
+
+* :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`
+* :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`
+
+``GKEStartPodOperator`` extends ``KubernetesPodOperator`` to provide authorization using Google Cloud credentials.
+There is no need to manage the `kube_config` file, as it will be generated automatically.
+All Kubernetes  parameters (except ``config_file``) are also valid for the ``GKEStartPodOperator``.
+For more information on ``KubernetesPodOperator``, please look at: :ref:`howto/operator:KubernetesPodOperator` guide.
+
+We can enable the usage of :ref:`XCom <concepts:xcom>` on the operator:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_kubernetes_engine.py
     :language: python
