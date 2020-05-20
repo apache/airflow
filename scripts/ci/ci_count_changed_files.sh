@@ -42,13 +42,13 @@ echo
 echo
 echo "Changed files matching the ${2} pattern"
 echo
-echo "${CHANGED_FILES}" | grep "${2}" || true
+echo "${CHANGED_FILES}" | grep -E "${2}" || true
 echo
 
 echo
 echo "Count changed files matching the ${2} pattern"
 echo
-COUNT_CHANGED_FILES=$(echo "${CHANGED_FILES}" | grep -c "${2}" || true)
+COUNT_CHANGED_FILES=$(echo "${CHANGED_FILES}" | grep -c -E "${2}" || true)
 echo "${COUNT_CHANGED_FILES}"
 echo
 
