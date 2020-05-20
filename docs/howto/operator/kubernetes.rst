@@ -25,7 +25,7 @@ KubernetesPodOperator
 .. note::
   If you use `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__, consider
   using the
-  :ref:`GKEStartPodOperator <howto/operator:GKEStartPodOperator>` operator as it
+  :ref:`GKEStartPodOperator <howto/operator:GKEStartPodOperator>`__ operator as it
   simplifies the Kubernetes authorization process.
 
 The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`:
