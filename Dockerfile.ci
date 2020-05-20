@@ -41,7 +41,7 @@ ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 
 # By increasing this number we can do force build of all dependencies
-ARG DEPENDENCIES_EPOCH_NUMBER="1"
+ARG DEPENDENCIES_EPOCH_NUMBER="3"
 # Increase the value below to force renstalling of all dependencies
 ENV DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER}
 
@@ -119,14 +119,11 @@ RUN adduser airflow \
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
-    && curl -fsSL https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | apt-key add - \
-    && echo 'deb https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/ buster main' > \
-        /etc/apt/sources.list.d/adoptopenjdk.list \
     && apt-get update \
     && apt-get install --no-install-recommends -y \
       gnupg \
       libgcc-8-dev \
-      adoptopenjdk-8-hotspot-jre \
+      default-jre-headless \
       apt-transport-https \
       bash-completion \
       ca-certificates \
@@ -149,8 +146,6 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
-ENV JAVA_HOME=/usr/lib/jvm/adoptopenjdk-8-hotspot-jre-amd64
 
 # Install Hadoop and Hive
 # It is done in one step to share variables.
@@ -275,7 +270,7 @@ RUN mkdir -pv ${AIRFLOW_HOME} \
     mkdir -pv ${AIRFLOW_HOME}/logs
 
 # Increase the value here to force reinstalling Apache Airflow pip dependencies
-ARG PIP_DEPENDENCIES_EPOCH_NUMBER="2"
+ARG PIP_DEPENDENCIES_EPOCH_NUMBER="3"
 ENV PIP_DEPENDENCIES_EPOCH_NUMBER=${PIP_DEPENDENCIES_EPOCH_NUMBER}
 
 # Optimizing installation of Cassandra driver
@@ -373,7 +368,7 @@ COPY .github/ ${AIRFLOW_SOURCES}/.github/
 COPY dags/ ${AIRFLOW_SOURCES}/dags/
 COPY common/ ${AIRFLOW_SOURCES}/common/
 COPY licenses/ ${AIRFLOW_SOURCES}/licenses/
-COPY scripts/ci/ ${AIRFLOW_SOURCES}/scripts/ci/
+COPY scripts/ ${AIRFLOW_SOURCES}/scripts/
 COPY docs/ ${AIRFLOW_SOURCES}/docs/
 COPY tests/ ${AIRFLOW_SOURCES}/tests/
 COPY airflow/ ${AIRFLOW_SOURCES}/airflow/
