@@ -121,11 +121,14 @@ RUN adduser airflow \
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
+    && curl -fsSL https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | apt-key add - \
+    && echo 'deb https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/ buster main' > \
+        /etc/apt/sources.list.d/adoptopenjdk.list \
     && apt-get update \
     && apt-get install --no-install-recommends -y \
       gnupg \
       libgcc-8-dev \
-      default-jre-headless \
+      adoptopenjdk-8-hotspot-jre \
       apt-transport-https \
       bash-completion \
       ca-certificates \
@@ -148,6 +151,8 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+ENV JAVA_HOME=/usr/lib/jvm/adoptopenjdk-8-hotspot-jre-amd64
 
 # Install Hadoop and Hive
 # It is done in one step to share variables.
