@@ -39,7 +39,35 @@ env:
   CACHE_REGISTRY_USERNAME: ${{ github.actor }}
   CACHE_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 jobs:
-
+  tests-kubernetes:
+    timeout-minutes: 80
+    name: "kubernetes-test"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    env:
+      BACKEND: postgres
+      TEST_TYPE: ${{ matrix.test-type }}
+      RUN_TESTS: "true"
+      CI_JOB_TYPE: "Tests"
+      PYTHON_MAJOR_MINOR_VERSION: "3.6"
+      RUNTIME: "kubernetes"
+      ENABLE_KIND_CLUSTER: "true"
+      KUBERNETES_MODE: "persistent_mode"
+      KUBERNETES_VERSION: "v1.15.3"
+    # For pull requests only run tests when python files changed
+    if: needs.pyfiles.outputs.count != '0' || github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-python@v1
+        with:
+          python-version: '3.x'
+      - name: "Free space"
+        run: ./scripts/ci/ci_free_space_on_ci.sh
+      - name: "Build CI image ${{ matrix.python-version }}"
+        run: ./scripts/ci/ci_prepare_image_on_ci.sh
+      - name: "Tests"
+        run: ./scripts/ci/ci_run_airflow_testing.sh
   static-checks-1:
     timeout-minutes: 60
     name: "Checks: some checks"
@@ -168,35 +196,7 @@ jobs:
           echo "::set-output name=count::$?"
         id: pyfiles
 
-  tests-kubernetes:
-    timeout-minutes: 80
-    name: "kubernetes-test"
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-    env:
-      BACKEND: postgres
-      TEST_TYPE: ${{ matrix.test-type }}
-      RUN_TESTS: "true"
-      CI_JOB_TYPE: "Tests"
-      PYTHON_MAJOR_MINOR_VERSION: "3.6"
-      RUNTIME: "kubernetes"
-      ENABLE_KIND_CLUSTER: "true"
-      KUBERNETES_MODE: "persistent_mode"
-      KUBERNETES_VERSION: "v1.15.3"
-    # For pull requests only run tests when python files changed
-    if: needs.pyfiles.outputs.count != '0' || github.event_name != 'pull_request'
-    steps:
-      - uses: actions/checkout@master
-      - uses: actions/setup-python@v1
-        with:
-          python-version: '3.x'
-      - name: "Free space"
-        run: ./scripts/ci/ci_free_space_on_ci.sh
-      - name: "Build CI image ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_prepare_image_on_ci.sh
-      - name: "Tests"
-        run: ./scripts/ci/ci_run_airflow_testing.sh
+
 
   tests-postgres:
     timeout-minutes: 80
