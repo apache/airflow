@@ -238,10 +238,10 @@ class SageMakerHook(AwsBaseHook):
     def get_log_conn(self):
         """
         This method is deprecated.
-        Please use :py:meth:`airflow.contrib.hooks.AwsLogsHook.get_conn` instead.
+        Please use :py:meth:`airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_conn` instead.
         """
         warnings.warn("Method `get_log_conn` has been deprecated. "
-                      "Please use `airflow.contrib.hooks.AwsLogsHook.get_conn` instead.",
+                      "Please use `airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_conn` instead.",
                       category=DeprecationWarning,
                       stacklevel=2)
 

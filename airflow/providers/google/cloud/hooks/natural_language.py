@@ -76,7 +76,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
 
         :param document: Input document.
             If a dict is provided, it must be of the same form as the protobuf message Document
-        :type document: dict or class google.cloud.language_v1.types.Document
+        :type document: dict or google.cloud.language_v1.types.Document
         :param encoding_type: The encoding type used by the API to calculate offsets.
         :type encoding_type: google.cloud.language_v1.enums.EncodingType
         :param retry: A retry object used to retry requests. If None is specified, requests will not be
@@ -110,7 +110,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
 
         :param document: Input document.
             If a dict is provided, it must be of the same form as the protobuf message Document
-        :type document: dict or class google.cloud.language_v1.types.Document
+        :type document: dict or google.cloud.language_v1.types.Document
         :param encoding_type: The encoding type used by the API to calculate offsets.
         :type encoding_type: google.cloud.language_v1.enums.EncodingType
         :param retry: A retry object used to retry requests. If None is specified, requests will not be
@@ -143,7 +143,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
 
         :param document: Input document.
             If a dict is provided, it must be of the same form as the protobuf message Document
-        :type document: dict or class google.cloud.language_v1.types.Document
+        :type document: dict or google.cloud.language_v1.types.Document
         :param encoding_type: The encoding type used by the API to calculate offsets.
         :type encoding_type: google.cloud.language_v1.enums.EncodingType
         :param retry: A retry object used to retry requests. If None is specified, requests will not be
@@ -177,7 +177,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
 
         :param document: Input document.
             If a dict is provided, it must be of the same form as the protobuf message Document
-        :type document: dict or class google.cloud.language_v1.types.Document#
+        :type document: dict or google.cloud.language_v1.types.Document
         :param encoding_type: The encoding type used by the API to calculate offsets.
         :type encoding_type: google.cloud.language_v1.enums.EncodingType
         :param retry: A retry object used to retry requests. If None is specified, requests will not be
@@ -252,7 +252,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
 
         :param document: Input document.
             If a dict is provided, it must be of the same form as the protobuf message Document
-        :type document: dict or class google.cloud.language_v1.types.Document
+        :type document: dict or google.cloud.language_v1.types.Document
         :param retry: A retry object used to retry requests. If None is specified, requests will not be
             retried.
         :type retry: google.api_core.retry.Retry

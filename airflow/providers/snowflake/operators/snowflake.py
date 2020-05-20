@@ -34,7 +34,7 @@ class SnowflakeOperator(BaseOperator):
         (default value: True)
     :type autocommit: bool
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: mapping or iterable
+    :type parameters: dict or iterable
     :param warehouse: name of warehouse (will overwrite any warehouse
         defined in the connection's extra JSON)
     :type warehouse: str

@@ -43,7 +43,7 @@ Using the operator
 """"""""""""""""""
 
 We are using the :class:`~google.cloud.vision_v1.types.Product`,
-:class:`~google.cloud.vision_v1.types.ProductSet` and ``Retry`` objects from
+:class:`~google.cloud.vision_v1.types.ProductSet` and :class:`~google.api_core.retry.Retry` objects from
 Google libraries:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
@@ -108,7 +108,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-We are using the :class:`~google.cloud.enums` and ``Retry`` objects from
+We are using the :class:`~google.cloud.vision.enums` and :class:`~google.api_core.retry.Retry` objects from
 Google libraries:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
@@ -171,7 +171,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-We are using the ``Product`` and ``Retry`` objects from Google libraries:
+We are using the ``Product`` and :class:`~google.api_core.retry.Retry` objects from Google libraries:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
     :language: python
@@ -333,7 +333,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-We are using the ``ProductSet`` and ``Retry`` objects from Google libraries:
+We are using the ``ProductSet`` and :class:`~google.api_core.retry.Retry` objects from Google libraries:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
     :language: python
@@ -634,7 +634,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-We are using the :class:`~google.cloud.vision_v1.types.ReferenceImage` and ``Retry`` objects from Google libraries:
+We are using the :class:`~google.cloud.vision_v1.types.ReferenceImage` and :class:`~google.api_core.retry.Retry` objects from Google libraries:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
       :language: python
@@ -697,7 +697,7 @@ Using the operator
 """"""""""""""""""
 
 We are using the :class:`~google.cloud.vision_v1.types.Product`,
-:class:`~google.cloud.vision_v1.types.ProductSet` and ``Retry`` objects from
+:class:`~google.cloud.vision_v1.types.ProductSet` and :class:`~google.api_core.retry.Retry` objects from
 Google libraries:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
@@ -763,7 +763,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-We are using the :class:`Retry` objects from
+We are using the :class:`~google.api_core.retry.Retry` objects from
 Google libraries:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
@@ -815,7 +815,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-We are using the :class:`Retry` objects from
+We are using the :class:`~google.api_core.retry.Retry` objects from
 Google libraries:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
@@ -868,7 +868,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-We are using the :class:`Retry` objects from
+We are using the :class:`~google.api_core.retry.Retry` objects from
 Google libraries:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py
@@ -920,7 +920,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-We are using the :class:`Retry` objects from
+We are using the :class:`~google.api_core.retry.Retry` objects from
 Google libraries:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_vision.py

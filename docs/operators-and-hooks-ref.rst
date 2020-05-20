@@ -585,7 +585,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
      - :mod:`airflow.providers.amazon.aws.operators.sftp_to_s3`
 
 :ref:`[1] <integration:AWS-Discovery-ref>` Those discovery-based operators use
-:class:`airflow.providers.google.cloud.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
+:class:`~airflow.providers.google.common.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
 Services via the `Google API Python Client <https://github.com/googleapis/google-api-python-client>`__.
 Please note that this library is in maintenance mode hence it won't fully support GCP in the future.
 Therefore it is recommended that you use the custom GCP Service Operators for working with the Google
@@ -598,7 +598,7 @@ Google
 
 Airflow has support for the `Google service <https://developer.google.com/>`__.
 
-All hooks are based on :class:`airflow.providers.google.common.hooks.base.GoogleBaseHook`. Some integration
+All hooks are based on :class:`airflow.providers.google.common.hooks.base_google.GoogleBaseHook`. Some integration
 also use :mod:`airflow.providers.google.common.hooks.discovery_api`.
 
 See the :doc:`GCP connection type <howto/connection/gcp>` documentation to
@@ -964,7 +964,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
 .. _integration:GCP-Discovery:
 
 :ref:`[1] <integration:GCP-Discovery-ref>` Those discovery-based operators use
-:class:`airflow.providers.google.cloud.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
+:class:`~airflow.providers.google.common.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
 Services via the `Google API Python Client <https://github.com/googleapis/google-api-python-client>`__.
 Please note that this library is in maintenance mode hence it won't fully support Google in the future.
 Therefore it is recommended that you use the custom Google Service Operators for working with the Google
@@ -1067,7 +1067,7 @@ Airflow has a limited support for the `Yandex.Cloud <https://cloud.yandex.com/>`
 See the :doc:`Yandex.Cloud connection type <howto/connection/yandexcloud>` documentation to
 configure connections to Yandex.Cloud.
 
-All hooks are based on :class:`airflow.contrib.hooks.yandexcloud_base_hook.YandexGoogleBaseHook`.
+All hooks are based on :class:`airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook`.
 
 .. note::
     You can learn how to use Yandex.Cloud integrations by analyzing the
@@ -1093,7 +1093,7 @@ These integrations allow you to perform various operations within the Yandex.Clo
    * - `Base Classes <https://cloud.yandex.com>`__
      - :doc:`How to use <howto/operator/yandexcloud>`
      - :mod:`airflow.providers.yandex.hooks.yandex`
-     - :mod:`airflow.providers.yandex.operators.yandexcloud_base_operator`
+     -
      -
 
    * - `Data Proc <https://cloud.yandex.com/services/data-proc>`__
@@ -1369,7 +1369,7 @@ These integrations allow you to perform various operations using various softwar
    * - `Presto <http://prestodb.github.io/>`__
      -
      - :mod:`airflow.providers.presto.hooks.presto`
-     - :mod:`airflow.providers.presto.operators.presto_check`
+     -
      -
 
    * - `Python <https://www.python.org>`__

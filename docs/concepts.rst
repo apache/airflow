@@ -705,7 +705,7 @@ Storing Variables in Environment Variables
 .. versionadded:: 1.10.10
 
 Airflow Variables can also be created and managed using Environment Variables. The environment variable
-naming convention is ``AIRFLOW_VAR_<variable_name>``, all uppercase.
+naming convention is :envvar:`AIRFLOW_VAR_{VARIABLE_NAME}`, all uppercase.
 So if your variable key is ``FOO`` then the variable name should be ``AIRFLOW_VAR_FOO``.
 
 For example,
@@ -1066,7 +1066,7 @@ may look like inside your ``airflow_local_settings.py``:
         if task.timeout > timedelta(hours=48):
             task.timeout = timedelta(hours=48)
 
-To define policy, add a ``airflow_local_settings`` module to your PYTHONPATH
+To define policy, add a ``airflow_local_settings`` module to your :envvar:`PYTHONPATH`
 or to AIRFLOW_HOME/config folder that defines this ``policy`` function. It receives a ``TaskInstance``
 object and can alter it where needed.
 
