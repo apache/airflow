@@ -209,14 +209,13 @@ class ElastiCacheHook(AwsBaseHook):
             # This should never occur as we only issue a delete request when status is `creating`
             # which is a valid status for deletion. Still handling for safety.
             except self.conn.exceptions.InvalidReplicationGroupStateFault as exp:
-                """
-                status      Error Response
-                creating  - Cache cluster <cluster_id> is not in a valid state to be deleted.
-                deleting  - Replication group <replication_group_id> has status deleting which is not valid
-                            for deletion.
-                modifying - Replication group <replication_group_id> has status deleting which is not valid
-                            for deletion.
-                """
+                # status      Error Response
+                # creating  - Cache cluster <cluster_id> is not in a valid state to be deleted.
+                # deleting  - Replication group <replication_group_id> has status deleting which is not valid
+                #             for deletion.
+                # modifying - Replication group <replication_group_id> has status deleting which is not valid
+                #             for deletion.
+
                 message = exp.response['Error']['Message']
 
                 self.log.info('Received message : %s', message)
