@@ -16,12 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-import io
-import json
-import textwrap
-import unittest
-import zipfile
+from unittest.mock import patch
 
 from airflow.providers.amazon.aws.hooks.lambda_function import AwsLambdaHook
 
@@ -31,50 +26,27 @@ except ImportError:
     mock_lambda = None
 
 
-class TestAwsLambdaHook(unittest.TestCase):
-
-    @unittest.skipIf(mock_lambda is None, 'mock_lambda package not present')
+class TestAwsLambdaHook:
     @mock_lambda
     def test_get_conn_returns_a_boto3_connection(self):
         hook = AwsLambdaHook(aws_conn_id='aws_default',
                              function_name="test_function", region_name="us-east-1")
-        self.assertIsNotNone(hook.get_conn())
+        assert hook.conn is not None
 
-    @staticmethod
-    def lambda_function():
-        code = textwrap.dedent("""
-def lambda_handler(event, context):
-    return event
-        """)
-        zip_output = io.BytesIO()
-        zip_file = zipfile.ZipFile(zip_output, 'w', zipfile.ZIP_DEFLATED)
-        zip_file.writestr('lambda_function.zip', code)
-        zip_file.close()
-        zip_output.seek(0)
-        return zip_output.read()
-
-    @unittest.skipIf(mock_lambda is None, 'mock_lambda package not present')
     @mock_lambda
     def test_invoke_lambda_function(self):
 
         hook = AwsLambdaHook(aws_conn_id='aws_default',
                              function_name="test_function", region_name="us-east-1")
 
-        hook.get_conn().create_function(
-            FunctionName='test_function',
-            Runtime='python2.7',
-            Role='test-iam-role',
-            Handler='lambda_function.lambda_handler',
-            Code={
-                'ZipFile': self.lambda_function(),
-            },
-            Description='test lambda function',
-            Timeout=3,
-            MemorySize=128,
-            Publish=True,
+        with patch.object(hook.conn, 'invoke') as mock_invoke:
+            payload = '{"hello": "airflow"}'
+            hook.invoke_lambda(payload=payload)
+
+        mock_invoke.asset_called_once_with(
+            FunctionName="test_functin",
+            InvocationType="RequestResponse",
+            LogType="None",
+            Payload=payload,
+            Qualifier="$LATEST"
         )
-
-        payload = {'hello': 'airflow'}
-        response = hook.invoke_lambda(payload=json.dumps(payload))
-
-        self.assertEqual(response["StatusCode"], 202)

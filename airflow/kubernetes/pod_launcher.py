@@ -93,17 +93,15 @@ class PodLauncher(LoggingMixin):
             if e.status != 404:
                 raise
 
-    def run_pod(
+    def start_pod(
             self,
             pod: V1Pod,
-            startup_timeout: int = 120,
-            get_logs: bool = True) -> Tuple[State, Optional[str]]:
+            startup_timeout: int = 120):
         """
         Launches the pod synchronously and waits for completion.
 
         :param pod:
         :param startup_timeout: Timeout for startup of the pod (if pod is pending for too long, fails task)
-        :param get_logs:  whether to query k8s for logs
         :return:
         """
         resp = self.run_pod_async(pod)
@@ -116,9 +114,15 @@ class PodLauncher(LoggingMixin):
                 time.sleep(1)
             self.log.debug('Pod not yet started')
 
-        return self._monitor_pod(pod, get_logs)
+    def monitor_pod(self, pod: V1Pod, get_logs: bool) -> Tuple[State, Optional[str]]:
+        """
+        Monitors a pod and returns the final state
 
-    def _monitor_pod(self, pod: V1Pod, get_logs: bool) -> Tuple[State, Optional[str]]:
+        :param pod: pod spec that will be monitored
+        :type pod : V1Pod
+        :param get_logs: whether to read the logs locally
+        :return:  Tuple[State, Optional[str]]
+        """
         if get_logs:
             logs = self.read_pod_logs(pod)
             for line in logs:

@@ -131,16 +131,18 @@ class TestCreateEvaluateOps(unittest.TestCase):
             self.assertEqual('err=0.9', result)
 
     def test_failures(self):
-        dag = DAG(
-            'test_dag',
-            default_args={
-                'owner': 'airflow',
-                'start_date': DEFAULT_DATE,
-                'end_date': DEFAULT_DATE,
-                'project_id': 'test-project',
-                'region': 'us-east1',
-            },
-            schedule_interval='@daily')
+        def create_test_dag(dag_id):
+            dag = DAG(
+                dag_id,
+                default_args={
+                    'owner': 'airflow',
+                    'start_date': DEFAULT_DATE,
+                    'end_date': DEFAULT_DATE,
+                    'project_id': 'test-project',
+                    'region': 'us-east1',
+                },
+                schedule_interval='@daily')
+            return dag
 
         input_with_model = self.INPUT_MISSING_ORIGIN.copy()
         other_params_but_models = {
@@ -151,26 +153,30 @@ class TestCreateEvaluateOps(unittest.TestCase):
             'prediction_path': input_with_model['outputPath'],
             'metric_fn_and_keys': (self.metric_fn, ['err']),
             'validate_fn': (lambda x: 'err=%.1f' % x['err']),
-            'dag': dag,
         }
 
         with self.assertRaisesRegex(AirflowException, 'Missing model origin'):
-            mlengine_operator_utils.create_evaluate_ops(**other_params_but_models)
+            mlengine_operator_utils.create_evaluate_ops(
+                dag=create_test_dag('test_dag_1'), **other_params_but_models)
 
         with self.assertRaisesRegex(AirflowException, 'Ambiguous model origin'):
-            mlengine_operator_utils.create_evaluate_ops(model_uri='abc', model_name='cde',
-                                                        **other_params_but_models)
+            mlengine_operator_utils.create_evaluate_ops(
+                dag=create_test_dag('test_dag_2'), model_uri='abc', model_name='cde',
+                **other_params_but_models)
 
         with self.assertRaisesRegex(AirflowException, 'Ambiguous model origin'):
-            mlengine_operator_utils.create_evaluate_ops(model_uri='abc', version_name='vvv',
-                                                        **other_params_but_models)
+            mlengine_operator_utils.create_evaluate_ops(
+                dag=create_test_dag('test_dag_3'), model_uri='abc', version_name='vvv',
+                **other_params_but_models)
 
         with self.assertRaisesRegex(AirflowException, '`metric_fn` param must be callable'):
             params = other_params_but_models.copy()
             params['metric_fn_and_keys'] = (None, ['abc'])
-            mlengine_operator_utils.create_evaluate_ops(model_uri='gs://blah', **params)
+            mlengine_operator_utils.create_evaluate_ops(
+                dag=create_test_dag('test_dag_4'), model_uri='gs://blah', **params)
 
         with self.assertRaisesRegex(AirflowException, '`validate_fn` param must be callable'):
             params = other_params_but_models.copy()
             params['validate_fn'] = None
-            mlengine_operator_utils.create_evaluate_ops(model_uri='gs://blah', **params)
+            mlengine_operator_utils.create_evaluate_ops(
+                dag=create_test_dag('test_dag_5'), model_uri='gs://blah', **params)

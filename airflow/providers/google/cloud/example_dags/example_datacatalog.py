@@ -181,7 +181,7 @@ with models.DAG("example_gcp_datacatalog", default_args=default_args, schedule_i
 
     # [START howto_operator_gcp_datacatalog_create_tag_template_field_result2]
     create_tag_template_field_result2 = BashOperator(
-        task_id="create_tag_template_field_result",
+        task_id="create_tag_template_field_result2",
         bash_command="echo \"{{ task_instance.xcom_pull('create_tag_template_field') }}\"",
     )
     # [END howto_operator_gcp_datacatalog_create_tag_template_field_result2]

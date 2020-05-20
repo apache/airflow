@@ -1216,6 +1216,51 @@ template string:
 See `Jinja documentation <https://jinja.palletsprojects.com/en/master/api/#jinja2.Environment>`_
 to find all available options.
 
+.. _exceptions:
+
+Exceptions
+==========
+
+Airflow defines a number of exceptions; most of these are used internally, but a few
+are relevant to authors of custom operators or python callables called from ``PythonOperator``
+tasks. Normally any exception raised from an ``execute`` method or python callable will either
+cause a task instance to fail if it is not configured to retry or has reached its limit on
+retry attempts, or to be marked as "up for retry". A few exceptions can be used when different
+behavior is desired:
+
+* ``AirflowSkipException`` can be raised to set the state of the current task instance to "skipped"
+* ``AirflowFailException`` can be raised to set the state of the current task to "failed" regardless
+  of whether there are any retry attempts remaining.
+
+This example illustrates some possibilities
+
+.. code:: python
+
+  from airflow.exceptions import AirflowFailException, AirflowSkipException
+
+  def fetch_data():
+      try:
+          data = get_some_data(get_api_key())
+          if not data:
+              # Set state to skipped and do not retry
+              # Downstream task behavior will be determined by trigger rules
+              raise AirflowSkipException("No data available.")
+      except Unauthorized:
+          # If we retry, our api key will still be bad, so don't waste time retrying!
+          # Set state to failed and move on
+          raise AirflowFailException("Our api key is bad!")
+      except TransientError:
+          print("Looks like there was a blip.")
+          # Raise the exception and let the task retry unless max attempts were reached
+          raise
+      handle(data)
+
+  task = PythonOperator(task_id="fetch_data", python_callable=fetch_data, retries=10)
+
+.. seealso::
+    - :ref:`List of Airflow exceptions <pythonapi:exceptions>`
+
+
 Packaged DAGs
 '''''''''''''
 While often you will specify DAGs in a single ``.py`` file it might sometimes

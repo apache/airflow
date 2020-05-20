@@ -979,14 +979,6 @@ class TestDag(unittest.TestCase):
 
         self.assertEqual(dag.task_dict, {op1.task_id: op1})
 
-        # Also verify that DAGs with duplicate task_ids don't raise errors
-        with DAG("test_dag_1", start_date=DEFAULT_DATE) as dag1:
-            op3 = DummyOperator(task_id="t3")
-            op4 = BashOperator(task_id="t4", bash_command="sleep 1")
-            op3 >> op4
-
-        self.assertEqual(dag1.task_dict, {op3.task_id: op3, op4.task_id: op4})
-
     def test_duplicate_task_ids_not_allowed_without_dag_context_manager(self):
         """Verify tasks with Duplicate task_id raises error"""
         with self.assertRaisesRegex(
@@ -994,18 +986,10 @@ class TestDag(unittest.TestCase):
         ):
             dag = DAG("test_dag", start_date=DEFAULT_DATE)
             op1 = DummyOperator(task_id="t1", dag=dag)
-            op2 = BashOperator(task_id="t1", bash_command="sleep 1", dag=dag)
+            op2 = DummyOperator(task_id="t1", dag=dag)
             op1 >> op2
 
         self.assertEqual(dag.task_dict, {op1.task_id: op1})
-
-        # Also verify that DAGs with duplicate task_ids don't raise errors
-        dag1 = DAG("test_dag_1", start_date=DEFAULT_DATE)
-        op3 = DummyOperator(task_id="t3", dag=dag1)
-        op4 = DummyOperator(task_id="t4", dag=dag1)
-        op3 >> op4
-
-        self.assertEqual(dag1.task_dict, {op3.task_id: op3, op4.task_id: op4})
 
     def test_duplicate_task_ids_for_same_task_is_allowed(self):
         """Verify that same tasks with Duplicate task_id do not raise error"""

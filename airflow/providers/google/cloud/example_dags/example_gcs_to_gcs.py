@@ -100,7 +100,7 @@ with models.DAG(
 
     # [START howto_operator_gcs_to_gcs_delimiter]
     copy_files_with_delimiter = GCSToGCSOperator(
-        task_id="copy_files_with_wildcard",
+        task_id="copy_files_with_delimiter",
         source_bucket=BUCKET_1_SRC,
         source_object="data/",
         destination_bucket=BUCKET_1_DST,

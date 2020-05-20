@@ -655,7 +655,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
     cleanup-image                            Cleans up the container image created
     exec                                     Execs into running breeze container in new terminal
     generate-requirements                    Generates pinned requirements for pip dependencies
-    generate-backport-readme                 Generates backport packages readme files
+    prepare-backport-readme                  Prepares backport packages readme files
     prepare-backport-packages                Prepares backport packages
     initialize-local-virtualenv              Initializes local virtualenv
     setup-autocomplete                       Sets up autocomplete for breeze
@@ -872,9 +872,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
   ####################################################################################################
 
 
-  Detailed usage for command: generate-backport-readme
+  Detailed usage for command: prepare-backport-readme
 
-  breeze [FLAGS] generate-backport-readme -- <EXTRA_ARGS>
+  breeze [FLAGS] prepare-backport-readme -- <EXTRA_ARGS>
 
         Prepares README.md files for backport packages. You can provide (after --) optional version
         in the form of YYYY.MM.DD, optionally followed by the list of packages to generate readme for.
@@ -884,13 +884,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
         Examples:
 
-        'breeze generate-backport-readme' or
-        'breeze generate-backport-readme -- 2020.05.10' or
-        'breeze generate-backport-readme -- 2020.05.10 https google amazon'
+        'breeze prepare-backport-readme' or
+        'breeze prepare-backport-readme -- 2020.05.10' or
+        'breeze prepare-backport-readme -- 2020.05.10 https google amazon'
 
         General form:
 
-        'breeze generate-backport-readme -- YYYY.MM.DD <PACKAGE_ID> ...'
+        'breeze prepare-backport-readme -- YYYY.MM.DD <PACKAGE_ID> ...'
 
         * YYYY.MM.DD - is the CALVER version of the package to prepare. Note that this date
           cannot be earlier than the already released version (the script will fail if it
@@ -917,19 +917,20 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
         Builds backport packages. You can provide (after --) optional list of packages to prepare.
         If no packages are specified, readme for all packages are generated. You can specify optional
-        --version-suffix flag to generate rc candidates for the packages.
-
-        Make sure to set the right version in './backport_packages/setup_backport_packages.py'
+        --version-suffix-for-svn flag to generate rc candidate packages to upload to SVN or
+        --version-suffix-for-pypi flag to generate rc candidates for PyPI packages.
 
         Examples:
 
         'breeze prepare-backport-packages' or
         'breeze prepare-backport-packages -- google' or
-        'breeze prepare-backport-packages --version-suffix rc1 -- http google amazon'
+        'breeze prepare-backport-packages --version-suffix-for-svn rc1 -- http google amazon' or
+        'breeze prepare-backport-packages --version-suffix-for-pypi rc1 -- http google amazon'
 
         General form:
 
-        'breeze prepare-backport-packages -- <PACKAGE_ID> ...'
+        'breeze prepare-backport-packages \
+              [--version-suffix-for-svn|--version-suffix-for-pypi] -- <PACKAGE_ID> ...'
 
         * <PACKAGE_ID> is usually directory in the airflow/providers folder (for example
           'google'), but in several cases, it might be one level deeper separated with '.'
@@ -937,9 +938,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Flags:
 
-  -S, --version-suffix
-          Adds optional suffix to the generated backport package version. It can be used to generate
-          rc1/rc2 ... versions of the packages.
+  -S, --version-suffix-for-pypi
+          Adds optional suffix to the version in the generated backport package. It can be used
+          to generate rc1/rc2 ... versions of the packages to be uploaded to PyPI.
+
+  -N, --version-suffix-for-svn
+          Adds optional suffix to the generated names of package. It can be used to generate
+          rc1/rc2 ... versions of the packages to be uploaded to SVN.
 
   -v, --verbose
           Show verbose information about executed commands (enabled by default for running test).
@@ -1423,9 +1428,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
   ****************************************************************************************************
    Flags for generation of the backport packages
 
-  -S, --version-suffix
-          Adds optional suffix to the generated backport package version. It can be used to generate
-          rc1/rc2 ... versions of the packages.
+  -S, --version-suffix-for-pypi
+          Adds optional suffix to the version in the generated backport package. It can be used
+          to generate rc1/rc2 ... versions of the packages to be uploaded to PyPI.
+
+  -N, --version-suffix-for-svn
+          Adds optional suffix to the generated names of package. It can be used to generate
+          rc1/rc2 ... versions of the packages to be uploaded to SVN.
 
   ****************************************************************************************************
    Increase verbosity of the scripts
