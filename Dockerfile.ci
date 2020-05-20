@@ -149,6 +149,8 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64/
+
 # Install Hadoop and Hive
 # It is done in one step to share variables.
 ENV HADOOP_HOME="/opt/hadoop-cdh" HIVE_HOME="/opt/hive"
