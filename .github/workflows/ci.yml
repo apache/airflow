@@ -55,8 +55,6 @@ jobs:
       ENABLE_KIND_CLUSTER: "true"
       KUBERNETES_MODE: "persistent_mode"
       KUBERNETES_VERSION: "v1.15.3"
-    # For pull requests only run tests when python files changed
-    if: needs.pyfiles.outputs.count != '0' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
