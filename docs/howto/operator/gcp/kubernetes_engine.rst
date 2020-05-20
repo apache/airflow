@@ -100,7 +100,11 @@ There is no need to manage the `kube_config` file, as it will be generated autom
 All Kubernetes  parameters (except ``config_file``) are also valid for the ``GKEStartPodOperator``.
 For more information on ``KubernetesPodOperator``, please look at: :ref:`howto/operator:KubernetesPodOperator` guide.
 
-We can enable the usage of :ref:`XCom <concepts:xcom>` on the operator:
+We can enable the usage of :ref:`XCom <concepts:xcom>` on the operator. This works by launching a sidecar container
+with the pod specified. The sidecar is automatically mounted when the XCom usage is specified and it's mount point
+is the path ``/airflow/xcom``. To provide values to the XCom, ensure your Pod writes it into a file called
+``return.json`` in the sidecar. The contents of this can then be used downstream in your DAG.
+Here is an example of it being used:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_kubernetes_engine.py
     :language: python
