@@ -1483,7 +1483,7 @@ function prepare_ci_build() {
     fi
     export THE_IMAGE_TYPE="CI"
     export IMAGE_DESCRIPTION="Airflow CI"
-    export AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="true"
+    export AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="false"
     export AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS:="${DEFAULT_CI_EXTRAS}"}"
     export AIRFLOW_IMAGE="${AIRFLOW_CI_IMAGE}"
 
