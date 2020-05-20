@@ -407,7 +407,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         dataset_id: str,
         project_id: Optional[str] = None,
         max_results: Optional[int] = None,
-        page_token: Optional[str] = None,
         retry: Retry = DEFAULT_RETRY,
     ) -> List[Dict[str, Any]]:
         """
@@ -423,9 +422,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type project_id: str
         :param max_results: (Optional) the maximum number of tables to return.
         :type max_results: int
-        :param page_token: (Optional) page token, returned from a previous call,
-            identifying the result set.
-        :type page_token: str
         :param retry: How to retry the RPC.
         :type retry: google.api_core.retry.Retry
         :return: List of tables associated with the dataset.
@@ -434,9 +430,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         tables = self.get_client().list_tables(
             dataset=DatasetReference(project=project_id, dataset_id=dataset_id),
             max_results=max_results,
-            page_token=page_token,
             retry=retry,
         )
+        # Convert to a list (consumes all values)
         return [t.reference.to_api_repr() for t in tables]
 
     @GoogleBaseHook.fallback_to_default_project_id

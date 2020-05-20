@@ -738,14 +738,11 @@ class TestBigQueryGetDatasetTablesOperator(unittest.TestCase):
         )
 
         operator.execute(None)
-        mock_hook.return_value \
-            .get_dataset_tables \
-            .assert_called_once_with(
-                dataset_id=TEST_DATASET,
-                project_id=TEST_GCP_PROJECT_ID,
-                max_results=2,
-                page_token=None
-            )
+        mock_hook.return_value.get_dataset_tables.assert_called_once_with(
+            dataset_id=TEST_DATASET,
+            project_id=TEST_GCP_PROJECT_ID,
+            max_results=2,
+        )
 
 
 class TestBigQueryConnIdDeprecationWarning(unittest.TestCase):

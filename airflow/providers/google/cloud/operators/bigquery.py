@@ -968,13 +968,32 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         self.schema_object = schema_object
 
         # BQ config
+        kwargs_passed = any([
+            destination_project_dataset_table,
+            schema_fields,
+            source_format,
+            compression,
+            skip_leading_rows,
+            field_delimiter,
+            max_bad_records,
+            quote_character,
+            allow_quoted_newlines,
+            allow_jagged_rows,
+            src_fmt_configs,
+            labels,
+            encryption_configuration,
+        ])
+
         if not table_resource:
             warnings.warn(
-                "Passing table parameters via key words arguments will be deprecated. "
+                "Passing table parameters via keywords arguments will be deprecated. "
                 "Please use provide table definition using `table_resource` parameter."
                 "You can still use external `schema_object`. ",
                 DeprecationWarning, stacklevel=2
             )
+
+        if table_resource and kwargs_passed:
+            raise ValueError("You provided both `table_resource` and exclusive keywords arguments.")
 
         self.table_resource = table_resource
         self.destination_project_dataset_table = destination_project_dataset_table
@@ -992,7 +1011,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
 
-        self.src_fmt_configs = src_fmt_configs if src_fmt_configs is not None else dict()
+        self.src_fmt_configs = src_fmt_configs or dict()
         self.labels = labels
         self.encryption_configuration = encryption_configuration
         self.location = location
@@ -1016,8 +1035,6 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         if schema_fields and self.table_resource:
             self.table_resource["externalDataConfiguration"]["schema"] = schema_fields
 
-        source_uris = [f"gs://{self.bucket}/{source_object}" for source_object in self.source_objects]
-
         if self.table_resource:
             tab_ref = TableReference.from_string(self.destination_project_dataset_table)
             bq_hook.create_empty_table(
@@ -1027,6 +1044,8 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                 dataset_id=tab_ref.dataset_id,
             )
         else:
+            source_uris = [f"gs://{self.bucket}/{source_object}" for source_object in self.source_objects]
+
             bq_hook.create_external_table(
                 external_project_dataset_table=self.destination_project_dataset_table,
                 schema_fields=schema_fields,
@@ -1256,9 +1275,6 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
     :type project_id: str
     :param max_results: (Optional) the maximum number of tables to return.
     :type max_results: int
-    :param page_token: (Optional) page token, returned from a previous call,
-        identifying the result set.
-    :type page_token: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     :param delegate_to: (Optional) The account to impersonate, if any.
@@ -1275,7 +1291,6 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
         dataset_id: str,
         project_id: Optional[str] = None,
         max_results: Optional[int] = None,
-        page_token: Optional[str] = None,
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         *args, **kwargs
@@ -1283,7 +1298,6 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.max_results = max_results
-        self.page_token = page_token
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         super().__init__(*args, **kwargs)
@@ -1298,7 +1312,6 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
             dataset_id=self.dataset_id,
             project_id=self.project_id,
             max_results=self.max_results,
-            page_token=self.page_token,
         )
 
 
