@@ -134,11 +134,27 @@ jobs:
         run: ./scripts/ci/ci_build_production_images.sh
       - name: "Tests"
         run: ./scripts/ci/ci_run_airflow_testing.sh
+
+  pyfiles:
+    timeout-minutes: 10
+    name: "Count changed important files"
+    runs-on: ubuntu-latest
+    outputs:
+      count: ${{ steps.pyfiles.outputs.count }}
+    steps:
+      - uses: actions/checkout@master
+      - name: "Get count of changed python files"
+        run: |
+          set +e
+          ./scripts/ci/ci_count_changed_files.sh ${GITHUB_SHA} '\.py$|.github/workflows/|^Dockerfile'
+          echo "::set-output name=count::$?"
+        id: pyfiles
+
   tests-postgres:
     timeout-minutes: 80
     name: "${{matrix.test-type}}:Pg${{matrix.postgres-version}},Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
-    needs: [static-checks]
+    needs: [static-checks, pyfiles]
     strategy:
       matrix:
         python-version: [2.7, 3.5, 3.6, 3.7]
@@ -152,6 +168,8 @@ jobs:
       RUN_TESTS: "true"
       CI_JOB_TYPE: "Tests"
       TEST_TYPE: ${{ matrix.test-type }}
+    # For pull requests only run tests when python files changed
+    if: needs.pyfiles.outputs.count != '0' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
@@ -168,7 +186,7 @@ jobs:
     timeout-minutes: 80
     name: "${{matrix.test-type}}:MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
-    needs: [static-checks]
+    needs: [static-checks, pyfiles]
     strategy:
       matrix:
         python-version: [2.7, 3.5, 3.6, 3.7]
@@ -182,6 +200,8 @@ jobs:
       RUN_TESTS: "true"
       CI_JOB_TYPE: "Tests"
       TEST_TYPE: ${{ matrix.test-type }}
+    # For pull requests only run tests when python files changed
+    if: needs.pyfiles.outputs.count != '0' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
@@ -198,7 +218,7 @@ jobs:
     timeout-minutes: 80
     name: "${{matrix.test-type}}:Sqlite Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
-    needs: [static-checks]
+    needs: [static-checks, pyfiles]
     strategy:
       matrix:
         python-version: [2.7, 3.5, 3.6, 3.7]
@@ -210,6 +230,8 @@ jobs:
       TEST_TYPE: ${{ matrix.test-type }}
       RUN_TESTS: "true"
       CI_JOB_TYPE: "Tests"
+    # For pull requests only run tests when python files changed
+    if: needs.pyfiles.outputs.count != '0' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
