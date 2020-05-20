@@ -1,7 +1,6 @@
 # Editable install with no version control (apache-airflow==2.0.0.dev0)
 Authlib==0.14.3
 Babel==2.8.0
-Cython==0.29.18
 Flask-AppBuilder==2.3.4
 Flask-Babel==1.0.0
 Flask-Bcrypt==0.7.1
@@ -46,7 +45,7 @@ apispec==1.3.3
 appdirs==1.4.4
 argcomplete==1.11.1
 asn1crypto==1.3.0
-astroid==2.3.3
+astroid==2.4.1
 async-generator==1.10
 async-timeout==3.0.1
 atlasclient==1.0.0
@@ -73,9 +72,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.3.0
 black==19.10b0
 blinker==1.4
-boto3==1.13.12
+boto3==1.13.13
 boto==2.49.0
-botocore==1.16.12
+botocore==1.16.13
 bowler==0.8.0
 cached-property==1.5.1
 cachetools==4.1.0
@@ -85,7 +84,7 @@ celery==4.4.2
 certifi==2020.4.5.1
 cffi==1.14.0
 cfgv==3.1.0
-cfn-lint==0.32.0
+cfn-lint==0.32.1
 cgroupspy==0.1.6
 chardet==3.0.4
 click==6.7
@@ -116,7 +115,6 @@ elasticsearch-dsl==7.2.0
 elasticsearch==7.5.1
 email-validator==1.1.1
 entrypoints==0.3
-enum34==1.1.10
 eventlet==0.25.2
 execnet==1.7.1
 facebook-business==7.0.1
@@ -129,7 +127,7 @@ flaky==3.6.1
 flask-swagger==0.2.13
 flower==0.9.4
 freezegun==0.3.15
-fsspec==0.7.3
+fsspec==0.7.4
 funcsigs==1.0.2
 future-fstrings==1.2.0
 future==0.18.2
@@ -149,7 +147,7 @@ google-cloud-bigtable==1.2.1
 google-cloud-container==0.5.0
 google-cloud-core==1.3.0
 google-cloud-datacatalog==0.7.0
-google-cloud-dataproc==0.7.0
+google-cloud-dataproc==0.8.0
 google-cloud-dlp==0.15.0
 google-cloud-kms==1.4.0
 google-cloud-language==1.3.0
@@ -176,9 +174,9 @@ grpcio==1.29.0
 gunicorn==19.10.0
 hdfs==2.5.8
 hmsclient==0.1.1
-httplib2==0.17.3
+httplib2==0.18.0
 humanize==0.5.1
-hvac==0.10.1
+hvac==0.10.2
 identify==1.4.15
 idna==2.9
 ijson==2.6.1
@@ -369,11 +367,11 @@ uritemplate==3.0.1
 urllib3==1.25.9
 vertica-python==0.10.3
 vine==1.3.0
-virtualenv==20.0.20
+virtualenv==20.0.21
 watchtower==0.7.3
 wcwidth==0.1.9
 websocket-client==0.57.0
-wrapt==1.11.2
+wrapt==1.12.1
 xmltodict==0.12.0
 yamllint==1.23.0
 yandexcloud==0.38.0
