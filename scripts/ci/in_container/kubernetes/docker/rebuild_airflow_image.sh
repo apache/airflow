@@ -38,21 +38,21 @@ cp /entrypoint.sh scripts/docker/
 echo
 echo "Building image from ${AIRFLOW_CI_IMAGE} with latest sources"
 echo
-start_output_heartbeat "Rebuilding Kubernetes image" 3
-docker build \
-    --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
-    --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
-    --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
-    --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
-    --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH}" \
-    --build-arg AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" \
-    --build-arg UPGRADE_TO_LATEST_REQUIREMENTS="${UPGRADE_TO_LATEST_REQUIREMENTS}" \
-    --build-arg HOME="${HOME}" \
-    --cache-from "${AIRFLOW_CI_IMAGE}" \
-    --tag="${AIRFLOW_CI_IMAGE}" \
-    --target="main" \
-    -f Dockerfile.ci . >> "${OUTPUT_LOG}"
-echo
+#start_output_heartbeat "Rebuilding Kubernetes image" 3
+#docker build \
+#    --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
+#    --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
+#    --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
+#    --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
+#    --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH}" \
+#    --build-arg AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" \
+#    --build-arg UPGRADE_TO_LATEST_REQUIREMENTS="${UPGRADE_TO_LATEST_REQUIREMENTS}" \
+#    --build-arg HOME="${HOME}" \
+#    --cache-from "${AIRFLOW_CI_IMAGE}" \
+#    --tag="${AIRFLOW_CI_IMAGE}" \
+#    --target="main" \
+#    -f Dockerfile.ci . >> "${OUTPUT_LOG}"
+#echo
 echo "Adding kubernetes-specific scripts to basic CI image."
 echo "Building ${AIRFLOW_KUBERNETES_IMAGE} from ${AIRFLOW_CI_IMAGE}"
 echo
@@ -73,9 +73,9 @@ COPY airflow/ ${AIRFLOW_SOURCES}/airflow/
 
 ENTRYPOINT ["/bootstrap.sh"]
 EOF
-stop_output_heartbeat
+#stop_output_heartbeat
 
-start_output_heartbeat "Loading image to Kind cluster" 10
+#start_output_heartbeat "Loading image to Kind cluster" 10
 echo
 echo "Loading the ${AIRFLOW_KUBERNETES_IMAGE} to cluster ${CLUSTER_NAME} from docker"
 echo
@@ -88,6 +88,6 @@ echo
 echo "Stopping output heartbeat"
 echo
 
-stop_output_heartbeat
+#stop_output_heartbeat
 
 in_container_script_end

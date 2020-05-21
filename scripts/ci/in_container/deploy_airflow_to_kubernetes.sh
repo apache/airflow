@@ -19,5 +19,5 @@
 # shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-"${MY_DIR}/kubernetes/docker/rebuild_airflow_image.sh"
+#"${MY_DIR}/kubernetes/docker/rebuild_airflow_image.sh"
 "${MY_DIR}/kubernetes/app/deploy_app.sh"
