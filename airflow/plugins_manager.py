@@ -25,6 +25,7 @@ from __future__ import unicode_literals
 from builtins import object
 import imp
 import inspect
+import logging
 import os
 import re
 from typing import Any, Dict, List, Set, Type
@@ -33,9 +34,8 @@ import pkg_resources
 
 from airflow import settings
 from airflow.models.baseoperator import BaseOperatorLink
-from airflow.utils.log.logging_mixin import LoggingMixin
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 import_errors = {}
 
@@ -99,13 +99,18 @@ def load_entrypoint_plugins(entry_points, airflow_plugins):
     :type airflow_plugins: list[type[airflow.plugins_manager.AirflowPlugin]]
     :rtype: list[airflow.plugins_manager.AirflowPlugin]
     """
+    global import_errors  # pylint: disable=global-statement
     for entry_point in entry_points:
         log.debug('Importing entry_point plugin %s', entry_point.name)
-        plugin_obj = entry_point.load()
-        if is_valid_plugin(plugin_obj, airflow_plugins):
-            if callable(getattr(plugin_obj, 'on_load', None)):
-                plugin_obj.on_load()
-                airflow_plugins.append(plugin_obj)
+        try:
+            plugin_obj = entry_point.load()
+            if is_valid_plugin(plugin_obj, airflow_plugins):
+                if callable(getattr(plugin_obj, 'on_load', None)):
+                    plugin_obj.on_load()
+                    airflow_plugins.append(plugin_obj)
+        except Exception as e:  # pylint: disable=broad-except
+            log.exception("Failed to import plugin %s", entry_point.name)
+            import_errors[entry_point.module_name] = str(e)
     return airflow_plugins
 
 
