@@ -17,13 +17,13 @@
 # under the License.
 
 import importlib
+import sys
 from inspect import isabstract
 from typing import Any
 from unittest import TestCase, mock
 
 from parameterized import parameterized
 
-from airflow import PY38
 
 HOOK = [
     (
@@ -1774,7 +1774,8 @@ class TestMovingCoreToContrib(TestCase):
             self.assert_warning(new_path, warning_msg)
 
     def skip_test_with_mssql_in_py38(self, path_a="", path_b=""):
-        if PY38:
+        py_38 = sys.version_info >= (3, 8)
+        if py_38:
             if "mssql" in path_a or "mssql" in path_b:
                 raise self.skipTest("Mssql package not avaible when Python >= 3.8.")
 
