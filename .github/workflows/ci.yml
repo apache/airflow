@@ -358,7 +358,11 @@ jobs:
       - prepare-backport-packages
       - build-prod-image
       - docs
-    if: github.ref == 'refs/heads/master' && github.event_name != 'schedule'
+    if: |
+      contains(['refs/heads/master', \
+                'refs/heads/v1-10-stable', \
+                'refs/heads/v1-10-test'], github.ref) \
+      && github.event_name != 'schedule'
     strategy:
       matrix:
         python-version: [3.6, 3.7]
