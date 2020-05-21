@@ -184,41 +184,6 @@ RUN HADOOP_DISTRO="cdh" \
 
 ENV PATH "${PATH}:/opt/hive/bin"
 
-# Install Singularity (for Singularity executor testing)
-RUN apt-get update \
-    && apt-get install --no-install-recommends -y \
-       uuid-dev \
-       libgpgme11-dev \
-       squashfs-tools \
-       libseccomp-dev \
-       pkg-config \
-       cryptsetup \
-    && apt-get autoremove -yqq --purge \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-ENV GOLANG_VERSION=1.13.8
-ENV SINGULARITY_VERSION=3.5.2
-
-RUN curl -L -o go${GOLANG_VERSION}.linux-amd64.tar.gz "https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz" \
-    && tar -C /usr/local -xzvf "go${GOLANG_VERSION}.linux-amd64.tar.gz" \
-    && rm "go${GOLANG_VERSION}.linux-amd64.tar.gz"
-
-ENV PATH="${PATH}:/usr/local/go/bin"
-
-WORKDIR /tmp
-
-RUN curl -L -o singularity-${SINGULARITY_VERSION}.tar.gz https://github.com/sylabs/singularity/releases/download/v${SINGULARITY_VERSION}/singularity-${SINGULARITY_VERSION}.tar.gz \
-    && tar -xzf singularity-${SINGULARITY_VERSION}.tar.gz
-
-WORKDIR /tmp/singularity
-
-RUN ./mconfig \
-    && make -C builddir \
-    && make -C builddir install
-
-WORKDIR /
-
 # Install Minicluster
 ENV MINICLUSTER_HOME="/opt/minicluster"
 
