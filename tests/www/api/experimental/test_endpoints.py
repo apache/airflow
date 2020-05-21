@@ -27,8 +27,10 @@ from parameterized import parameterized_class
 from airflow import settings
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
+from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import Session
+from airflow.utils.session import provide_session
 from airflow.utils.timezone import datetime, parse as parse_datetime, utcnow
 from airflow.version import version
 from airflow.www import app as application
@@ -76,6 +78,7 @@ class TestApiExperimental(TestBase):
     def tearDown(self):
         session = Session()
         session.query(DagRun).delete()
+        session.query(DagCode).delete()
         session.query(TaskInstance).delete()
         session.commit()
         session.close()
@@ -118,6 +121,9 @@ class TestApiExperimental(TestBase):
         with conf_vars(
             {("core", "store_serialized_dags"): self.dag_serialization}
         ):
+            DagCode.bulk_sync_to_db([
+                f"{ROOT_FOLDER}/airflow/example_dags/example_bash_operator.py"
+            ])
             url_template = '/api/experimental/dags/{}/code'
 
             response = self.client.get(
