@@ -172,6 +172,29 @@ plugins =
 - Added optional project_id argument to DataflowCreatePythonJobOperator
     constructor.
 
+### GCSUploadSessionCompleteSensor signature change
+
+To provide more precise control in handling of changes to objects in
+underlying GCS Bucket the constructor of this sensor now has changed.
+
+- Old Behavior: This constructor used to optionally take ``previous_num_objects: int``.
+- New replacement constructor kwarg: ``previous_objects: Optional[Set[str]]``.
+
+Most users would not specify this argument because the bucket begins empty
+and the user wants to treat any files as new.
+
+Example of Updating usage of this sensor:
+Users who used to call:
+
+``GCSUploadSessionCompleteSensor(bucket='my_bucket', prefix='my_prefix', previous_num_objects=1)``
+
+Will now call:
+
+``GCSUploadSessionCompleteSensor(bucket='my_bucket', prefix='my_prefix', previous_num_objects={'.keep'})``
+
+Where '.keep' is a single file at your prefix that the sensor should not consider new.
+
+
 ### Rename pool statsd metrics
 
 Used slot has been renamed to running slot to make the name self-explanatory

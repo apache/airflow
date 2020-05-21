@@ -70,7 +70,7 @@ function setup_default_breeze_variables() {
 
     # We have different versions of images depending on the python version used. We keep up with the
     # Latest patch-level changes in Python (this is done automatically during CI builds) so we have
-    # To only take into account MAJOR and MINOR version of python. This variable keeps the major/mninor
+    # To only take into account MAJOR and MINOR version of python. This variable keeps the major/minor
     # version of python in X.Y format (3.6, 3.7 etc).
     export PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION:=$(read_from_file PYTHON_MAJOR_MINOR_VERSION)}"
 
@@ -161,7 +161,7 @@ function setup_default_breeze_variables() {
 
 # Initializes development-friendly virtualenv if you are already in such env. It installs all the necessary
 # packages from PyPI and it case of problems it provides useful hints on what prerequisites should be
-# installed. It also removes and resets the existing AIRFOW_HOME installation to make sure that you
+# installed. It also removes and resets the existing AIRFLOW_HOME installation to make sure that you
 # have it synchronized with the version of airflow installed. It resets the airflow's sqlite database to
 # a clean state. You can use this function if your virtualenv is broken, to clean it up
 function initialize_virtualenv() {
@@ -793,9 +793,26 @@ function parse_arguments() {
           export PUSH_IMAGES="true"
           export FORCE_BUILD_IMAGES="true"
           shift ;;
-        -S|--version-suffix)
-          export VERSION_SUFFIX="${2}"
-          echo "Dockerhub repo ${VERSION_SUFFIX}"
+        -S|--version-suffix-for-pypi)
+          if [[ ${VERSION_SUFFIX_FOR_SVN} != "" ]]; then
+              echo
+              echo "You can only set one version suffix - either for PyPI or for SVN"
+              echo
+              exit 1
+          fi
+          export VERSION_SUFFIX_FOR_PYPI="${2}"
+          echo "Version suffix for PyPI ${VERSION_SUFFIX_FOR_PYPI}"
+          echo
+          shift 2 ;;
+        -N|--version-suffix-for-svn)
+          if [[ ${VERSION_SUFFIX_FOR_PYPI} != "" ]]; then
+              echo
+              echo "You can only set one version suffix - either for PyPI or for SVN"
+              echo
+              exit 1
+          fi
+          export VERSION_SUFFIX_FOR_SVN="${2}"
+          echo "Version suffix for SVN ${VERSION_SUFFIX_FOR_SVN}"
           echo
           shift 2 ;;
         --)
@@ -864,9 +881,9 @@ function parse_arguments() {
           LAST_SUBCOMMAND="${1}"
           COMMAND_TO_RUN="perform_prepare_backport_packages"
           shift ;;
-        generate-backport-readme)
+        prepare-backport-readme)
           LAST_SUBCOMMAND="${1}"
-          COMMAND_TO_RUN="perform_generate_backport_readme"
+          COMMAND_TO_RUN="perform_prepare_backport_readme"
           shift ;;
         initialize-local-virtualenv)
           LAST_SUBCOMMAND="${1}"
@@ -1055,7 +1072,7 @@ function prepare_usage() {
     export USAGE_DOCKER_COMPOSE="Executes specified docker-compose command"
     export USAGE_EXECUTE_COMMAND="Executes specified command in the container"
     export USAGE_FLAGS="Shows all breeze's flags"
-    export USAGE_GENERATE_BACKPORT_README="Generates backport packages readme files"
+    export USAGE_PREPARE_BACKPORT_README="Prepares backport packages readme files"
     export USAGE_GENERATE_REQUIREMENTS="Generates pinned requirements for pip dependencies"
     export USAGE_INITIALIZE_LOCAL_VIRTUALENV="Initializes local virtualenv"
     export USAGE_SETUP_AUTOCOMPLETE="Sets up autocomplete for breeze"
@@ -1172,7 +1189,7 @@ $(flag_verbosity)
       Explains in detail all the flags that can be used with breeze.
 "
     # shellcheck disable=SC2089
-    DETAILED_USAGE_GENERATE_BACKPORT_README="
+    DETAILED_USAGE_PREPARE_BACKPORT_README="
       Prepares README.md files for backport packages. You can provide (after --) optional version
       in the form of YYYY.MM.DD, optionally followed by the list of packages to generate readme for.
       If the first parameter is not formatted as a date, then today is used as version.
@@ -1181,13 +1198,13 @@ $(flag_verbosity)
 
       Examples:
 
-      '${CMDNAME} generate-backport-readme' or
-      '${CMDNAME} generate-backport-readme -- 2020.05.10' or
-      '${CMDNAME} generate-backport-readme -- 2020.05.10 https google amazon'
+      '${CMDNAME} prepare-backport-readme' or
+      '${CMDNAME} prepare-backport-readme -- 2020.05.10' or
+      '${CMDNAME} prepare-backport-readme -- 2020.05.10 https google amazon'
 
       General form:
 
-      '${CMDNAME} generate-backport-readme -- YYYY.MM.DD <PACKAGE_ID> ...'
+      '${CMDNAME} prepare-backport-readme -- YYYY.MM.DD <PACKAGE_ID> ...'
 
       * YYYY.MM.DD - is the CALVER version of the package to prepare. Note that this date
         cannot be earlier than the already released version (the script will fail if it
@@ -1201,7 +1218,7 @@ Flags:
 $(flag_verbosity)
 "
     # shellcheck disable=SC2090
-    export DETAILED_USAGE_GENERATE_BACKPORT_README
+    export DETAILED_USAGE_PREPARE_BACKPORT_README
     DETAILED_USAGE_GENERATE_REQUIREMENTS="
       Generates pinned requirements from setup.py. Those requirements are generated in requirements
       directory - separately for different python version. Those requirements are used to run
@@ -1231,19 +1248,20 @@ $(flag_airflow_variants)
     DETAILED_USAGE_PREPARE_BACKPORT_PACKAGES="
       Builds backport packages. You can provide (after --) optional list of packages to prepare.
       If no packages are specified, readme for all packages are generated. You can specify optional
-      --version-suffix flag to generate rc candidates for the packages.
-
-      Make sure to set the right version in './backport_packages/setup_backport_packages.py'
+      --version-suffix-for-svn flag to generate rc candidate packages to upload to SVN or
+      --version-suffix-for-pypi flag to generate rc candidates for PyPI packages.
 
       Examples:
 
       '${CMDNAME} prepare-backport-packages' or
       '${CMDNAME} prepare-backport-packages -- google' or
-      '${CMDNAME} prepare-backport-packages --version-suffix rc1 -- http google amazon'
+      '${CMDNAME} prepare-backport-packages --version-suffix-for-svn rc1 -- http google amazon' or
+      '${CMDNAME} prepare-backport-packages --version-suffix-for-pypi rc1 -- http google amazon'
 
       General form:
 
-      '${CMDNAME} prepare-backport-packages -- <PACKAGE_ID> ...'
+      '${CMDNAME} prepare-backport-packages \\
+            [--version-suffix-for-svn|--version-suffix-for-pypi] -- <PACKAGE_ID> ...'
 
       * <PACKAGE_ID> is usually directory in the airflow/providers folder (for example
         'google'), but in several cases, it might be one level deeper separated with '.'
@@ -1629,9 +1647,13 @@ function flag_push_docker_images() {
 # Prints flags that control version of generated packages
 function flag_version_suffix() {
       echo "
--S, --version-suffix
-        Adds optional suffix to the generated backport package version. It can be used to generate
-        rc1/rc2 ... versions of the packages.
+-S, --version-suffix-for-pypi
+        Adds optional suffix to the version in the generated backport package. It can be used
+        to generate rc1/rc2 ... versions of the packages to be uploaded to PyPI.
+
+-N, --version-suffix-for-svn
+        Adds optional suffix to the generated names of package. It can be used to generate
+        rc1/rc2 ... versions of the packages to be uploaded to SVN.
 "
 }
 
@@ -1904,7 +1926,7 @@ function run_static_checks {
     fi
 }
 
-# Runs Build before a comman - it will check and if needed rebuild necessary image, depending on the
+# Runs Build before a command - it will check and if needed rebuild necessary image, depending on the
 # command chosen
 function run_build_command {
     case "${COMMAND_TO_RUN}" in
@@ -1920,7 +1942,7 @@ function run_build_command {
                 rebuild_ci_image_if_needed
             fi
             ;;
-        build_docs|perform_static_checks|perform_generate_requirements|perform_generate_backport_readme|perform_prepare_backport_packages)
+        build_docs|perform_static_checks|perform_generate_requirements|perform_prepare_backport_readme|perform_prepare_backport_packages)
             prepare_ci_build
             rebuild_ci_image_if_needed
             ;;
@@ -2022,8 +2044,8 @@ function run_breeze_command {
         perform_prepare_backport_packages)
             run_prepare_backport_packages "${@}"
             ;;
-        perform_generate_backport_readme)
-            run_generate_backport_readme "${@}"
+        perform_prepare_backport_readme)
+            run_prepare_backport_readme "${@}"
             ;;
         perform_initialize_local_virtualenv)
             initialize_virtualenv

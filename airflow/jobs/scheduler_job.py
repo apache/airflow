@@ -1013,8 +1013,6 @@ class SchedulerJob(BaseJob):
         self.do_pickle = do_pickle
         super().__init__(*args, **kwargs)
 
-        self.max_threads = conf.getint('scheduler', 'max_threads')
-
         if log:
             self._log = log
 
