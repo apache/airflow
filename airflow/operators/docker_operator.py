@@ -265,8 +265,8 @@ class DockerOperator(BaseOperator):
         # Pull the docker image if `force_pull` is set or image does not exist locally
         if self.force_pull or len(self.cli.images(name=self.image)) == 0:
             self.log.info('Pulling docker image %s', self.image)
-            for l in self.cli.pull(self.image, stream=True, decode=True):
-                output = json.loads(l.decode('utf-8').strip())
+            for line in self.cli.pull(self.image, stream=True, decode=True):
+                output = json.loads(line.decode('utf-8').strip())
                 if 'status' in output:
                     self.log.info("%s", output['status'])
 

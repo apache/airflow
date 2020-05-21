@@ -616,19 +616,19 @@ class Airflow(AirflowViewMixin, BaseView):
 
         LastDagRun = (
             session.query(DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('execution_date'))
-                .join(Dag, Dag.dag_id == DagRun.dag_id)
-                .filter(DagRun.state != State.RUNNING)
-                .filter(Dag.is_active == True)  # noqa: E712
-                .filter(Dag.is_subdag == False)  # noqa: E712
-                .group_by(DagRun.dag_id)
+            .join(Dag, Dag.dag_id == DagRun.dag_id)
+            .filter(DagRun.state != State.RUNNING)
+            .filter(Dag.is_active == True)  # noqa: E712
+            .filter(Dag.is_subdag == False)  # noqa: E712
+            .group_by(DagRun.dag_id)
         )
 
         RunningDagRun = (
             session.query(DagRun.dag_id, DagRun.execution_date)
-                .join(Dag, Dag.dag_id == DagRun.dag_id)
-                .filter(DagRun.state == State.RUNNING)
-                .filter(Dag.is_active == True)  # noqa: E712
-                .filter(Dag.is_subdag == False)  # noqa: E712
+            .join(Dag, Dag.dag_id == DagRun.dag_id)
+            .filter(DagRun.state == State.RUNNING)
+            .filter(Dag.is_active == True)  # noqa: E712
+            .filter(Dag.is_subdag == False)  # noqa: E712
         )
 
         if selected_dag_ids:

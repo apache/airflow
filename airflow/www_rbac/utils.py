@@ -17,8 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# flake8: noqa: E402
 from future import standard_library  # noqa
-standard_library.install_aliases()  # noqa
+standard_library.install_aliases()  # noqa: E402
 
 import functools
 import inspect
