@@ -17,6 +17,7 @@
 
 import mock
 
+from airflow import DAG
 from airflow.providers.google.cloud.operators.datafusion import (
     CloudDataFusionCreateInstanceOperator, CloudDataFusionCreatePipelineOperator,
     CloudDataFusionDeleteInstanceOperator, CloudDataFusionDeletePipelineOperator,
@@ -189,8 +190,9 @@ class TestCloudDataFusionStartPipelineOperator:
     @mock.patch(HOOK_STR)
     def test_execute(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = {"apiEndpoint": INSTANCE_URL}
+
         op = CloudDataFusionStartPipelineOperator(
-            task_id="test_taks",
+            task_id="test_task",
             pipeline_name=PIPELINE_NAME,
             instance_name=INSTANCE_NAME,
             namespace=NAMESPACE,
@@ -198,6 +200,8 @@ class TestCloudDataFusionStartPipelineOperator:
             project_id=PROJECT_ID,
             runtime_args=RUNTIME_ARGS
         )
+        op.dag = mock.MagicMock(spec=DAG, task_dict={}, dag_id="test")
+
         op.execute({})
         mock_hook.return_value.get_instance.assert_called_once_with(
             instance_name=INSTANCE_NAME, location=LOCATION, project_id=PROJECT_ID
@@ -207,7 +211,7 @@ class TestCloudDataFusionStartPipelineOperator:
             instance_url=INSTANCE_URL,
             pipeline_name=PIPELINE_NAME,
             namespace=NAMESPACE,
-            runtime_args=RUNTIME_ARGS
+            runtime_args=RUNTIME_ARGS,
         )
 
 
