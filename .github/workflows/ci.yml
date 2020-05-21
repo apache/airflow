@@ -22,9 +22,9 @@ on:
   schedule:
     - cron: '10 2 * * *'
   push:
-    branches: ['master', 'v1-10-test']
+    branches: ['master', 'v1-10-test', 'v1-10-stable']
   pull_request:
-    branches: ['master', 'v1-10-test']
+    branches: ['master', 'v1-10-test', 'v1-10-stable']
 env:
   MOUNT_LOCAL_SOURCES: "false"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
@@ -359,10 +359,9 @@ jobs:
       - build-prod-image
       - docs
     if: |
-      contains(['refs/heads/master', \
-                'refs/heads/v1-10-stable', \
-                'refs/heads/v1-10-test'], github.ref) \
-      && github.event_name != 'schedule'
+      (github.ref == 'refs/heads/master' ||
+      github.ref == 'refs/heads/v1-10-test' ) &&
+      github.event_name != 'schedule'
     strategy:
       matrix:
         python-version: [3.6, 3.7]
