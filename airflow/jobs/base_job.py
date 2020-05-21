@@ -147,7 +147,7 @@ class BaseJob(Base, LoggingMixin):
         Callback that is called during heartbeat. This method should be overwritten.
         """
 
-    def heartbeat(self, only_if_necessary=False):
+    def heartbeat(self, only_if_necessary: bool = False):
         """
         Heartbeats update the job's entry in the database with a timestamp
         for the latest_heartbeat and allows for the job to be killed
