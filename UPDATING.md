@@ -101,6 +101,30 @@ To maintain consistent behavior, both successful or skipped downstream task can 
 `wait_for_downstream=True` flag.
 
 
+### Use DagRunType.SCHEDULED.value instead of DagRun.ID_PREFIX
+
+All the run_id prefixes for different kind of DagRuns have been grouped into a single
+enum in `airflow.utils.types.DagRunType`.
+
+Previously, there were defined in various places, example as `ID_PREFIX` class variables for
+`DagRun`, `BackfillJob` and in `_trigger_dag` function.
+
+Was:
+
+```python
+>> from airflow.models.dagrun import DagRun
+>> DagRun.ID_PREFIX
+scheduled__
+```
+
+Replaced by:
+
+```python
+>> from airflow.utils.types import DagRunType
+>> DagRunType.SCHEDULED.value
+scheduled
+```
+
 ### Ability to patch Pool.DEFAULT_POOL_NAME in BaseOperator
 It was not possible to patch pool in BaseOperator as the signature sets the default value of pool
 as Pool.DEFAULT_POOL_NAME.

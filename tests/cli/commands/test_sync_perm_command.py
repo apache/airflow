@@ -23,7 +23,6 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import sync_perm_command
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
-from airflow.settings import Session
 
 
 class TestCliSyncPerm(unittest.TestCase):
@@ -34,7 +33,7 @@ class TestCliSyncPerm(unittest.TestCase):
 
     def setUp(self):
         from airflow.www import app as application
-        self.app, self.appbuilder = application.create_app(session=Session, testing=True)
+        self.app, self.appbuilder = application.create_app(testing=True)
 
     @mock.patch("airflow.cli.commands.sync_perm_command.DagBag")
     def test_cli_sync_perm(self, dagbag_mock):

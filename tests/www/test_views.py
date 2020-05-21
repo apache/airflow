@@ -114,11 +114,11 @@ class TemplateWithContext(NamedTuple):
 class TestBase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.app, cls.appbuilder = application.create_app(session=Session, testing=True)
+        settings.configure_orm()
+        cls.session = settings.Session
+        cls.app, cls.appbuilder = application.create_app(testing=True)
         cls.app.config['WTF_CSRF_ENABLED'] = False
         cls.app.jinja_env.undefined = jinja2.StrictUndefined
-        settings.configure_orm()
-        cls.session = Session
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -363,7 +363,7 @@ class TestMountPoint(unittest.TestCase):
     def setUpClass(cls):
         application.app = None
         application.appbuilder = None
-        app = application.cached_app(config={'WTF_CSRF_ENABLED': False}, session=Session, testing=True)
+        app = application.cached_app(config={'WTF_CSRF_ENABLED': False}, testing=True)
         cls.client = Client(app, BaseResponse)
 
     @classmethod
@@ -428,7 +428,7 @@ class TestAirflowBaseViews(TestBase):
             state=State.RUNNING)
 
     def test_index(self):
-        with assert_queries_count(5):
+        with assert_queries_count(37):
             resp = self.client.get('/', follow_redirects=True)
         self.check_content_in_response('DAGs', resp)
 
@@ -1043,7 +1043,7 @@ class TestLogView(TestBase):
         sys.path.append(self.settings_folder)
 
         with conf_vars({('logging', 'logging_config_class'): 'airflow_local_settings.LOGGING_CONFIG'}):
-            self.app, self.appbuilder = application.create_app(session=Session, testing=True)
+            self.app, self.appbuilder = application.create_app(testing=True)
             self.app.config['WTF_CSRF_ENABLED'] = False
             self.client = self.app.test_client()
             settings.configure_orm()
