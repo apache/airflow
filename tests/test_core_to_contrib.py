@@ -1774,10 +1774,9 @@ class TestMovingCoreToContrib(TestCase):
             self.assert_warning(new_path, warning_msg)
 
     def skip_test_with_mssql_in_py38(self, path_a="", path_b=""):
-        if not PY38:
-            return False
-        if "mssql" in path_a or "mssql" in path_b:
-            raise self.skipTest("Mssql package not avaible when Python >= 3.8.")
+        if PY38:
+            if "mssql" in path_a or "mssql" in path_b:
+                raise self.skipTest("Mssql package not avaible when Python >= 3.8.")
 
     @staticmethod
     def get_class_from_path(path_to_class, parent=False):
