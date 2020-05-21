@@ -104,6 +104,13 @@ def has_dag_access(**dag_kwargs):
         def wrapper(self, *args, **kwargs):
             has_access = self.appbuilder.sm.has_access
             dag_id = request.values.get('dag_id')
+            if not dag_id:
+                # /taskinstance/list UI page passes the dag_id in rowid parameter.
+                rowid = request.values.get('rowid')
+                if rowid:
+                    # UI passes dag_id as a second value in the rowid parameter.
+                    # e.g. rowid = ["task_id", "dag_id"]
+                    dag_id = rowid.strip('][').split(', ')[1].strip('"')
             # if it is false, we need to check whether user has write access on the dag
             can_dag_edit = dag_kwargs.get('can_dag_edit', False)
 
