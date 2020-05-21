@@ -23,7 +23,10 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import unittest
+import six
+from tests.compat import mock
 
+import pkg_resources
 
 from airflow.www_rbac import app as application
 
@@ -71,3 +74,27 @@ class PluginsTestRBAC(unittest.TestCase):
         # Blueprint should be present in the app
         self.assertTrue('test_plugin' in self.app.blueprints)
         self.assertEqual(self.app.blueprints['test_plugin'].name, bp.name)
+
+    @unittest.skipIf(six.PY2, 'self.assertLogs not available for Python 2')
+    @mock.patch('pkg_resources.iter_entry_points')
+    def test_entrypoint_plugin_errors_dont_raise_exceptions(self, mock_ep_plugins):
+        """
+        Test that Airflow does not raise an Error if there is any Exception because of the
+        Plugin.
+        """
+        from airflow.plugins_manager import load_entrypoint_plugins, import_errors
+
+        mock_entrypoint = mock.Mock()
+        mock_entrypoint.name = 'test-entrypoint'
+        mock_entrypoint.module_name = 'test.plugins.test_plugins_manager'
+        mock_entrypoint.load.side_effect = Exception('Version Conflict')
+        mock_ep_plugins.return_value = [mock_entrypoint]
+
+        with self.assertLogs("airflow.plugins_manager", level="ERROR") as log_output:
+            load_entrypoint_plugins(pkg_resources.iter_entry_points('airflow.plugins'), [])
+            received_logs = log_output.output[0]
+            # Assert Traceback is shown too
+            assert "Traceback (most recent call last):" in received_logs
+            assert "Version Conflict" in received_logs
+            assert "Failed to import plugin test-entrypoint" in received_logs
+            assert ('test.plugins.test_plugins_manager', 'Version Conflict') in import_errors.items()
