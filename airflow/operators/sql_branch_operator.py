@@ -16,7 +16,7 @@
 # under the License.
 
 from distutils.util import strtobool
-from typing import Dict, Iterable, Mapping, Optional, Union
+from typing import Dict, Iterable, List, Mapping, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -54,13 +54,14 @@ class BranchSqlOperator(BaseOperator, SkipMixin):
     template_fields = ("sql",)
     template_ext = (".sql",)
     ui_color = "#a22034"
+    ui_fgcolor = "#F7F7F7"
 
     @apply_defaults
     def __init__(
         self,
         sql: str,
-        follow_task_ids_if_true: str,
-        follow_task_ids_if_false: str,
+        follow_task_ids_if_true: List[str],
+        follow_task_ids_if_false: List[str],
         conn_id: str = "default_conn_id",
         database: Optional[str] = None,
         parameters: Optional[Union[Mapping, Iterable]] = None,
@@ -130,7 +131,7 @@ class BranchSqlOperator(BaseOperator, SkipMixin):
             self.parameters,
             self._hook,
         )
-        records = self._hook.get_records(self.sql, self.parameters)
+        records = self._hook.get_first(self.sql, self.parameters)
         if not records:
             raise AirflowException(
                 "No rows returned from sql query. Operator expected True or False return value."

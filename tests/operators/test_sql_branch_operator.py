@@ -198,7 +198,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
 
         mock_hook.get_connection("mysql_default").conn_type = "mysql"
         mock_get_records = (
-            mock_hook.get_connection.return_value.get_hook.return_value.get_records
+            mock_hook.get_connection.return_value.get_hook.return_value.get_first
         )
 
         for true_value in SUPPORTED_TRUE_VALUES:
@@ -242,7 +242,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
 
         mock_hook.get_connection("mysql_default").conn_type = "mysql"
         mock_get_records = (
-            mock_hook.get_connection.return_value.get_hook.return_value.get_records
+            mock_hook.get_connection.return_value.get_hook.return_value.get_first
         )
 
         for false_value in SUPPORTED_FALSE_VALUES:
@@ -288,7 +288,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
 
         mock_hook.get_connection("mysql_default").conn_type = "mysql"
         mock_get_records = (
-            mock_hook.get_connection.return_value.get_hook.return_value.get_records
+            mock_hook.get_connection.return_value.get_hook.return_value.get_first
         )
         mock_get_records.return_value = [["1"]]
 
@@ -332,7 +332,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
 
         mock_hook.get_connection("mysql_default").conn_type = "mysql"
         mock_get_records = (
-            mock_hook.get_connection.return_value.get_hook.return_value.get_records
+            mock_hook.get_connection.return_value.get_hook.return_value.get_first
         )
 
         mock_get_records.return_value = ["Invalid Value"]
@@ -365,7 +365,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
 
         mock_hook.get_connection("mysql_default").conn_type = "mysql"
         mock_get_records = (
-            mock_hook.get_connection.return_value.get_hook.return_value.get_records
+            mock_hook.get_connection.return_value.get_hook.return_value.get_first
         )
 
         for true_value in SUPPORTED_TRUE_VALUES:
@@ -409,7 +409,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
 
         mock_hook.get_connection("mysql_default").conn_type = "mysql"
         mock_get_records = (
-            mock_hook.get_connection.return_value.get_hook.return_value.get_records
+            mock_hook.get_connection.return_value.get_hook.return_value.get_first
         )
 
         for false_value in SUPPORTED_FALSE_VALUES:
