@@ -76,6 +76,8 @@ Fundamentals
    * - :mod:`airflow.operators.subdag_operator`
      -
 
+   * - :mod:`airflow.operators.sql_branch_operator`
+     -
 **Sensors:**
 
 .. list-table::
