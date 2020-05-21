@@ -23,7 +23,6 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import sync_perm_command
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
-from airflow.settings import Session
 
 
 class TestCliSyncPerm(unittest.TestCase):

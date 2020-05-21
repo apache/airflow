@@ -23,7 +23,6 @@ from contextlib import redirect_stdout
 from airflow import models
 from airflow.cli import cli_parser
 from airflow.cli.commands import role_command
-from airflow.settings import Session
 
 TEST_USER1_EMAIL = 'test-user1@example.com'
 TEST_USER2_EMAIL = 'test-user2@example.com'

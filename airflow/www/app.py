@@ -98,12 +98,12 @@ def create_app(config=None, testing=False, app_name="Airflow"):
 
         class AirflowAppBuilder(AppBuilder):
 
-            def add_view(self, baseview, *args, **kwargs):
+            def _check_and_init(self, baseview):
                 if hasattr(baseview, 'datamodel'):
                     # Delete sessions if initiated previously to limit side effects. We want to use
                     # the current session in the current application.
                     baseview.datamodel.session = None
-                return super().add_view(baseview, *args, **kwargs)
+                return super()._check_and_init(baseview)
 
         appbuilder = AirflowAppBuilder(
             app=app,
