@@ -79,7 +79,7 @@ start_output_heartbeat "Loading image to Kind cluster" 10
 echo
 echo "Loading the ${AIRFLOW_KUBERNETES_IMAGE} to cluster ${CLUSTER_NAME} from docker"
 echo
-kind load docker-image --name "${CLUSTER_NAME}" "${AIRFLOW_KUBERNETES_IMAGE}"
+kind load docker-image --name "${CLUSTER_NAME}" "${AIRFLOW_KUBERNETES_IMAGE}" -v 1
 echo
 echo "Loaded the ${AIRFLOW_KUBERNETES_IMAGE} to cluster ${CLUSTER_NAME}"
 echo
