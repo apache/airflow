@@ -1182,7 +1182,7 @@ class CliTests(unittest.TestCase):
             stdout = mock_stdout.getvalue()
 
         # Check list attempt stdout
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        lines = [line for line in stdout.split('\n') if len(line) > 0]
         self.assertListEqual(lines, [
             ("\tThe following args are not compatible with the " +
              "--list flag: ['conn_id', 'conn_uri', 'conn_extra', " +
@@ -1225,7 +1225,7 @@ class CliTests(unittest.TestCase):
             stdout = mock_stdout.getvalue()
 
         # Check addition stdout
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        lines = [line for line in stdout.split('\n') if len(line) > 0]
         self.assertListEqual(lines, [
             ("\tSuccessfully added `conn_id`=new1 : " +
              "postgresql://airflow:airflow@host:5432/airflow"),
@@ -1250,7 +1250,7 @@ class CliTests(unittest.TestCase):
             stdout = mock_stdout.getvalue()
 
         # Check stdout for addition attempt
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        lines = [line for line in stdout.split('\n') if len(line) > 0]
         self.assertListEqual(lines, [
             "\tA connection with `conn_id`=new1 already exists",
         ])
@@ -1263,7 +1263,7 @@ class CliTests(unittest.TestCase):
             stdout = mock_stdout.getvalue()
 
         # Check stdout for addition attempt
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        lines = [line for line in stdout.split('\n') if len(line) > 0]
         self.assertListEqual(lines, [
             ("\tThe following args are required to add a connection:" +
              " ['conn_id']"),
@@ -1277,7 +1277,7 @@ class CliTests(unittest.TestCase):
             stdout = mock_stdout.getvalue()
 
         # Check stdout for addition attempt
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        lines = [line for line in stdout.split('\n') if len(line) > 0]
         self.assertListEqual(lines, [
             ("\tThe following args are required to add a connection:" +
              " ['conn_uri or conn_type']"),
@@ -1327,7 +1327,7 @@ class CliTests(unittest.TestCase):
             stdout = mock_stdout.getvalue()
 
         # Check deletion stdout
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        lines = [line for line in stdout.split('\n') if len(line) > 0]
         self.assertListEqual(lines, [
             "\tSuccessfully deleted `conn_id`=new1",
             "\tSuccessfully deleted `conn_id`=new2",
@@ -1354,7 +1354,7 @@ class CliTests(unittest.TestCase):
             stdout = mock_stdout.getvalue()
 
         # Check deletion attempt stdout
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        lines = [line for line in stdout.split('\n') if len(line) > 0]
         self.assertListEqual(lines, [
             "\tDid not find a connection with `conn_id`=fake",
         ])
@@ -1368,7 +1368,7 @@ class CliTests(unittest.TestCase):
             stdout = mock_stdout.getvalue()
 
         # Check deletion attempt stdout
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        lines = [line for line in stdout.split('\n') if len(line) > 0]
         self.assertListEqual(lines, [
             ("\tThe following args are not compatible with the " +
              "--delete flag: ['conn_uri', 'conn_type']"),
