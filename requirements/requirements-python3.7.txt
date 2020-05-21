@@ -45,7 +45,7 @@ apispec==1.3.3
 appdirs==1.4.4
 argcomplete==1.11.1
 asn1crypto==1.3.0
-astroid==2.3.3
+astroid==2.4.1
 async-generator==1.10
 async-timeout==3.0.1
 atlasclient==1.0.0
@@ -72,9 +72,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.3.0
 black==19.10b0
 blinker==1.4
-boto3==1.13.14
+boto3==1.13.15
 boto==2.49.0
-botocore==1.16.14
+botocore==1.16.15
 bowler==0.8.0
 cached-property==1.5.1
 cachetools==4.1.0
@@ -147,7 +147,7 @@ google-cloud-bigquery==1.24.0
 google-cloud-bigtable==1.2.1
 google-cloud-container==0.5.0
 google-cloud-core==1.3.0
-google-cloud-datacatalog==0.8.0
+google-cloud-datacatalog==0.7.0
 google-cloud-dataproc==0.8.0
 google-cloud-dlp==0.15.0
 google-cloud-kms==1.4.0
@@ -372,7 +372,7 @@ virtualenv==20.0.21
 watchtower==0.7.3
 wcwidth==0.1.9
 websocket-client==0.57.0
-wrapt==1.11.2
+wrapt==1.12.1
 xmltodict==0.12.0
 yamllint==1.23.0
 yandexcloud==0.38.0
