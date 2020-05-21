@@ -86,6 +86,8 @@ All operators are in the following packages:
 
   airflow/providers/apache/hive/transfers/index
 
+  airflow/providers/apache/kylin/operators/index
+
   airflow/providers/apache/livy/operators/index
 
   airflow/providers/apache/livy/sensors/index
@@ -244,6 +246,8 @@ All hooks are in the following packages:
   airflow/providers/apache/hdfs/hooks/index
 
   airflow/providers/apache/hive/hooks/index
+
+  airflow/providers/apache/kylin/hooks/index
 
   airflow/providers/apache/livy/hooks/index
 
