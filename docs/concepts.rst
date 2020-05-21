@@ -124,7 +124,7 @@ Functional DAGs
 
 DAGs can be defined using functional abstractions. Outputs and inputs are sent between tasks using
 :ref:`XComs <concepts:xcom>` values. In addition, you can wrap functions as tasks using the
-:ref:`operator decorator <concepts:operator_decorator>`. Dependencies are automatically inferred from
+:ref:`task decorator <concepts:task_decorator>`. Dependencies are automatically inferred from
 the message dependencies.
 
 Example DAG with functional abstraction
@@ -140,7 +140,7 @@ Example DAG with functional abstraction
         task_id='get_ip', endpoint='get', method='GET', xcom_push=True
     )
 
-    @dag.operator(multiple_outputs=True)
+    @dag.task(multiple_outputs=True)
     def prepare_email(raw_json: str) -> str:
       external_ip = json.loads(raw_json)['origin']
       return {
@@ -214,30 +214,30 @@ Each task is a node in our DAG, and there is a dependency from task_1 to task_2:
 We can say that task_1 is *upstream* of task_2, and conversely task_2 is *downstream* of task_1.
 When a DAG Run is created, task_1 will start running and task_2 waits for task_1 to complete successfully before it may start.
 
-.. _concepts:operator_decorator:
+.. _concepts:task_decorator:
 
-Python operator decorator
--------------------------
+Python task decorator
+---------------------
 *Added in Airflow 1.10.11*
 
 
-Airflow ``operator`` decorator converts any Python decorated function to a Python Airflow operator.
+Airflow ``task`` decorator converts any Python decorated function to a Python Airflow operator.
 The decorated function can be called to set the arguments and key arguments for operator execution.
 
 .. code:: python
 
   with DAG('my_dag', start_date=datetime(2020, 5, 15)) as dag:
 
-    @dag.operator
+    @dag.task
     def hello_world():
       print('hello world!')
 
 
     # Also...
 
-    from airflow import operator
+    from airflow.decorators import task
 
-    @operator
+    @task
     def hello_name(name: str):
       print(f'hello {name}!')
 

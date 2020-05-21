@@ -36,7 +36,8 @@ from airflow.models.taskinstance import clear_task_instances
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import (
-    BranchPythonOperator, operator, PythonOperator, PythonVirtualenvOperator, ShortCircuitOperator,
+    BranchPythonOperator, PythonOperator, PythonVirtualenvOperator, ShortCircuitOperator,
+    task as task_decorator,
 )
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -363,7 +364,7 @@ class TestAirflowTask(unittest.TestCase):
         the python_callable argument is callable."""
         not_callable = {}
         with pytest.raises(AirflowException):
-            operator(not_callable, dag=self.dag)
+            task_decorator(not_callable, dag=self.dag)
 
     def test_python_callable_arguments_are_templatized(self):
         """Test @task op_args are templatized"""
@@ -374,7 +375,7 @@ class TestAirflowTask(unittest.TestCase):
         Named = namedtuple('Named', ['var1', 'var2'])
         named_tuple = Named('{{ ds }}', 'unchanged')
 
-        task = operator(
+        task = task_decorator(
             # a Mock instance cannot be used as a callable function or test fails with a
             # TypeError: Object of type Mock is not JSON serializable
             build_recording_function(recorded_calls),
@@ -403,7 +404,7 @@ class TestAirflowTask(unittest.TestCase):
         """Test PythonOperator op_kwargs are templatized"""
         recorded_calls = []
 
-        task = operator(
+        task = task_decorator(
             # a Mock instance cannot be used as a callable function or test fails with a
             # TypeError: Object of type Mock is not JSON serializable
             build_recording_function(recorded_calls),
@@ -430,7 +431,7 @@ class TestAirflowTask(unittest.TestCase):
     def test_copy_in_dag(self):
         """Test copy method to reuse tasks in a DAG"""
 
-        @operator
+        @task_decorator
         def do_run():
             return 4
         with self.dag:
@@ -443,7 +444,7 @@ class TestAirflowTask(unittest.TestCase):
 
     def test_copy(self):
         """Test copy method outside of a DAG"""
-        @operator
+        @task_decorator
         def do_run():
             return 4
         do_run_1 = do_run.copy()
@@ -460,7 +461,7 @@ class TestAirflowTask(unittest.TestCase):
     def test_dict_outputs(self):
         """Tests pushing multiple outputs as a dictionary"""
 
-        @operator(multiple_outputs=True)
+        @task_decorator(multiple_outputs=True)
         def return_dict(number: int):
             return {
                 'number': number + 1,
@@ -488,7 +489,7 @@ class TestAirflowTask(unittest.TestCase):
     def test_tuple_outputs(self):
         """Tests pushing multiple outputs as tuple"""
 
-        @operator(multiple_outputs=True)
+        @task_decorator(multiple_outputs=True)
         def return_tuple(number: int):
             return number + 1, 43
 
@@ -513,7 +514,7 @@ class TestAirflowTask(unittest.TestCase):
     def test_list_outputs(self):
         """Tests pushing multiple outputs as list"""
 
-        @operator(multiple_outputs=True)
+        @task_decorator(multiple_outputs=True)
         def return_tuple(number: int):
             return [number + 1, 43]
 
@@ -538,11 +539,11 @@ class TestAirflowTask(unittest.TestCase):
     def test_xcom_arg(self):
         """Tests that returned key in XComArg is returned correctly"""
 
-        @operator
+        @task_decorator
         def add_2(number: int):
             return number + 2
 
-        @operator
+        @task_decorator
         def add_num(number: int, num2: int = 2):
             return number + num2
 
@@ -568,7 +569,7 @@ class TestAirflowTask(unittest.TestCase):
     def test_dag_task(self):
         """Tests dag.task property to generate task"""
 
-        @self.dag.operator
+        @self.dag.task
         def add_2(number: int):
             return number + 2
 
@@ -590,7 +591,7 @@ class TestAirflowTask(unittest.TestCase):
     def test_dag_task_multiple_outputs(self):
         """Tests dag.task property to generate task with multiple outputs"""
 
-        @self.dag.operator(multiple_outputs=True)
+        @self.dag.task(multiple_outputs=True)
         def add_2(number: int):
             return number + 2, 42
 
@@ -613,9 +614,9 @@ class TestAirflowTask(unittest.TestCase):
 
     def test_airflow_task(self):
         """Tests airflow.task decorator to generate task"""
-        from airflow import operator
+        from airflow.decorators import task
 
-        @operator
+        @task
         def add_2(number: int):
             return number + 2
 

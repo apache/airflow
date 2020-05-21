@@ -188,7 +188,7 @@ class _PythonFunctionalOperator(BaseOperator):
             kwargs['task_id'] = f'{prefix}__{num}'
 
         if not kwargs.get('do_xcom_push', True) and not multiple_outputs:
-            raise AirflowException('@operator needs to have either do_xcom_push=True or '
+            raise AirflowException('@task needs to have either do_xcom_push=True or '
                                    'multiple_outputs=True.')
         if not callable(python_callable):
             raise AirflowException('`python_callable` param must be callable')
@@ -204,12 +204,12 @@ class _PythonFunctionalOperator(BaseOperator):
     @staticmethod
     def _fail_if_method(python_callable):
         if 'self' in signature(python_callable).parameters.keys():
-            raise AirflowException('@operator does not support methods')
+            raise AirflowException('@task does not support methods')
 
     def __call__(self, *args, **kwargs):
         # If args/kwargs are set, then operator has been called. Raise exception
         if self._called:
-            raise AirflowException('@operator decorated functions can only be called once. If you need to reuse '
+            raise AirflowException('@task decorated functions can only be called once. If you need to reuse '
                                    'it several times in a DAG, use the `copy` method.')
 
         # If we have no DAG, reinitialize class to capture DAGContext and DAG default args.
@@ -255,7 +255,7 @@ class _PythonFunctionalOperator(BaseOperator):
         return return_value
 
 
-def operator(python_callable: Optional[Callable] = None, **kwargs):
+def task(python_callable: Optional[Callable] = None, **kwargs):
     """
     Python operator decorator. Wraps a function into an Airflow operator.
     Accepts kwargs for operator kwarg. Will try to wrap operator into DAG at declaration or
@@ -278,7 +278,7 @@ def operator(python_callable: Optional[Callable] = None, **kwargs):
     if callable(python_callable):
         return wrapper(python_callable)
     elif python_callable is not None:
-        raise AirflowException('No args allowed while using @operator, use kwargs instead')
+        raise AirflowException('No args allowed while using @task, use kwargs instead')
     return wrapper
 
 

@@ -36,7 +36,7 @@ from airflow import version
 
 __version__ = version.version
 
-__all__ = ['__version__', 'login', 'DAG', 'operator']
+__all__ = ['__version__', 'login', 'DAG']
 
 settings.initialize()
 
@@ -54,9 +54,6 @@ def __getattr__(name):
     if name == "AirflowException":
         from airflow.exceptions import AirflowException  # pylint: disable=redefined-outer-name
         return AirflowException
-    if name == "operator":
-        from airflow.operators.python import operator  # pylint: disable=redefined-outer-name
-        return operator
     raise AttributeError(f"module {__name__} has no attribute {name}")
 
 
@@ -68,7 +65,6 @@ globals()['kcah_acitats'[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
     from airflow.models.dag import DAG
     from airflow.exceptions import AirflowException
-    from airflow.operators.python import operator
 
 
 if not PY37:
