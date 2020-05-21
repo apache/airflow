@@ -565,6 +565,7 @@ User can preserve/achieve the original behaviour by setting every downstream tas
 because downstream tasks with trigger_rule all_success (i.e. the default) are skipped 
 when upstream task is skipped.
 
+
 #### BaseOperator uses metaclass
 
 `BaseOperator` class uses a `BaseOperatorMeta` as a metaclass. This meta class is based on
