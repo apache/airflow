@@ -186,7 +186,7 @@ class _PythonFunctionalOperator(BaseOperator):
         self._op_kwargs: Dict[str, Any] = {}
 
     @staticmethod
-    def _get_unique_task_id(task_id, dag):
+    def _get_unique_task_id(task_id: str, dag: DAG) -> str:
         dag = dag or DagContext.get_current_dag()
         if not dag or task_id not in dag.task_ids:
             return task_id
@@ -203,7 +203,7 @@ class _PythonFunctionalOperator(BaseOperator):
     @staticmethod
     def _validate_python_callable(python_callable):
         if not callable(python_callable):
-            raise AirflowException('`python_callable` param must be callable')
+            raise TypeError('`python_callable` param must be callable')
         if 'self' in signature(python_callable).parameters.keys():
             raise AirflowException('@task does not support methods')
 
@@ -275,7 +275,8 @@ def task(python_callable: Optional[Callable] = None, **kwargs):
 
     """
     def wrapper(f):
-        """Python wrapper to generate PythonFunctionalOperator out of simple python functions.
+        """
+        Python wrapper to generate PythonFunctionalOperator out of simple python functions.
         Used for Airflow functional interface
         """
         return _PythonFunctionalOperator(python_callable=f, task_id=f.__name__, **kwargs)

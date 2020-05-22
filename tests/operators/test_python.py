@@ -315,7 +315,7 @@ class TestPythonOperator(TestPythonBase):
         python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
 
-class TestAirflowTask(unittest.TestCase):
+class TestAirflowTaskDecorator(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
