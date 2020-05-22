@@ -562,9 +562,8 @@ class TestAirflowTask(unittest.TestCase):
 
         add_2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         add_num.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        ti = dr.get_task_instances()[1]
-        assert ti.task_id == 'add_num'
-        assert ti.xcom_pull(key=ret.key) == (test_number + 2) * 2  # pylint: disable=maybe-no-member
+        ti_add_num = [ti for ti in dr.get_task_instances() if ti.task_id == 'add_num'][0]
+        assert ti_add_num.xcom_pull(key=ret.key) == (test_number + 2) * 2  # pylint: disable=maybe-no-member
 
     def test_dag_task(self):
         """Tests dag.task property to generate task"""
