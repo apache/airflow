@@ -16,6 +16,7 @@
 # under the License.
 
 """Hook for HashiCorp Vault"""
+import json
 from typing import Optional, Tuple
 
 import hvac
@@ -47,6 +48,8 @@ class VaultHook(BaseHook):
 
     The extras in the connection are named the same as the parameters ('kv_engine_version', 'auth_type', ...).
 
+    You can also use gcp_keyfile_dict extra to pass json-formatted dict in case of 'gcp' authentication.
+
     The URL schemas supported are "vault", "http" (using http to connect to the vault) or
     "vaults" and "https" (using https to connect to the vault).
 
@@ -62,18 +65,24 @@ class VaultHook(BaseHook):
         * approle: password -> secret_id
         * github: password -> token
         * token: password -> token
+        * aws_iam: login -> key_id, password -> secret_id
+        * azure: login -> client_id, password -> client_secret
         * ldap: login -> username,   password -> password
         * userpass: login -> username, password -> password
+        * radius: password -> radius_secret
 
     :param vault_conn_id: The id of the connection to use
     :type vault_conn_id: str
     :param auth_type: Authentication Type for the Vault. Default is ``token``. Available values are:
         ('approle', 'github', 'gcp', 'kubernetes', 'ldap', 'token', 'userpass')
     :type auth_type: str
+    :param auth_mount_point: It can be used to define mount_point for authentication chosen
+          Default depends on the authentication method used.
+    :type auth_mount_point: str
     :param kv_engine_version: Select the version of the engine to run (``1`` or ``2``). Defaults to
           version defined in connection or ``2`` if not defined in connection.
     :type kv_engine_version: int
-    :param role_id: Role ID for Authentication (for ``approle`` auth_type)
+    :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` auth_types)
     :type role_id: str
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type)
     :type kubernetes_role: str
@@ -81,27 +90,45 @@ class VaultHook(BaseHook):
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``)
     :type kubernetes_jwt_path: str
     :param gcp_key_path: Path to GCP Credential JSON file (for ``gcp`` auth_type)
+           Mutually exclusive with gcp_keyfile_dict
     :type gcp_key_path: str
     :param gcp_scopes: Comma-separated string containing GCP scopes (for ``gcp`` auth_type)
     :type gcp_scopes: str
+    :param azure_tenant_id: The tenant id for the Azure Active Directory (for ``azure`` auth_type)
+    :type azure_tenant_id: str
+    :param azure_resource: The configured URL for the application registered in Azure Active Directory
+           (for ``azure`` auth_type)
+    :type azure_resource: str
+    :param radius_host: Host for radius (for ``radius`` auth_type)
+    :type radius_host: str
+    :param radius_port: Port for radius (for ``radius`` auth_type)
+    :type radius_port: int
 
     """
     def __init__(  # pylint: disable=too-many-arguments
         self,
         vault_conn_id: str,
         auth_type: Optional[str] = None,
+        auth_mount_point: Optional[str] = None,
         kv_engine_version: Optional[int] = None,
         role_id: Optional[str] = None,
         kubernetes_role: Optional[str] = None,
         kubernetes_jwt_path: Optional[str] = None,
         gcp_key_path: Optional[str] = None,
         gcp_scopes: Optional[str] = None,
+        azure_tenant_id: Optional[str] = None,
+        azure_resource: Optional[str] = None,
+        radius_host: Optional[str] = None,
+        radius_port: Optional[int] = None
     ):
         super().__init__()
         self.connection = self.get_connection(vault_conn_id)
 
         if not auth_type:
             auth_type = self.connection.extra_dejson.get('auth_type') or "token"
+
+        if not auth_mount_point:
+            auth_mount_point = self.connection.extra_dejson.get('auth_mount_point')
 
         if not kv_engine_version:
             conn_version = self.connection.extra_dejson.get("kv_engine_version")
@@ -110,16 +137,21 @@ class VaultHook(BaseHook):
             except ValueError:
                 raise VaultError(f"The version is not an int: {conn_version}. ")
 
-        if auth_type in ["approle"]:
+        if auth_type in ["approle", "aws_iam"]:
             if not role_id:
                 role_id = self.connection.extra_dejson.get('role_id')
 
-        gcp_key_path, gcp_scopes = \
+        azure_resource, azure_tenant_id = \
+            self._get_azure_parameters_from_connection(azure_resource, azure_tenant_id) \
+            if auth_type == 'azure' else (None, None)
+        gcp_key_path, gcp_keyfile_dict, gcp_scopes = \
             self._get_gcp_parameters_from_connection(gcp_key_path, gcp_scopes) \
-            if auth_type == 'gcp' else (None, None)
+            if auth_type == 'gcp' else (None, None, None)
         kubernetes_jwt_path, kubernetes_role = \
             self._get_kubernetes_parameters_from_connection(kubernetes_jwt_path, kubernetes_role) \
             if auth_type == 'kubernetes' else (None, None)
+        radius_host, radius_port = self._get_radius_parameters_from_connection(radius_host, radius_port) \
+            if auth_type == 'radius' else (None, None)
 
         if self.connection.conn_type == 'vault':
             conn_protocol = 'http'
@@ -142,17 +174,25 @@ class VaultHook(BaseHook):
         self.vault_client = _VaultClient(
             url=url,
             auth_type=auth_type,
+            auth_mount_point=auth_mount_point,
             mount_point=mount_point,
             kv_engine_version=kv_engine_version,
             token=self.connection.password,
             username=self.connection.login,
             password=self.connection.password,
+            key_id=self.connection.login,
             secret_id=self.connection.password,
             role_id=role_id,
             kubernetes_role=kubernetes_role,
             kubernetes_jwt_path=kubernetes_jwt_path,
             gcp_key_path=gcp_key_path,
+            gcp_keyfile_dict=gcp_keyfile_dict,
             gcp_scopes=gcp_scopes,
+            azure_tenant_id=azure_tenant_id,
+            azure_resource=azure_resource,
+            radius_host=radius_host,
+            radius_secret=self.connection.password,
+            radius_port=radius_port
         )
 
     def _get_kubernetes_parameters_from_connection(
@@ -170,12 +210,37 @@ class VaultHook(BaseHook):
         self,
         gcp_key_path: Optional[str],
         gcp_scopes: Optional[str],
-    ) -> Tuple[Optional[str], Optional[str]]:
+    ) -> Tuple[Optional[str], Optional[dict], Optional[str]]:
         if not gcp_scopes:
             gcp_scopes = self.connection.extra_dejson.get("gcp_scopes")
         if not gcp_key_path:
             gcp_key_path = self.connection.extra_dejson.get("gcp_key_path")
-        return gcp_key_path, gcp_scopes
+        string_keyfile_dict = self.connection.extra_dejson.get("gcp_keyfile_dict")
+        gcp_keyfile_dict = json.loads(string_keyfile_dict) if string_keyfile_dict else None
+        return gcp_key_path, gcp_keyfile_dict, gcp_scopes
+
+    def _get_azure_parameters_from_connection(
+        self, azure_resource: Optional[str], azure_tenant_id: Optional[str]) \
+            -> Tuple[Optional[str], Optional[str]]:
+        if not azure_tenant_id:
+            azure_tenant_id = self.connection.extra_dejson.get("azure_tenant_id")
+        if not azure_resource:
+            azure_resource = self.connection.extra_dejson.get("azure_resource")
+        return azure_resource, azure_tenant_id
+
+    def _get_radius_parameters_from_connection(
+        self, radius_host: Optional[str], radius_port: Optional[int]) \
+            -> Tuple[Optional[str], Optional[int]]:
+        if not radius_port:
+            radius_port_str = self.connection.extra_dejson.get("radius_port")
+            if radius_port_str:
+                try:
+                    radius_port = int(radius_port_str)
+                except ValueError:
+                    raise VaultError(f"Radius port was wrong: {radius_port_str}")
+        if not radius_host:
+            radius_host = self.connection.extra_dejson.get("radius_host")
+        return radius_host, radius_port
 
     def get_conn(self) -> hvac.Client:
         """

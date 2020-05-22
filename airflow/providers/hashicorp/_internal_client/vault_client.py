@@ -24,6 +24,24 @@ from requests import Response
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+DEFAULT_KUBERNETES_JWT_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/token'
+DEFAULT_KV_ENGINE_VERSION = 2
+
+
+VALID_KV_VERSIONS: List[int] = [1, 2]
+VALID_AUTH_TYPES: List[str] = [
+    'approle',
+    'aws_iam',
+    'azure',
+    'github',
+    'gcp',
+    'kubernetes',
+    'ldap',
+    'radius',
+    'token',
+    'userpass'
+]
+
 
 class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attributes
     """
@@ -34,12 +52,15 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
 
     :param url: Base URL for the Vault instance being addressed.
     :type url: str
-    :param auth_type: Authentication Type for Vault. Default is ``token``. Available values are:
-        ('approle', 'github', 'gcp', 'kubernetes', 'ldap', 'token', 'userpass')
+    :param auth_type: Authentication Type for Vault. Default is ``token``. Available values are in
+        ('approle', 'aws_iam', 'azure', 'github', 'gcp', 'kubernetes', 'ldap', 'radius', 'token', 'userpass')
     :type auth_type: str
+    :param auth_mount_point: It can be used to define mount_point for authentication chosen
+          Default depends on the authentication method used.
+    :type auth_mount_point: str
     :param mount_point: The "path" the secret engine was mounted on. Default is "secret". Note that
          this mount_point is not used for authentication if authentication is done via a
-         different engine.
+         different engine. For authentication mount_points see, auth_mount_point.
     :type mount_point: str
     :param kv_engine_version: Selects the version of the engine to run (``1`` or ``2``, default: ``2``).
     :type kv_engine_version: int
@@ -50,9 +71,11 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
     :type username: str
     :param password: Password for Authentication (for ``ldap`` and ``userpass`` auth_types).
     :type password: str
-    :param secret_id: Secret ID for Authentication (for ``approle`` auth_type).
+    :param key_id: Key ID for Authentication (for ``aws_iam`` and ''azure`` auth_type).
+    :type  key_id: str
+    :param secret_id: Secret ID for Authentication (for ``approle``, ``aws_iam`` and ``azure`` auth_types).
     :type secret_id: str
-    :param role_id: Role ID for Authentication (for ``approle`` auth_type).
+    :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` auth_types).
     :type role_id: str
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type).
     :type kubernetes_role: str
@@ -60,25 +83,48 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
     :type kubernetes_jwt_path: str
     :param gcp_key_path: Path to GCP Credential JSON file (for ``gcp`` auth_type).
+           Mutually exclusive with gcp_keyfile_dict
     :type gcp_key_path: str
+    :param gcp_keyfile_dict: Dictionary of keyfile parameters. (for ``gcp`` auth_type).
+           Mutually exclusive with gcp_key_path
+    :type gcp_keyfile_dict: dict
     :param gcp_scopes: Comma-separated string containing GCP scopes (for ``gcp`` auth_type).
     :type gcp_scopes: str
+    :param azure_tenant_id: The tenant id for the Azure Active Directory (for ``azure`` auth_type).
+    :type azure_tenant_id: str
+    :param azure_resource: The configured URL for the application registered in Azure Active Directory
+           (for ``azure`` auth_type).
+    :type azure_resource: str
+    :param radius_host: Host for radius (for ``radius`` auth_type).
+    :type radius_host: str
+    :param radius_secret: Secret for radius (for ``radius`` auth_type).
+    :type radius_secret: str
+    :param radius_port: Port for radius (for ``radius`` auth_type).
+    :type radius_port: int
     """
     def __init__(  # pylint: disable=too-many-arguments
         self,
         url: Optional[str] = None,
         auth_type: str = 'token',
+        auth_mount_point: Optional[str] = None,
         mount_point: str = "secret",
         kv_engine_version: Optional[int] = None,
         token: Optional[str] = None,
         username: Optional[str] = None,
         password: Optional[str] = None,
+        key_id: Optional[str] = None,
         secret_id: Optional[str] = None,
         role_id: Optional[str] = None,
         kubernetes_role: Optional[str] = None,
         kubernetes_jwt_path: Optional[str] = '/var/run/secrets/kubernetes.io/serviceaccount/token',
         gcp_key_path: Optional[str] = None,
+        gcp_keyfile_dict: Optional[dict] = None,
         gcp_scopes: Optional[str] = None,
+        azure_tenant_id: Optional[str] = None,
+        azure_resource: Optional[str] = None,
+        radius_host: Optional[str] = None,
+        radius_secret: Optional[str] = None,
+        radius_port: Optional[int] = None,
         **kwargs
     ):
         super().__init__()
@@ -99,21 +145,39 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
                 raise VaultError("The 'kubernetes' authentication type requires 'kubernetes_role'")
             if not kubernetes_jwt_path:
                 raise VaultError("The 'kubernetes' authentication type requires 'kubernetes_jwt_path'")
+        if auth_type == "azure":
+            if not azure_resource:
+                raise VaultError("The 'azure' authentication type requires 'azure_resource'")
+            if not azure_tenant_id:
+                raise VaultError("The 'azure' authentication type requires 'azure_tenant_id'")
+        if auth_type == "radius":
+            if not radius_host:
+                raise VaultError("The 'radius' authentication type requires 'radius_host'")
+            if not radius_secret:
+                raise VaultError("The 'radius' authentication type requires 'radius_secret'")
 
         self.kv_engine_version = kv_engine_version if kv_engine_version else 2
         self.url = url
         self.auth_type = auth_type
         self.kwargs = kwargs
         self.token = token
+        self.auth_mount_point = auth_mount_point
         self.mount_point = mount_point
         self.username = username
         self.password = password
+        self.key_id = key_id
         self.secret_id = secret_id
         self.role_id = role_id
         self.kubernetes_role = kubernetes_role
         self.kubernetes_jwt_path = kubernetes_jwt_path
         self.gcp_key_path = gcp_key_path
+        self.gcp_keyfile_dict = gcp_keyfile_dict
         self.gcp_scopes = gcp_scopes
+        self.azure_tenant_id = azure_tenant_id
+        self.azure_resource = azure_resource
+        self.radius_host = radius_host
+        self.radius_secret = radius_secret
+        self.radius_port = radius_port
 
     @cached_property
     def client(self) -> hvac.Client:
@@ -127,6 +191,10 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
         _client = hvac.Client(url=self.url, **self.kwargs)
         if self.auth_type == "approle":
             self._auth_approle(_client)
+        elif self.auth_type == 'aws_iam':
+            self._auth_aws_iam(_client)
+        elif self.auth_type == 'azure':
+            self._auth_azure(_client)
         elif self.auth_type == "gcp":
             self._auth_gcp(_client)
         elif self.auth_type == "github":
@@ -135,6 +203,8 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
             self._auth_kubernetes(_client)
         elif self.auth_type == "ldap":
             self._auth_ldap(_client)
+        elif self.auth_type == "radius":
+            self._auth_radius(_client)
         elif self.auth_type == "token":
             _client.token = self.token
         elif self.auth_type == "userpass":
@@ -148,21 +218,47 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
             raise VaultError("Vault Authentication Error!")
 
     def _auth_userpass(self, _client: hvac.Client) -> None:
-        _client.auth_userpass(username=self.username, password=self.password)
+        if self.auth_mount_point:
+            _client.auth_userpass(username=self.username, password=self.password,
+                                  mount_point=self.auth_mount_point)
+        else:
+            _client.auth_userpass(username=self.username, password=self.password)
+
+    def _auth_radius(self, _client: hvac.Client) -> None:
+        if self.auth_mount_point:
+            _client.auth.radius.configure(host=self.radius_host,
+                                          secret=self.radius_secret,
+                                          port=self.radius_port,
+                                          mount_point=self.auth_mount_point)
+        else:
+            _client.auth.radius.configure(host=self.radius_host,
+                                          secret=self.radius_secret,
+                                          port=self.radius_port)
 
     def _auth_ldap(self, _client: hvac.Client) -> None:
-        _client.auth.ldap.login(
-            username=self.username, password=self.password)
+        if self.auth_mount_point:
+            _client.auth.ldap.login(
+                username=self.username, password=self.password, mount_point=self.auth_mount_point)
+        else:
+            _client.auth.ldap.login(
+                username=self.username, password=self.password)
 
     def _auth_kubernetes(self, _client: hvac.Client) -> None:
         if not self.kubernetes_jwt_path:
             raise VaultError("The kubernetes_jwt_path should be set here. This should not happen.")
         with open(self.kubernetes_jwt_path) as f:
             jwt = f.read()
-            _client.auth_kubernetes(role=self.kubernetes_role, jwt=jwt)
+            if self.auth_mount_point:
+                _client.auth_kubernetes(role=self.kubernetes_role, jwt=jwt,
+                                        mount_point=self.auth_mount_point)
+            else:
+                _client.auth_kubernetes(role=self.kubernetes_role, jwt=jwt)
 
     def _auth_github(self, _client: hvac.Client) -> None:
-        _client.auth.github.login(token=self.token)
+        if self.auth_mount_point:
+            _client.auth.github.login(token=self.token, mount_point=self.auth_mount_point)
+        else:
+            _client.auth.github.login(token=self.token)
 
     def _auth_gcp(self, _client: hvac.Client) -> None:
         # noinspection PyProtectedMember
@@ -172,11 +268,44 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
         )
         scopes = _get_scopes(self.gcp_scopes)
         credentials, _ = get_credentials_and_project_id(key_path=self.gcp_key_path,
+                                                        keyfile_dict=self.gcp_keyfile_dict,
                                                         scopes=scopes)
-        _client.auth.gcp.configure(credentials=credentials)
+        if self.auth_mount_point:
+            _client.auth.gcp.configure(credentials=credentials, mount_point=self.auth_mount_point)
+        else:
+            _client.auth.gcp.configure(credentials=credentials)
+
+    def _auth_azure(self, _client: hvac.Client) -> None:
+        if self.auth_mount_point:
+            _client.auth.azure.configure(
+                tenant_id=self.azure_tenant_id,
+                resource=self.azure_resource,
+                client_id=self.key_id,
+                client_secret=self.secret_id,
+                mount_point=self.auth_mount_point
+            )
+        else:
+            _client.auth.azure.configure(
+                tenant_id=self.azure_tenant_id,
+                resource=self.azure_resource,
+                client_id=self.key_id,
+                client_secret=self.secret_id
+            )
+
+    def _auth_aws_iam(self, _client: hvac.Client) -> None:
+        if self.auth_mount_point:
+            _client.auth_aws_iam(access_key=self.key_id, secret_key=self.secret_id,
+                                 role=self.role_id, mount_point=self.auth_mount_point)
+        else:
+            _client.auth_aws_iam(access_key=self.key_id, secret_key=self.secret_id,
+                                 role=self.role_id)
 
     def _auth_approle(self, _client: hvac.Client) -> None:
-        _client.auth_approle(role_id=self.role_id, secret_id=self.secret_id)
+        if self.auth_mount_point:
+            _client.auth_approle(role_id=self.role_id, secret_id=self.secret_id,
+                                 mount_point=self.auth_mount_point)
+        else:
+            _client.auth_approle(role_id=self.role_id, secret_id=self.secret_id)
 
     def get_secret(self, secret_path: str, secret_version: Optional[int] = None) -> Optional[dict]:
         """
@@ -298,17 +427,3 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
             response = self.client.secrets.kv.v2.create_or_update_secret(
                 secret_path=secret_path, secret=secret, mount_point=self.mount_point, cas=cas)
         return response
-
-
-DEFAULT_KUBERNETES_JWT_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/token'
-DEFAULT_KV_ENGINE_VERSION = 2
-VALID_KV_VERSIONS: List[int] = [1, 2]
-VALID_AUTH_TYPES: List[str] = [
-    'approle',
-    'github',
-    'gcp',
-    'kubernetes',
-    'ldap',
-    'token',
-    'userpass'
-]

@@ -55,11 +55,14 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param url: Base URL for the Vault instance being addressed.
     :type url: str
     :param auth_type: Authentication Type for Vault. Default is ``token``. Available values are:
-        ('approle', 'github', 'gcp', 'kubernetes', 'ldap', 'token', 'userpass')
+        ('approle', 'aws_iam', 'azure', 'github', 'gcp', 'kubernetes', 'ldap', 'radius', 'token', 'userpass')
     :type auth_type: str
+    :param auth_mount_point: It can be used to define mount_point for authentication chosen
+          Default depends on the authentication method used.
+    :type auth_mount_point: str
     :param mount_point: The "path" the secret engine was mounted on. Default is "secret". Note that
          this mount_point is not used for authentication if authentication is done via a
-         different engine.
+         different engine. For authentication mount_points see, auth_mount_point.
     :type mount_point: str
     :param kv_engine_version: Select the version of the engine to run (``1`` or ``2``, default: ``2``).
     :type kv_engine_version: int
@@ -70,9 +73,11 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :type username: str
     :param password: Password for Authentication (for ``ldap`` and ``userpass`` auth_type).
     :type password: str
-    :param secret_id: Secret ID for Authentication (for ``approle`` auth_type).
+    :param key_id: Key ID for Authentication (for ``aws_iam`` and ''azure`` auth_type).
+    :type key_id: str
+    :param secret_id: Secret ID for Authentication (for ``approle``, ``aws_iam`` and ``azure`` auth_types).
     :type secret_id: str
-    :param role_id: Role ID for Authentication (for ``approle`` auth_type).
+    :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` auth_types).
     :type role_id: str
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type).
     :type kubernetes_role: str
@@ -80,9 +85,24 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
     :type kubernetes_jwt_path: str
     :param gcp_key_path: Path to GCP Credential JSON file (for ``gcp`` auth_type).
+           Mutually exclusive with gcp_keyfile_dict.
     :type gcp_key_path: str
+    :param gcp_keyfile_dict: Dictionary of keyfile parameters. (for ``gcp`` auth_type).
+           Mutually exclusive with gcp_key_path.
+    :type gcp_keyfile_dict: dict
     :param gcp_scopes: Comma-separated string containing GCP scopes (for ``gcp`` auth_type).
     :type gcp_scopes: str
+    :param azure_tenant_id: The tenant id for the Azure Active Directory (for ``azure`` auth_type).
+    :type azure_tenant_id: str
+    :param azure_resource: The configured URL for the application registered in Azure Active Directory
+           (for ``azure`` auth_type).
+    :type azure_resource: str
+    :param radius_host: Host for radius (for ``radius`` auth_type).
+    :type radius_host: str
+    :param radius_secret: Secret for radius (for ``radius`` auth_type).
+    :type radius_secret: str
+    :param radius_port: Port for radius (for ``radius`` auth_type).
+    :type radius_port: str
     """
     def __init__(  # pylint: disable=too-many-arguments
         self,
@@ -90,17 +110,25 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         variables_path: str = 'variables',
         url: Optional[str] = None,
         auth_type: str = 'token',
+        auth_mount_point: Optional[str] = None,
         mount_point: str = 'secret',
         kv_engine_version: int = 2,
         token: Optional[str] = None,
         username: Optional[str] = None,
         password: Optional[str] = None,
+        key_id: Optional[str] = None,
         secret_id: Optional[str] = None,
         role_id: Optional[str] = None,
         kubernetes_role: Optional[str] = None,
         kubernetes_jwt_path: str = '/var/run/secrets/kubernetes.io/serviceaccount/token',
         gcp_key_path: Optional[str] = None,
+        gcp_keyfile_dict: Optional[dict] = None,
         gcp_scopes: Optional[str] = None,
+        azure_tenant_id: Optional[str] = None,
+        azure_resource: Optional[str] = None,
+        radius_host: Optional[str] = None,
+        radius_secret: Optional[str] = None,
+        radius_port: Optional[int] = None,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -111,17 +139,25 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         self.vault_client = _VaultClient(
             url=url,
             auth_type=auth_type,
+            auth_mount_point=auth_mount_point,
             mount_point=mount_point,
             kv_engine_version=kv_engine_version,
             token=token,
             username=username,
             password=password,
+            key_id=key_id,
             secret_id=secret_id,
             role_id=role_id,
             kubernetes_role=kubernetes_role,
             kubernetes_jwt_path=kubernetes_jwt_path,
             gcp_key_path=gcp_key_path,
+            gcp_keyfile_dict=gcp_keyfile_dict,
             gcp_scopes=gcp_scopes,
+            azure_tenant_id=azure_tenant_id,
+            azure_resource=azure_resource,
+            radius_host=radius_host,
+            radius_secret=radius_secret,
+            radius_port=radius_port,
             **kwargs
         )
 

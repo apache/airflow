@@ -85,6 +85,37 @@ class TestVaultSecrets(TestCase):
             mount_point='airflow', path='connections/test_postgres')
         self.assertEqual('postgresql://airflow:airflow@host:5432/airflow', returned_uri)
 
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_get_conn_uri_engine_version_1_custom_auth_mount_point(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v1.read_secret.return_value = {
+            'request_id': '182d0673-618c-9889-4cba-4e1f4cfe4b4b',
+            'lease_id': '',
+            'renewable': False,
+            'lease_duration': 2764800,
+            'data': {'conn_uri': 'postgresql://airflow:airflow@host:5432/airflow'},
+            'wrap_info': None,
+            'warnings': None,
+            'auth': None}
+
+        kwargs = {
+            "connections_path": "connections",
+            "mount_point": "airflow",
+            "auth_mount_point": "custom",
+            "auth_type": "token",
+            "url": "http://127.0.0.1:8200",
+            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
+            "kv_engine_version": 1
+        }
+
+        test_client = VaultBackend(**kwargs)
+        self.assertEqual("custom", test_client.vault_client.auth_mount_point)
+        returned_uri = test_client.get_conn_uri(conn_id="test_postgres")
+        mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
+            mount_point='airflow', path='connections/test_postgres')
+        self.assertEqual('postgresql://airflow:airflow@host:5432/airflow', returned_uri)
+
     @mock.patch.dict('os.environ', {
         'AIRFLOW_CONN_TEST_MYSQL': 'mysql://airflow:airflow@host:5432/airflow',
     })
