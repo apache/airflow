@@ -192,9 +192,10 @@ class _PythonFunctionalOperator(BaseOperator):
         if not dag or task_id not in dag.task_ids:
             return task_id
         core = re.split(r'__\d+$', task_id)[0]
-        filter_regex = rf'^{core}__\d+$'
         suffixes = sorted(
-            [int(re.split(r'^.+__', task_id)[1]) for task_id in dag.task_ids if re.match(filter_regex, task_id)],
+            [int(re.split(r'^.+__', task_id)[1])
+             for task_id in dag.task_ids
+             if re.match(rf'^{core}__\d+$', task_id)]
         )
         if not suffixes:
             return f'{core}__1'
