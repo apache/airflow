@@ -67,6 +67,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         **kwargs
     ):
         super().__init__(**kwargs)
+
         if connections_prefix:
             self.connections_prefix = connections_prefix.rstrip('/')
         else:
@@ -75,6 +76,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             self.variables_prefix = variables_prefix.rstrip('/')
         else:
             self.connections_prefix = variables_prefix
+
         self.profile_name = profile_name
         self.sep = sep
         self.kwargs = kwargs
@@ -101,24 +103,49 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         try:
             secret_string = self._get_secret(conn_id)
-            if secret_string is not None:
-                secret = ast.literal_eval(secret_string)
-                user = secret['user']
-                password = secret['pass']
-                host = secret['host']
-                port = secret['port']
-                database = secret['database']
-                engine = secret['engine']
+            secret = ast.literal_eval(secret_string)
 
-                if engine in ('redshift', 'postgresql'):
-                    conn_string = f'postgresql://{user}:{password}@{host}:{port}/{database}'
+            user = None
+            password = None
+            host = None
+
+            # These lines will check if we have with some denomination stored an username, password and host
+            for user_denomination in ['user', 'username', 'login']:
+                if user_denomination in secret:
+                    user = secret[user_denomination]
+            for password_denomination in ['pass', 'password', 'key']:
+                if password_denomination in secret:
+                    password = secret[password_denomination]
+            for host_denomination in ['host', 'remote_host', 'server']:
+                if host_denomination in secret:
+                    host = secret[host_denomination]
+
+            if user and password and host:
+                for type_word in ['conn_type', 'conn_id', 'connection_type', 'engine']:
+                    if type_word in secret:
+                        conn_type = secret[type_word]
+                        conn_type = 'postgresql' if conn_type == 'redshift' else conn_type
+                    else:
+                        conn_type = 'connection'
+
+                if 'port' in secret:
+                    port = secret['port']
                 else:
-                    conn_string = f'mysql://{user}:{password}@{host}:{port}/{database}'
+                    port = 5432
+                if 'database' in secret:
+                    database = secret['database']
+                else:
+                    database = ''
+
+                conn_string = f'{conn_type}://{user}:{password}@{host}:{port}/{database}'
+
                 return conn_string
             else:
-                raise KeyError
-        except KeyError:
-            return self._get_secret(conn_id)
+                conn_string = self._get_secret(conn_id)
+                return f'{{{conn_string[:-1]}}}'  # without this line, the secret_string will end with a bracket }
+                # and the literal_eval (needed later on to get the values from conn.schema) won't work
+        except ValueError:  # ('malformed node or string), when a conn is empty, i.e s3/aws conn in an EC2
+            pass
 
     def get_variable(self, key: str) -> Optional[str]:
         """
