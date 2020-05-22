@@ -440,7 +440,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         """
         this is a loop to execute k8s cmd.
         try max 24 times,delay between retries is 5 mins. so max 2h totally
+        similar with _start_driver_status_tracking(), but work on k8s.
         """
+        # When your Kubernetes cluster is not performing well or get too old resource version exception
+        # it is possible that the log stream will be interrupted and lost 'Exit Code'.
+        # Therefore we use a simple retry mechanism.
         max_retry_times_by_describe_cmd = 24
         retry_delay_by_describe_cmd = 300
         retry_time = 1
