@@ -131,13 +131,18 @@ class BranchSqlOperator(BaseOperator, SkipMixin):
             self.parameters,
             self._hook,
         )
-        records = self._hook.get_first(self.sql, self.parameters)
-        if not records:
+        record = self._hook.get_first(self.sql, self.parameters)
+        if not record:
             raise AirflowException(
                 "No rows returned from sql query. Operator expected True or False return value."
             )
 
-        query_result = records[0][0]
+        if isinstance(record, list):
+            query_result = record[0][0]
+        elif isinstance(record, tuple):
+            query_result = record[0]
+        else:
+            query_result = record
 
         self.log.info("Query returns %s, type '%s'", query_result, type(query_result))
 
@@ -155,12 +160,16 @@ class BranchSqlOperator(BaseOperator, SkipMixin):
                     follow_branch = self.follow_task_ids_if_true
             else:
                 raise AirflowException(
-                    "Unexpected query return result '%s'" % query_result
+                    "Unexpected query return result '%s' type '%s'"
+                    % (query_result, type(query_result))
                 )
 
             if follow_branch is None:
                 follow_branch = self.follow_task_ids_if_false
         except ValueError:
-            raise AirflowException("Unexpected query return result '%s'" % query_result)
+            raise AirflowException(
+                "Unexpected query return result '%s' type '%s'"
+                % (query_result, type(query_result))
+            )
 
         self.skip_all_except(context["ti"], follow_branch)

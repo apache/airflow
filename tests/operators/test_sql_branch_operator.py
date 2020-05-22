@@ -174,6 +174,49 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         )
 
     @mock.patch("airflow.operators.sql_branch_operator.BaseHook")
+    def test_branch_single_value_with_dag_run(self, mock_hook):
+        """ Check BranchSqlOperator branch operation """
+        branch_op = BranchSqlOperator(
+            task_id="make_choice",
+            conn_id="mysql_default",
+            sql="SELECT 1",
+            follow_task_ids_if_true="branch_1",
+            follow_task_ids_if_false="branch_2",
+            dag=self.dag,
+        )
+
+        self.branch_1.set_upstream(branch_op)
+        self.branch_2.set_upstream(branch_op)
+        self.dag.clear()
+
+        dr = self.dag.create_dagrun(
+            run_id="manual__",
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+        )
+
+        mock_hook.get_connection("mysql_default").conn_type = "mysql"
+        mock_get_records = (
+            mock_hook.get_connection.return_value.get_hook.return_value.get_first
+        )
+
+        mock_get_records.return_value = 1
+
+        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        tis = dr.get_task_instances()
+        for ti in tis:
+            if ti.task_id == "make_choice":
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == "branch_1":
+                self.assertEqual(ti.state, State.NONE)
+            elif ti.task_id == "branch_2":
+                self.assertEqual(ti.state, State.SKIPPED)
+            else:
+                raise ValueError(f"Invalid task id {ti.task_id} found!")
+
+    @mock.patch("airflow.operators.sql_branch_operator.BaseHook")
     def test_branch_true_with_dag_run(self, mock_hook):
         """ Check BranchSqlOperator branch operation """
         branch_op = BranchSqlOperator(
