@@ -191,18 +191,14 @@ class _PythonFunctionalOperator(BaseOperator):
     def _get_unique_task_id(task_id, dag):
         if not dag or task_id not in dag.task_ids:
             return task_id
-        core = re.split(r'__\d*$', task_id)[0]
-        lastest_task_id = sorted(
-            [task_id for task_id in dag.task_ids if task_id.startswith(core)],
-            reverse=True
-        )[0]
-
-        splitted = re.split(r'^.*__', lastest_task_id)
-        if len(splitted) < 2 or not re.match(r'\d+', splitted[1]):
+        core = re.split(r'__\d+$', task_id)[0]
+        filter_regex = rf'^{core}__\d+$'
+        suffixes = sorted(
+            [int(re.split(r'^.+__', task_id)[1]) for task_id in dag.task_ids if re.match(filter_regex, task_id)],
+        )
+        if not suffixes:
             return f'{core}__1'
-
-        suffix = int(splitted[1]) + 1
-        return f'{core}__{suffix}'
+        return f'{core}__{suffixes[-1] + 1}'
 
     @staticmethod
     def _validate_python_callable(python_callable):

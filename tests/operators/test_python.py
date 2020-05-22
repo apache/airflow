@@ -447,16 +447,39 @@ class TestAirflowTask(unittest.TestCase):
         @task_decorator
         def do_run():
             return 4
+
+        @task_decorator
+        def do__run():
+            return 4
         do_run_1 = do_run.copy()
         do_run_2 = do_run.copy()
+        do__run_1 = do__run.copy()
+        do__run_2 = do__run.copy()
         with self.dag:
             do_run()
             assert ['do_run'] == self.dag.task_ids
             do_run_1()
             do_run_2()
+            do__run()
+            do__run_1()
+            do__run_2()
 
         assert do_run_1.task_id == 'do_run__1'
         assert do_run_2.task_id == 'do_run__2'
+        assert do__run_1.task_id == 'do__run__1'
+        assert do__run_2.task_id == 'do__run__2'
+
+    def test_copy_10(self):
+        """Test copy method outside of a DAG"""
+        @task_decorator
+        def __do_run():
+            return 4
+
+        with self.dag:
+            __do_run()
+            do_runs = [__do_run.copy() for _ in range(20)]
+
+        assert do_runs[-1].task_id == '__do_run__20'
 
     def test_dict_outputs(self):
         """Tests pushing multiple outputs as a dictionary"""
