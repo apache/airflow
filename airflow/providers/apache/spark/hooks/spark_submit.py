@@ -459,8 +459,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         """
         execute k8s cmd to catch Exit Code
         """
-        cmd_get_exitcode = "kubectl describe pod -n " + self._connection['namespace'] + " " + self._driver_id
-        + "|grep 'Exit Code'|awk -F ' ' '{print $3}'"
+        cmd_get_exitcode = "kubectl describe pod -n " + self._connection['namespace'] + " " + self._driver_id + \
+            "|grep 'Exit Code'|awk -F ' ' '{print $3}'"
         self.log.info("cmd:{}", cmd_get_exitcode)
         spark_exit_code = subprocess.getoutput(cmd_get_exitcode)
         return spark_exit_code
