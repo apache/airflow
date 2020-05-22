@@ -440,6 +440,8 @@ class TestAirflowTaskDecorator(unittest.TestCase):
             assert ['do_run'] == self.dag.task_ids
             do_run_1 = do_run.copy()
             do_run_2 = do_run.copy()
+            assert ['do_run', 'do_run__1', 'do_run__2'] == self.dag.task_ids
+
         assert do_run_1.task_id == 'do_run__1'
         assert do_run_2.task_id == 'do_run__2'
 
