@@ -22,7 +22,7 @@ import time
 import unittest
 import urllib
 from typing import List, Optional, Union
-from unittest.mock import mock_open, patch
+from unittest.mock import call, mock_open, patch
 
 import pendulum
 import pytest
@@ -40,6 +40,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import PythonOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.sensors.python import PythonSensor
+from airflow.stats import Stats
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
@@ -1598,6 +1599,28 @@ class TestTaskInstance(unittest.TestCase):
         ti._run_raw_task()
         ti.refresh_from_db()
         self.assertEqual(ti.state, State.SUCCESS)
+
+    @patch.object(Stats, 'incr')
+    def test_task_stats(self, stats_mock):
+        dag = DAG('test_task_start_end_stats', start_date=DEFAULT_DATE,
+                  end_date=DEFAULT_DATE + datetime.timedelta(days=10))
+        op = DummyOperator(task_id='dummy_op', dag=dag)
+        dag.create_dagrun(
+            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            external_trigger=False)
+        ti = TI(task=op, execution_date=DEFAULT_DATE)
+        ti.state = State.RUNNING
+        session = settings.Session()
+        session.merge(ti)
+        session.commit()
+        ti._run_raw_task()
+        ti.refresh_from_db()
+        stats_mock.assert_called_with('ti.finish.{}.{}.{}'.format(dag.dag_id, op.task_id, ti.state))
+        self.assertIn(call('ti.start.{}.{}'.format(dag.dag_id, op.task_id)), stats_mock.mock_calls)
+        self.assertEqual(stats_mock.call_count, 5)
 
     def test_generate_command_default_param(self):
         dag_id = 'test_generate_command_default_param'
