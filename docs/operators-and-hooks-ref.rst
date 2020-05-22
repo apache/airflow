@@ -195,7 +195,6 @@ Foundation.
      -
      - :mod:`airflow.providers.apache.hdfs.sensors.web_hdfs`
 
-
 Transfer operators and hooks
 ''''''''''''''''''''''''''''
 
@@ -317,7 +316,6 @@ These integrations allow you to perform various operations within the Microsoft 
      - :mod:`airflow.providers.microsoft.azure.hooks.azure_fileshare`
      -
      -
-
 
 Transfer operators and hooks
 ''''''''''''''''''''''''''''
@@ -830,7 +828,6 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.providers.google.cloud.operators.vision`
      -
 
-
 Transfer operators and hooks
 """"""""""""""""""""""""""""
 
@@ -1245,6 +1242,7 @@ These integrations allow you to perform various operations within various servic
      -
      -
 
+
 Transfer operators and hooks
 ''''''''''''''''''''''''''''
 
@@ -1322,6 +1320,12 @@ These integrations allow you to perform various operations using various softwar
      -
      - :mod:`airflow.operators.bash`
      - :mod:`airflow.sensors.bash`
+
+   * - `Hashicorp Vault <https://www.vaultproject.io/>`__
+     -
+     - :mod:`airflow.providers.hashicorp.hooks.vault`
+     -
+     -
 
    * - `Kubernetes <https://kubernetes.io/>`__
      - :doc:`How to use <howto/operator/kubernetes>`

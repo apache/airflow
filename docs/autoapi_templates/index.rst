@@ -140,6 +140,8 @@ All operators are in the following packages:
 
   airflow/providers/grpc/operators/index
 
+  airflow/providers/hashicorp/hooks/index
+
   airflow/providers/http/operators/index
 
   airflow/providers/http/sensors/index
