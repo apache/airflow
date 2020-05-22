@@ -175,7 +175,6 @@ class _PythonFunctionalOperator(BaseOperator):
         *args,
         **kwargs
     ) -> None:
-        kwargs['task_id'] = self._get_unique_task_id(kwargs['task_id'], kwargs.get('dag', None))
         self._validate_python_callable(python_callable)
         super().__init__(*args, **kwargs)
         self.python_callable = python_callable
