@@ -19,6 +19,7 @@
 import inspect
 import os
 import pickle
+import re
 import sys
 import types
 from inspect import signature
@@ -175,24 +176,9 @@ class _PythonFunctionalOperator(BaseOperator):
         *args,
         **kwargs
     ) -> None:
-        # Check if we need to generate a new task_id
-        task_id = kwargs.get('task_id', None)
         dag = kwargs.get('dag', None) or DagContext.get_current_dag()
-        if task_id and dag and task_id in dag.task_ids:
-            prefix = task_id.rsplit("__", 1)[0]
-            task_id = sorted(
-                filter(lambda x: x.startswith(prefix), dag.task_ids),
-                reverse=True
-            )[0]
-            num = int(task_id[-1] if '__' in task_id else '0') + 1
-            kwargs['task_id'] = f'{prefix}__{num}'
-
-        if not kwargs.get('do_xcom_push', True) and not multiple_outputs:
-            raise AirflowException('@task needs to have either do_xcom_push=True or '
-                                   'multiple_outputs=True.')
-        if not callable(python_callable):
-            raise AirflowException('`python_callable` param must be callable')
-        self._fail_if_method(python_callable)
+        kwargs['task_id'] = self._get_unique_task_id(kwargs['task_id'], dag)
+        self._validate_python_callable(python_callable)
         super().__init__(*args, **kwargs)
         self.python_callable = python_callable
         self.multiple_outputs = multiple_outputs
@@ -202,7 +188,26 @@ class _PythonFunctionalOperator(BaseOperator):
         self._op_kwargs: Dict[str, Any] = {}
 
     @staticmethod
-    def _fail_if_method(python_callable):
+    def _get_unique_task_id(task_id, dag):
+        if not dag or task_id not in dag.task_ids:
+            return task_id
+        core = re.split(r'__\d*$', task_id)[0]
+        lastest_task_id = sorted(
+            [task_id for task_id in dag.task_ids if task_id.startswith(core)],
+            reverse=True
+        )[0]
+
+        splitted = re.split(r'^.*__', lastest_task_id)
+        if len(splitted) < 2 or not re.match(r'\d+', splitted[1]):
+            return f'{core}__1'
+
+        suffix = int(splitted[1]) + 1
+        return f'{core}__{suffix}'
+
+    @staticmethod
+    def _validate_python_callable(python_callable):
+        if not callable(python_callable):
+            raise AirflowException('`python_callable` param must be callable')
         if 'self' in signature(python_callable).parameters.keys():
             raise AirflowException('@task does not support methods')
 
