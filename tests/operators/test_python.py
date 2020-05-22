@@ -327,10 +327,11 @@ class TestAirflowTask(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
+        self.owner = 'airflow_tes'
         self.dag = DAG(
             'test_dag',
             default_args={
-                'owner': 'airflow',
+                'owner': self.owner,
                 'start_date': DEFAULT_DATE})
         self.addCleanup(self.dag.clear)
 
@@ -509,6 +510,16 @@ class TestAirflowTask(unittest.TestCase):
         assert ti.xcom_pull(key='43') == 43
         assert ti.xcom_pull() == {'number': test_number + 1, '43': 43}
 
+    def test_default_args(self):
+        """Test that default_args are captured when calling the function correctly"""
+        @task_decorator
+        def do_run():
+            return 4
+
+        with self.dag:
+            do_run()
+        assert do_run.owner == self.owner
+
     def test_xcom_arg(self):
         """Tests that returned key in XComArg is returned correctly"""
 
@@ -539,7 +550,7 @@ class TestAirflowTask(unittest.TestCase):
         assert ti_add_num.xcom_pull(key=ret.key) == (test_number + 2) * 2  # pylint: disable=maybe-no-member
 
     def test_non_repeated_call(self):
-        """Tests that returned key in XComArg is returned correctly"""
+        """Tests that calling a decorated function twice will fail"""
 
         @self.dag.task
         def add_2(number: int):
@@ -557,43 +568,21 @@ class TestAirflowTask(unittest.TestCase):
             return number + 2
 
         test_number = 10
-        ret = add_2(test_number)
+        add_2(test_number)
 
-        dr = self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL.value,
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING
-        )
-
-        add_2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-        ti = dr.get_task_instances()[0]
-        assert ti.xcom_pull(key=ret.key) == test_number + 2  # pylint: disable=maybe-no-member
+        assert 'add_2' in self.dag.task_ids
 
     def test_dag_task_multiple_outputs(self):
         """Tests dag.task property to generate task with multiple outputs"""
 
         @self.dag.task(multiple_outputs=True)
         def add_2(number: int):
-            return number + 2, 42
+            return {1: number + 2, 2: 42}
 
         test_number = 10
-        ret = add_2(test_number)
+        add_2(test_number)
 
-        dr = self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL.value,
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING
-        )
-
-        add_2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-        ti = dr.get_task_instances()[0]
-        assert ti.xcom_pull(key=ret[0].key) == test_number + 2  # pylint: disable=maybe-no-member
-        assert ti.xcom_pull(key=ret[1].key) == 42  # pylint: disable=maybe-no-member
-        assert ti.xcom_pull(key=ret.key) == [test_number + 2, 42]  # pylint: disable=maybe-no-member
+        assert 'add_2' in self.dag.task_ids
 
     def test_airflow_task(self):
         """Tests airflow.task decorator to generate task"""
@@ -605,19 +594,9 @@ class TestAirflowTask(unittest.TestCase):
 
         test_number = 10
         with self.dag:
-            ret = add_2(test_number)
+            add_2(test_number)
 
-        dr = self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL.value,
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING
-        )
-
-        add_2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-        ti = dr.get_task_instances()[0]
-        assert test_number + 2 == ti.xcom_pull(key=ret.key)  # pylint: disable=maybe-no-member
+        assert 'add_2' in self.dag.task_ids
 
 
 class TestBranchOperator(unittest.TestCase):
