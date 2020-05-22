@@ -577,8 +577,8 @@
         what lineage backend to use
       version_added: ~
       type: string
-      example: ~
-      default: ""
+      example: "airflow.lineage.backend.atlas.AtlasBackend"
+      default: ~
 - name: atlas
   description: ~
   options:
@@ -612,6 +612,34 @@
       type: string
       example: ~
       default: ""
+    - name: additional_operator_attributes
+      description: |
+        additional operator attributes which will show as entity property
+      version_added: ~
+      type: string
+      example: sql,source_objects,bucket,schema_object,hql,hiveconfs,schema
+      default: ""
+    - name: create_if_not_exist
+      description: |
+        If true, missing input and output atlas entities will create/update
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "False"
+    - name: fail_if_lineage_error
+      description: |
+        If true, operator will be failed in error in sending lineage data
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "False"
+    - name: timeout
+      description: |
+        timeout for atlas rest api client
+      version_added: ~
+      type: string
+      example: ~
+      default: "100"
 - name: operators
   description: ~
   options:

@@ -27,6 +27,7 @@ import attr
 import jinja2
 from cattr import structure, unstructure
 
+from airflow.configuration import conf
 from airflow.models.base import Operator
 from airflow.utils.module_loading import import_string
 
@@ -79,6 +80,20 @@ def _to_dataset(obj: Any, source: str) -> Optional[Metadata]:
     return Metadata(type_name, source, data)
 
 
+def _get_backend():
+    backend = None
+
+    try:
+        _backend_str = conf.get("lineage", "backend")
+        backend = import_string(_backend_str)
+    except ImportError as ie:
+        log.debug("Cannot import %s due to %s", _backend_str, ie)
+    except conf.AirflowConfigException:
+        log.debug("Could not find lineage backend key in config")
+
+    return backend
+
+
 def apply_lineage(func):
     """
     Saves the lineage to XCom and if configured to do so sends it
@@ -108,6 +123,12 @@ def apply_lineage(func):
                            value=inlets,
                            execution_date=context['ti'].execution_date)
 
+        backend = _get_backend()
+
+        if backend:
+            backend.send_lineage(self=None, operator=self, inlets=self.inlets,
+                                 outlets=self.outlets, context=context)
+
         return ret_val
 
     return wrapper
@@ -123,6 +144,7 @@ def prepare_lineage(func):
     * "list of datasets" -> manually defined list of data
 
     """
+
     # pylint: disable=protected-access
     @wraps(func)
     def wrapper(self, context, *args, **kwargs):
