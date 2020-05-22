@@ -401,7 +401,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._process_spark_submit_log(iter(self._submit_sp.stdout))
         returncode = self._submit_sp.wait()
 
-        #if log did not return exit_code,then use 'kubectl describe pod xxx' cmd to get it
+        # if log did not return exit_code,then use 'kubectl describe pod xxx' cmd to get it
         self._get_exitcode_by_k8s_describe_cmd_with_loop()
 
         # Check spark-submit return code. In Kubernetes mode, also check the value
@@ -440,27 +440,28 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         this is a loop to execute k8s cmd.
         try max 24 times,delay between retries is 5 mins. so max 2h totally
         """
-        max_retry_times_by_describe_cmd=24
-        retry_delay_by_describe_cmd=300
-        retry_time=1
-        while(self._spark_exit_code==None and retry_time <= max_retry_times_by_describe_cmd):
-            self.log.info("log stream lost, the {} time(s) trying to get Exit Code using kubectl describe pod...",retry_time)
+        max_retry_times_by_describe_cmd = 24
+        retry_delay_by_describe_cmd = 300
+        retry_time = 1
+        while(self._spark_exit_code == None and retry_time <= max_retry_times_by_describe_cmd):
+            self.log.info("log stream lost, the {} time(s) trying to get Exit Code using kubectl describe pod...", retry_time)
             time.sleep(retry_delay_by_describe_cmd)
-            spark_exit_code=self._get_exitcode_by_k8s_describe_cmd()
+            spark_exit_code = self._get_exitcode_by_k8s_describe_cmd()
             if spark_exit_code:
-                self._spark_exit_code=spark_exit_code
-                self.log.info("after lost log stream,get Exit Code:{}",self._spark_exit_code)
+                self._spark_exit_code = spark_exit_code
+                self.log.info("after lost log stream,get Exit Code:{}", self._spark_exit_code)
                 break
             else:
                 self.log.info("after lost log stream,did not get exit code, try next time")
-            retry_time+=1
+            retry_time += 1
 
     def _get_exitcode_by_k8s_describe_cmd(self):
         """
         execute k8s cmd to catch Exit Code
         """
-        cmd_get_exitcode = "kubectl describe pod -n "+self._connection['namespace']+" "+self._driver_id+"|grep 'Exit Code'|awk -F ' ' '{print $3}'"
-        self.log.info("cmd:{}",cmd_get_exitcode)
+        cmd_get_exitcode = "kubectl describe pod -n " + self._connection['namespace'] + " " + self._driver_id
+        + "|grep 'Exit Code'|awk -F ' ' '{print $3}'"
+        self.log.info("cmd:{}", cmd_get_exitcode)
         spark_exit_code = subprocess.getoutput(cmd_get_exitcode)
         return spark_exit_code
 
