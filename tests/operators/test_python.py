@@ -509,56 +509,6 @@ class TestAirflowTask(unittest.TestCase):
         assert ti.xcom_pull(key='43') == 43
         assert ti.xcom_pull() == {'number': test_number + 1, '43': 43}
 
-    def test_tuple_outputs(self):
-        """Tests pushing multiple outputs as tuple"""
-
-        @task_decorator(multiple_outputs=True)
-        def return_tuple(number: int):
-            return number + 1, 43
-
-        test_number = 10
-        with self.dag:
-            return_tuple(test_number)
-
-        dr = self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL.value,
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING
-        )
-
-        return_tuple.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-        ti = dr.get_task_instances()[0]
-        assert ti.xcom_pull(key='0') == test_number + 1
-        assert ti.xcom_pull(key='1') == 43
-        assert ti.xcom_pull() == [test_number + 1, 43]
-
-    def test_list_outputs(self):
-        """Tests pushing multiple outputs as list"""
-
-        @task_decorator(multiple_outputs=True)
-        def return_tuple(number: int):
-            return [number + 1, 43]
-
-        test_number = 10
-        with self.dag:
-            return_tuple(test_number)
-
-        dr = self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL.value,
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING
-        )
-
-        return_tuple.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-        ti = dr.get_task_instances()[0]
-        assert ti.xcom_pull(key='0') == test_number + 1
-        assert ti.xcom_pull(key='1') == 43
-        assert ti.xcom_pull() == [test_number + 1, 43]
-
     def test_xcom_arg(self):
         """Tests that returned key in XComArg is returned correctly"""
 

@@ -222,7 +222,8 @@ Python task decorator
 
 
 Airflow ``task`` decorator converts any Python decorated function to a Python Airflow operator.
-The decorated function can be called to set the arguments and key arguments for operator execution.
+The decorated function can be called once to set the arguments and key arguments for operator execution.
+
 
 .. code:: python
 
@@ -250,6 +251,22 @@ lists or tuples into seprate XCom values. This can be used with regular operator
 
 Calling a decorated function returns an ``XComArg`` instance. You can use it to set templated fields on downstream
 operators.
+
+If you call a decorated function twice in a DAG, it will error as it doesn't know what args to use.
+If you want to reuse decorated functions, use the copy method as follows:
+
+.. code:: python
+
+  with DAG('my_dag', start_date=datetime(2020, 5, 15)) as dag:
+
+    @dag.task
+    def update_user(user_id: int):
+      ...
+
+    for user_id in user_ids:
+      update_current = update_user.copy(f'update_{user_id}')
+      update_current(user_id)
+
 
 Task Instances
 ==============

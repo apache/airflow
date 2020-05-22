@@ -155,8 +155,7 @@ class _PythonFunctionalOperator(BaseOperator):
     :param python_callable: A reference to an object that is callable
     :type python_callable: python callable
     :param multiple_outputs: if set, function return value will be
-        unrolled to multiple XCom values. List/Tuples will unroll to xcom values
-        with index as key. Dict will unroll to xcom values with keys as keys.
+        unrolled to multiple XCom values. Dict will unroll to xcom values with keys as keys.
         Defaults to False.
     :type multiple_outputs: bool
     """
@@ -176,8 +175,7 @@ class _PythonFunctionalOperator(BaseOperator):
         *args,
         **kwargs
     ) -> None:
-        dag = kwargs.get('dag', None) or DagContext.get_current_dag()
-        kwargs['task_id'] = self._get_unique_task_id(kwargs['task_id'], dag)
+        kwargs['task_id'] = self._get_unique_task_id(kwargs['task_id'], kwargs.get('dag', None))
         self._validate_python_callable(python_callable)
         super().__init__(*args, **kwargs)
         self.python_callable = python_callable
@@ -189,6 +187,7 @@ class _PythonFunctionalOperator(BaseOperator):
 
     @staticmethod
     def _get_unique_task_id(task_id, dag):
+        dag = dag or DagContext.get_current_dag()
         if not dag or task_id not in dag.task_ids:
             return task_id
         core = re.split(r'__\d+$', task_id)[0]
@@ -235,12 +234,18 @@ class _PythonFunctionalOperator(BaseOperator):
         :param task_id: Task id for the new operator
         :type task_id: Optional[str]
         """
+        _old_kwargs = self._kwargs
         if task_id:
-            self._kwargs['task_id'] = task_id
+            _old_kwargs['task_id'] = task_id
+        else:
+            _old_kwargs['task_id'] = self._get_unique_task_id(
+                _old_kwargs['task_id'],
+                kwargs.get('dag', None)
+            )
         return _PythonFunctionalOperator(
             python_callable=self.python_callable,
             multiple_outputs=self.multiple_outputs,
-            **{**kwargs, **self._kwargs}
+            **{**kwargs, **_old_kwargs}
         )
 
     def execute(self, context: Dict):
@@ -250,9 +255,6 @@ class _PythonFunctionalOperator(BaseOperator):
             return return_value
         if isinstance(return_value, dict):
             for key, value in return_value.items():
-                self.xcom_push(context, str(key), value)
-        elif isinstance(return_value, (list, tuple)):
-            for key, value in enumerate(return_value):
                 self.xcom_push(context, str(key), value)
         return return_value
 
