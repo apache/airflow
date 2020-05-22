@@ -588,6 +588,17 @@ class TestAirflowTask(unittest.TestCase):
         ti_add_num = [ti for ti in dr.get_task_instances() if ti.task_id == 'add_num'][0]
         assert ti_add_num.xcom_pull(key=ret.key) == (test_number + 2) * 2  # pylint: disable=maybe-no-member
 
+    def test_non_repeated_call(self):
+        """Tests that returned key in XComArg is returned correctly"""
+
+        @self.dag.task
+        def add_2(number: int):
+            return number + 2
+
+        with pytest.raises(AirflowException):
+            bigger_number = add_2(2)
+            add_2(bigger_number)
+
     def test_dag_task(self):
         """Tests dag.task property to generate task"""
 
