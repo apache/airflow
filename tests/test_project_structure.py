@@ -244,7 +244,7 @@ class TestOperatorsHooks(unittest.TestCase):
         files = itertools.chain(*[
             glob.glob(f"{ROOT_FOLDER}/{part}/providers/**/{resource_type}/*.py", recursive=True)
             for resource_type in ["operators", "hooks", "sensors", "example_dags"]
-            for part in ["airlfow", "tests"]
+            for part in ["airflow", "tests"]
         ])
 
         invalid_files = [
