@@ -444,15 +444,14 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         retry_delay_by_describe_cmd = 300
         retry_time = 1
         while(self._spark_exit_code is None and retry_time <= max_retry_times_by_describe_cmd):
-            self.log.info("log stream lost, the {} time(s) trying cmd kubectl describe pod...", retry_time)
+            self.log.info("log interrupt, the {} time(s) trying...", retry_time)
             time.sleep(retry_delay_by_describe_cmd)
             spark_exit_code = self._get_exitcode_by_k8s_describe_cmd()
             if spark_exit_code:
                 self._spark_exit_code = spark_exit_code
-                self.log.info("after lost log stream,get Exit Code:{}", self._spark_exit_code)
+                self.log.info("get Exit Code:{}", self._spark_exit_code)
                 break
-            else:
-                self.log.info("after lost log stream,did not get exit code, try next time")
+            self.log.info("no exit code return, try next time")
             retry_time += 1
 
     def _get_exitcode_by_k8s_describe_cmd(self):
