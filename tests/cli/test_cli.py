@@ -42,6 +42,8 @@ from airflow import settings
 import airflow.bin.cli as cli
 from airflow.bin.cli import run, get_dag
 from airflow.models import TaskInstance
+from airflow.bin.cli import get_num_ready_workers_running, run, get_dag
+from airflow.models import TaskInstance, DAG
 from airflow.utils import timezone
 from airflow.utils.file import TemporaryDirectory
 from airflow.utils.state import State

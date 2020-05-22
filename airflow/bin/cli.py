@@ -2742,6 +2742,13 @@ Please install apache-airflow-upgrade-check distribution from PyPI to perform up
 _UNSET = object()
 
 
+@cli_utils.action_logging
+def sync_to_db(args): # noqa
+    dagbag = DagBag(settings.DAGS_FOLDER, store_serialized_dags=settings.STORE_SERIALIZED_DAGS)
+    for dag in dagbag.dags.values():
+        dag.sync_to_db()
+
+
 class Arg:
     """Class to keep information about command line argument"""
 
@@ -4489,6 +4496,12 @@ class CLIFactory(object):
             'from_module': 'airflow.upgrade.checker',
             'args': (),
         },
+        {
+            'func': sync_to_db,
+            'help': 'Sync the current set all airflow DAGS to the metastore. Useful when '
+                    'there is no scheduler to do the syncing for you',
+            'args': (),
+        }
     )
     deprecated_dag_subparsers = (
         'list_tasks', 'backfill', 'test', 'run', 'pause', 'unpause', 'list_dag_runs')
