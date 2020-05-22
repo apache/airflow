@@ -444,12 +444,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         retry_delay_by_describe_cmd = 300
         retry_time = 1
         while(self._spark_exit_code is None and retry_time <= max_retry_times_by_describe_cmd):
-            self.log.info("log interrupt, the {} time(s) trying...", retry_time)
+            self.log.info("log interrupt, the %s time(s) trying...", retry_time)
             time.sleep(retry_delay_by_describe_cmd)
             spark_exit_code = self._get_exitcode_by_k8s_describe_cmd()
             if spark_exit_code:
                 self._spark_exit_code = spark_exit_code
-                self.log.info("get Exit Code:{}", self._spark_exit_code)
+                self.log.info("get Exit Code:%s", self._spark_exit_code)
                 break
             self.log.info("no exit code return, try next time")
             retry_time += 1
@@ -460,7 +460,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         """
         cmd_get_exitcode = "kubectl describe pod -n " + self._connection['namespace'] + " " + \
             self._driver_id + "|grep 'Exit Code'|awk -F ' ' '{print $3}'"
-        self.log.info("cmd:{}", cmd_get_exitcode)
+        self.log.info("cmd:%s", cmd_get_exitcode)
         spark_exit_code = subprocess.getoutput(cmd_get_exitcode)
         return spark_exit_code
 
