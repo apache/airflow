@@ -93,7 +93,7 @@ function in_container_cleanup_pycache() {
 #
 function in_container_fix_ownership() {
     set +o pipefail
-    sudo find "${AIRFLOW_SOURCES}" -user root -print0 \
+    sudo find "${AIRFLOW_SOURCES}" -print0 -user root \
     | sudo xargs --null chown -v "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference >/dev/null 2>&1
     set -o pipefail
 }

@@ -794,13 +794,24 @@ function parse_arguments() {
           echo
           export FORWARD_CREDENTIALS="true"
           shift 1 ;;
-        -u|--push-images)
+        -c|--registry-cache)
           echo
-          echo "Pushing images to DockerHub"
+          echo "Use cache for the container registry"
           echo
-          export PUSH_IMAGES="true"
-          export FORCE_BUILD_IMAGES="true"
+          export ENABLE_REGISTRY_CACHE="true"
           shift ;;
+        -G|--github-organisation)
+          echo
+          echo "GitHub organisation"
+          echo
+          export GITHUB_ORGANISATION="${2}"
+          shift 2;;
+        -g|--github-repo)
+          echo
+          echo "GitHub repository"
+          echo
+          export GITHUB_REPOSITORY="${2}"
+          shift 2;;
         -S|--version-suffix-for-pypi)
           if [[ ${VERSION_SUFFIX_FOR_SVN} != "" ]]; then
               echo
@@ -884,6 +895,10 @@ function parse_arguments() {
         generate-requirements)
           LAST_SUBCOMMAND="${1}"
           COMMAND_TO_RUN="perform_generate_requirements"
+          # if you want to  generate requirement - you want to build the image too :)
+          export FORCE_ANSWER_TO_QUESTIONS="yes"
+          # and assume you want to build it no matter if it is needed
+          export FORCE_BUILD_IMAGES="true"
           shift ;;
         prepare-backport-packages)
           LAST_SUBCOMMAND="${1}"
@@ -892,6 +907,11 @@ function parse_arguments() {
         prepare-backport-readme)
           LAST_SUBCOMMAND="${1}"
           COMMAND_TO_RUN="perform_prepare_backport_readme"
+          shift ;;
+        push-image)
+          LAST_SUBCOMMAND="${1}"
+          COMMAND_TO_RUN="perform_push_image"
+          SKIP_CHECK_REMOTE_IMAGE="true"
           shift ;;
         initialize-local-virtualenv)
           LAST_SUBCOMMAND="${1}"
@@ -1080,12 +1100,13 @@ function prepare_usage() {
     export USAGE_DOCKER_COMPOSE="Executes specified docker-compose command"
     export USAGE_EXECUTE_COMMAND="Executes specified command in the container"
     export USAGE_FLAGS="Shows all breeze's flags"
-    export USAGE_PREPARE_BACKPORT_README="Prepares backport packages readme files"
     export USAGE_GENERATE_REQUIREMENTS="Generates pinned requirements for pip dependencies"
     export USAGE_INITIALIZE_LOCAL_VIRTUALENV="Initializes local virtualenv"
+    export USAGE_PREPARE_BACKPORT_README="Prepares backport packages readme files"
+    export USAGE_PREPARE_BACKPORT_PACKAGES="Prepares backport packages"
+    export USAGE_PUSH_IMAGE="Pushes images to registry"
     export USAGE_SETUP_AUTOCOMPLETE="Sets up autocomplete for breeze"
     export USAGE_STOP="Stops the docker-compose environment"
-    export USAGE_PREPARE_BACKPORT_PACKAGES="Prepares backport packages"
     export USAGE_RESTART="Stops the docker-compose environment including DB cleanup"
     export USAGE_STATIC_CHECK="Performs selected static check for changed files"
     export USAGE_STATIC_CHECK_ALL_FILES="Performs selected static check for all files"
@@ -1143,7 +1164,7 @@ $(flag_airflow_variants)
 $(flag_choose_different_airflow_version)
 $(flag_production_image)
 $(flag_build_docker_images)
-$(flag_push_docker_images)
+$(flag_pull_push_docker_images)
 $(flag_verbosity)
 "
     # shellcheck disable=SC2090
@@ -1281,6 +1302,31 @@ $(flag_verbosity)
 "
     # shellcheck disable=SC2090
     export DETAILED_USAGE_PREPARE_BACKPORT_PACKAGES
+    # shellcheck disable=SC2089
+    DETAILED_USAGE_PUSH_IMAGE="
+      Pushes images to docker registry. You can push the images to DockerHub registry (default)
+      or to the GitHub cache registry (if --registry-cache flag is used).
+
+      For DockerHub pushes --dockerhub-user and --dockerhub-repo flags can be used to specify
+      the repository to push to. For GitHub repository --github-organisation and --github-repo
+      flags can be used for the same purpose.
+
+      You can also add --production-image flag to switch to production image (default is CI one)
+
+      Examples:
+
+      '${CMDNAME} push-image' or
+      '${CMDNAME} push-image --dockerhub-user user' to push to your private registry or
+      '${CMDNAME} push-image --production-image' - to push production image or
+      '${CMDNAME} push-image --registry-cache' - to push to GitHub cache or
+      '${CMDNAME} push-image --registry-cache --github-organisation org' - for other organisation
+
+Flags:
+$(flag_pull_push_docker_images)
+$(flag_verbosity)
+"
+    # shellcheck disable=SC2090
+    export DETAILED_USAGE_PUSH_IMAGE
     export DETAILED_USAGE_SETUP_AUTOCOMPLETE="
       Sets up autocomplete for breeze commands. Once you do it you need to re-enter the bash
       shell and when typing breeze command <TAB> will provide autocomplete for
@@ -1642,19 +1688,26 @@ ${FORMATTED_DEFAULT_PROD_EXTRAS}
 "
 }
 
-# Prints flags controlling docker push process
-function flag_push_docker_images() {
+# Prints flags controlling docker pull and push process
+function flag_pull_push_docker_images() {
        echo "
--u, --push-images
-        After building - uploads the images to DockerHub
-        It is useful in case you use your own DockerHub user to store images and you want
-        to build them locally. Note that you need to use 'docker login' before you upload images.
-
 -D, --dockerhub-user
         DockerHub user used to pull, push and build images. Default: ${_BREEZE_DEFAULT_DOCKERHUB_USER:=}.
 
 -H, --dockerhub-repo
         DockerHub repository used to pull, push, build images. Default: ${_BREEZE_DEFAULT_DOCKERHUB_REPO:=}.
+
+-c, --registry-cache
+        If registry cache is enabled, pulls and pushes are done from the registry cache in github.
+        You need to be logged in to the registry in order to be able to pull/push from it and you
+        need to be committer to push to airflow registry.
+
+-G, --github-organisation
+        GitHub organisation used to pull, push images when cache is used. Default: ${_BREEZE_DEFAULT_GITHUB_ORGANISATION:=}.
+
+-g, --github-repo
+        GitHub repository used to pull, push images when cache is used. Default: ${_BREEZE_DEFAULT_GITHUB_REPO:=}.
+
 "
 }
 
@@ -1721,8 +1774,8 @@ $(print_star_line)
 $(flag_build_docker_images)
 
 $(print_star_line)
- Flags for pushing Docker images (both CI and production)
-$(flag_push_docker_images)
+ Flags for pulling/pushing Docker images (both CI and production)
+$(flag_pull_push_docker_images)
 
 $(print_star_line)
  Flags for generation of the backport packages
@@ -1956,7 +2009,7 @@ function run_build_command {
                 rebuild_ci_image_if_needed
             fi
             ;;
-        build_docs|perform_static_checks|perform_generate_requirements|perform_prepare_backport_readme|perform_prepare_backport_packages)
+        build_docs|perform_static_checks|perform_generate_requirements|perform_prepare_backport_readme|perform_prepare_backport_packages|perform_push_image)
             prepare_ci_build
             rebuild_ci_image_if_needed
             ;;
@@ -1984,6 +2037,7 @@ function run_build_command {
           echo >&2
           echo >&2 "ERROR: Unknown command to run ${COMMAND_TO_RUN}"
           echo >&2
+          exit 1
           ;;
     esac
 }
@@ -2041,13 +2095,6 @@ function run_breeze_command {
             run_static_checks "$@"
             ;;
         build_image)
-            if [[ ${PUSH_IMAGES} == "true" ]]; then
-                if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-                    push_prod_images
-                else
-                    push_ci_image
-                fi
-            fi
             ;;
         cleanup_image)
             remove_images
@@ -2060,6 +2107,13 @@ function run_breeze_command {
             ;;
         perform_prepare_backport_readme)
             run_prepare_backport_readme "${@}"
+            ;;
+        perform_push_image)
+            if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
+                push_prod_images
+            else
+                push_ci_image
+            fi
             ;;
         perform_initialize_local_virtualenv)
             initialize_virtualenv

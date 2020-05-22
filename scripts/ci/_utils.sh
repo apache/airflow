@@ -83,6 +83,11 @@ function initialize_common_environment {
     # Default branch name for triggered builds is the one configured in default branch
     export BRANCH_NAME=${BRANCH_NAME:=${DEFAULT_BRANCH}}
 
+    export GITHUB_ORGANISATION=${GITHUB_ORGANISATION:="apache"}
+    export GITHUB_REPO=${GITHUB_REPO:="airflow"}
+    export CACHE_REGISTRY=${CACHE_REGISTRY:="docker.pkg.github.com"}
+    export ENABLE_REGISTRY_CACHE=${ENABLE_REGISTRY_CACHE:="false"}
+
     # Default port numbers for forwarded ports
     export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}
     export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:="25433"}
@@ -91,10 +96,6 @@ function initialize_common_environment {
     # Default MySQL/Postgres versions
     export POSTGRES_VERSION=${POSTGRES_VERSION:="9.6"}
     export MYSQL_VERSION=${MYSQL_VERSION:="5.7"}
-
-    # Do not push images by default (push them directly from the build script on Dockerhub or when
-    # --push-images flag is specified
-    export PUSH_IMAGES=${PUSH_IMAGES:="false"}
 
     # Whether base python images should be pulled from cache
     export PULL_PYTHON_BASE_IMAGES_FROM_CACHE=${PULL_PYTHON_BASE_IMAGES_FROM_CACHE:="true"}
@@ -1480,11 +1481,14 @@ function prepare_ci_build() {
     export AIRFLOW_CI_LOCAL_MANIFEST_IMAGE="local/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
     export AIRFLOW_CI_REMOTE_MANIFEST_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}"
-    if [[ ${CACHE_REGISTRY=""} != "" ]]; then
-        echo "${CACHE_REGISTRY_PASSWORD}" | docker login \
-            --username "${CACHE_REGISTRY_USERNAME}" \
-            --password-stdin \
-            "${CACHE_REGISTRY}"
+    if [[ ${ENABLE_REGISTRY_CACHE="false"} == "true" ]]; then
+        if [[ ${CACHE_REGISTRY_PASSWORD:=} != "" ]]; then
+            echo "${CACHE_REGISTRY_PASSWORD}" | docker login \
+                --username "${CACHE_REGISTRY_USERNAME}" \
+                --password-stdin \
+                "${CACHE_REGISTRY}"
+        fi
+        export CACHE_IMAGE_PREFIX=${CACHE_IMAGE_PREFX:=${GITHUB_ORGANISATION}/${GITHUB_REPO}}
         export CACHED_AIRFLOW_CI_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_CI_BASE_TAG}"
         export CACHED_PYTHON_BASE_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster"
     else
@@ -1568,11 +1572,14 @@ function prepare_prod_build() {
     export ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS:=""}"
     export AIRFLOW_IMAGE="${AIRFLOW_PROD_IMAGE}"
 
-    if [[ ${CACHE_REGISTRY=""} != "" ]]; then
-        echo "${CACHE_REGISTRY_PASSWORD}" | docker login \
-            --username "${CACHE_REGISTRY_USERNAME}" \
-            --password-stdin \
-            "${CACHE_REGISTRY}"
+    if [[ ${ENABLE_REGISTRY_CACHE="false"} == "true" ]]; then
+        if [[ ${CACHE_REGISTRY_PASSWORD:=} != "" ]]; then
+            echo "${CACHE_REGISTRY_PASSWORD}" | docker login \
+                --username "${CACHE_REGISTRY_USERNAME}" \
+                --password-stdin \
+                "${CACHE_REGISTRY}"
+        fi
+        export CACHE_IMAGE_PREFIX=${CACHE_IMAGE_PREFX:=${GITHUB_ORGANISATION}/${GITHUB_REPO}}
         export CACHED_AIRFLOW_PROD_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_PROD_BASE_TAG}"
         export CACHED_AIRFLOW_PROD_BUILD_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_PROD_BASE_TAG}-build"
         export CACHED_PYTHON_BASE_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster"
