@@ -178,6 +178,7 @@ reference documentation for more information
 
 ### CLI changes in Airflow 2.0
 
+
 The Airflow CLI has been organized so that related commands are grouped together as subcommands,
 which means that if you use these commands in your scripts, you have to make changes to them.
 
