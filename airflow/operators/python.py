@@ -32,7 +32,7 @@ import dill
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, SkipMixin
-from airflow.models.dag import DagContext
+from airflow.models.dag import DAG, DagContext
 from airflow.models.xcom_arg import XComArg
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.process_utils import execute_in_subprocess
@@ -186,7 +186,7 @@ class _PythonFunctionalOperator(BaseOperator):
         self._op_kwargs: Dict[str, Any] = {}
 
     @staticmethod
-    def _get_unique_task_id(task_id: str, dag: DAG) -> str:
+    def _get_unique_task_id(task_id: str, dag: Optional[DAG]) -> str:
         dag = dag or DagContext.get_current_dag()
         if not dag or task_id not in dag.task_ids:
             return task_id
