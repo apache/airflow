@@ -17,6 +17,7 @@
 # under the License.
 
 import hashlib
+import os
 from datetime import timedelta
 from time import sleep
 from typing import Any, Dict, Iterable
@@ -106,6 +107,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     def execute(self, context: Dict) -> Any:
         started_at = timezone.utcnow()
         try_number = 1
+        log_dag_id = self.dag.dag_id if self.has_dag() else ""
         if self.reschedule:
             # If reschedule, use first start date of current try
             task_reschedules = TaskReschedule.find_for_task_instance(context['ti'])
@@ -119,9 +121,11 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 # This gives the ability to set up non-blocking AND soft-fail sensors.
                 if self.soft_fail and not context['ti'].is_eligible_to_retry():
                     self._do_skip_downstream_tasks(context)
-                    raise AirflowSkipException('Snap. Time is OUT.')
+                    raise AirflowSkipException(
+                        f"Snap. Time is OUT. DAG id: {log_dag_id}")
                 else:
-                    raise AirflowSensorTimeout('Snap. Time is OUT.')
+                    raise AirflowSensorTimeout(
+                        f"Snap. Time is OUT. DAG id: {log_dag_id}")
             if self.reschedule:
                 reschedule_date = timezone.utcnow() + timedelta(
                     seconds=self._get_next_poke_interval(started_at, try_number))
@@ -176,3 +180,41 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         if self.reschedule:
             return BaseOperator.deps.fget(self) | {ReadyToRescheduleDep()}
         return BaseOperator.deps.fget(self)
+
+
+def poke_mode_only(cls):
+    """
+    Class Decorator for child classes of BaseSensorOperator to indicate
+    that instances of this class are only safe to use poke mode.
+
+    Will decorate all methods in the class to assert they did not change
+    the mode from 'poke'.
+
+    :param cls: BaseSensor class to enforce methods only use 'poke' mode.
+    :type cls: type
+    """
+    def decorate(cls_type):
+        def mode_getter(_):
+            return 'poke'
+
+        def mode_setter(_, value):
+            if value != 'poke':
+                raise ValueError(
+                    f"cannot set mode to 'poke'.")
+
+        if not issubclass(cls_type, BaseSensorOperator):
+            raise ValueError(f"poke_mode_only decorator should only be "
+                             f"applied to subclasses of BaseSensorOperator,"
+                             f" got:{cls_type}.")
+
+        cls_type.mode = property(mode_getter, mode_setter)
+
+        return cls_type
+
+    return decorate(cls)
+
+
+if 'BUILDING_AIRFLOW_DOCS' in os.environ:
+    # flake8: noqa: F811
+    # Monkey patch hook to get good function headers while building docs
+    apply_defaults = lambda x: x

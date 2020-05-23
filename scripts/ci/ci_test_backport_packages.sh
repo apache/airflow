@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
-export MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
 
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
@@ -25,7 +24,6 @@ function run_test_package_installation() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
         -v "${AIRFLOW_SOURCES}/dist:/dist:cached" \
-        -v "${AIRFLOW_SOURCES}/empty:/opt/airflow/airflow:cached" \
         --env PYTHONDONTWRITEBYTECODE \
         --env INSTALL_AIRFLOW_VERSION \
         --env VERBOSE \

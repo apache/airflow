@@ -890,8 +890,8 @@ class DagFileProcessor(LoggingMixin):
 
         :param dagbag: DagBag
         :type dagbag: models.DagBag
-        :param ti_keys_to_schedule:  List of task instnace keys which can be scheduled.
-        :param ti_keys_to_schedule:
+        :param ti_keys_to_schedule: List of task instnace keys which can be scheduled.
+        :type ti_keys_to_schedule: list
         """
         # Refresh all task instances that will be scheduled
         TI = models.TaskInstance
@@ -1012,8 +1012,6 @@ class SchedulerJob(BaseJob):
 
         self.do_pickle = do_pickle
         super().__init__(*args, **kwargs)
-
-        self.max_threads = conf.getint('scheduler', 'max_threads')
 
         if log:
             self._log = log

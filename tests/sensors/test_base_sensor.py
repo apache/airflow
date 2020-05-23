@@ -24,10 +24,10 @@ from unittest.mock import Mock, patch
 from freezegun import freeze_time
 
 from airflow.exceptions import AirflowException, AirflowRescheduleException, AirflowSensorTimeout
-from airflow.models import DagRun, TaskInstance, TaskReschedule
+from airflow.models import DagBag, DagRun, TaskInstance, TaskReschedule
 from airflow.models.dag import DAG, settings
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base_sensor_operator import BaseSensorOperator, poke_mode_only
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -37,6 +37,7 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_dag'
 DUMMY_OP = 'dummy_op'
 SENSOR_OP = 'sensor_op'
+DEV_NULL = 'dev/null'
 
 
 class DummySensor(BaseSensorOperator):
@@ -546,3 +547,66 @@ class TestBaseSensor(unittest.TestCase):
             self.assertTrue(interval1 <= sensor.poke_interval)
             self.assertTrue(interval2 >= sensor.poke_interval)
             self.assertTrue(interval2 > interval1)
+
+
+@poke_mode_only
+class DummyPokeOnlySensor(BaseSensorOperator):
+    def __init__(self, poke_changes_mode=False, **kwargs):
+        self.mode = kwargs['mode']
+        super().__init__(**kwargs)
+        self.poke_changes_mode = poke_changes_mode
+        self.return_value = True
+
+    def poke(self, context):
+        if self.poke_changes_mode:
+            self.change_mode('reschedule')
+        return self.return_value
+
+    def change_mode(self, mode):
+        self.mode = mode
+
+
+class TestPokeModeOnly(unittest.TestCase):
+
+    def setUp(self):
+        self.dagbag = DagBag(
+            dag_folder=DEV_NULL,
+            include_examples=True
+        )
+        self.args = {
+            'owner': 'airflow',
+            'start_date': DEFAULT_DATE
+        }
+        self.dag = DAG(TEST_DAG_ID, default_args=self.args)
+
+    def test_poke_mode_only_allows_poke_mode(self):
+        try:
+            sensor = DummyPokeOnlySensor(task_id='foo', mode='poke', poke_changes_mode=False,
+                                         dag=self.dag)
+        except ValueError:
+            self.fail("__init__ failed with mode='poke'.")
+        try:
+            sensor.poke({})
+        except ValueError:
+            self.fail("poke failed without changing mode from 'poke'.")
+        try:
+            sensor.change_mode('poke')
+        except ValueError:
+            self.fail("class method failed without changing mode from 'poke'.")
+
+    def test_poke_mode_only_bad_class_method(self):
+        sensor = DummyPokeOnlySensor(task_id='foo', mode='poke', poke_changes_mode=False,
+                                     dag=self.dag)
+        with self.assertRaises(ValueError):
+            sensor.change_mode('reschedule')
+
+    def test_poke_mode_only_bad_init(self):
+        with self.assertRaises(ValueError):
+            DummyPokeOnlySensor(task_id='foo', mode='reschedule',
+                                poke_changes_mode=False, dag=self.dag)
+
+    def test_poke_mode_only_bad_poke(self):
+        sensor = DummyPokeOnlySensor(task_id='foo', mode='poke', poke_changes_mode=True,
+                                     dag=self.dag)
+        with self.assertRaises(ValueError):
+            sensor.poke({})

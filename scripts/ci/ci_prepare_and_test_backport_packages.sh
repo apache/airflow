@@ -20,7 +20,7 @@ export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-"${MY_DIR}/ci_generate_backport_readme.sh"
+"${MY_DIR}/ci_prepare_backport_readme.sh"
 "${MY_DIR}/ci_prepare_backport_packages.sh"
 "${MY_DIR}/ci_test_backport_packages.sh"
 

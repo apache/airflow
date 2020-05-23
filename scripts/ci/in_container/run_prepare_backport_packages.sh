@@ -36,12 +36,11 @@ rm -rf dist/*
 rm -rf -- *.egg-info
 
 if [[ -z "$*" ]]; then
-    BACKPORT_PACKAGES=$(python3 setup_backport_packages.py list-backport-packages)
-    BUILD_AIRFLOW_PACKAGE="true"
+    PROVIDERS_PACKAGES=$(python3 setup_backport_packages.py list-providers-packages)
 
     PACKAGE_ERROR="false"
     # Check if all providers are included
-    for PACKAGE in ${BACKPORT_PACKAGES}
+    for PACKAGE in ${PROVIDERS_PACKAGES}
     do
         if ! grep -E "^${PACKAGE}" <"${LIST_OF_DIRS_FILE}" >/dev/null; then
             echo "The package ${PACKAGE} is not available in providers dir"
@@ -65,6 +64,7 @@ if [[ -z "$*" ]]; then
         echo
         exit 1
     fi
+    BACKPORT_PACKAGES=$(python3 setup_backport_packages.py list-backportable-packages)
 else
     if [[ "$1" == "--help" ]]; then
         echo
@@ -72,13 +72,12 @@ else
         echo
         echo "You can provide list of packages to build out of:"
         echo
-        python3 setup_backport_packages.py list-backport-packages | tr '\n ' ' ' | fold -w 100 -s
+        python3 setup_backport_packages.py list-providers-packages | tr '\n ' ' ' | fold -w 100 -s
         echo
         echo
         exit
     fi
     BACKPORT_PACKAGES="$*"
-    BUILD_AIRFLOW_PACKAGE="false"
 fi
 
 echo "==================================================================================="
@@ -86,18 +85,22 @@ echo " Copying sources and doing refactor for backport packages"
 echo "==================================================================================="
 python3 setup_backport_packages.py prepare
 
-VERSION_SUFFIX=${VERSION_SUFFIX:=""}
+VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI:=""}
+VERSION_SUFFIX_FOR_SVN=${VERSION_SUFFIX_FOR_SVN:=""}
+
+echo "Version suffix for PyPI= ${VERSION_SUFFIX_FOR_PYPI}"
+echo "Version suffix for SVN = ${VERSION_SUFFIX_FOR_SVN}"
 
 
 for BACKPORT_PACKAGE in ${BACKPORT_PACKAGES}
 do
     LOG_FILE=$(mktemp)
     echo "==================================================================================="
-    echo " Preparing backport package ${BACKPORT_PACKAGE} with version suffix: '${VERSION_SUFFIX}'"
+    echo " Preparing backport package ${BACKPORT_PACKAGE}"
     echo "-----------------------------------------------------------------------------------"
     python3 setup_backport_packages.py "${BACKPORT_PACKAGE}" clean --all >/dev/null 2>&1
     set +e
-    python3 setup_backport_packages.py --version-suffix "${VERSION_SUFFIX}" \
+    python3 setup_backport_packages.py --version-suffix "${VERSION_SUFFIX_FOR_PYPI}" \
         "${BACKPORT_PACKAGE}" sdist bdist_wheel >"${LOG_FILE}" 2>&1
     RES="${?}"
     if [[ ${RES} != "0" ]]; then
@@ -110,16 +113,22 @@ done
 
 cd "${AIRFLOW_SOURCES}" || exit 1
 
-if [[ ${BUILD_AIRFLOW_PACKAGE} == "true" ]]; then
-    echo "==================================================================================="
-    echo " Preparing apache-airflow package"
-    echo "==================================================================================="
-    python3 setup.py clean --all
-    python3 setup.py sdist bdist_wheel >/dev/null
-fi
-echo "==================================================================================="
+pushd dist
 
-AIRFLOW_PACKAGES_TGZ_FILE="/tmp/airflow-packages-$(date +"%Y%m%d-%H%M%S").tar.gz"
+if [[ ${VERSION_SUFFIX_FOR_SVN} != "" ]]; then
+    for FILE in *.tar.gz
+    do
+        mv "${FILE}" "${FILE//\.tar\.gz/${VERSION_SUFFIX_FOR_SVN}-bin.tar.gz}"
+    done
+    for FILE in *.whl
+    do
+        mv "${FILE}" "${FILE//\-py3/${VERSION_SUFFIX_FOR_SVN}-py3}"
+    done
+fi
+
+popd
+
+AIRFLOW_PACKAGES_TGZ_FILE="/tmp/airflow-packages-$(date +"%Y%m%d-%H%M%S")-${VERSION_SUFFIX_FOR_SVN}${VERSION_SUFFIX_FOR_PYPI}.tar.gz"
 
 tar -cvzf "${AIRFLOW_PACKAGES_TGZ_FILE}" dist/*.whl dist/*.tar.gz
 echo

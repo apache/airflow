@@ -46,7 +46,7 @@ csrf = CSRFProtect()
 log = logging.getLogger(__name__)
 
 
-def create_app(config=None, session=None, testing=False, app_name="Airflow"):
+def create_app(config=None, testing=False, app_name="Airflow"):
     global app, appbuilder
     app = Flask(__name__)
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
@@ -70,8 +70,9 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     app.json_encoder = AirflowJsonEncoder
 
     csrf.init_app(app)
-
-    db = SQLA(app)
+    db = SQLA()
+    db.session = settings.Session
+    db.init_app(app)
 
     from airflow import api
     api.load_auth()
@@ -95,9 +96,18 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                 """Your CUSTOM_SECURITY_MANAGER must now extend AirflowSecurityManager,
                  not FAB's security manager.""")
 
-        appbuilder = AppBuilder(
-            app,
-            db.session if not session else session,
+        class AirflowAppBuilder(AppBuilder):
+
+            def _check_and_init(self, baseview):
+                if hasattr(baseview, 'datamodel'):
+                    # Delete sessions if initiated previously to limit side effects. We want to use
+                    # the current session in the current application.
+                    baseview.datamodel.session = None
+                return super()._check_and_init(baseview)
+
+        appbuilder = AirflowAppBuilder(
+            app=app,
+            session=settings.Session,
             security_manager_class=security_manager_class,
             base_template='airflow/master.html',
             update_perms=conf.getboolean('webserver', 'UPDATE_FAB_PERMS'))
@@ -272,10 +282,6 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                 response.headers["X-Frame-Options"] = "DENY"
             return response
 
-        @app.teardown_appcontext
-        def shutdown_session(exception=None):  # pylint: disable=unused-variable
-            settings.Session.remove()
-
         @app.before_request
         def make_session_permanent():
             flask_session.permanent = True
@@ -288,14 +294,14 @@ def root_app(env, resp):
     return [b'Apache Airflow is not at this location']
 
 
-def cached_app(config=None, session=None, testing=False):
+def cached_app(config=None, testing=False):
     global app, appbuilder
     if not app or not appbuilder:
         base_url = urlparse(conf.get('webserver', 'base_url'))[2]
         if not base_url or base_url == '/':
             base_url = ""
 
-        app, _ = create_app(config, session, testing)
+        app, _ = create_app(config=config, testing=testing)
         app = DispatcherMiddleware(root_app, {base_url: app})
         if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
             app = ProxyFix(

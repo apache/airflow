@@ -308,6 +308,28 @@ exit 0
                 ignore_ti_state=True
             )
 
+    def test_external_task_sensor_fn_multiple_args(self):
+        """Check this task sensor passes multiple args with full context. If no failure, means clean run."""
+        self.test_time_sensor()
+
+        def my_func(dt, context):
+            assert context['execution_date'] == dt
+            return dt + timedelta(0)
+
+        op1 = ExternalTaskSensor(
+            task_id='test_external_task_sensor_multiple_arg_fn',
+            external_dag_id=TEST_DAG_ID,
+            external_task_id=TEST_TASK_ID,
+            execution_date_fn=my_func,
+            allowed_states=['success'],
+            dag=self.dag
+        )
+        op1.run(
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            ignore_ti_state=True
+        )
+
     def test_external_task_sensor_error_delta_and_fn(self):
         self.test_time_sensor()
         # Test that providing execution_delta and a function raises an error

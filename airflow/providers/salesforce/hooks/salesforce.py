@@ -236,6 +236,58 @@ class SalesforceHook(BaseHook):
         if fmt not in ['csv', 'json', 'ndjson']:
             raise ValueError("Format value is not recognized: {}".format(fmt))
 
+        df = self.object_to_df(query_results=query_results, coerce_to_timestamp=coerce_to_timestamp,
+                               record_time_added=record_time_added)
+
+        # write the CSV or JSON file depending on the option
+        # NOTE:
+        #   datetimes here are an issue.
+        #   There is no good way to manage the difference
+        #   for to_json, the options are an epoch or a ISO string
+        #   but for to_csv, it will be a string output by datetime
+        #   For JSON we decided to output the epoch timestamp in seconds
+        #   (as is fairly standard for JavaScript)
+        #   And for csv, we do a string
+        if fmt == "csv":
+            # there are also a ton of newline objects that mess up our ability to write to csv
+            # we remove these newlines so that the output is a valid CSV format
+            self.log.info("Cleaning data and writing to CSV")
+            possible_strings = df.columns[df.dtypes == "object"]
+            df[possible_strings] = df[possible_strings].astype(str).apply(
+                lambda x: x.str.replace("\r\n", "").str.replace("\n", "")
+            )
+            # write the dataframe
+            df.to_csv(filename, index=False)
+        elif fmt == "json":
+            df.to_json(filename, "records", date_unit="s")
+        elif fmt == "ndjson":
+            df.to_json(filename, "records", lines=True, date_unit="s")
+
+        return df
+
+    def object_to_df(self, query_results, coerce_to_timestamp=False,
+                     record_time_added=False):
+        """
+        Export query results to dataframe.
+
+        By default, this function will try and leave all values as they are represented in Salesforce.
+        You use the `coerce_to_timestamp` flag to force all datetimes to become Unix timestamps (UTC).
+        This is can be greatly beneficial as it will make all of your datetime fields look the same,
+        and makes it easier to work with in other database environments
+
+        :param query_results: the results from a SQL query
+        :type query_results: list of dict
+        :param coerce_to_timestamp: True if you want all datetime fields to be converted into Unix timestamps.
+            False if you want them to be left in the same format as they were in Salesforce.
+            Leaving the value as False will result in datetimes being strings. Default: False
+        :type coerce_to_timestamp: bool
+        :param record_time_added: True if you want to add a Unix timestamp field
+            to the resulting data that marks when the data was fetched from Salesforce. Default: False
+        :type record_time_added: bool
+        :return: the dataframe.
+        :rtype: pd.Dataframe
+        """
+
         # this line right here will convert all integers to floats
         # if there are any None/np.nan values in the column
         # that's because None/np.nan cannot exist in an integer column
@@ -271,29 +323,5 @@ class SalesforceHook(BaseHook):
         if record_time_added:
             fetched_time = time.time()
             df["time_fetched_from_salesforce"] = fetched_time
-
-        # write the CSV or JSON file depending on the option
-        # NOTE:
-        #   datetimes here are an issue.
-        #   There is no good way to manage the difference
-        #   for to_json, the options are an epoch or a ISO string
-        #   but for to_csv, it will be a string output by datetime
-        #   For JSON we decided to output the epoch timestamp in seconds
-        #   (as is fairly standard for JavaScript)
-        #   And for csv, we do a string
-        if fmt == "csv":
-            # there are also a ton of newline objects that mess up our ability to write to csv
-            # we remove these newlines so that the output is a valid CSV format
-            self.log.info("Cleaning data and writing to CSV")
-            possible_strings = df.columns[df.dtypes == "object"]
-            df[possible_strings] = df[possible_strings].astype(str).apply(
-                lambda x: x.str.replace("\r\n", "").str.replace("\n", "")
-            )
-            # write the dataframe
-            df.to_csv(filename, index=False)
-        elif fmt == "json":
-            df.to_json(filename, "records", date_unit="s")
-        elif fmt == "ndjson":
-            df.to_json(filename, "records", lines=True, date_unit="s")
 
         return df

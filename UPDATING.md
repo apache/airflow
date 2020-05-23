@@ -101,6 +101,30 @@ To maintain consistent behavior, both successful or skipped downstream task can 
 `wait_for_downstream=True` flag.
 
 
+### Use DagRunType.SCHEDULED.value instead of DagRun.ID_PREFIX
+
+All the run_id prefixes for different kind of DagRuns have been grouped into a single
+enum in `airflow.utils.types.DagRunType`.
+
+Previously, there were defined in various places, example as `ID_PREFIX` class variables for
+`DagRun`, `BackfillJob` and in `_trigger_dag` function.
+
+Was:
+
+```python
+>> from airflow.models.dagrun import DagRun
+>> DagRun.ID_PREFIX
+scheduled__
+```
+
+Replaced by:
+
+```python
+>> from airflow.utils.types import DagRunType
+>> DagRunType.SCHEDULED.value
+scheduled
+```
+
 ### Ability to patch Pool.DEFAULT_POOL_NAME in BaseOperator
 It was not possible to patch pool in BaseOperator as the signature sets the default value of pool
 as Pool.DEFAULT_POOL_NAME.
@@ -171,6 +195,29 @@ plugins =
     constructor.
 - Added optional project_id argument to DataflowCreatePythonJobOperator
     constructor.
+
+### GCSUploadSessionCompleteSensor signature change
+
+To provide more precise control in handling of changes to objects in
+underlying GCS Bucket the constructor of this sensor now has changed.
+
+- Old Behavior: This constructor used to optionally take ``previous_num_objects: int``.
+- New replacement constructor kwarg: ``previous_objects: Optional[Set[str]]``.
+
+Most users would not specify this argument because the bucket begins empty
+and the user wants to treat any files as new.
+
+Example of Updating usage of this sensor:
+Users who used to call:
+
+``GCSUploadSessionCompleteSensor(bucket='my_bucket', prefix='my_prefix', previous_num_objects=1)``
+
+Will now call:
+
+``GCSUploadSessionCompleteSensor(bucket='my_bucket', prefix='my_prefix', previous_num_objects={'.keep'})``
+
+Where '.keep' is a single file at your prefix that the sensor should not consider new.
+
 
 ### Rename pool statsd metrics
 

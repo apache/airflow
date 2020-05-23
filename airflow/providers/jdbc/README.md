@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-jdbc
 
-Release: 2020.05.19
+Release: 2020.5.20
 
 **Table of contents**
 
@@ -34,12 +34,19 @@ Release: 2020.05.19
     - [Hooks](#hooks)
         - [Moved hooks](#moved-hooks)
 - [Releases](#releases)
-    - [Release 2020.05.19](#release-20200519)
+    - [Release 2020.5.20](#release-2020520)
 
 ## Backport package
 
 This is a backport providers package for `jdbc` provider. All classes for this provider package
 are in `airflow.providers.jdbc` python package.
+
+**Only Python 3.6+ is supported for this backport package.**
+
+While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
+want to use this backport package.
+
+
 
 ## Installation
 
@@ -94,10 +101,12 @@ All classes in Airflow 2.0 are in `airflow.providers.jdbc` package.
 
 ## Releases
 
-### Release 2020.05.19
+### Release 2020.5.20
 
 | Commit                                                                                         | Committed   | Subject                                                                    |
 |:-----------------------------------------------------------------------------------------------|:------------|:---------------------------------------------------------------------------|
+| [12c5e5d8a](https://github.com/apache/airflow/commit/12c5e5d8ae25fa633efe63ccf4db389e2b796d79) | 2020-05-17  | Prepare release candidate for backport packages (#8891)                    |
+| [f3521fb0e](https://github.com/apache/airflow/commit/f3521fb0e36733d8bd356123e56a453fd37a6dca) | 2020-05-16  | Regenerate readme files for backport package release (#8886)               |
 | [92585ca4c](https://github.com/apache/airflow/commit/92585ca4cb375ac879f4ab331b3a063106eb7b92) | 2020-05-15  | Added automated release notes generation for backport operators (#8807)    |
 | [4bde99f13](https://github.com/apache/airflow/commit/4bde99f1323d72f6c84c1548079d5e98fc0a2a9a) | 2020-03-23  | Make airflow/providers pylint compatible (#7802)                           |
 | [ca8857bea](https://github.com/apache/airflow/commit/ca8857beaaffacc584db8198d0fa90473533549c) | 2020-03-23  | Change from Instance attribute to variable in JdbcOperator.execute (#7819) |
