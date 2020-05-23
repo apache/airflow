@@ -285,7 +285,7 @@ class Mail(LoggingMixin):
         :type find_first: bool
         :returns: a list of tuples each containing name and payload
             where the attachments name matches the given name.
-        :rtype: list of tuple
+        :rtype: list(tuple)
         """
         attachments = []
 

@@ -45,7 +45,7 @@ class CloudTasksQueueCreateOperator(BaseOperator):
     :param task_queue: The task queue to create.
         Queue's name cannot be the same as an existing queue.
         If a dict is provided, it must be of the same form as the protobuf message Queue.
-    :type task_queue: dict or class google.cloud.tasks_v2.types.Queue
+    :type task_queue: dict or google.cloud.tasks_v2.types.Queue
     :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
         If set to None or missing, the default project_id from the GCP connection is used.
     :type project_id: str
@@ -130,7 +130,7 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
     :param task_queue: The task queue to update.
         This method creates the queue if it does not exist and updates the queue if
         it does exist. The queue's name must be specified.
-    :type task_queue: dict or class google.cloud.tasks_v2.types.Queue
+    :type task_queue: dict or google.cloud.tasks_v2.types.Queue
     :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
         If set to None or missing, the default project_id from the GCP connection is used.
     :type project_id: str
@@ -143,7 +143,7 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
     :param update_mask: A mast used to specify which fields of the queue are being updated.
         If empty, then all fields will be updated.
         If a dict is provided, it must be of the same form as the protobuf message.
-    :type update_mask: dict or class google.cloud.tasks_v2.types.FieldMask
+    :type update_mask: dict or google.cloud.tasks_v2.types.FieldMask
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
     :type retry: google.api_core.retry.Retry
@@ -595,7 +595,7 @@ class CloudTasksTaskCreateOperator(BaseOperator):
     :type queue_name: str
     :param task: The task to add.
         If a dict is provided, it must be of the same form as the protobuf message Task.
-    :type task: dict or class google.cloud.tasks_v2.types.Task
+    :type task: dict or google.cloud.tasks_v2.types.Task
     :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
         If set to None or missing, the default project_id from the GCP connection is used.
     :type project_id: str

@@ -778,7 +778,7 @@ class AutoMLDeployModelOperator(BaseOperator):
         model_id: str,
         location: str,
         project_id: Optional[str] = None,
-        image_detection_metadata: Optional[Optional[Optional[dict]]] = None,
+        image_detection_metadata: Optional[dict] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,

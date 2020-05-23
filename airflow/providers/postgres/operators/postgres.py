@@ -36,7 +36,7 @@ class PostgresOperator(BaseOperator):
         (default value: False)
     :type autocommit: bool
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: mapping or iterable
+    :type parameters: dict or iterable
     :param database: name of database which overwrite defined one in connection
     :type database: str
     """

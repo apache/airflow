@@ -445,7 +445,7 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(self,
-                 main_python_file_uri: Optional[Optional[str]] = None,
+                 main_python_file_uri: Optional[str] = None,
                  python_file_uris: Optional[Iterable[str]] = None,
                  jar_file_uris: Optional[Iterable[str]] = None,
                  archive_uris: Optional[Iterable[str]] = None,

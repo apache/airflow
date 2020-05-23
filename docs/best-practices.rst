@@ -303,7 +303,7 @@ Configuration
 
 Airflow comes bundled with a default ``airflow.cfg`` configuration file.
 You should use environment variables for configurations that change across deployments
-e.g. metadata DB, password, etc. You can accomplish this using the format ``$AIRFLOW__{SECTION}__{KEY}``
+e.g. metadata DB, password, etc. You can accomplish this using the format :envvar:`AIRFLOW__{SECTION}__{KEY}`
 
 .. code::
 

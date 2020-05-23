@@ -193,16 +193,6 @@ class GKEStartPodOperator(KubernetesPodOperator):
     ``task_id``, ``project_id``, ``location``, ``cluster_name``, ``name``,
     ``namespace``, and ``image``
 
-    **Operator Creation**: ::
-
-        operator = GKEPodOperator(task_id='pod_op',
-                                  project_id='my-project',
-                                  location='us-central1-a',
-                                  cluster_name='my-cluster-name',
-                                  name='task-name',
-                                  namespace='default',
-                                  image='perl')
-
     .. seealso::
         For more detail about application authentication have a look at the reference:
         https://cloud.google.com/docs/authentication/production#providing_credentials_to_your_application

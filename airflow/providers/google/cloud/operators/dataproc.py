@@ -1294,7 +1294,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         main: str,
         arguments: Optional[List] = None,
         archives: Optional[List] = None,
-        pyfiles: Optional[Optional[Optional[List]]] = None,
+        pyfiles: Optional[List] = None,
         files: Optional[List] = None,
         *args,
         **kwargs

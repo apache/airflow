@@ -43,7 +43,7 @@ class BashOperator(BaseOperator):
     :param bash_command: The command, set of commands or reference to a
         bash script (must be '.sh') to be executed. (templated)
     :type bash_command: str
-    :param env: If env is not None, it must be a mapping that defines the
+    :param env: If env is not None, it must be a dict that defines the
         environment variables for the new process; these are used instead
         of inheriting the current process environment, which is the default
         behavior. (templated)
