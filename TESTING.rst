@@ -967,7 +967,6 @@ Running BATS Tests via Docker
 To run all tests:
 
 .. code-block:: bash
-  
   docker run -it --workdir /airflow -v $(pwd):/airflow  bats/bats:latest -r /airflow/tests/bats
 
 To run a single test:
