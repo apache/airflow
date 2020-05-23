@@ -12,7 +12,6 @@
 
 from airflow.hooks import base_hook as BaseHook
 from kafka import KafkaProducer
-from kafka.producer.future import FutureRecordMetadata
 
 
 class KafkaProducerHook(BaseHook):
