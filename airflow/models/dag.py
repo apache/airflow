@@ -1385,7 +1385,7 @@ class DAG(BaseDag, LoggingMixin):
         :param local: True to run the tasks using the LocalExecutor
         :type local: bool
         :param executor: The executor instance to run the tasks
-        :type executor: airflow.executor.BaseExecutor
+        :type executor: airflow.executor.base_executor.BaseExecutor
         :param donot_pickle: True to avoid pickling DAG object and send to workers
         :type donot_pickle: bool
         :param ignore_task_deps: True to skip upstream tasks

@@ -57,7 +57,7 @@ class TestProjectStructure(unittest.TestCase):
             self.assert_file_not_contains(filename, "providers")
 
     def test_deprecated_packages(self):
-        for directory in ["operator", "hooks", "sensors", "task_runner"]:
+        for directory in ["hooks", "operators", "secrets", "sensors", "task_runner"]:
             path_pattern = f"{ROOT_FOLDER}/airflow/contrib/{directory}/*.py"
 
             for filename in glob.glob(path_pattern, recursive=True):
@@ -244,7 +244,7 @@ class TestOperatorsHooks(unittest.TestCase):
         files = itertools.chain(*[
             glob.glob(f"{ROOT_FOLDER}/{part}/providers/**/{resource_type}/*.py", recursive=True)
             for resource_type in ["operators", "hooks", "sensors", "example_dags"]
-            for part in ["airlfow", "tests"]
+            for part in ["airflow", "tests"]
         ])
 
         invalid_files = [

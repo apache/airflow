@@ -50,9 +50,9 @@ logger = logging.getLogger(__name__)
 
 def mock_custom_module_path(path: str):
     """
-    This decorator adds a path to sys.path to simulate running the current script with the ``PYTHONPATH``
-    environment variable set and sets the environment variable ``PYTHONPATH`` to change the
-    module load directory for child scripts.
+    This decorator adds a path to sys.path to simulate running the current script with
+    the :envvar:`PYTHONPATH` environment variable set and sets the environment variable
+    :envvar:`PYTHONPATH` to change the module load directory for child scripts.
     """
     def wrapper(func):
         @functools.wraps(func)

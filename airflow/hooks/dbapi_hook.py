@@ -115,7 +115,7 @@ class DbApiHook(BaseHook):
             sql statements to execute
         :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
-        :type parameters: mapping or iterable
+        :type parameters: dict or iterable
         """
         import pandas.io.sql as psql
 
@@ -130,7 +130,7 @@ class DbApiHook(BaseHook):
             sql statements to execute
         :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
-        :type parameters: mapping or iterable
+        :type parameters: dict or iterable
         """
         with closing(self.get_conn()) as conn:
             with closing(conn.cursor()) as cur:
@@ -148,7 +148,7 @@ class DbApiHook(BaseHook):
             sql statements to execute
         :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
-        :type parameters: mapping or iterable
+        :type parameters: dict or iterable
         """
         with closing(self.get_conn()) as conn:
             with closing(conn.cursor()) as cur:
@@ -171,7 +171,7 @@ class DbApiHook(BaseHook):
             before executing the query.
         :type autocommit: bool
         :param parameters: The parameters to render the SQL query with.
-        :type parameters: mapping or iterable
+        :type parameters: dict or iterable
         """
         if isinstance(sql, str):
             sql = [sql]

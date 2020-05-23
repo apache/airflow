@@ -33,7 +33,7 @@ def get_template_field(env, fullname):
     Gets template fields for specific operator class.
 
     :param fullname: Full path to operator class.
-        For example: ``airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetCreateOperator``
+        For example: ``airflow.providers.google.cloud.operators.vision.CloudVisionCreateProductSetOperator``
     :return: List of template field
     :rtype: list[str]
     """

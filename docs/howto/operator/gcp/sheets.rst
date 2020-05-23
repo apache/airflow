@@ -47,7 +47,7 @@ Create spreadsheet
 ^^^^^^^^^^^^^^^^^^
 
 To create new spreadsheet you can use the
-:class:`~airflow.providers.google.suite.operators.sheet.GoogleSheetsCreateSpreadsheet`.
+:class:`~airflow.providers.google.suite.operators.sheets.GoogleSheetsCreateSpreadsheet`.
 
 .. exampleinclude:: ../../../../airflow/providers/google/suite/example_dags/example_sheets.py
     :language: python

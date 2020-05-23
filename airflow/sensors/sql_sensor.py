@@ -40,7 +40,7 @@ class SqlSensor(BaseSensorOperator):
         that contains a non-zero / empty string value.
     :type sql: str
     :param parameters: The parameters to render the SQL query with (optional).
-    :type parameters: mapping or iterable
+    :type parameters: dict or iterable
     :param success: Success criteria for the sensor is a Callable that takes first_cell
         as the only argument, and returns a boolean (optional).
     :type: success: Optional<Callable[[Any], bool]>
