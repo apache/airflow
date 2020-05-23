@@ -17,7 +17,6 @@
 # under the License.
 
 from kafka import KafkaProducer
-from kafka.producer.future import FutureRecordMetadata
 
 from airflow.hooks.base_hook import BaseHook
 
