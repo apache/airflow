@@ -48,7 +48,7 @@ class TimeDeltaSensor(BaseSensorOperator):
         dag = context['dag']
         target_dttm = dag.following_schedule(context['execution_date'])
         # check for upstream task end times if upstream tasks are there and delta_on_upstream flag is True
-        self.log.error(f'Upstream Flag: {self.delta_on_upstream}, Upstreams: {self.upstream_task_ids}')
+        self.log.error('Upstream Flag: (%s), Upstreams: (%s)', self.delta_on_upstream, self.upstream_task_ids)
         if self.delta_on_upstream and self.upstream_task_ids and context['dag_run']:
             dag_run = context['dag_run']
             for upstream_task_id in self.upstream_task_ids:
