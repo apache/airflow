@@ -403,10 +403,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         # if exit code did not return when spark running on k8s, try use 'kubectl describe pod xxx' cmd
         if self._is_kubernetes:
-            try:
-                self._get_exitcode_by_k8s_describe_cmd_with_loop()
-            except Exception:
-                pass
+            self._get_exitcode_by_k8s_describe_cmd_with_loop()
 
         # Check spark-submit return code. In Kubernetes mode, also check the value
         # of exit code in the log, as it may differ.
