@@ -36,7 +36,6 @@ MISSING_TEST_FILES = {
     'tests/providers/cncf/kubernetes/operators/test_kubernetes_pod.py',
     'tests/providers/google/cloud/operators/test_datastore.py',
     'tests/providers/google/cloud/operators/test_sql_to_gcs.py',
-    'tests/providers/google/cloud/sensors/test_bigquery.py',
     'tests/providers/google/cloud/utils/test_field_sanitizer.py',
     'tests/providers/google/cloud/utils/test_field_validator.py',
     'tests/providers/google/cloud/utils/test_mlengine_operator_utils.py',
