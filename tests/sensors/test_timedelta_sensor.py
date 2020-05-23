@@ -50,4 +50,3 @@ class TestTimedeltaSensor(unittest.TestCase):
             dag=self.dag)
         end_date = DEFAULT_DATE + timedelta(minutes=3)
         op.run(start_date=DEFAULT_DATE, end_date=end_date, ignore_ti_state=True)
-
