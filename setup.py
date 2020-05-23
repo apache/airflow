@@ -725,11 +725,6 @@ INSTALL_REQUIREMENTS = [
 ]
 
 
-def get_dependency_name(dep):
-    """Get name of a dependency."""
-    return dep.replace(">", '=').replace("<", "=").split("=")[0]
-
-
 def do_setup():
     """Perform the Airflow package setup."""
     write_version()
