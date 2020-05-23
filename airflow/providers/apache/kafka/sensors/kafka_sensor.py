@@ -16,8 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import logging
-
 from cached_property import cached_property
 from airflow.utils.decorators import apply_defaults
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
