@@ -77,6 +77,6 @@ hello_world = ECSOperator(
         "Environment": "Development",
     },
     awslogs_group="/ecs/hello-world",
-    awslogs_stream_prefix="prefix_b/hello-world-container",
+    awslogs_stream_prefix="prefix_b/hello-world-container",  # prefix with container name
 )
 # [END howto_operator_ecs]

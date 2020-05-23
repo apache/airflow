@@ -34,7 +34,7 @@ class ECSSystemTest(AmazonSystemTest):
         # aws parameters
         REGION_NAME="eu-west-1"
         REGISTRY_ID="123456789012"
-        REPOSITORY_NAME="foobar/hello-world"
+        IMAGE="alpine:3.9"
         SUBNET_ID="subnet-068e9654a3c357a"
         SECURITY_GROUP_ID="sg-054dc69874a651"
         EXECUTION_ROLE_ARN="arn:aws:iam::123456789012:role/FooBarRole"
@@ -50,45 +50,13 @@ class ECSSystemTest(AmazonSystemTest):
     task_definition = "hello-world"
     container = "hello-world-container"
     awslogs_group = "/ecs/hello-world"
-    awslogs_stream_prefix = "prefix_b/hello-world-container"
-
-    local_image_tag = "hello"
-    local_image_context_path = "/opt/airflow/tests/providers/amazon/aws/images/ecs_test_image/"
+    awslogs_stream_prefix = "prefix_b"  # only prefix without container name
 
     def setUp(self):
         super().setUp()
         self.create_connection(
             aws_conn_id=self.aws_conn_id,
             region=self._region_name(),
-        )
-
-        # create repository in ecr if it does not exist
-        repository_uri = self.get_ecr_repository_uri(
-            aws_conn_id=self.aws_conn_id,
-            repository_name=self._repository_name(),
-            registry_id=self._registry_id(),
-        )
-        if not repository_uri:
-            repository_uri = self.create_ecr_repository(
-                aws_conn_id=self.aws_conn_id,
-                repository_name=self._repository_name(),
-            )
-        full_image_name = f"{repository_uri}:latest"
-
-        # prepare (build, tag, push) image
-        self.authenticate_client_to_ecr(
-            region=self._region_name(),
-        )
-        self.build_image(
-            tag=self.local_image_tag,
-            path=self.local_image_context_path,
-        )
-        self.tag_image(
-            source=f"{self.local_image_tag}:latest",
-            target=full_image_name,
-        )
-        self.push_image(
-            tag=full_image_name,
         )
 
         # create ecs cluster if it does not exist
@@ -107,7 +75,7 @@ class ECSSystemTest(AmazonSystemTest):
                 aws_conn_id=self.aws_conn_id,
                 task_definition=self.task_definition,
                 container=self.container,
-                image=full_image_name,
+                image=self._image(),
                 execution_role_arn=self._execution_role_arn(),
                 awslogs_group=self.awslogs_group,
                 awslogs_region=self._region_name(),
@@ -117,11 +85,6 @@ class ECSSystemTest(AmazonSystemTest):
     def tearDown(self):
         # remove all created/existing resources in tear down
         if self._remove_resources():
-            self.delete_ecr_repository(
-                aws_conn_id=self.aws_conn_id,
-                repository_name=self._repository_name(),
-                registry_id=self._registry_id(),
-            )
             self.delete_ecs_cluster(
                 aws_conn_id=self.aws_conn_id,
                 cluster_name=self.cluster,
