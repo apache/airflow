@@ -17,9 +17,11 @@
 # under the License.
 
 """add root_dag_id to DAG
+
 Revision ID: b3b105409875
 Revises: d38e04c12aa2
 Create Date: 2019-09-28 23:20:01.744775
+
 """
 
 import sqlalchemy as sa
