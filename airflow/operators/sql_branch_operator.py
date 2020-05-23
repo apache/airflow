@@ -138,7 +138,10 @@ class BranchSqlOperator(BaseOperator, SkipMixin):
             )
 
         if isinstance(record, list):
-            query_result = record[0][0]
+            if isinstance(record[0], list):
+                query_result = record[0][0]
+            else:
+                query_result = record[0]
         elif isinstance(record, tuple):
             query_result = record[0]
         else:
@@ -148,7 +151,7 @@ class BranchSqlOperator(BaseOperator, SkipMixin):
 
         follow_branch = None
         try:
-            if query_result is bool:
+            if isinstance(query_result, bool):
                 if query_result:
                     follow_branch = self.follow_task_ids_if_true
             elif isinstance(query_result, str):

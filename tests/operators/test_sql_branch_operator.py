@@ -45,6 +45,11 @@ SUPPORTED_TRUE_VALUES = [
     ["1"],
     ["on"],
     [1],
+    True,
+    "true",
+    "1",
+    "on",
+    1,
 ]
 SUPPORTED_FALSE_VALUES = [
     ["False"],
@@ -52,6 +57,11 @@ SUPPORTED_FALSE_VALUES = [
     ["0"],
     ["off"],
     [0],
+    False,
+    "false",
+    "0",
+    "off",
+    0,
 ]
 
 
@@ -245,7 +255,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         )
 
         for true_value in SUPPORTED_TRUE_VALUES:
-            mock_get_records.return_value = [true_value]
+            mock_get_records.return_value = true_value
 
             branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -289,7 +299,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         )
 
         for false_value in SUPPORTED_FALSE_VALUES:
-            mock_get_records.return_value = [false_value]
+            mock_get_records.return_value = false_value
 
             branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
