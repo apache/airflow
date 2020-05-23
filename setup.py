@@ -500,8 +500,8 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "apache.druid": druid,
     "apache.hdfs": hdfs,
     "apache.hive": hive,
-    "apache.kylin": kylin,
     "apache.kafka": kafka,
+    "apache.kylin": kylin,
     "apache.livy": [],
     "apache.pig": [],
     "apache.pinot": pinot,
@@ -565,7 +565,10 @@ EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "apache.druid": druid,
     "apache.hdfs": hdfs,
     "apache.hive": hive,
+<<<<<<< HEAD
     "apache.kylin": kylin,
+=======
+>>>>>>> 9ad001e9a... Removed unused imports
     "apache.kafka": kafka,
     "apache.pinot": pinot,
     "apache.webhdfs": webhdfs,
