@@ -22,7 +22,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import logging
+from unittest import TestCase
 
 import pytest
 
@@ -30,7 +30,7 @@ from airflow.www_rbac import app as application
 from tests.compat import mock
 
 
-class TestPluginsRBAC(object):
+class TestPluginsRBAC(TestCase):
     def setup_method(self, method):
         self.app, self.appbuilder = application.create_app(testing=True)
 
@@ -75,12 +75,12 @@ class TestPluginsRBAC(object):
         assert self.app.blueprints['test_plugin'].name == bp.name
 
     @pytest.mark.quarantined
-    def test_entrypoint_plugin_errors_dont_raise_exceptions(self, caplog):
+    def test_entrypoint_plugin_errors_dont_raise_exceptions(self):
         """
         Test that Airflow does not raise an Error if there is any Exception because of the
         Plugin.
         """
-        from airflow.plugins_manager import import_errors, load_entrypoint_plugins, entry_points_with_dist
+        from airflow.plugins_manager import load_entrypoint_plugins, entry_points_with_dist
 
         mock_dist = mock.Mock()
 
@@ -91,14 +91,13 @@ class TestPluginsRBAC(object):
         mock_entrypoint.load.side_effect = ImportError('my_fake_module not found')
         mock_dist.entry_points = [mock_entrypoint]
 
-        with mock.patch('importlib_metadata.distributions', return_value=[mock_dist]), caplog.at_level(
-            logging.ERROR, logger='airflow.plugins_manager'
-        ):
+        with mock.patch(
+            'importlib_metadata.distributions', return_value=[mock_dist]
+        ), self.assertLogs("airflow.plugins_manager", level="ERROR") as log_output:
             load_entrypoint_plugins(entry_points_with_dist('airflow.plugins'), [])
 
-            received_logs = caplog.text
+            received_logs = log_output.output[0]
             # Assert Traceback is shown too
             assert "Traceback (most recent call last):" in received_logs
             assert "my_fake_module not found" in received_logs
             assert "Failed to import plugin test-entrypoint" in received_logs
-            assert ("test.plugins.test_plugins_manager", "my_fake_module not found") in import_errors.items()
