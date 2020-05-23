@@ -15,7 +15,7 @@ Flask==1.1.2
 GitPython==3.1.2
 HeapDict==1.0.1
 JPype1==0.7.5
-JayDeBeApi==1.1.1
+JayDeBeApi==1.2.0
 Jinja2==2.10.3
 Mako==1.1.2
 Markdown==2.6.11
@@ -72,9 +72,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.3.0
 black==19.10b0
 blinker==1.4
-boto3==1.13.15
+boto3==1.13.16
 boto==2.49.0
-botocore==1.16.15
+botocore==1.16.16
 bowler==0.8.0
 cached-property==1.5.1
 cachetools==4.1.0
@@ -123,7 +123,7 @@ fastavro==0.23.4
 filelock==3.0.12
 fissix==20.5.1
 flake8-colors==0.1.6
-flake8==3.8.1
+flake8==3.8.2
 flaky==3.6.1
 flask-swagger==0.2.13
 flower==0.9.4
@@ -178,7 +178,7 @@ hmsclient==0.1.1
 httplib2==0.18.1
 humanize==0.5.1
 hvac==0.10.2
-identify==1.4.15
+identify==1.4.16
 idna==2.9
 ijson==2.6.1
 imagesize==1.2.0
@@ -283,7 +283,7 @@ pypd==1.1.0
 pyrsistent==0.16.0
 pysftp==0.2.9
 pyspark==2.4.5
-pytest-cov==2.8.1
+pytest-cov==2.9.0
 pytest-forked==1.1.3
 pytest-instafail==0.4.1.post0
 pytest-rerunfailures==9.0
@@ -322,7 +322,7 @@ setproctitle==1.1.10
 sh==1.13.1
 simple-salesforce==1.0.0
 six==1.15.0
-slackclient==2.5.0
+slackclient==2.6.0
 smmap==3.0.4
 snowballstemmer==2.0.0
 snowflake-connector-python==2.2.6
@@ -342,7 +342,7 @@ sphinxcontrib-httpdomain==1.7.0
 sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.4
-spython==0.0.80
+spython==0.0.81
 sshpubkeys==3.1.0
 sshtunnel==0.1.5
 statsd==3.3.0
