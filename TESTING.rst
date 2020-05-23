@@ -972,7 +972,6 @@ To run all tests:
 To run a single test:
 
 .. code-block:: bash
-  
   docker run -it --workdir /airflow -v $(pwd):/airflow  bats/bats:latest /airflow/tests/bats/your_test_file.bats
 
 Using BATS
