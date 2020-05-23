@@ -951,15 +951,15 @@ Running BATS Tests on the Host
 
 To run all tests:
 
-```
-bats -r tests/bats/
-```
+.. code-block:: bash
+
+   bats -r tests/bats/
 
 To run a single test:
 
-```
-bats tests/bats/your_test_file.bats
-```
+.. code-block:: bash
+
+   bats tests/bats/your_test_file.bats
 
 Running BATS Tests via Docker
 -----------------------------
@@ -967,12 +967,14 @@ Running BATS Tests via Docker
 To run all tests:
 
 .. code-block:: bash
-  docker run -it --workdir /airflow -v $(pwd):/airflow  bats/bats:latest -r /airflow/tests/bats
+
+   docker run -it --workdir /airflow -v $(pwd):/airflow  bats/bats:latest -r /airflow/tests/bats
 
 To run a single test:
 
 .. code-block:: bash
-  docker run -it --workdir /airflow -v $(pwd):/airflow  bats/bats:latest /airflow/tests/bats/your_test_file.bats
+
+   docker run -it --workdir /airflow -v $(pwd):/airflow  bats/bats:latest /airflow/tests/bats/your_test_file.bats
 
 Using BATS
 ----------
