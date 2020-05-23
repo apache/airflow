@@ -48,6 +48,6 @@ class TestTimedeltaSensor(unittest.TestCase):
             delta=timedelta(minutes=2),
             delta_on_upstream=True,
             dag=self.dag)
-        END_DATE = DEFAULT_DATE + timedelta(minutes=3)
-        op.run(start_date=DEFAULT_DATE, end_date=END_DATE, ignore_ti_state=True)
+        end_date = DEFAULT_DATE + timedelta(minutes=3)
+        op.run(start_date=DEFAULT_DATE, end_date=end_date, ignore_ti_state=True)
 
