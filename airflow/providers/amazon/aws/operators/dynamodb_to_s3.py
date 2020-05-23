@@ -21,14 +21,12 @@
 This module contains operators to replicate records from
 DynamoDB table to S3.
 """
-
+import json
 from copy import copy
 from os.path import getsize
 from tempfile import NamedTemporaryFile
 from typing import Any, Callable, Dict, Optional
 from uuid import uuid4
-
-from boto.compat import json  # type: ignore
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.aws_dynamodb import AwsDynamoDBHook
