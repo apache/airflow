@@ -16,8 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import logging
-
 from cached_property import cached_property
 
 from airflow.providers.apache.kafka.hooks.kafka_consumer_hook import KafkaConsumerHook
