@@ -54,6 +54,7 @@ class StandardTaskRunner(BaseTaskRunner):
             return psutil.Process(pid)
         else:
             from airflow.bin.cli import get_parser
+            from airflow.sentry import Sentry
             import signal
             import airflow.settings as settings
 
@@ -79,9 +80,13 @@ class StandardTaskRunner(BaseTaskRunner):
 
             try:
                 args.func(args, dag=self.dag)
-                os._exit(0)
+                return_code = 0
             except Exception:
-                os._exit(1)
+                return_code = 1
+            finally:
+                # Explicitly flush any pending exception to Sentry if enabled
+                Sentry.flush()
+                os._exit(return_code)  # pylint: disable=protected-access
 
     def return_code(self, timeout=0):
         # We call this multiple times, but we can only wait on the process once

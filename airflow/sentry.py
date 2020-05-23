@@ -55,6 +55,11 @@ class DummySentry:
         """
         return run
 
+    def flush(self):
+        """
+        Blank function for flushing errors.
+        """
+
 
 class ConfiguredSentry(DummySentry):
     """
@@ -149,6 +154,10 @@ class ConfiguredSentry(DummySentry):
                     raise
 
         return wrapper
+
+    def flush(self):
+        import sentry_sdk
+        sentry_sdk.flush()
 
 
 Sentry = DummySentry()  # type: DummySentry
