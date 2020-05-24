@@ -83,7 +83,7 @@ fi
 echo "==================================================================================="
 echo " Copying sources and doing refactor for backport packages"
 echo "==================================================================================="
-python3 setup_backport_packages.py prepare
+python3 refactor_backport_packages.py
 
 VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI:=""}
 VERSION_SUFFIX_FOR_SVN=${VERSION_SUFFIX_FOR_SVN:=""}
@@ -98,9 +98,14 @@ do
     echo "==================================================================================="
     echo " Preparing backport package ${BACKPORT_PACKAGE}"
     echo "-----------------------------------------------------------------------------------"
-    python3 setup_backport_packages.py "${BACKPORT_PACKAGE}" clean --all >/dev/null 2>&1
     set +e
-    python3 setup_backport_packages.py --version-suffix "${VERSION_SUFFIX_FOR_PYPI}" \
+    python3 setup_backport_packages.py "${BACKPORT_PACKAGE}" clean --all >"${LOG_FILE}" 2>&1
+    RES="${?}"
+    if [[ ${RES} != "0" ]]; then
+        cat "${LOG_FILE}"
+        exit "${RES}"
+    fi
+    python3 setup_backport_packages.py --version-suffix "${VERSION_SUFFIX_FOR_PYPI}     " \
         "${BACKPORT_PACKAGE}" sdist bdist_wheel >"${LOG_FILE}" 2>&1
     RES="${?}"
     if [[ ${RES} != "0" ]]; then

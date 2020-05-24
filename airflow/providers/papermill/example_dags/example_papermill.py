@@ -30,6 +30,7 @@ from airflow.lineage import AUTO
 from airflow.operators.python import PythonOperator
 from airflow.providers.papermill.operators.papermill import PapermillOperator
 from airflow.utils.dates import days_ago
+from airflow.version import version
 
 default_args = {
     'owner': 'airflow',
@@ -82,10 +83,18 @@ with DAG(
         parameters={"msgs": "Ran from Airflow at {{ execution_date }}!"}
     )
 
-    check_output = PythonOperator(
-        task_id='check_out',
-        python_callable=check_notebook,
-        inlets=AUTO
-    )
+    if version.startswith("1."):
+        # AUTO inlets do not work with Airflow 1.* series.
+        check_output = PythonOperator(
+            task_id='check_out',
+            python_callable=check_notebook,
+            input_nb="/tmp/out-{{ execution_date }}.ipynb"
+        )
+    else:
+        check_output = PythonOperator(
+            task_id='check_out',
+            python_callable=check_notebook,
+            inlets=AUTO
+        )
 
     check_output.set_upstream(run_this)

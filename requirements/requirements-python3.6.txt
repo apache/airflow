@@ -116,7 +116,6 @@ elasticsearch-dsl==7.2.0
 elasticsearch==7.5.1
 email-validator==1.1.1
 entrypoints==0.3
-enum34==1.1.10
 eventlet==0.25.2
 execnet==1.7.1
 facebook-business==7.0.1

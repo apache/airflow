@@ -17,21 +17,19 @@
 # under the License.
 """Setup.py for the Backport packages of Airflow project."""
 import collections
+import importlib
 import json
 import logging
 import os
-import pkgutil
 import re
 import subprocess
 import sys
 import textwrap
-from importlib import util
-from inspect import isclass
 from os import listdir
 from os.path import dirname
-from shutil import copyfile, copytree, rmtree
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Type
 
+from backport_packages.import_all_provider_classes import import_all_provider_classes
 from setup import PROVIDERS_REQUIREMENTS
 from setuptools import Command, find_packages, setup as setuptools_setup
 
@@ -40,20 +38,49 @@ from tests.test_core_to_contrib import HOOK, OPERATOR, PROTOCOLS, SECRETS, SENSO
 # noinspection DuplicatedCode
 logger = logging.getLogger(__name__)  # noqa
 
-# Kept manually in sync with airflow.__version__
-# noinspection PyUnresolvedReferences
-spec = util.spec_from_file_location("airflow.version", os.path.join('airflow', 'version.py'))
-# noinspection PyUnresolvedReferences
-mod = util.module_from_spec(spec)
-spec.loader.exec_module(mod)  # type: ignore
-version = mod.version  # type: ignore
-
 PY3 = sys.version_info[0] == 3
 
 MY_DIR_PATH = os.path.dirname(__file__)
+
 SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir))
 AIRFLOW_PATH = os.path.join(SOURCE_DIR_PATH, "airflow")
 PROVIDERS_PATH = os.path.join(AIRFLOW_PATH, "providers")
+
+
+def get_source_airflow_folder() -> str:
+    """
+    Returns source directory for whole airflow (from the main airflow project).
+
+    :return: the folder path
+    """
+    return os.path.abspath(os.path.join(dirname(__file__), os.pardir))
+
+
+def get_source_providers_folder() -> str:
+    """
+    Returns source directory for providers (from the main airflow project).
+
+    :return: the folder path
+    """
+    return os.path.join(get_source_airflow_folder(), "airflow", "providers")
+
+
+def get_target_providers_folder() -> str:
+    """
+    Returns target directory for providers (in the backport_packages folder)
+
+    :return: the folder path
+    """
+    return os.path.abspath(os.path.join(dirname(__file__), "airflow", "providers"))
+
+
+def get_target_providers_package_folder(provider_package_id: str) -> str:
+    """
+    Returns target package folder based on package_id
+
+    :return: the folder path
+    """
+    return os.path.join(get_target_providers_folder(), *provider_package_id.split("."))
 
 
 class CleanCommand(Command):
@@ -63,7 +90,7 @@ class CleanCommand(Command):
     """
 
     description = "Tidy up the project root"
-    user_options = []  # type: List[str]
+    user_options: List[str] = []
 
     def initialize_options(self):
         """Set default values for options."""
@@ -92,172 +119,6 @@ MOVED_PROTOCOLS_DICT = {value[0]: value[1] for value in PROTOCOLS}
 MOVED_SECRETS_DICT = {value[0]: value[1] for value in SECRETS}
 
 
-def refactor_to_airflow_1_10() -> None:
-    """
-    Refactors the code of providers, so that it works in 1.10.
-
-    """
-    from bowler import LN, TOKEN, Capture, Filename, Query
-    from fissix.pytree import Leaf
-    from fissix.fixer_util import KeywordArg, Name, Comma
-
-    # noinspection PyUnusedLocal
-    def remove_tags_modifier(_: LN, capture: Capture, filename: Filename) -> None:
-        for node in capture['function_arguments'][0].post_order():
-            if isinstance(node, Leaf) and node.value == "tags" and node.type == TOKEN.NAME:
-                if node.parent.next_sibling and node.parent.next_sibling.value == ",":
-                    node.parent.next_sibling.remove()
-                node.parent.remove()
-
-    # noinspection PyUnusedLocal
-    def pure_airflow_models_filter(node: LN, capture: Capture, filename: Filename) -> bool:
-        """Check if select is exactly [airflow, . , models]"""
-        return len([ch for ch in node.children[1].leaves()]) == 3
-
-    # noinspection PyUnusedLocal
-    def remove_super_init_call(node: LN, capture: Capture, filename: Filename) -> None:
-        for ch in node.post_order():
-            if isinstance(ch, Leaf) and ch.value == "super":
-                if any(c.value for c in ch.parent.post_order() if isinstance(c, Leaf)):
-                    ch.parent.remove()
-
-    # noinspection PyUnusedLocal
-    def add_provide_context_to_python_operator(node: LN, capture: Capture, filename: Filename) -> None:
-        fn_args = capture['function_arguments'][0]
-        fn_args.append_child(Comma())
-
-        provide_context_arg = KeywordArg(Name('provide_context'), Name('True'))
-        provide_context_arg.prefix = fn_args.children[0].prefix
-        fn_args.append_child(provide_context_arg)
-
-    def remove_class(query, class_name) -> None:
-        # noinspection PyUnusedLocal
-        def _remover(node: LN, capture: Capture, filename: Filename) -> None:
-            if node.type not in (300, 311):  # remove only definition
-                node.remove()
-
-        query.select_class(class_name).modify(_remover)
-
-    changes = [
-        ("airflow.operators.bash", "airflow.operators.bash_operator"),
-        ("airflow.operators.python", "airflow.operators.python_operator"),
-        ("airflow.utils.session", "airflow.utils.db"),
-        (
-            "airflow.providers.cncf.kubernetes.operators.kubernetes_pod",
-            "airflow.contrib.operators.kubernetes_pod_operator"
-        ),
-    ]
-
-    qry = Query()
-    for new, old in changes:
-        qry.select_module(new).rename(old)
-
-    # Move and refactor imports for Dataflow
-    copyfile(
-        os.path.join(dirname(__file__), os.pardir, "airflow", "utils", "python_virtualenv.py"),
-        os.path.join(
-            dirname(__file__), "airflow", "providers", "google", "cloud", "utils", "python_virtualenv.py"
-        )
-    )
-    (
-        qry.select_module("airflow.utils.python_virtualenv")
-           .rename("airflow.providers.google.cloud.utils.python_virtualenv")
-    )
-    copyfile(
-        os.path.join(dirname(__file__), os.pardir, "airflow", "utils", "process_utils.py"),
-        os.path.join(
-            dirname(__file__), "airflow", "providers", "google", "cloud", "utils", "process_utils.py"
-        )
-    )
-    (
-        qry.select_module("airflow.utils.process_utils")
-           .rename("airflow.providers.google.cloud.utils.process_utils")
-    )
-
-    # Remove tags
-    qry.select_method("DAG").is_call().modify(remove_tags_modifier)
-
-    # Fix AWS import in Google Cloud Transfer Service
-    (
-        qry.select_module("airflow.providers.amazon.aws.hooks.base_aws")
-           .is_filename(include=r"cloud_storage_transfer_service\.py")
-           .rename("airflow.contrib.hooks.aws_hook")
-    )
-
-    (
-        qry.select_class("AwsBaseHook")
-           .is_filename(include=r"cloud_storage_transfer_service\.py")
-           .filter(lambda n, c, f: n.type == 300)  # noqa
-           .rename("AwsHook")
-    )
-
-    # Fix BaseOperatorLinks imports
-    files = r"bigquery\.py|mlengine\.py"  # noqa
-    qry.select_module("airflow.models").is_filename(include=files).filter(pure_airflow_models_filter).rename(
-        "airflow.models.baseoperator")
-
-    # Fix super().__init__() call in hooks
-    qry.select_subclass("BaseHook").modify(remove_super_init_call)
-
-    (
-        qry.select_function("PythonOperator")
-           .is_call()
-           .is_filename(include=r"mlengine_operator_utils.py$")
-           .modify(add_provide_context_to_python_operator)
-    )
-
-    (
-        qry.select_function("BranchPythonOperator")
-           .is_call()
-           .is_filename(include=r"example_google_api_to_s3_transfer_advanced.py$")
-           .modify(add_provide_context_to_python_operator)
-    )
-
-    # Remove new class and rename usages of old
-    remove_class(qry, "GKEStartPodOperator")
-    (
-        qry.select_class("GKEStartPodOperator")
-           .is_filename(include=r"example_kubernetes_engine\.py")
-           .rename("GKEPodOperator")
-    )
-
-    qry.execute(write=True, silent=False, interactive=False)
-
-    # Add old import to GKE
-    gke_path = os.path.join(
-        dirname(__file__), "airflow", "providers", "google", "cloud", "operators", "kubernetes_engine.py"
-    )
-    with open(gke_path, "a") as f:  # noqa
-        f.writelines(["", "from airflow.contrib.operators.gcp_container_operator import GKEPodOperator"])
-
-
-def get_source_providers_folder() -> str:
-    """
-    Returns source directory for providers (from the main airflow project).
-
-    :return: the folder path
-    """
-    return os.path.join(dirname(__file__), os.pardir, "airflow", "providers")
-
-
-def get_target_providers_folder() -> str:
-    """
-    Returns target directory for providers (in the backport_packages folder)
-
-    :return: the folder path
-    """
-    return os.path.join(dirname(__file__), "airflow", "providers")
-
-
-def get_providers_package_folder(provider_package_id: str) -> str:
-    """
-    Returns target package folder based on package_id
-
-    :return: the folder path
-    """
-    return os.path.join(get_target_providers_folder(), *provider_package_id.split("."))
-
-
 def get_pip_package_name(provider_package_id: str) -> str:
     """
     Returns PIP package name for the package id.
@@ -281,41 +142,6 @@ def is_bigquery_non_dts_module(module_name: str) -> bool:
         or "_to_bigquery" in module_name
 
 
-def copy_provider_sources() -> None:
-    """
-    Copies provider sources to directory where they will be refactored.
-    """
-    def ignore_bigquery_files(src: str, names: List[str]) -> List[str]:
-        if src.endswith('hooks') or src.endswith('operators') or src.endswith("sensors"):
-            ignored_names = [name for name in names
-                             if is_bigquery_non_dts_module(module_name=name)]
-            return ignored_names
-        return []
-
-    rm_build_dir()
-    package_providers_dir = get_target_providers_folder()
-    if os.path.isdir(package_providers_dir):
-        rmtree(package_providers_dir)
-    copytree(get_source_providers_folder(), get_target_providers_folder(), ignore=ignore_bigquery_files)
-
-
-def rm_build_dir() -> None:
-    """
-    Removes build directory.
-    """
-    build_dir = os.path.join(dirname(__file__), "build")
-    if os.path.isdir(build_dir):
-        rmtree(build_dir)
-
-
-def copy_and_refactor_sources() -> None:
-    """
-    Copy sources to airflow subdirectory and refactors it,
-    """
-    copy_provider_sources()
-    refactor_to_airflow_1_10()
-
-
 def get_long_description(provider_package_id: str) -> str:
     """
     Gets long description of the package.
@@ -323,7 +149,7 @@ def get_long_description(provider_package_id: str) -> str:
     :param provider_package_id: package id
     :return: content of the description (README file)
     """
-    package_folder = get_providers_package_folder(provider_package_id)
+    package_folder = get_target_providers_package_folder(provider_package_id)
     with open(os.path.join(package_folder, "README.md"), encoding='utf-8') as file:
         readme_contents = file.read()
     copying = True
@@ -446,14 +272,13 @@ def usage() -> None:
     for text in out_array:
         print(text)
     print()
-    print("You can see all packages configured by specifying list-providers-packages as first argument")
+    print("Additional commands:")
     print()
-    print("You can see all backportable packages by specifying list-backportable-packages as first argument")
+    print("  list-providers-packages       - lists all provider packages")
+    print("  list-backportable-packages    - lists all packages that are backportable")
+    print("  update-package-release-notes YYYY.MM.DD [PACKAGES] - updates package release notes")
+    print("  --version-suffix <SUFFIX>     - adds version suffix to version of the packages.")
     print()
-    print("You can generate release notes by specifying: update-package-release-notes YYYY.MM.DD [PACKAGES]")
-    print()
-    print("You can specify additional suffix when generating packages by using --version-suffix <SUFFIX>\n"
-          "before package name when you run sdist or bdist\n")
 
 
 def is_imported_from_same_module(the_class: str, imported_name: str) -> bool:
@@ -531,13 +356,15 @@ def has_expected_string_in_name(the_class: Type, expected_string: Optional[str])
     return expected_string is None or expected_string in the_class.__module__
 
 
-def find_all_subclasses(expected_package: str,
+def find_all_subclasses(imported_classes: List[str],
+                        expected_package: str,
                         expected_ancestor: Type,
                         expected_string: Optional[str] = None,
                         exclude_class_type=None) -> Set[str]:
     """
     Returns set of classes containing all subclasses in package specified.
 
+    :param imported_classes: classes imported from providers
     :param expected_package: full package name where to look for the classes
     :param expected_ancestor: type of the object the method looks for
     :param expected_string: this string is expected to appear in the package name
@@ -545,7 +372,9 @@ def find_all_subclasses(expected_package: str,
            excluded from the Operator list)
     """
     subclasses = set()
-    for imported_name, the_class in globals().items():
+    for imported_name in imported_classes:
+        module, class_name = imported_name.rsplit(".", maxsplit=1)
+        the_class = getattr(importlib.import_module(module), class_name)
         if is_class(the_class=the_class) \
             and not is_example_dag(imported_name=imported_name) \
             and is_from_the_expected_package(the_class=the_class, expected_package=expected_package) \
@@ -598,7 +427,7 @@ def convert_class_name_to_url(base_url: str, class_name) -> str:
     :param class_name: name of the class
     :return: URL to the class
     """
-    return base_url + "/".join(class_name.split(".")[:-1]) + ".py"
+    return base_url + os.path.sep.join(class_name.split(".")[:-1]) + ".py"
 
 
 def get_class_code_link(base_package: str, class_name: str, git_tag: str) -> str:
@@ -650,10 +479,11 @@ def convert_moved_objects_to_table(class_dict: Dict[str, str],
     return tabulate(table, headers=headers, tablefmt="pipe")
 
 
-def get_package_class_summary(full_package_name: str) -> Dict[str, Any]:
+def get_package_class_summary(full_package_name: str, imported_classes: List[str]) -> Dict[str, Any]:
     """
     Gets summary of the package in the form of dictionary containing all types of classes
     :param full_package_name: full package name
+    :param imported_classes: classes imported_from providers
     :return: dictionary of objects usable as context for Jinja2 templates
     """
     from airflow.secrets import BaseSecretsBackend
@@ -661,20 +491,30 @@ def get_package_class_summary(full_package_name: str) -> Dict[str, Any]:
     from airflow.hooks.base_hook import BaseHook
     from airflow.models.baseoperator import BaseOperator
     from typing_extensions import Protocol
-    operators = find_all_subclasses(expected_package=full_package_name,
-                                    expected_ancestor=BaseOperator,
-                                    expected_string=".operators.",
-                                    exclude_class_type=BaseSensorOperator)
-    sensors = find_all_subclasses(expected_package=full_package_name,
-                                  expected_ancestor=BaseSensorOperator,
-                                  expected_string='.sensors.')
-    hooks = find_all_subclasses(expected_package=full_package_name,
-                                expected_ancestor=BaseHook,
-                                expected_string='.hooks.')
-    protocols = find_all_subclasses(expected_package=full_package_name,
-                                    expected_ancestor=Protocol)
-    secrets = find_all_subclasses(expected_package=full_package_name,
-                                  expected_ancestor=BaseSecretsBackend)
+    operators = find_all_subclasses(
+        imported_classes=imported_classes,
+        expected_package=full_package_name,
+        expected_ancestor=BaseOperator,
+        expected_string=".operators.",
+        exclude_class_type=BaseSensorOperator)
+    sensors = find_all_subclasses(
+        imported_classes=imported_classes,
+        expected_package=full_package_name,
+        expected_ancestor=BaseSensorOperator,
+        expected_string='.sensors.')
+    hooks = find_all_subclasses(
+        imported_classes=imported_classes,
+        expected_package=full_package_name,
+        expected_ancestor=BaseHook,
+        expected_string='.hooks.')
+    protocols = find_all_subclasses(
+        imported_classes=imported_classes,
+        expected_package=full_package_name,
+        expected_ancestor=Protocol)
+    secrets = find_all_subclasses(
+        imported_classes=imported_classes,
+        expected_package=full_package_name,
+        expected_ancestor=BaseSecretsBackend)
     new_operators, moved_operators = get_new_and_moved_classes(operators, MOVED_OPERATORS_DICT)
     new_sensors, moved_sensors = get_new_and_moved_classes(sensors, MOVED_SENSORS_DICT)
     new_hooks, moved_hooks = get_new_and_moved_classes(hooks, MOVED_HOOKS_DICT)
@@ -998,16 +838,18 @@ def get_additional_package_info(provider_package_path: str) -> str:
     return ""
 
 
-def update_release_notes_for_package(provider_package_id: str, current_release_version: str) -> None:
+def update_release_notes_for_package(provider_package_id: str, current_release_version: str,
+                                     imported_classes: List[str]) -> None:
     """
     Updates release notes (README.md) for the package.
 
     :param provider_package_id: id of the package
     :param current_release_version: release version
+    :param imported_classes - classes that have been imported from providers
     """
     full_package_name = f"airflow.providers.{provider_package_id}"
     provider_package_path = get_package_path(provider_package_id)
-    class_summary = get_package_class_summary(full_package_name)
+    class_summary = get_package_class_summary(full_package_name, imported_classes)
     past_releases = get_all_releases(provider_package_path=provider_package_path)
     last_release = check_if_release_version_ok(past_releases, current_release_version)
     cross_providers_dependencies = \
@@ -1067,45 +909,20 @@ def update_release_notes_for_package(provider_package_id: str, current_release_v
     print()
 
 
-def import_all_classes(provider_ids: List[str]) -> None:
-    """
-    Imports all classes in providers packages. This method loads and imports
-    all teh classes found in providers, so that we can find all the subclasses
-    of operators/sensors etc.
-
-    :param provider_ids - paths of providers that should be loaded. If empty - all providers
-                          are loaded
-    """
-    prefixed_provider_ids = ["airflow.providers." + provider_id for provider_id in provider_ids]
-
-    for loader, module_name, is_pkg in pkgutil.walk_packages([SOURCE_DIR_PATH]):
-        if module_name.startswith("airflow.providers"):
-            if prefixed_provider_ids and all([not module_name.startswith(prefix_provider_id)
-                                              for prefix_provider_id in prefixed_provider_ids]):
-                # Skip loading module if it is not in the list of providers that we are running the
-                # backport readme package preparation
-                continue
-            _module = loader.find_module(module_name).load_module(module_name)
-            globals()[module_name] = _module
-            for attribute_name in dir(_module):
-                attribute = getattr(_module, attribute_name)
-                if isclass(attribute):
-                    globals()[module_name + "." + attribute_name] = attribute
-
-
-def update_release_notes_for_packages(package_ids: List[str], release_version: str):
+def update_release_notes_for_packages(provider_ids: List[str], release_version: str):
     """
     Updates release notes for the list of packages specified.
-    :param package_ids: list of packages
+    :param provider_ids: list of provider ids
     :param release_version: version to release
     :return:
     """
-    import_all_classes(package_ids)
+    imported_classes = import_all_provider_classes(
+        source_path=SOURCE_DIR_PATH, provider_ids=provider_ids, print_imports=True)
     make_sure_remote_apache_exists()
-    if len(package_ids) == 0:
-        package_ids = get_all_backportable_providers()
-    for package in package_ids:
-        update_release_notes_for_package(package, release_version)
+    if len(provider_ids) == 0:
+        provider_ids = get_all_backportable_providers()
+    for package in provider_ids:
+        update_release_notes_for_package(package, release_version, imported_classes)
 
 
 def get_all_backportable_providers() -> List[str]:
@@ -1120,7 +937,6 @@ def get_all_backportable_providers() -> List[str]:
 
 
 if __name__ == "__main__":
-    PREPARE = "prepare"
     LIST_PROVIDERS_PACKAGES = "list-providers-packages"
     LIST_BACKPORTABLE_PACKAGES = "list-backportable-packages"
     UPDATE_PACKAGE_RELEASE_NOTES = "update-package-release-notes"
@@ -1130,7 +946,6 @@ if __name__ == "__main__":
     possible_first_params.append(LIST_PROVIDERS_PACKAGES)
     possible_first_params.append(LIST_BACKPORTABLE_PACKAGES)
     possible_first_params.append(UPDATE_PACKAGE_RELEASE_NOTES)
-    possible_first_params.append(PREPARE)
     if len(sys.argv) == 1:
         print()
         print("ERROR! Missing first param")
@@ -1158,11 +973,7 @@ if __name__ == "__main__":
         print()
         exit(1)
 
-    if sys.argv[1] == PREPARE:
-        print("Copying sources and doing refactor")
-        copy_and_refactor_sources()
-        exit(0)
-    elif sys.argv[1] == LIST_PROVIDERS_PACKAGES:
+    if sys.argv[1] == LIST_PROVIDERS_PACKAGES:
         providers = PROVIDERS_REQUIREMENTS.keys()
         for provider in providers:
             print(provider)

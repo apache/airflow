@@ -291,7 +291,7 @@ hashicorp = [
     'hvac~=0.10',
 ]
 hdfs = [
-    'snakebite>=2.7.8',
+    'snakebite-py3',
 ]
 hive = [
     'hmsclient>=0.1.0',
@@ -506,7 +506,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "facebook": facebook,
     "ftp": [],
     "google": google,
-    "grpc": grpc,
+    "grpc": grpc + google,
     "hashicorp": hashicorp,
     "http": [],
     "imap": [],

@@ -20,20 +20,27 @@ export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-"${MY_DIR}/ci_prepare_backport_readme.sh"
-"${MY_DIR}/ci_prepare_backport_packages.sh"
-"${MY_DIR}/ci_test_backport_packages_install_separately.sh"
-"${MY_DIR}/ci_test_backport_packages_import_all_classes.sh"
+function run_test_package_installation_separately() {
+    docker run "${EXTRA_DOCKER_FLAGS[@]}" \
+        --entrypoint "/usr/local/bin/dumb-init"  \
+        -v "${AIRFLOW_SOURCES}/dist:/dist:cached" \
+        --env PYTHONDONTWRITEBYTECODE \
+        --env INSTALL_AIRFLOW_VERSION \
+        --env VERBOSE \
+        --env VERBOSE_COMMANDS \
+        --env HOST_USER_ID="$(id -ur)" \
+        --env HOST_GROUP_ID="$(id -gr)" \
+        --rm \
+        "${AIRFLOW_CI_IMAGE}" \
+        "--" "/opt/airflow/scripts/ci/in_container/run_test_package_installation_separately.sh" \
+        | tee -a "${OUTPUT_LOG}"
 
-cd "${MY_DIR}/../../backport_packages" || exit 1
+}
 
-DUMP_FILE="/tmp/airflow_provider_packages_$(date +"%Y%m%d-%H%M%S").tar.gz"
+get_ci_environment
 
-cd "${MY_DIR}/../../dist" || exit 1
-tar -cvzf "${DUMP_FILE}" .
+prepare_ci_build
 
-echo "Packages are in dist and also tar-gzipped in ${DUMP_FILE}"
+rebuild_ci_image_if_needed
 
-if [[ "${CI:=false}" == "true" ]]; then
-    curl -F "file=@${DUMP_FILE}" https://file.io
-fi
+run_test_package_installation_separately
