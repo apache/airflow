@@ -19,6 +19,5 @@
 
 ## Additional notes
 
-Papermill operator is the only one that work with AUTO inlets for now (for lineage support).
-However since AUTO inlets is a feature of Airflow 2 and is not bacported,
-when back-porting to 1.10 AUTO inlets are not supported.
+Papermill operator is the only one to work with AUTO inlets for now (for lineage support).
+However, since AUTO inlets is a feature of Airflow 2 not backported to 1.10.*.

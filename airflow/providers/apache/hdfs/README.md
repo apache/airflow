@@ -62,7 +62,7 @@ For full compatibility and test status of the backport packages check
 
 | PIP package   | Version required   |
 |:--------------|:-------------------|
-| snakebite     | &gt;=2.7.8            |
+| snakebite-py3 |                    |
 
 # Provider class summary
 
@@ -79,9 +79,9 @@ All classes in Airflow 2.0 are in `airflow.providers.apache.hdfs` package.
 
 | Airflow 2.0 sensors: `airflow.providers.apache.hdfs` package                                                                      | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                               |
 |:----------------------------------------------------------------------------------------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------|
+| [sensors.hdfs.HdfsFolderSensor](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hdfs/sensors/hdfs.py)      | [contrib.sensors.hdfs_sensor.HdfsSensorFolder](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/hdfs_sensor.py) |
+| [sensors.hdfs.HdfsRegexSensor](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hdfs/sensors/hdfs.py)       | [contrib.sensors.hdfs_sensor.HdfsSensorRegex](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/hdfs_sensor.py)  |
 | [sensors.hdfs.HdfsSensor](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hdfs/sensors/hdfs.py)            | [sensors.hdfs_sensor.HdfsSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/sensors/hdfs_sensor.py)                       |
-| [sensors.hdfs.HdfsSensorFolder](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hdfs/sensors/hdfs.py)      | [contrib.sensors.hdfs_sensor.HdfsSensorFolder](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/hdfs_sensor.py) |
-| [sensors.hdfs.HdfsSensorRegex](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hdfs/sensors/hdfs.py)       | [contrib.sensors.hdfs_sensor.HdfsSensorRegex](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/sensors/hdfs_sensor.py)  |
 | [sensors.web_hdfs.WebHdfsSensor](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hdfs/sensors/web_hdfs.py) | [sensors.web_hdfs_sensor.WebHdfsSensor](https://github.com/apache/airflow/blob/v1-10-stable/airflow/sensors/web_hdfs_sensor.py)            |
 
 
@@ -108,6 +108,7 @@ All classes in Airflow 2.0 are in `airflow.providers.apache.hdfs` package.
 
 | Commit                                                                                         | Committed   | Subject                                                                        |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------|
+| [375d1ca22](https://github.com/apache/airflow/commit/375d1ca229464617780623c61c6e8a1bf570c87f) | 2020-05-19  | Release candidate 2 for backport packages 2020.05.20 (#8898)                   |
 | [12c5e5d8a](https://github.com/apache/airflow/commit/12c5e5d8ae25fa633efe63ccf4db389e2b796d79) | 2020-05-17  | Prepare release candidate for backport packages (#8891)                        |
 | [f3521fb0e](https://github.com/apache/airflow/commit/f3521fb0e36733d8bd356123e56a453fd37a6dca) | 2020-05-16  | Regenerate readme files for backport package release (#8886)                   |
 | [92585ca4c](https://github.com/apache/airflow/commit/92585ca4cb375ac879f4ab331b3a063106eb7b92) | 2020-05-15  | Added automated release notes generation for backport operators (#8807)        |

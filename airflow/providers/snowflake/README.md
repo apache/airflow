@@ -75,10 +75,10 @@ All classes in Airflow 2.0 are in `airflow.providers.snowflake` package.
 
 ### New operators
 
-| New Airflow 2.0 operators: `airflow.providers.snowflake` package                                                                                          |
-|:----------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [operators.s3_to_snowflake.S3ToSnowflakeTransfer](https://github.com/apache/airflow/blob/master/airflow/providers/snowflake/operators/s3_to_snowflake.py) |
-| [operators.snowflake.SnowflakeOperator](https://github.com/apache/airflow/blob/master/airflow/providers/snowflake/operators/snowflake.py)                 |
+| New Airflow 2.0 operators: `airflow.providers.snowflake` package                                                                                                  |
+|:------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [operators.s3_to_snowflake.S3ToSnowflakeTransferOperator](https://github.com/apache/airflow/blob/master/airflow/providers/snowflake/operators/s3_to_snowflake.py) |
+| [operators.snowflake.SnowflakeOperator](https://github.com/apache/airflow/blob/master/airflow/providers/snowflake/operators/snowflake.py)                         |
 
 
 
@@ -107,6 +107,8 @@ All classes in Airflow 2.0 are in `airflow.providers.snowflake` package.
 
 | Commit                                                                                         | Committed   | Subject                                                                 |
 |:-----------------------------------------------------------------------------------------------|:------------|:------------------------------------------------------------------------|
+| [1d36b0303](https://github.com/apache/airflow/commit/1d36b0303b8632fce6de78ca4e782ae26ee06fea) | 2020-05-23  | Fix references in docs (#8984)                                          |
+| [375d1ca22](https://github.com/apache/airflow/commit/375d1ca229464617780623c61c6e8a1bf570c87f) | 2020-05-19  | Release candidate 2 for backport packages 2020.05.20 (#8898)            |
 | [12c5e5d8a](https://github.com/apache/airflow/commit/12c5e5d8ae25fa633efe63ccf4db389e2b796d79) | 2020-05-17  | Prepare release candidate for backport packages (#8891)                 |
 | [a546a10b1](https://github.com/apache/airflow/commit/a546a10b13b1f7a119071d8d2001cb17ccdcbbf7) | 2020-05-16  | Add Snowflake system test (#8422)                                       |
 | [f3521fb0e](https://github.com/apache/airflow/commit/f3521fb0e36733d8bd356123e56a453fd37a6dca) | 2020-05-16  | Regenerate readme files for backport package release (#8886)            |

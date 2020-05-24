@@ -153,7 +153,7 @@ class AwsBatchProtocol(Protocol):
 # pylint: enable=invalid-name, unused-argument
 
 
-class AwsBatchClient(AwsBaseHook):
+class AwsBatchClientHook(AwsBaseHook):
     """
     A client for AWS batch services.
 
@@ -486,9 +486,9 @@ class AwsBatchClient(AwsBaseHook):
             when many concurrent tasks request job-descriptions.
         """
         if delay is None:
-            delay = uniform(AwsBatchClient.DEFAULT_DELAY_MIN, AwsBatchClient.DEFAULT_DELAY_MAX)
+            delay = uniform(AwsBatchClientHook.DEFAULT_DELAY_MIN, AwsBatchClientHook.DEFAULT_DELAY_MAX)
         else:
-            delay = AwsBatchClient.add_jitter(delay)
+            delay = AwsBatchClientHook.add_jitter(delay)
         sleep(delay)
 
     @staticmethod

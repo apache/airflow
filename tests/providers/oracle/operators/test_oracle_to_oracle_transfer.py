@@ -21,7 +21,7 @@ from unittest import mock
 
 from mock import MagicMock
 
-from airflow.providers.oracle.operators.oracle_to_oracle_transfer import OracleToOracleTransfer
+from airflow.providers.oracle.operators.oracle_to_oracle_transfer import OracleToOracleTransferOperator
 
 
 class TestOracleToOracleTransfer(unittest.TestCase):
@@ -47,7 +47,7 @@ class TestOracleToOracleTransfer(unittest.TestCase):
         mock_cursor.description.__iter__.return_value = cursor_description
         mock_cursor.fetchmany.side_effect = [cursor_rows, []]
 
-        op = OracleToOracleTransfer(
+        op = OracleToOracleTransferOperator(
             task_id='copy_data',
             oracle_destination_conn_id=oracle_destination_conn_id,
             destination_table=destination_table,
