@@ -86,6 +86,8 @@ All operators are in the following packages:
 
   airflow/providers/apache/hive/transfers/index
 
+  airflow/providers/apache/impala/hooks/index
+
   airflow/providers/apache/kylin/operators/index
 
   airflow/providers/apache/livy/operators/index

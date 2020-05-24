@@ -302,6 +302,9 @@ hive = [
     'hmsclient>=0.1.0',
     'pyhive[hive]>=0.6.0',
 ]
+impala = [
+    "impyla>=0.16.2"
+]
 jdbc = [
     'jaydebeapi>=1.1.1',
 ]
@@ -495,6 +498,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "apache.druid": druid,
     "apache.hdfs": hdfs,
     "apache.hive": hive,
+    "apache.impala": impala,
     "apache.kylin": kylin,
     "apache.livy": [],
     "apache.pig": [],
@@ -560,6 +564,7 @@ EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "apache.druid": druid,
     "apache.hdfs": hdfs,
     "apache.hive": hive,
+    "apache.impala": impala,
     "apache.kylin": kylin,
     "apache.pinot": pinot,
     "apache.webhdfs": webhdfs,
@@ -592,6 +597,7 @@ EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     'hashicorp': hashicorp,
     'hdfs': hdfs,  # TODO: remove this in Airflow 2.1
     'hive': hive,  # TODO: remove this in Airflow 2.1
+    'impala': impala,
     'jdbc': jdbc,
     'jira': jira,
     'kerberos': kerberos,

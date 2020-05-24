@@ -136,6 +136,7 @@ Foundation.
      -
 
    * - `Apache Hive <https://hive.apache.org/>`__
+
      -
      - :mod:`airflow.providers.apache.hive.hooks.hive`
      - :mod:`airflow.providers.apache.hive.operators.hive`,
@@ -144,11 +145,18 @@ Foundation.
        :mod:`airflow.providers.apache.hive.sensors.hive_partition`,
        :mod:`airflow.providers.apache.hive.sensors.metastore_partition`
 
+   * - `Apache Impala <http://impala.apache.org/>`__
+     -
+     - :mod:`airflow.providers.apache.impala.hooks.impala`
+     -
+     -
+
    * - `Apache Kylin <https://kylin.apache.org/>`__
      -
      - :mod:`airflow.providers.apache.kylin.hooks.kylin`
      - :mod:`airflow.providers.apache.kylin.operators.kylin_cube`
      -
+
 
    * - `Apache Livy <https://livy.apache.org/>`__
      -
