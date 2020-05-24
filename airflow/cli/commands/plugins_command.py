@@ -85,7 +85,7 @@ def dump_plugins(args):
     else:
         print(f"Loaded {len(plugins_manager.plugins)} plugins")
         for plugin_no, plugin in enumerate(plugins_manager.plugins):
-            _header(f"{plugin_no} {plugin.name}", "=")
+            _header(f"{plugin_no}. {plugin.name}", "=")
             for attr_name in PLUGINS_ATTRIBUTES_TO_DUMP:
                 attr_value = getattr(plugin, attr_name)
                 print(f"{attr_name} = ", end='')
