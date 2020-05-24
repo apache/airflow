@@ -154,7 +154,7 @@ parameters and/or objects to your templates. Please take the time
 to understand how the parameter ``my_param`` makes it through to the template.
 
 Files can also be passed to the ``bash_command`` argument, like
-``bash_command='templated_command.sh'``, where the file location is relative to
+``bash_command='templated_command.sh '``, where the file location is relative to
 the directory containing the pipeline file (``tutorial.py`` in this case). This
 may be desirable for many reasons, like separating your script's logic and
 pipeline code, allowing for proper code highlighting in files composed in
