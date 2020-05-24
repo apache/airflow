@@ -19,7 +19,7 @@ import os
 import subprocess
 import tempfile
 import unittest
-from time import sleep
+from time import sleep, time
 from unittest import mock
 
 import psutil
@@ -28,63 +28,140 @@ import pytest
 from airflow import settings
 from airflow.cli import cli_parser
 from airflow.cli.commands import webserver_command
-from airflow.cli.commands.webserver_command import get_num_ready_workers_running
-from airflow.models import DagBag
+from airflow.cli.commands.webserver_command import GunicornMonitor
 from airflow.utils.cli import setup_locations
 from tests.test_utils.config import conf_vars
+
+
+class TestGunicornMonitor(unittest.TestCase):
+
+    def setUp(self,) -> None:
+        self.gunicorn_master_proc = mock.Mock(pid=2137)
+        self.monitor = GunicornMonitor(
+            gunicorn_master_proc=self.gunicorn_master_proc,
+            num_workers_expected=4,
+            master_timeout=60,
+            worker_refresh_interval=60,
+            worker_refresh_batch_size=2,
+            reload_on_plugin_change=True,
+        )
+        mock.patch.object(self.monitor, '_generate_plugin_state', return_value={}).start()
+        mock.patch.object(self.monitor, '_get_num_ready_workers_running', return_value=4).start()
+        mock.patch.object(self.monitor, '_get_num_workers_running', return_value=4).start()
+        mock.patch.object(self.monitor, '_spawn_new_workers', return_value=None).start()
+        mock.patch.object(self.monitor, '_kill_old_workers', return_value=None).start()
+        mock.patch.object(self.monitor, '_reload_gunicorn', return_value=None).start()
+
+    @mock.patch('airflow.cli.commands.webserver_command.sleep')
+    def test_should_wait_for_workers_to_start(self, mock_sleep):
+        self.monitor._get_num_ready_workers_running.return_value = 0
+        self.monitor._get_num_workers_running.return_value = 4
+        self.monitor._check_workers()
+        self.monitor._spawn_new_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+
+    @mock.patch('airflow.cli.commands.webserver_command.sleep')
+    def test_should_kill_excess_workers(self, mock_sleep):
+        self.monitor._get_num_ready_workers_running.return_value = 10
+        self.monitor._get_num_workers_running.return_value = 10
+        self.monitor._check_workers()
+        self.monitor._spawn_new_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._kill_old_workers.assert_called_once_with(2)  # pylint: disable=no-member
+        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+
+    @mock.patch('airflow.cli.commands.webserver_command.sleep')
+    def test_should_start_new_workers_when_missing(self, mock_sleep):
+        self.monitor._get_num_ready_workers_running.return_value = 2
+        self.monitor._get_num_workers_running.return_value = 2
+        self.monitor._check_workers()
+        self.monitor._spawn_new_workers.assert_called_once_with(2)  # pylint: disable=no-member
+        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+
+    @mock.patch('airflow.cli.commands.webserver_command.sleep')
+    def test_should_start_new_workers_when_refresh_interval_has_passed(self, mock_sleep):
+        self.monitor._last_refresh_time -= 200
+        self.monitor._check_workers()
+        self.monitor._spawn_new_workers.assert_called_once_with(2)  # pylint: disable=no-member
+        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+        self.assertAlmostEqual(self.monitor._last_refresh_time, time(), delta=5)
+
+    @mock.patch('airflow.cli.commands.webserver_command.sleep')
+    def test_should_reload_when_plugin_has_been_changed(self, mock_sleep):
+        self.monitor._generate_plugin_state.return_value = {'AA': 12}
+
+        self.monitor._check_workers()
+
+        self.monitor._spawn_new_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+
+        self.monitor._generate_plugin_state.return_value = {'AA': 32}
+
+        self.monitor._check_workers()
+
+        self.monitor._spawn_new_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+
+        self.monitor._generate_plugin_state.return_value = {'AA': 32}
+
+        self.monitor._check_workers()
+
+        self.monitor._spawn_new_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._reload_gunicorn.assert_called_once_with()  # pylint: disable=no-member
+        self.assertAlmostEqual(self.monitor._last_refresh_time, time(), delta=5)
 
 
 class TestCLIGetNumReadyWorkersRunning(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.dagbag = DagBag(include_examples=True)
         cls.parser = cli_parser.get_parser()
 
     def setUp(self):
-        self.gunicorn_master_proc = mock.Mock(pid=None)
+        self.gunicorn_master_proc = mock.Mock(pid=2137)
         self.children = mock.MagicMock()
         self.child = mock.MagicMock()
         self.process = mock.MagicMock()
+        self.monitor = GunicornMonitor(
+            gunicorn_master_proc=self.gunicorn_master_proc,
+            num_workers_expected=4,
+            master_timeout=60,
+            worker_refresh_interval=60,
+            worker_refresh_batch_size=2,
+            reload_on_plugin_change=True,
+        )
 
     def test_ready_prefix_on_cmdline(self):
         self.child.cmdline.return_value = [settings.GUNICORN_WORKER_READY_PREFIX]
         self.process.children.return_value = [self.child]
 
         with mock.patch('psutil.Process', return_value=self.process):
-            self.assertEqual(get_num_ready_workers_running(self.gunicorn_master_proc), 1)
+            self.assertEqual(self.monitor._get_num_ready_workers_running(), 1)
 
     def test_ready_prefix_on_cmdline_no_children(self):
         self.process.children.return_value = []
 
         with mock.patch('psutil.Process', return_value=self.process):
-            self.assertEqual(get_num_ready_workers_running(self.gunicorn_master_proc), 0)
+            self.assertEqual(self.monitor._get_num_ready_workers_running(), 0)
 
     def test_ready_prefix_on_cmdline_zombie(self):
         self.child.cmdline.return_value = []
         self.process.children.return_value = [self.child]
 
         with mock.patch('psutil.Process', return_value=self.process):
-            self.assertEqual(get_num_ready_workers_running(self.gunicorn_master_proc), 0)
+            self.assertEqual(self.monitor._get_num_ready_workers_running(), 0)
 
     def test_ready_prefix_on_cmdline_dead_process(self):
         self.child.cmdline.side_effect = psutil.NoSuchProcess(11347)
         self.process.children.return_value = [self.child]
 
         with mock.patch('psutil.Process', return_value=self.process):
-            self.assertEqual(get_num_ready_workers_running(self.gunicorn_master_proc), 0)
-
-    def test_cli_webserver_debug(self):
-        env = os.environ.copy()
-        proc = psutil.Popen(["airflow", "webserver", "--debug"], env=env)
-        sleep(3)  # wait for webserver to start
-        return_code = proc.poll()
-        self.assertEqual(
-            None,
-            return_code,
-            "webserver terminated with return code {} in debug mode".format(return_code))
-        proc.terminate()
-        proc.wait()
+            self.assertEqual(self.monitor._get_num_ready_workers_running(), 0)
 
 
 @pytest.mark.quarantined
@@ -172,3 +249,15 @@ class TestCliWebServer(unittest.TestCase):
             with self.assertRaises(SystemExit) as e:
                 webserver_command.webserver(args)
         self.assertEqual(e.exception.code, 1)
+
+    def test_cli_webserver_debug(self):
+        env = os.environ.copy()
+        proc = psutil.Popen(["airflow", "webserver", "--debug"], env=env)
+        sleep(3)  # wait for webserver to start
+        return_code = proc.poll()
+        self.assertEqual(
+            None,
+            return_code,
+            "webserver terminated with return code {} in debug mode".format(return_code))
+        proc.terminate()
+        proc.wait()

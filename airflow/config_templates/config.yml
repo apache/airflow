@@ -765,6 +765,14 @@
       type: string
       example: ~
       default: "30"
+    - name: reload_on_plugin_change
+      description: |
+        If set to True, Airflow will track files in plugins_follder directory. When it detects changes,
+        then reload the gunicorn.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: False
     - name: secret_key
       description: |
         Secret key used to run your flask app
