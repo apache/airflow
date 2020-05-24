@@ -33,22 +33,15 @@ class BranchSqlOperator(BaseOperator, SkipMixin):
                Template reference are recognized by str ending in '.sql'.
                Expected SQL query to return Boolean (True/False), integer (0 = False, Otherwise = 1)
                or string (true/y/yes/1/on/false/n/no/0/off).
-
     :param follow_task_ids_if_true: task id or task ids to follow if query return true
     :type follow_task_ids_if_true: str or list
-
     :param follow_task_ids_if_false: task id or task ids to follow if query return true
     :type follow_task_ids_if_false: str or list
-
     :param conn_id: reference to a specific database
     :type conn_id: str
-
     :param database: name of database which overwrite defined one in connection
-
     :param parameters: (optional) the parameters to render the SQL query with.
     :type parameters: mapping or iterable
-
-
     """
 
     template_fields = ("sql",)
@@ -115,14 +108,17 @@ class BranchSqlOperator(BaseOperator, SkipMixin):
                 "Failed to establish connection to '%s'" % self.conn_id
             )
 
+        if self.sql is None:
+            raise AirflowException("Expected 'sql' parameter is missing.")
+
         if self.follow_task_ids_if_true is None:
             raise AirflowException(
-                "Expected task id or task ids assigned to follow_task_ids_if_true"
+                "Expected 'follow_task_ids_if_true' paramter is missing."
             )
 
         if self.follow_task_ids_if_false is None:
             raise AirflowException(
-                "Expected task id or task ids assigned to follow_task_ids_if_false"
+                "Expected 'follow_task_ids_if_false' parameter is missing."
             )
 
         self.log.info(
