@@ -145,11 +145,12 @@ def load_entrypoint_plugins():
     for entry_point in entry_points:  # pylint: disable=too-many-nested-blocks
         log.debug('Importing entry_point plugin %s', entry_point.name)
         try:
-            plugin_obj = entry_point.load()
-            if is_valid_plugin(plugin_obj):
+            plugin_class = entry_point.load()
+            if is_valid_plugin(plugin_class):
+                plugin_obj = plugin_class()
                 if callable(getattr(plugin_obj, 'on_load', None)):
                     plugin_obj.on_load()
-                    plugins.append(plugin_obj)
+                    plugins.append(plugin_obj())
         except Exception as e:  # pylint: disable=broad-except
             log.exception("Failed to import plugin %s", entry_point.name)
             import_errors[entry_point.module_name] = str(e)
@@ -182,9 +183,10 @@ def load_plugins_from_plugin_directory():
                 mod = importlib.util.module_from_spec(spec)
                 sys.modules[spec.name] = mod
                 loader.exec_module(mod)
-                for obj in list(mod.__dict__.values()):
-                    if is_valid_plugin(obj):
-                        plugins.append(obj)
+                for mod_attr_value in list(mod.__dict__.values()):
+                    if is_valid_plugin(mod_attr_value):
+                        plugin_obj = mod_attr_value()
+                        plugins.append(plugin_obj)
             except Exception as e:  # pylint: disable=broad-except
                 log.exception(e)
                 path = filepath or str(f)
