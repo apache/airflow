@@ -204,7 +204,6 @@ data:
     [hive]
     # Default mapreduce queue for HiveOperator tasks
     default_hive_mapred_queue =
-    mapred_job_name_template =
 
     [celery]
     # This section only applies if you are using the CeleryExecutor in

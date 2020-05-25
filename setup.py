@@ -285,6 +285,8 @@ google = [
     'pandas-gbq',
 ]
 grpc = [
+    'google-auth>=1.0.0, <2.0.0dev',
+    'google-auth-httplib2>=0.0.1',
     'grpcio>=1.15.0',
 ]
 hashicorp = [
@@ -506,7 +508,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "facebook": facebook,
     "ftp": [],
     "google": google,
-    "grpc": grpc + google,
+    "grpc": grpc,
     "hashicorp": hashicorp,
     "http": [],
     "imap": [],

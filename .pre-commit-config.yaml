@@ -256,7 +256,8 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
           ^airflow/operators/.*$|
           ^airflow/sensors/.*$|
           ^airflow/providers/.*$|
-          ^airflow/contrib/.*$
+          ^airflow/contrib/.*$|
+          ^backport_packages/.*$
       - id: base-operator
         language: pygrep
         name: Make sure BaseOperator[Link] is imported from airflow.models outside of core

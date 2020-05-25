@@ -672,7 +672,7 @@
       version_added: ~
       type: string
       example: ~
-      default: ""
+      default: ~
 - name: webserver
   description: ~
   options:

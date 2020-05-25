@@ -55,6 +55,8 @@ echo
 pip install /dist/apache_airflow_backport_providers_*.whl >>"${OUT_FILE}" 2>&1
 
 
+echo > "${OUT_FILE}"
+
 echo
 echo  Importing all classes in Airflow 1.10
 echo
