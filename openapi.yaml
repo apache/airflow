@@ -2173,7 +2173,7 @@ components:
       in: query
       name: token
       schema:
-        type: boolean
+        type: string
       required: false
       description: >
         A token that allows you to continue fetching logs.
