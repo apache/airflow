@@ -1719,6 +1719,7 @@ components:
             If set, don't actually run this operation. The response will contain a list of task instances
             planned to be cleaned, but not modified in any way.
           type: boolean
+          default: true
 
         start_date:
           description: The minimum execution date to clear.
