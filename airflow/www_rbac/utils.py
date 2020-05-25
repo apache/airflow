@@ -32,8 +32,8 @@ from past.builtins import basestring
 
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from flask import request, Response, Markup, url_for
-from flask_appbuilder.forms import DateTimeField, FieldConverter
+from flask import Markup, Response, request, url_for
+from flask_appbuilder.forms import FieldConverter
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 import flask_appbuilder.models.sqla.filters as fab_sqlafilters
 import sqlalchemy as sqla
@@ -45,6 +45,7 @@ from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.utils.state import State
+from airflow.www_rbac.forms import DateTimeWithTimezoneField
 from airflow.www_rbac.widgets import AirflowDateTimePickerWidget
 
 AUTHENTICATE = conf.getboolean('webserver', 'AUTHENTICATE')
@@ -467,6 +468,6 @@ class CustomSQLAInterface(SQLAInterface):
 # subclass) so we have no other option than to edit the converstion table in
 # place
 FieldConverter.conversion_table = (
-    (('is_utcdatetime', DateTimeField, AirflowDateTimePickerWidget),) +
+    (('is_utcdatetime', DateTimeWithTimezoneField, AirflowDateTimePickerWidget),) +
     FieldConverter.conversion_table
 )
