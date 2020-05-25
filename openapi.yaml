@@ -1997,7 +1997,7 @@ components:
     TaskState:
       type: string
       enum:
-        - success
+        - succcess
         - running
         - failed
         - upstream_failed
@@ -2025,6 +2025,7 @@ components:
         - one_failed
         - none_failed
         - none_skipped
+        - none_failed_or_skipped
         - dummy
 
     WeightRule:
