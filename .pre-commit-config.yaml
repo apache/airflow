@@ -195,7 +195,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         files: ^setup.py$
         pass_filenames: false
         require_serial: true
-        entry: tests/test_order_setup.py
+        entry: ./scripts/ci/pre_commit_check_order_setup.py
       - id: update-breeze-file
         name: Update output of breeze command in BREEZE.rst
         entry: "./scripts/ci/pre_commit_breeze_cmd_line.sh"
@@ -315,7 +315,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         files: "config.yml$|default_airflow.cfg$|default.cfg$"
         pass_filenames: false
         require_serial: false
-        entry: scripts/ci/pre_commit_yaml_to_cfg.py
+        entry: ./scripts/ci/pre_commit_yaml_to_cfg.py
         additional_dependencies: ['pyyaml']
       - id: mypy
         name: Run mypy

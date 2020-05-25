@@ -170,8 +170,8 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
         file.write(text)
 
 
-# 'Start dependencies group' and 'Start dependencies group' are mark for ./test/test_order_setup.py
-# If you change this mark you should also change ./test/test_order_setup.py function test_main_dependent_group
+# 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
+# If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
 amazon = [
     'boto3>=1.12.0,<2.0.0',
@@ -502,8 +502,8 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "dingding": [],
     "discord": [],
     "docker": docker,
-    "email": [],
     "elasticsearch": [],
+    "email": [],
     "exasol": exasol,
     "facebook": facebook,
     "ftp": [],
