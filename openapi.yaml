@@ -745,9 +745,9 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-  /variables/{variable_id}:
+  /variables/{variable_key}:
     parameters:
-      - $ref: '#/components/parameters/VariableID'
+      - $ref: '#/components/parameters/VariableKey'
 
     get:
       summary: Get a variable by id
@@ -810,29 +810,6 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
-
-  /variables/lookup/{variable_key}:
-    parameters:
-      - $ref: '#/components/parameters/VariableKey'
-
-    get:
-      summary: Get variable using its key.
-      description: The response contains all fields, including data.
-      operationId: lookupVariable
-      tags: [Variable]
-      responses:
-        '200':
-          description: Successful response.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Variable'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
 
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries:
     parameters:
@@ -2141,14 +2118,6 @@ components:
         type: string
       required: true
       description: The Pool name.
-
-    VariableID:
-      in: path
-      name: variable_id
-      schema:
-        type: string
-      required: true
-      description: The Variable ID.
 
     VariableKey:
       in: path
