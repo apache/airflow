@@ -147,10 +147,10 @@ def load_entrypoint_plugins():
         try:
             plugin_class = entry_point.load()
             if is_valid_plugin(plugin_class):
-                plugin_obj = plugin_class()
-                if callable(getattr(plugin_obj, 'on_load', None)):
-                    plugin_obj.on_load()
-                    plugins.append(plugin_obj())
+                plugin_instance = plugin_class()
+                if callable(getattr(plugin_instance, 'on_load', None)):
+                    plugin_instance.on_load()
+                    plugins.append(plugin_instance())
         except Exception as e:  # pylint: disable=broad-except
             log.exception("Failed to import plugin %s", entry_point.name)
             import_errors[entry_point.module_name] = str(e)
@@ -185,8 +185,8 @@ def load_plugins_from_plugin_directory():
                 loader.exec_module(mod)
                 for mod_attr_value in list(mod.__dict__.values()):
                     if is_valid_plugin(mod_attr_value):
-                        plugin_obj = mod_attr_value()
-                        plugins.append(plugin_obj)
+                        plugin_instance = mod_attr_value()
+                        plugins.append(plugin_instance)
             except Exception as e:  # pylint: disable=broad-except
                 log.exception(e)
                 path = filepath or str(f)
