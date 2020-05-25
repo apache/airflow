@@ -1160,9 +1160,9 @@ components:
           type: string
           readOnly: true
         is_paused:
-          type: string
+          type: boolean
         is_subdag:
-          type: string
+          type: boolean
           readOnly: true
         fileloc:
           type: string
