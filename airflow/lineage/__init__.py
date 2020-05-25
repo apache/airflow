@@ -28,6 +28,7 @@ import jinja2
 from cattr import structure, unstructure
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
 from airflow.models.base import Operator
 from airflow.utils.module_loading import import_string
 
@@ -86,9 +87,9 @@ def _get_backend():
     try:
         _backend_str = conf.get("lineage", "backend")
         backend = import_string(_backend_str)
-    except ImportError as ie:
-        log.debug("Cannot import %s due to %s", _backend_str, ie)
-    except conf.AirflowConfigException:
+    except ImportError as import_error:
+        log.debug("Cannot import %s due to %s", _backend_str, import_error)
+    except AirflowConfigException:
         log.debug("Could not find lineage backend key in config")
 
     return backend

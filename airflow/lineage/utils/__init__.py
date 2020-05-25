@@ -24,7 +24,7 @@ Example:
     inlets=utils.create_atlas_entities({utils.standard_file_unique_key: "some_file"}),
     outlets=utils.create_atlas_entities({utils.dataset_unique_key: "some_table"})
 """
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.lineage.datasets import DataSet, StandardFile, StandardTable
 
 # If key is represent, atlas dataset entity will be created, see StandardDataSet

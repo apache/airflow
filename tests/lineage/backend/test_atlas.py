@@ -19,8 +19,11 @@ import unittest
 from configparser import DuplicateSectionError
 from unittest import mock
 
+from atlasclient.exceptions import HttpError
+
 from airflow import AirflowException
-from airflow.configuration import AirflowConfigException, conf
+from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
 from airflow.lineage.backend import atlas
 from airflow.lineage.backend.atlas import AtlasBackend
 from airflow.lineage.datasets import File
@@ -89,10 +92,9 @@ class TestAtlas(unittest.TestCase):
     def test_dag_fail_if_lineage_fail(self, atlas_mock):
         atlas._fail_if_lineage_error = True
         typedefs = mock.MagicMock()
-        entity_post = mock.Mock(side_effect=AirflowException)
+        entity_post = mock.MagicMock(create=mock.MagicMock(side_effect=HttpError))
         atlas_mock.return_value = mock.Mock(typedefs=typedefs, entity_post=entity_post)
 
         with self.assertRaises(AirflowException):
             self.atlas_backend.send_lineage(operator=self.operator1, inlets=self.inlets_d,
-                                            outlets=self.outlets_d,
-                                            context=self.ctx)
+                                            outlets=self.outlets_d, context=self.ctx)

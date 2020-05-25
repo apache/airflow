@@ -88,7 +88,6 @@ class AtlasBackend(LineageBackend):
         try:
             AtlasBackend.__send_lineage(operator, inlets, outlets, context)
         except HttpError as err:
-
             logging.error("Error in sending lineage data")
             logging.error(err)
             if _fail_if_lineage_error:
