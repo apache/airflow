@@ -1340,9 +1340,6 @@ components:
     Pool:
       type: object
       properties:
-        pool_id:
-          type: integer
-          readOnly: true
         name:
           type: string
         slots:
