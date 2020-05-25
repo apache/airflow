@@ -256,7 +256,7 @@ paths:
     get:
       summary: Get all DAG Runs
       description: >
-        This endpoint support reading resources across multiple DAGs by specifying a "~" as a dag_id.
+        This endpoint allows specifying `~` as the dag_id to retrieve DAG Runs for all DAGs.
       operationId: getDagRuns
       tags: [DAGRun]
       parameters:
@@ -635,8 +635,8 @@ paths:
     get:
       summary: Get a list of task instance of DAG.
       description: >
-        This endpoint support reading resources across multiple DAGs by specifying a "~" as a dag_id
-        or an execution date.
+        This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve DAG Runs for all DAGs
+        and DAG Runs.
       operationId: getTaskInstances
       tags: [TaskInstance]
       parameters:
@@ -832,8 +832,8 @@ paths:
     get:
       summary: Get all XCom entry
       description:
-        This endpoint support reading resources across multiple XCom entries by specifying a
-        "~" as a `dag_id`, `task_id` and `execution_date`.
+        This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCOM entries for
+        for all DAGs, DAG Runs and task instances.
       operationId: getXComEntry
       tags: [XCom]
       parameters:
