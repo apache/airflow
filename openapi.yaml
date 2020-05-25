@@ -1478,7 +1478,7 @@ components:
     VariableCollection:
       type: object
       properties:
-        task_instances:
+        variables:
           type: array
           items:
             $ref: '#/components/schemas/VariableCollectionItem'
@@ -1511,7 +1511,7 @@ components:
     XComCollection:
       type: object
       properties:
-        xcom:
+        xcom_entries:
           type: array
           items:
             $ref: '#/components/schemas/XComCollectionItem'
@@ -1674,7 +1674,7 @@ components:
     TaskCollection:
       type: object
       properties:
-        task:
+        tasks:
           type: array
           items:
             $ref: '#/components/schemas/Task'
