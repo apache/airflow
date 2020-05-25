@@ -70,13 +70,13 @@ def import_all_provider_classes(source_path: str,
                     exception_str = traceback.format_exc()
                     tracebacks.append(exception_str)
     if tracebacks:
-        print()
-        print("ERROR: There were some import errors")
-        print()
+        print("""
+ERROR: There were some import errors
+""", file=sys.stderr)
         for trace in tracebacks:
-            print("----------------------------------------")
-            print(trace)
-            print("----------------------------------------")
+            print("----------------------------------------", file=sys.stderr)
+            print(trace, file=sys.stderr)
+            print("----------------------------------------", file=sys.stderr)
         sys.exit(1)
     else:
         return imported_classes

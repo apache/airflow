@@ -135,8 +135,7 @@ class RefactorBackportPackages:
         """
         # noinspection PyUnusedLocal
         def _remover(node: LN, capture: Capture, filename: Filename) -> None:
-            if node.type not in (300, 311):  # remove only definition
-                node.remove()
+            node.remove()
 
         self.qry.select_class(class_name).modify(_remover)
 
@@ -173,7 +172,7 @@ class RefactorBackportPackages:
     def add_provide_context_to_python_operators(self) -> None:
         """
 
-        Adds provide context to usages of Python/BranchPython Operators in example dags.
+        Adds provide context to usages of Python/BranchPython Operators - mostly in example_dags.
         Note that those changes  apply to example DAGs not to the operators/hooks erc.
         We package the example DAGs together with the provider classes and they should serve as
         examples independently on the version of Airflow it will be installed in.
@@ -222,14 +221,12 @@ class RefactorBackportPackages:
             self.qry.
             select_function("PythonOperator").
             is_call().
-            is_filename(include=r"mlengine_operator_utils.py$").
             modify(add_provide_context_to_python_operator)
         )
         (
             self.qry.
             select_function("BranchPythonOperator").
             is_call().
-            is_filename(include=r"example_google_api_to_s3_transfer_advanced.py$").
             modify(add_provide_context_to_python_operator)
         )
 
@@ -663,99 +660,11 @@ class RefactorBackportPackages:
             rename("airflow.providers.odbc.utils.helpers")
         )
 
-    def refactor_papermill_package(self):
-        """
-        Fixes to "papermill" providers package.
-
-        Copies some of the classes used from core Airflow to "common.utils" package of the
-        the provider and renames imports to use them from there.
-
-        We copy lineage.py and it's __init__.py and we change import as in example diff:
-
-        .. code-block:: diff
-
-            --- ./airflow/providers/papermill/example_dags/example_papermill.py
-            +++ ./airflow/providers/papermill/example_dags/example_papermill.py
-            @@ -26,8 +26,8 @@
-             import scrapbook as sb
-
-             from airflow import DAG
-            -from airflow.lineage import AUTO
-            -from airflow.operators.python import PythonOperator
-            +from airflow.providers.papermill.utils.lineage import AUTO
-            +from airflow.operators.python_operator import PythonOperator
-             from airflow.providers.papermill.operators.papermill import PapermillOperator
-             from airflow.utils.dates import days_ago
-             from airflow.version import version
-
-
-        Note also that copied lineage __init__.py needs to be refactored as well because it uses
-        Operator class (which is not existing in Airflow 1.10.*. We have a base operator template
-        prepared that imports the BaseOperator as an Operator and copy it as "base.py" in the
-        papermill.utils package (from template_base_operator.py) and we rename import to use it from there:
-
-        .. code-block:: diff
-
-            +++ ./airflow/providers/papermill/utils/lineage/__init__.py
-            @@ -27,7 +27,7 @@
-             import jinja2
-             from cattr import structure, unstructure
-
-            -from airflow.models.base import Operator
-            +from airflow.providers.papermill.utils.base import Operator
-             from airflow.utils.module_loading import import_string
-
-             ENV = jinja2.Environment()
-
-        """
-        # noinspection PyUnusedLocal
-        def papermill_package_filter(node: LN, capture: Capture, filename: Filename) -> bool:
-            return filename.startswith("./airflow/providers/papermill/")
-
-        os.makedirs(os.path.join(get_target_providers_package_folder("papermill"), "utils", "lineage"),
-                    exist_ok=True)
-        copyfile(
-            os.path.join(get_source_airflow_folder(), "airflow", "utils", "__init__.py"),
-            os.path.join(get_target_providers_package_folder("papermill"), "utils", "__init__.py")
-        )
-        copyfile(
-            os.path.join(get_source_airflow_folder(), "airflow", "lineage", "__init__.py"),
-            os.path.join(get_target_providers_package_folder("papermill"), "utils", "lineage", "__init__.py")
-        )
-        copyfile(
-            os.path.join(get_source_airflow_folder(), "airflow", "lineage", "entities.py"),
-            os.path.join(get_target_providers_package_folder("papermill"), "utils", "lineage", "entities.py")
-        )
-        copyfile(
-            os.path.join(get_source_airflow_folder(), "backport_packages", "template_base_operator.py.txt"),
-            os.path.join(get_target_providers_package_folder("papermill"), "utils", "base.py")
-        )
-        (
-            self.qry.
-            select_module("airflow.lineage.entities").
-            filter(callback=papermill_package_filter).
-            rename("airflow.providers.papermill.utils.lineage.entities")
-        )
-        (
-            self.qry.
-            select_module("airflow.lineage").
-            filter(callback=papermill_package_filter).
-            rename("airflow.providers.papermill.utils.lineage")
-        )
-        # Papermill uses lineage which uses Operator under the hood so we need to change it as well
-        (
-            self.qry.
-            select_module("airflow.models.base").
-            filter(callback=papermill_package_filter).
-            rename("airflow.providers.papermill.utils.base")
-        )
-
     def do_refactor(self, in_process: bool = False) -> None:
         self.rename_deprecated_modules()
         self.refactor_amazon_package()
         self.refactor_google_package()
         self.refactor_odbc_package()
-        self.refactor_papermill_package()
         self.remove_tags()
         self.remove_super_init_call()
         self.add_provide_context_to_python_operators()

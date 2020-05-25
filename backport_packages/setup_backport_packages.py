@@ -739,7 +739,7 @@ def check_if_release_version_ok(
     last_release = past_releases[0].release_version if past_releases else None
     if last_release and last_release > current_release_version:
         print(f"The release {current_release_version} must be not less than "
-              f"{last_release} - last release for the package")
+              f"{last_release} - last release for the package", file=sys.stderr)
         sys.exit(2)
     return last_release
 
@@ -768,7 +768,8 @@ def make_sure_remote_apache_exists():
         subprocess.check_call(["git", "remote", "add", "apache", "https://github.com/apache/airflow.git"])
     except subprocess.CalledProcessError as e:
         if e.returncode == 128:
-            print("The remote `apache` already exists. If you have trouble running git log delete the remote")
+            print("The remote `apache` already exists. If you have trouble running "
+                  "git log delete the remote", file=sys.stderr)
         else:
             raise
     subprocess.check_call(["git", "fetch", "apache"])
@@ -929,10 +930,12 @@ def get_all_backportable_providers() -> List[str]:
     """
     Returns all providers that should be taken into account when preparing backports.
     For now remove cncf.kubernetes as it has no chances to work with current core of Airflow 2.0
+    And Papermill as it is deeply linked with Lineage in Airflow core and it won't work with lineage
+    for Airflow 1.10 anyway.
     :return: list of providers that are considered for backport packages
     """
     # TODO: Maybe we should fix it and release cncf.kubernetes separately
-    excluded_providers = ["cncf.kubernetes"]
+    excluded_providers = ["cncf.kubernetes", "papermill"]
     return [prov for prov in PROVIDERS_REQUIREMENTS.keys() if prov not in excluded_providers]
 
 
@@ -947,16 +950,16 @@ if __name__ == "__main__":
     possible_first_params.append(LIST_BACKPORTABLE_PACKAGES)
     possible_first_params.append(UPDATE_PACKAGE_RELEASE_NOTES)
     if len(sys.argv) == 1:
-        print()
-        print("ERROR! Missing first param")
-        print()
+        print("""
+ERROR! Missing first param"
+""", file=sys.stderr)
         usage()
         exit(1)
     if sys.argv[1] == "--version-suffix":
         if len(sys.argv) < 3:
-            print()
-            print("ERROR! --version-suffix needs parameter!")
-            print()
+            print("""
+ERROR! --version-suffix needs parameter!
+""", file=sys.stderr)
             usage()
             exit(1)
         suffix = sys.argv[2]
@@ -966,9 +969,9 @@ if __name__ == "__main__":
         exit(0)
 
     if sys.argv[1] not in possible_first_params:
-        print()
-        print(f"ERROR! Wrong first param: {sys.argv[1]}")
-        print()
+        print(f"""
+ERROR! Wrong first param: {sys.argv[1]}
+""", file=sys.stderr)
         usage()
         print()
         exit(1)
@@ -985,7 +988,7 @@ if __name__ == "__main__":
         exit(0)
     elif sys.argv[1] == UPDATE_PACKAGE_RELEASE_NOTES:
         if len(sys.argv) == 2 or not re.match(r'\d{4}\.\d{2}\.\d{2}', sys.argv[2]):
-            print("Please provide release tag as parameter in the form of YYYY.MM.DD")
+            print("Please provide release tag as parameter in the form of YYYY.MM.DD", file=sys.stderr)
             sys.exit(1)
         release = sys.argv[2]
         update_release_notes_for_packages(sys.argv[3:], release_version=release)
