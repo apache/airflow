@@ -191,11 +191,11 @@ class SlackAPIFileOperator(SlackAPIOperator):
 
     @apply_defaults
     def __init__(self,
-                 channel='#general',
-                 initial_comment='No message has been set!',
-                 filename='default_name.csv',
-                 filetype='csv',
-                 content='default,content,csv,file',
+                 channel: str = '#general',
+                 initial_comment: str = 'No message has been set!',
+                 filename: str = 'default_name.csv',
+                 filetype: str = 'csv',
+                 content: str = 'default,content,csv,file',
                  *args, **kwargs):
         self.method = 'files.upload'
         self.channel = channel
@@ -213,4 +213,3 @@ class SlackAPIFileOperator(SlackAPIOperator):
             'filetype': self.filetype,
             'initial_comment': self.initial_comment
         }
-
