@@ -711,6 +711,7 @@ paths:
   /variables:
     get:
       summary: Get all variables
+      description: The collection does not contain data. To get data, you must get a single entity.
       operationId: getVariables
       tags: [Variable]
       parameters:
@@ -733,7 +734,6 @@ paths:
     post:
       summary: Create a variable
       operationId: createVariable
-      description: The collection does not contain data. To get data, you must get a single entity.
       tags: [Variable]
       requestBody:
         required: true
