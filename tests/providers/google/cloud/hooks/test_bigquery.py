@@ -891,7 +891,6 @@ class TestTableOperations(_BigQueryBaseTestClass):
         mock_client.return_value.list_tables.assert_called_once_with(
             dataset=dataset_reference,
             max_results=None,
-            page_token=None,
             retry=DEFAULT_RETRY,
         )
         for res, exp in zip(result, table_list):

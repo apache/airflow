@@ -933,7 +933,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     )
     ui_color = BigQueryUIColors.TABLE.value
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments,too-many-locals
     @apply_defaults
     def __init__(
         self,
