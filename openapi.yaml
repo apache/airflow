@@ -1944,6 +1944,8 @@ components:
     RelativeDelta:
       # TODO: Why we need these fields?
       type: object
+      required:
+        - __type
       properties:
         __type: {type: string}
         years: {type: integer}
@@ -1964,6 +1966,8 @@ components:
 
     CronExpression:
       type: object
+      required:
+        - __type
       properties:
         __type: {type: string}
         value: {type: string}
