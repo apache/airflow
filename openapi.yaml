@@ -1744,7 +1744,7 @@ components:
           items:
             type: string
           description:
-            Return objectss with specific DAG IDS.
+            Return objects with specific DAG IDs.
 
             The value can be repeated to retrieve multiple matching values (OR condition).
 
@@ -1803,7 +1803,7 @@ components:
           items:
             type: string
           description:
-            Return objectss with specific DAG IDS.
+            Return objects with specific DAG IDs.
 
             The value can be repeated to retrieve multiple matching values (OR condition).
 
