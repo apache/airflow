@@ -60,15 +60,23 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     def __init__(
         self,
-        connections_prefix: str = 'airflow/connections',
-        variables_prefix: str = 'airflow/variables',
+        connections_prefix: Optional[str] = None,
+        variables_prefix: Optional[str] = None,
         profile_name: Optional[str] = None,
-        sep: str = "/",
+        sep: Optional[str] = None,
         **kwargs
     ):
         super().__init__(**kwargs)
-        self.connections_prefix = connections_prefix.rstrip("/")
-        self.variables_prefix = variables_prefix.rstrip('/')
+
+        if connections_prefix:
+            self.connections_prefix = connections_prefix.rstrip('/')
+        else:
+            self.connections_prefix = connections_prefix
+        if variables_prefix:
+            self.variables_prefix = variables_prefix.rstrip('/')
+        else:
+            self.connections_prefix = variables_prefix
+
         self.profile_name = profile_name
         self.sep = sep
         self.kwargs = kwargs
@@ -90,7 +98,50 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: connection id
         :type conn_id: str
         """
-        return self._get_secret(self.connections_prefix, conn_id)
+        if self.connections_prefix and self.sep:
+            conn_id = self.build_path(self.connections_prefix, conn_id, self.sep)
+
+        try:
+            secret_string = self._get_secret(conn_id)
+            secret = ast.literal_eval(secret_string)
+
+            # These lines will check if we have with some denomination stored an username, password and host
+            for user_denomination in ['user', 'username', 'login']:
+                if user_denomination in secret:
+                    user = secret[user_denomination]
+            for password_denomination in ['pass', 'password', 'key']:
+                if password_denomination in secret:
+                    password = secret[password_denomination]
+            for host_denomination in ['host', 'remote_host', 'server']:
+                if host_denomination in secret:
+                    host = secret[host_denomination]
+            try:
+                if user and password and host:
+                    for type_word in ['conn_type', 'conn_id', 'connection_type', 'engine']:
+                        if type_word in secret:
+                            conn_type = secret[type_word]
+                            conn_type = 'postgresql' if conn_type == 'redshift' else conn_type
+                        else:
+                            conn_type = 'connection'
+
+                    if 'port' in secret:
+                        port = secret['port']
+                    else:
+                        port = 5432
+                    if 'database' in secret:
+                        database = secret['database']
+                    else:
+                        database = ''
+
+                    conn_string = f'{conn_type}://{user}:{password}@{host}:{port}/{database}'
+                    print(conn_string)
+                    return conn_string
+            except UnboundLocalError:
+                conn_string = self._get_secret(conn_id)
+                return f'{{{conn_string[:-1]}}}'  # without this line, the secret_string will end with a bracket }
+                # and the literal_eval won't work
+        except ValueError:  # 'malformed node or string: ' error, for empty conns
+            pass
 
     def get_variable(self, key: str) -> Optional[str]:
         """
@@ -99,27 +150,25 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param key: Variable Key
         :return: Variable Value
         """
-        return self._get_secret(self.variables_prefix, key)
+        if self.variables_prefix and self.sep:
+            key = self.build_path(self.variables_prefix, key, self.sep)
+        return self._get_secret(key)
 
-    def _get_secret(self, path_prefix: str, secret_id: str) -> Optional[str]:
+    def _get_secret(self, secret_id: str) -> Optional[str]:
         """
         Get secret value from Secrets Manager
-
-        :param path_prefix: Prefix for the Path to get Secret
-        :type path_prefix: str
         :param secret_id: Secret Key
         :type secret_id: str
         """
-        secrets_path = self.build_path(path_prefix, secret_id, self.sep)
         try:
             response = self.client.get_secret_value(
-                SecretId=secrets_path,
+                SecretId=secret_id,
             )
             return response.get('SecretString')
         except self.client.exceptions.ResourceNotFoundException:
             self.log.debug(
                 "An error occurred (ResourceNotFoundException) when calling the "
                 "get_secret_value operation: "
-                "Secret %s not found.", secrets_path
+                "Secret %s not found.", secret_id
             )
             return None
