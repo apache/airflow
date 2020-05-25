@@ -1282,7 +1282,7 @@ components:
         event_log_id:
           type: integer
           readOnly: true
-        dttm:
+        when:
           type: string
           readOnly: true
         dag_id:
@@ -1454,7 +1454,7 @@ components:
           type: integer
         operator:
           type: string
-        queued_dttm:
+        queued_when:
           type: string
         pid:
           type: integer
