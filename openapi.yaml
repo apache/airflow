@@ -1000,7 +1000,7 @@ paths:
       - $ref: '#/components/parameters/DAGID'
 
     get:
-      summary: Get simplified representation of DAG.
+      summary: Get a simplified representation of DAG.
       operationId: getDagStructure
       tags: [DAG]
       responses:
@@ -1201,7 +1201,7 @@ components:
 
             If not provided, a value will be generated based on execution_date.
 
-            If the specified execution is in use, the creation request fails with an ALREADY_EXISTS error.
+            If the specified dag_run_id is in use, the creation request fails with an ALREADY_EXISTS error.
 
             This together with DAG_ID are a unique key.
           readOnly: true
@@ -1212,8 +1212,6 @@ components:
           description: >
             The execution date. This is the time when the DAG run should be started according
             to the DAG definition.
-
-            If the specified execution is in use, the creation request fails with an ALREADY_EXISTS error.
 
             This together with DAG_ID are a unique key.
           type: string
