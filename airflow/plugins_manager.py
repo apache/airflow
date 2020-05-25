@@ -150,7 +150,7 @@ def load_entrypoint_plugins():
                 plugin_instance = plugin_class()
                 if callable(getattr(plugin_instance, 'on_load', None)):
                     plugin_instance.on_load()
-                    plugins.append(plugin_instance())
+                    plugins.append(plugin_instance)
         except Exception as e:  # pylint: disable=broad-except
             log.exception("Failed to import plugin %s", entry_point.name)
             import_errors[entry_point.module_name] = str(e)
