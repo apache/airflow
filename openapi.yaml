@@ -300,10 +300,10 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-  /dags/{dag_id}/dagRuns/{execution_date}:
+  /dags/{dag_id}/dagRuns/{dag_run_id}:
     parameters:
       - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/ExecutionDate'
+      - $ref: '#/components/parameters/DAGRunID'
 
     get:
       summary: Get a DAG Run
@@ -605,10 +605,10 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-  /dags/{dag_id}/dagRuns/{execution_date}/taskInstances:
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances:
     parameters:
       - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/ExecutionDate'
+      - $ref: '#/components/parameters/DAGRunID'
       - $ref: '#/components/parameters/FilterExecutionDateGTE'
       - $ref: '#/components/parameters/FilterExecutionDateLTE'
       - $ref: '#/components/parameters/FilterStartDateGTE'
@@ -644,10 +644,10 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-  /dags/{dag_id}/dagRuns/{execution_date}/taskInstances/{task_id}:
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}:
     parameters:
       - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/ExecutionDate'
+      - $ref: '#/components/parameters/DAGRunID'
       - $ref: '#/components/parameters/TaskID'
 
     get:
@@ -834,10 +834,10 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /dags/{dag_id}/dagRuns/{execution_date}/taskInstances/{task_id}/xcomEntries:
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries:
     parameters:
       - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/ExecutionDate'
+      - $ref: '#/components/parameters/DAGRunID'
       - $ref: '#/components/parameters/TaskID'
 
     get:
@@ -888,10 +888,10 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-  /dags/{dag_id}/dagRuns/{execution_date}/taskInstances/{task_id}/xcomEntries/{key}:
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{key}:
     parameters:
       - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/ExecutionDate'
+      - $ref: '#/components/parameters/DAGRunID'
       - $ref: '#/components/parameters/TaskID'
       - $ref: '#/components/parameters/XComKey'
 
@@ -957,10 +957,10 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
 
   # Non-database resources
-  /dags/{dag_id}/dagRuns/{execution_date}/taskInstances/{task_id}/links:
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links:
     parameters:
       - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/ExecutionDate'
+      - $ref: '#/components/parameters/DAGRunID'
       - $ref: '#/components/parameters/TaskID'
 
     get:
@@ -981,10 +981,10 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /dags/{dag_id}/dagRuns/{execution_date}/taskInstances/{task_id}/logs/{task_try_number}:
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number}:
     parameters:
       - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/ExecutionDate'
+      - $ref: '#/components/parameters/DAGRunID'
       - $ref: '#/components/parameters/TaskID'
       - $ref: '#/components/parameters/TaskTryNumber'
       - $ref: '#/components/parameters/NoChunking'
@@ -1219,6 +1219,17 @@ components:
     DAGRun:
       type: object
       properties:
+        dag_run_id:
+          type: string
+          description: >
+            Run ID.
+
+            If not provided, a value will be generated based on execution_date.
+
+            If the specified execution is in use, the creation request fails with an ALREADY_EXISTS error.
+
+            This together with DAG_ID are a unique key.
+          readOnly: true
         dag_id:
           type: string
           readOnly: true
@@ -1245,17 +1256,6 @@ components:
           readOnly: True
         state:
           $ref: '#/components/schemas/DagState'
-        run_id:
-          type: string
-          description: >
-            Run ID.
-
-            If not provided, a value will be generated based on execution_date.
-
-            If the specified execution is in use, the creation request fails with an ALREADY_EXISTS error.
-
-            This together with DAG_ID are a unique key.
-          readOnly: true
         external_trigger:
           type: boolean
           default: true
@@ -2102,6 +2102,14 @@ components:
       required: true
       description: The Task ID.
 
+    DAGRunID:
+      in: path
+      name: dag_run_id
+      schema:
+        type: string
+      required: true
+      description: The DAG Run ID.
+
     TaskTryNumber:
       in: path
       name: task_try_number
@@ -2149,18 +2157,6 @@ components:
         type: string
       required: true
       description: The Variable Key.
-
-    ExecutionDate:
-      in: path
-      name: execution_date
-      schema:
-        type: string
-        format: 'date-time'
-      required: true
-      description: >
-        The date-time notation as defined by
-        [RFC 3339, section 5.6](https://tools.ietf.org/html/rfc3339#section-5.6),
-        E.G. `2017-07-21T17:32:28Z`
 
     # Logs
     NoChunking:
