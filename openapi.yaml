@@ -843,7 +843,7 @@ paths:
 
     post:
       summary: Create an XCom entry
-      operationId: updateXComEntries
+      operationId: updateXComEntry
       tags: [XCom]
       requestBody:
         required: true
