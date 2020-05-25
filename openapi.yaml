@@ -621,7 +621,7 @@ paths:
       - $ref: '#/components/parameters/FilterPool'
       - $ref: '#/components/parameters/FilterQueue'
     get:
-      summary: Get list of task instance of DAG.
+      summary: Get a list of task instance of DAG.
       description: >
         This endpoint support reading resources across multiple DAGs by specifying a "~" as a dag_id
         or an execution date.
