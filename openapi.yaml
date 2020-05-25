@@ -1198,7 +1198,7 @@ components:
     DAGCollection:
       type: object
       properties:
-        dag_model:
+        dags:
           type: array
           items:
             $ref: '#/components/schemas/DAG'
