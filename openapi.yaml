@@ -272,7 +272,7 @@ paths:
     post:
       summary: Get all DAG Runs.
       description: >
-        It allows you to fetch DAG Runs from many DAGs.
+        It allows you to fetch DAG Runs from multiple DAGs.
       operationId: getDagRunsBatch
       tags: [DAGRun]
       requestBody:
