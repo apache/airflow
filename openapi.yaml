@@ -1180,7 +1180,9 @@ components:
           type: string
           readOnly: true
         owners:
-          type: string
+          type: array
+          items:
+            type: string
           readOnly: true
         description:
           type: string
