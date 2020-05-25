@@ -151,3 +151,49 @@ class SlackAPIPostOperator(SlackAPIOperator):
             'attachments': json.dumps(self.attachments),
             'blocks': json.dumps(self.blocks),
         }
+
+
+class SlackAPIFileOperator(SlackAPIOperator):
+    """
+    Send a file to a slack channel
+
+    :param channel: channel in which to sent file on slack name (templated)
+    :type channel: str
+    :param initial_comment: message to send to slack. (templated)
+    :type initial_comment: str
+    :param filename: name of the file (templated)
+    :type filename: str
+    :param filetype: slack filetype. (templated)
+        - see https://api.slack.com/types/file
+    :type filetype: str
+    :param content: file content. (templated)
+    :type content: str
+    """
+
+    template_fields = ('channel', 'initial_comment', 'filename', 'filetype', 'content')
+    ui_color = '#44BEDF'
+
+    @apply_defaults
+    def __init__(self,
+                 channel='#general',
+                 initial_comment='No message has been set!',
+                 filename='default_name.csv',
+                 filetype='csv',
+                 content='default,content,csv,file',
+                 *args, **kwargs):
+        self.method = 'files.upload'
+        self.channel = channel
+        self.initial_comment = initial_comment
+        self.filename = filename
+        self.filetype = filetype
+        self.content = content
+        super(SlackAPIFileOperator, self).__init__(method=self.method, *args, **kwargs)
+
+    def construct_api_call_params(self):
+        self.api_params = {
+            'channels': self.channel,
+            'content': self.content,
+            'filename': self.filename,
+            'filetype': self.filetype,
+            'initial_comment': self.initial_comment
+        }
