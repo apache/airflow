@@ -157,6 +157,22 @@ class SlackAPIFileOperator(SlackAPIOperator):
     """
     Send a file to a slack channel
 
+    Examples:
+
+    .. code-block:: python
+
+        slack = SlackAPIFileOperator(
+            task_id="slack_file_upload",
+            dag=dag,
+            conn_id="slack",
+            channel="general",
+            initial_comment="Hello World!",
+            filename="hello_world.csv",
+            filetype="csv",
+            content="hello,world,csv,file",
+
+        )
+
     :param channel: channel in which to sent file on slack name (templated)
     :type channel: str
     :param initial_comment: message to send to slack. (templated)
@@ -197,3 +213,4 @@ class SlackAPIFileOperator(SlackAPIOperator):
             'filetype': self.filetype,
             'initial_comment': self.initial_comment
         }
+
