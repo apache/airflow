@@ -1255,6 +1255,7 @@ components:
             If the specified execution is in use, the creation request fails with an ALREADY_EXISTS error.
 
             This together with DAG_ID are a unique key.
+          readOnly: true
         external_trigger:
           type: boolean
           default: true
@@ -1263,6 +1264,7 @@ components:
           type: string
           description: >
             JSON object describing additional configuration parameters.
+          readOnly: true
       required:
         - dag_id
 
