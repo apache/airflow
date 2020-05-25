@@ -2119,7 +2119,7 @@ components:
       schema:
         type: integer
       required: true
-      description: The Import Error ID.
+      description: The Event Log ID.
 
     ImportErrorID:
       in: path
