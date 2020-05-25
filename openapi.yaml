@@ -212,7 +212,7 @@ paths:
       - $ref: '#/components/parameters/DAGID'
 
     post:
-      summary: Clears a set of task instances associated with the DAAG for a specified date range.
+      summary: Clears a set of task instances associated with the DAG for a specified date range.
       operationId: clearTaskInstance
       tags: [DAG]
       requestBody:
