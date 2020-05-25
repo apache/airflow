@@ -105,10 +105,6 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             secret_string = self._get_secret(conn_id)
             secret = ast.literal_eval(secret_string)
 
-            user = None
-            password = None
-            host = None
-
             # These lines will check if we have with some denomination stored an username, password and host
             for user_denomination in ['user', 'username', 'login']:
                 if user_denomination in secret:
@@ -119,32 +115,32 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             for host_denomination in ['host', 'remote_host', 'server']:
                 if host_denomination in secret:
                     host = secret[host_denomination]
+            try:
+                if user and password and host:
+                    for type_word in ['conn_type', 'conn_id', 'connection_type', 'engine']:
+                        if type_word in secret:
+                            conn_type = secret[type_word]
+                            conn_type = 'postgresql' if conn_type == 'redshift' else conn_type
+                        else:
+                            conn_type = 'connection'
 
-            if user and password and host:
-                for type_word in ['conn_type', 'conn_id', 'connection_type', 'engine']:
-                    if type_word in secret:
-                        conn_type = secret[type_word]
-                        conn_type = 'postgresql' if conn_type == 'redshift' else conn_type
+                    if 'port' in secret:
+                        port = secret['port']
                     else:
-                        conn_type = 'connection'
+                        port = 5432
+                    if 'database' in secret:
+                        database = secret['database']
+                    else:
+                        database = ''
 
-                if 'port' in secret:
-                    port = secret['port']
-                else:
-                    port = 5432
-                if 'database' in secret:
-                    database = secret['database']
-                else:
-                    database = ''
-
-                conn_string = f'{conn_type}://{user}:{password}@{host}:{port}/{database}'
-
-                return conn_string
-            else:
+                    conn_string = f'{conn_type}://{user}:{password}@{host}:{port}/{database}'
+                    print(conn_string)
+                    return conn_string
+            except UnboundLocalError:
                 conn_string = self._get_secret(conn_id)
                 return f'{{{conn_string[:-1]}}}'  # without this line, the secret_string will end with a bracket }
-                # and the literal_eval (needed later on to get the values from conn.schema) won't work
-        except ValueError:  # ('malformed node or string), when a conn is empty, i.e s3/aws conn in an EC2
+                # and the literal_eval won't work
+        except ValueError:  # 'malformed node or string: ' error, for empty conns
             pass
 
     def get_variable(self, key: str) -> Optional[str]:
@@ -158,25 +154,21 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             key = self.build_path(self.variables_prefix, key, self.sep)
         return self._get_secret(key)
 
-    def _get_secret(self, path_prefix: str, secret_id: str) -> Optional[str]:
+    def _get_secret(self, secret_id: str) -> Optional[str]:
         """
         Get secret value from Secrets Manager
-
-        :param path_prefix: Prefix for the Path to get Secret
-        :type path_prefix: str
         :param secret_id: Secret Key
         :type secret_id: str
         """
-        secrets_path = self.build_path(path_prefix, secret_id, self.sep)
         try:
             response = self.client.get_secret_value(
-                SecretId=secrets_path,
+                SecretId=secret_id,
             )
             return response.get('SecretString')
         except self.client.exceptions.ResourceNotFoundException:
             self.log.debug(
                 "An error occurred (ResourceNotFoundException) when calling the "
                 "get_secret_value operation: "
-                "Secret %s not found.", secrets_path
+                "Secret %s not found.", secret_id
             )
             return None
