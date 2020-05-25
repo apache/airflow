@@ -751,7 +751,7 @@ paths:
       - $ref: '#/components/parameters/VariableKey'
 
     get:
-      summary: Get a variable by id
+      summary: Get a variable by key
       operationId: getVariable
       tags: [Variable]
       responses:
@@ -769,7 +769,7 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     patch:
-      summary: Update a variable by id
+      summary: Update a variable by key
       operationId: updateVariable
       tags: [Variable]
       parameters:
