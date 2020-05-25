@@ -175,6 +175,12 @@ paths:
       description: Presents only information available in database (DAGModel).
       operationId: getDag
       tags: [DAG]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAG'
       responses:
         '200':
           description: Successful response.
@@ -193,6 +199,12 @@ paths:
       summary: Update a DAG
       operationId: updateDag
       tags: [DAG]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAG'
       responses:
         '200':
           description: Successful response.
