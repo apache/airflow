@@ -1146,6 +1146,7 @@ components:
             password:
               type: string
               format: password
+              writeOnly: true
             extra:
               type: string
 
@@ -1161,9 +1162,6 @@ components:
         is_paused:
           type: string
         is_subdag:
-          type: string
-          readOnly: true
-        is_active:
           type: string
           readOnly: true
         fileloc:
