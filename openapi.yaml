@@ -219,7 +219,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /dags/{dag_id}/clearTaskInstanaces:
+  /dags/{dag_id}/clearTaskInstances:
     parameters:
       - $ref: '#/components/parameters/DAGID'
 
