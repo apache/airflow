@@ -1310,7 +1310,7 @@ components:
         event_logs:
           type: array
           items:
-            $ref: '#/components/schemas/EventLogCollection'
+            $ref: '#/components/schemas/EventLog'
 
     ImportError:
       type: object
