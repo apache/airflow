@@ -213,7 +213,7 @@ paths:
 
     post:
       summary: Clears a set of task instances associated with the DAAG for a specified date range.
-      operationId: clearTaskInstaance
+      operationId: clearTaskInstance
       tags: [DAG]
       requestBody:
         description: Parameters of action
