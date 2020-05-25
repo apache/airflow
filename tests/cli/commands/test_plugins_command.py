@@ -17,7 +17,7 @@
 
 import io
 import unittest
-from contextlib import redirect_stdout
+from contextlib import ExitStack, contextmanager, redirect_stdout
 from unittest import mock
 
 from airflow.cli import cli_parser
@@ -36,11 +36,44 @@ class TestPlugin(AirflowPlugin):
     operators = [PluginOperator]
 
 
+PLUGINS_MANAGER_NULLABLE_ATTRIBUTES = [
+    "plugins",
+    "operators_modules",
+    "sensors_modules",
+    "hooks_modules",
+    "macros_modules",
+    "executors_modules",
+    "admin_views",
+    "flask_blueprints",
+    "menu_links",
+    "flask_appbuilder_views",
+    "flask_appbuilder_menu_links",
+    "global_operator_extra_links",
+    "operator_extra_links",
+    "registered_operator_link_classes",
+]
+
+
+@contextmanager
+def keep_plugin_manager_state():
+    with ExitStack() as exit_stack:
+        for attr in PLUGINS_MANAGER_NULLABLE_ATTRIBUTES:
+            exit_stack.enter_context(  # pylint: disable=no-member
+                mock.patch(f"airflow.plugins_manager.{attr}", None)
+            )
+        exit_stack.enter_context(  # pylint: disable=no-member
+            mock.patch("airflow.plugins_manager.import_errors", {})
+        )
+
+        yield
+
+
 class TestPluginsCommand(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.parser = cli_parser.get_parser()
 
+    @keep_plugin_manager_state()
     @mock.patch('airflow.plugins_manager.plugins', [])
     def test_should_display_no_plugins(self):
         with redirect_stdout(io.StringIO()) as temp_stdout:
@@ -52,6 +85,7 @@ class TestPluginsCommand(unittest.TestCase):
         self.assertIn("PLUGINS MANGER:", stdout)
         self.assertIn("PLUGINS:", stdout)
 
+    @keep_plugin_manager_state()
     @mock.patch('airflow.plugins_manager.plugins', [TestPlugin])
     def test_should_display_one_plugins(self):
         with redirect_stdout(io.StringIO()) as temp_stdout:
