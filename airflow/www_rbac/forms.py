@@ -23,33 +23,75 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import json
+from datetime import datetime as dt
 
+import pendulum
 from flask_appbuilder.fieldwidgets import (
     BS3PasswordFieldWidget, BS3TextAreaFieldWidget, BS3TextFieldWidget, Select2Widget,
 )
 from flask_appbuilder.forms import DynamicForm
 from flask_babel import lazy_gettext
 from flask_wtf import FlaskForm
+from wtforms import validators, widgets
+from wtforms.fields import (
+    BooleanField, Field, IntegerField, PasswordField, SelectField, StringField, TextAreaField,
+)
 
-from wtforms import validators
-from wtforms.fields import (IntegerField, SelectField, TextAreaField, PasswordField,
-                            StringField, DateTimeField, BooleanField)
+from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.utils import timezone
 from airflow.www_rbac.validators import ValidJson
 from airflow.www_rbac.widgets import AirflowDateTimePickerWidget
 
 
+class DateTimeWithTimezoneField(Field):
+    """
+    A text field which stores a `datetime.datetime` matching a format.
+    """
+    widget = widgets.TextInput()
+
+    def __init__(self, label=None, validators=None, format=None, **kwargs):
+        super(DateTimeWithTimezoneField, self).__init__(label, validators, **kwargs)
+        self.format = format or "%Y-%m-%d %H:%M:%S%Z"
+
+    def _value(self):
+        if self.raw_data:
+            return ' '.join(self.raw_data)
+        else:
+            return self.data and self.data.strftime(self.format) or ''
+
+    def process_formdata(self, valuelist):
+        if valuelist:
+            date_str = ' '.join(valuelist)
+            try:
+                # Check if the datetime string is in the format without timezone, if so convert it to the
+                # default timezone
+                if len(date_str) == 19:
+                    parsed_datetime = dt.strptime(date_str, '%Y-%m-%d %H:%M:%S')
+                    defualt_timezone = pendulum.timezone('UTC')
+                    tz = conf.get("core", "default_timezone")
+                    if tz == "system":
+                        defualt_timezone = pendulum.local_timezone()
+                    else:
+                        defualt_timezone = pendulum.timezone(tz)
+                    self.data = defualt_timezone.convert(parsed_datetime)
+                else:
+                    self.data = pendulum.parse(date_str)
+            except ValueError:
+                self.data = None
+                raise ValueError(self.gettext('Not a valid datetime value'))
+
+
 class DateTimeForm(FlaskForm):
     # Date filter form needed for task views
-    execution_date = DateTimeField(
+    execution_date = DateTimeWithTimezoneField(
         "Execution date", widget=AirflowDateTimePickerWidget())
 
 
 class DateTimeWithNumRunsForm(FlaskForm):
     # Date time and number of runs form for tree view, task duration
     # and landing times
-    base_date = DateTimeField(
+    base_date = DateTimeWithTimezoneField(
         "Anchor date", widget=AirflowDateTimePickerWidget(), default=timezone.utcnow())
     num_runs = SelectField("Number of runs", default=25, choices=(
         (5, "5"),
@@ -70,10 +112,10 @@ class DagRunForm(DynamicForm):
         lazy_gettext('Dag Id'),
         validators=[validators.DataRequired()],
         widget=BS3TextFieldWidget())
-    start_date = DateTimeField(
+    start_date = DateTimeWithTimezoneField(
         lazy_gettext('Start Date'),
         widget=AirflowDateTimePickerWidget())
-    end_date = DateTimeField(
+    end_date = DateTimeWithTimezoneField(
         lazy_gettext('End Date'),
         widget=AirflowDateTimePickerWidget())
     run_id = StringField(
@@ -84,7 +126,7 @@ class DagRunForm(DynamicForm):
         lazy_gettext('State'),
         choices=(('success', 'success'), ('running', 'running'), ('failed', 'failed'),),
         widget=Select2Widget())
-    execution_date = DateTimeField(
+    execution_date = DateTimeWithTimezoneField(
         lazy_gettext('Execution Date'),
         widget=AirflowDateTimePickerWidget())
     external_trigger = BooleanField(
@@ -95,10 +137,7 @@ class DagRunForm(DynamicForm):
         widget=BS3TextAreaFieldWidget())
 
     def populate_obj(self, item):
-        # TODO: This is probably better done as a custom field type so we can
-        # set TZ at parse time
         super(DagRunForm, self).populate_obj(item)
-        item.execution_date = timezone.make_aware(item.execution_date)
         if item.conf:
             item.conf = json.loads(item.conf)
 
