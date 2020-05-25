@@ -237,11 +237,11 @@ paths:
 
       responses:
         '200':
-          description: A list of cleared tasks
+          description: A list of cleared task references
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstanceCollection'
+                $ref: '#/components/schemas/TaskInstanceReferenceCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -1460,6 +1460,31 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TaskInstance'
+
+    TaskInstanceReference:
+      type: object
+      properties:
+        task_id:
+          type: string
+          readOnly: true
+        dag_id:
+          type: string
+          readOnly: true
+        execution_date:
+          type: string
+          format: datetime
+          readOnly: true
+        dag_run_id:
+          type: string
+          readOnly: true
+
+    TaskInstanceReferenceCollection:
+      type: object
+      properties:
+        task_instances:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskInstanceReference'
 
     VariableCollectionItem:
       # Divided into two schemas for sensitive data protection
