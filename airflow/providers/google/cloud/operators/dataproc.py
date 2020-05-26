@@ -154,8 +154,9 @@ class ClusterGenerator:
     :param customer_managed_key: The customer-managed key used for disk encryption
         ``projects/[PROJECT_STORING_KEYS]/locations/[LOCATION]/keyRings/[KEY_RING_NAME]/cryptoKeys/[KEY_NAME]`` # noqa # pylint: disable=line-too-long
     :type customer_managed_key: str
-    :param gke_cluster: Optional: The GKE cluster's name hosting the Dataproc cluster
-    type: gke_cluster: str
+    :param gke_cluster: Optional: The GKE cluster's name hosting the 
+        Dataproc cluster.
+    type gke_cluster: str
     """
     # pylint: disable=too-many-arguments,too-many-locals
     def __init__(self,
