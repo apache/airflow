@@ -1684,9 +1684,8 @@ components:
           readOnly: true
           items:
             type: string
-        sub_dag_id:
-          type: string
-          readOnly: true
+        sub_dag:
+          $ref: '#/components/schemas/DAG'
         downstream_task_ids:
           type: array
           readOnly: true
