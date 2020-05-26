@@ -318,49 +318,49 @@ class ClusterGenerator:
         else:
             master_type_uri = self.master_machine_type
             worker_type_uri = self.worker_machine_type
-
+  
         cluster_data = {
-            'projectId': self.project_id,
-            'clusterName': self.cluster_name,
+            'project_id': self.project_id,
+            'cluster_name': self.cluster_name,
             'config': {
-                'gceClusterConfig': {
+                'gce_cluster_config': {
                 },
-                'masterConfig': {
-                    'numInstances': self.num_masters,
-                    'machineTypeUri': master_type_uri,
-                    'diskConfig': {
-                        'bootDiskType': self.master_disk_type,
-                        'bootDiskSizeGb': self.master_disk_size
+                'master_config': {
+                    'num_instances': self.num_masters,
+                    'machine_type_uri': master_type_uri,
+                    'disk_config': {
+                        'boot_disk_type': self.master_disk_type,
+                        'boot_disk_size_gb': self.master_disk_size
                     }
                 },
-                'workerConfig': {
-                    'numInstances': self.num_workers,
-                    'machineTypeUri': worker_type_uri,
-                    'diskConfig': {
-                        'bootDiskType': self.worker_disk_type,
-                        'bootDiskSizeGb': self.worker_disk_size
+                'worker_config': {
+                    'num_instances': self.num_workers,
+                    'machine_type_uri': worker_type_uri,
+                    'disk_config': {
+                        'boot_disk_type': self.worker_disk_type,
+                        'boot_disk_size_gb': self.worker_disk_size
                     }
                 },
-                'secondaryWorkerConfig': {},
-                'softwareConfig': {},
-                'lifecycleConfig': {},
-                'encryptionConfig': {},
-                'autoscalingConfig': {},
+                'secondary_worker_config': {},
+                'software_config': {},
+                'lifecycle_config': {},
+                'encryption_config': {},
+                'autoscaling_config': {},
             }
         } if self.gke_cluster is None else {
             # Deploy Dataproc on a running GKE cluster
-            'projectId': self.project_id,
-            'clusterName': self.cluster_name,
+            'project_id': self.project_id,
+            'cluster_name': self.cluster_name,
             'config': {
-                'gkeClusterConfig': {
-                    'namespacedGkeDeploymentTarget': {
-                        'targetGkeCluster': f"projects/{self.project_id}/locations/{self.region}/clusters/{self.gke_cluster}"
+                'gke_cluster_config': {
+                    'namespaced_gke_deployment_target': {
+                        'target_gke_cluster': f"projects/{self.project_id}/locations/{self.region}/clusters/{self.gke_cluster}"
                     }
                 },
-                'softwareConfig': {
-                    'imageVersion': self.image_version
+                'software_config': {
+                    'image_version': self.image_version
                 },
-                'configBucket': self.storage_bucket
+                'config_bucket': self.storage_bucket
             }
         }
         if self.num_preemptible_workers > 0:
