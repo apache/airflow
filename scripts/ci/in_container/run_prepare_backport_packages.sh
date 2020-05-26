@@ -105,6 +105,42 @@ do
         cat "${LOG_FILE}"
         exit "${RES}"
     fi
+    echo > "${LOG_FILE}"
+
+    PACKAGE_DIR=${BACKPORT_PACKAGE//./\/}
+
+    PATTERN="airflow\/providers\/(.*)\/PROVIDERS_CHANGES_.*.md"
+    CHANGELOG_FILE="CHANGELOG.txt"
+
+    echo > "${CHANGELOG_FILE}"
+    CHANGES_FILES=$(find "airflow/providers/${PACKAGE_DIR}" -name 'PROVIDERS_CHANGES_*.md' | sort -r)
+    LAST_PROVIDER_ID=""
+    for FILE in ${CHANGES_FILES}
+    do
+        [[ ${FILE} =~ ${PATTERN} ]]
+        PROVIDER_ID=${BASH_REMATCH[1]//\//.}
+        {
+            if [[ ${LAST_PROVIDER_ID} != "${PROVIDER_ID}" ]]; then
+                echo
+                echo "Provider: ${BASH_REMATCH[1]//\//.}"
+                echo
+                LAST_PROVIDER_ID=${PROVIDER_ID}
+            else
+                echo
+            fi
+            cat "${FILE}"
+            echo
+        } >> "${CHANGELOG_FILE}"
+    done
+
+    echo "Changelog prepared in ${CHANGELOG_FILE} for ${PACKAGE_DIR}"
+    set +e
+    python3 setup_backport_packages.py "${BACKPORT_PACKAGE}" clean --all >"${LOG_FILE}" 2>&1
+    RES="${?}"
+    if [[ ${RES} != "0" ]]; then
+        cat "${LOG_FILE}"
+        exit "${RES}"
+    fi
     python3 setup_backport_packages.py --version-suffix "${VERSION_SUFFIX_FOR_PYPI}     " \
         "${BACKPORT_PACKAGE}" sdist bdist_wheel >"${LOG_FILE}" 2>&1
     RES="${?}"
@@ -114,6 +150,7 @@ do
     fi
     set -e
     echo " Prepared backport package ${BACKPORT_PACKAGE}"
+    echo "==================================================================================="
 done
 
 cd "${AIRFLOW_SOURCES}" || exit 1

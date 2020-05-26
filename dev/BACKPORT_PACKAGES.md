@@ -253,27 +253,14 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 
 ```
 
-* Tag the release
+* Build the source package:
 
-```bash
-git tag backport-providers-${VERSION}
+```
+./backport_packages/build_source_package.sh
+
 ```
 
-* Clean the checkout
-
-```bash
-git clean -fxd
-```
-
-* Tarball the sources
-
-```bash
-git archive \
-    --format=tar.gz \
-    backport-providers-${VERSION} \
-    --prefix=apache-airflow-backport-providers-${VERSION}/ \
-    -o apache-airflow-backport-providers-${VERSION}-source.tar.gz
-```
+It will generate `apache-airflow-backport-providers-${VERSION}-source.tar.gz`
 
 * Generate the packages - since we are preparing packages for SVN repo, we should use the right switch. Note
   that this will clean up dist folder before generating the packages, so it will only contain the packages
