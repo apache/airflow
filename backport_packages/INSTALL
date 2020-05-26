@@ -1,7 +1,6 @@
 ## INSTALL / BUILD instructions for Apache Airflow Backport packages
 
-NOTE! Those sources are only intended to be used to build Apache Airflow Backport packages
-Not the Apache Airflow. They have been generated using not - released version of Apache Airflow
+NOTE! Those sources are only intended to be used to build Apache Airflow Backport packages, not the Apache Airflow. They have been generated using the unreleased version of Apache Airflow.
 (from master)
 
 This ia a generic installation method that requires docker and docker-compose to be installed.
