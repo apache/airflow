@@ -556,7 +556,11 @@ class TestDag(unittest.TestCase):
 
         self.assertEqual(task.test_field, ['{{ ds }}', 'some_string'])
 
-    def test_following_previous_schedule(self):
+    @parameterized.expand([
+        ('*/5 * * * *', ),
+        (['*/5 * 25 * *', '*/5 * 28 * *'], ),
+    ])
+    def test_following_previous_schedule(self, schedule_interval):
         """
         Make sure DST transitions are properly observed
         """
@@ -568,7 +572,7 @@ class TestDag(unittest.TestCase):
 
         utc = timezone.convert_to_utc(start)
 
-        dag = DAG('tz_dag', start_date=start, schedule_interval='*/5 * * * *')
+        dag = DAG('tz_dag', start_date=start, schedule_interval=schedule_interval)
         _next = dag.following_schedule(utc)
         next_local = local_tz.convert(_next)
 
@@ -586,7 +590,11 @@ class TestDag(unittest.TestCase):
         self.assertEqual(prev_local.isoformat(), "2018-10-28T02:55:00+02:00")
         self.assertEqual(prev, utc)
 
-    def test_following_previous_schedule_daily_dag_cest_to_cet(self):
+    @parameterized.expand([
+        ('0 3 * * *', ),
+        (['0 3 25 * *', '0 3 26 * *', '0 3 27 * *', '0 3 28 * *'], ),
+    ])
+    def test_following_previous_schedule_daily_dag_cest_to_cet(self, schedule_interval):
         """
         Make sure DST transitions are properly observed
         """
@@ -596,7 +604,7 @@ class TestDag(unittest.TestCase):
 
         utc = timezone.convert_to_utc(start)
 
-        dag = DAG('tz_dag', start_date=start, schedule_interval='0 3 * * *')
+        dag = DAG('tz_dag', start_date=start, schedule_interval=schedule_interval)
 
         prev = dag.previous_schedule(utc)
         prev_local = local_tz.convert(prev)
@@ -616,7 +624,11 @@ class TestDag(unittest.TestCase):
         self.assertEqual(prev_local.isoformat(), "2018-10-27T03:00:00+02:00")
         self.assertEqual(prev.isoformat(), "2018-10-27T01:00:00+00:00")
 
-    def test_following_previous_schedule_daily_dag_cet_to_cest(self):
+    @parameterized.expand([
+        ('0 3 * * *', ),
+        (['0 3 24 * *', '0 3 25 * *'], ),
+    ])
+    def test_following_previous_schedule_daily_dag_cet_to_cest(self, schedule_interval):
         """
         Make sure DST transitions are properly observed
         """
@@ -626,7 +638,7 @@ class TestDag(unittest.TestCase):
 
         utc = timezone.convert_to_utc(start)
 
-        dag = DAG('tz_dag', start_date=start, schedule_interval='0 3 * * *')
+        dag = DAG('tz_dag', start_date=start, schedule_interval=schedule_interval)
 
         prev = dag.previous_schedule(utc)
         prev_local = local_tz.convert(prev)
@@ -645,6 +657,36 @@ class TestDag(unittest.TestCase):
 
         self.assertEqual(prev_local.isoformat(), "2018-03-24T03:00:00+01:00")
         self.assertEqual(prev.isoformat(), "2018-03-24T02:00:00+00:00")
+
+    def test_following_previous_schedule_multiple_cron_expressions(self):
+        """
+        Make sure DST transitions are properly observed
+        """
+        local_tz = pendulum.timezone('Europe/Zurich')
+        start = local_tz.convert(datetime.datetime(2018, 10, 28, 2, 55),
+                                 dst_rule=pendulum.PRE_TRANSITION)
+        self.assertEqual(start.isoformat(), "2018-10-28T02:55:00+02:00",
+                         "Pre-condition: start date is in DST")
+
+        utc = timezone.convert_to_utc(start)
+
+        dag = DAG('tz_dag', start_date=start, schedule_interval=['*/5 * * * *', '3 * * * *'])
+        _next = dag.following_schedule(utc)
+        next_local = local_tz.convert(_next)
+
+        self.assertEqual(_next.isoformat(), "2018-10-28T01:00:00+00:00")
+        self.assertEqual(next_local.isoformat(), "2018-10-28T02:00:00+01:00")
+
+        prev = dag.previous_schedule(utc)
+        prev_local = local_tz.convert(prev)
+
+        self.assertEqual(prev_local.isoformat(), "2018-10-28T02:50:00+02:00")
+
+        prev = dag.previous_schedule(_next)
+        prev_local = local_tz.convert(prev)
+
+        self.assertEqual(prev_local.isoformat(), "2018-10-28T02:55:00+02:00")
+        self.assertEqual(prev, utc)
 
     def test_dagtag_repr(self):
         clear_db_dags()
@@ -1321,6 +1363,7 @@ class TestDag(unittest.TestCase):
         ("@monthly", "0 0 1 * *"),
         ("@quarterly", "0 0 1 */3 *"),
         ("@yearly", "0 0 1 1 *"),
+        (["@yearly", "1 * * * *"], ["0 0 1 1 *", "1 * * * *"]),
         ("@once", None),
         (datetime.timedelta(days=1), datetime.timedelta(days=1)),
     ])

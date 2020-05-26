@@ -289,6 +289,8 @@ class DagBag(BaseDagBag, LoggingMixin):
                         self.bag_dag(dag, parent_dag=dag, root_dag=dag)
                         if isinstance(dag.normalized_schedule_interval, str):
                             croniter(dag.normalized_schedule_interval)
+                        elif isinstance(dag.normalized_schedule_interval, list):
+                            [croniter(interval) for interval in dag.normalized_schedule_interval]
                         found_dags.append(dag)
                         found_dags += dag.subdags
                     except (CroniterBadCronError,

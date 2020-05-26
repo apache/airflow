@@ -38,7 +38,7 @@
     <table class="table table-striped table-bordered">
       <tr>
         <th>schedule_interval</td>
-        <td>{{ dag.schedule_interval }}</td>
+        <td>{{ dag.schedule_interval | join(", ") if dag.schedule_interval is iterable and dag.schedule_interval is not string else dag.schedule_interval }}</td>
       </tr>
       <tr>
         <th>start_date</td>

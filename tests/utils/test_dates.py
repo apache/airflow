@@ -102,3 +102,64 @@ class TestUtilsDatesDateRange(unittest.TestCase):
 
         self.assertEqual(preset_range, timedelta_range)
         self.assertEqual(preset_range, cron_range)
+
+    def test_delta_cron_multiple_expressions(self):
+        timedelta_range = dates.date_range(datetime(2016, 1, 1), num=4, delta=timedelta(minutes=30))
+        cron_range = dates.date_range(datetime(2016, 1, 1), num=4, delta=["0 * * * *", "30 * * * *"])
+
+        self.assertEqual(cron_range, timedelta_range)
+
+    def test_delta_cron_multiple_expressions_negative_num_given(self):
+        timedelta_range = dates.date_range(datetime(2016, 1, 1), num=-4, delta=timedelta(minutes=30))
+        cron_range = dates.date_range(datetime(2016, 1, 1), num=-4, delta=["0 * * * *", "30 * * * *"])
+
+        self.assertEqual(cron_range, timedelta_range)
+
+
+class TestUtilsDatesCron(unittest.TestCase):
+
+    def test_next(self):
+        cron = dates.Cron(["0 * * * *", "10 * * * *"], datetime(2016, 1, 1))
+
+        self.assertEqual(cron.get_next(), datetime(2016, 1, 1, 0, 10))
+        self.assertEqual(cron.get_next(), datetime(2016, 1, 1, 1, 0))
+        self.assertEqual(cron.get_next(), datetime(2016, 1, 1, 1, 10))
+
+    def test_prev(self):
+        cron = dates.Cron(["0 * * * *", "10 * * * *"], datetime(2016, 1, 1, 1))
+
+        self.assertEqual(cron.get_current(), datetime(2016, 1, 1, 1, 0))
+        self.assertEqual(cron.get_prev(), datetime(2016, 1, 1, 0, 10))
+        self.assertEqual(cron.get_prev(), datetime(2016, 1, 1, 0, 0))
+
+    def test_overlapping_expressions(self):
+        # Should not return duplicate dates if cron expressions overlap
+        cron = dates.Cron(["0 * * * *", "0-10/5 * * * *"], datetime(2016, 1, 1))
+
+        self.assertEqual(cron.get_next(), datetime(2016, 1, 1, 0, 5))
+        self.assertEqual(cron.get_next(), datetime(2016, 1, 1, 0, 10))
+        self.assertEqual(cron.get_next(), datetime(2016, 1, 1, 1, 0))
+        self.assertEqual(cron.get_next(), datetime(2016, 1, 1, 1, 5))
+
+    def test_direction_change_next_prev(self):
+        cron = dates.Cron(["0 * * * *", "10 * * * *"], datetime(2016, 1, 1))
+
+        self.assertEqual(cron.get_next(), datetime(2016, 1, 1, 0, 10))
+        self.assertEqual(cron.get_next(), datetime(2016, 1, 1, 1, 0))
+        self.assertEqual(cron.get_prev(), datetime(2016, 1, 1, 0, 10))
+        self.assertEqual(cron.get_prev(), datetime(2016, 1, 1, 0, 0))
+
+    def test_direction_change_prev_next(self):
+        cron = dates.Cron(["0 * * * *", "10 * * * *"], datetime(2016, 1, 1, 1))
+
+        self.assertEqual(cron.get_prev(), datetime(2016, 1, 1, 0, 10))
+        self.assertEqual(cron.get_prev(), datetime(2016, 1, 1, 0, 0))
+        self.assertEqual(cron.get_next(), datetime(2016, 1, 1, 0, 10))
+        self.assertEqual(cron.get_next(), datetime(2016, 1, 1, 1, 0))
+
+    def test_single_expression(self):
+        cron = dates.Cron("0 * * * *", datetime(2016, 1, 1))
+
+        self.assertEqual(cron.get_current(), datetime(2016, 1, 1, 0))
+        self.assertEqual(cron.get_next(), datetime(2016, 1, 1, 1))
+        self.assertEqual(cron.get_next(), datetime(2016, 1, 1, 2))

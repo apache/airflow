@@ -17,6 +17,7 @@
 # under the License.
 
 from datetime import datetime, timedelta
+from typing import List, Optional, Union
 
 from croniter import croniter
 from dateutil.relativedelta import relativedelta  # noqa: F401 for doctest  # pylint: disable=unused-import
@@ -70,17 +71,19 @@ def date_range(start_date, end_date=None, num=None, delta=None):  # pylint: disa
         raise Exception("Wait. Either specify end_date OR num")
     if not end_date and not num:
         end_date = timezone.utcnow()
-    if delta in cron_presets:
+    if isinstance(delta, str) and delta in cron_presets:
         delta = cron_presets.get(delta)
+    if isinstance(delta, list):
+        delta = [cron_presets.get(expr, expr) for expr in delta]
 
     delta_iscron = False
     time_zone = start_date.tzinfo
 
-    if isinstance(delta, str):
+    if isinstance(delta, (str, list)):
         delta_iscron = True
         if timezone.is_localized(start_date):
             start_date = timezone.make_naive(start_date, time_zone)
-        cron = croniter(delta, start_date)
+        cron = Cron(delta, start_date)
     elif isinstance(delta, timedelta):
         delta = abs(delta)
     else:
@@ -97,7 +100,7 @@ def date_range(start_date, end_date=None, num=None, delta=None):  # pylint: disa
                 dates.append(start_date)
 
             if delta_iscron:
-                start_date = cron.get_next(datetime)
+                start_date = cron.get_next()
             else:
                 start_date += delta
     else:
@@ -108,9 +111,9 @@ def date_range(start_date, end_date=None, num=None, delta=None):  # pylint: disa
                 dates.append(start_date)
 
             if delta_iscron and num > 0:
-                start_date = cron.get_next(datetime)
+                start_date = cron.get_next()
             elif delta_iscron:
-                start_date = cron.get_prev(datetime)
+                start_date = cron.get_prev()
             elif num > 0:
                 start_date += delta
             else:
@@ -138,12 +141,12 @@ def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
     datetime.datetime(2015, 9, 14, 0, 0)
     """
 
-    if isinstance(delta, str):
+    if isinstance(delta, (str, list)):
         # It's cron based, so it's easy
         time_zone = start_date.tzinfo
         start_date = timezone.make_naive(start_date, time_zone)
-        cron = croniter(delta, start_date)
-        prev = cron.get_prev(datetime)
+        cron = Cron(delta, start_date)
+        prev = cron.get_prev()
         if prev == start_date:
             return timezone.make_aware(start_date, time_zone)
         else:
@@ -250,3 +253,97 @@ def parse_execution_date(execution_date_str):
     Parse execution date string to datetime object.
     """
     return timezone.parse(execution_date_str)
+
+
+class Cron():
+    """
+    Represents a cron schedule resulting from a cron expression or the result of merging
+    multiple cron expressions. The methods `get_next` and `get_prev` iterate over the cron
+    schedule forward or backwards.
+    """
+    def __init__(self, exprs: Union[str, list], start_time: Optional[datetime] = None):
+        """
+        Initializes a Cron class.
+
+        :param exprs: One or many cron expressions, for example, '*/5 * * * *' or
+            ['*/5 * * * *', '0 3 * * mon,tue'].
+        :type exprs: str or list
+        :param start_time: The first `get_next` / `get_prev` call returns the closest datetime
+            in the cron schedule which is larger/smaller than this value.
+        :type start_time: datetime
+        """
+        exprs = exprs if isinstance(exprs, list) else [exprs]
+        self._croniters: List[croniter] = [croniter(expr, start_time, datetime) for expr in exprs]
+        self.start_time: Optional[datetime] = start_time
+        # _is_forward define if iteration is forward (get_next) or backwards (get_prev)
+        self._is_forward: Optional[bool] = None
+        # _cur points to the croniter with the smallest value if the schedule is going forward,
+        # or the largest value if it is going backwards.
+        self._cur: Optional[croniter] = None
+
+    def get_current(self):
+        """
+        Returns the current datetime, or `start_date` if `get_next` / `get_prev`
+        have not been called.
+        """
+        if self._cur is None:
+            return self.start_time
+        return self._cur.get_current()
+
+    def get_next(self):
+        """
+        Returns the next datetime on the cron schedule.
+        """
+        return self._get_value(True)
+
+    def get_prev(self):
+        """
+        Returns the previous datetime on the cron schedule.
+        """
+        return self._get_value(False)
+
+    def _get_value(self, is_forward):
+        if self._is_forward != is_forward:
+            self._is_forward = is_forward
+            self._initialize_crons()
+            return self.get_current()
+
+        # skip new value in case there is an overlap in the expressions
+        # (e.g. '*/5 * * * *' and '*/7 * * * *' overlap on minute 35)
+        last = self.get_current()
+        value = self._new_value()
+        while value == last:
+            value = self._new_value()
+        return value
+
+    def _initialize_crons(self):
+        for cron in self._croniters:
+            if self._is_forward:
+                cron.get_next()
+            else:
+                cron.get_prev()
+        self._cur = self._new_cur()
+
+    def _new_value(self):
+        if self._is_forward:
+            self._cur.get_next()
+        else:
+            self._cur.get_prev()
+        self._cur = self._new_cur()
+        return self.get_current()
+
+    def _new_cur(self):
+        """
+        Returns the croniter with the smallest value if the schedule is going forward,
+        or the largest value if it is going backwards.
+        """
+        values = [cron.cur for cron in self._croniters]
+        if self._is_forward is None or self._is_forward:
+            index = values.index(min(values))
+        else:
+            index = values.index(max(values))
+        return self._croniters[index]
+
+    def __iter__(self):
+        return self
+    __next__ = next = get_next

@@ -128,7 +128,7 @@
             <!-- Column 4: Dag Schedule -->
             <td>
               <a class="label label-default schedule" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}">
-                {{ dag.schedule_interval }}
+                {{ dag.schedule_interval | join(", ") if dag.schedule_interval is iterable and dag.schedule_interval is not string else dag.schedule_interval }}
               </a>
             </td>
 
