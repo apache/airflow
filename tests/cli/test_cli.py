@@ -35,7 +35,7 @@ from argparse import Namespace
 from airflow import settings
 import airflow.bin.cli as cli
 from airflow.bin.cli import get_num_ready_workers_running, run, get_dag
-from airflow.models import TaskInstance
+from airflow.models import TaskInstance, DAG
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.settings import Session
@@ -379,6 +379,22 @@ class TestCLI(unittest.TestCase):
             verbose=False,
         )
         mock_run.reset_mock()
+
+    
+    @mock.patch.object(DAG, "sync_to_db", autospec=True)
+    def test_cli_sync_to_db(self, mock_sync):
+        all_dags_called = []
+
+        def sync_to_db(self):
+            all_dags_called.append(self.dag_id)
+
+        mock_sync.side_effect = sync_to_db
+        env = os.environ.copy()
+        args = self.parser.parse_args(['sync_to_db'])
+        cli.sync_to_db(args)
+        known_example_dags = ['example_python_operator', 'example_http_operator', 'example_complex']
+        for dag in known_example_dags:
+            self.assertTrue(dag in all_dags_called)
 
     def test_show_dag_print(self):
         temp_stdout = ByteableIO() if PY2 else io.StringIO()

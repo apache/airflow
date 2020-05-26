@@ -1842,6 +1842,13 @@ def sync_perm(args): # noqa
         print('The sync_perm command only works for rbac UI.')
 
 
+@cli_utils.action_logging
+def sync_to_db(args): # noqa
+    dagbag = DagBag(settings.DAGS_FOLDER, store_serialized_dags=settings.STORE_SERIALIZED_DAGS)
+    for dag in dagbag.dags.values():
+        dag.sync_to_db()
+
+
 class Arg(object):
     def __init__(self, flags=None, help=None, action=None, default=None, nargs=None,
                  type=None, choices=None, metavar=None):
@@ -2590,6 +2597,12 @@ class CLIFactory(object):
                     '#rotating-encryption-keys.',
             'args': (),
         },
+        {
+            'func': sync_to_db,
+            'help': 'Sync the current set all airflow DAGS to the metastore. Useful when '
+                    'there is no scheduler to do the syncing for you',
+            'args': (),
+        }
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
     dag_subparsers = (

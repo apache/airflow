@@ -94,9 +94,6 @@ CHART_LIMIT = 200000
 UTF8_READER = codecs.getreader('utf-8')
 
 dagbag = models.DagBag(settings.DAGS_FOLDER, store_serialized_dags=STORE_SERIALIZED_DAGS)
-if conf.getboolean('webserver', 'sync_dagbag_to_db'):
-    for dag in dagbag.dags:
-        dag.sync_to_db()
 
 login_required = airflow.login.login_required
 current_user = airflow.login.current_user
