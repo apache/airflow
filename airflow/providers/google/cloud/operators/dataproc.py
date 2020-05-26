@@ -154,6 +154,8 @@ class ClusterGenerator:
     :param customer_managed_key: The customer-managed key used for disk encryption
         ``projects/[PROJECT_STORING_KEYS]/locations/[LOCATION]/keyRings/[KEY_RING_NAME]/cryptoKeys/[KEY_NAME]`` # noqa # pylint: disable=line-too-long
     :type customer_managed_key: str
+    :param gke_cluster: Optional: The GKE cluster's name hosting the Dataproc cluster
+    type: gke_cluster: str
     """
     # pylint: disable=too-many-arguments,too-many-locals
     def __init__(self,
@@ -191,6 +193,7 @@ class ClusterGenerator:
                  auto_delete_time: Optional[datetime] = None,
                  auto_delete_ttl: Optional[int] = None,
                  customer_managed_key: Optional[str] = None,
+                 gke_cluster: Optional[str] = None,
                  *args,  # just in case
                  **kwargs
                  ) -> None:
@@ -230,6 +233,7 @@ class ClusterGenerator:
         self.auto_delete_ttl = auto_delete_ttl
         self.customer_managed_key = customer_managed_key
         self.single_node = num_workers == 0
+        self.gke_cluster = gke_cluster
 
         if self.custom_image and self.image_version:
             raise ValueError("The custom_image and image_version can't be both set")
@@ -315,32 +319,47 @@ class ClusterGenerator:
             worker_type_uri = self.worker_machine_type
 
         cluster_data = {
-            'project_id': self.project_id,
-            'cluster_name': self.cluster_name,
+            'projectId': self.project_id,
+            'clusterName': self.cluster_name,
             'config': {
-                'gce_cluster_config': {
+                'gceClusterConfig': {
                 },
-                'master_config': {
-                    'num_instances': self.num_masters,
-                    'machine_type_uri': master_type_uri,
-                    'disk_config': {
-                        'boot_disk_type': self.master_disk_type,
-                        'boot_disk_size_gb': self.master_disk_size
+                'masterConfig': {
+                    'numInstances': self.num_masters,
+                    'machineTypeUri': master_type_uri,
+                    'diskConfig': {
+                        'bootDiskType': self.master_disk_type,
+                        'bootDiskSizeGb': self.master_disk_size
                     }
                 },
-                'worker_config': {
-                    'num_instances': self.num_workers,
-                    'machine_type_uri': worker_type_uri,
-                    'disk_config': {
-                        'boot_disk_type': self.worker_disk_type,
-                        'boot_disk_size_gb': self.worker_disk_size
+                'workerConfig': {
+                    'numInstances': self.num_workers,
+                    'machineTypeUri': worker_type_uri,
+                    'diskConfig': {
+                        'bootDiskType': self.worker_disk_type,
+                        'bootDiskSizeGb': self.worker_disk_size
                     }
                 },
-                'secondary_worker_config': {},
-                'software_config': {},
-                'lifecycle_config': {},
-                'encryption_config': {},
-                'autoscaling_config': {},
+                'secondaryWorkerConfig': {},
+                'softwareConfig': {},
+                'lifecycleConfig': {},
+                'encryptionConfig': {},
+                'autoscalingConfig': {},
+            }
+        } if self.gke_cluster is None else {
+            # Deploy Dataproc on a running GKE cluster
+            'projectId': self.project_id,
+            'clusterName': self.cluster_name,
+            'config': {
+                'gkeClusterConfig': {
+                    'namespacedGkeDeploymentTarget': {
+                        'targetGkeCluster': f"projects/{self.project_id}/locations/{self.region}/clusters/{self.gke_cluster}"
+                    }
+                },
+                'softwareConfig': {
+                    'imageVersion': self.image_version
+                },
+                'configBucket': self.storage_bucket
             }
         }
         if self.num_preemptible_workers > 0:
@@ -433,6 +452,8 @@ class DataprocCreateClusterOperator(BaseOperator):
     :type project_id: str
     :param region: leave as 'global', might become relevant in the future. (templated)
     :type region: str
+    :param gke_cluster: Optional. The GKE cluster's name hosting the Dataproc cluster.
+    :type gke_cluster: str
     :param request_id: Optional. A unique id used to identify the request. If the server receives two
         ``DeleteClusterRequest`` requests with the same id, then the second request will be ignored and the
         first ``google.longrunning.Operation`` created and stored in the backend is returned.
@@ -455,6 +476,7 @@ class DataprocCreateClusterOperator(BaseOperator):
     def __init__(self,
                  region: str = 'global',
                  project_id: Optional[str] = None,
+                 gke_cluster: Optional[str] = None,
                  cluster: Optional[Dict] = None,
                  request_id: Optional[str] = None,
                  retry: Optional[Retry] = None,
@@ -479,6 +501,7 @@ class DataprocCreateClusterOperator(BaseOperator):
             # Create cluster object from kwargs
             kwargs['region'] = region
             kwargs['project_id'] = project_id
+            kwargs['gke_cluster'] = gke_cluster
             cluster = ClusterGenerator(**kwargs).make()
 
             # Remove from kwargs cluster params passed for backward compatibility
