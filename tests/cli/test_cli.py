@@ -378,6 +378,21 @@ class TestCLI(unittest.TestCase):
         )
         mock_run.reset_mock()
 
+    @mock.patch.object(DAG, "sync_to_db", autospec=True)
+    def test_cli_sync_to_db(self, mock_sync):
+        all_dags_called = []
+
+        def sync_to_db(self):
+            all_dags_called.append(self.dag_id)
+
+        mock_sync.side_effect = sync_to_db
+        env = os.environ.copy()
+        args = self.parser.parse_args(['sync_to_db'])
+        cli.sync_to_db(args)
+        known_example_dags = ['example_python_operator', 'example_http_operator', 'example_complex']
+        for dag in known_example_dags:
+            self.assertTrue(dag in all_dags_called)
+
     def test_show_dag_print(self):
         temp_stdout = ByteableIO() if PY2 else io.StringIO()
         with redirect_stdout(temp_stdout):
