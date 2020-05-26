@@ -305,7 +305,6 @@ class BaseJob(Base, LoggingMixin):
                 filter_for_tis, TI.state.in_(resettable_states)
             ).with_for_update().all()
 
-            # TODO(turbaszek): check if this can be batched
             for ti in reset_tis:
                 ti.state = State.NONE
                 session.merge(ti)
