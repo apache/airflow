@@ -206,7 +206,7 @@ class ElastiCacheHook(AwsBaseHook):
 
                 deleted = True
 
-            # This should never occur as we only issue a delete request when status is `creating`
+            # This should never occur as we only issue a delete request when status is `available`
             # which is a valid status for deletion. Still handling for safety.
             except self.conn.exceptions.InvalidReplicationGroupStateFault as exp:
                 # status      Error Response
