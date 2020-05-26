@@ -232,7 +232,7 @@ def get_table_constraints(conn, table_name):
      FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc
      JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE AS ccu ON ccu.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
      WHERE tc.TABLE_NAME = '{table_name}' AND
-     (tc.CONSTRAINT_TYPE = 'PRIMARY KEY' or tc.CONSTRAINT_TYPE = 'Unique')
+     (tc.CONSTRAINT_TYPE = 'PRIMARY KEY' or UPPER(tc.CONSTRAINT_TYPE) = 'UNIQUE')
     """.format(table_name=table_name)
     result = conn.execute(query).fetchall()
     constraint_dict = defaultdict(list)
