@@ -29,18 +29,17 @@ from typing import List
 errors = []
 
 
-def _check_list_sorted(the_list: List[str], message: str) -> bool:
+def _check_list_sorted(the_list: List[str], message: str) -> None:
     sorted_list = sorted(the_list)
     if the_list == sorted_list:
         print(f"{message} is ok")
-        return True
+        return
     i = 0
     while sorted_list[i] == the_list[i]:
         i += 1
     print(f"{message} NOK")
     errors.append(f"ERROR in {message}. First wrongly sorted element"
                   f" {the_list[i]}. Should be {sorted_list[i]}")
-    return False
 
 
 def setup() -> str:
@@ -50,7 +49,7 @@ def setup() -> str:
     return setup_context
 
 
-def check_main_dependent_group(setup_context: str) -> bool:
+def check_main_dependent_group(setup_context: str) -> None:
     """
     Test for an order of dependencies groups between mark
     '# Start dependencies group' and '# End dependencies group' in setup.py
@@ -63,10 +62,10 @@ def check_main_dependent_group(setup_context: str) -> bool:
     main_dependent = pattern_sub_dependent.sub(',', main_dependent_group)
 
     src = main_dependent.strip(',').split(',')
-    return _check_list_sorted(src, "Order of dependencies")
+    _check_list_sorted(src, "Order of dependencies")
 
 
-def check_sub_dependent_group(setup_context: str) -> bool:
+def check_sub_dependent_group(setup_context: str) -> None:
     """
     Test for an order of each dependencies groups declare like
     `^dependent_group_name = [.*?]\n` in setup.py
@@ -76,7 +75,6 @@ def check_sub_dependent_group(setup_context: str) -> bool:
 
     pattern_dependent_version = re.compile('[~|><=;].*')
 
-    res = True
     for group_name in dependent_group_names:
         pattern_sub_dependent = re.compile(
             '{group_name} = \\[(.*?)\\]'.format(group_name=group_name), re.DOTALL)
@@ -85,11 +83,10 @@ def check_sub_dependent_group(setup_context: str) -> bool:
         dependent = pattern_dependent.findall(sub_dependent)
 
         src = [pattern_dependent_version.sub('', p) for p in dependent]
-        res = _check_list_sorted(src, f"Order of sub-dependencies group: {group_name}") and res
-    return res
+        _check_list_sorted(src, f"Order of sub-dependencies group: {group_name}")
 
 
-def check_alias_dependent_group(setup_context: str) -> bool:
+def check_alias_dependent_group(setup_context: str) -> None:
     """
     Test for an order of each dependencies groups declare like
     `alias_dependent_group = dependent_group_1 + ... + dependent_group_n` in setup.py
@@ -97,14 +94,12 @@ def check_alias_dependent_group(setup_context: str) -> bool:
     pattern = re.compile('^\\w+ = (\\w+ \\+.*)', re.MULTILINE)
     dependents = pattern.findall(setup_context)
 
-    res = True
     for dependent in dependents:
         src = dependent.split(' + ')
-        res = _check_list_sorted(src, f"Order of alias dependencies group: {dependent}") and res
-    return res
+        _check_list_sorted(src, f"Order of alias dependencies group: {dependent}")
 
 
-def check_install_and_setup_requires(setup_context: str) -> bool:
+def check_install_and_setup_requires(setup_context: str) -> None:
     """
     Test for an order of dependencies in function do_setup section
     install_requires and setup_requires in setup.py
@@ -113,20 +108,16 @@ def check_install_and_setup_requires(setup_context: str) -> bool:
         '(setup_requires) ?= ?\\[(.*?)\\]', re.DOTALL)
     install_and_setup_requires = pattern_install_and_setup_requires.findall(setup_context)
 
-    res = True
     for dependent_requires in install_and_setup_requires:
         pattern_dependent = re.compile('\'(.*?)\'')
         dependent = pattern_dependent.findall(dependent_requires[1])
         pattern_dependent_version = re.compile('[~|><=;].*')
 
         src = [pattern_dependent_version.sub('', p) for p in dependent]
-        res = _check_list_sorted(src,
-                                 f"Order of dependencies in do_setup section: "
-                                 f"{dependent_requires[0]}") and res
-    return res
+        _check_list_sorted(src, f"Order of dependencies in do_setup section: {dependent_requires[0]}")
 
 
-def check_extras_require(setup_context: str) -> bool:
+def check_extras_require(setup_context: str) -> None:
     """
     Test for an order of dependencies in function do_setup section
     extras_require in setup.py
@@ -137,10 +128,10 @@ def check_extras_require(setup_context: str) -> bool:
 
     pattern_dependent = re.compile('\'(.*?)\'')
     src = pattern_dependent.findall(extras_requires)
-    return _check_list_sorted(src, "Order of dependencies in: extras_require")
+    _check_list_sorted(src, "Order of dependencies in: extras_require")
 
 
-def check_provider_requirements(setup_context: str) -> bool:
+def check_provider_requirements(setup_context: str) -> None:
     """
     Test for an order of dependencies in function do_setup section
     providers_require in setup.py
@@ -151,18 +142,17 @@ def check_provider_requirements(setup_context: str) -> bool:
 
     pattern_dependent = re.compile('"(.*?)"')
     src = pattern_dependent.findall(extras_requires)
-    return _check_list_sorted(src, "Order of dependencies in: providers_require")
+    _check_list_sorted(src, "Order of dependencies in: providers_require")
 
 
 if __name__ == '__main__':
     setup_context_main = setup()
-    result = True
-    result = check_main_dependent_group(setup_context_main) and result
-    result = check_alias_dependent_group(setup_context_main) and result
-    result = check_sub_dependent_group(setup_context_main) and result
-    result = check_install_and_setup_requires(setup_context_main) and result
-    result = check_extras_require(setup_context_main) and result
-    result = check_provider_requirements(setup_context_main) and result
+    check_main_dependent_group(setup_context_main)
+    check_alias_dependent_group(setup_context_main)
+    check_sub_dependent_group(setup_context_main)
+    check_install_and_setup_requires(setup_context_main)
+    check_extras_require(setup_context_main)
+    check_provider_requirements(setup_context_main)
 
     print()
     print()
@@ -171,5 +161,5 @@ if __name__ == '__main__':
 
     print()
 
-    if not result:
+    if errors:
         sys.exit(1)

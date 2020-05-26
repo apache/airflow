@@ -45,7 +45,7 @@ apispec==1.3.3
 appdirs==1.4.4
 argcomplete==1.11.1
 asn1crypto==1.3.0
-astroid==2.3.3
+astroid==2.4.1
 async-generator==1.10
 async-timeout==3.0.1
 atlasclient==1.0.0
@@ -371,7 +371,7 @@ virtualenv==20.0.21
 watchtower==0.7.3
 wcwidth==0.1.9
 websocket-client==0.57.0
-wrapt==1.11.2
+wrapt==1.12.1
 xmltodict==0.12.0
 yamllint==1.23.0
 yandexcloud==0.39.0
