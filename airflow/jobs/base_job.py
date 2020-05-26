@@ -293,7 +293,7 @@ class BaseJob(Base, LoggingMixin):
             if ti.key not in queued_tis and ti.key not in running_tis:
                 tis_to_reset.append(ti)
 
-        if len(tis_to_reset) == 0:
+        if not tis_to_reset:
             return []
 
         def query(result, items):
@@ -305,6 +305,7 @@ class BaseJob(Base, LoggingMixin):
                 filter_for_tis, TI.state.in_(resettable_states)
             ).with_for_update().all()
 
+            # TODO(turbaszek): check if this can be batched
             for ti in reset_tis:
                 ti.state = State.NONE
                 session.merge(ti)
@@ -316,8 +317,7 @@ class BaseJob(Base, LoggingMixin):
                                              [],
                                              self.max_tis_per_query)
 
-        task_instance_str = '\n\t'.join(
-            [repr(x) for x in reset_tis])
+        task_instance_str = '\n\t'.join([repr(x) for x in reset_tis])
         session.commit()
 
         self.log.info(
