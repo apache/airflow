@@ -233,18 +233,15 @@ class _PythonFunctionalOperator(BaseOperator):
         :param task_id: Task id for the new operator
         :type task_id: Optional[str]
         """
-        _old_kwargs = self._kwargs
-        if task_id:
-            _old_kwargs['task_id'] = task_id
-        else:
-            _old_kwargs['task_id'] = self._get_unique_task_id(
-                _old_kwargs['task_id'],
+        if not task_id:
+            task_id = self._get_unique_task_id(
+                self._kwargs['task_id'],
                 kwargs.get('dag', None)
             )
         return _PythonFunctionalOperator(
             python_callable=self.python_callable,
             multiple_outputs=self.multiple_outputs,
-            **{**kwargs, **_old_kwargs}
+            **{**kwargs, **self._kwargs, 'task_id': task_id}
         )
 
     def execute(self, context: Dict):

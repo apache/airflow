@@ -445,33 +445,6 @@ class TestAirflowTaskDecorator(unittest.TestCase):
         assert do_run_1.task_id == 'do_run__1'
         assert do_run_2.task_id == 'do_run__2'
 
-    def test_copy(self):
-        """Test copy method outside of a DAG"""
-        @task_decorator
-        def do_run():
-            return 4
-
-        @task_decorator
-        def do__run():
-            return 4
-        do_run_1 = do_run.copy()
-        do_run_2 = do_run.copy()
-        do__run_1 = do__run.copy()
-        do__run_2 = do__run.copy()
-        with self.dag:
-            do_run()
-            assert ['do_run'] == self.dag.task_ids
-            do_run_1()
-            do_run_2()
-            do__run()
-            do__run_1()
-            do__run_2()
-
-        assert do_run_1.task_id == 'do_run__1'
-        assert do_run_2.task_id == 'do_run__2'
-        assert do__run_1.task_id == 'do__run__1'
-        assert do__run_2.task_id == 'do__run__2'
-
     def test_copy_10(self):
         """Test copy method outside of a DAG"""
         @task_decorator
