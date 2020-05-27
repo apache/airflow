@@ -64,6 +64,7 @@ CLUSTER = {
 # [END how_to_cloud_dataproc_create_cluster]
 
 # Update options
+# [START how_to_cloud_dataproc_updatemask_cluster_operator]
 CLUSTER_UPDATE = {
     "config": {
         "worker_config": {"num_instances": 3},
@@ -76,6 +77,7 @@ UPDATE_MASK = {
         "config.secondary_worker_config.num_instances",
     ]
 }
+# [END how_to_cloud_dataproc_updatemask_cluster_operator]
 
 TIMEOUT = {"seconds": 1 * 24 * 60 * 60}
 

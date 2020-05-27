@@ -37,7 +37,7 @@ Prerequisite Tasks
 .. _howto/operator:DataprocCreateClusterOperator:
 
 Create a Cluster
-""""""""""""""""""""""""""""""
+----------------
 
 Before you create a dataproc cluster you need to define the cluster.
 It describes the identifying information, config, and status of a cluster of Compute Engine instances.
@@ -60,7 +60,18 @@ With this configuration we can create the cluster:
     :end-before: [END how_to_cloud_dataproc_create_cluster_operator]
 
 Update a cluster
-""""""""""""""""
+----------------
+You can scale the cluster up or down by providing a cluster config and a updateMask.
+In the updateMask argument you specifies the path, relative to Cluster, of the field to update.
+For more information on updateMask and other parameters take a look at `Dataproc update cluster API. <https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters/patch>`__
+
+An example of a new cluster config and the updateMask:
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_updatemask_cluster_operator]
+    :end-before: [END how_to_cloud_dataproc_updatemask_cluster_operator]
 
 To update a cluster you can use:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocUpdateClusterOperator`
@@ -72,11 +83,11 @@ To update a cluster you can use:
     :end-before: [END how_to_cloud_dataproc_update_cluster_operator]
 
 Deleting a cluster
-"""""""""""""""""""
+------------------
 
 To delete a cluster you can use:
 
-:class:`~airflow.providers.google.cloud.operators.dataproc.DataprocDeleteClusterOperator.`.
+:class:`~airflow.providers.google.cloud.operators.dataproc.DataprocDeleteClusterOperator`.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
@@ -85,11 +96,11 @@ To delete a cluster you can use:
     :end-before: [END how_to_cloud_dataproc_delete_cluster_operator]
 
 Submit a job to a cluster
-""""""""""""""""""""""""""
+-------------------------
 
 Dataproc supports submitting jobs of different big data components.
 The list currently includes Spark, Hadoop, Pig and Hive.
-For more information on versions and images take a look at `Cloud Dataproc Image version list <https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-versions>`__.
+For more information on versions and images take a look at `Cloud Dataproc Image version list <https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-versions>`__
 
 To submit a job to the cluster you need a provide a job source file. The job source file can be on GCS, the cluster or on your local
 file system. You can specify a file:/// path to refer to a local file on a cluster's master node.
@@ -103,12 +114,12 @@ The job configuration can be submitted by using:
     :start-after: [START how_to_cloud_dataproc_submit_job_to_cluster_operator]
     :end-before: [END how_to_cloud_dataproc_submit_job_to_cluster_operator]
 
-Examples of job configurations
-""""""""""""""""""""""""""""""
+Examples of job configurations to submit
+----------------------------------------
 
 We have provided an example for every framework below.
 There are more arguments to provide in the jobs than the examples show. For the complete list of arguments take a look at
-`DataProc Job arguments<https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.jobs>`__
+`DataProc Job arguments <https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.jobs>`__
 
 Example of the configuration for a PySpark Job:
 
@@ -171,5 +182,5 @@ References
 ^^^^^^^^^^
 For further information, look at:
 
-* `DataProc API documentation<https://cloud.google.com/dataproc/docs/reference>`__
-* `Product documentation<https://cloud.google.com/dataproc/docs/reference>`__
+* `DataProc API documentation <https://cloud.google.com/dataproc/docs/reference>`__
+* `Product documentation <https://cloud.google.com/dataproc/docs/reference>`__
