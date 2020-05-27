@@ -38,7 +38,7 @@ from os import getenv
 from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import BranchPythonOperator
-from airflow.providers.amazon.aws.operators.google_api_to_s3_transfer import GoogleApiToS3Transfer
+from airflow.providers.amazon.aws.operators.google_api_to_s3_transfer import GoogleApiToS3TransferOperator
 from airflow.utils.dates import days_ago
 
 # [START howto_operator_google_api_to_s3_transfer_advanced_env_variables]
@@ -79,7 +79,7 @@ with DAG(
     tags=['example']
 ) as dag:
     # [START howto_operator_google_api_to_s3_transfer_advanced_task_1]
-    task_video_ids_to_s3 = GoogleApiToS3Transfer(
+    task_video_ids_to_s3 = GoogleApiToS3TransferOperator(
         gcp_conn_id=YOUTUBE_CONN_ID,
         google_api_service_name='youtube',
         google_api_service_version='v3',
@@ -109,7 +109,7 @@ with DAG(
     )
     # [END howto_operator_google_api_to_s3_transfer_advanced_task_1_1]
     # [START howto_operator_google_api_to_s3_transfer_advanced_task_2]
-    task_video_data_to_s3 = GoogleApiToS3Transfer(
+    task_video_data_to_s3 = GoogleApiToS3TransferOperator(
         gcp_conn_id=YOUTUBE_CONN_ID,
         google_api_service_name='youtube',
         google_api_service_version='v3',

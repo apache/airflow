@@ -92,7 +92,7 @@ function prepare_archive(){
   git archive \
       --format=tar.gz \
       "backport-providers-${VERSION}" \
-      "--prefix=apache-airflow-backport-providers-${VERSION}/" \
+      "--prefix=apache-airflow-backport-providers-${VERSION%rc?}/" \
       -o "${ARCHIVE_FILE_NAME}"
 
   echo
@@ -111,10 +111,10 @@ function replace_install_changelog(){
   tar -f "apache-airflow-backport-providers-${VERSION}-source.tar.gz" -xz -C "${DIR}"
 
   cp "backport_packages/INSTALL" "backport_packages/CHANGELOG.txt" \
-      "${DIR}/apache-airflow-backport-providers-${VERSION}/"
+      "${DIR}/apache-airflow-backport-providers-${VERSION%rc?}/"
 
   tar -f "apache-airflow-backport-providers-${VERSION}-source.tar.gz" -cz -C "${DIR}" \
-      "apache-airflow-backport-providers-${VERSION}/"
+      "apache-airflow-backport-providers-${VERSION%rc?}/"
 
   echo
   echo "Replaced INSTALL CHANGELOG.txt in ${ARCHIVE_FILE_NAME} "

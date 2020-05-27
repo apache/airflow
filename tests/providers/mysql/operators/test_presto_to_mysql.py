@@ -19,7 +19,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from airflow.providers.mysql.operators.presto_to_mysql import PrestoToMySqlTransfer
+from airflow.providers.mysql.operators.presto_to_mysql import PrestoToMySqlTransferOperator
 from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
 
 
@@ -36,7 +36,7 @@ class TestPrestoToMySqlTransfer(TestHiveEnvironment):
     @patch('airflow.providers.mysql.operators.presto_to_mysql.MySqlHook')
     @patch('airflow.providers.mysql.operators.presto_to_mysql.PrestoHook')
     def test_execute(self, mock_presto_hook, mock_mysql_hook):
-        PrestoToMySqlTransfer(**self.kwargs).execute(context={})
+        PrestoToMySqlTransferOperator(**self.kwargs).execute(context={})
 
         mock_presto_hook.return_value.get_records.assert_called_once_with(self.kwargs['sql'])
         mock_mysql_hook.return_value.insert_rows.assert_called_once_with(
@@ -47,7 +47,7 @@ class TestPrestoToMySqlTransfer(TestHiveEnvironment):
     def test_execute_with_mysql_preoperator(self, mock_presto_hook, mock_mysql_hook):
         self.kwargs.update(dict(mysql_preoperator='mysql_preoperator'))
 
-        PrestoToMySqlTransfer(**self.kwargs).execute(context={})
+        PrestoToMySqlTransferOperator(**self.kwargs).execute(context={})
 
         mock_presto_hook.return_value.get_records.assert_called_once_with(self.kwargs['sql'])
         mock_mysql_hook.return_value.run.assert_called_once_with(self.kwargs['mysql_preoperator'])
@@ -58,7 +58,7 @@ class TestPrestoToMySqlTransfer(TestHiveEnvironment):
         'AIRFLOW_RUNALL_TESTS' not in os.environ,
         "Skipped because AIRFLOW_RUNALL_TESTS is not set")
     def test_presto_to_mysql(self):
-        op = PrestoToMySqlTransfer(
+        op = PrestoToMySqlTransferOperator(
             task_id='presto_to_mysql_check',
             sql="""
                 SELECT name, count(*) as ccount

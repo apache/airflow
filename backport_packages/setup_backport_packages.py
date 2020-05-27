@@ -24,9 +24,12 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import textwrap
+from datetime import datetime, timedelta
 from os import listdir
 from os.path import dirname
+from shutil import copyfile
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Type
 
 from backport_packages.import_all_provider_classes import import_all_provider_classes
@@ -510,11 +513,13 @@ def get_package_class_summary(full_package_name: str, imported_classes: List[str
     protocols = find_all_subclasses(
         imported_classes=imported_classes,
         expected_package=full_package_name,
-        expected_ancestor=Protocol)
+        expected_ancestor=Protocol,
+    )
     secrets = find_all_subclasses(
         imported_classes=imported_classes,
         expected_package=full_package_name,
-        expected_ancestor=BaseSecretsBackend)
+        expected_ancestor=BaseSecretsBackend,
+    )
     new_operators, moved_operators = get_new_and_moved_classes(operators, MOVED_OPERATORS_DICT)
     new_sensors, moved_sensors = get_new_and_moved_classes(sensors, MOVED_SENSORS_DICT)
     new_hooks, moved_hooks = get_new_and_moved_classes(hooks, MOVED_HOOKS_DICT)
@@ -531,6 +536,12 @@ def get_package_class_summary(full_package_name: str, imported_classes: List[str
         "MOVED_PROTOCOLS": moved_protocols,
         "NEW_SECRETS": new_secrets,
         "MOVED_SECRETS": moved_secrets,
+        "OPERATORS": operators,
+        "HOOKS": hooks,
+        "SENSORS": sensors,
+        "PROTOCOLS": protocols,
+        "SECRETS": secrets,
+
     }
     for from_name, to_name, object_type in [
         ("NEW_OPERATORS", "NEW_OPERATORS_TABLE", "operators"),
@@ -707,19 +718,19 @@ def get_latest_release(provider_package_path: str) -> ReleaseInfo:
     return get_all_releases(provider_package_path=provider_package_path)[0]
 
 
-def get_previous_release_info(last_release_version: str,
+def get_previous_release_info(previous_release_version: str,
                               past_releases: List[ReleaseInfo],
                               current_release_version: str) -> Optional[str]:
     """
     Find previous release. In case we are re-running current release we assume that last release was
     the previous one. This is needed so that we can generate list of changes since the previous release.
-    :param last_release_version: known last release version
+    :param previous_release_version: known last release version
     :param past_releases: list of past releases
     :param current_release_version: release that we are working on currently
     :return:
     """
     previous_release = None
-    if last_release_version == current_release_version:
+    if previous_release_version == current_release_version:
         # Re-running for current release - use previous release as base for git log
         if len(past_releases) > 1:
             previous_release = past_releases[1].last_commit_hash
@@ -729,19 +740,27 @@ def get_previous_release_info(last_release_version: str,
 
 
 def check_if_release_version_ok(
-        past_releases: List[ReleaseInfo], current_release_version: str) -> Optional[str]:
+        past_releases: List[ReleaseInfo],
+        current_release_version: str,
+        package_id: str) -> Tuple[str, Optional[str]]:
     """
     Check if the release version passed is not later than the last release version
     :param past_releases: all past releases (if there are any)
     :param current_release_version: release version to check
-    :return: last_release (might be None if there are no past releases)
+    :param package_id: package id
+    :return: Tuple of current/previous_release (previous might be None if there are no releases)
     """
-    last_release = past_releases[0].release_version if past_releases else None
-    if last_release and last_release > current_release_version:
+    previous_release_version = past_releases[0].release_version if past_releases else None
+    if current_release_version == '':
+        if previous_release_version:
+            current_release_version = previous_release_version
+        else:
+            current_release_version = (datetime.today() + timedelta(days=5)).strftime('%Y-%m-%d')
+    if previous_release_version and previous_release_version > current_release_version:
         print(f"The release {current_release_version} must be not less than "
-              f"{last_release} - last release for the package", file=sys.stderr)
+              f"{previous_release_version} - last release for the package", file=sys.stderr)
         sys.exit(2)
-    return last_release
+    return current_release_version, previous_release_version
 
 
 def get_cross_provider_dependent_packages(provider_package_id: str) -> List[str]:
@@ -755,7 +774,7 @@ def get_cross_provider_dependent_packages(provider_package_id: str) -> List[str]
     return dependent_packages
 
 
-def make_sure_remote_apache_exists():
+def make_sure_remote_apache_exists_and_fetch():
     """
     Make sure that apache remote exist in git. We need to take a log from the master of apache
     repository - not locally - because when we commit this change and run it, our log will include the
@@ -765,14 +784,16 @@ def make_sure_remote_apache_exists():
     :return:
     """
     try:
-        subprocess.check_call(["git", "remote", "add", "apache", "https://github.com/apache/airflow.git"])
+        subprocess.check_call(["git", "remote", "add", "apache", "https://github.com/apache/airflow.git"],
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except subprocess.CalledProcessError as e:
         if e.returncode == 128:
             print("The remote `apache` already exists. If you have trouble running "
                   "git log delete the remote", file=sys.stderr)
         else:
             raise
-    subprocess.check_call(["git", "fetch", "apache"])
+    subprocess.check_call(["git", "fetch", "apache"],
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 def get_git_command(base_commit: Optional[str]) -> List[str]:
@@ -839,36 +860,77 @@ def get_additional_package_info(provider_package_path: str) -> str:
     return ""
 
 
-def update_release_notes_for_package(provider_package_id: str, current_release_version: str,
-                                     imported_classes: List[str]) -> None:
+EXPECTED_SUFFIXES: Dict[str, str] = {
+    "OPERATORS": "Operator",
+    "HOOKS": "Hook",
+    "SENSORS": "Sensor",
+    "PROTOCOLS": "Protocol",
+    "SECRETS": "Backend",
+}
+
+
+def is_camel_case_with_acronyms(s: str):
     """
-    Updates release notes (README.md) for the package.
+    Checks if the string passed is Camel Case (with capitalised acronyms allowed).
+    :param s: string to check
+    :return: true if the name looks cool as Class name.
+    """
+    return s != s.lower() and s != s.upper() and "_" not in s and s[0].upper() == s[0]
+
+
+def check_if_classes_are_properly_named(class_summary: Dict[str, List[str]]) -> Tuple[int, int]:
+    """
+    Check if all classes in the dictionary are named properly. It prints names at the output
+    and returns the status of class names.
+
+    :param class_summary: dictionary of class names to check, grouped by types.
+    :return: Tuple of 2 ints = total number of classes and number of badly named classes
+    """
+    total_class_number = 0
+    badly_named_class_number = 0
+    for key, class_suffix in EXPECTED_SUFFIXES.items():
+        for class_full_name in class_summary[key]:
+            module_name, class_name = class_full_name.rsplit(".", maxsplit=1)
+            error_encountered = False
+            if not is_camel_case_with_acronyms(class_name):
+                print(f"The class {class_full_name} is wrongly named. The "
+                      f"class name should be CamelCaseWithACRONYMS !")
+                error_encountered = True
+            if not class_name.endswith(class_suffix):
+                print(f"The class {class_full_name} is wrongly named. It is one of the {key} so "
+                      f"it should end with {class_suffix}")
+                error_encountered = True
+            total_class_number += 1
+            if error_encountered:
+                badly_named_class_number += 1
+    return total_class_number, badly_named_class_number
+
+
+def update_release_notes_for_package(provider_package_id: str, current_release_version: str,
+                                     imported_classes: List[str]) -> Tuple[int, int]:
+    """
+    Updates release notes (README.md) for the package. returns Tuple of total number of classes
+    and badly named classes.
 
     :param provider_package_id: id of the package
     :param current_release_version: release version
     :param imported_classes - classes that have been imported from providers
+
+    :return: Tuple of total/bad number of classes
     """
     full_package_name = f"airflow.providers.{provider_package_id}"
     provider_package_path = get_package_path(provider_package_id)
     class_summary = get_package_class_summary(full_package_name, imported_classes)
     past_releases = get_all_releases(provider_package_path=provider_package_path)
-    last_release = check_if_release_version_ok(past_releases, current_release_version)
+    current_release_version, previous_release = check_if_release_version_ok(
+        past_releases, current_release_version, provider_package_id)
     cross_providers_dependencies = \
         get_cross_provider_dependent_packages(provider_package_id=provider_package_id)
-    previous_release = get_previous_release_info(last_release_version=last_release,
+    previous_release = get_previous_release_info(previous_release_version=previous_release,
                                                  past_releases=past_releases,
                                                  current_release_version=current_release_version)
     git_cmd = get_git_command(previous_release)
     changes = subprocess.check_output(git_cmd, cwd=provider_package_path, universal_newlines=True)
-    if changes == "":
-        print(f"No change since {last_release}")
-        print("Skipping generating README.")
-        return
-    if len(changes.splitlines()) == 1:
-        print(f"Only one change since {last_release}")
-        print(f"The change is about committing the README: ${changes}.")
-        print("Skipping generating README.")
-        return
     changes_table = convert_git_changes_to_table(
         changes,
         base_url="https://github.com/apache/airflow/commit/")
@@ -903,11 +965,28 @@ def update_release_notes_for_package(provider_package_id: str, current_release_v
     for a_release in all_releases:
         readme += a_release.content
     readme_file_path = os.path.join(provider_package_path, "README.md")
-    with open(readme_file_path, "wt") as readme_file:
-        readme_file.write(readme)
-    print()
-    print(f"Generated {readme_file_path} file for the {provider_package_id} provider")
-    print()
+    old_text = ""
+    if os.path.isfile(readme_file_path):
+        with open(readme_file_path, "rt") as readme_file_read:
+            old_text = readme_file_read.read()
+    if old_text != readme:
+        file, temp_file_path = tempfile.mkstemp(".md")
+        try:
+            copyfile(readme_file_path, temp_file_path)
+            with open(readme_file_path, "wt") as readme_file:
+                readme_file.write(readme)
+            print()
+            print(f"Generated {readme_file_path} file for the {provider_package_id} provider")
+            print()
+            subprocess.call(["diff", "--color=always", temp_file_path, readme_file_path])
+        finally:
+            os.remove(temp_file_path)
+    total, bad = check_if_classes_are_properly_named(class_summary)
+    if bad != 0:
+        print()
+        print(f"ERROR! There are {bad} classes badly named out of {total} classes for {provider_package_id}")
+        print()
+    return total, bad
 
 
 def update_release_notes_for_packages(provider_ids: List[str], release_version: str):
@@ -918,12 +997,32 @@ def update_release_notes_for_packages(provider_ids: List[str], release_version: 
     :return:
     """
     imported_classes = import_all_provider_classes(
-        source_path=SOURCE_DIR_PATH, provider_ids=provider_ids, print_imports=True)
-    make_sure_remote_apache_exists()
+        source_path=SOURCE_DIR_PATH, provider_ids=provider_ids, print_imports=False)
+    make_sure_remote_apache_exists_and_fetch()
     if len(provider_ids) == 0:
         provider_ids = get_all_backportable_providers()
+    total = 0
+    bad = 0
+    print()
+    print("Generating README files and checking if classes are correctly named.")
+    print()
+    print("Providers to generate:")
+    for provider_id in provider_ids:
+        print(provider_id)
+    print()
     for package in provider_ids:
-        update_release_notes_for_package(package, release_version, imported_classes)
+        inc_total, inc_bad = update_release_notes_for_package(package, release_version, imported_classes)
+        total += inc_total
+        bad += inc_bad
+    if bad == 0:
+        print()
+        print(f"All good! All {total} classes are properly named")
+        print()
+    else:
+        print()
+        print(f"ERROR! There are in total: {bad} classes badly named out of {total} classes ")
+        print()
+        exit(1)
 
 
 def get_all_backportable_providers() -> List[str]:
@@ -987,11 +1086,20 @@ ERROR! Wrong first param: {sys.argv[1]}
             print(provider)
         exit(0)
     elif sys.argv[1] == UPDATE_PACKAGE_RELEASE_NOTES:
-        if len(sys.argv) == 2 or not re.match(r'\d{4}\.\d{2}\.\d{2}', sys.argv[2]):
-            print("Please provide release tag as parameter in the form of YYYY.MM.DD", file=sys.stderr)
-            sys.exit(1)
-        release = sys.argv[2]
-        update_release_notes_for_packages(sys.argv[3:], release_version=release)
+        release_ver = ""
+        if len(sys.argv) > 2 and re.match(r'\d{4}\.\d{2}\.\d{2}', sys.argv[2]):
+            release_ver = sys.argv[2]
+            print()
+            print()
+            print(f"Preparing release version: {release_ver}")
+            package_list = sys.argv[3:]
+        else:
+            print()
+            print()
+            print("Updating latest release version.")
+            package_list = sys.argv[2:]
+        print()
+        update_release_notes_for_packages(package_list, release_version=release_ver)
         exit(0)
 
     provider_package = sys.argv[1]

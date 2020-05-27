@@ -33,7 +33,7 @@ from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 from airflow.utils.decorators import apply_defaults
 
 
-class MsSqlToHiveTransfer(BaseOperator):
+class MsSqlToHiveTransferOperator(BaseOperator):
     """
     Moves data from Microsoft SQL Server to Hive. The operator runs
     your query against Microsoft SQL Server, stores the file locally

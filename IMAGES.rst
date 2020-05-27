@@ -257,8 +257,13 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``AIRFLOW_EXTRAS``                       | (see Dockerfile)                         | Default extras with which airflow is     |
 |                                          |                                          | installed                                |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+<<<<<<< HEAD
 | ``ADDITIONAL_AIRFLOW_EXTRAS``            | (see Dockerfile)                         | additional extras with which airflow is  |
 |                                          |                                          | installed                                |
+=======
+| ``ADDITIONAL_PYTHON_DEPS``               | (see Dockerfile)                         | Optional python packages to extend       |
+|                                          |                                          | the image with some extra dependencies   |
+>>>>>>> 6fc555d0bc86fd752ac5162e4730d309c5828011
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_HOME``                         | ``/opt/airflow``                         | Airflow’s HOME (that’s where logs and    |
 |                                          |                                          | sqlite databases are stored)             |
@@ -368,7 +373,8 @@ requirements taken from v1-10-test branch in Github.
     --build-arg AIRFLOW_SOURCES_FROM="entrypoint.sh" \
     --build-arg AIRFLOW_SOURCES_TO="/entrypoint"
 
-This builds the production image in version 3.7 with additional airflow extras from 1.10.10 Pypi package.
+This builds the production image in version 3.7 with dditional airflow extras from 1.10.10 Pypi package and
+additional python dependencies.
 
 .. code-block::
 
@@ -382,6 +388,7 @@ This builds the production image in version 3.7 with additional airflow extras f
     --build-arg AIRFLOW_SOURCES_FROM="entrypoint.sh" \
     --build-arg AIRFLOW_SOURCES_TO="/entrypoint" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="mssql,hdfs"
+    --build-arg ADDITIONAL_PYTHON_DEPS="sshtunnel oauth2client"
 
 Image manifests
 ---------------

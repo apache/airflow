@@ -31,7 +31,7 @@ from airflow.providers.vertica.hooks.vertica import VerticaHook
 from airflow.utils.decorators import apply_defaults
 
 
-class VerticaToHiveTransfer(BaseOperator):
+class VerticaToHiveTransferOperator(BaseOperator):
     """
     Moves data from Vertica to Hive. The operator runs
     your query against Vertica, stores the file locally

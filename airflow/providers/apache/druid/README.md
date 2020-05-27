@@ -92,11 +92,11 @@ All classes in Airflow 2.0 are in `airflow.providers.apache.druid` package.
 
 ### Moved operators
 
-| Airflow 2.0 operators: `airflow.providers.apache.druid` package                                                                                        | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                       |
-|:-------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------|
-| [operators.druid.DruidOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/druid/operators/druid.py)                       | [contrib.operators.druid_operator.DruidOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/druid_operator.py)  |
-| [operators.druid_check.DruidCheckOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/druid/operators/druid_check.py)      | [operators.druid_check_operator.DruidCheckOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/druid_check_operator.py) |
-| [operators.hive_to_druid.HiveToDruidTransfer](https://github.com/apache/airflow/blob/master/airflow/providers/apache/druid/operators/hive_to_druid.py) | [operators.hive_to_druid.HiveToDruidTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/hive_to_druid.py)              |
+| Airflow 2.0 operators: `airflow.providers.apache.druid` package                                                                                                | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                       |
+|:---------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------|
+| [operators.druid.DruidOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/druid/operators/druid.py)                               | [contrib.operators.druid_operator.DruidOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/druid_operator.py)  |
+| [operators.druid_check.DruidCheckOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/druid/operators/druid_check.py)              | [operators.druid_check_operator.DruidCheckOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/druid_check_operator.py) |
+| [operators.hive_to_druid.HiveToDruidTransferOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/druid/operators/hive_to_druid.py) | [operators.hive_to_druid.HiveToDruidTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/hive_to_druid.py)              |
 
 
 
@@ -124,6 +124,8 @@ All classes in Airflow 2.0 are in `airflow.providers.apache.druid` package.
 
 | Commit                                                                                         | Committed   | Subject                                                                                     |
 |:-----------------------------------------------------------------------------------------------|:------------|:--------------------------------------------------------------------------------------------|
+| [00642a46d](https://github.com/apache/airflow/commit/00642a46d019870c4decb3d0e47c01d6a25cb88c) | 2020-05-26  | Fixed name of 20 remaining wrongly named operators. (#8994)                                 |
+| [375d1ca22](https://github.com/apache/airflow/commit/375d1ca229464617780623c61c6e8a1bf570c87f) | 2020-05-19  | Release candidate 2 for backport packages 2020.05.20 (#8898)                                |
 | [12c5e5d8a](https://github.com/apache/airflow/commit/12c5e5d8ae25fa633efe63ccf4db389e2b796d79) | 2020-05-17  | Prepare release candidate for backport packages (#8891)                                     |
 | [f3521fb0e](https://github.com/apache/airflow/commit/f3521fb0e36733d8bd356123e56a453fd37a6dca) | 2020-05-16  | Regenerate readme files for backport package release (#8886)                                |
 | [92585ca4c](https://github.com/apache/airflow/commit/92585ca4cb375ac879f4ab331b3a063106eb7b92) | 2020-05-15  | Added automated release notes generation for backport operators (#8807)                     |

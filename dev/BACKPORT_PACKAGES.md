@@ -70,28 +70,39 @@ separately.
 When you want to prepare release notes for a package, you need to run:
 
 ```
-./breeze prepare-backport-readme -- YYYY.MM.DD <PACKAGE_ID> ...
+./breeze prepare-backport-readme -- [YYYY.MM.DD] <PACKAGE_ID> ...
 ```
 
 
 * YYYY.MM.DD - is the CALVER version of the package to prepare. Note that this date cannot be earlier
   than the already released version (the script will fail if it will be). It can be set in the future
-  anticipating the future release date. If you do not specify it - current date +3 days will be used.
+  anticipating the future release date. If you do not specify date, the date will be taken from the last
+  generated readme - the last generated CHANGES file will be updated.
 
 * <PACKAGE_ID> is usually directory in the `airflow/providers` folder (for example `google` but in several
   cases, it might be one level deeper separated with `.` for example `apache.hive`
 
 You can run the script with multiple package names if you want to prepare several packages at the same time.
-You can also re-run the script with the same version (date) - this way - in case you have any bug fixes
-merged in the master, they will be automatically taken into account.
+Before you specify a new version, the last released version is update in case you have any bug fixes
+merged in the master recently, they will be automatically taken into account.
+
+Typically, the first time you run release before release, you run it with target release.date:
+
+```
+./breeze prepare-backport-readme -- 2020.05.20 google
+```
+
+Then while you iterate with merges and release candidates you update the release date wihout providing
+the date (to update the existing release notes)
+
+```
+./breeze prepare-backport-readme -- google
+```
+
 
 Whenever you are satisfied with the release notes generated you can commit generated changes/new files
 to the repository.
 
-Before preparing the release, you must also update the version to release in the
-`backport_packages/setup_backport_packages.py` - this is needed because you should add rc1/rc2 etc.
-before releasing final version and only when you are ready, the final version should be released and updated
-in the `backport_packages/setup_backport_packages.py`.
 
 # Content of the release notes
 
