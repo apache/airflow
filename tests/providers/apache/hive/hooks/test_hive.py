@@ -67,13 +67,23 @@ class TestHiveCliHook(unittest.TestCase):
         mock_popen.return_value = mock_subprocess
         mock_temp_dir.return_value = "test_run_cli"
 
-        hook = MockHiveCliHook()
-        hook.run_cli("SHOW DATABASES")
+        with mock.patch.dict('os.environ', {
+            'AIRFLOW_CTX_DAG_ID': 'test_dag_id',
+            'AIRFLOW_CTX_TASK_ID': 'test_task_id',
+            'AIRFLOW_CTX_EXECUTION_DATE': '2015-01-01T00:00:00+00:00',
+            'AIRFLOW_CTX_DAG_RUN_ID': '55',
+            'AIRFLOW_CTX_DAG_OWNER': 'airflow',
+            'AIRFLOW_CTX_DAG_EMAIL': 'test@airflow.com',
+        }):
+
+            hook = MockHiveCliHook()
+            hook.run_cli("SHOW DATABASES")
 
         hive_cmd = ['beeline', '-u', '"jdbc:hive2://localhost:10000/default"', '-hiveconf',
-                    'airflow.ctx.dag_id=', '-hiveconf', 'airflow.ctx.task_id=', '-hiveconf',
-                    'airflow.ctx.execution_date=', '-hiveconf', 'airflow.ctx.dag_run_id=', '-hiveconf',
-                    'airflow.ctx.dag_owner=', '-hiveconf', 'airflow.ctx.dag_email=', '-hiveconf',
+                    'airflow.ctx.dag_id=test_dag_id', '-hiveconf', 'airflow.ctx.task_id=test_task_id',
+                    '-hiveconf', 'airflow.ctx.execution_date=2015-01-01T00:00:00+00:00', '-hiveconf',
+                    'airflow.ctx.dag_run_id=55', '-hiveconf', 'airflow.ctx.dag_owner=airflow',
+                    '-hiveconf', 'airflow.ctx.dag_email=test@airflow.com', '-hiveconf',
                     'mapreduce.job.queuename=airflow', '-hiveconf', 'mapred.job.queue.name=airflow',
                     '-hiveconf', 'tez.queue.name=airflow', '-f',
                     '/tmp/airflow_hiveop_test_run_cli/tmptest_run_cli']

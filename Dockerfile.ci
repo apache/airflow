@@ -156,7 +156,7 @@ RUN mkdir -pv /usr/share/man/man1 \
 
 # Install Hadoop and Hive
 # It is done in one step to share variables.
-ENV HADOOP_HOME="/opt/hadoop-cdh" HIVE_HOME="/opt/hive"
+# ENV HADOOP_HOME="/opt/hadoop-cdh" HIVE_HOME="/opt/hive"
 
 # RUN HADOOP_DISTRO="cdh" \
 #     && HADOOP_MAJOR="5" \
