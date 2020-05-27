@@ -172,7 +172,10 @@ paths:
 
     get:
       summary: Get basic information about a DAG
-      description: Presents only information available in database (DAGModel).
+      description: >
+        Presents only information available in database (DAGModel).
+
+        If you need detailed information, consider using GET /dags/{dag_id}/structure.
       operationId: getDag
       tags: [DAG]
       requestBody:
@@ -1012,6 +1015,9 @@ paths:
     get:
       summary: Get a simplified representation of DAG.
       operationId: getDagStructure
+      description: >
+        The response contains many DAG attributes, so the response can be large.
+        If possible, consider using GET /dags/{dag_id}.
       tags: [DAG]
       responses:
         '200':
