@@ -172,11 +172,10 @@ class _PythonFunctionalOperator(BaseOperator):
         self,
         python_callable: Callable,
         multiple_outputs: bool = False,
-        *args,
         **kwargs
     ) -> None:
         self._validate_python_callable(python_callable)
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.python_callable = python_callable
         self.multiple_outputs = multiple_outputs
         self._kwargs = kwargs
