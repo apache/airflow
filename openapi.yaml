@@ -977,7 +977,8 @@ paths:
       - $ref: '#/components/parameters/ContinuationToken'
 
     get:
-      summary: Get logs for a specific task instance
+      summary: Get logs for a task instance
+      description: Get logs for a specific task instance and its try number
       operationId: getLogs
       tags: [TaskInstance]
       responses:
