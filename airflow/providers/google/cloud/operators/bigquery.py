@@ -547,6 +547,11 @@ class BigQueryExecuteQueryOperator(BaseOperator):
                 "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
             gcp_conn_id = bigquery_conn_id
 
+        warnings.warn(
+            "This operator is deprecated. Please use `BigQueryInsertJobOperator`.",
+            DeprecationWarning, stacklevel=3,
+        )
+
         self.sql = sql
         self.destination_dataset_table = destination_dataset_table
         self.write_disposition = write_disposition
@@ -1581,7 +1586,7 @@ class BigQueryInsertJobOperator(BaseOperator):
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
 
     :param configuration: The configuration parameter maps directly to BigQuery's
-    configuration field in the job  object. For more details see
+        configuration field in the job  object. For more details see
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
     :type configuration: Dict[str, Any]
     :param job_id: The ID of the job. The ID must contain only letters (a-z, A-Z),
