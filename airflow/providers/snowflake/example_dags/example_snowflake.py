@@ -23,9 +23,11 @@ import os
 from airflow import DAG
 from airflow.providers.snowflake.operators.s3_to_snowflake import S3ToSnowflakeTransfer
 from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
+from airflow.providers.snowflake.operators.snowflake_to_slack import SnowflakeToSlackOperator
 from airflow.utils.dates import days_ago
 
 SNOWFLAKE_CONN_ID = os.environ.get('SNOWFLAKE_CONN_ID', 'snowflake_default')
+SLACK_CONN_ID = os.environ.get('SLACK_CONN_ID', 'slack_default')
 # TODO: should be able to rely on connection's schema, but currently param required by S3ToSnowflakeTransfer
 SNOWFLAKE_SCHEMA = os.environ.get('SNOWFLAKE_SCHEMA', 'public')
 SNOWFLAKE_STAGE = os.environ.get('SNOWFLAKE_STAGE', 'airflow')
@@ -55,6 +57,22 @@ select = SnowflakeOperator(
     dag=dag,
 )
 
+slack_report = SnowflakeToSlackOperator(
+    task_id="slack_report",
+    sql="""
+    SELECT O_ORDERKEY, O_CUSTKEY, O_ORDERSTATUS
+    FROM {0}
+    LIMIT 10;
+    """.format(SNOWFLAKE_SAMPLE_TABLE),
+    slack_message="""
+    Results in an ASCII table:
+    ```{{ results_df | tabulate(tablefmt="pretty", headers="keys") }}```
+    """,
+    snowflake_conn_id=SNOWFLAKE_CONN_ID,
+    slack_conn_id=SLACK_CONN_ID,
+    dag=dag
+)
+
 create_table = SnowflakeOperator(
     task_id='create_table',
     snowflake_conn_id='snowflake_conn_id',
@@ -78,4 +96,5 @@ copy_into_table = S3ToSnowflakeTransfer(
     dag=dag,
 )
 
+select >> slack_report
 create_table >> copy_into_table
