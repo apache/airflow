@@ -878,7 +878,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
         Prepares README.md files for backport packages. You can provide (after --) optional version
         in the form of YYYY.MM.DD, optionally followed by the list of packages to generate readme for.
-        If the first parameter is not formatted as a date, then today is used as version.
+        If the first parameter is not formatted as a date, then today is regenerated.
         If no packages are specified, readme for all packages are generated.
         If no date is specified, current date + 3 days is used (allowing for PMC votes to pass).
 

@@ -41,13 +41,13 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
-.. _howto/operator:GoogleSheetsCreateSpreadsheet:
+.. _howto/operator:GoogleSheetsCreateSpreadsheetOperator:
 
 Create spreadsheet
 ^^^^^^^^^^^^^^^^^^
 
 To create new spreadsheet you can use the
-:class:`~airflow.providers.google.suite.operators.sheets.GoogleSheetsCreateSpreadsheet`.
+:class:`~airflow.providers.google.suite.operators.sheets.GoogleSheetsCreateSpreadsheetOperator`.
 
 .. exampleinclude:: ../../../../airflow/providers/google/suite/example_dags/example_sheets.py
     :language: python
@@ -56,7 +56,7 @@ To create new spreadsheet you can use the
     :end-before: [END create_spreadsheet]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.providers.google.suite.operators.sheets.GoogleSheetsCreateSpreadsheet`.
+:template-fields:`airflow.providers.google.suite.operators.sheets.GoogleSheetsCreateSpreadsheetOperator`.
 
 To get the URL of newly created spreadsheet use XCom value:
 

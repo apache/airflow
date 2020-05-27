@@ -30,7 +30,7 @@ from tempfile import NamedTemporaryFile, mkdtemp
 import mock
 
 from airflow.exceptions import AirflowException
-from airflow.providers.apache.hive.operators.s3_to_hive import S3ToHiveTransfer
+from airflow.providers.apache.hive.operators.s3_to_hive import S3ToHiveTransferOperator
 
 try:
     import boto3
@@ -156,18 +156,19 @@ class TestS3ToHiveTransfer(unittest.TestCase):
     def test_bad_parameters(self):
         self.kwargs['check_headers'] = True
         self.kwargs['headers'] = False
-        self.assertRaisesRegex(AirflowException, "To check_headers.*", S3ToHiveTransfer, **self.kwargs)
+        self.assertRaisesRegex(AirflowException, "To check_headers.*",
+                               S3ToHiveTransferOperator, **self.kwargs)
 
     def test__get_top_row_as_list(self):
         self.kwargs['delimiter'] = '\t'
         fn_txt = self._get_fn('.txt', True)
-        header_list = S3ToHiveTransfer(**self.kwargs). \
+        header_list = S3ToHiveTransferOperator(**self.kwargs). \
             _get_top_row_as_list(fn_txt)
         self.assertEqual(header_list, ['Sno', 'Some,Text'],
                          msg="Top row from file doesnt matched expected value")
 
         self.kwargs['delimiter'] = ','
-        header_list = S3ToHiveTransfer(**self.kwargs). \
+        header_list = S3ToHiveTransferOperator(**self.kwargs). \
             _get_top_row_as_list(fn_txt)
         self.assertEqual(header_list, ['Sno\tSome', 'Text'],
                          msg="Top row from file doesnt matched expected value")
@@ -175,20 +176,20 @@ class TestS3ToHiveTransfer(unittest.TestCase):
     def test__match_headers(self):
         self.kwargs['field_dict'] = OrderedDict([('Sno', 'BIGINT'),
                                                  ('Some,Text', 'STRING')])
-        self.assertTrue(S3ToHiveTransfer(**self.kwargs).
+        self.assertTrue(S3ToHiveTransferOperator(**self.kwargs).
                         _match_headers(['Sno', 'Some,Text']),
                         msg="Header row doesnt match expected value")
         # Testing with different column order
-        self.assertFalse(S3ToHiveTransfer(**self.kwargs).
+        self.assertFalse(S3ToHiveTransferOperator(**self.kwargs).
                          _match_headers(['Some,Text', 'Sno']),
                          msg="Header row doesnt match expected value")
         # Testing with extra column in header
-        self.assertFalse(S3ToHiveTransfer(**self.kwargs).
+        self.assertFalse(S3ToHiveTransferOperator(**self.kwargs).
                          _match_headers(['Sno', 'Some,Text', 'ExtraColumn']),
                          msg="Header row doesnt match expected value")
 
     def test__delete_top_row_and_compress(self):
-        s32hive = S3ToHiveTransfer(**self.kwargs)
+        s32hive = S3ToHiveTransferOperator(**self.kwargs)
         # Testing gz file type
         fn_txt = self._get_fn('.txt', True)
         gz_txt_nh = s32hive._delete_top_row_and_compress(fn_txt,
@@ -233,7 +234,7 @@ class TestS3ToHiveTransfer(unittest.TestCase):
                     self._check_file_equality(args[0], op_fn, ext),
                     msg='{0} output file not as expected'.format(ext))
             # Execute S3ToHiveTransfer
-            s32hive = S3ToHiveTransfer(**self.kwargs)
+            s32hive = S3ToHiveTransferOperator(**self.kwargs)
             s32hive.execute(None)
 
     @unittest.skipIf(mock is None, 'mock package not present')
@@ -277,7 +278,7 @@ class TestS3ToHiveTransfer(unittest.TestCase):
             with mock.patch('airflow.providers.amazon.aws.hooks.s3.S3Hook.select_key',
                             return_value="") as mock_select_key:
                 # Execute S3ToHiveTransfer
-                s32hive = S3ToHiveTransfer(**self.kwargs)
+                s32hive = S3ToHiveTransferOperator(**self.kwargs)
                 s32hive.execute(None)
 
                 mock_select_key.assert_called_once_with(

@@ -19,10 +19,24 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.providers.apache.hive.operators.s3_to_hive import S3ToHiveTransfer  # noqa
+from airflow.providers.apache.hive.operators.s3_to_hive import S3ToHiveTransferOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hive.operators.s3_to_hive`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class S3ToHiveTransfer(S3ToHiveTransferOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.providers.apache.hive.operators.s3_to_hive.S3ToHiveTransferOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+           Please use `airflow.providers.apache.hive.operators.s3_to_hive.S3ToHiveTransferOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

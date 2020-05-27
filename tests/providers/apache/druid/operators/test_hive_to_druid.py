@@ -23,7 +23,7 @@ import requests
 import requests_mock
 
 from airflow.models.dag import DAG
-from airflow.providers.apache.druid.operators.hive_to_druid import HiveToDruidTransfer
+from airflow.providers.apache.druid.operators.hive_to_druid import HiveToDruidTransferOperator
 
 
 class TestDruidHook(unittest.TestCase):
@@ -74,7 +74,7 @@ class TestDruidHook(unittest.TestCase):
         session.mount('mock', adapter)
 
     def test_construct_ingest_query(self):
-        operator = HiveToDruidTransfer(
+        operator = HiveToDruidTransferOperator(
             task_id='hive_to_druid',
             dag=self.dag,
             **self.hook_config

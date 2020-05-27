@@ -23,7 +23,7 @@ You need to set all env variables to request the data.
 from os import getenv
 
 from airflow import DAG
-from airflow.providers.amazon.aws.operators.google_api_to_s3_transfer import GoogleApiToS3Transfer
+from airflow.providers.amazon.aws.operators.google_api_to_s3_transfer import GoogleApiToS3TransferOperator
 from airflow.utils.dates import days_ago
 
 # [START howto_operator_google_api_to_s3_transfer_basic_env_variables]
@@ -41,7 +41,7 @@ with DAG(
     tags=['example']
 ) as dag:
     # [START howto_operator_google_api_to_s3_transfer_basic_task_1]
-    task_google_sheets_values_to_s3 = GoogleApiToS3Transfer(
+    task_google_sheets_values_to_s3 = GoogleApiToS3TransferOperator(
         google_api_service_name='sheets',
         google_api_service_version='v4',
         google_api_endpoint_path='sheets.spreadsheets.values.get',
