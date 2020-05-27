@@ -257,6 +257,9 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``AIRFLOW_EXTRAS``                       | (see Dockerfile)                         | Default extras with which airflow is     |
 |                                          |                                          | installed                                |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``ADDITIONAL_AIRFLOW_EXTRAS``            | (see Dockerfile)                         | Additional extras with which airflow is  |
+|                                          |                                          | installed                                |
++------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_PYTHON_DEPS``               | (see Dockerfile)                         | Optional python packages to extend       |
 |                                          |                                          | the image with some extra dependencies   |
 +------------------------------------------+------------------------------------------+------------------------------------------+
@@ -368,7 +371,7 @@ requirements taken from v1-10-test branch in Github.
     --build-arg AIRFLOW_SOURCES_FROM="entrypoint.sh" \
     --build-arg AIRFLOW_SOURCES_TO="/entrypoint"
 
-This builds the production image in version 3.7 with default airflow extras from 1.10.10 Pypi package and
+This builds the production image in version 3.7 with additional airflow extras from 1.10.10 Pypi package and
 additional python dependencies.
 
 .. code-block::
@@ -382,6 +385,7 @@ additional python dependencies.
     --build-arg ENTRYPOINT_FILE="https://raw.githubusercontent.com/apache/airflow/1.10.10/entrypoint.sh" \
     --build-arg AIRFLOW_SOURCES_FROM="entrypoint.sh" \
     --build-arg AIRFLOW_SOURCES_TO="/entrypoint" \
+    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="mssql,hdfs"
     --build-arg ADDITIONAL_PYTHON_DEPS="sshtunnel oauth2client"
 
 Image manifests
