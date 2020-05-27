@@ -827,7 +827,7 @@ paths:
       - $ref: '#/components/parameters/TaskID'
 
     get:
-      summary: Get all XCom entry
+      summary: Get all XCom entries
       description:
         This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCOM entries for
         for all DAGs, DAG Runs and task instances.
