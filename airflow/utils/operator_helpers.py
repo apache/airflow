@@ -84,3 +84,13 @@ def context_to_airflow_vars(context, in_env_var_format=False):
         params[AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_RUN_ID'][
             name_format]] = dag_run.run_id
     return params
+
+
+def get_blank_airflow_vars():
+    """
+    Returns a dictionary that maps Airflow env var names
+    to blank values.
+
+    :return: task_instance context as dict.
+    """
+    return {value['env_var_format']: '' for value in AIRFLOW_VAR_NAME_FORMAT_MAPPING.values()}

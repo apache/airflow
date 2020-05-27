@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 import re
 from typing import Dict, Optional
 
@@ -23,7 +24,7 @@ from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.utils.decorators import apply_defaults
-from airflow.utils.operator_helpers import context_to_airflow_vars
+from airflow.utils.operator_helpers import context_to_airflow_vars, get_blank_airflow_vars
 
 
 class HiveOperator(BaseOperator):
@@ -143,6 +144,9 @@ class HiveOperator(BaseOperator):
         self.hook.run_cli(hql=self.hql, schema=self.schema, hive_conf=self.hiveconfs)
 
     def dry_run(self):
+        blank_env_vars = get_blank_airflow_vars()
+        os.environ.update(blank_env_vars)
+
         self.hook = self.get_hook()
         self.hook.test_hql(hql=self.hql)
 
