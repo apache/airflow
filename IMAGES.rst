@@ -257,6 +257,9 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``AIRFLOW_EXTRAS``                       | (see Dockerfile)                         | Default extras with which airflow is     |
 |                                          |                                          | installed                                |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``ADDITIONAL_PYTHON_DEPS``               | (see Dockerfile)                         | Optional python packages to extend       |
+|                                          |                                          | the image with some extra dependencies   |
++------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_HOME``                         | ``/opt/airflow``                         | Airflow’s HOME (that’s where logs and    |
 |                                          |                                          | sqlite databases are stored)             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
@@ -364,6 +367,22 @@ requirements taken from v1-10-test branch in Github.
     --build-arg ENTRYPOINT_FILE="https://raw.githubusercontent.com/apache/airflow/1.10.10/entrypoint.sh" \
     --build-arg AIRFLOW_SOURCES_FROM="entrypoint.sh" \
     --build-arg AIRFLOW_SOURCES_TO="/entrypoint"
+
+This builds the production image in version 3.7 with default airflow extras from 1.10.10 Pypi package and
+additional python dependencies.
+
+.. code-block::
+
+  docker build . \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
+    --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
+    --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.10" \
+    --build-arg CONSTRAINT_REQUIREMENTS="https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt" \
+    --build-arg ENTRYPOINT_FILE="https://raw.githubusercontent.com/apache/airflow/1.10.10/entrypoint.sh" \
+    --build-arg AIRFLOW_SOURCES_FROM="entrypoint.sh" \
+    --build-arg AIRFLOW_SOURCES_TO="/entrypoint" \
+    --build-arg ADDITIONAL_PYTHON_DEPS="sshtunnel oauth2client"
 
 Image manifests
 ---------------
