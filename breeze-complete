@@ -99,6 +99,7 @@ verbose assume-yes assume-no assume-quit forward-credentials
 force-build-images force-pull-images production-image extras: force-clean-images use-local-cache
 dockerhub-user: dockerhub-repo: push-images
 postgres-version: mysql-version:
+additional-extras: additional-python-deps:
 "
 
 export BREEZE_COMMANDS="
