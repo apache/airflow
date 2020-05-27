@@ -38,46 +38,26 @@ cp /entrypoint.sh scripts/docker/
 echo
 echo "Building image from ${AIRFLOW_CI_IMAGE} with latest sources"
 echo
-start_output_heartbeat "Rebuilding Kubernetes image" 3
-docker build \
-    --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
-    --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
-    --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
-    --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
-    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS}" \
-    --build-arg ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS}" \
-    --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH}" \
-    --build-arg AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" \
-    --build-arg UPGRADE_TO_LATEST_REQUIREMENTS="${UPGRADE_TO_LATEST_REQUIREMENTS}" \
-    --build-arg HOME="${HOME}" \
-    --cache-from "${AIRFLOW_CI_IMAGE}" \
-    --tag="${AIRFLOW_CI_IMAGE}" \
-    --target="main" \
-    -f Dockerfile.ci . >> "${OUTPUT_LOG}"
-echo
+#export AIRFLOW_PROD_BASE_TAG="${DEFAULT_BRANCH}-python${PYTHON_MAJOR_MINOR_VERSION}"
+#export AIRFLOW_PROD_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}"
+export AIRFLOW_PROD_IMAGE="apache/airflow:master-python3.6"
 echo "Adding kubernetes-specific scripts to basic CI image."
-echo "Building ${AIRFLOW_KUBERNETES_IMAGE} from ${AIRFLOW_CI_IMAGE}"
+echo "Building ${AIRFLOW_KUBERNETES_IMAGE} from ${AIRFLOW_PROD_IMAGE}"
 echo
 docker build \
-    --build-arg AIRFLOW_CI_IMAGE="${AIRFLOW_CI_IMAGE}" \
-    --cache-from "${AIRFLOW_CI_IMAGE}" \
+    --build-arg AIRFLOW_PROD_IMAGE="${AIRFLOW_PROD_IMAGE}" \
+    --cache-from "${AIRFLOW_PROD_IMAGE}" \
     --tag="${AIRFLOW_KUBERNETES_IMAGE}" \
-    -f- . >> "${OUTPUT_LOG}" <<EOF
-ARG AIRFLOW_CI_IMAGE
-FROM ${AIRFLOW_CI_IMAGE}
+    -f- .  <<EOF
+ARG AIRFLOW_PROD_IMAGE
+FROM ${AIRFLOW_PROD_IMAGE}
 
 COPY scripts/ci/in_container/kubernetes/docker/airflow-test-env-init.sh /tmp/airflow-test-env-init.sh
-COPY scripts/ci/in_container/kubernetes/docker/bootstrap.sh /bootstrap.sh
 
-RUN chmod +x /bootstrap.sh
-
-COPY airflow/ ${AIRFLOW_SOURCES}/airflow/
-
-ENTRYPOINT ["/bootstrap.sh"]
+ENV AIRFLOW__CORE__LOAD_EXAMPLES="true"
+ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
 EOF
-stop_output_heartbeat
 
-start_output_heartbeat "Loading image to Kind cluster" 10
 echo
 echo "Loading the ${AIRFLOW_KUBERNETES_IMAGE} to cluster ${CLUSTER_NAME} from docker"
 echo
@@ -90,6 +70,5 @@ echo
 echo "Stopping output heartbeat"
 echo
 
-stop_output_heartbeat
 
 in_container_script_end
