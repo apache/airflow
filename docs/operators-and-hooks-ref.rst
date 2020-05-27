@@ -696,9 +696,8 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Dataproc <https://cloud.google.com/dataproc/>`__
-     -
-     - :mod:`airflow.providers.google.cloud.hooks.dataproc`
      - :doc:`howto/operator/gcp/dataproc`
+     - :mod:`airflow.providers.google.cloud.hooks.dataproc`
      - :mod:`airflow.providers.google.cloud.operators.dataproc`
      -
 

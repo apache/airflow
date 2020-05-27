@@ -23,6 +23,7 @@ take advantage of open source data tools for batch processing, querying, streami
 Dataproc automation helps you create clusters quickly, manage them easily, and
 save money by turning clusters off when you don't need them.
 
+For more information about the service visit `Dataproc production documentation <Product documentation <https://cloud.google.com/dataproc/docs/reference>`__
 
 .. contents::
   :depth: 1
@@ -41,6 +42,7 @@ Create a Cluster
 
 Before you create a dataproc cluster you need to define the cluster.
 It describes the identifying information, config, and status of a cluster of Compute Engine instances.
+For more information about the available fields to pass when creating a cluster, visit `Dataproc create cluster API. <https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters#Cluster>`__
 
 A cluster configuration can look as followed:
 
@@ -180,7 +182,7 @@ Example of the configuration for a SparkR:
 
 References
 ^^^^^^^^^^
-For further information, look at:
+For further information, take a look at:
 
 * `DataProc API documentation <https://cloud.google.com/dataproc/docs/reference>`__
 * `Product documentation <https://cloud.google.com/dataproc/docs/reference>`__
