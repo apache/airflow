@@ -25,13 +25,13 @@ info:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
   contact:
-    name: Apache Foundation
+    name: Apache Software Foundation
     url: https://airflow.apache.org
     email: dev@airflow.apache.org
 
 servers:
   - url: /api/v1
-    description: Airfow Stable API.
+    description: Apache Airflow Stable API.
 
 paths:
   # Database entities
@@ -2057,7 +2057,7 @@ components:
     DagState:
       type: string
       enum:
-        - sucess
+        - success
         - running
         - failed
 
