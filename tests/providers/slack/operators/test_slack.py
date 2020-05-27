@@ -21,7 +21,7 @@ import unittest
 
 import mock
 
-from airflow.providers.slack.operators.slack import SlackAPIPostOperator, SlackAPIFileOperator
+from airflow.providers.slack.operators.slack import SlackAPIFileOperator, SlackAPIPostOperator
 
 
 class TestSlackAPIPostOperator(unittest.TestCase):
