@@ -125,7 +125,7 @@ Functional DAGs
 DAGs can be defined using functional abstractions. Outputs and inputs are sent between tasks using
 :ref:`XCom values <concepts:xcom>`. In addition, you can wrap functions as tasks using the
 :ref:`task decorator <concepts:task_decorator>`. Airflow will also automatically add dependencies between
- tasks to ensure that XCom messages are available when operators are executed.
+tasks to ensure that XCom messages are available when operators are executed.
 
 Example DAG with functional abstraction
 
