@@ -33,7 +33,8 @@ class TestCliSyncPerm(unittest.TestCase):
 
     def setUp(self):
         from airflow.www import app as application
-        self.app, self.appbuilder = application.create_app(testing=True)
+        self.app = application.create_app(testing=True)
+        self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
 
     @mock.patch("airflow.cli.commands.sync_perm_command.DagBag")
     def test_cli_sync_perm(self, dagbag_mock):
