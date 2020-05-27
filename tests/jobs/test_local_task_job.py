@@ -411,10 +411,17 @@ class TestLocalTaskJob(unittest.TestCase):
         self.assertFalse(process.is_alive())
 
 
+@pytest.fixture()
+def clean_db_helper():
+    yield
+    clear_db_runs()
+
+
+@pytest.mark.usefixtures("clean_db_helper")
 class TestLocalTaskJobPerformance:
-    @pytest.mark.parametrize("side_effects", [[0], 9 * [None] + [0]])  # type: ignore
+    @pytest.mark.parametrize("return_codes", [[0], 9 * [None] + [0]])  # type: ignore
     @mock.patch("airflow.jobs.local_task_job.get_task_runner")
-    def test_number_of_queries_single_loop(self, mock_get_task_runner, side_effects):
+    def test_number_of_queries_single_loop(self, mock_get_task_runner, return_codes):
         unique_prefix = str(uuid.uuid4())
         dag = DAG(dag_id=f'{unique_prefix}_test_number_of_queries', start_date=DEFAULT_DATE)
         task = DummyOperator(task_id='test_state_succeeded1', dag=dag)
@@ -424,7 +431,7 @@ class TestLocalTaskJobPerformance:
 
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
 
-        mock_get_task_runner.return_value.return_code.side_effects = side_effects
+        mock_get_task_runner.return_value.return_code.side_effects = return_codes
 
         job = LocalTaskJob(task_instance=ti, executor=MockExecutor())
         with assert_queries_count(13):
