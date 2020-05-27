@@ -1234,6 +1234,7 @@ components:
         root_dag_id:
           type: string
           readOnly: true
+          nullable: true
         is_paused:
           type: boolean
         is_subdag:
@@ -1257,6 +1258,7 @@ components:
         description:
           type: string
           readOnly: true
+          nullable: true
         schedule_interval:
           $ref: '#/components/schemas/ScheduleInterval'
           readOnly: true
@@ -1314,7 +1316,6 @@ components:
           type: string
           format: date-time
           readOnly: True
-          nullable: true
         state:
           $ref: '#/components/schemas/DagState'
         external_trigger:
@@ -1685,6 +1686,7 @@ components:
           type: string
           format: 'date-time'
           readOnly: true
+          nullable: true
         trigger_rule:
           $ref: '#/components/schemas/TriggerRule'
         extra_links:
@@ -1715,8 +1717,10 @@ components:
           readOnly: true
         execution_timeout:
           $ref: '#/components/schemas/TimeDelta'
+          nullable: true
         retry_delay:
           $ref: '#/components/schemas/TimeDelta'
+          nullable: true
         retry_exponential_backoff:
           type: boolean
           readOnly: true

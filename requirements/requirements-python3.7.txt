@@ -210,6 +210,7 @@ lazy-object-proxy==1.5.0
 ldap3==2.7
 lockfile==0.12.2
 marshmallow-enum==1.5.1
+marshmallow-oneofschema==1.0.6
 marshmallow-sqlalchemy==0.23.1
 marshmallow==2.21.0
 mccabe==0.6.1

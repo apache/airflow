@@ -14,32 +14,170 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 import unittest
+from datetime import datetime
 
-import pytest
-
+from airflow import DAG
+from airflow.models import DagBag
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.www import app
+from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 
 class TestTaskEndpoint(unittest.TestCase):
+    dag_id = "test_dag"
+    task_id = "op1"
+
+    @staticmethod
+    def clean_db():
+        clear_db_runs()
+        clear_db_dags()
+
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
         cls.app = app.create_app(testing=True)  # type:ignore
 
+        with DAG(cls.dag_id, start_date=datetime(2020, 6, 15)) as dag:
+            DummyOperator(task_id=cls.task_id)
+
+        cls.dag = dag  # type:ignore
+
+        dag_bag = DagBag(os.devnull, include_examples=False)
+        dag_bag.dags = {dag.dag_id: dag}
+        cls.app.dag_bag = dag_bag  # type:ignore
+
     def setUp(self) -> None:
+        self.clean_db()
         self.client = self.app.test_client()  # type:ignore
+
+    def tearDown(self) -> None:
+        self.clean_db()
 
 
 class TestGetTask(TestTaskEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
     def test_should_response_200(self):
-        response = self.client.get("/api/v1/dags/TEST_DAG_ID/tasks/TEST_TASK_ID")
+        dag_id = self.dag_id
+        task_id = self.task_id
+
+        expected = {
+            "class_ref": {
+                "class_name": "DummyOperator",
+                "module_path": "airflow.operators.dummy_operator",
+            },
+            "depends_on_past": False,
+            "downstream_task_ids": [],
+            "end_date": None,
+            "execution_timeout": None,
+            "extra_links": [],
+            "owner": "airflow",
+            "pool": "default_pool",
+            "pool_slots": 1.0,
+            "priority_weight": 1.0,
+            "queue": "default",
+            "retries": 0.0,
+            "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300},
+            "retry_exponential_backoff": False,
+            "start_date": "2020-06-15T00:00:00+00:00",
+            "task_id": "op1",
+            "template_fields": [],
+            "trigger_rule": "all_success",
+            "ui_color": "#e8f7e4",
+            "ui_fgcolor": "#000",
+            "wait_for_downstream": False,
+            "weight_rule": "downstream",
+        }
+        response = self.client.get(f"/api/v1/dags/{dag_id}/tasks/{task_id}")
         assert response.status_code == 200
+        assert response.json == expected
+
+    @conf_vars({("core", "store_serialized_dags"): "True"})
+    def test_should_response_200_serialized(self):
+        SerializedDagModel.write_dag(self.dag)
+        dag_id = self.dag_id
+        task_id = self.task_id
+
+        expected = {
+            "class_ref": {
+                "class_name": "DummyOperator",
+                "module_path": "airflow.operators.dummy_operator",
+            },
+            "depends_on_past": False,
+            "downstream_task_ids": [],
+            "end_date": None,
+            "execution_timeout": None,
+            "extra_links": [],
+            "owner": "airflow",
+            "pool": "default_pool",
+            "pool_slots": 1.0,
+            "priority_weight": 1.0,
+            "queue": "default",
+            "retries": 0.0,
+            "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300},
+            "retry_exponential_backoff": False,
+            "start_date": "2020-06-15T00:00:00+00:00",
+            "task_id": "op1",
+            "template_fields": [],
+            "trigger_rule": "all_success",
+            "ui_color": "#e8f7e4",
+            "ui_fgcolor": "#000",
+            "wait_for_downstream": False,
+            "weight_rule": "downstream",
+        }
+        response = self.client.get(f"/api/v1/dags/{dag_id}/tasks/{task_id}")
+        assert response.status_code == 200
+        assert response.json == expected
+
+    def test_should_response_404(self):
+        dag_id = self.dag_id
+        task_id = "xxxx_not_existing"
+        response = self.client.get(f"/api/v1/dags/{dag_id}/tasks/{task_id}")
+        assert response.status_code == 404
 
 
 class TestGetTasks(TestTaskEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
     def test_should_response_200(self):
-        response = self.client.get("/api/v1/dags/TEST_DAG_ID/tasks")
+        dag_id = self.dag_id
+        expected = {
+            "tasks": [
+                {
+                    "class_ref": {
+                        "class_name": "DummyOperator",
+                        "module_path": "airflow.operators.dummy_operator",
+                    },
+                    "depends_on_past": False,
+                    "downstream_task_ids": [],
+                    "end_date": None,
+                    "execution_timeout": None,
+                    "extra_links": [],
+                    "owner": "airflow",
+                    "pool": "default_pool",
+                    "pool_slots": 1.0,
+                    "priority_weight": 1.0,
+                    "queue": "default",
+                    "retries": 0.0,
+                    "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300},
+                    "retry_exponential_backoff": False,
+                    "start_date": "2020-06-15T00:00:00+00:00",
+                    "task_id": "op1",
+                    "template_fields": [],
+                    "trigger_rule": "all_success",
+                    "ui_color": "#e8f7e4",
+                    "ui_fgcolor": "#000",
+                    "wait_for_downstream": False,
+                    "weight_rule": "downstream",
+                }
+            ],
+            "total_entries": 1,
+        }
+        response = self.client.get(f"/api/v1/dags/{dag_id}/tasks")
         assert response.status_code == 200
+        assert response.json == expected
+
+    def test_should_response_404(self):
+        dag_id = "xxxx_not_existing"
+        response = self.client.get(f"/api/v1/dags/{dag_id}/tasks")
+        assert response.status_code == 404

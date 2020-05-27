@@ -20,6 +20,7 @@ from airflow.models import (
     errors,
 )
 from airflow.models.dagcode import DagCode
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections
 from airflow.utils.session import create_session
 
@@ -34,6 +35,7 @@ def clear_db_dags():
     with create_session() as session:
         session.query(DagTag).delete()
         session.query(DagModel).delete()
+        session.query(SerializedDagModel).delete()
 
 
 def clear_db_sla_miss():
