@@ -111,6 +111,7 @@ force-build-images force-pull-images production-image extras: force-clean-images
 dockerhub-user: dockerhub-repo: push-images
 postgres-version: mysql-version:
 version-suffix-for-pypi: version-suffix-for-svn:
+additional-extras: additional-python-deps:
 "
 
 export BREEZE_COMMANDS="

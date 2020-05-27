@@ -771,6 +771,14 @@ function parse_arguments() {
           export AIRFLOW_EXTRAS="${2}"
           echo "Extras : ${AIRFLOW_EXTRAS}"
           shift 2 ;;
+        --additional-extras)
+          export ADDITIONAL_AIRFLOW_EXTRAS="${2}"
+          echo "Additional extras : ${ADDITIONAL_AIRFLOW_EXTRAS}"
+          shift 2 ;;
+        --additional-python-deps)
+          export ADDITIONAL_PYTHON_DEPS="${2}"
+          echo "Additional python dependencies: ${ADDITIONAL_PYTHON_DEPS}"
+          shift 2 ;;
         -D|--dockerhub-user)
           export DOCKERHUB_USER="${2}"
           echo "Dockerhub user ${DOCKERHUB_USER}"
@@ -1617,6 +1625,12 @@ ${FORMATTED_DEFAULT_CI_EXTRAS}
 
         Production image:
 ${FORMATTED_DEFAULT_PROD_EXTRAS}
+
+--additional-extras
+        Additional extras to pass to build images The default is no additional extras.
+
+--additional-python-deps
+        Additional python dependencies to use when building the images.
 
 -C, --force-clean-images
         Force build images with cache disabled. This will remove the pulled or build images
