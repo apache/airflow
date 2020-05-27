@@ -79,7 +79,11 @@ def create_app(config=None, testing=False, app_name="Airflow"):
         base_url = urlparse(conf.get('webserver', 'base_url'))[2]
         if not base_url or base_url == '/':
             base_url = ""
-        flask_app.wsgi_app = DispatcherMiddleware(root_app, {base_url: flask_app.wsgi_app})  # type: ignore
+        if base_url:
+            flask_app.wsgi_app = DispatcherMiddleware(  # type: ignore
+                root_app,
+                mounts={base_url: flask_app.wsgi_app}
+            )
 
         # Apply ProxyFix middleware
         if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
