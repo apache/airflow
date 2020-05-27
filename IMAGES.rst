@@ -202,6 +202,8 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | ``all``                                  | extras to install                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``ADDITIONAL_AIRFLOW_EXTRAS``            | ````                                     | additional extras to install             |
++------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_PYTHON_DEPS``               | \```\`                                   | additional python dependencies to        |
 |                                          |                                          | install                                  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
@@ -222,6 +224,22 @@ This builds the CI image in version 3.6 with "gcp" extra only.
 
   docker build . -f Dockerfile.ci --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.6 --build-arg AIRFLOW_EXTRAS=gcp
+
+
+This builds the CI image in version 3.6 with "apache-beam" extra added.
+
+.. code-block::
+
+  docker build . -f Dockerfile.ci --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
+    --build-arg PYTHON_MAJOR_MINOR_VERSION=3.6 --build-arg ADDITIONAL_AIRFLOW_EXTRAS="apache-beam"
+
+This builds the CI image in version 3.6 with "mssql" additional package added.
+
+.. code-block::
+
+  docker build . -f Dockerfile.ci --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
+    --build-arg PYTHON_MAJOR_MINOR_VERSION=3.6 --build-arg ADDITIONAL_PYTHON_DEPS="mssql"
+
 
 
 Production images
@@ -257,10 +275,10 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``AIRFLOW_EXTRAS``                       | (see Dockerfile)                         | Default extras with which airflow is     |
 |                                          |                                          | installed                                |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``ADDITIONAL_AIRFLOW_EXTRAS``            | (see Dockerfile)                         | Additional extras with which airflow is  |
-|                                          |                                          | installed                                |
+| ``ADDITIONAL_AIRFLOW_EXTRAS``            | ````                                     | Optional additional extras with which    |
+|                                          |                                          | airflow is installed                     |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``ADDITIONAL_PYTHON_DEPS``               | (see Dockerfile)                         | Optional python packages to extend       |
+| ``ADDITIONAL_PYTHON_DEPS``               | ````                                     | Optional python packages to extend       |
 |                                          |                                          | the image with some extra dependencies   |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_HOME``                         | ``/opt/airflow``                         | Airflow’s HOME (that’s where logs and    |
