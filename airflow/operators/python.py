@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import functools
 import inspect
 import os
 import pickle
@@ -26,7 +27,7 @@ from inspect import signature
 from itertools import islice
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Any, Callable, Dict, Iterable, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import dill
 
@@ -154,13 +155,19 @@ class _PythonFunctionalOperator(BaseOperator):
 
     :param python_callable: A reference to an object that is callable
     :type python_callable: python callable
+    :param op_kwargs: a dictionary of keyword arguments that will get unpacked
+        in your function
+    :type op_kwargs: dict (templated)
+    :param op_args: a list of positional arguments that will get unpacked when
+        calling your callable
+    :type op_args: list (templated)
     :param multiple_outputs: if set, function return value will be
         unrolled to multiple XCom values. Dict will unroll to xcom values with keys as keys.
         Defaults to False.
     :type multiple_outputs: bool
     """
 
-    template_fields = ('_op_args', '_op_kwargs')
+    template_fields = ('op_args', 'op_kwargs')
     ui_color = '#ffefeb'
 
     # since we won't mutate the arguments, we should just do the shallow copy
@@ -171,17 +178,20 @@ class _PythonFunctionalOperator(BaseOperator):
     def __init__(
         self,
         python_callable: Callable,
+        op_args: Tuple[Any],
+        op_kwargs: Dict[str, Any],
         multiple_outputs: bool = False,
         **kwargs
     ) -> None:
-        self._validate_python_callable(python_callable)
+        kwargs['task_id'] = self._get_unique_task_id(kwargs['task_id'], kwargs.get('dag', None))
         super().__init__(**kwargs)
         self.python_callable = python_callable
+
+        # Check that arguments can be binded
+        signature(python_callable).bind(*op_args, **op_kwargs)
         self.multiple_outputs = multiple_outputs
-        self._kwargs = kwargs
-        self._op_args: List[Any] = []
-        self._called = False
-        self._op_kwargs: Dict[str, Any] = {}
+        self.op_args = op_args
+        self.op_kwargs = op_kwargs
 
     @staticmethod
     def _get_unique_task_id(task_id: str, dag: Optional[DAG]) -> str:
@@ -199,58 +209,33 @@ class _PythonFunctionalOperator(BaseOperator):
         return f'{core}__{suffixes[-1] + 1}'
 
     @staticmethod
-    def _validate_python_callable(python_callable):
+    def validate_python_callable(python_callable):
+        """Validate that python callable can be wrapped by operator.
+        Raises exception if invalid.
+
+        :param python_callable: Python object to be validated
+        :raises: TypeError, AirflowException
+        """
         if not callable(python_callable):
             raise TypeError('`python_callable` param must be callable')
         if 'self' in signature(python_callable).parameters.keys():
             raise AirflowException('@task does not support methods')
 
-    def __call__(self, *args, **kwargs):
-        # If args/kwargs are set, then operator has been called. Raise exception
-        if self._called:
-            raise AirflowException('@task decorated functions can only be called once. If you need to reuse '
-                                   'it several times in a DAG, use the `copy` method.')
-
-        # If we have no DAG, reinitialize class to capture DAGContext and DAG default args.
-        if not self.has_dag():
-            self.__init__(python_callable=self.python_callable,
-                          multiple_outputs=self.multiple_outputs,
-                          **self._kwargs)
-
-        # Capture args/kwargs
-        self._op_args = args
-        self._op_kwargs = kwargs
-        self._called = True
-        return XComArg(self)
-
-    def copy(self, task_id: Optional[str] = None, **kwargs):
-        """
-        Create a copy of the task, allow to overwrite ctor kwargs if needed.
-
-        If alias is created a new DAGContext, apply defaults and set new DAG as the operator DAG.
-
-        :param task_id: Task id for the new operator
-        :type task_id: Optional[str]
-        """
-        if not task_id:
-            task_id = self._get_unique_task_id(
-                self._kwargs['task_id'],
-                kwargs.get('dag', None)
-            )
-        return _PythonFunctionalOperator(
-            python_callable=self.python_callable,
-            multiple_outputs=self.multiple_outputs,
-            **{**kwargs, **self._kwargs, 'task_id': task_id}
-        )
-
     def execute(self, context: Dict):
-        return_value = self.python_callable(*self._op_args, **self._op_kwargs)
+        return_value = self.python_callable(*self.op_args, **self.op_kwargs)
         self.log.info("Done. Returned value was: %s", return_value)
         if not self.multiple_outputs:
             return return_value
         if isinstance(return_value, dict):
+            for key in return_value.keys():
+                if not isinstance(key, str):
+                    raise AirflowException('Returned dictionary keys must be strings when using '
+                                           f'multiple_outputs, found {key} ({type(key)}) instead')
             for key, value in return_value.items():
-                self.xcom_push(context, str(key), value)
+                self.xcom_push(context, key, value)
+        else:
+            self.log.info(f'Returned output was type {type(return_value)} expected dictionary '
+                          'for multiple_outputs')
         return return_value
 
 
@@ -274,7 +259,14 @@ def task(python_callable: Optional[Callable] = None, **kwargs):
         Python wrapper to generate PythonFunctionalOperator out of simple python functions.
         Used for Airflow functional interface
         """
-        return _PythonFunctionalOperator(python_callable=f, task_id=f.__name__, **kwargs)
+        _PythonFunctionalOperator.validate_python_callable(f)
+
+        @functools.wraps(f)
+        def factory(*args, **f_kwargs):
+            op = _PythonFunctionalOperator(python_callable=f, task_id=f.__name__,
+                                           op_args=args, op_kwargs=f_kwargs, **kwargs)
+            return XComArg(op)
+        return factory
     if callable(python_callable):
         return wrapper(python_callable)
     elif python_callable is not None:

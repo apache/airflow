@@ -367,6 +367,33 @@ class TestAirflowTaskDecorator(unittest.TestCase):
         with pytest.raises(AirflowException):
             task_decorator(not_callable, dag=self.dag)
 
+    def test_fails_bad_signature(self):
+        """Tests that @task will fail if signature is not binding."""
+        @task_decorator
+        def add_number(num: int) -> int:
+            return num + 2
+        with pytest.raises(TypeError):
+            add_number(2, 3)
+        with pytest.raises(TypeError):
+            add_number()
+        add_number('test')
+
+    def test_fail_multiple_outputs_key_type(self):
+        @task_decorator(multiple_outputs=True)
+        def add_number(num: int):
+            return {2: num}
+        with self.dag:
+            ret = add_number(2)
+        self.dag.create_dagrun(
+            run_id=DagRunType.MANUAL.value,
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+
+        with pytest.raises(AirflowException):
+            ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
+
     def test_python_callable_arguments_are_templatized(self):
         """Test @task op_args are templatized"""
         recorded_calls = []
@@ -381,7 +408,7 @@ class TestAirflowTaskDecorator(unittest.TestCase):
             # TypeError: Object of type Mock is not JSON serializable
             build_recording_function(recorded_calls),
             dag=self.dag)
-        task(4, date(2019, 1, 1), "dag {{dag.dag_id}} ran on {{ds}}.", named_tuple)
+        ret = task(4, date(2019, 1, 1), "dag {{dag.dag_id}} ran on {{ds}}.", named_tuple)
 
         self.dag.create_dagrun(
             run_id=DagRunType.MANUAL.value,
@@ -389,7 +416,7 @@ class TestAirflowTaskDecorator(unittest.TestCase):
             start_date=DEFAULT_DATE,
             state=State.RUNNING
         )
-        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
 
         ds_templated = DEFAULT_DATE.date().isoformat()
         assert len(recorded_calls) == 1
@@ -411,14 +438,14 @@ class TestAirflowTaskDecorator(unittest.TestCase):
             build_recording_function(recorded_calls),
             dag=self.dag
         )
-        task(an_int=4, a_date=date(2019, 1, 1), a_templated_string="dag {{dag.dag_id}} ran on {{ds}}.")
+        ret = task(an_int=4, a_date=date(2019, 1, 1), a_templated_string="dag {{dag.dag_id}} ran on {{ds}}.")
         self.dag.create_dagrun(
             run_id=DagRunType.MANUAL.value,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             state=State.RUNNING
         )
-        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
 
         assert len(recorded_calls) == 1
         self._assert_calls_equal(
@@ -429,8 +456,8 @@ class TestAirflowTaskDecorator(unittest.TestCase):
                      self.dag.dag_id, DEFAULT_DATE.date().isoformat()))
         )
 
-    def test_copy_in_dag(self):
-        """Test copy method to reuse tasks in a DAG"""
+    def test_multiple_calls(self):
+        """Test calling task multiple times in a DAG"""
 
         @task_decorator
         def do_run():
@@ -438,38 +465,39 @@ class TestAirflowTaskDecorator(unittest.TestCase):
         with self.dag:
             do_run()
             assert ['do_run'] == self.dag.task_ids
-            do_run_1 = do_run.copy()
-            do_run_2 = do_run.copy()
+            do_run_1 = do_run()
+            do_run_2 = do_run()
             assert ['do_run', 'do_run__1', 'do_run__2'] == self.dag.task_ids
 
-        assert do_run_1.task_id == 'do_run__1'
-        assert do_run_2.task_id == 'do_run__2'
+        assert do_run_1.operator.task_id == 'do_run__1'  # pylint: disable=maybe-no-member
+        assert do_run_2.operator.task_id == 'do_run__2'  # pylint: disable=maybe-no-member
 
-    def test_copy_10(self):
-        """Test copy method outside of a DAG"""
+    def test_call_20(self):
+        """Test calling decorated function 10 times in a DAG"""
         @task_decorator
         def __do_run():
             return 4
 
         with self.dag:
             __do_run()
-            do_runs = [__do_run.copy() for _ in range(20)]
+            for _ in range(20):
+                __do_run()
 
-        assert do_runs[-1].task_id == '__do_run__20'
+        assert self.dag.task_ids[-1] == '__do_run__20'
 
-    def test_dict_outputs(self):
+    def test_multiple_outputs(self):
         """Tests pushing multiple outputs as a dictionary"""
 
         @task_decorator(multiple_outputs=True)
         def return_dict(number: int):
             return {
                 'number': number + 1,
-                43: 43
+                '43': 43
             }
 
         test_number = 10
         with self.dag:
-            return_dict(test_number)
+            ret = return_dict(test_number)
 
         dr = self.dag.create_dagrun(
             run_id=DagRunType.MANUAL.value,
@@ -478,7 +506,7 @@ class TestAirflowTaskDecorator(unittest.TestCase):
             state=State.RUNNING
         )
 
-        return_dict.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
 
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull(key='number') == test_number + 1
@@ -492,8 +520,8 @@ class TestAirflowTaskDecorator(unittest.TestCase):
             return 4
 
         with self.dag:
-            do_run()
-        assert do_run.owner == self.owner
+            ret = do_run()
+        assert ret.operator.owner == self.owner  # pylint: disable=maybe-no-member
 
     def test_xcom_arg(self):
         """Tests that returned key in XComArg is returned correctly"""
@@ -510,7 +538,7 @@ class TestAirflowTaskDecorator(unittest.TestCase):
 
         with self.dag:
             bigger_number = add_2(test_number)
-            ret = add_num(bigger_number, XComArg(add_2))
+            ret = add_num(bigger_number, XComArg(bigger_number.operator))  # pylint: disable=maybe-no-member
 
         dr = self.dag.create_dagrun(
             run_id=DagRunType.MANUAL.value,
@@ -519,21 +547,12 @@ class TestAirflowTaskDecorator(unittest.TestCase):
             state=State.RUNNING
         )
 
-        add_2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        add_num.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        bigger_number.operator.run(  # pylint: disable=maybe-no-member
+            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE
+        )
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
         ti_add_num = [ti for ti in dr.get_task_instances() if ti.task_id == 'add_num'][0]
         assert ti_add_num.xcom_pull(key=ret.key) == (test_number + 2) * 2  # pylint: disable=maybe-no-member
-
-    def test_non_repeated_call(self):
-        """Tests that calling a decorated function twice will fail"""
-
-        @self.dag.task
-        def add_2(number: int):
-            return number + 2
-
-        with pytest.raises(AirflowException):
-            bigger_number = add_2(2)
-            add_2(bigger_number)
 
     def test_dag_task(self):
         """Tests dag.task property to generate task"""
@@ -543,7 +562,8 @@ class TestAirflowTaskDecorator(unittest.TestCase):
             return number + 2
 
         test_number = 10
-        add_2(test_number)
+        res = add_2(test_number)
+        add_2(res)
 
         assert 'add_2' in self.dag.task_ids
 
@@ -552,9 +572,10 @@ class TestAirflowTaskDecorator(unittest.TestCase):
 
         @self.dag.task(multiple_outputs=True)
         def add_2(number: int):
-            return {1: number + 2, 2: 42}
+            return {'1': number + 2, '2': 42}
 
         test_number = 10
+        add_2(test_number)
         add_2(test_number)
 
         assert 'add_2' in self.dag.task_ids
