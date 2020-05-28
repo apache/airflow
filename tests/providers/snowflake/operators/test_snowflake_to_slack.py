@@ -50,7 +50,7 @@ def mock_example_dag():
     return dag
 
 
-class TestSnowflakeToSlackOperator():
+class TestSnowflakeToSlackOperator:
     @staticmethod
     def _construct_operator(**kwargs):
         operator = SnowflakeToSlackOperator(task_id=TEST_DAG_ID, **kwargs)

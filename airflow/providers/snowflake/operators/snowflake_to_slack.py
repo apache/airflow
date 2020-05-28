@@ -15,6 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Iterable, Optional
+
+from pandas import DataFrame
 from tabulate import tabulate
 
 from airflow.exceptions import AirflowException
@@ -60,25 +63,25 @@ class SnowflakeToSlackOperator(BaseOperator):
         SQL results
     :type slack_message: str
     """
-    template_fields = ('sql', 'slack_message')
-    template_ext = ('.sql', '.jinja', '.j2',)
+    template_fields = ['sql', 'slack_message']
+    template_ext = ['.sql', '.jinja', '.j2']
     times_rendered = 0
 
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(self,
-                 sql,
-                 slack_message,
-                 snowflake_conn_id='snowflake_default',
-                 slack_conn_id='slack_default',
-                 results_df_name='results_df',
-                 parameters=None,
-                 warehouse=None,
-                 database=None,
-                 schema=None,
-                 role=None,
-                 slack_token=None,
-                 *args, **kwargs):
+                 sql: str,
+                 slack_message: str,
+                 snowflake_conn_id: str = 'snowflake_default',
+                 slack_conn_id: str = 'slack_default',
+                 results_df_name: str = 'results_df',
+                 parameters: Optional[str] = None,
+                 warehouse: Optional[str] = None,
+                 database: Optional[str] = None,
+                 schema: Optional[str] = None,
+                 role: Optional[str] = None,
+                 slack_token: Optional[str] = None,
+                 *args, **kwargs) -> None:
         super(SnowflakeToSlackOperator, self).__init__(*args, **kwargs)
 
         self.snowflake_conn_id = snowflake_conn_id
@@ -93,14 +96,14 @@ class SnowflakeToSlackOperator(BaseOperator):
         self.slack_message = slack_message
         self.results_df_name = results_df_name
 
-    def _get_query_results(self):
+    def _get_query_results(self) -> DataFrame:
         snowflake_hook = self._get_snowflake_hook()
 
         self.log.info('Running SQL query: %s', self.sql)
         df = snowflake_hook.get_pandas_df(self.sql, parameters=self.parameters)
         return df
 
-    def _render_and_send_slack_message(self, context, df):
+    def _render_and_send_slack_message(self, context, df) -> None:
         # Put the dataframe into the context and render the JINJA template fields
         context[self.results_df_name] = df
         self.render_template_fields(context)
@@ -109,20 +112,20 @@ class SnowflakeToSlackOperator(BaseOperator):
         self.log.info('Sending slack message: %s', self.slack_message)
         slack_hook.execute()
 
-    def _get_snowflake_hook(self):
+    def _get_snowflake_hook(self) -> SnowflakeHook:
         return SnowflakeHook(snowflake_conn_id=self.snowflake_conn_id,
                              warehouse=self.warehouse, database=self.database,
                              role=self.role, schema=self.schema)
 
-    def _get_slack_hook(self):
+    def _get_slack_hook(self) -> SlackWebhookHook:
         return SlackWebhookHook(http_conn_id=self.slack_conn_id, message=self.slack_message,
                                 webhook_token=self.slack_token)
 
-    def render_template_fields(self, context, jinja_env=None):
+    def render_template_fields(self, context, jinja_env=None) -> None:
         # If this is the first render of the template fields, exclude slack_message from rendering since
         # the snowflake results haven't been retrieved yet.
         if self.times_rendered == 0:
-            fields_to_render = filter(lambda x: x != 'slack_message', self.template_fields)
+            fields_to_render: Iterable[str] = filter(lambda x: x != 'slack_message', self.template_fields)
         else:
             fields_to_render = self.template_fields
 
@@ -135,7 +138,7 @@ class SnowflakeToSlackOperator(BaseOperator):
         self._do_render_template_fields(self, fields_to_render, context, jinja_env, set())
         self.times_rendered += 1
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         if not isinstance(self.sql, str):
             raise AirflowException("Expected 'sql' parameter should be a string.")
         if self.sql is None or self.sql.strip() == "":
