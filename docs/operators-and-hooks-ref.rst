@@ -918,7 +918,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
 
    * - Local
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
-     -
+     - :doc:`How to use <howto/operator/gcp/local_to_gcs>`
      - :mod:`airflow.providers.google.cloud.operators.local_to_gcs`
 
    * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
