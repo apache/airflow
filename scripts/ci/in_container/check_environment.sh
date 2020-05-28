@@ -186,6 +186,12 @@ function resetdb_if_requested() {
     return $?
 }
 
+function check_docker_client_server_version_compatibility() {
+    docker version || exit 1
+}
+
+check_docker_client_server_version_compatibility
+
 if [[ -n ${BACKEND:=} ]]; then
     echo "==============================================================================================="
     echo "             Checking backend: ${BACKEND}"
