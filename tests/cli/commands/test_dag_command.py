@@ -18,7 +18,6 @@
 import contextlib
 import io
 import os
-import subprocess
 import tempfile
 import unittest
 from datetime import datetime, time, timedelta
@@ -240,21 +239,30 @@ class TestCliDags(unittest.TestCase):
 
     @pytest.mark.quarantined
     def test_next_execution(self):
-        # A scaffolding function
-        def reset_dr_db(dag_id):
-            session = Session()
-            dr = session.query(DagRun).filter_by(dag_id=dag_id)
-            dr.delete()
-            session.commit()
-            session.close()
-
         dag_ids = ['example_bash_operator',  # schedule_interval is '0 0 * * *'
                    'latest_only',  # schedule_interval is timedelta(hours=4)
                    'example_python_operator',  # schedule_interval=None
                    'example_xcom']  # schedule_interval="@once"
 
+        session = Session()
+        dr = session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids))
+        dr.delete(synchronize_session=False)
+        session.commit()
+        session.close()
+
+        args = self.parser.parse_args(['dags',
+                                       'next_execution',
+                                       dag_ids[0]])
+
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            dag_command.dag_next_execution(args)
+            out = temp_stdout.getvalue()
+            # `next_execution` function is inapplicable if no execution record found
+            # It prints `None` in such cases
+            self.assertIn("None", out)
+
         # The details below is determined by the schedule_interval of example DAGs
-        now = timezone.utcnow()
+        now = DEFAULT_DATE
         next_execution_time_for_dag1 = pytz.utc.localize(
             datetime.combine(
                 now.date() + timedelta(days=1),
@@ -267,23 +275,10 @@ class TestCliDags(unittest.TestCase):
                            "None",
                            "None"]
 
-        for i in range(len(dag_ids)):  # pylint: disable=consider-using-enumerate
-            dag_id = dag_ids[i]
-
-            # Clear dag run so no execution history fo each DAG
-            reset_dr_db(dag_id)
-
-            proc = subprocess.Popen(["airflow", "dags", "next_execution", dag_id,
-                                     "--subdir", EXAMPLE_DAGS_FOLDER],
-                                    stdout=subprocess.PIPE)
-            proc.wait()
-            stdout = []
-            for line in proc.stdout:
-                stdout.append(str(line.decode("utf-8").rstrip()))
-
-            # `next_execution` function is inapplicable if no execution record found
-            # It prints `None` in such cases
-            self.assertEqual(stdout[-1], "None")
+        for i, dag_id in enumerate(dag_ids):
+            args = self.parser.parse_args(['dags',
+                                           'next_execution',
+                                           dag_id])
 
             dag = self.dagbag.dags[dag_id]
             # Create a DagRun for each DAG, to prepare for next step
@@ -294,16 +289,10 @@ class TestCliDags(unittest.TestCase):
                 state=State.FAILED
             )
 
-            proc = subprocess.Popen(["airflow", "dags", "next_execution", dag_id,
-                                     "--subdir", EXAMPLE_DAGS_FOLDER],
-                                    stdout=subprocess.PIPE)
-            proc.wait()
-            stdout = []
-            for line in proc.stdout:
-                stdout.append(str(line.decode("utf-8").rstrip()))
-            self.assertEqual(stdout[-1], expected_output[i])
-
-            reset_dr_db(dag_id)
+            with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+                dag_command.dag_next_execution(args)
+                out = temp_stdout.getvalue()
+            self.assertIn(expected_output[i], out)
 
     @conf_vars({
         ('core', 'load_examples'): 'true'
