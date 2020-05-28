@@ -135,7 +135,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         ('cloud', 'cassandra_to_gcs'),
         ('cloud', 'mysql_to_gcs'),
         ('cloud', 'mssql_to_gcs'),
-        ('cloud', 'local_to_gcs'),
         ('suite', 'gcs_to_sheets'),
     }
 
@@ -151,7 +150,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         'dlp',
         'gcs_to_bigquery',
         'kubernetes_engine',
-        'local_to_gcs',
         'mlengine',
         'mssql_to_gcs',
         'mysql_to_gcs',
