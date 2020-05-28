@@ -18,7 +18,7 @@
 """
 Objects relating to sourcing secrets from AWS Secrets Manager
 """
-
+import ast
 from typing import Optional
 
 import boto3
@@ -68,14 +68,10 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     ):
         super().__init__(**kwargs)
 
-        if connections_prefix:
+        if connections_prefix is not None:
             self.connections_prefix = connections_prefix.rstrip('/')
-        else:
-            self.connections_prefix = connections_prefix
-        if variables_prefix:
+        if variables_prefix is not None:
             self.variables_prefix = variables_prefix.rstrip('/')
-        else:
-            self.connections_prefix = variables_prefix
 
         self.profile_name = profile_name
         self.sep = sep
@@ -135,13 +131,15 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
                     conn_string = f'{conn_type}://{user}:{password}@{host}:{port}/{database}'
                     print(conn_string)
-                    return conn_string
+                    connection = conn_string
             except UnboundLocalError:
                 conn_string = self._get_secret(conn_id)
-                return f'{{{conn_string[:-1]}}}'  # without this line, the secret_string will end with a bracket }
+                connection = f'{{{conn_string[:-1]}}}'  # without this line, the secret_string will end with a bracket }
                 # and the literal_eval won't work
         except ValueError:  # 'malformed node or string: ' error, for empty conns
-            pass
+            connection = None
+
+        return connection
 
     def get_variable(self, key: str) -> Optional[str]:
         """
