@@ -398,17 +398,18 @@ class TestXComArgsRelationsAreResolved:
         op1 = DummyOperator(task_id="op1")
         CustomOp(task_id="op2", field=op1.output)
 
-    def test_set_xcomargs_dependencies_when_creating_dagbag_with_serialization(self):
+    def test_set_xcomargs_dependencies_when_creating_dagbag_with_serialization(
+        self, provide_test_dag_bag  # pylint: disable=redefined-outer-name
+    ):
         # Persist DAG
         dag_id = "xcomargs_test_3"
-        dagbag = DagBag(TEST_DAGS_FOLDER, include_examples=False)
-        for dag in dagbag.dags.values():
+        for dag in provide_test_dag_bag.dags.values():
             if dag.dag_id == dag_id:
                 SDM.write_dag(dag)
 
         # Retrieve the DAG
         bag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False, store_serialized_dags=True)
-        dag: DAG = bag.get_dag("xcomargs_test_3")
+        dag: DAG = bag.get_dag(dag_id)
         op1, op2, op3 = sorted(dag.tasks, key=lambda t: t.task_id)
 
         assert op1 in op2.upstream_list
