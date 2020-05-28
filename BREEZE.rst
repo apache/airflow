@@ -101,7 +101,7 @@ Docker in WSL 2
 - **WSL 2 Filesystem Performane** :
     Accessing the host Windows filesystem incurs a performance penalty,
     it is therefore reccomended to do development on the Linux filesystem.
-    E.g. Run `cd ~` and create a development folder in your Linux distro home
+    E.g. Run "`cd ~`" and create a development folder in your Linux distro home
     and git pull the Airflow repo there. 
 
 - **WSL 2 Memory Usage** : 
@@ -117,7 +117,7 @@ Docker in WSL 2
     You can use all the standard Linux command line utilities to develop on WSL 2.
     Further VS Code supports developing in Windows but remotely executing in WSL.
     If VS Code is installed on the Windows host system then in the WSL Linux Distro
-    you can run `code .` in the root directory of you Airflow repo to launch VS Code.
+    you can run "`code .`" in the root directory of you Airflow repo to launch VS Code.
 
 Docker Images Used by Breeze
 ----------------------------
