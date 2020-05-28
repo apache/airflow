@@ -37,7 +37,7 @@ from sqlalchemy.orm.session import make_transient
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskNotFound
-from airflow.executors.executor_loader import ExecutorLoader
+from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagModel, SlaMiss, errors
 from airflow.models.dagrun import DagRun
@@ -1511,18 +1511,15 @@ class SchedulerJob(BaseJob):
                 self.processor_agent.send_callback_to_execute(
                     full_filepath=simple_dag.full_filepath,
                     task_instance=ti,
-                    msg="Executor reports task instance finished ({}) although the task says its {}. "
-                        "(Info: {}) Was the task killed externally?".format(state, ti.state, info)
+                    msg=f"Executor reports task instance finished ({state}) although the "
+                        f"task says its {ti.state} (Info: {info}). Was the task killed externally?"
                 )
 
     def _execute(self):
         self.log.info("Starting the scheduler")
 
         # DAGs can be pickled for easier remote execution by some executors
-        unpickleable_executors = (
-            ExecutorLoader.LOCAL_EXECUTOR, ExecutorLoader.SEQUENTIAL_EXECUTOR, ExecutorLoader.DASK_EXECUTOR
-        )
-        pickle_dags = self.do_pickle and self.executor_class not in unpickleable_executors
+        pickle_dags = self.do_pickle and self.executor_class not in UNPICKLEABLE_EXECUTORS
 
         self.log.info("Processing each file at most %s times", self.num_runs)
 
