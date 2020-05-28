@@ -973,7 +973,7 @@ paths:
       - $ref: '#/components/parameters/DAGRunID'
       - $ref: '#/components/parameters/TaskID'
       - $ref: '#/components/parameters/TaskTryNumber'
-      - $ref: '#/components/parameters/NoChunking'
+      - $ref: '#/components/parameters/FullContent'
       - $ref: '#/components/parameters/ContinuationToken'
 
     get:
@@ -2164,14 +2164,14 @@ components:
       description: The Variable Key.
 
     # Logs
-    NoChunking:
+    FullContent:
       in: query
       name: full_content
       schema:
         type: boolean
       required: false
       description: >
-        A full reply will be returned.
+        A full content will be returned.
         By default, only the first fragment will be returned.
 
     ContinuationToken:
