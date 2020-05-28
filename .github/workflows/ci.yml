@@ -174,7 +174,7 @@ jobs:
     strategy:
       matrix:
         kube-mode:
-          - persistent_mode,
+          - persistent_mode
 #          #TODO These tests will be unblocked when k8s tests run on host
 #          - git_mode
         kubernetes-version:
