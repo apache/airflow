@@ -83,7 +83,7 @@ class XComArg:
         """
         Implements xcomresult['some_result_key']
         """
-        return XComArg(operator=self.operator, key=str(item))
+        return XComArg(operator=self.operator, key=item)
 
     def __str__(self):
         """
