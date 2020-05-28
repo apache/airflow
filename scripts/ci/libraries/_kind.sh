@@ -91,6 +91,31 @@ function create_cluster() {
     echo "Created cluster ${KIND_CLUSTER_NAME}"
     echo
 
+    echo
+    echo "Patching CoreDNS to avoid loop and to use 8.8.8.8 DNS as forward address."
+    echo
+    echo "============================================================================"
+    echo "      Original coredns configmap:"
+    echo "============================================================================"
+    kubectl --cluster "${KUBECTL_CLUSTER_NAME}" get configmaps --namespace=kube-system coredns -o yaml
+    kubectl --cluster "${KUBECTL_CLUSTER_NAME}" get configmaps --namespace=kube-system coredns -o yaml | \
+        sed 's/forward \. .*$/forward . 8.8.8.8/' | kubectl --cluster "${KUBECTL_CLUSTER_NAME}" apply -f -
+
+    echo
+    echo "============================================================================"
+    echo "      Updated coredns configmap with new forward directive:"
+    echo "============================================================================"
+    kubectl --cluster "${KUBECTL_CLUSTER_NAME}" get configmaps --namespace=kube-system coredns -o yaml
+
+
+    echo
+    echo "Restarting CoreDNS"
+    echo
+    kubectl --cluster "${KUBECTL_CLUSTER_NAME}" scale deployment --namespace=kube-system coredns --replicas=0
+    kubectl --cluster "${KUBECTL_CLUSTER_NAME}" scale deployment --namespace=kube-system coredns --replicas=2
+    echo
+    echo "Restarted CoreDNS"
+    echo
 }
 
 function delete_cluster() {
