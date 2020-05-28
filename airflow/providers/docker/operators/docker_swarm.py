@@ -123,6 +123,7 @@ class DockerSwarmOperator(DockerOperator):
                     image=self.image,
                     command=self.get_command(),
                     env=self.environment,
+                    mounts=self.volumes,
                     user=self.user,
                     tty=self.tty,
                 ),
