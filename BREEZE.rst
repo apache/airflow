@@ -82,31 +82,31 @@ Docker in WSL 2
 ---------------
 
 - **WSL 2 installation** :
-    Install the WSL 2 and a Linux Distro (e.g. Ubuntu) see
+    Install WSL 2 and a Linux Distro (e.g. Ubuntu) see
     `WSL 2 Installation Guide <https://docs.microsoft.com/en-us/windows/wsl/install-win10>`_ for details.
 
 - **Docker Desktop installation** :
-    You should install Docker Desktop for Windows.
-    For Windows Home follow the
+    Install Docker Desktop for Windows. For Windows Home follow the
     `Docker Windows Home Installtion Guide <https://docs.docker.com/docker-for-windows/install-windows-home>`_.
     For Windows Pro, Enterprise, or Education follow the
     `Docker Windows Installtion Guide <https://docs.docker.com/docker-for-windows/install/>`_.
 
 - **Docker setting** :
-    You should make sure WSL integration is enabled
+    WSL integration needs to be enabled
 
 .. image:: images/docker_wsl_integration.png
     :align: left
     :alt: Disk space OSX
 
 - **WSL 2 Filesystem Performane** :
-    Accessing the host Windows filesystem comes with a performance penality,
-    it is therefore reccomended to do all development on Linux filesystem.
-    E.g. Run `cd ~` and create a development folder in your Linux distro home. 
+    Accessing the host Windows filesystem incurs a performance penalty,
+    it is therefore reccomended to do development on the Linux filesystem.
+    E.g. Run `cd ~` and create a development folder in your Linux distro home
+    and git pull the Airflow repo there. 
 
 - **WSL 2 Memory Usage** : 
-    WSL 2 can consume a lot of memory under the process name "Vmmem". After
-    shutting down Breeze you may want to do the following:
+    WSL 2 can consume a lot of memory under the process name "Vmmem". To reclaim
+    the memory after development you can:
       * On the Linux distro clear cached memory: `sudo sysctl -w vm.drop_caches=3`
       * If no longer using Docker you can quit Docker Desktop
         (right click system try icon and select "Quit Docker Desktop")
@@ -114,10 +114,10 @@ Docker in WSL 2
         with the following command: `wsl --shutdown`
 
 - **Developing in WSL 2** :
-    You can use all the standard command line utilities to develop on WSL 2.
+    You can use all the standard Linux command line utilities to develop on WSL 2.
     Further VS Code supports developing in Windows but remotely executing in WSL.
     If VS Code is installed on the Windows host system then in the WSL Linux Distro
-    you can run `code .` in the root directory of you Airflow repo.
+    you can run `code .` in the root directory of you Airflow repo to launch VS Code.
 
 Docker Images Used by Breeze
 ----------------------------
