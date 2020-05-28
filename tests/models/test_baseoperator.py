@@ -353,24 +353,24 @@ class TestBaseOperatorMethods(unittest.TestCase):
 
 
 @pytest.fixture(scope="class")
-def provide_test_dag_bag():
-    yield DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False)
+def test_dag_bag():
+    return DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False)
 
 
 class TestXComArgsRelationsAreResolved:
     def test_upstream_is_set_when_template_field_is_xcomarg(
-        self, provide_test_dag_bag  # pylint: disable=redefined-outer-name
+        self, test_dag_bag  # pylint: disable=redefined-outer-name
     ):
-        dag: DAG = provide_test_dag_bag.get_dag("xcomargs_test_1")
+        dag: DAG = test_dag_bag.get_dag("xcomargs_test_1")
         op1, op2 = sorted(dag.tasks, key=lambda t: t.task_id)
 
         assert op1 in op2.upstream_list
         assert op2 in op1.downstream_list
 
     def test_set_xcomargs_dependencies_works_recursively(
-        self, provide_test_dag_bag  # pylint: disable=redefined-outer-name
+        self, test_dag_bag  # pylint: disable=redefined-outer-name
     ):
-        dag: DAG = provide_test_dag_bag.get_dag("xcomargs_test_2")
+        dag: DAG = test_dag_bag.get_dag("xcomargs_test_2")
         op1, op2, op3, op4 = sorted(dag.tasks, key=lambda t: t.task_id)
 
         assert op1 in op3.upstream_list
@@ -379,9 +379,9 @@ class TestXComArgsRelationsAreResolved:
         assert op2 in op4.upstream_list
 
     def test_set_xcomargs_dependencies_works_when_set_after_init(
-        self, provide_test_dag_bag  # pylint: disable=redefined-outer-name
+        self, test_dag_bag  # pylint: disable=redefined-outer-name
     ):
-        dag: DAG = provide_test_dag_bag.get_dag("xcomargs_test_3")
+        dag: DAG = test_dag_bag.get_dag("xcomargs_test_3")
         op1, op2, _ = sorted(dag.tasks, key=lambda t: t.task_id)
 
         assert op1 in op2.upstream_list
@@ -399,11 +399,11 @@ class TestXComArgsRelationsAreResolved:
         CustomOp(task_id="op2", field=op1.output)
 
     def test_set_xcomargs_dependencies_when_creating_dagbag_with_serialization(
-        self, provide_test_dag_bag  # pylint: disable=redefined-outer-name
+        self, test_dag_bag  # pylint: disable=redefined-outer-name
     ):
         # Persist DAG
         dag_id = "xcomargs_test_3"
-        for dag in provide_test_dag_bag.dags.values():
+        for dag in test_dag_bag.dags.values():
             if dag.dag_id == dag_id:
                 SDM.write_dag(dag)
 
