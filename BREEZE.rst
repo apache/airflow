@@ -78,36 +78,40 @@ Docker Compose
 
 - **Permissions**: Configure to run the ``docker-compose`` command.
 
-Docker in WSL
--------------
+Docker in WSL 2
+---------------
 
-- **WSL installation** :
-    `WSL Installation Guide <https://docs.microsoft.com/en-us/windows/wsl/install-win10>`_ for details.
+- **WSL 2 installation** :
+    Install the WSL 2 and a Linux Distro (e.g. Ubuntu) see
+    `WSL 2 Installation Guide <https://docs.microsoft.com/en-us/windows/wsl/install-win10>`_ for details.
 
-- **Docker installation** :
-    You should install docker in WSL.
-    follow `Docker Installtion Guide <https://docs.docker.com/install/linux/docker-ce/ubuntu/>`_
-    only docker-ce without docker-ce-cli containerd.io.
+- **Docker Desktop installation** :
+    You should install Docker Desktop for Windows.
+    For Windows Home follow the
+    `Docker Windows Home Installtion Guide <https://docs.docker.com/docker-for-windows/install-windows-home>`_.
+    For Windows Pro, Enterprise, or Education follow the
+    `Docker Windows Installtion Guide <https://docs.docker.com/docker-for-windows/install/>`_.
+
 - **Docker setting** :
-    You should expose Docker daemon,
+    You should make sure WSL integration is enabled
 
-.. image:: images/docker_expose_daemon.png
+.. image:: images/docker_wsl_integration.png
+
     :align: left
     :alt: Docker expose daemon
 
-and set env variable DOCKER_HOST.
+- **Performance of WSL 2** :
+    * Accessing the host Windows filesystem comes with a performance penality,
+      it is therefore reccomended to do all development on Linux filesystem.
 
-.. code-block:: bash
+    * WSL 2 can consume a lot of memory under the process name "Vmmem". After
+      shutting down Breeze you may want to do the following:
+       1. On the Linux distro clear cached memory: `sudo sysctl -w vm.drop_caches=3`
+       2. If no longer using Docker you can quit Docker Desktop
+          (right click system try icon and select "Quit Docker Desktop")
+       3. If no longer using WSL you can shut it down on the Windows Host
+          with the following command: `wsl --shutdown`
 
-    echo "export DOCKER_HOST=tcp://localhost:2375" >> ~/.bashrc && source ~/.bashrc
-
-- **WSL problems** :
-  There is a mounting problem in docker because docker could not recognize ``/mnt/c``, ``/mnt/d`` driver path.
-  run this command in Windows Version 18.03+ and reboot Windows
-
-.. code-block:: bash
-
-    printf '[automount]\nroot = /\n options = "metadata"\n' >> /etc/wsl.conf
 
 Docker Images Used by Breeze
 ----------------------------
@@ -181,6 +185,8 @@ Minimum 4GB RAM is required to run the full Breeze environment.
 On macOS, 2GB of RAM are available for your Docker containers by default, but more memory is recommended
 (4GB should be comfortable). For details see
 `Docker for Mac - Advanced tab <https://docs.docker.com/v17.12/docker-for-mac/#advanced-tab>`_.
+
+On Windows using WSL 2 you will need 8 GB to be available for your Linux distro and Breeze.
 
 Airflow Directory Structure inside Docker
 -----------------------------------------
