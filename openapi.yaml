@@ -285,9 +285,10 @@ paths:
 
   /dags/~/dagRuns/list:
     post:
-      summary: Get all DAG Runs.
+      summary: Get all DAG Runs from aall DAGs.
       description: >
-        It allows you to fetch DAG Runs from multiple DAGs.
+        This endpoint is a POST to allow filtering across a large number of DAG IDs, where as a GET it
+        would run in to maximum HTTP request URL lengthlimits
       operationId: getDagRunsBatch
       tags: [DAGRun]
       requestBody:
@@ -682,7 +683,10 @@ paths:
 
   /dags/~/dagRuns/~/taskInstances/list:
     post:
-      summary: Get list of task instance.
+      summary: Get list of task instances from all DAGs and DAG Runs.
+      description: >
+        This endpoint is a POST to allow filtering across a large number of DAG IDs, where as a GET it
+        would run in to maximum HTTP request URL lengthlimits
       operationId: getTaskInstancesBatch
       tags: [TaskInstance]
       requestBody:
