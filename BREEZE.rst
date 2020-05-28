@@ -96,9 +96,8 @@ Docker in WSL 2
     You should make sure WSL integration is enabled
 
 .. image:: images/docker_wsl_integration.png
-
     :align: left
-    :alt: Docker expose daemon
+    :alt: Disk space OSX
 
 - **Performance of WSL 2** :
     * Accessing the host Windows filesystem comes with a performance penality,
