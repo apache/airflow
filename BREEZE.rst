@@ -99,18 +99,25 @@ Docker in WSL 2
     :align: left
     :alt: Disk space OSX
 
-- **Performance of WSL 2** :
-    * Accessing the host Windows filesystem comes with a performance penality,
-      it is therefore reccomended to do all development on Linux filesystem.
+- **WSL 2 Filesystem Performane** :
+    Accessing the host Windows filesystem comes with a performance penality,
+    it is therefore reccomended to do all development on Linux filesystem.
+    E.g. Run `cd ~` and create a development folder in your Linux distro home. 
 
-    * WSL 2 can consume a lot of memory under the process name "Vmmem". After
-      shutting down Breeze you may want to do the following:
-       1. On the Linux distro clear cached memory: `sudo sysctl -w vm.drop_caches=3`
-       2. If no longer using Docker you can quit Docker Desktop
-          (right click system try icon and select "Quit Docker Desktop")
-       3. If no longer using WSL you can shut it down on the Windows Host
-          with the following command: `wsl --shutdown`
+- **WSL 2 Memory Usage** : 
+    WSL 2 can consume a lot of memory under the process name "Vmmem". After
+    shutting down Breeze you may want to do the following:
+      * On the Linux distro clear cached memory: `sudo sysctl -w vm.drop_caches=3`
+      * If no longer using Docker you can quit Docker Desktop
+        (right click system try icon and select "Quit Docker Desktop")
+      * If no longer using WSL you can shut it down on the Windows Host
+        with the following command: `wsl --shutdown`
 
+- **Developing in WSL 2** :
+    You can use all the standard command line utilities to develop on WSL 2.
+    Further VS Code supports developing in Windows but remotely executing in WSL.
+    If VS Code is installed on the Windows host system then in the WSL Linux Distro
+    you can run `code .` in the root directory of you Airflow repo.
 
 Docker Images Used by Breeze
 ----------------------------
