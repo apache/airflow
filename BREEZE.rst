@@ -192,7 +192,7 @@ On macOS, 2GB of RAM are available for your Docker containers by default, but mo
 (4GB should be comfortable). For details see
 `Docker for Mac - Advanced tab <https://docs.docker.com/v17.12/docker-for-mac/#advanced-tab>`_.
 
-On Windows using WSL 2 you will need 8 GB to be available for your Linux distro and Breeze.
+On Windows WSL 2 expect the Linux Disto and Docker containers to use 7 - 8 GB of RAM. 
 
 Airflow Directory Structure inside Docker
 -----------------------------------------
