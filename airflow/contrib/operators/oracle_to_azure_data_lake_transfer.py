@@ -24,7 +24,7 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.providers.microsoft.azure.operators.oracle_to_azure_data_lake_transfer import (  # noqa
-    OracleToAzureDataLakeTransfer,
+    OracleToAzureDataLakeTransferOperator,
 )
 
 warnings.warn(

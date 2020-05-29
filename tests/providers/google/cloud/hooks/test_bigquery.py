@@ -891,7 +891,6 @@ class TestTableOperations(_BigQueryBaseTestClass):
         mock_client.return_value.list_tables.assert_called_once_with(
             dataset=dataset_reference,
             max_results=None,
-            page_token=None,
             retry=DEFAULT_RETRY,
         )
         for res, exp in zip(result, table_list):
@@ -1598,6 +1597,7 @@ class TestBigQueryWithKMS(_BigQueryBaseTestClass):
             table_resource=body,
             project_id=PROJECT_ID,
             location=None,
+            exists_ok=True,
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")

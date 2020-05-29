@@ -344,7 +344,7 @@ class GCSToGCSOperator(BaseOperator):
             hook.delete(self.source_bucket, source_object)
 
 
-class GCSSynchronizeBuckets(BaseOperator):
+class GCSSynchronizeBucketsOperator(BaseOperator):
     """
     Synchronizes the contents of the buckets or bucket's directories in the Google Cloud Services.
 

@@ -19,7 +19,7 @@
 import subprocess
 import sys
 from tempfile import NamedTemporaryFile
-from typing import Optional, Union
+from typing import Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -52,6 +52,8 @@ class S3FileTransformOperator(BaseOperator):
     :type transform_script: str
     :param select_expression: S3 Select expression
     :type select_expression: str
+    :param script_args: arguments for transformation script (templated)
+    :type script_args: sequence of str
     :param source_aws_conn_id: source s3 connection
     :type source_aws_conn_id: str
     :param source_verify: Whether or not to verify SSL certificates for S3 connection.
@@ -76,7 +78,7 @@ class S3FileTransformOperator(BaseOperator):
     :type replace: bool
     """
 
-    template_fields = ('source_s3_key', 'dest_s3_key')
+    template_fields = ('source_s3_key', 'dest_s3_key', 'script_args')
     template_ext = ()
     ui_color = '#f9c915'
 
@@ -87,12 +89,14 @@ class S3FileTransformOperator(BaseOperator):
             dest_s3_key: str,
             transform_script: Optional[str] = None,
             select_expression=None,
+            script_args: Optional[Sequence[str]] = None,
             source_aws_conn_id: str = 'aws_default',
             source_verify: Optional[Union[bool, str]] = None,
             dest_aws_conn_id: str = 'aws_default',
             dest_verify: Optional[Union[bool, str]] = None,
             replace: bool = False,
             *args, **kwargs) -> None:
+        # pylint: disable=too-many-arguments
         super().__init__(*args, **kwargs)
         self.source_s3_key = source_s3_key
         self.source_aws_conn_id = source_aws_conn_id
@@ -103,6 +107,7 @@ class S3FileTransformOperator(BaseOperator):
         self.replace = replace
         self.transform_script = transform_script
         self.select_expression = select_expression
+        self.script_args = script_args or []
         self.output_encoding = sys.getdefaultencoding()
 
     def execute(self, context):
@@ -137,7 +142,7 @@ class S3FileTransformOperator(BaseOperator):
 
             if self.transform_script is not None:
                 process = subprocess.Popen(
-                    [self.transform_script, f_source.name, f_dest.name],
+                    [self.transform_script, f_source.name, f_dest.name, *self.script_args],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     close_fds=True

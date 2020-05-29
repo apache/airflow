@@ -22,7 +22,7 @@ from unittest.mock import Mock, patch
 from airflow import models
 from airflow.configuration import load_test_config
 from airflow.models.xcom import MAX_XCOM_SIZE
-from airflow.providers.amazon.aws.operators.google_api_to_s3_transfer import GoogleApiToS3Transfer
+from airflow.providers.amazon.aws.operators.google_api_to_s3_transfer import GoogleApiToS3TransferOperator
 from airflow.utils import db
 
 
@@ -71,7 +71,7 @@ class TestGoogleApiToS3Transfer(unittest.TestCase):
     def test_execute(self, mock_json_dumps, mock_s3_hook_load_string, mock_google_api_hook_query):
         context = {'task_instance': Mock()}
 
-        GoogleApiToS3Transfer(**self.kwargs).execute(context)
+        GoogleApiToS3TransferOperator(**self.kwargs).execute(context)
 
         mock_google_api_hook_query.assert_called_once_with(
             endpoint=self.kwargs['google_api_endpoint_path'],
@@ -100,7 +100,7 @@ class TestGoogleApiToS3Transfer(unittest.TestCase):
         }
         context['task_instance'].xcom_pull.return_value = {}
 
-        GoogleApiToS3Transfer(**self.kwargs, **xcom_kwargs).execute(context)
+        GoogleApiToS3TransferOperator(**self.kwargs, **xcom_kwargs).execute(context)
 
         mock_google_api_hook_query.assert_called_once_with(
             endpoint=self.kwargs['google_api_endpoint_path'],
@@ -145,7 +145,8 @@ class TestGoogleApiToS3Transfer(unittest.TestCase):
         }
         context['task_instance'].xcom_pull.return_value = {}
 
-        self.assertRaises(RuntimeError, GoogleApiToS3Transfer(**self.kwargs, **xcom_kwargs).execute, context)
+        self.assertRaises(RuntimeError,
+                          GoogleApiToS3TransferOperator(**self.kwargs, **xcom_kwargs).execute, context)
 
         mock_google_api_hook_query.assert_called_once_with(
             endpoint=self.kwargs['google_api_endpoint_path'],

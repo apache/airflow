@@ -19,10 +19,25 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.providers.apache.hive.operators.vertica_to_hive import VerticaToHiveTransfer  # noqa
+from airflow.providers.apache.hive.operators.vertica_to_hive import VerticaToHiveTransferOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hive.operators.vertica_to_hive`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class VerticaToHiveTransfer(VerticaToHiveTransferOperator):
+    """
+    This class is deprecated.
+    Please use:
+    `airflow.providers.apache.hive.operators.vertica_to_hive.VerticaToHiveTransferOperator`."""
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.apache.hive.operators.vertica_to_hive.VerticaToHiveTransferOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

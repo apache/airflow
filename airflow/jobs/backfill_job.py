@@ -254,7 +254,8 @@ class BackfillJob(BaseJob):
         executor = self.executor
 
         # TODO: query all instead of refresh from db
-        for key, state in list(executor.get_event_buffer().items()):
+        for key, value in list(executor.get_event_buffer().items()):
+            state, info = value
             if key not in running:
                 self.log.warning(
                     "%s state %s not in running=%s",
@@ -271,7 +272,7 @@ class BackfillJob(BaseJob):
                 if ti.state == State.RUNNING or ti.state == State.QUEUED:
                     msg = ("Executor reports task instance {} finished ({}) "
                            "although the task says its {}. Was the task "
-                           "killed externally?".format(ti, state, ti.state))
+                           "killed externally? Info: {}".format(ti, state, ti.state, info))
                     self.log.error(msg)
                     ti.handle_failure(msg)
 

@@ -1412,7 +1412,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.commit()
 
         executor = MockExecutor(do_update=False)
-        executor.event_buffer[ti1.key] = State.FAILED
+        executor.event_buffer[ti1.key] = State.FAILED, None
 
         scheduler.executor = executor
 
@@ -1431,7 +1431,7 @@ class TestSchedulerJob(unittest.TestCase):
             full_filepath='/test_path1/',
             task_instance=mock.ANY,
             msg='Executor reports task instance finished (failed) '
-                'although the task says its queued. Was the task killed externally?'
+                'although the task says its queued. (Info: None) Was the task killed externally?'
         )
         scheduler.processor_agent.reset_mock()
 
@@ -1439,7 +1439,7 @@ class TestSchedulerJob(unittest.TestCase):
         ti1.state = State.SUCCESS
         session.merge(ti1)
         session.commit()
-        executor.event_buffer[ti1.key] = State.SUCCESS
+        executor.event_buffer[ti1.key] = State.SUCCESS, None
 
         scheduler._process_executor_events(simple_dag_bag=dagbag1)
         ti1.refresh_from_db()
@@ -2483,7 +2483,7 @@ class TestSchedulerJob(unittest.TestCase):
                 len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()), 1)
             self.assertListEqual(
                 [
-                    ((dag.dag_id, 'dummy', DEFAULT_DATE, 1), State.SUCCESS),
+                    ((dag.dag_id, 'dummy', DEFAULT_DATE, 1), (State.SUCCESS, None)),
                 ],
                 bf_exec.sorted_tasks
             )

@@ -21,7 +21,7 @@ from unittest.mock import patch
 from sqlalchemy import or_
 
 from airflow import configuration, models
-from airflow.providers.mysql.operators.s3_to_mysql import S3ToMySqlTransfer
+from airflow.providers.mysql.operators.s3_to_mysql import S3ToMySqlTransferOperator
 from airflow.utils import db
 from airflow.utils.session import create_session
 
@@ -69,7 +69,7 @@ class TestS3ToMySqlTransfer(unittest.TestCase):
     @patch('airflow.providers.mysql.operators.s3_to_mysql.MySqlHook.bulk_load_custom')
     @patch('airflow.providers.mysql.operators.s3_to_mysql.os.remove')
     def test_execute(self, mock_remove, mock_bulk_load_custom, mock_download_file):
-        S3ToMySqlTransfer(**self.s3_to_mysql_transfer_kwargs).execute({})
+        S3ToMySqlTransferOperator(**self.s3_to_mysql_transfer_kwargs).execute({})
 
         mock_download_file.assert_called_once_with(
             key=self.s3_to_mysql_transfer_kwargs['s3_source_key']
@@ -88,7 +88,8 @@ class TestS3ToMySqlTransfer(unittest.TestCase):
     def test_execute_exception(self, mock_remove, mock_bulk_load_custom, mock_download_file):
         mock_bulk_load_custom.side_effect = Exception
 
-        self.assertRaises(Exception, S3ToMySqlTransfer(**self.s3_to_mysql_transfer_kwargs).execute, {})
+        self.assertRaises(Exception, S3ToMySqlTransferOperator(
+            **self.s3_to_mysql_transfer_kwargs).execute, {})
 
         mock_download_file.assert_called_once_with(
             key=self.s3_to_mysql_transfer_kwargs['s3_source_key']

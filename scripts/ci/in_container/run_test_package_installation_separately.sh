@@ -19,17 +19,22 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 OUT_FILE=$(mktemp)
 
+echo
+echo "Testing if all backport packages can be installed separately on Airflow 1.10 and cause no side effects"
+echo
+
 if [[ ! ${INSTALL_AIRFLOW_VERSION:=""} =~ 1.10* ]]; then
     echo
     echo "ERROR! You can only install providers package in 1.10. airflow series."
     echo "You have: ${INSTALL_AIRFLOW_VERSION}"
-    echo
+    echo "Set INSTALL_AIRFLOW_VERSION variable to the version you want to install before running!"
     exit 1
 else
-    pip uninstall -y apache-airflow >>"${OUT_FILE}"  2>&1
+    # and install specified airflow from PyPI
     pip install "apache-airflow==${INSTALL_AIRFLOW_VERSION}" >>"${OUT_FILE}" 2>&1
 fi
 
+# Install all packages separately one-by-one
 for PACKAGE_FILE in /dist/apache_airflow_backport_providers_*.whl
 do
     if [[ ! ${PACKAGE_FILE} =~ /dist/(apache_airflow_backport_providers_[^-]*)-.* ]]; then

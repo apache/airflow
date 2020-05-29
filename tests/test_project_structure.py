@@ -137,7 +137,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         ('cloud', 'mysql_to_gcs'),
         ('cloud', 'mssql_to_gcs'),
         ('cloud', 'local_to_gcs'),
-        ('cloud', 'sheets_to_gcs'),
         ('suite', 'gcs_to_sheets'),
     }
 

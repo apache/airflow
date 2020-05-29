@@ -21,7 +21,7 @@ Example use of Snowflake related operators.
 import os
 
 from airflow import DAG
-from airflow.providers.snowflake.operators.s3_to_snowflake import S3ToSnowflakeTransfer
+from airflow.providers.snowflake.operators.s3_to_snowflake import S3ToSnowflakeTransferOperator
 from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
 from airflow.utils.dates import days_ago
 
@@ -67,7 +67,7 @@ create_table = SnowflakeOperator(
     dag=dag,
 )
 
-copy_into_table = S3ToSnowflakeTransfer(
+copy_into_table = S3ToSnowflakeTransferOperator(
     task_id='copy_into_table',
     snowflake_conn_id=SNOWFLAKE_CONN_ID,
     s3_keys=[SNOWFLAKE_LOAD_JSON_PATH],

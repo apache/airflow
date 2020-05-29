@@ -1490,8 +1490,9 @@ class SchedulerJob(BaseJob):
 
         TI = models.TaskInstance
         # pylint: disable=too-many-nested-blocks
-        for key, state in list(self.executor.get_event_buffer(simple_dag_bag.dag_ids)
+        for key, value in list(self.executor.get_event_buffer(simple_dag_bag.dag_ids)
                                    .items()):
+            state, info = value
             dag_id, task_id, execution_date, try_number = key
             self.log.info(
                 "Executor reports execution of %s.%s execution_date=%s "
@@ -1512,15 +1513,15 @@ class SchedulerJob(BaseJob):
                     Stats.incr('scheduler.tasks.killed_externally')
                     self.log.error(
                         "Executor reports task instance %s finished (%s) although the task says its %s. "
-                        "Was the task killed externally?",
-                        ti, state, ti.state
+                        "(Info: %s) Was the task killed externally?",
+                        ti, state, ti.state, info
                     )
                     simple_dag = simple_dag_bag.get_dag(dag_id)
                     self.processor_agent.send_callback_to_execute(
                         full_filepath=simple_dag.full_filepath,
                         task_instance=ti,
                         msg="Executor reports task instance finished ({}) although the task says its {}. "
-                            "Was the task killed externally?".format(state, ti.state)
+                            "(Info: {}) Was the task killed externally?".format(state, ti.state, info)
                     )
 
     def _execute(self):
@@ -1615,9 +1616,6 @@ class SchedulerJob(BaseJob):
 
         :rtype: None
         """
-        # Last time that self.heartbeat() was called.
-        last_self_heartbeat_time = timezone.utcnow()
-
         is_unit_test = conf.getboolean('core', 'unit_test_mode')
 
         # For the execute duration, parse and schedule DAGs
@@ -1642,12 +1640,7 @@ class SchedulerJob(BaseJob):
                 continue
 
             # Heartbeat the scheduler periodically
-            time_since_last_heartbeat = (timezone.utcnow() -
-                                         last_self_heartbeat_time).total_seconds()
-            if time_since_last_heartbeat > self.heartrate:
-                self.log.debug("Heartbeating the scheduler")
-                self.heartbeat()
-                last_self_heartbeat_time = timezone.utcnow()
+            self.heartbeat(only_if_necessary=True)
 
             self._emit_pool_metrics()
 

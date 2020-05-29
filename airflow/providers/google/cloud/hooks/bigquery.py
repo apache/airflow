@@ -233,6 +233,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         retry: Optional[Retry] = DEFAULT_RETRY,
         num_retries: Optional[int] = None,
         location: Optional[str] = None,
+        exists_ok: bool = True
     ) -> Table:
         """
         Creates a new, empty table in the dataset.
@@ -293,6 +294,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type encryption_configuration: dict
         :param num_retries: Maximum number of retries in case of connection problems.
         :type num_retries: int
+        :param exists_ok: If ``True``, ignore "already exists" errors when creating the table.
+        :type exists_ok: bool
         :return: Created table
         """
         if num_retries:
@@ -333,16 +336,19 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         table = Table.from_api_repr(table_resource)
         return self.get_client(project_id=project_id, location=location).create_table(
             table=table,
-            exists_ok=True,
+            exists_ok=exists_ok,
             retry=retry
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_empty_dataset(self,
-                             dataset_id: Optional[str] = None,
-                             project_id: Optional[str] = None,
-                             location: Optional[str] = None,
-                             dataset_reference: Optional[Dict[str, Any]] = None) -> None:
+    def create_empty_dataset(
+        self,
+        dataset_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        location: Optional[str] = None,
+        dataset_reference: Optional[Dict[str, Any]] = None,
+        exists_ok: bool = True,
+    ) -> None:
         """
         Create a new empty dataset:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert
@@ -358,6 +364,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param dataset_reference: Dataset reference that could be provided with request body. More info:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
         :type dataset_reference: dict
+        :param exists_ok: If ``True``, ignore "already exists" errors when creating the DATASET.
+        :type exists_ok: bool
         """
 
         dataset_reference = dataset_reference or {"datasetReference": {}}
@@ -388,8 +396,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if location:
             dataset_reference["location"] = dataset_reference.get("location", location)
 
-        dataset = Dataset.from_api_repr(dataset_reference)
-        self.get_client(location=location).create_dataset(dataset=dataset, exists_ok=True)
+        dataset: Dataset = Dataset.from_api_repr(dataset_reference)
+        self.log.info('Creating dataset: %s in project: %s ', dataset.dataset_id, dataset.project)
+        self.get_client(location=location).create_dataset(dataset=dataset, exists_ok=exists_ok)
+        self.log.info('Dataset created successfully.')
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_dataset_tables(
@@ -397,7 +407,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         dataset_id: str,
         project_id: Optional[str] = None,
         max_results: Optional[int] = None,
-        page_token: Optional[str] = None,
         retry: Retry = DEFAULT_RETRY,
     ) -> List[Dict[str, Any]]:
         """
@@ -413,19 +422,17 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type project_id: str
         :param max_results: (Optional) the maximum number of tables to return.
         :type max_results: int
-        :param page_token: (Optional) page token, returned from a previous call,
-            identifying the result set.
-        :type page_token: str
         :param retry: How to retry the RPC.
         :type retry: google.api_core.retry.Retry
         :return: List of tables associated with the dataset.
         """
+        self.log.info('Start getting tables list from dataset: %s.%s', project_id, dataset_id)
         tables = self.get_client().list_tables(
             dataset=DatasetReference(project=project_id, dataset_id=dataset_id),
             max_results=max_results,
-            page_token=page_token,
             retry=retry,
         )
+        # Convert to a list (consumes all values)
         return [t.reference.to_api_repr() for t in tables]
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -480,7 +487,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                               project_id: Optional[str] = None,
                               ) -> None:
         """
-        Creates a new external table in the dataset with the data in Google
+        Creates a new external table in the dataset with the data from Google
         Cloud Storage. See here:
 
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource
@@ -619,7 +626,12 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table.encryption_configuration = EncryptionConfiguration.from_api_repr(encryption_configuration)
 
         self.log.info('Creating external table: %s', external_project_dataset_table)
-        self.create_empty_table(table_resource=table.to_api_repr(), project_id=project_id, location=location)
+        self.create_empty_table(
+            table_resource=table.to_api_repr(),
+            project_id=project_id,
+            location=location,
+            exists_ok=True
+        )
         self.log.info('External table created successfully: %s', external_project_dataset_table)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -894,6 +906,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             if value and not spec_value:
                 dataset_resource["datasetReference"][key] = value
 
+        self.log.info('Start updating dataset')
         dataset = self.get_client(project_id=project_id).update_dataset(
             dataset=Dataset.from_api_repr(dataset_resource),
             fields=fields,
@@ -937,6 +950,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         service = self.get_service()
         dataset_project_id = project_id or self.project_id
 
+        self.log.info('Start patching dataset: %s:%s', dataset_project_id, dataset_id)
         dataset = (
             service.datasets()  # pylint: disable=no-member
             .patch(

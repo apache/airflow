@@ -19,7 +19,7 @@
 import unittest
 from unittest import mock
 
-from airflow.providers.snowflake.operators.s3_to_snowflake import S3ToSnowflakeTransfer
+from airflow.providers.snowflake.operators.s3_to_snowflake import S3ToSnowflakeTransferOperator
 from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 
@@ -32,7 +32,7 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
         file_format = 'file_format'
         schema = 'schema'
 
-        S3ToSnowflakeTransfer(
+        S3ToSnowflakeTransferOperator(
             s3_keys=s3_keys,
             table=table,
             stage=stage,
@@ -76,7 +76,7 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
         schema = 'schema'
         columns_array = ['col1', 'col2', 'col3']
 
-        S3ToSnowflakeTransfer(
+        S3ToSnowflakeTransferOperator(
             s3_keys=s3_keys,
             table=table,
             stage=stage,
