@@ -389,6 +389,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         self.email = email
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
+
         # mypy doesn't yet understand differing getter and setter types
         self.task_tags = task_tags  # type: ignore
 
