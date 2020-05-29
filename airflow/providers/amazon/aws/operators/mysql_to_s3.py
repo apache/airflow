@@ -64,7 +64,7 @@ class MySQLToS3Operator(BaseOperator):
     :type header: bool
     """
 
-    template_fields = ('s3_key', 'query', 'pd_csv_kwargs',)
+    template_fields = ('s3_key', 'query',)
     template_ext = ('.sql',)
 
     @apply_defaults
@@ -76,7 +76,7 @@ class MySQLToS3Operator(BaseOperator):
             mysql_conn_id: str = 'mysql_default',
             aws_conn_id: str = 'aws_default',
             verify: Optional[Union[bool, str]] = None,
-            pd_csv_kwargs: dict = {},
+            pd_csv_kwargs: dict = None,
             index: Optional[bool] = False,
             header: Optional[bool] = False,
             *args, **kwargs) -> None:
@@ -89,6 +89,8 @@ class MySQLToS3Operator(BaseOperator):
         self.verify = verify
         self.pd_csv_kwargs = pd_csv_kwargs
 
+        if not self.pd_csv_kwargs:
+            self.pd_csv_kwargs = {}
         if "index" not in self.pd_csv_kwargs:
             self.pd_csv_kwargs["index"] = index
         if "header" not in self.pd_csv_kwargs:

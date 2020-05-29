@@ -21,14 +21,14 @@ from unittest import mock
 
 import pandas as pd
 
-from airflow.operators.mysql_to_s3_operator import MySQLToS3Operator
+from airflow.providers.amazon.aws.operators.mysql_to_s3 import MySQLToS3Operator
 
 
 class TestMySqlToS3Operator(unittest.TestCase):
 
-    @mock.patch("airflow.operators.mysql_to_s3_operator.tempfile.NamedTemporaryFile")
-    @mock.patch("airflow.operators.mysql_to_s3_operator.S3Hook")
-    @mock.patch("airflow.operators.mysql_to_s3_operator.MySqlHook")
+    @mock.patch("airflow.providers.amazon.aws.operators.mysql_to_s3.tempfile.NamedTemporaryFile")
+    @mock.patch("airflow.providers.amazon.aws.operators.mysql_to_s3.S3Hook")
+    @mock.patch("airflow.providers.amazon.aws.operators.mysql_to_s3.MySqlHook")
     def test_execute(self, mock_mysql_hook, mock_s3_hook, temp_mock):
         query = "query"
         s3_bucket = "bucket"
