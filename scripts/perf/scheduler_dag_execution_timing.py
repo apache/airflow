@@ -183,7 +183,7 @@ def create_dag_runs(dag, num_runs, session):
 @click.option('--executor-class', default='MockExecutor',
               help=textwrap.dedent('''
           Dotted path Executor class to test, for example
-          'ariflow.executors.local_executor.LocalExecutor'. Defaults to MockExcutor which doesn't run tasks.
+          'airflow.executors.local_executor.LocalExecutor'. Defaults to MockExcutor which doesn't run tasks.
       '''))
 @click.argument('dag_ids', required=True, nargs=-1)
 def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):  # pylint: disable=too-many-locals
