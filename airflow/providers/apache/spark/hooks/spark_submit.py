@@ -620,7 +620,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                         pretty=True).status.phase
                     if phaseStatus == 'Succeeded':
                         self._spark_exit_code = 0
-                    else
+                    else:
                         self._spark_exit_code = phaseStatus
 
                 except kube_client.ApiException as e:
