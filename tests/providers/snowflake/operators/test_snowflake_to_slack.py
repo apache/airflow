@@ -44,8 +44,8 @@ def mock_slack_hook_class(monkeypatch):
     return mocked_hook
 
 
-@pytest.fixture
-def mock_example_dag():
+@pytest.fixture(name='example_dag')
+def fixture_example_dag():
     dag = DAG('unit_test_dag', start_date=DEFAULT_DATE)
     return dag
 
@@ -56,7 +56,7 @@ class TestSnowflakeToSlackOperator:
         operator = SnowflakeToSlackOperator(task_id=TEST_DAG_ID, **kwargs)
         return operator
 
-    def test_hooks_and_rendering(self, mock_example_dag, mock_snowflake_hook_class,
+    def test_hooks_and_rendering(self, example_dag, mock_snowflake_hook_class,
                                  mock_slack_hook_class):
         operator_args = {
             'snowflake_conn_id': 'snowflake_connection',
@@ -70,7 +70,7 @@ class TestSnowflakeToSlackOperator:
             'parameters': ['1', '2', '3'],
             'slack_message': 'message: {{ ds }}, {{ xxxx }}',
             'slack_token': 'test_token',
-            'dag': mock_example_dag
+            'dag': example_dag
         }
         snowflake_to_slack_operator = self._construct_operator(**operator_args)
 
