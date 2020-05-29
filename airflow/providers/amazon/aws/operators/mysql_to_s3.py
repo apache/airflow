@@ -50,15 +50,14 @@ class MySQLToS3Operator(BaseOperator):
         You can provide the following values:
 
         - ``False``: do not validate SSL certificates. SSL will still be used
-                 (unless use_ssl is False), but SSL certificates will not be
-                 verified.
+        (unless use_ssl is False), but SSL certificates will not be verified.
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
-                 You can specify this argument if you want to use a different
-                 CA cert bundle than the one used by botocore.
+        You can specify this argument if you want to use a different
+        CA cert bundle than the one used by botocore.
     :type verify: bool or str
     :param pd_csv_kwargs: arguments to include in pd.to_csv (header, index, columns...)
     :type pd_csv_kwargs: dict
-    :param index: wheter to have the index or not in the dataframe
+    :param index: whether to have the index or not in the dataframe
     :type index: str
     :param header: whether to include header or not into the S3 file
     :type header: bool
@@ -76,7 +75,7 @@ class MySQLToS3Operator(BaseOperator):
             mysql_conn_id: str = 'mysql_default',
             aws_conn_id: str = 'aws_default',
             verify: Optional[Union[bool, str]] = None,
-            pd_csv_kwargs: dict = None,
+            pd_csv_kwargs: Optional[dict] = None,
             index: Optional[bool] = False,
             header: Optional[bool] = False,
             *args, **kwargs) -> None:
