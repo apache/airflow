@@ -238,7 +238,6 @@ class TestCliDags(unittest.TestCase):
             verbose=False,
         )
 
-    @pytest.mark.quarantined
     def test_next_execution(self):
         dag_ids = ['example_bash_operator',  # schedule_interval is '0 0 * * *'
                    'latest_only',  # schedule_interval is timedelta(hours=4)
