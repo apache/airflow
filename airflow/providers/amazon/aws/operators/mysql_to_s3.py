@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Transfer data from MySQL into a S3 bucket.
-"""
+
 import os
 import tempfile
 from typing import Optional, Union
@@ -33,6 +31,8 @@ from airflow.utils.decorators import apply_defaults
 
 class MySQLToS3Operator(BaseOperator):
     """
+    Transfer data from MySQL into a S3 bucket.
+
     Saves data from an specific MySQL query into a file in S3.
     :param query: the sql query to be executed. If you want to execute a file, place the absolute path of it,
     ending with .sql extension.
@@ -54,6 +54,7 @@ class MySQLToS3Operator(BaseOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
         You can specify this argument if you want to use a different
         CA cert bundle than the one used by botocore.
+
     :type verify: bool or str
     :param pd_csv_kwargs: arguments to include in pd.to_csv (header, index, columns...)
     :type pd_csv_kwargs: dict
@@ -75,7 +76,7 @@ class MySQLToS3Operator(BaseOperator):
             mysql_conn_id: str = 'mysql_default',
             aws_conn_id: str = 'aws_default',
             verify: Optional[Union[bool, str]] = None,
-            pd_csv_kwargs: Optional[dict] = None,
+            pd_csv_kwargs: dict = None,
             index: Optional[bool] = False,
             header: Optional[bool] = False,
             *args, **kwargs) -> None:
