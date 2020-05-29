@@ -165,7 +165,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
             task_id="slack_file_upload",
             dag=dag,
             slack_conn_id="slack",
-            channel="general",
+            channel="#general",
             initial_comment="Hello World!",
             filename="hello_world.csv",
             filetype="csv",
