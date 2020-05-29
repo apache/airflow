@@ -37,8 +37,8 @@ class LocalFilesystemToGCSOperatorExampleDagsTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_GCS_KEY)
     def tearDown(self):
-        os.remove(PATH_TO_UPLOAD_FILE)
         self.delete_gcs_bucket(BUCKET_NAME)
+        os.remove(PATH_TO_UPLOAD_FILE)
         super().tearDown()
 
     @provide_gcp_context(GCP_GCS_KEY)
