@@ -31,9 +31,10 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
-from airflow.settings import Session
 from airflow.utils import timezone
+from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 
 dag_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])
@@ -244,11 +245,10 @@ class TestCliDags(unittest.TestCase):
                    'example_python_operator',  # schedule_interval=None
                    'example_xcom']  # schedule_interval="@once"
 
-        session = Session()
-        dr = session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids))
-        dr.delete(synchronize_session=False)
-        session.commit()
-        session.close()
+        # Delete DagRuns
+        with create_session() as session:
+            dr = session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids))
+            dr.delete(synchronize_session=False)
 
         args = self.parser.parse_args(['dags',
                                        'next_execution',
@@ -283,7 +283,7 @@ class TestCliDags(unittest.TestCase):
             dag = self.dagbag.dags[dag_id]
             # Create a DagRun for each DAG, to prepare for next step
             dag.create_dagrun(
-                run_id='manual__' + now.isoformat(),
+                run_id=DagRunType.MANUAL.value,
                 execution_date=now,
                 start_date=now,
                 state=State.FAILED
@@ -293,6 +293,11 @@ class TestCliDags(unittest.TestCase):
                 dag_command.dag_next_execution(args)
                 out = temp_stdout.getvalue()
             self.assertIn(expected_output[i], out)
+
+        # Clean up before leaving
+        with create_session() as session:
+            dr = session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids))
+            dr.delete(synchronize_session=False)
 
     @conf_vars({
         ('core', 'load_examples'): 'true'
