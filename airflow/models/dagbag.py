@@ -26,7 +26,6 @@ import zipfile
 from datetime import datetime, timedelta
 from typing import List, NamedTuple
 
-from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
 from tabulate import tabulate
 
 from airflow import settings
@@ -37,6 +36,7 @@ from airflow.plugins_manager import integrate_dag_plugins
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import test_cycle
+from airflow.utils.dates import Cron, CronError
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timeout import timeout
@@ -287,15 +287,11 @@ class DagBag(BaseDagBag, LoggingMixin):
                     try:
                         dag.is_subdag = False
                         self.bag_dag(dag, parent_dag=dag, root_dag=dag)
-                        if isinstance(dag.normalized_schedule_interval, str):
-                            croniter(dag.normalized_schedule_interval)
-                        elif isinstance(dag.normalized_schedule_interval, list):
-                            [croniter(interval) for interval in dag.normalized_schedule_interval]
+                        if isinstance(dag.normalized_schedule_interval, (str, list)):
+                            Cron(dag.normalized_schedule_interval)
                         found_dags.append(dag)
                         found_dags += dag.subdags
-                    except (CroniterBadCronError,
-                            CroniterBadDateError,
-                            CroniterNotAlphaError) as cron_e:
+                    except CronError as cron_e:
                         self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
                         self.import_errors[dag.full_filepath] = \
                             "Invalid Cron expression: " + str(cron_e)

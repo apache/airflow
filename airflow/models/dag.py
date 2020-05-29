@@ -31,7 +31,6 @@ from typing import Callable, Collection, Dict, FrozenSet, Iterable, List, Option
 
 import jinja2
 import pendulum
-from croniter import croniter
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, func, or_
 from sqlalchemy.orm import backref, joinedload, relationship
@@ -49,7 +48,7 @@ from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.utils import timezone
-from airflow.utils.dates import Cron, cron_presets, date_range as utils_date_range
+from airflow.utils.dates import Cron, date_range as utils_date_range
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -376,33 +375,6 @@ class DAG(BaseDag, LoggingMixin):
             start_date=start_date, end_date=end_date,
             num=num, delta=self.normalized_schedule_interval)
 
-    def is_fixed_time_schedule(self):
-        """
-        Figures out if the DAG schedule has a fixed time (e.g. 3 AM).
-
-        :return: True if the schedule has a fixed time, False if not.
-        """
-        now = datetime.now()
-
-        schedule_intervals = self.normalized_schedule_interval
-
-        if isinstance(schedule_intervals, str):
-            schedule_intervals = [schedule_intervals]
-
-        if isinstance(schedule_intervals, list):
-            crons = [croniter(interval, now) for interval in schedule_intervals]
-
-            starts = [cron.get_next(datetime) for cron in crons]
-            cron_nexts = [cron.get_next(datetime) for cron in crons]
-
-            minutes = [dttm.minute for dttm in starts + cron_nexts]
-            hours = [dttm.hour for dttm in starts + cron_nexts]
-
-            if len(set(minutes)) == 1 and len(set(hours)) == 1:
-                return True
-
-        return False
-
     def following_schedule(self, dttm):
         """
         Calculates the following schedule for this dag in UTC.
@@ -417,7 +389,7 @@ class DAG(BaseDag, LoggingMixin):
             naive = timezone.make_naive(dttm, self.timezone)
             cron = Cron(self.normalized_schedule_interval, naive)
             # We assume that DST transitions happen on the minute/hour
-            if not self.is_fixed_time_schedule():
+            if not cron.is_fixed_time_schedule():
                 # relative offset (eg. every 5 minutes)
                 delta = cron.get_next() - naive
                 following = dttm.in_timezone(self.timezone).add_timedelta(delta)
@@ -445,7 +417,7 @@ class DAG(BaseDag, LoggingMixin):
             cron = Cron(self.normalized_schedule_interval, naive)
 
             # We assume that DST transitions happen on the minute/hour
-            if not self.is_fixed_time_schedule():
+            if not cron.is_fixed_time_schedule():
                 # relative offset (eg. every 5 minutes)
                 delta = naive - cron.get_prev()
                 previous = dttm.in_timezone(self.timezone).subtract_timedelta(delta)
@@ -653,16 +625,10 @@ class DAG(BaseDag, LoggingMixin):
         Returns Normalized Schedule Interval. This is used internally by the Scheduler to
         schedule DAGs.
 
-        1. Converts Cron Preset to a Cron Expression (e.g ``@monthly`` to ``0 0 1 * *``)
-        2. If Schedule Interval is "@once" return "None"
-        3. If not (1) or (2) returns schedule_interval
+        1. If Schedule Interval is "@once" return "None"
+        2. If not (1) or (2) returns schedule_interval
         """
-        if isinstance(self.schedule_interval, str) and self.schedule_interval in cron_presets:
-            _schedule_interval = cron_presets.get(self.schedule_interval)  # type: Optional[ScheduleInterval]
-        elif isinstance(self.schedule_interval, list):
-            _schedule_interval = [cron_presets.get(schedule_interval, schedule_interval)
-                                  for schedule_interval in self.schedule_interval]
-        elif self.schedule_interval == '@once':
+        if self.schedule_interval == '@once':
             _schedule_interval = None
         else:
             _schedule_interval = self.schedule_interval

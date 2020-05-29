@@ -20,6 +20,7 @@ import unittest
 from datetime import datetime, timedelta
 
 import pendulum
+from parameterized import parameterized
 
 from airflow.utils import dates, timezone
 
@@ -118,6 +119,28 @@ class TestUtilsDatesDateRange(unittest.TestCase):
 
 class TestUtilsDatesCron(unittest.TestCase):
 
+    @parameterized.expand([
+        ("@daily", ["0 0 * * *"]),
+        ("@weekly", ["0 0 * * 0"]),
+        ("@monthly", ["0 0 1 * *"]),
+        ("@quarterly", ["0 0 1 */3 *"]),
+        ("@yearly", ["0 0 1 1 *"]),
+        (["@yearly", "1 * * * *"], ["0 0 1 1 *", "1 * * * *"]),
+    ])
+    def test_normalized_expressions(self, cron_exprs, expected_n_cron_exprs):
+        cron = dates.Cron(cron_exprs)
+
+        self.assertEqual(cron.normalized_exprs, expected_n_cron_exprs)
+
+    @parameterized.expand([
+        (None, ),
+        ("@invalid", ),
+        ("0 0 1 * * * * *", ),
+    ])
+    def test_invalid_expressions(self, cron_exprs):
+        with self.assertRaises(dates.CronError):
+            dates.Cron(cron_exprs)
+
     def test_next(self):
         cron = dates.Cron(["0 * * * *", "10 * * * *"], datetime(2016, 1, 1))
 
@@ -163,3 +186,21 @@ class TestUtilsDatesCron(unittest.TestCase):
         self.assertEqual(cron.get_current(), datetime(2016, 1, 1, 0))
         self.assertEqual(cron.get_next(), datetime(2016, 1, 1, 1))
         self.assertEqual(cron.get_next(), datetime(2016, 1, 1, 2))
+
+    @parameterized.expand([
+        ("@daily", ),
+        ("@weekly", ),
+        ("0 0 1 * *", ),
+        (["0 0 1 * *", "0 0 2 * *"], ),
+    ])
+    def test_is_fixed_interval(self, cron_exprs):
+        self.assertTrue(dates.Cron(cron_exprs).is_fixed_time_schedule())
+
+    @parameterized.expand([
+        ("*/5 * * * *", ),
+        (["*/5 0 1 * *", "0 0 1 * *"], ),
+        (["0 0 1 * *", "1 0 1 * *"], ),
+        (["0 0 1 * *", "0 1 1 * *"], ),
+    ])
+    def test_is_not_fixed_interval(self, cron_exprs):
+        self.assertFalse(dates.Cron(cron_exprs).is_fixed_time_schedule())

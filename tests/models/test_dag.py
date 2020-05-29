@@ -1358,12 +1358,6 @@ class TestDag(unittest.TestCase):
 
     @parameterized.expand([
         (None, None),
-        ("@daily", "0 0 * * *"),
-        ("@weekly", "0 0 * * 0"),
-        ("@monthly", "0 0 1 * *"),
-        ("@quarterly", "0 0 1 */3 *"),
-        ("@yearly", "0 0 1 1 *"),
-        (["@yearly", "1 * * * *"], ["0 0 1 1 *", "1 * * * *"]),
         ("@once", None),
         (datetime.timedelta(days=1), datetime.timedelta(days=1)),
     ])

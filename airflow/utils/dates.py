@@ -19,7 +19,7 @@
 from datetime import datetime, timedelta
 from typing import List, Optional, Union
 
-from croniter import croniter
+from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
 from dateutil.relativedelta import relativedelta  # noqa: F401 for doctest  # pylint: disable=unused-import
 
 from airflow.utils import timezone
@@ -255,6 +255,12 @@ def parse_execution_date(execution_date_str):
     return timezone.parse(execution_date_str)
 
 
+class CronError(Exception):
+    """
+    Invalid Cron exception.
+    """
+
+
 class Cron():
     """
     Represents a cron schedule resulting from a cron expression or the result of merging
@@ -263,7 +269,8 @@ class Cron():
     """
     def __init__(self, exprs: Union[str, list], start_time: Optional[datetime] = None):
         """
-        Initializes a Cron class.
+        Initializes a Cron class, creating a list of croniters representing cron expressions and
+        converting cron presets to cron expressions (e.g ``@monthly`` to ``0 0 1 * *``).
 
         :param exprs: One or many cron expressions, for example, '*/5 * * * *' or
             ['*/5 * * * *', '0 3 * * mon,tue'].
@@ -272,8 +279,15 @@ class Cron():
             in the cron schedule which is larger/smaller than this value.
         :type start_time: datetime
         """
+        if exprs is None:
+            raise CronError("Invalid Cron expression: None")
         exprs = exprs if isinstance(exprs, list) else [exprs]
-        self._croniters: List[croniter] = [croniter(expr, start_time, datetime) for expr in exprs]
+        self.normalized_exprs = [cron_presets.get(expr, expr) for expr in exprs]
+        try:
+            self._croniters: List[croniter] = [croniter(expr, start_time, datetime)
+                                               for expr in self.normalized_exprs]
+        except (CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError) as exc:
+            raise CronError("Invalid Cron expression: " + str(exc))
         self.start_time: Optional[datetime] = start_time
         # _is_forward define if iteration is forward (get_next) or backwards (get_prev)
         self._is_forward: Optional[bool] = None
@@ -283,7 +297,9 @@ class Cron():
 
     def get_current(self):
         """
-        Returns the current datetime, or `start_date` if `get_next` / `get_prev`
+        Returns the current datetime.
+
+        :return: the current datetime, or `start_date` if `get_next` / `get_prev`
         have not been called.
         """
         if self._cur is None:
@@ -292,15 +308,36 @@ class Cron():
 
     def get_next(self):
         """
-        Returns the next datetime on the cron schedule.
+        Moves te cursor to the next datetime on the cron schedule and returns its value.
+
+        :return: the new datetime.
         """
         return self._get_value(True)
 
     def get_prev(self):
         """
-        Returns the previous datetime on the cron schedule.
+        Moves te cursor to the previous datetime on the cron schedule and returns its value.
+
+        :return: the new datetime.
         """
         return self._get_value(False)
+
+    def is_fixed_time_schedule(self):
+        """
+        Figures out if the schedule has a fixed time (e.g. 3 AM).
+
+        :return: True if the schedule has a fixed time, False if not.
+        """
+        # create a copy to not change this object's state, allowing get_next / get_prev to be used later
+        croniters = [croniter(expr, self.start_time, datetime) for expr in self.normalized_exprs]
+
+        starts = [cron.get_next(datetime) for cron in croniters]
+        cron_nexts = [cron.get_next(datetime) for cron in croniters]
+
+        minutes = [dttm.minute for dttm in starts + cron_nexts]
+        hours = [dttm.hour for dttm in starts + cron_nexts]
+
+        return len(set(minutes)) == 1 and len(set(hours)) == 1
 
     def _get_value(self, is_forward):
         if self._is_forward != is_forward:
@@ -334,8 +371,10 @@ class Cron():
 
     def _new_cur(self):
         """
-        Returns the croniter with the smallest value if the schedule is going forward,
-        or the largest value if it is going backwards.
+        Finds the current croniter.
+
+        :return: the croniter with the smallest value if the schedule is going forward,
+        or the croniter with the largest value if it is going backwards.
         """
         values = [cron.cur for cron in self._croniters]
         if self._is_forward is None or self._is_forward:

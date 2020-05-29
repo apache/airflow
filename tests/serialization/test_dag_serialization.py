@@ -426,7 +426,7 @@ class TestStringifiedDAGs(unittest.TestCase):
 
     @parameterized.expand([
         (None, None, None),
-        ("@weekly", "@weekly", "0 0 * * 0"),
+        ("@weekly", "@weekly", "@weekly"),
         ("@once", "@once", None),
         ({"__type": "timedelta", "__var": 86400.0}, timedelta(days=1), timedelta(days=1)),
     ])
