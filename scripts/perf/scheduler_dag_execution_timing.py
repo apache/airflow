@@ -20,6 +20,7 @@ import gc
 import os
 import statistics
 import sys
+import textwrap
 import time
 from argparse import Namespace
 from operator import attrgetter
@@ -90,21 +91,25 @@ class ShortCircuitExecutorMixin:
                          sum(map(attrgetter('waiting_for'), self.dags_to_watch.values())))
 
 
-def get_executor_under_test():
+def get_executor_under_test(dotted_path):
     '''
     Create and return a MockExecutor
     '''
 
-    try:
-        # Run against master and 1.10.x releases
-        from tests.test_utils.mock_executor import MockExecutor
-    except ImportError:
-        from tests.executors.test_executor import TestExecutor as MockExecutor
+    from airflow.executors.executor_loader import ExecutorLoader
 
-    # from airflow.executors.local_executor import LocalExecutor
+    if dotted_path == "MockExecutor":
+        try:
+            # Run against master and 1.10.x releases
+            from tests.test_utils.mock_executor import MockExecutor as Executor
+        except ImportError:
+            from tests.executors.test_executor import TestExecutor as Executor
+
+    else:
+        Executor = ExecutorLoader.load_executor(dotted_path)
 
     # Change this to try other executors
-    class ShortCircuitExecutor(ShortCircuitExecutorMixin, MockExecutor):
+    class ShortCircuitExecutor(ShortCircuitExecutorMixin, Executor):
         '''
         Placeholder class that implements the inheritance hierarchy
         '''
@@ -175,8 +180,13 @@ def create_dag_runs(dag, num_runs, session):
 
         Warning: this makes the scheduler do (slightly) less work so may skew your numbers. Use sparingly!
         ''')
+@click.option('--executor-class', default='MockExecutor',
+              help=textwrap.dedent('''
+          Dotted path Executor class to test, for example
+          'ariflow.executors.local_executor.LocalExecutor'. Defaults to MockExcutor which doesn't run tasks.
+      '''))
 @click.argument('dag_ids', required=True, nargs=-1)
-def main(num_runs, repeat, pre_create_dag_runs, dag_ids):  # pylint: disable=too-many-locals
+def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):  # pylint: disable=too-many-locals
     """
     This script can be used to measure the total "scheduler overhead" of Airflow.
 
@@ -245,7 +255,7 @@ def main(num_runs, repeat, pre_create_dag_runs, dag_ids):  # pylint: disable=too
             if pre_create_dag_runs:
                 create_dag_runs(dag, num_runs, session)
 
-    ShortCircutExecutor = get_executor_under_test()
+    ShortCircutExecutor = get_executor_under_test(executor_class)
 
     executor = ShortCircutExecutor(dag_ids_to_watch=dag_ids, num_runs=num_runs)
     scheduler_job = SchedulerJob(dag_ids=dag_ids, do_pickle=False, executor=executor)
