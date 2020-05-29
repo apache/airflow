@@ -17,7 +17,7 @@
 
 import os
 from contextlib import contextmanager
-from typing import List, Optional
+from typing import List
 
 import pytest
 
@@ -86,7 +86,7 @@ class AmazonSystemTest(SystemTest):
 
     @staticmethod
     def create_connection(aws_conn_id: str,
-                          region: str = "eu-west-1") -> None:
+                          region: str) -> None:
         """
         Create aws connection with region
 
