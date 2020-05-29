@@ -93,6 +93,16 @@ LDAP
 To turn on LDAP authentication configure your ``airflow.cfg`` as follows. Please note that the example uses
 an encrypted connection to the ldap server as we do not want passwords be readable on the network level.
 
+If you are using LDAPS with self-signed certificate you'll need to change the `cert_validation` configuration
+for `CERT_OPTIONAL`. By default the certificate is checked and validated. The three values possibles for the
+configuration of the validation are:
+
+  * `CERT_NONE`: certificate ignored
+  * `CERT_OPTIONAL`: certificate not required, but validated if provided
+  * `CERT_REQUIRED` by default: certificate required and validated
+
+Check the `TLS documentation of the ldap3 library <https://ldap3.readthedocs.io/en/latest/ssltls.html>` for more information.
+
 Additionally, if you are using Active Directory, and are not explicitly specifying an OU that your users are in,
 you will need to change ``search_scope`` to "SUBTREE".
 

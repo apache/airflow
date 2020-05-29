@@ -1519,6 +1519,12 @@
       type: string
       example: ~
       default: "False"
+    - name: cert_validation
+      description: one of CERT_NONE or CERT_OPTIONAL or CERT_REQUIRED
+      version_added: 1.10.11
+      type: string
+      example: ~
+      default: "CERT_REQUIRED"
 - name: mesos
   description: ~
   options:

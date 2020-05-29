@@ -65,10 +65,22 @@ def get_ldap_connection(dn=None, password=None):
     except AirflowConfigException:
         pass
 
+    try:
+        as_ssl_validation_option = {
+            'CERT_NONE': ssl.CERT_NONE,
+            'CERT_OPTIONAL': ssl.CERT_OPTIONAL,
+            'CERT_REQUIRED': ssl.CERT_REQUIRED
+        }
+        cert_validation_cfg = conf.get("ldap", "cert_validation")
+        cert_validation = as_ssl_validation_option[cert_validation_cfg]
+    except KeyError:
+        log.error("No matching certificate validation: %s ", cert_validation_cfg)
+        raise AirflowConfigException("Certificate validation must be one of CERT_NONE, CERT_OPTIONAL or CERT_REQUIRED")
+
     if ignore_malformed_schema:
         set_config_parameter('IGNORE_MALFORMED_SCHEMA', ignore_malformed_schema)
 
-    tls_configuration = Tls(validate=ssl.CERT_REQUIRED,
+    tls_configuration = Tls(validate=cert_validation,
                             ca_certs_file=cacert)
 
     server = Server(conf.get("ldap", "uri"),
