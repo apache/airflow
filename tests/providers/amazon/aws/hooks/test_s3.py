@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 import gzip as gz
 import os
 import tempfile
@@ -25,7 +24,7 @@ from unittest.mock import Mock
 import boto3
 import mock
 import pytest
-from botocore.exceptions import NoCredentialsError
+from botocore.exceptions import ClientError, NoCredentialsError
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -312,6 +311,24 @@ class TestAwsS3Hook:
                                                          RequestPayer='requester')  # pylint: disable=no-member # noqa: E501 # pylint: disable=C0301
             assert ((response['Grants'][0]['Permission'] == 'FULL_CONTROL') and
                     (len(response['Grants']) == 1))
+
+    @mock_s3
+    def test_delete_bucket_if_bucket_exist(self, s3_bucket):
+        # assert if the bucket is created
+        mock_hook = S3Hook()
+        mock_hook.create_bucket(bucket_name=s3_bucket)
+        assert mock_hook.check_for_bucket(bucket_name=s3_bucket)
+        mock_hook.delete_bucket(bucket_name=s3_bucket, force_delete=True)
+        assert not mock_hook.check_for_bucket(s3_bucket)
+
+    @mock_s3
+    def test_delete_bucket_if_not_bucket_exist(self, s3_bucket):
+        # assert if exception is raised if bucket not present
+        mock_hook = S3Hook()
+        with pytest.raises(ClientError) as error:
+            # assert error
+            assert mock_hook.delete_bucket(bucket_name=s3_bucket, force_delete=True)
+        assert error.value.response['Error']['Code'] == 'NoSuchBucket'
 
     @mock.patch.object(S3Hook, 'get_connection', return_value=Connection(schema='test_bucket'))
     def test_provide_bucket_name(self, mock_get_connection):
