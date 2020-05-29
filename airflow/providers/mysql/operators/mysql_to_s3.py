@@ -48,10 +48,10 @@ class MySQLToS3Operator(BaseOperator):
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
-        - False: do not validate SSL certificates. SSL will still be used
+        - ``False``: do not validate SSL certificates. SSL will still be used
                  (unless use_ssl is False), but SSL certificates will not be
                  verified.
-        - path/to/cert/bundle.pem: A filename of the CA cert bundle to use.
+        - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
     :type verify: bool or str
@@ -62,6 +62,7 @@ class MySQLToS3Operator(BaseOperator):
     :param header: whether to include header or not into the S3 file
     :type header: bool
     """
+
     template_fields = ('s3_key', 'query', 'pd_csv_kwargs',)
     template_ext = ('.sql',)
 
