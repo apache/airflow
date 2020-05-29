@@ -31,9 +31,8 @@ from airflow.utils.decorators import apply_defaults
 
 class MySQLToS3Operator(BaseOperator):
     """
-    Transfer data from MySQL into a S3 bucket.
-
     Saves data from an specific MySQL query into a file in S3.
+
     :param query: the sql query to be executed. If you want to execute a file, place the absolute path of it,
     ending with .sql extension.
     :type query: str
