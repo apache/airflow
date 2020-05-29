@@ -48,6 +48,7 @@ class MySQLToS3Operator(BaseOperator):
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
+
         - ``False``: do not validate SSL certificates. SSL will still be used
                  (unless use_ssl is False), but SSL certificates will not be
                  verified.
@@ -75,7 +76,7 @@ class MySQLToS3Operator(BaseOperator):
             mysql_conn_id: str = 'mysql_default',
             aws_conn_id: str = 'aws_default',
             verify: Optional[Union[bool, str]] = None,
-            pd_csv_kwargs: dict = None,
+            pd_csv_kwargs: dict = {},
             index: Optional[bool] = False,
             header: Optional[bool] = False,
             *args, **kwargs) -> None:
@@ -88,8 +89,6 @@ class MySQLToS3Operator(BaseOperator):
         self.verify = verify
         self.pd_csv_kwargs = pd_csv_kwargs
 
-        if not self.pd_csv_kwargs:
-            self.pd_csv_kwargs = {}
         if "index" not in self.pd_csv_kwargs:
             self.pd_csv_kwargs["index"] = index
         if "header" not in self.pd_csv_kwargs:
