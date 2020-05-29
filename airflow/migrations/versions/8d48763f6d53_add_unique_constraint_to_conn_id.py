@@ -36,21 +36,12 @@ depends_on = None
 
 def upgrade():
     """Apply add unique constraint to conn_id"""
-    conn = op.get_bind()
     try:
-        if conn.dialect.name in ["mysql", "postgresql", "mssql"]:
-            op.create_unique_constraint(
+        with op.batch_alter_table('connection') as batch_op:
+            batch_op.create_unique_constraint(
                 constraint_name="unique_conn_id",
-                table_name="connection",
-                columns=["conn_id"])
-
-        elif conn.dialect.name == "sqlite":
-            # use batch_alter_table to support SQLite workaround
-            with op.batch_alter_table('connection') as batch_op:
-                batch_op.create_unique_constraint(
-                    constraint_name="unique_conn_id",
-                    columns=["conn_id"]
-                )
+                columns=["conn_id"]
+            )
     except sa.exc.IntegrityError:
         raise Exception(
                 "Make sure there are no duplicate connections with the same conn_id"
@@ -59,18 +50,8 @@ def upgrade():
 
 def downgrade():
     """Unapply add unique constraint to conn_id"""
-    conn = op.get_bind()
-    if conn.dialect.name in ["mysql", "postgresql", "mssql"]:
-        op.drop_constraint(
+    with op.batch_alter_table('connection') as batch_op:
+        batch_op.drop_constraint(
             constraint_name="unique_conn_id",
-            table_name="connection",
             type_="unique"
         )
-
-    elif conn.dialect.name == "sqlite":
-        # use batch_alter_table to support SQLite workaround
-        with op.batch_alter_table('connection') as batch_op:
-            batch_op.drop_constraint(
-                constraint_name="unique_conn_id",
-                type_="unique"
-            )
