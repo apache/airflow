@@ -18,6 +18,7 @@
 
 import os
 import sys
+import token
 from os.path import dirname
 from shutil import copyfile, copytree, rmtree
 from typing import List
@@ -211,7 +212,9 @@ class RefactorBackportPackages:
         # noinspection PyUnusedLocal
         def add_provide_context_to_python_operator(node: LN, capture: Capture, filename: Filename) -> None:
             fn_args = capture['function_arguments'][0]
-            fn_args.append_child(Comma())
+            if len(fn_args.children) > 0 and (not isinstance(fn_args.children[-1], Leaf)
+                                              or fn_args.children[-1].type != token.COMMA):
+                fn_args.append_child(Comma())
 
             provide_context_arg = KeywordArg(Name('provide_context'), Name('True'))
             provide_context_arg.prefix = fn_args.children[0].prefix
