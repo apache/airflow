@@ -27,11 +27,11 @@ from kubernetes.client.rest import ApiException
 
 from airflow import AirflowException
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
-from airflow.contrib.kubernetes.pod import Port
-from airflow.contrib.kubernetes.pod_launcher import PodLauncher
-from airflow.contrib.kubernetes.secret import Secret
-from airflow.contrib.kubernetes.volume import Volume
-from airflow.contrib.kubernetes.volume_mount import VolumeMount
+from airflow.kubernetes.pod import Port
+from airflow.kubernetes.pod_launcher import PodLauncher
+from airflow.kubernetes.secret import Secret
+from airflow.kubernetes.volume import Volume
+from airflow.kubernetes.volume_mount import VolumeMount
 from airflow.version import version as airflow_version
 
 
@@ -115,8 +115,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
         )
         k.execute(None)
 
-    @mock.patch("airflow.contrib.kubernetes.pod_launcher.PodLauncher.run_pod")
-    @mock.patch("airflow.contrib.kubernetes.kube_client.get_kube_client")
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_config_path(self, client_mock, launcher_mock):
         from airflow.utils.state import State
 
@@ -142,8 +142,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             config_file=file_path
         )
 
-    @mock.patch("airflow.contrib.kubernetes.pod_launcher.PodLauncher.run_pod")
-    @mock.patch("airflow.contrib.kubernetes.kube_client.get_kube_client")
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_image_pull_secrets_correctly_set(self, mock_client, mock_launcher):
         from airflow.utils.state import State
 
@@ -166,9 +166,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
         self.assertEqual(mock_launcher.call_args[0][0].image_pull_secrets,
                          fake_pull_secrets)
 
-    @mock.patch("airflow.contrib.kubernetes.pod_launcher.PodLauncher.run_pod")
-    @mock.patch("airflow.contrib.kubernetes.pod_launcher.PodLauncher.delete_pod")
-    @mock.patch("airflow.contrib.kubernetes.kube_client.get_kube_client")
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.delete_pod")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_pod_delete_even_on_launcher_error(self, mock_client, delete_pod_mock, run_pod_mock):
         k = KubernetesPodOperator(
             namespace='default',
@@ -501,8 +501,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
         )
         self.assertEqual(k.execute(None), json.loads(return_value))
 
-    @mock.patch("airflow.contrib.kubernetes.pod_launcher.PodLauncher.run_pod")
-    @mock.patch("airflow.contrib.kubernetes.kube_client.get_kube_client")
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_envs_from_configmaps(self, mock_client, mock_launcher):
         # GIVEN
         from airflow.utils.state import State
@@ -525,8 +525,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
         k.execute(None)
         self.assertEqual(mock_launcher.call_args[0][0].configmaps, configmaps)
 
-    @mock.patch("airflow.contrib.kubernetes.pod_launcher.PodLauncher.run_pod")
-    @mock.patch("airflow.contrib.kubernetes.kube_client.get_kube_client")
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_envs_from_secrets(self, mock_client, mock_launcher):
         # GIVEN
         from airflow.utils.state import State

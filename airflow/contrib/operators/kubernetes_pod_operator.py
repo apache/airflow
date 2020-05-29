@@ -21,8 +21,8 @@ import warnings
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.contrib.kubernetes import kube_client, pod_generator, pod_launcher
-from airflow.contrib.kubernetes.pod import Resources
+from airflow.kubernetes import kube_client, pod_generator, pod_launcher
+from airflow.kubernetes.pod import Resources
 from airflow.utils.helpers import validate_key
 from airflow.utils.state import State
 from airflow.version import version as airflow_version
@@ -50,11 +50,11 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                                comma separated list: secret_a,secret_b
     :type image_pull_secrets: str
     :param ports: ports for launched pod.
-    :type ports: list[airflow.contrib.kubernetes.pod.Port]
+    :type ports: list[airflow.kubernetes.pod.Port]
     :param volume_mounts: volumeMounts for launched pod.
-    :type volume_mounts: list[airflow.contrib.kubernetes.volume_mount.VolumeMount]
+    :type volume_mounts: list[airflow.kubernetes.volume_mount.VolumeMount]
     :param volumes: volumes for launched pod. Includes ConfigMaps and PersistentVolumes.
-    :type volumes: list[airflow.contrib.kubernetes.volume.Volume]
+    :type volumes: list[airflow.kubernetes.volume.Volume]
     :param labels: labels to apply to the Pod.
     :type labels: dict
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
@@ -66,7 +66,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :type env_vars: dict
     :param secrets: Kubernetes secrets to inject in the container.
         They can be exposed as environment vars or files in a volume
-    :type secrets: list[airflow.contrib.kubernetes.secret.Secret]
+    :type secrets: list[airflow.kubernetes.secret.Secret]
     :param in_cluster: run kubernetes client with in_cluster configuration.
     :type in_cluster: bool
     :param cluster_context: context that points to kubernetes cluster.

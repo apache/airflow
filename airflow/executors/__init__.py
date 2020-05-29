@@ -83,7 +83,7 @@ def _get_executor(executor_name):
         from airflow.contrib.executors.mesos_executor import MesosExecutor
         return MesosExecutor()
     elif executor_name == Executors.KubernetesExecutor:
-        from airflow.contrib.executors.kubernetes_executor import KubernetesExecutor
+        from airflow.executors.kubernetes_executor import KubernetesExecutor
         return KubernetesExecutor()
     elif executor_name == Executors.DebugExecutor:
         from airflow.executors.debug_executor import DebugExecutor
