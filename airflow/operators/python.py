@@ -168,10 +168,10 @@ class _PythonFunctionalOperator(BaseOperator):
     """
 
     template_fields = ('op_args', 'op_kwargs')
-    ui_color = '#ffefeb'
+    ui_color = PythonOperator. ui_color
 
     # since we won't mutate the arguments, we should just do the shallow copy
-    # there are some cases we can't deepcopy the objects(e.g protobuf).
+    # there are some cases we can't deepcopy the objects (e.g protobuf).
     shallow_copy_attrs = ('python_callable',)
 
     @apply_defaults
@@ -194,7 +194,7 @@ class _PythonFunctionalOperator(BaseOperator):
         self.op_kwargs = op_kwargs
 
     @staticmethod
-    def _get_unique_task_id(task_id: str, dag: Optional[DAG]) -> str:
+    def _get_unique_task_id(task_id: str, dag: Optional[DAG] = None) -> str:
         dag = dag or DagContext.get_current_dag()
         if not dag or task_id not in dag.task_ids:
             return task_id
@@ -210,7 +210,8 @@ class _PythonFunctionalOperator(BaseOperator):
 
     @staticmethod
     def validate_python_callable(python_callable):
-        """Validate that python callable can be wrapped by operator.
+        """
+        Validate that python callable can be wrapped by operator.
         Raises exception if invalid.
 
         :param python_callable: Python object to be validated
