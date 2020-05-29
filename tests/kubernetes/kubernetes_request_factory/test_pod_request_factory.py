@@ -15,11 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.contrib.kubernetes.kubernetes_request_factory.\
-    pod_request_factory import SimplePodRequestFactory, \
+from airflow.kubernetes.kubernetes_request_factory.pod_request_factory import SimplePodRequestFactory, \
     ExtractXcomPodRequestFactory
-from airflow.contrib.kubernetes.pod import Pod, Resources
-from airflow.contrib.kubernetes.secret import Secret
+from airflow.kubernetes.pod import Pod, Resources
+from airflow.kubernetes.secret import Secret
 from airflow.exceptions import AirflowConfigException
 import unittest
 

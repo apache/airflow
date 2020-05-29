@@ -19,8 +19,8 @@ import os
 import six
 
 from airflow.configuration import conf
-from airflow.contrib.kubernetes.pod import Pod, Resources
-from airflow.contrib.kubernetes.secret import Secret
+from airflow.kubernetes.pod import Pod, Resources
+from airflow.kubernetes.secret import Secret
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.version import version as airflow_version
 
