@@ -587,7 +587,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
    * - `MySQL <https://www.mysql.com/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      -
-     - :mod:`airflow.operators.mysql_to_s3_operator`
+     - :mod:`airflow.providers.amazon.aws.operators.mysql_to_s3`
 
 :ref:`[1] <integration:AWS-Discovery-ref>` Those discovery-based operators use
 :class:`~airflow.providers.google.common.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
