@@ -19,7 +19,6 @@
 Objects relating to sourcing secrets from AWS Secrets Manager
 """
 import ast
-from typing import Optional
 
 import boto3
 from cached_property import cached_property
@@ -60,10 +59,10 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     def __init__(
         self,
-        connections_prefix: Optional[str] = None,
-        variables_prefix: Optional[str] = None,
-        profile_name: Optional[str] = None,
-        sep: Optional[str] = None,
+        connections_prefix=None,
+        variables_prefix=None,
+        profile_name=None,
+        sep=None,
         **kwargs
     ):
         super().__init__(**kwargs)
