@@ -43,9 +43,7 @@ def upgrade():
                 columns=["conn_id"]
             )
     except sa.exc.IntegrityError:
-        raise Exception(
-                "Make sure there are no duplicate connections with the same conn_id"
-            )
+        raise Exception("Make sure there are no duplicate connections with the same conn_id")
 
 
 def downgrade():
