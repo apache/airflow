@@ -42,13 +42,13 @@ with models.DAG(
         spreadsheet_id=SPREADSHEET_ID,
     )
 
-    # [START upload_gcs_to_sheet]
+    # [START upload_gcs_to_sheets]
     upload_gcs_to_sheet = GCSToGoogleSheetsOperator(
         task_id="upload_gcs_to_sheet",
         bucket_name=BUCKET,
         object_name="{{ task_instance.xcom_pull('upload_sheet_to_gcs')[0] }}",
         spreadsheet_id=NEW_SPREADSHEET_ID,
     )
-    # [END upload_gcs_to_sheet]
+    # [END upload_gcs_to_sheets]
 
     upload_sheet_to_gcs >> upload_gcs_to_sheet
