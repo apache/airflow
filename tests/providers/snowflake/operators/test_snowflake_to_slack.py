@@ -15,49 +15,29 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from unittest.mock import Mock
-
-import pytest
+import unittest
+from unittest import mock
 
 from airflow.models import DAG
-from airflow.providers.snowflake.operators.snowflake_to_slack import (
-    SlackWebhookHook, SnowflakeHook, SnowflakeToSlackOperator,
-)
+from airflow.providers.snowflake.operators.snowflake_to_slack import SnowflakeToSlackOperator
 from airflow.utils import timezone
 
 TEST_DAG_ID = 'snowflake_to_slack_unit_test'
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
-@pytest.fixture
-def mock_snowflake_hook_class(monkeypatch):
-    mocked_hook = Mock(spec=SnowflakeHook)
-    monkeypatch.setattr('airflow.providers.snowflake.operators.snowflake_to_slack.SnowflakeHook', mocked_hook)
-    return mocked_hook
+class TestSnowflakeToSlackOperator(unittest.TestCase):
+    def setUp(self):
+        self.example_dag = DAG('unit_test_dag_snowflake_to_slack', start_date=DEFAULT_DATE)
 
-
-@pytest.fixture
-def mock_slack_hook_class(monkeypatch):
-    mocked_hook = Mock(spec=SlackWebhookHook)
-    monkeypatch.setattr('airflow.providers.snowflake.operators.snowflake_to_slack.SlackWebhookHook',
-                        mocked_hook)
-    return mocked_hook
-
-
-@pytest.fixture(name='example_dag')
-def fixture_example_dag():
-    dag = DAG('unit_test_dag', start_date=DEFAULT_DATE)
-    return dag
-
-
-class TestSnowflakeToSlackOperator:
     @staticmethod
     def _construct_operator(**kwargs):
         operator = SnowflakeToSlackOperator(task_id=TEST_DAG_ID, **kwargs)
         return operator
 
-    def test_hooks_and_rendering(self, example_dag, mock_snowflake_hook_class,
-                                 mock_slack_hook_class):
+    @mock.patch('airflow.providers.snowflake.operators.snowflake_to_slack.SnowflakeHook')
+    @mock.patch('airflow.providers.snowflake.operators.snowflake_to_slack.SlackWebhookHook')
+    def test_hooks_and_rendering(self, mock_slack_hook_class, mock_snowflake_hook_class):
         operator_args = {
             'snowflake_conn_id': 'snowflake_connection',
             'slack_conn_id': 'slack_connection',
@@ -70,7 +50,7 @@ class TestSnowflakeToSlackOperator:
             'parameters': ['1', '2', '3'],
             'slack_message': 'message: {{ ds }}, {{ xxxx }}',
             'slack_token': 'test_token',
-            'dag': example_dag
+            'dag': self.example_dag
         }
         snowflake_to_slack_operator = self._construct_operator(**operator_args)
 
