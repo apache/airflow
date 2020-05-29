@@ -99,8 +99,11 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         try:
             secret_string = self._get_secret(conn_id)
             secret = ast.literal_eval(secret_string)
+        except ValueError:  # 'malformed node or string: ' error, for empty conns
+            connection = None
 
-            # These lines will check if we have with some denomination stored an username, password and host
+        # These lines will check if we have with some denomination stored an username, password and host
+        if secret:
             for user_denomination in ['user', 'username', 'login']:
                 if user_denomination in secret:
                     user = secret[user_denomination]
@@ -110,33 +113,31 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             for host_denomination in ['host', 'remote_host', 'server']:
                 if host_denomination in secret:
                     host = secret[host_denomination]
+
             try:
-                if user and password and host:
-                    for type_word in ['conn_type', 'conn_id', 'connection_type', 'engine']:
-                        if type_word in secret:
-                            conn_type = secret[type_word]
-                            conn_type = 'postgresql' if conn_type == 'redshift' else conn_type
-                        else:
-                            conn_type = 'connection'
-
-                    if 'port' in secret:
-                        port = secret['port']
+                for type_word in ['conn_type', 'conn_id', 'connection_type', 'engine']:
+                    if type_word in secret:
+                        conn_type = secret[type_word]
+                        conn_type = 'postgresql' if conn_type == 'redshift' else conn_type
                     else:
-                        port = 5432
-                    if 'database' in secret:
-                        database = secret['database']
-                    else:
-                        database = ''
+                        conn_type = 'connection'
 
-                    conn_string = f'{conn_type}://{user}:{password}@{host}:{port}/{database}'
-                    print(conn_string)
-                    connection = conn_string
+                if 'port' in secret:
+                    port = secret['port']
+                else:
+                    port = 5432
+                if 'database' in secret:
+                    database = secret['database']
+                else:
+                    database = ''
+
+                conn_string = f'{conn_type}://{user}:{password}@{host}:{port}/{database}'
+                print(conn_string)
+                connection = conn_string
             except UnboundLocalError:
                 conn_string = self._get_secret(conn_id)
                 connection = f'{{{conn_string[:-1]}}}'  # without this line, the secret_string
                 # will end with a bracket } # and the literal_eval won't work
-        except ValueError:  # 'malformed node or string: ' error, for empty conns
-            connection = None
 
         return connection
 
