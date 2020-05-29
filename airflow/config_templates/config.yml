@@ -2120,7 +2120,7 @@
       version_added: 1.10.3
       type: string
       example: ~
-      default: ""
+      default: "50000"
     - name: fs_group
       description: |
         Specifies a gid to associate with all containers in the worker pods

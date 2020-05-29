@@ -42,6 +42,8 @@ kind: PersistentVolume
 apiVersion: v1
 metadata:
   name: airflow-logs
+  annotations:
+    pv.beta.kubernetes.io/gid: "50000"
 spec:
   accessModes:
     - ReadWriteMany
@@ -67,7 +69,7 @@ metadata:
   name: test-volume
 spec:
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   capacity:
     storage: 2Gi
   hostPath:
