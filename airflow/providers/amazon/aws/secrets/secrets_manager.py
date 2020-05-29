@@ -86,7 +86,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         )
         return session.client(service_name="secretsmanager", **self.kwargs)
 
-    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+    def get_conn_uri(self, conn_id: str):
         """
         Get Connection Value
 
@@ -133,14 +133,14 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
                     connection = conn_string
             except UnboundLocalError:
                 conn_string = self._get_secret(conn_id)
-                connection = f'{{{conn_string[:-1]}}}'  # without this line, the secret_string will end with a bracket }
-                # and the literal_eval won't work
+                connection = f'{{{conn_string[:-1]}}}'  # without this line, the secret_string
+                # will end with a bracket } # and the literal_eval won't work
         except ValueError:  # 'malformed node or string: ' error, for empty conns
             connection = None
 
         return connection
 
-    def get_variable(self, key: str) -> Optional[str]:
+    def get_variable(self, key: str):
         """
         Get Airflow Variable from Environment Variable
 
@@ -151,7 +151,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             key = self.build_path(self.variables_prefix, key, self.sep)
         return self._get_secret(key)
 
-    def _get_secret(self, secret_id: str) -> Optional[str]:
+    def _get_secret(self, secret_id: str):
         """
         Get secret value from Secrets Manager
         :param secret_id: Secret Key
