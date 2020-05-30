@@ -186,3 +186,4 @@ dmypy.json
 /.kube
 /.inputrc
 log.txt*
+/backport_packages/CHANGELOG.txt

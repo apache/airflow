@@ -152,7 +152,3 @@ class TestJenkinsOperator(unittest.TestCase):
 
         self.assertEqual(mock_request.method, 'POST')
         self.assertEqual(mock_request.url, 'http://apache.org')
-
-
-if __name__ == "__main__":
-    unittest.main()

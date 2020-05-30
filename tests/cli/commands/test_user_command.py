@@ -25,7 +25,6 @@ from contextlib import redirect_stdout
 from airflow import models
 from airflow.cli import cli_parser
 from airflow.cli.commands import user_command
-from airflow.settings import Session
 
 TEST_USER1_EMAIL = 'test-user1@example.com'
 TEST_USER2_EMAIL = 'test-user2@example.com'
@@ -48,7 +47,7 @@ class TestCliUsers(unittest.TestCase):
 
     def setUp(self):
         from airflow.www import app as application
-        self.app, self.appbuilder = application.create_app(session=Session, testing=True)
+        self.app, self.appbuilder = application.create_app(testing=True)
         self.clear_roles_and_roles()
 
     def tearDown(self):

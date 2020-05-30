@@ -19,10 +19,11 @@
 # Details: https://github.com/kaxil/boring-cyborg
 
 labelPRBasedOnFilePath:
-  provider:GCP:
-    - airflow/providers/google/cloud/**/*
-    - tests/providers/google/cloud/**/*
-    - tests/providers/google/cloud/*
+  provider:Google:
+    - airflow/providers/google/*
+    - airflow/providers/google/**/*
+    - tests/providers/google/*
+    - tests/providers/google/**/*
     - docs/howto/connection/gcp.rst
     - docs/howto/connection/gcp_sql.rst
     - docs/howto/operator/gcp/*
@@ -82,8 +83,10 @@ labelPRBasedOnFilePath:
     - docs/*
 
   area:Webserver:
+    - airflow/cli/commands/webserver_command.py
     - airflow/www/**/*
     - airflow/www_rbac/**/*
+    - tests/cli/commands/test_webserver_command.py
     - tests/www/**/*
     - tests/www/*
     - tests/www_rbac/**/*
@@ -130,6 +133,14 @@ labelPRBasedOnFilePath:
     - airflow/serialization/*
     - tests/serialization/*
     - docs/dag-serialization.rst
+
+# Various Flags to control behaviour of the "Labeler"
+labelerFlags:
+  # If this flag is changed to 'false', labels would only be added when the PR is first created
+  # and not when existing PR is updated.
+  # The default is 'true' which means the labels would be added when PR is updated even if they
+  # were removed by the user
+  labelOnPRUpdates: false
 
 # Comment to be posted to welcome users when they open their first PR
 firstPRWelcomeComment: >

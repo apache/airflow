@@ -70,20 +70,18 @@ class CloudBuildHook(GoogleBaseHook):
         return self._conn
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_build(self, body: Dict, project_id: Optional[str] = None) -> Dict:
+    def create_build(self, body: Dict, project_id: str) -> Dict:
         """
         Starts a build with the specified configuration.
 
         :param body: The request body.
-            See: https://cloud.google.com/cloud-build/docs/api/reference/rest/Shared.Types/Build
+            See: https://cloud.google.com/cloud-build/docs/api/reference/rest/v1/projects.builds
         :type body: dict
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the GCP connection is used.
         :type project_id: str
         :return: Dict
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
         service = self.get_conn()
 
         # Create build

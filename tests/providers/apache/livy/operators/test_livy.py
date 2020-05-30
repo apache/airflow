@@ -138,7 +138,3 @@ class TestLivyOperator(unittest.TestCase):
         task._livy_hook = def_hook
 
         self.assertEqual(task.get_hook(), def_hook)
-
-
-if __name__ == '__main__':
-    unittest.main()

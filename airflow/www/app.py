@@ -25,6 +25,7 @@ from urllib.parse import urlparse
 
 import flask
 import flask_login
+import pendulum
 from flask import Flask, session as flask_session
 from flask_appbuilder import SQLA, AppBuilder
 from flask_caching import Cache
@@ -45,18 +46,9 @@ csrf = CSRFProtect()
 log = logging.getLogger(__name__)
 
 
-def create_app(config=None, session=None, testing=False, app_name="Airflow"):
+def create_app(config=None, testing=False, app_name="Airflow"):
     global app, appbuilder
     app = Flask(__name__)
-    if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
-        app.wsgi_app = ProxyFix(
-            app.wsgi_app,
-            x_for=conf.getint("webserver", "PROXY_FIX_X_FOR", fallback=1),
-            x_proto=conf.getint("webserver", "PROXY_FIX_X_PROTO", fallback=1),
-            x_host=conf.getint("webserver", "PROXY_FIX_X_HOST", fallback=1),
-            x_port=conf.getint("webserver", "PROXY_FIX_X_PORT", fallback=1),
-            x_prefix=conf.getint("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
-        )
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
     session_lifetime_days = conf.getint('webserver', 'SESSION_LIFETIME_DAYS', fallback=30)
@@ -78,8 +70,9 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     app.json_encoder = AirflowJsonEncoder
 
     csrf.init_app(app)
-
-    db = SQLA(app)
+    db = SQLA()
+    db.session = settings.Session
+    db.init_app(app)
 
     from airflow import api
     api.load_auth()
@@ -103,9 +96,18 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                 """Your CUSTOM_SECURITY_MANAGER must now extend AirflowSecurityManager,
                  not FAB's security manager.""")
 
-        appbuilder = AppBuilder(
-            app,
-            db.session if not session else session,
+        class AirflowAppBuilder(AppBuilder):
+
+            def _check_and_init(self, baseview):
+                if hasattr(baseview, 'datamodel'):
+                    # Delete sessions if initiated previously to limit side effects. We want to use
+                    # the current session in the current application.
+                    baseview.datamodel.session = None
+                return super()._check_and_init(baseview)
+
+        appbuilder = AirflowAppBuilder(
+            app=app,
+            session=settings.Session,
             security_manager_class=security_manager_class,
             base_template='airflow/master.html',
             update_perms=conf.getboolean('webserver', 'UPDATE_FAB_PERMS'))
@@ -202,8 +204,14 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                 log.debug("Adding blueprint %s:%s", bp["name"], bp["blueprint"].import_name)
                 app.register_blueprint(bp["blueprint"])
 
+        def init_error_handlers(app: Flask):
+            from airflow.www import views
+            app.register_error_handler(500, views.show_traceback)
+            app.register_error_handler(404, views.circles)
+
         init_views(appbuilder)
         init_plugin_blueprints(app)
+        init_error_handlers(app)
 
         if conf.getboolean('webserver', 'UPDATE_FAB_PERMS'):
             security_manager = appbuilder.sm
@@ -218,10 +226,26 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
         app.register_blueprint(e.api_experimental, url_prefix='/api/experimental')
 
+        server_timezone = conf.get('core', 'default_timezone')
+        if server_timezone == "system":
+            server_timezone = pendulum.local_timezone().name
+        elif server_timezone == "utc":
+            server_timezone = "UTC"
+
+        default_ui_timezone = conf.get('webserver', 'default_ui_timezone')
+        if default_ui_timezone == "system":
+            default_ui_timezone = pendulum.local_timezone().name
+        elif default_ui_timezone == "utc":
+            default_ui_timezone = "UTC"
+        if not default_ui_timezone:
+            default_ui_timezone = server_timezone
+
         @app.context_processor
         def jinja_globals():  # pylint: disable=unused-variable
 
             globals = {
+                'server_timezone': server_timezone,
+                'default_ui_timezone': default_ui_timezone,
                 'hostname': socket.getfqdn() if conf.getboolean(
                     'webserver', 'EXPOSE_HOSTNAME', fallback=True) else 'redact',
                 'navbar_color': conf.get(
@@ -258,10 +282,6 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                 response.headers["X-Frame-Options"] = "DENY"
             return response
 
-        @app.teardown_appcontext
-        def shutdown_session(exception=None):  # pylint: disable=unused-variable
-            settings.Session.remove()
-
         @app.before_request
         def make_session_permanent():
             flask_session.permanent = True
@@ -274,15 +294,24 @@ def root_app(env, resp):
     return [b'Apache Airflow is not at this location']
 
 
-def cached_app(config=None, session=None, testing=False):
+def cached_app(config=None, testing=False):
     global app, appbuilder
     if not app or not appbuilder:
         base_url = urlparse(conf.get('webserver', 'base_url'))[2]
         if not base_url or base_url == '/':
             base_url = ""
 
-        app, _ = create_app(config, session, testing)
+        app, _ = create_app(config=config, testing=testing)
         app = DispatcherMiddleware(root_app, {base_url: app})
+        if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
+            app = ProxyFix(
+                app,
+                x_for=conf.getint("webserver", "PROXY_FIX_X_FOR", fallback=1),
+                x_proto=conf.getint("webserver", "PROXY_FIX_X_PROTO", fallback=1),
+                x_host=conf.getint("webserver", "PROXY_FIX_X_HOST", fallback=1),
+                x_port=conf.getint("webserver", "PROXY_FIX_X_PORT", fallback=1),
+                x_prefix=conf.getint("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
+            )
     return app
 
 

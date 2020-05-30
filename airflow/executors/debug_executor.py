@@ -16,8 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module contains DebugExecutor that is a single
-process executor meaning it does not use multiprocessing.
+DebugExecutor
+
+.. seealso::
+    For more information on how the DebugExecutor works, take a look at the guide:
+    :ref:`executor:DebugExecutor`
 """
 
 import threading
@@ -144,7 +147,7 @@ class DebugExecutor(BaseExecutor):
     def terminate(self) -> None:
         self._terminated.set()
 
-    def change_state(self, key: TaskInstanceKeyType, state: str) -> None:
+    def change_state(self, key: TaskInstanceKeyType, state: str, info=None) -> None:
         self.log.debug("Popping %s from executor task queue.", key)
         self.running.remove(key)
-        self.event_buffer[key] = state
+        self.event_buffer[key] = state, info

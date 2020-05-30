@@ -40,7 +40,7 @@ class LoggingCommandExecutor(LoggingMixin):
             self.log.info("Stdout: %s", output)
             self.log.info("Stderr: %s", err)
             if retcode:
-                self.log.warning("Error when executing %s", " ".join(cmd))
+                self.log.error("Error when executing %s", " ".join(cmd))
             return retcode
 
     def check_output(self, cmd):
@@ -50,7 +50,7 @@ class LoggingCommandExecutor(LoggingMixin):
         output, err = process.communicate()
         retcode = process.poll()
         if retcode:
-            self.log.info("Error when executing '%s'", " ".join(cmd))
+            self.log.error("Error when executing '%s'", " ".join(cmd))
             self.log.info("Stdout: %s", output)
             self.log.info("Stderr: %s", err)
             raise AirflowException("Retcode {} on {} with stdout: {}, stderr: {}".

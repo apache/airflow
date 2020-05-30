@@ -32,10 +32,10 @@ as a `data source for BigQuery <https://cloud.google.com/bigquery/external-data-
 
 
 Data transfer
-=============
+-------------
 
 Transfer files between Presto and Google Storage is performed with the
-:class:`~airflow.providers.google.cloud.operators.presto_to_gcss.PrestoToGCSOperator` operator.
+:class:`~airflow.providers.google.cloud.operators.presto_to_gcs.PrestoToGCSOperator` operator.
 
 This operator has 3 required parameters:
 
@@ -45,7 +45,7 @@ This operator has 3 required parameters:
   A ``{}`` should be specified in the filename to allow the operator to inject file
   numbers in cases where the file is split due to size.
 
-All parameters are described in the reference documentation - :class:`~airflow.providers.google.cloud.operators.presto_to_gcss.PrestoToGCSOperator`.
+All parameters are described in the reference documentation - :class:`~airflow.providers.google.cloud.operators.presto_to_gcs.PrestoToGCSOperator`.
 
 An example operator call might look like this:
 
@@ -56,7 +56,7 @@ An example operator call might look like this:
     :end-before: [END howto_operator_presto_to_gcs_basic]
 
 Choice of data format
-=====================
+^^^^^^^^^^^^^^^^^^^^^
 
 The operator supports two output formats:
 
@@ -74,7 +74,7 @@ If you want a CSV file to be created, your operator call might look like this:
     :end-before: [END howto_operator_presto_to_gcs_csv]
 
 Generating BigQuery schema
-==========================
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If you set ``schema_filename`` parameter, a ``.json`` file containing the BigQuery schema fields for the table
 will be dumped from the database and upload to the bucket.
@@ -91,7 +91,7 @@ For more information about the BigQuery schema, please look at
 `Specifying schema <https://cloud.google.com/bigquery/docs/schemas>`__ in the Big Query documentation.
 
 Division of the result into multiple files
-==========================================
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This operator supports the ability to split large result into multiple files. The ``approx_max_file_size_bytes``
 parameters allows developers to specify the file size of the splits. By default, the file has no more
@@ -109,7 +109,7 @@ If you want to create 10 MB files, your code might look like this:
     :end-before: [END howto_operator_read_data_from_gcs_many_chunks]
 
 Querying data using the BigQuery
-================================
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The data available in Google Cloud Storage can be used by BigQuery. You can load data to BigQuery or
 refer in queries directly to GCS data. For information about the loading data to the BigQuery, please look at

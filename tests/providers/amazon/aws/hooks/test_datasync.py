@@ -423,7 +423,3 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
                 task_execution_arn, max_iterations=1
             )
             self.assertIsNone(result)
-
-
-if __name__ == "__main__":
-    unittest.main()

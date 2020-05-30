@@ -70,7 +70,8 @@ parameters which allow you to dynamically determine values.
 
 Waiting for report
 ^^^^^^^^^^^^^^^^^^
-To delete Display&Video 360 report use
+
+To wait for the report use
 :class:`~airflow.providers.google.marketing_platform.sensors.display_video.GoogleDisplayVideo360ReportSensor`.
 
 .. exampleinclude:: ../../../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
@@ -118,4 +119,107 @@ To run Display&Video 360 report use
 
 Use :ref:`Jinja templating <jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360RunReportOperator`
+parameters which allow you to dynamically determine values.
+
+
+.. _howto/operator:GoogleDisplayVideo360DownloadLineItemsOperator:
+
+Downloading Line Items
+^^^^^^^^^^^^^^^^^^^^^^
+
+The operator accepts body request:
+
+- consistent with `Google API <https://developers.google.com/bid-manager/v1.1/lineitems/downloadlineitems>`_ ::
+
+    REQUEST_BODY = {
+    "filterType": ADVERTISER_ID,
+    "format": "CSV",
+    "fileSpec": "EWF"
+    }
+
+To download line items in CSV format report use
+:class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DownloadLineItemsOperator`.
+
+.. exampleinclude:: ../../../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_google_display_video_download_line_items_operator]
+    :end-before: [END howto_google_display_video_download_line_items_operator]
+
+Use :ref:`Jinja templating <jinja-templating>` with
+:template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DownloadLineItemsOperator`
+parameters which allow you to dynamically determine values.
+
+
+.. _howto/operator:GoogleDisplayVideo360UploadLineItemsOperator:
+
+Upload line items
+^^^^^^^^^^^^^^^^^
+
+To run Display&Video 360 uploading line items use
+:class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360UploadLineItemsOperator`.
+
+.. exampleinclude:: ../../../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_google_display_video_upload_line_items_operator]
+    :end-before: [END howto_google_display_video_upload_line_items_operator]
+
+Use :ref:`Jinja templating <jinja-templating>` with
+:template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360UploadLineItemsOperator`
+parameters which allow you to dynamically determine values.
+
+.. _howto/operator:GoogleDisplayVideo360CreateSDFDownloadTaskOperator:
+
+Create SDF download task
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+To create SDF download task use
+:class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator`.
+
+.. exampleinclude:: ../../../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_google_display_video_create_sdf_download_task_operator]
+    :end-before: [END howto_google_display_video_create_sdf_download_task_operator]
+
+Use :ref:`Jinja templating <jinja-templating>` with
+:template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator`
+parameters which allow you to dynamically determine values.
+
+
+.. _howto/operator:GoogleDisplayVideo360SDFtoGCSOperator:
+
+Save SDF files in the Google Cloud Storage
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To save SDF files and save them in the Google Cloud Storage use
+:class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360SDFtoGCSOperator`.
+
+.. exampleinclude:: ../../../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_google_display_video_save_sdf_in_gcs_operator]
+    :end-before: [END howto_google_display_video_save_sdf_in_gcs_operator]
+
+Use :ref:`Jinja templating <jinja-templating>` with
+:template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360SDFtoGCSOperator`
+parameters which allow you to dynamically determine values.
+
+.. _howto/operator:GoogleDisplayVideo360GetSDFDownloadOperationSensor:
+
+Waiting for SDF operation
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Wait for SDF operation is executed by:
+:class:`~airflow.providers.google.marketing_platform.sensors.display_video.GoogleDisplayVideo360GetSDFDownloadOperationSensor`.
+
+.. exampleinclude:: ../../../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_google_display_video_wait_for_operation_sensor]
+    :end-before: [END howto_google_display_video_wait_for_operation_sensor]
+
+Use :ref:`Jinja templating <jinja-templating>` with
+:template-fields:`airflow.providers.google.marketing_platform.sensors.display_video.GoogleDisplayVideo360GetSDFDownloadOperationSensor`
 parameters which allow you to dynamically determine values.

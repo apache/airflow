@@ -18,11 +18,9 @@
 
 """This module defines dep for pool slots availability"""
 
+from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
-from airflow.utils.state import State
-
-STATES_TO_COUNT_AS_RUNNING = [State.RUNNING, State.QUEUED]
 
 
 class PoolSlotsAvailableDep(BaseTIDep):
@@ -45,11 +43,11 @@ class PoolSlotsAvailableDep(BaseTIDep):
         :type dep_context: DepContext
         :return: True if there are available slots in the pool.
         """
-        from airflow import models  # To avoid a circular dependency
-        P = models.Pool
+        from airflow.models.pool import Pool  # To avoid a circular dependency
+
         pool_name = ti.pool
 
-        pools = session.query(P).filter(P.pool == pool_name).all()
+        pools = session.query(Pool).filter(Pool.pool == pool_name).all()
         if not pools:
             yield self._failing_status(
                 reason=("Tasks using non-existent pool '%s' will not be scheduled",
@@ -60,7 +58,7 @@ class PoolSlotsAvailableDep(BaseTIDep):
             # only one result can be returned.
             open_slots = pools[0].open_slots()
 
-        if ti.state in STATES_TO_COUNT_AS_RUNNING:
+        if ti.state in EXECUTION_STATES:
             open_slots += ti.pool_slots
 
         if open_slots <= (ti.pool_slots - 1):

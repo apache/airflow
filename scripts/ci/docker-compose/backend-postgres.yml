@@ -17,7 +17,7 @@
 ---
 version: "2.2"
 services:
-  airflow-testing:
+  airflow:
     environment:
       - BACKEND=postgres
       - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:airflow@postgres/airflow

@@ -41,7 +41,7 @@ ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 
 # By increasing this number we can do force build of all dependencies
-ARG DEPENDENCIES_EPOCH_NUMBER="2"
+ARG DEPENDENCIES_EPOCH_NUMBER="3"
 # Increase the value below to force renstalling of all dependencies
 ENV DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER}
 
@@ -121,12 +121,14 @@ RUN adduser airflow \
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
-    && echo "deb http://ftp.us.debian.org/debian sid main" \
-        > /etc/apt/sources.list.d/openjdk.list \
+    && curl -fsSL https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | apt-key add - \
+    && echo 'deb https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/ buster main' > \
+        /etc/apt/sources.list.d/adoptopenjdk.list \
     && apt-get update \
     && apt-get install --no-install-recommends -y \
       gnupg \
-      openjdk-8-jdk \
+      libgcc-8-dev \
+      adoptopenjdk-8-hotspot-jre \
       apt-transport-https \
       bash-completion \
       ca-certificates \
@@ -150,7 +152,7 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
+ENV JAVA_HOME=/usr/lib/jvm/adoptopenjdk-8-hotspot-jre-amd64
 
 # Install Hadoop and Hive
 # It is done in one step to share variables.
@@ -181,41 +183,6 @@ RUN HADOOP_DISTRO="cdh" \
     && rm "${HIVE_TMP_FILE}"
 
 ENV PATH "${PATH}:/opt/hive/bin"
-
-# Install Singularity (for Singularity executor testing)
-RUN apt-get update \
-    && apt-get install --no-install-recommends -y \
-       uuid-dev \
-       libgpgme11-dev \
-       squashfs-tools \
-       libseccomp-dev \
-       pkg-config \
-       cryptsetup \
-    && apt-get autoremove -yqq --purge \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-ENV GOLANG_VERSION=1.13.8
-ENV SINGULARITY_VERSION=3.5.2
-
-RUN curl -L -o go${GOLANG_VERSION}.linux-amd64.tar.gz "https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz" \
-    && tar -C /usr/local -xzvf "go${GOLANG_VERSION}.linux-amd64.tar.gz" \
-    && rm "go${GOLANG_VERSION}.linux-amd64.tar.gz"
-
-ENV PATH="${PATH}:/usr/local/go/bin"
-
-WORKDIR /tmp
-
-RUN curl -L -o singularity-${SINGULARITY_VERSION}.tar.gz https://github.com/sylabs/singularity/releases/download/v${SINGULARITY_VERSION}/singularity-${SINGULARITY_VERSION}.tar.gz \
-    && tar -xzf singularity-${SINGULARITY_VERSION}.tar.gz
-
-WORKDIR /tmp/singularity
-
-RUN ./mconfig \
-    && make -C builddir \
-    && make -C builddir install
-
-WORKDIR /
 
 # Install Minicluster
 ENV MINICLUSTER_HOME="/opt/minicluster"
@@ -330,7 +297,8 @@ ENV AIRFLOW_BRANCH=${AIRFLOW_BRANCH}
 
 # Airflow Extras installed
 ARG AIRFLOW_EXTRAS="all"
-ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}
+ARG ADDITIONAL_AIRFLOW_EXTRAS=""
+ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}${ADDITIONAL_AIRFLOW_EXTRAS:+,}${ADDITIONAL_AIRFLOW_EXTRAS}
 
 RUN echo "Installing with extras: ${AIRFLOW_EXTRAS}."
 
@@ -350,6 +318,7 @@ RUN \
     if [[ "${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" == "true" ]]; then \
         pip install \
         "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
+            --constraint "https://raw.githubusercontent.com/${AIRFLOW_REPO}/${AIRFLOW_BRANCH}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt" \
         && pip uninstall --yes apache-airflow; \
     fi
 
@@ -385,7 +354,7 @@ COPY requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt \
 # But in cron job we will install latest versions matching setup.py to see if there is no breaking change
 RUN \
     if [[ "${UPGRADE_TO_LATEST_REQUIREMENTS}" == "true" ]]; then \
-        pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade; \
+        pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy eager; \
     else \
         pip install -e ".[${AIRFLOW_EXTRAS}]" \
             --constraint  ${AIRFLOW_SOURCES}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt ; \
@@ -399,7 +368,7 @@ COPY airflow/www/static ${AIRFLOW_SOURCES}/airflow/www/static/
 # Package JS/css for production
 RUN yarn --cwd airflow/www run prod
 
-COPY scripts/docker/entrypoint.sh /entrypoint.sh
+COPY entrypoint.sh /entrypoint.sh
 
 # Copy selected subdirectories only
 COPY .github/ ${AIRFLOW_SOURCES}/.github/

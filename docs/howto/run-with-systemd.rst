@@ -37,4 +37,4 @@ If this is not the case, appropriate changes will need to be made.
 Please **note** that environment configuration is picked up from ``/etc/sysconfig/airflow``.
 
 An example file is supplied within ``scripts/systemd``.
-You can also define configuration at ``AIRFLOW_HOME`` or ``AIRFLOW_CONFIG``.
+You can also define configuration at :envvar:`AIRFLOW_HOME` or :envvar:`AIRFLOW_CONFIG`.

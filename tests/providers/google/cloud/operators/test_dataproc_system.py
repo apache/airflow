@@ -25,6 +25,8 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 BUCKET = os.environ.get("GCP_DATAPROC_BUCKET", "dataproc-system-tests")
 PYSPARK_MAIN = os.environ.get("PYSPARK_MAIN", "hello_world.py")
 PYSPARK_URI = "gs://{}/{}".format(BUCKET, PYSPARK_MAIN)
+SPARKR_MAIN = os.environ.get("SPARKR_MAIN", "hello_world.R")
+SPARKR_URI = "gs://{}/{}".format(BUCKET, SPARKR_MAIN)
 
 pyspark_file = """
 #!/usr/bin/python
@@ -35,16 +37,32 @@ words = sorted(rdd.collect())
 print(words)
 """
 
+sparkr_file = """
+#!/usr/bin/r
+if (nchar(Sys.getenv("SPARK_HOME")) < 1) {
+Sys.setenv(SPARK_HOME = "/home/spark")
+}
+library(SparkR, lib.loc = c(file.path(Sys.getenv("SPARK_HOME"), "R", "lib")))
+sparkR.session()
+# Create the SparkDataFrame
+df <- as.DataFrame(faithful)
+head(summarize(groupBy(df, df$waiting), count = n(df$waiting)))
+"""
+
 
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_DATAPROC_KEY)
 class DataprocExampleDagsTest(GoogleSystemTest):
-
     @provide_gcp_context(GCP_DATAPROC_KEY)
     def setUp(self):
         super().setUp()
         self.create_gcs_bucket(BUCKET)
-        self.upload_content_to_gcs(lines=pyspark_file, bucket=PYSPARK_URI, filename=PYSPARK_MAIN)
+        self.upload_content_to_gcs(
+            lines=pyspark_file, bucket=PYSPARK_URI, filename=PYSPARK_MAIN
+        )
+        self.upload_content_to_gcs(
+            lines=sparkr_file, bucket=SPARKR_URI, filename=SPARKR_MAIN
+        )
 
     @provide_gcp_context(GCP_DATAPROC_KEY)
     def tearDown(self):

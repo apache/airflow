@@ -97,7 +97,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
     def create_transfer_config(
         self,
         transfer_config: Union[dict, TransferConfig],
-        project_id: Optional[str] = None,
+        project_id: str,
         authorization_code: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -125,8 +125,6 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: A ``google.cloud.bigquery_datatransfer_v1.types.TransferConfig`` instance.
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         parent = client.project_path(project_id)
         return client.create_transfer_config(
@@ -142,7 +140,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
     def delete_transfer_config(
         self,
         transfer_config_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -166,8 +164,6 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: None
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         name = client.project_transfer_config_path(
             project=project_id, transfer_config=transfer_config_id
@@ -180,7 +176,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
     def start_manual_transfer_runs(
         self,
         transfer_config_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         requested_time_range: Optional[dict] = None,
         requested_run_time: Optional[dict] = None,
         retry: Optional[Retry] = None,
@@ -218,8 +214,6 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: An ``google.cloud.bigquery_datatransfer_v1.types.StartManualTransferRunsResponse`` instance.
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         parent = client.project_transfer_config_path(
             project=project_id, transfer_config=transfer_config_id
@@ -238,7 +232,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         self,
         run_id: str,
         transfer_config_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -264,8 +258,6 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: An ``google.cloud.bigquery_datatransfer_v1.types.TransferRun`` instance.
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         name = client.project_run_path(
             project=project_id, transfer_config=transfer_config_id, run=run_id

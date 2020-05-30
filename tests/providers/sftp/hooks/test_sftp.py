@@ -240,7 +240,3 @@ class TestSFTPHook(unittest.TestCase):
         shutil.rmtree(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         os.remove(os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS))
         self.update_connection(self.old_login)
-
-
-if __name__ == '__main__':
-    unittest.main()

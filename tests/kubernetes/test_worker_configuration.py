@@ -89,6 +89,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.airflow_dags = 'dags'
         self.kube_config.airflow_logs = 'logs'
         self.kube_config.dags_volume_subpath = None
+        self.kube_config.dags_volume_mount_point = None
         self.kube_config.logs_volume_subpath = None
         self.kube_config.dags_in_image = False
         self.kube_config.dags_folder = None
@@ -174,6 +175,11 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.dags_volume_host = ''
         dag_volume_mount_path = worker_config.generate_dag_volume_mount_path()
         self.assertEqual(dag_volume_mount_path, self.kube_config.dags_folder)
+
+        self.kube_config.dags_volume_mount_point = '/root/airflow/package'
+        dag_volume_mount_path = worker_config.generate_dag_volume_mount_path()
+        self.assertEqual(dag_volume_mount_path, '/root/airflow/package')
+        self.kube_config.dags_volume_mount_point = ''
 
         self.kube_config.dags_volume_claim = ''
         self.kube_config.dags_volume_host = '/host/airflow/dags'
@@ -903,3 +909,14 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         pod = worker_config.as_pod()
 
         self.assertEqual(2, len(pod.spec.image_pull_secrets))
+
+    def test_get_resources(self):
+        self.kube_config.worker_resources = {'limit_cpu': 0.25, 'limit_memory': '64Mi', 'request_cpu': '250m',
+                                             'request_memory': '64Mi'}
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        resources = worker_config._get_resources()
+        self.assertEqual(resources.limits["cpu"], 0.25)
+        self.assertEqual(resources.limits["memory"], "64Mi")
+        self.assertEqual(resources.requests["cpu"], "250m")
+        self.assertEqual(resources.requests["memory"], "64Mi")

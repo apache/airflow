@@ -251,18 +251,28 @@ class BaseSQLToGCSOperator(BaseOperator, metaclass=abc.ABCMeta):
     def _write_local_schema_file(self, cursor):
         """
         Takes a cursor, and writes the BigQuery schema for the results to a
-        local file system.
+        local file system. Schema for database will be read from cursor if
+        not specified.
 
         :return: A dictionary where key is a filename to be used as an object
             name in GCS, and values are file handles to local files that
             contains the BigQuery schema fields in .json format.
         """
-        schema = [self.field_to_bigquery(field) for field in cursor.description]
+        if self.schema:
+            self.log.info("Using user schema")
+            schema = self.schema
+        else:
+            self.log.info("Starts generating schema")
+            schema = [self.field_to_bigquery(field) for field in cursor.description]
+
+        if isinstance(schema, list):
+            schema = json.dumps(schema, sort_keys=True)
 
         self.log.info('Using schema for %s', self.schema_filename)
         self.log.debug("Current schema: %s", schema)
+
         tmp_schema_file_handle = NamedTemporaryFile(delete=True)
-        tmp_schema_file_handle.write(json.dumps(schema, sort_keys=True).encode('utf-8'))
+        tmp_schema_file_handle.write(schema.encode('utf-8'))
         schema_file_to_upload = {
             'file_name': self.schema_filename,
             'file_handle': tmp_schema_file_handle,

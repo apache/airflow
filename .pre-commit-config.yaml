@@ -69,7 +69,8 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all JINJA template files
-        files: ^airflow/www/templates/.*\.html$|^docs/templates/.*\.html$|^airflow/contrib/plugins/metastore_browser/templates/.*\.html$  # yamllint disable-line rule:line-length
+        files: "^airflow/www/templates/.*\\.html$|^docs/templates/.*\\.html$|^airflow/contrib/plugins/\
+metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         exclude: ^\.github/.*$|^airflow/_vendor/.*$
         args:
           - --comment-style
@@ -120,7 +121,7 @@ repos:
       - id: insert-license
         name: Add license for all md files
         files: \.md$
-        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$|^airflow/_vendor/.*|PROVIDERS_CHANGES.*\.md
         args:
           - --comment-style
           - "<!--|| -->"
@@ -132,16 +133,10 @@ repos:
     hooks:
       - id: doctoc
         name: Add TOC for md files
-        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.md$|^dev/README\.md$
+        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.md$|^dev/README\.md$|^dev/BACKPORT_PACKAGES.md$
         args:
           - "--maxlevel"
           - "2"
-  - repo: https://github.com/thlorenz/doctoc.git
-    rev: v1.4.0
-    hooks:
-      - id: doctoc
-        name: Add TOC for backport readme files
-        files: BACKPORT_README\.md$
   - repo: meta
     hooks:
       - id: check-hooks-apply
@@ -161,7 +156,7 @@ repos:
           - --remove
         exclude: ^airflow/_vendor/.*$
   - repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.4.4
+    rev: v1.5.1
     hooks:
       - id: rst-backticks
       - id: python-no-log-warn
@@ -200,7 +195,7 @@ repos:
         files: ^setup.py$
         pass_filenames: false
         require_serial: true
-        entry: tests/test_order_setup.py
+        entry: ./scripts/ci/pre_commit_check_order_setup.py
       - id: update-breeze-file
         name: Update output of breeze command in BREEZE.rst
         entry: "./scripts/ci/pre_commit_breeze_cmd_line.sh"
@@ -261,7 +256,8 @@ repos:
           ^airflow/operators/.*$|
           ^airflow/sensors/.*$|
           ^airflow/providers/.*$|
-          ^airflow/contrib/.*$
+          ^airflow/contrib/.*$|
+          ^backport_packages/.*$
       - id: base-operator
         language: pygrep
         name: Make sure BaseOperator[Link] is imported from airflow.models outside of core
@@ -277,7 +273,8 @@ repos:
           ^airflow/contrib/.*\.py$
       - id: provide-create-sessions
         language: pygrep
-        name: To avoid import cycles make sure provide_session and create_session are imported from airflow.utils.session  # yamllint disable-line rule:line-length
+        name: To avoid import cycles make sure provide_session and create_session are imported from
+              airflow.utils.session
         entry: "from airflow\\.utils\\.db import.* (provide_session|create_session)"
         files: \.py$
         pass_filenames: true
@@ -293,6 +290,12 @@ repos:
         entry: "(airflow\\.){0,1}utils\\.dates\\.days_ago"
         files: \.py$
         pass_filenames: true
+      - id: check-integrations
+        name: Check if integration list is aligned
+        entry: ./scripts/ci/pre_commit_check_integrations.sh
+        language: system
+        pass_filenames: false
+        files: ^common/_common_values.sh$|^breeze-complete$
       - id: build
         name: Check if image build is needed
         entry: ./scripts/ci/pre_commit_ci_build.sh 3.6 false
@@ -312,7 +315,7 @@ repos:
         files: "config.yml$|default_airflow.cfg$|default.cfg$"
         pass_filenames: false
         require_serial: false
-        entry: scripts/ci/pre_commit_yaml_to_cfg.py
+        entry: ./scripts/ci/pre_commit_yaml_to_cfg.py
         additional_dependencies: ['pyyaml']
       - id: mypy
         name: Run mypy
@@ -348,3 +351,10 @@ repos:
         entry: "./scripts/ci/pre_commit_bat_tests.sh"
         files: ^breeze$|^breeze-complete$|\.sh$|\.bash$
         pass_filenames: false
+      - id: stylelint
+        name: stylelint
+        entry: "stylelint"
+        language: node
+        files: ^airflow/www/.*\.(css|scss|sass)$
+        # Keep dependency versions in sync w/ airflow/www/package.json
+        additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0']

@@ -59,14 +59,14 @@ class ECSProtocol(Protocol):
 
 class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     """
-    Execute a task on AWS EC2 Container Service
+    Execute a task on AWS ECS (Elastic Container Service)
 
-    :param task_definition: the task definition name on EC2 Container Service
+    :param task_definition: the task definition name on Elastic Container Service
     :type task_definition: str
-    :param cluster: the cluster name on EC2 Container Service
+    :param cluster: the cluster name on Elastic Container Service
     :type cluster: str
     :param overrides: the same parameter that boto3 will receive (templated):
-        http://boto3.readthedocs.org/en/latest/reference/services/ecs.html#ECS.Client.run_task
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
     :type overrides: dict
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
         credential boto3 strategy will be used
@@ -113,7 +113,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
                  aws_conn_id=None, region_name=None, launch_type='EC2',
                  group=None, placement_constraints=None, platform_version='LATEST',
                  network_configuration=None, tags=None, awslogs_group=None,
-                 awslogs_region=None, awslogs_stream_prefix=None, **kwargs):
+                 awslogs_region=None, awslogs_stream_prefix=None, propagate_tags=None, **kwargs):
         super().__init__(**kwargs)
 
         self.aws_conn_id = aws_conn_id
@@ -131,11 +131,12 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.awslogs_group = awslogs_group
         self.awslogs_stream_prefix = awslogs_stream_prefix
         self.awslogs_region = awslogs_region
+        self.propagate_tags = propagate_tags
 
         if self.awslogs_region is None:
             self.awslogs_region = region_name
 
-        self.hook = self.get_hook()
+        self.hook = None
 
     def execute(self, context):
         self.log.info(
@@ -144,21 +145,19 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         )
         self.log.info('ECSOperator overrides: %s', self.overrides)
 
-        self.client = self.hook.get_client_type(
-            'ecs',
-            region_name=self.region_name
-        )
+        self.client = self.get_hook().get_conn()
 
         run_opts = {
             'cluster': self.cluster,
             'taskDefinition': self.task_definition,
             'overrides': self.overrides,
             'startedBy': self.owner,
-            'launchType': self.launch_type,
         }
 
-        if self.launch_type == 'FARGATE':
-            run_opts['platformVersion'] = self.platform_version
+        if self.launch_type:
+            run_opts['launchType'] = self.launch_type
+            if self.launch_type == 'FARGATE':
+                run_opts['platformVersion'] = self.platform_version
         if self.group is not None:
             run_opts['group'] = self.group
         if self.placement_constraints is not None:
@@ -167,6 +166,8 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
             run_opts['networkConfiguration'] = self.network_configuration
         if self.tags is not None:
             run_opts['tags'] = [{'key': k, 'value': v} for (k, v) in self.tags.items()]
+        if self.propagate_tags is not None:
+            run_opts['propagateTags'] = self.propagate_tags
 
         response = self.client.run_task(**run_opts)
 
@@ -232,10 +233,14 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
                         format(container.get('reason', '').lower()))
 
     def get_hook(self):
-        """Create and return an AwsBaseHook."""
-        return AwsBaseHook(
-            aws_conn_id=self.aws_conn_id
-        )
+        """Create and return an AwsHook."""
+        if not self.hook:
+            self.hook = AwsBaseHook(
+                aws_conn_id=self.aws_conn_id,
+                client_type='ecs',
+                region_name=self.region_name
+            )
+        return self.hook
 
     def get_logs_hook(self):
         """Create and return an AwsLogsHook."""

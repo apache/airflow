@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import io
 import json
 import os
 import sys
@@ -22,7 +23,7 @@ from collections import defaultdict
 from os.path import dirname, sep
 from typing import Dict, List, Optional
 
-from backport_packages.setup_backport_packages import PROVIDERS_DEPENDENCIES
+from setup import PROVIDERS_REQUIREMENTS
 
 sys.path.append(os.path.join(dirname(__file__), os.pardir))
 
@@ -52,7 +53,7 @@ def find_provider(provider_elements: List[str]) -> Optional[str]:
     """
     provider = ""
     separator = ""
-    provider_keys = PROVIDERS_DEPENDENCIES.keys()
+    provider_keys = PROVIDERS_REQUIREMENTS.keys()
     for element in provider_elements:
         provider = provider + separator + element
         if provider in provider_keys:
@@ -153,8 +154,12 @@ def get_imports_from_file(file_name: str) -> List[str]:
     :param file_name: name of the file
     :return: list of import names
     """
-    with open(file_name) as f:
-        root = parse(f.read(), file_name)
+    try:
+        with io.open(file_name, "rt", encoding="utf-8") as f:
+            root = parse(f.read(), file_name)
+    except Exception:
+        print(f"Error when opening file {file_name}", file=sys.stderr)
+        raise
     visitor = ImportFinder(file_name)
     visitor.visit(root)
     return visitor.imports
@@ -243,7 +248,7 @@ if __name__ == '__main__':
         print(f"Written provider dependencies to the file {provider_dependencies_file_name}")
         print()
     if documentation_file_name:
-        with open(documentation_file_name, "r") as documentation_file:
+        with io.open(documentation_file_name, "r", encoding="utf-8") as documentation_file:
             text = documentation_file.readlines()
         replacing = False
         result: List[str] = []
@@ -256,7 +261,7 @@ if __name__ == '__main__':
                 replacing = False
             if not replacing:
                 result.append(line)
-        with open(documentation_file_name, "w") as documentation_file:
+        with io.open(documentation_file_name, "w", encoding="utf-8") as documentation_file:
             documentation_file.write("".join(result))
         print()
         print(f"Written package extras to the file {documentation_file_name}")

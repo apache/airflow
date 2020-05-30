@@ -36,7 +36,6 @@ MISSING_TEST_FILES = {
     'tests/providers/cncf/kubernetes/operators/test_kubernetes_pod.py',
     'tests/providers/google/cloud/operators/test_datastore.py',
     'tests/providers/google/cloud/operators/test_sql_to_gcs.py',
-    'tests/providers/google/cloud/sensors/test_bigquery.py',
     'tests/providers/google/cloud/utils/test_field_sanitizer.py',
     'tests/providers/google/cloud/utils/test_field_validator.py',
     'tests/providers/google/cloud/utils/test_mlengine_operator_utils.py',
@@ -47,7 +46,7 @@ MISSING_TEST_FILES = {
     'tests/providers/oracle/operators/test_oracle.py',
     'tests/providers/qubole/hooks/test_qubole.py',
     'tests/providers/samba/hooks/test_samba.py',
-    'tests/providers/sqlite/operators/test_sqlite.py'
+    'tests/providers/yandex/hooks/test_yandex.py'
 }
 
 
@@ -57,7 +56,7 @@ class TestProjectStructure(unittest.TestCase):
             self.assert_file_not_contains(filename, "providers")
 
     def test_deprecated_packages(self):
-        for directory in ["operator", "hooks", "sensors", "task_runner"]:
+        for directory in ["hooks", "operators", "secrets", "sensors", "task_runner"]:
             path_pattern = f"{ROOT_FOLDER}/airflow/contrib/{directory}/*.py"
 
             for filename in glob.glob(path_pattern, recursive=True):
@@ -129,27 +128,17 @@ class TestProjectStructure(unittest.TestCase):
 
 class TestGoogleProviderProjectStructure(unittest.TestCase):
     MISSING_EXAMPLE_DAGS = {
-        ('cloud', 'text_to_speech'),
-        ('cloud', 'gcs_to_bigquery'),
         ('cloud', 'adls_to_gcs'),
         ('cloud', 'sql_to_gcs'),
         ('cloud', 's3_to_gcs'),
-        ('cloud', 'translate_speech'),
         ('cloud', 'bigquery_to_mysql'),
-        ('cloud', 'speech_to_text'),
         ('cloud', 'cassandra_to_gcs'),
-        ('cloud', 'bigquery_to_bigquery'),
         ('cloud', 'mysql_to_gcs'),
         ('cloud', 'mssql_to_gcs'),
-        ('cloud', 'bigquery_to_gcs'),
-        ('cloud', 'local_to_gcs'),
-        ('cloud', 'sheets_to_gcs'),
-        ('suite', 'gcs_to_sheets'),
     }
 
     MISSING_DOC_GUIDES = {
         'adls_to_gcs',
-        'bigquery',
         'bigquery_to_bigquery',
         'bigquery_to_gcs',
         'bigquery_to_mysql',
@@ -160,17 +149,13 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         'dlp',
         'gcs_to_bigquery',
         'kubernetes_engine',
-        'local_to_gcs',
         'mlengine',
         'mssql_to_gcs',
         'mysql_to_gcs',
         'postgres_to_gcs',
         's3_to_gcs',
-        'speech_to_text',
         'sql_to_gcs',
         'tasks',
-        'text_to_speech',
-        'translate_speech'
     }
 
     def test_example_dags(self):
@@ -254,7 +239,7 @@ class TestOperatorsHooks(unittest.TestCase):
         files = itertools.chain(*[
             glob.glob(f"{ROOT_FOLDER}/{part}/providers/**/{resource_type}/*.py", recursive=True)
             for resource_type in ["operators", "hooks", "sensors", "example_dags"]
-            for part in ["airlfow", "tests"]
+            for part in ["airflow", "tests"]
         ])
 
         invalid_files = [

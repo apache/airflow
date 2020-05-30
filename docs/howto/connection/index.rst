@@ -72,16 +72,19 @@ Then add connection like so:
 
 .. code-block:: bash
 
-    airflow connections add --conn_id 'my_prod_db' --conn_uri 'my-conn-type://login:password@host:port/schema?param1=val1&param2=val2'
+    airflow connections add 'my_prod_db' --conn-uri 'my-conn-type://login:password@host:port/schema?param1=val1&param2=val2'
 
 Alternatively you may specify each parameter individually:
 
 .. code-block:: bash
 
-    airflow connections add \
-        --conn_id 'my_prod_db' \
-        --login 'login' \
-        --password 'password' \
+    airflow connections add 'my_prod_db' \
+        --conn-type 'my-conn-type'
+        --conn-login 'login' \
+        --conn-password 'password' \
+        --conn-host 'host' \
+        --conn-port 'port' \
+        --conn-schema 'schema' \
         ...
 
 .. _environment_variables_secrets_backend:
@@ -89,7 +92,7 @@ Alternatively you may specify each parameter individually:
 Storing a Connection in Environment Variables
 ---------------------------------------------
 
-The environment variable naming convention is ``AIRFLOW_CONN_<conn_id>``, all uppercase.
+The environment variable naming convention is :envvar:`AIRFLOW_CONN_{CONN_ID}`, all uppercase.
 
 So if your connection id is ``my_prod_db`` then the variable name should be ``AIRFLOW_CONN_MY_PROD_DB``.
 
@@ -218,7 +221,7 @@ For example if your password has a ``/``, this fails:
     >>> c = Connection(uri='my-conn-type://my-login:my-pa/ssword@my-host:5432/my-schema?param1=val1&param2=val2')
     ValueError: invalid literal for int() with base 10: 'my-pa'
 
-To fix this, you can encode with :py:meth:`~urllib.parse.quote_plus`:
+To fix this, you can encode with :func:`~urllib.parse.quote_plus`:
 
 .. code-block:: pycon
 

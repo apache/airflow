@@ -28,6 +28,7 @@ import mock
 import psutil
 import pytest
 import six
+from freezegun import freeze_time
 from mock import MagicMock, patch
 from parameterized import parameterized
 
@@ -43,6 +44,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from airflow.utils.dag_processing import FailureCallbackRequest, SimpleDag, SimpleDagBag
 from airflow.utils.dates import days_ago
@@ -51,7 +53,7 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.config import conf_vars
+from tests.test_utils.config import conf_vars, env_vars
 from tests.test_utils.db import (
     clear_db_dags, clear_db_errors, clear_db_pools, clear_db_runs, clear_db_sla_miss, set_default_pool_slots,
 )
@@ -77,6 +79,14 @@ UNPARSEABLE_DAG_FILE_CONTENTS = 'airflow DAG'
 TEMP_DAG_FILENAME = "temp_dag.py"
 
 
+@pytest.fixture(scope="class")
+def disable_load_example():
+    with conf_vars({('core', 'load_examples'): 'false'}):
+        with env_vars({('core', 'load_examples'): 'false'}):
+            yield
+
+
+@pytest.mark.usefixtures("disable_load_example")
 class TestDagFileProcessor(unittest.TestCase):
     def setUp(self):
         clear_db_runs()
@@ -88,6 +98,13 @@ class TestDagFileProcessor(unittest.TestCase):
         # Speed up some tests by not running the tasks, just look at what we
         # enqueue!
         self.null_exec = MockExecutor()
+
+    def tearDown(self) -> None:
+        clear_db_runs()
+        clear_db_pools()
+        clear_db_dags()
+        clear_db_sla_miss()
+        clear_db_errors()
 
     def create_test_dag(self, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE + timedelta(hours=1), **kwargs):
         dag = DAG(
@@ -106,18 +123,11 @@ class TestDagFileProcessor(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.dagbag = DagBag()
-        cls.old_val = None
-        if conf.has_option('core', 'load_examples'):
-            cls.old_val = conf.get('core', 'load_examples')
-        conf.set('core', 'load_examples', 'false')
-
-    @classmethod
-    def tearDownClass(cls):
-        if cls.old_val is not None:
-            conf.set('core', 'load_examples', cls.old_val)
-        else:
-            conf.remove_option('core', 'load_examples')
+        # Ensure the DAGs we are looking at from the DB are up-to-date
+        non_serialized_dagbag = DagBag(store_serialized_dags=False, include_examples=False)
+        non_serialized_dagbag.store_serialized_dags = True
+        non_serialized_dagbag.sync_to_db()
+        cls.dagbag = DagBag(store_serialized_dags=True)
 
     def test_dag_file_processor_sla_miss_callback(self):
         """
@@ -209,12 +219,13 @@ class TestDagFileProcessor(unittest.TestCase):
                 # Use a empty file since the above mock will return the
                 # expected DAGs. Also specify only a single file so that it doesn't
                 # try to schedule the above DAG repeatedly.
-                scheduler = SchedulerJob(num_runs=1,
-                                         executor=executor,
-                                         subdir=os.path.join(settings.DAGS_FOLDER,
-                                                             "no_dags.py"))
-                scheduler.heartrate = 0
-                scheduler.run()
+                with conf_vars({('core', 'mp_start_method'): 'fork'}):
+                    scheduler = SchedulerJob(num_runs=1,
+                                             executor=executor,
+                                             subdir=os.path.join(settings.DAGS_FOLDER,
+                                                                 "no_dags.py"))
+                    scheduler.heartrate = 0
+                    scheduler.run()
 
             do_schedule()  # pylint: disable=no-value-for-parameter
             for ti in tis:
@@ -333,8 +344,9 @@ class TestDagFileProcessor(unittest.TestCase):
         self.assertIn(email1, send_email_to)
         self.assertNotIn(email2, send_email_to)
 
+    @mock.patch('airflow.jobs.scheduler_job.Stats.incr')
     @mock.patch("airflow.utils.email.send_email")
-    def test_dag_file_processor_sla_miss_email_exception(self, mock_send_email):
+    def test_dag_file_processor_sla_miss_email_exception(self, mock_send_email, mock_stats_incr):
         """
         Test that the dag file processor gracefully logs an exception if there is a problem
         sending an email
@@ -367,6 +379,7 @@ class TestDagFileProcessor(unittest.TestCase):
         mock_log.exception.assert_called_once_with(
             'Could not send SLA Miss email notification for DAG %s',
             'test_sla_miss')
+        mock_stats_incr.assert_called_once_with('sla_email_notification_failure')
 
     def test_dag_file_processor_sla_miss_deleted_task(self):
         """
@@ -407,9 +420,56 @@ class TestDagFileProcessor(unittest.TestCase):
             schedule_interval="@once")
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dag.clear()
         dr = dag_file_processor.create_dag_run(dag)
         self.assertIsNotNone(dr)
+        dr = dag_file_processor.create_dag_run(dag)
+        self.assertIsNone(dr)
+
+    @freeze_time(timezone.datetime(2020, 1, 5))
+    def test_dag_file_processor_dagrun_with_timedelta_schedule_and_catchup_false(self):
+        """
+        Test that the dag file processor does not create multiple dagruns
+        if a dag is scheduled with 'timedelta' and catchup=False
+        """
+        dag = DAG(
+            'test_scheduler_dagrun_once_with_timedelta_and_catchup_false',
+            start_date=timezone.datetime(2015, 1, 1),
+            schedule_interval=timedelta(days=1),
+            catchup=False)
+
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag.clear()
+        dr = dag_file_processor.create_dag_run(dag)
+        self.assertIsNotNone(dr)
+        self.assertEqual(dr.execution_date, timezone.datetime(2020, 1, 4))
+        dr = dag_file_processor.create_dag_run(dag)
+        self.assertIsNone(dr)
+
+    @freeze_time(timezone.datetime(2020, 5, 4))
+    def test_dag_file_processor_dagrun_with_timedelta_schedule_and_catchup_true(self):
+        """
+        Test that the dag file processor creates multiple dagruns
+        if a dag is scheduled with 'timedelta' and catchup=True
+        """
+        dag = DAG(
+            'test_scheduler_dagrun_once_with_timedelta_and_catchup_true',
+            start_date=timezone.datetime(2020, 5, 1),
+            schedule_interval=timedelta(days=1),
+            catchup=True)
+
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag.clear()
+        dr = dag_file_processor.create_dag_run(dag)
+        self.assertIsNotNone(dr)
+        self.assertEqual(dr.execution_date, timezone.datetime(2020, 5, 1))
+        dr = dag_file_processor.create_dag_run(dag)
+        self.assertIsNotNone(dr)
+        self.assertEqual(dr.execution_date, timezone.datetime(2020, 5, 2))
+        dr = dag_file_processor.create_dag_run(dag)
+        self.assertIsNotNone(dr)
+        self.assertEqual(dr.execution_date, timezone.datetime(2020, 5, 3))
         dr = dag_file_processor.create_dag_run(dag)
         self.assertIsNone(dr)
 
@@ -436,6 +496,8 @@ class TestDagFileProcessor(unittest.TestCase):
         with create_session() as session:
             orm_dag = DagModel(dag_id=dag.dag_id)
             session.merge(orm_dag)
+
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.clear()
@@ -482,6 +544,8 @@ class TestDagFileProcessor(unittest.TestCase):
         with create_session() as session:
             orm_dag = DagModel(dag_id=dag.dag_id)
             session.merge(orm_dag)
+
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.clear()
@@ -533,6 +597,8 @@ class TestDagFileProcessor(unittest.TestCase):
             orm_dag = DagModel(dag_id=dag.dag_id)
             session.merge(orm_dag)
 
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.clear()
         dr = dag_file_processor.create_dag_run(dag)
@@ -567,6 +633,8 @@ class TestDagFileProcessor(unittest.TestCase):
         session.commit()
         session.close()
 
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.clear()
 
@@ -574,9 +642,11 @@ class TestDagFileProcessor(unittest.TestCase):
         self.assertIsNotNone(dr)
 
         dr = DagRun.find(run_id=dr.run_id)[0]
+        # Re-create the DAG, but remove the task
         dag = DAG(
             dag_id='test_scheduler_do_not_schedule_removed_task',
             start_date=DEFAULT_DATE)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         mock_list = dag_file_processor._process_task_instances(dag, dag_runs=[dr])
 
@@ -597,6 +667,8 @@ class TestDagFileProcessor(unittest.TestCase):
         session.commit()
         session.close()
 
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.clear()
 
@@ -614,6 +686,8 @@ class TestDagFileProcessor(unittest.TestCase):
         with create_session() as session:
             orm_dag = DagModel(dag_id=dag.dag_id)
             session.merge(orm_dag)
+
+            dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
             dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
             dag.clear(session=session)
             dag.start_date = None
@@ -633,6 +707,8 @@ class TestDagFileProcessor(unittest.TestCase):
         orm_dag = DagModel(dag_id=dag.dag_id)
         session.merge(orm_dag)
         session.commit()
+
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.clear()
@@ -670,6 +746,8 @@ class TestDagFileProcessor(unittest.TestCase):
         session.commit()
         session.close()
 
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.clear()
 
@@ -683,6 +761,7 @@ class TestDagFileProcessor(unittest.TestCase):
             task_id='dummy2',
             dag=dag,
             owner='airflow')
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         dag_file_processor._process_task_instances(dag, dag_runs=[dr])
 
@@ -709,6 +788,7 @@ class TestDagFileProcessor(unittest.TestCase):
         session.commit()
         session.close()
 
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.clear()
 
@@ -736,6 +816,8 @@ class TestDagFileProcessor(unittest.TestCase):
         orm_dag = DagModel(dag_id=dag.dag_id)
         session.merge(orm_dag)
         session.commit()
+
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.clear()
@@ -777,6 +859,8 @@ class TestDagFileProcessor(unittest.TestCase):
         session.commit()
         session.close()
 
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.clear()
 
@@ -814,6 +898,7 @@ class TestDagFileProcessor(unittest.TestCase):
         session.merge(orm_dag)
         session.commit()
         session.close()
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.clear()
@@ -838,8 +923,6 @@ class TestDagFileProcessor(unittest.TestCase):
 
     def test_find_dags_to_run_includes_subdags(self):
         dag = self.dagbag.get_dag('test_subdag_operator')
-        print(self.dagbag.dag_ids)
-        print(self.dagbag.dag_folder)
         self.assertGreater(len(dag.subdags), 0)
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dags = dag_file_processor._find_dags_to_process(self.dagbag.dags.values())
@@ -877,7 +960,7 @@ class TestDagFileProcessor(unittest.TestCase):
             session.commit()
             session.close()
 
-            return dag
+            return SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         now = timezone.utcnow()
         six_hours_ago_to_the_hour = (now - datetime.timedelta(hours=6)).replace(
@@ -948,6 +1031,8 @@ class TestDagFileProcessor(unittest.TestCase):
         session.merge(orm_dag)
         session.commit()
 
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
 
         dr = dag_file_processor.create_dag_run(dag)
@@ -968,6 +1053,7 @@ class TestDagFileProcessor(unittest.TestCase):
         orm_dag = DagModel(dag_id=dag.dag_id)
         session.merge(orm_dag)
         session.commit()
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         dag.clear()
 
@@ -1110,6 +1196,16 @@ class TestDagFileProcessor(unittest.TestCase):
             ('test_task_on_execute', 'scheduled'),
             ('test_task_on_success', 'scheduled'),
         }, {(ti.task_id, ti.state) for ti in tis})
+        for state, start_date, end_date, duration in [(ti.state, ti.start_date, ti.end_date, ti.duration) for
+                                                      ti in tis]:
+            if state == 'success':
+                self.assertIsNotNone(start_date)
+                self.assertIsNotNone(end_date)
+                self.assertEqual(0.0, duration)
+            else:
+                self.assertIsNone(start_date)
+                self.assertIsNone(end_date)
+                self.assertIsNone(duration)
 
         dag_file_processor.process_file(
             file_path=dag_file, failure_callback_requests=[]
@@ -1125,6 +1221,16 @@ class TestDagFileProcessor(unittest.TestCase):
             ('test_task_on_execute', 'scheduled'),
             ('test_task_on_success', 'scheduled'),
         }, {(ti.task_id, ti.state) for ti in tis})
+        for state, start_date, end_date, duration in [(ti.state, ti.start_date, ti.end_date, ti.duration) for
+                                                      ti in tis]:
+            if state == 'success':
+                self.assertIsNotNone(start_date)
+                self.assertIsNotNone(end_date)
+                self.assertEqual(0.0, duration)
+            else:
+                self.assertIsNone(start_date)
+                self.assertIsNone(end_date)
+                self.assertIsNone(duration)
 
 
 class TestDagFileProcessorQueriesCount(unittest.TestCase):
@@ -1155,6 +1261,9 @@ class TestDagFileProcessorQueriesCount(unittest.TestCase):
             ( 9,  1,  1, "1d", "@once",        "linear"),  # noqa
             ( 9,  1,  1, "1d",   "30m",  "no_structure"),  # noqa
             ( 9,  1,  1, "1d",   "30m",        "linear"),  # noqa
+            ( 9,  1,  1, "1d",   "30m",   "binary_tree"),  # noqa
+            ( 9,  1,  1, "1d",   "30m",          "star"),  # noqa
+            ( 9,  1,  1, "1d",   "30m",          "grid"),  # noqa
             # One DAG with five tasks per DAG  file
             ( 1,  1,  5, "1d",  "None",  "no_structure"),  # noqa
             ( 1,  1,  5, "1d",  "None",        "linear"),  # noqa
@@ -1162,6 +1271,9 @@ class TestDagFileProcessorQueriesCount(unittest.TestCase):
             (10,  1,  5, "1d", "@once",        "linear"),  # noqa
             ( 9,  1,  5, "1d",   "30m",  "no_structure"),  # noqa
             (10,  1,  5, "1d",   "30m",        "linear"),  # noqa
+            (10,  1,  5, "1d",   "30m",   "binary_tree"),  # noqa
+            (10,  1,  5, "1d",   "30m",          "star"),  # noqa
+            (10,  1,  5, "1d",   "30m",          "grid"),  # noqa
             # 10 DAGs with 10 tasks per DAG file
             ( 1, 10, 10, "1d",  "None",  "no_structure"),  # noqa
             ( 1, 10, 10, "1d",  "None",        "linear"),  # noqa
@@ -1169,6 +1281,9 @@ class TestDagFileProcessorQueriesCount(unittest.TestCase):
             (91, 10, 10, "1d", "@once",        "linear"),  # noqa
             (81, 10, 10, "1d",   "30m",  "no_structure"),  # noqa
             (91, 10, 10, "1d",   "30m",        "linear"),  # noqa
+            (91, 10, 10, "1d",   "30m",   "binary_tree"),  # noqa
+            (91, 10, 10, "1d",   "30m",          "star"),  # noqa
+            (91, 10, 10, "1d",   "30m",          "grid"),  # noqa
             # pylint: enable=bad-whitespace
         ]
     )
@@ -1233,6 +1348,7 @@ class TestDagFileProcessorQueriesCount(unittest.TestCase):
             processor.process_file(ELASTIC_DAG_FILE, [])
 
 
+@pytest.mark.usefixtures("disable_load_example")
 class TestSchedulerJob(unittest.TestCase):
 
     def setUp(self):
@@ -1248,18 +1364,11 @@ class TestSchedulerJob(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.dagbag = DagBag()
-        cls.old_val = None
-        if conf.has_option('core', 'load_examples'):
-            cls.old_val = conf.get('core', 'load_examples')
-        conf.set('core', 'load_examples', 'false')
-
-    @classmethod
-    def tearDownClass(cls):
-        if cls.old_val is not None:
-            conf.set('core', 'load_examples', cls.old_val)
-        else:
-            conf.remove_option('core', 'load_examples')
+        # Ensure the DAGs we are looking at from the DB are up-to-date
+        non_serialized_dagbag = DagBag(store_serialized_dags=False, include_examples=False)
+        non_serialized_dagbag.store_serialized_dags = True
+        non_serialized_dagbag.sync_to_db()
+        cls.dagbag = DagBag(store_serialized_dags=True)
 
     def test_is_alive(self):
         job = SchedulerJob(None, heartrate=10, state=State.RUNNING)
@@ -1339,7 +1448,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.commit()
 
         executor = MockExecutor(do_update=False)
-        executor.event_buffer[ti1.key] = State.FAILED
+        executor.event_buffer[ti1.key] = State.FAILED, None
 
         scheduler.executor = executor
 
@@ -1358,7 +1467,7 @@ class TestSchedulerJob(unittest.TestCase):
             full_filepath='/test_path1/',
             task_instance=mock.ANY,
             msg='Executor reports task instance finished (failed) '
-                'although the task says its queued. Was the task killed externally?'
+                'although the task says its queued. (Info: None) Was the task killed externally?'
         )
         scheduler.processor_agent.reset_mock()
 
@@ -1366,7 +1475,7 @@ class TestSchedulerJob(unittest.TestCase):
         ti1.state = State.SUCCESS
         session.merge(ti1)
         session.commit()
-        executor.event_buffer[ti1.key] = State.SUCCESS
+        executor.event_buffer[ti1.key] = State.SUCCESS, None
 
         scheduler._process_executor_events(simple_dag_bag=dagbag1)
         ti1.refresh_from_db()
@@ -1381,6 +1490,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1412,6 +1522,8 @@ class TestSchedulerJob(unittest.TestCase):
 
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1438,6 +1550,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1464,6 +1577,7 @@ class TestSchedulerJob(unittest.TestCase):
         task_id_1 = 'dummy'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=16)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1504,6 +1618,7 @@ class TestSchedulerJob(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=16)
         task1 = DummyOperator(dag=dag, task_id=task_id_1, pool='a')
         task2 = DummyOperator(dag=dag, task_id=task_id_2, pool='b')
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1547,6 +1662,7 @@ class TestSchedulerJob(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
         op1 = DummyOperator(dag=dag, task_id='dummy1')
         op2 = DummyOperator(dag=dag, task_id='dummy2')
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         executor = MockExecutor(do_update=True)
@@ -1588,6 +1704,7 @@ class TestSchedulerJob(unittest.TestCase):
         task_id = 'dummy_wrong_pool'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=16)
         task = DummyOperator(dag=dag, task_id=task_id, pool="this_pool_doesnt_exist")
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1612,6 +1729,7 @@ class TestSchedulerJob(unittest.TestCase):
         task_id_1 = 'dummy'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=16)
         DummyOperator(dag=dag, task_id=task_id_1)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1630,6 +1748,7 @@ class TestSchedulerJob(unittest.TestCase):
         task_id_1 = 'dummy'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=2)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1676,6 +1795,7 @@ class TestSchedulerJob(unittest.TestCase):
         task1 = DummyOperator(dag=dag, task_id='dummy1')
         task2 = DummyOperator(dag=dag, task_id='dummy2')
         task3 = DummyOperator(dag=dag, task_id='dummy3')
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1710,6 +1830,7 @@ class TestSchedulerJob(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=16)
         task1 = DummyOperator(dag=dag, task_id=task_id_1, task_concurrency=2)
         task2 = DummyOperator(dag=dag, task_id=task_id_2)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         executor = MockExecutor(do_update=True)
@@ -1804,6 +1925,7 @@ class TestSchedulerJob(unittest.TestCase):
         task_id_1 = 'dummy'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=2)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         self._make_simple_dag_bag([dag])
 
         scheduler = SchedulerJob()
@@ -1836,6 +1958,7 @@ class TestSchedulerJob(unittest.TestCase):
         task_id_1 = 'dummy'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1858,6 +1981,7 @@ class TestSchedulerJob(unittest.TestCase):
         task_id_1 = 'dummy'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=2)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = SimpleDagBag([])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1883,6 +2007,7 @@ class TestSchedulerJob(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=3)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
         task2 = DummyOperator(dag=dag, task_id=task_id_2)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1953,6 +2078,7 @@ class TestSchedulerJob(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=16)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
         task2 = DummyOperator(dag=dag, task_id=task_id_2)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1981,6 +2107,7 @@ class TestSchedulerJob(unittest.TestCase):
             ti.refresh_from_db()
             self.assertEqual(State.QUEUED, ti.state)
 
+    @pytest.mark.quarantined
     @pytest.mark.xfail(condition=True, reason="The test is flaky with nondeterministic result")
     def test_change_state_for_tis_without_dagrun(self):
         dag1 = DAG(dag_id='test_change_state_for_tis_without_dagrun', start_date=DEFAULT_DATE)
@@ -1988,14 +2115,19 @@ class TestSchedulerJob(unittest.TestCase):
         DummyOperator(task_id='dummy', dag=dag1, owner='airflow')
 
         DummyOperator(task_id='dummy_b', dag=dag1, owner='airflow')
+        dag1 = SerializedDAG.from_dict(SerializedDAG.to_dict(dag1))
 
         dag2 = DAG(dag_id='test_change_state_for_tis_without_dagrun_dont_change', start_date=DEFAULT_DATE)
 
         DummyOperator(task_id='dummy', dag=dag2, owner='airflow')
 
+        dag2 = SerializedDAG.from_dict(SerializedDAG.to_dict(dag2))
+
         dag3 = DAG(dag_id='test_change_state_for_tis_without_dagrun_no_dagrun', start_date=DEFAULT_DATE)
 
         DummyOperator(task_id='dummy', dag=dag3, owner='airflow')
+
+        dag3 = SerializedDAG.from_dict(SerializedDAG.to_dict(dag3))
 
         session = settings.Session()
         dr1 = dag1.create_dagrun(run_id=DagRunType.SCHEDULED.value,
@@ -2080,6 +2212,7 @@ class TestSchedulerJob(unittest.TestCase):
             task_id='task_id',
             dag=dag,
             owner='airflow')
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         # If there's no left over task in executor.queued_tasks, nothing happens
         session = settings.Session()
@@ -2128,6 +2261,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         with dag:
             op1 = DummyOperator(task_id='op1')
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         dag.clear()
         dr = dag.create_dagrun(run_id=f"{DagRunType.SCHEDULED.value}__",
@@ -2176,6 +2310,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         with dag:
             op1 = DummyOperator(task_id='op1')
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         # Create DAG run with FAILED state
         dag.clear()
@@ -2237,6 +2372,7 @@ class TestSchedulerJob(unittest.TestCase):
             self.null_exec.mock_task_fail(dag_id, tid, ex_date)
 
         try:
+            # This needs a _REAL_ dag, not the serialized version
             dag.run(start_date=ex_date, end_date=ex_date, executor=self.null_exec, **run_kwargs)
         except AirflowException:
             pass
@@ -2378,7 +2514,7 @@ class TestSchedulerJob(unittest.TestCase):
             dag_id = 'test_start_date_scheduling'
             dag = self.dagbag.get_dag(dag_id)
             dag.clear()
-            self.assertTrue(dag.start_date > datetime.datetime.utcnow())
+            self.assertGreater(dag.start_date, datetime.datetime.utcnow())
 
             scheduler = SchedulerJob(dag_id,
                                      executor=self.null_exec,
@@ -2409,7 +2545,7 @@ class TestSchedulerJob(unittest.TestCase):
                 len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()), 1)
             self.assertListEqual(
                 [
-                    ((dag.dag_id, 'dummy', DEFAULT_DATE, 1), State.SUCCESS),
+                    ((dag.dag_id, 'dummy', DEFAULT_DATE, 1), (State.SUCCESS, None)),
                 ],
                 bf_exec.sorted_tasks
             )
@@ -2471,6 +2607,31 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertEqual(
             len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()), 0)
 
+    @conf_vars({("core", "mp_start_method"): "spawn"})
+    def test_scheduler_multiprocessing_with_spawn_method(self):
+        """
+        Test that the scheduler can successfully queue multiple dags in parallel
+        when using "spawn" mode of multiprocessing. (Fork is default on Linux and older OSX)
+        """
+        dag_ids = ['test_start_date_scheduling', 'test_dagrun_states_success']
+        for dag_id in dag_ids:
+            dag = self.dagbag.get_dag(dag_id)
+            dag.clear()
+
+        scheduler = SchedulerJob(dag_ids=dag_ids,
+                                 executor=self.null_exec,
+                                 subdir=os.path.join(
+                                     TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
+                                 num_runs=1)
+
+        scheduler.run()
+
+        # zero tasks ran
+        dag_id = 'test_start_date_scheduling'
+        with create_session() as session:
+            self.assertEqual(
+                session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).count(), 0)
+
     def test_scheduler_verify_pool_full(self):
         """
         Test task instances not queued when pool is full
@@ -2492,6 +2653,8 @@ class TestSchedulerJob(unittest.TestCase):
         orm_dag.is_paused = False
         session.merge(orm_dag)
         session.commit()
+
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         scheduler = SchedulerJob(executor=self.null_exec)
@@ -2544,6 +2707,7 @@ class TestSchedulerJob(unittest.TestCase):
             bash_command='echo 1',
         )
 
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dag.clear()
         dag.is_subdag = False
 
@@ -2560,12 +2724,13 @@ class TestSchedulerJob(unittest.TestCase):
             # Use a empty file since the above mock will return the
             # expected DAGs. Also specify only a single file so that it doesn't
             # try to schedule the above DAG repeatedly.
-            scheduler = SchedulerJob(num_runs=1,
-                                     executor=executor,
-                                     subdir=os.path.join(settings.DAGS_FOLDER,
-                                                         "no_dags.py"))
-            scheduler.heartrate = 0
-            scheduler.run()
+            with conf_vars({('core', 'mp_start_method'): 'fork'}):
+                scheduler = SchedulerJob(num_runs=1,
+                                         executor=executor,
+                                         subdir=os.path.join(settings.DAGS_FOLDER,
+                                                             "no_dags.py"))
+                scheduler.heartrate = 0
+                scheduler.run()
 
         do_schedule()  # pylint: disable=no-value-for-parameter
         with create_session() as session:
@@ -2580,6 +2745,7 @@ class TestSchedulerJob(unittest.TestCase):
         ti.refresh_from_db()
         self.assertEqual(State.SUCCESS, ti.state)
 
+    @pytest.mark.quarantined
     def test_retry_still_in_executor(self):
         """
         Checks if the scheduler does not put a task in limbo, when a task is retried
@@ -2667,6 +2833,7 @@ class TestSchedulerJob(unittest.TestCase):
         ti.refresh_from_db()
         self.assertEqual(ti.state, State.SUCCESS)
 
+    @pytest.mark.quarantined
     @pytest.mark.xfail(condition=True, reason="This test is failing!")
     def test_retry_handling_job(self):
         """
@@ -2712,8 +2879,12 @@ class TestSchedulerJob(unittest.TestCase):
                                  num_runs=1)
         scheduler.run()
         with create_session() as session:
-            self.assertEqual(
-                len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()), 1)
+            tis = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()
+            # Since this dag has no end date, and there's a chance that we'll
+            # start a and finish two dag parsing processes twice in one loop!
+            self.assertGreaterEqual(
+                len(tis), 1,
+                repr(tis))
 
     def test_dag_get_active_runs(self):
         """
@@ -2773,10 +2944,11 @@ class TestSchedulerJob(unittest.TestCase):
     def test_add_unparseable_file_before_sched_start_creates_import_error(self):
         dags_folder = mkdtemp()
         try:
-            unparseable_filename = os.path.join(dags_folder, TEMP_DAG_FILENAME)
-            with open(unparseable_filename, 'w') as unparseable_file:
-                unparseable_file.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
-            self.run_single_scheduler_loop_with_no_dags(dags_folder)
+            with env_vars({('core', 'dags_folder'): dags_folder}):
+                unparseable_filename = os.path.join(dags_folder, TEMP_DAG_FILENAME)
+                with open(unparseable_filename, 'w') as unparseable_file:
+                    unparseable_file.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
+                self.run_single_scheduler_loop_with_no_dags(dags_folder)
         finally:
             shutil.rmtree(dags_folder)
 

@@ -126,15 +126,20 @@ def secondary_training_status_message(job_description, prev_description):
 class SageMakerHook(AwsBaseHook):
     """
     Interact with Amazon SageMaker.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
     non_terminal_states = {'InProgress', 'Stopping'}
     endpoint_non_terminal_states = {'Creating', 'Updating', 'SystemUpdating',
                                     'RollingBack', 'Deleting'}
     failed_states = {'Failed'}
 
-    def __init__(self,
-                 *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(client_type='sagemaker', *args, **kwargs)
         self.s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
         self.logs_hook = AwsLogsHook(aws_conn_id=self.aws_conn_id)
 
@@ -230,21 +235,13 @@ class SageMakerHook(AwsBaseHook):
         for channel in tuning_config['TrainingJobDefinition']['InputDataConfig']:
             self.check_s3_url(channel['DataSource']['S3DataSource']['S3Uri'])
 
-    def get_conn(self):
-        """
-        Establish an AWS connection for SageMaker
-
-        :rtype: :py:class:`SageMaker.Client`
-        """
-        return self.get_client_type('sagemaker')
-
     def get_log_conn(self):
         """
         This method is deprecated.
-        Please use :py:meth:`airflow.contrib.hooks.AwsLogsHook.get_conn` instead.
+        Please use :py:meth:`airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_conn` instead.
         """
         warnings.warn("Method `get_log_conn` has been deprecated. "
-                      "Please use `airflow.contrib.hooks.AwsLogsHook.get_conn` instead.",
+                      "Please use `airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_conn` instead.",
                       category=DeprecationWarning,
                       stacklevel=2)
 

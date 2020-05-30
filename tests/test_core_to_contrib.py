@@ -25,6 +25,10 @@ from parameterized import parameterized
 
 HOOK = [
     (
+        "airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook",
+        "airflow.contrib.hooks.cassandra_hook.CassandraHook",
+    ),
+    (
         "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook",
         "airflow.contrib.hooks.gcp_compute_hook.GceHook",
     ),
@@ -332,6 +336,10 @@ HOOK = [
     (
         'airflow.providers.jenkins.hooks.jenkins.JenkinsHook',
         'airflow.contrib.hooks.jenkins_hook.JenkinsHook',
+    ),
+    (
+        'airflow.providers.jira.hooks.jira.JiraHook',
+        'airflow.contrib.hooks.jira_hook.JiraHook',
     ),
     (
         'airflow.providers.opsgenie.hooks.opsgenie_alert.OpsgenieAlertHook',
@@ -959,6 +967,42 @@ OPERATOR = [
         "DataprocWorkflowTemplateInstantiateOperator",
     ),
     (
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryCreateEmptyDatasetOperator",
+        "airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyDatasetOperator",
+    ),
+    (
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryCreateEmptyTableOperator",
+        "airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyTableOperator",
+    ),
+    (
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryCreateExternalTableOperator",
+        "airflow.contrib.operators.bigquery_operator.BigQueryCreateExternalTableOperator",
+    ),
+    (
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteDatasetOperator",
+        "airflow.contrib.operators.bigquery_operator.BigQueryDeleteDatasetOperator",
+    ),
+    (
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryGetDatasetOperator",
+        "airflow.contrib.operators.bigquery_operator.BigQueryGetDatasetOperator",
+    ),
+    (
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryGetDatasetTablesOperator",
+        "airflow.contrib.operators.bigquery_operator.BigQueryGetDatasetTablesOperator",
+    ),
+    (
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryPatchDatasetOperator",
+        "airflow.contrib.operators.bigquery_operator.BigQueryPatchDatasetOperator",
+    ),
+    (
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryUpdateDatasetOperator",
+        "airflow.contrib.operators.bigquery_operator.BigQueryUpdateDatasetOperator",
+    ),
+    (
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryUpsertTableOperator",
+        "airflow.contrib.operators.bigquery_operator.BigQueryUpsertTableOperator",
+    ),
+    (
         "airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator",
         "airflow.contrib.operators.bigquery_check_operator.BigQueryCheckOperator",
     ),
@@ -1051,6 +1095,10 @@ OPERATOR = [
         'airflow.contrib.operators.spark_submit_operator.SparkSubmitOperator',
     ),
     (
+        'airflow.providers.apache.spark.operators.spark_jdbc.SparkJDBCOperator',
+        'airflow.contrib.operators.spark_jdbc_operator.SparkJDBCOperator',
+    ),
+    (
         'airflow.providers.apache.sqoop.operators.sqoop.SqoopOperator',
         'airflow.contrib.operators.sqoop_operator.SqoopOperator',
     ),
@@ -1061,6 +1109,14 @@ OPERATOR = [
     (
         'airflow.providers.apache.hive.operators.hive.HiveOperator',
         'airflow.operators.hive_operator.HiveOperator',
+    ),
+    (
+        'airflow.providers.apache.hive.operators.mysql_to_hive.MySqlToHiveTransferOperator',
+        'airflow.operators.mysql_to_hive.MySqlToHiveTransfer',
+    ),
+    (
+        'airflow.providers.apache.hive.operators.s3_to_hive.S3ToHiveTransferOperator',
+        'airflow.operators.s3_to_hive_operator.S3ToHiveTransfer',
     ),
     (
         'airflow.providers.apache.hive.operators.hive_stats.HiveStatsCollectionOperator',
@@ -1260,11 +1316,6 @@ OPERATOR = [
         'airflow.contrib.operators.vertica_operator.VerticaOperator',
     ),
     (
-        'airflow.providers.datadog.sensors.datadog.DatadogSensor',
-        'airflow.contrib.sensors.datadog_sensor.DatadogSensor',
-    ),
-
-    (
         'airflow.providers.slack.operators.slack.SlackAPIPostOperator',
         'airflow.operators.slack_operator.SlackAPIPostOperator',
     ),
@@ -1329,27 +1380,27 @@ OPERATOR = [
         'airflow.operators.gcs_to_s3.GCSToS3Operator',
     ),
     (
-        'airflow.providers.amazon.aws.operators.google_api_to_s3_transfer.GoogleApiToS3Transfer',
+        'airflow.providers.amazon.aws.operators.google_api_to_s3_transfer.GoogleApiToS3TransferOperator',
         'airflow.operators.google_api_to_s3_transfer.GoogleApiToS3Transfer',
     ),
     (
-        'airflow.providers.amazon.aws.operators.redshift_to_s3.RedshiftToS3Transfer',
+        'airflow.providers.amazon.aws.operators.redshift_to_s3.RedshiftToS3TransferOperator',
         'airflow.operators.redshift_to_s3_operator.RedshiftToS3Transfer',
     ),
     (
-        'airflow.providers.amazon.aws.operators.s3_to_redshift.S3ToRedshiftTransfer',
+        'airflow.providers.amazon.aws.operators.s3_to_redshift.S3ToRedshiftTransferOperator',
         'airflow.operators.s3_to_redshift_operator.S3ToRedshiftTransfer',
     ),
     (
-        'airflow.providers.apache.hive.operators.vertica_to_hive.VerticaToHiveTransfer',
+        'airflow.providers.apache.hive.operators.vertica_to_hive.VerticaToHiveTransferOperator',
         'airflow.contrib.operators.vertica_to_hive.VerticaToHiveTransfer',
     ),
     (
-        'airflow.providers.apache.druid.operators.hive_to_druid.HiveToDruidTransfer',
+        'airflow.providers.apache.druid.operators.hive_to_druid.HiveToDruidTransferOperator',
         'airflow.operators.hive_to_druid.HiveToDruidTransfer',
     ),
     (
-        'airflow.providers.apache.hive.operators.hive_to_mysql.HiveToMySqlTransfer',
+        'airflow.providers.apache.hive.operators.hive_to_mysql.HiveToMySqlTransferOperator',
         'airflow.operators.hive_to_mysql.HiveToMySqlTransfer',
     ),
     (
@@ -1357,7 +1408,7 @@ OPERATOR = [
         'airflow.operators.hive_to_samba_operator.Hive2SambaOperator',
     ),
     (
-        'airflow.providers.apache.hive.operators.mssql_to_hive.MsSqlToHiveTransfer',
+        'airflow.providers.apache.hive.operators.mssql_to_hive.MsSqlToHiveTransferOperator',
         'airflow.operators.mssql_to_hive.MsSqlToHiveTransfer',
     ),
     (
@@ -1370,11 +1421,11 @@ OPERATOR = [
     ),
     (
         'airflow.providers.microsoft.azure.operators.oracle_to_azure_data_lake_transfer'
-        '.OracleToAzureDataLakeTransfer',
-        'airflow.contrib.operators.oracle_to_azure_data_lake_transfer.OracleToAzureDataLakeTransfer',
+        '.OracleToAzureDataLakeTransferOperator',
+        'airflow.contrib.operators.oracle_to_azure_data_lake_transfer.OracleToAzureDataLakeTransferOperator',
     ),
     (
-        'airflow.providers.oracle.operators.oracle_to_oracle_transfer.OracleToOracleTransfer',
+        'airflow.providers.oracle.operators.oracle_to_oracle_transfer.OracleToOracleTransferOperator',
         'airflow.contrib.operators.oracle_to_oracle_transfer.OracleToOracleTransfer',
     ),
     (
@@ -1382,11 +1433,11 @@ OPERATOR = [
         'airflow.contrib.operators.s3_to_gcs_operator.S3ToGCSOperator',
     ),
     (
-        'airflow.providers.mysql.operators.vertica_to_mysql.VerticaToMySqlTransfer',
+        'airflow.providers.mysql.operators.vertica_to_mysql.VerticaToMySqlTransferOperator',
         'airflow.contrib.operators.vertica_to_mysql.VerticaToMySqlTransfer',
     ),
     (
-        'airflow.providers.mysql.operators.presto_to_mysql.PrestoToMySqlTransfer',
+        'airflow.providers.mysql.operators.presto_to_mysql.PrestoToMySqlTransferOperator',
         'airflow.operators.presto_to_mysql.PrestoToMySqlTransfer',
     ),
     (
@@ -1434,9 +1485,52 @@ OPERATOR = [
         '.CloudDataTransferServiceS3ToGCSOperator',
         'airflow.contrib.operators.s3_to_gcs_transfer_operator.CloudDataTransferServiceS3ToGCSOperator'
     ),
+    (
+        'airflow.providers.jira.operators.jira.JiraOperator',
+        'airflow.contrib.operators.jira_operator.JiraOperator',
+    ),
+    (
+        'airflow.providers.postgres.operators.postgres.PostgresOperator',
+        'airflow.operators.postgres_operator.PostgresOperator',
+    ),
+    (
+        'airflow.providers.google.cloud.operators.cassandra_to_gcs.CassandraToGCSOperator',
+        'airflow.contrib.operators.cassandra_to_gcs.CassandraToGoogleCloudStorageOperator',
+    ),
+]
+
+SECRETS = [
+    (
+        "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend",
+        "airflow.contrib.secrets.aws_secrets_manager.SecretsManagerBackend",
+    ),
+    (
+        "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+        "airflow.contrib.secrets.aws_systems_manager.SystemsManagerParameterStoreBackend",
+    ),
+    (
+        "airflow.providers.google.cloud.secrets.secrets_manager.CloudSecretsManagerBackend",
+        "airflow.contrib.secrets.gcp_secrets_manager.CloudSecretsManagerBackend",
+    ),
+    (
+        "airflow.providers.hashicorp.secrets.vault.VaultBackend",
+        "airflow.contrib.secrets.hashicorp_vault.VaultBackend",
+    ),
 ]
 
 SENSOR = [
+    (
+        "airflow.providers.apache.cassandra.sensors.record.CassandraRecordSensor",
+        "airflow.contrib.sensors.cassandra_record_sensor.CassandraRecordSensor",
+    ),
+    (
+        "airflow.providers.apache.cassandra.sensors.table.CassandraTableSensor",
+        "airflow.contrib.sensors.cassandra_table_sensor.CassandraTableSensor",
+    ),
+    (
+        'airflow.providers.datadog.sensors.datadog.DatadogSensor',
+        'airflow.contrib.sensors.datadog_sensor.DatadogSensor',
+    ),
     (
         "airflow.providers.google.cloud.sensors.bigtable.BigtableTableReplicationCompletedSensor",
         "airflow.contrib.operators.gcp_bigtable_operator."
@@ -1481,11 +1575,11 @@ SENSOR = [
         "airflow.contrib.sensors.aws_sqs_sensor.SQSSensor",
     ),
     (
-        'airflow.providers.apache.hdfs.sensors.hdfs.HdfsSensorFolder',
+        'airflow.providers.apache.hdfs.sensors.hdfs.HdfsFolderSensor',
         'airflow.contrib.sensors.hdfs_sensor.HdfsSensorFolder',
     ),
     (
-        'airflow.providers.apache.hdfs.sensors.hdfs.HdfsSensorRegex',
+        'airflow.providers.apache.hdfs.sensors.hdfs.HdfsRegexSensor',
         'airflow.contrib.sensors.hdfs_sensor.HdfsSensorRegex',
     ),
     (
@@ -1621,6 +1715,14 @@ SENSOR = [
         'airflow.contrib.sensors.imap_attachment_sensor.ImapAttachmentSensor',
     ),
     (
+        'airflow.providers.jira.sensors.jira.JiraSensor',
+        'airflow.contrib.sensors.jira_sensor.JiraSensor',
+    ),
+    (
+        'airflow.providers.jira.sensors.jira.JiraTicketSensor',
+        'airflow.contrib.sensors.jira_sensor.JiraTicketSensor',
+    ),
+    (
         'airflow.providers.http.sensors.http.HttpSensor',
         'airflow.sensors.http_sensor.HttpSensor',
     ),
@@ -1641,11 +1743,11 @@ PROTOCOLS = [
     ),
 ]
 
-ALL = HOOK + OPERATOR + SENSOR + PROTOCOLS
+ALL = HOOK + OPERATOR + SECRETS + SENSOR + PROTOCOLS
 
 RENAMED_HOOKS = [
     (old_class, new_class)
-    for old_class, new_class in HOOK + OPERATOR + SENSOR
+    for old_class, new_class in HOOK + OPERATOR + SECRETS + SENSOR
     if old_class.rpartition(".")[2] != new_class.rpartition(".")[2]
 ]
 

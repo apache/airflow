@@ -26,7 +26,7 @@ import unittest
 from importlib import util
 from os.path import dirname
 from textwrap import wrap
-from typing import List
+from typing import Dict, Iterable, List
 
 from setuptools import Command, find_packages, setup
 
@@ -170,9 +170,16 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
         file.write(text)
 
 
-# 'Start dependencies group' and 'Start dependencies group' are mark for ./test/test_order_setup.py
-# If you change this mark you should also change ./test/test_order_setup.py function test_main_dependent_group
+# 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
+# If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
+amazon = [
+    'boto3>=1.12.0,<2.0.0',
+    'watchtower~=0.7.3',
+]
+apache_beam = [
+    'apache-beam[gcp]<2.20.0',
+]
 async_packages = [
     'eventlet>= 0.9.7',
     'gevent>=0.13',
@@ -181,18 +188,15 @@ async_packages = [
 atlas = [
     'atlasclient>=0.1.2',
 ]
-aws = [
-    'boto3>=1.12.0,<2.0.0',
-    'watchtower~=0.7.3',
-]
 azure = [
-    'azure-cosmos>=3.0.1',
+    'azure-batch>=8.0.0',
+    'azure-cosmos>=3.0.1,<4',
     'azure-datalake-store>=0.0.45',
     'azure-kusto-data>=0.0.43',
     'azure-mgmt-containerinstance>=1.5.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
-    'azure-storage>=0.34.0',
+    'azure-storage>=0.34.0,<0.37.0',
     'azure-storage-blob<12.0',
 ]
 cassandra = [
@@ -237,12 +241,18 @@ elasticsearch = [
     'elasticsearch-dbapi==0.1.0',
     'elasticsearch-dsl>=5.0.0',
 ]
+exasol = [
+    'pyexasol>=0.5.1,<1.0.0',
+]
+facebook = [
+    'facebook-business>=6.0.2',
+]
 flask_oauth = [
     'Flask-OAuthlib>=0.9.1',
     'oauthlib!=2.0.3,!=2.0.4,!=2.0.5,<3.0.0,>=1.1.2',
     'requests-oauthlib==1.1.0',
 ]
-gcp = [
+google = [
     'PyOpenSSL',
     'google-ads>=4.0.0',
     'google-api-python-client>=1.6.0, <2.0.0dev',
@@ -252,7 +262,7 @@ gcp = [
     'google-cloud-bigquery-datatransfer>=0.4.0',
     'google-cloud-bigtable>=1.0.0',
     'google-cloud-container>=0.1.1',
-    'google-cloud-datacatalog>=0.5.0',
+    'google-cloud-datacatalog>=0.5.0,<0.8',
     'google-cloud-dataproc>=0.5.0',
     'google-cloud-dlp>=0.11.0',
     'google-cloud-kms>=1.2.1',
@@ -275,17 +285,19 @@ gcp = [
     'pandas-gbq',
 ]
 grpc = [
+    'google-auth>=1.0.0, <2.0.0dev',
+    'google-auth-httplib2>=0.0.1',
     'grpcio>=1.15.0',
 ]
 hashicorp = [
     'hvac~=0.10',
 ]
 hdfs = [
-    'snakebite>=2.7.8',
+    'snakebite-py3',
 ]
 hive = [
     'hmsclient>=0.1.0',
-    'pyhive>=0.6.0',
+    'pyhive[hive]>=0.6.0',
 ]
 jdbc = [
     'jaydebeapi>=1.1.1',
@@ -350,7 +362,7 @@ qds = [
     'qds-sdk>=1.10.4',
 ]
 rabbitmq = [
-    'librabbitmq>=1.6.1',
+    'amqp',
 ]
 redis = [
     'redis~=3.2',
@@ -373,11 +385,14 @@ sentry = [
 ]
 singularity = ['spython>=0.0.56']
 slack = [
-    'slackclient>=1.0.0,<2.0.0',
+    'slackclient>=2.0.0,<3.0.0',
 ]
 snowflake = [
     'snowflake-connector-python>=1.5.2',
     'snowflake-sqlalchemy>=1.1.0',
+]
+spark = [
+    'pyspark',
 ]
 ssh = [
     'paramiko>=2.6.0',
@@ -410,7 +425,7 @@ zendesk = [
 ]
 # End dependencies group
 
-all_dbs = (cassandra + cloudant + druid + hdfs + hive + mongo + mssql + mysql +
+all_dbs = (cassandra + cloudant + druid + exasol + hdfs + hive + mongo + mssql + mysql +
            pinot + postgres + presto + vertica)
 
 ############################################################################################################
@@ -420,28 +435,38 @@ all_dbs = (cassandra + cloudant + druid + hdfs + hive + mongo + mssql + mysql +
 ############################################################################################################
 devel = [
     'beautifulsoup4~=4.7.1',
+    'blinker',
+    'bowler',
     'click==6.7',
     'contextdecorator;python_version<"3.4"',
     'coverage',
+    'docutils',
     'flake8>=3.6.0',
     'flake8-colors',
     'flaky',
     'freezegun',
+    'gitpython',
     'ipdb',
     'jira',
     'mongomock',
     'moto>=1.3.14,<2.0.0',
     'parameterized',
     'paramiko',
+    'pipdeptree',
     'pre-commit',
-    'pylint~=2.4',
+    'pylint==2.4.4',
     'pysftp',
     'pytest',
     'pytest-cov',
     'pytest-instafail',
+    'pytest-rerunfailures',
+    'pytest-timeout',
+    'pytest-xdist',
     'pywinrm',
     'qds-sdk>=1.9.6',
     'requests_mock',
+    'setuptools',
+    'wheel',
     'yamllint',
 ]
 ############################################################################################################
@@ -451,68 +476,131 @@ devel = [
 ############################################################################################################
 
 if PY3:
-    devel += ['mypy==0.740']
+    devel += ['mypy==0.770']
 else:
     devel += ['unittest2']
 
 devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
 devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
-devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + dask + datadog + devel + doc + docker +
-             elasticsearch + gcp + grpc + hashicorp + jdbc + jenkins + kerberos + kubernetes + ldap + odbc +
-             oracle + pagerduty + papermill + password + redis + salesforce + samba + segment +
-             sendgrid + sentry + singularity + slack + snowflake + ssh + statsd + tableau +
-             virtualenv + webhdfs + yandexcloud + zendesk)
 
-# Snakebite is not Python 3 compatible :'(
-if PY3:
-    devel_ci = [package for package in devel_all if package not in
-                ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']]
-else:
-    devel_ci = devel_all
+PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
+    "amazon": amazon,
+    "apache.cassandra": cassandra,
+    "apache.druid": druid,
+    "apache.hdfs": hdfs,
+    "apache.hive": hive,
+    "apache.livy": [],
+    "apache.pig": [],
+    "apache.pinot": pinot,
+    "apache.spark": spark,
+    "apache.sqoop": [],
+    "celery": celery,
+    "cloudant": cloudant,
+    "cncf.kubernetes": kubernetes,
+    "databricks": databricks,
+    "datadog": datadog,
+    "dingding": [],
+    "discord": [],
+    "docker": docker,
+    "elasticsearch": [],
+    "email": [],
+    "exasol": exasol,
+    "facebook": facebook,
+    "ftp": [],
+    "google": google,
+    "grpc": grpc,
+    "hashicorp": hashicorp,
+    "http": [],
+    "imap": [],
+    "jdbc": jdbc,
+    "jenkins": jenkins,
+    "jira": jira,
+    "microsoft.azure": azure,
+    "microsoft.mssql": mssql,
+    "microsoft.winrm": winrm,
+    "mongo": mongo,
+    "mysql": mysql,
+    "odbc": odbc,
+    "openfaas": [],
+    "opsgenie": [],
+    "oracle": oracle,
+    "pagerduty": pagerduty,
+    "papermill": papermill,
+    "postgres": postgres,
+    "presto": presto,
+    "qubole": qds,
+    "redis": redis,
+    "salesforce": salesforce,
+    "samba": samba,
+    "segment": segment,
+    "sftp": ssh,
+    "singularity": singularity,
+    "slack": slack,
+    "snowflake": snowflake,
+    "sqlite": [],
+    "ssh": ssh,
+    "vertica": vertica,
+    "yandex": yandexcloud,
+    "zendesk": zendesk,
+}
 
-EXTRAS_REQUIREMENTS = {
-    'all': devel_all,
+EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     'all_dbs': all_dbs,
+    'amazon': amazon,
+    'apache.atlas': atlas,
+    'apache_beam': apache_beam,
+    "apache.cassandra": cassandra,
+    "apache.druid": druid,
+    "apache.hdfs": hdfs,
+    "apache.hive": hive,
+    "apache.pinot": pinot,
+    "apache.webhdfs": webhdfs,
     'async': async_packages,
-    'atlas': atlas,
-    'aws': aws,
-    'azure': azure,
-    'cassandra': cassandra,
+    'atlas': atlas,  # TODO: remove this in Airflow 2.1
+    'aws': amazon,  # TODO: remove this in Airflow 2.1
+    'azure': azure,  # TODO: remove this in Airflow 2.1
+    'cassandra': cassandra,  # TODO: remove this in Airflow 2.1
     'celery': celery,
     'cgroups': cgroups,
     'cloudant': cloudant,
+    'cncf.kubernetes': kubernetes,
     'dask': dask,
     'databricks': databricks,
     'datadog': datadog,
     'devel': devel_minreq,
-    'devel_ci': devel_ci,
     'devel_hadoop': devel_hadoop,
     'doc': doc,
     'docker': docker,
-    'druid': druid,
+    'druid': druid,  # TODO: remove this in Airflow 2.1
     'elasticsearch': elasticsearch,
-    'gcp': gcp,
-    'gcp_api': gcp,  # TODO: remove this in Airflow 2.1
+    'exasol': exasol,
+    'facebook': facebook,
+    'gcp': google,  # TODO: remove this in Airflow 2.1
+    'gcp_api': google,  # TODO: remove this in Airflow 2.1
     'github_enterprise': flask_oauth,
+    'google': google,
     'google_auth': flask_oauth,
     'grpc': grpc,
     'hashicorp': hashicorp,
-    'hdfs': hdfs,
-    'hive': hive,
+    'hdfs': hdfs,  # TODO: remove this in Airflow 2.1
+    'hive': hive,  # TODO: remove this in Airflow 2.1
     'jdbc': jdbc,
     'jira': jira,
     'kerberos': kerberos,
-    'kubernetes': kubernetes,
+    'kubernetes': kubernetes,   # TODO: remove this in Airflow 2.1
     'ldap': ldap,
+    "microsoft.azure": azure,
+    "microsoft.mssql": mssql,
+    "microsoft.winrm": winrm,
     'mongo': mongo,
-    'mssql': mssql,
+    'mssql': mssql,  # TODO: remove this in Airflow 2.1
     'mysql': mysql,
     'odbc': odbc,
     'oracle': oracle,
     'pagerduty': pagerduty,
     'papermill': papermill,
     'password': password,
-    'pinot': pinot,
+    'pinot': pinot,  # TODO: remove this in Airflow 2.1
     'postgres': postgres,
     'presto': presto,
     'qds': qds,
@@ -526,14 +614,63 @@ EXTRAS_REQUIREMENTS = {
     'singularity': singularity,
     'slack': slack,
     'snowflake': snowflake,
+    'spark': spark,
     'ssh': ssh,
     'statsd': statsd,
     'tableau': tableau,
     'vertica': vertica,
-    'webhdfs': webhdfs,
-    'winrm': winrm,
+    'virtualenv': virtualenv,
+    'webhdfs': webhdfs,  # TODO: remove this in Airflow 2.1
+    'winrm': winrm,  # TODO: remove this in Airflow 2.1
     'yandexcloud': yandexcloud,
 }
+
+# Make devel_all contain all providers + extras + unique
+devel_all = list(set(devel +
+                     [req for req_list in EXTRAS_REQUIREMENTS.values() for req in req_list] +
+                     [req for req_list in PROVIDERS_REQUIREMENTS.values() for req in req_list]))
+
+PACKAGES_EXCLUDED_FOR_ALL = [
+]
+
+if PY3:
+    # Snakebite is not Python 3 compatible :'(
+    PACKAGES_EXCLUDED_FOR_ALL.extend([
+        'snakebite',
+    ])
+
+# Those packages are excluded because they break tests (downgrading mock) and they are
+# not needed to run our test suite.
+PACKAGES_EXCLUDED_FOR_CI = [
+    'apache-beam',
+]
+
+
+def is_package_excluded(package: str, exclusion_list: List[str]):
+    """
+    Checks if package should be excluded.
+    :param package: package name (beginning of it)
+    :param exclusion_list: list of excluded packages
+    :return: true if package should be excluded
+    """
+    return any([package.startswith(excluded_package) for excluded_package in exclusion_list])
+
+
+devel_all = [package for package in devel_all if not is_package_excluded(
+    package=package,
+    exclusion_list=PACKAGES_EXCLUDED_FOR_ALL)
+]
+devel_ci = [package for package in devel_all if not is_package_excluded(
+    package=package,
+    exclusion_list=PACKAGES_EXCLUDED_FOR_CI + PACKAGES_EXCLUDED_FOR_ALL)
+]
+
+EXTRAS_REQUIREMENTS.update(
+    {
+        'all': devel_all,
+        'devel_ci': devel_ci,
+    }
+)
 
 #####################################################################################################
 # IMPORTANT NOTE!!!!!!!!!!!!!!!
@@ -551,7 +688,7 @@ INSTALL_REQUIREMENTS = [
     'cryptography>=0.9.3',
     'dill>=0.2.2, <0.4',
     'flask>=1.1.0, <2.0',
-    'flask-appbuilder~=2.2',
+    'flask-appbuilder~=2.3.4',
     'flask-caching>=1.3.3, <1.4.0',
     'flask-login>=0.3, <0.5',
     'flask-swagger==0.2.13',
@@ -590,11 +727,6 @@ INSTALL_REQUIREMENTS = [
 ]
 
 
-def get_dependency_name(dep):
-    """Get name of a dependency."""
-    return dep.replace(">", '=').replace("<", "=").split("=")[0]
-
-
 def do_setup():
     """Perform the Airflow package setup."""
     write_version()
@@ -621,8 +753,8 @@ def do_setup():
         install_requires=INSTALL_REQUIREMENTS,
         setup_requires=[
             'bowler',
-            'docutils>=0.14, <0.16'
-            'gitpython>=2.0.2',
+            'docutils',
+            'gitpython',
             'setuptools',
             'wheel',
         ],

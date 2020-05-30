@@ -22,7 +22,8 @@
 # you will still be required to type in your signing key password
 # or it needs to be available in your keychain
 
-NAME="${1}"
-
-gpg --armor --output "${NAME}.asc" --detach-sig "${NAME}"
-gpg --print-md SHA512 "${NAME}" > "${NAME}.sha512"
+for NAME in "${@}"
+do
+    gpg --armor --output "${NAME}.asc" --detach-sig "${NAME}"
+    gpg --print-md SHA512 "${NAME}" > "${NAME}.sha512"
+done

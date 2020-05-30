@@ -163,8 +163,8 @@ class SparkSqlHook(BaseHook):
 
         if returncode:
             raise AirflowException(
-                "Cannot execute {} on {}. Process exit code: {}.".format(
-                    cmd, self._conn.host, returncode
+                "Cannot execute '{}' on {} (additional parameters: '{}'). Process exit code: {}.".format(
+                    self._sql, self._master, cmd, returncode
                 )
             )
 

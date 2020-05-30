@@ -15,7 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Sequential executor."""
+"""
+SequentialExecutor
+
+.. seealso::
+    For more information on how the SequentialExecutor works, take a look at the guide:
+    :ref:`executor:SequentialExecutor`
+"""
 import subprocess
 from typing import Any, Optional
 

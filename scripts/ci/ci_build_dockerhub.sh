@@ -17,10 +17,10 @@
 # under the License.
 
 # This is hook build used by DockerHub. We are also using it
-# on Travis CI to potentially rebuild (and refresh layers that
+# on CI to potentially rebuild (and refresh layers that
 # are not cached) Docker images that are used to run CI jobs
 export FORCE_ANSWER_TO_QUESTIONS="yes"
-export PULL_BASE_IMAGES="true"
+export VERBOSE_COMMANDS="true"
 
 if [[ -z ${DOCKER_REPO} ]]; then
    echo
@@ -51,12 +51,12 @@ else
    echo "DOCKER_TAG=${DOCKER_TAG}"
 fi
 
-[[ ${DOCKER_TAG:=} =~ ${DEFAULT_BRANCH}-python([0-9.]*)(.*) ]] && export PYTHON_MAJOR_MINOR_VERSION=${BASH_REMATCH[1]}
+[[ ${DOCKER_TAG:=} =~ .*-python([0-9.]*)(.*) ]] && export PYTHON_MAJOR_MINOR_VERSION=${BASH_REMATCH[1]}
 
 if [[ -z ${PYTHON_MAJOR_MINOR_VERSION:=} ]]; then
     echo
     echo "Error! Wrong DOCKER_TAG"
-    echo "The tag '${DOCKER_TAG}' should follow the pattern ${DEFAULT_BRANCH}-pythonX.Y[-ci]"
+    echo "The tag '${DOCKER_TAG}' should follow the pattern .*-pythonX.Y[-ci]"
     echo
     exit 1
 fi
@@ -67,10 +67,24 @@ echo
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-prepare_build
-rm -rf "${BUILD_CACHE_DIR}"
-
-if [[ ${DOCKER_TAG} == *-ci ]]; then
+if [[ ${DOCKER_TAG} == *python*-ci ]]; then
+    echo
+    echo "Building CI image"
+    echo
+    rm -rf "${BUILD_CACHE_DIR}"
+    prepare_ci_build
     rebuild_ci_image_if_needed
-    push_image
+    push_ci_image
+elif [[ ${DOCKER_TAG} == *python* ]]; then
+    echo
+    echo "Building prod image"
+    echo
+    rm -rf "${BUILD_CACHE_DIR}"
+    prepare_prod_build
+    build_prod_image
+    push_prod_images
+else
+    echo
+    echo "Skipping the build in Dockerhub. The tag is not good: ${DOCKER_TAG}"
+    echo
 fi

@@ -17,7 +17,6 @@
 # under the License.
 
 import collections
-import importlib
 import logging
 import os
 import smtplib
@@ -39,9 +38,7 @@ def send_email(to, subject, html_content,
     """
     Send email using backend specified in EMAIL_BACKEND.
     """
-    path, attr = conf.get('email', 'EMAIL_BACKEND').rsplit('.', 1)
-    module = importlib.import_module(path)
-    backend = getattr(module, attr)
+    backend = conf.getimport('email', 'EMAIL_BACKEND')
     to = get_email_address_list(to)
     to = ", ".join(to)
 

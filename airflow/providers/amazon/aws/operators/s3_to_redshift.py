@@ -23,7 +23,7 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.decorators import apply_defaults
 
 
-class S3ToRedshiftTransfer(BaseOperator):
+class S3ToRedshiftTransferOperator(BaseOperator):
     """
     Executes an COPY command to load files from s3 to Redshift
 

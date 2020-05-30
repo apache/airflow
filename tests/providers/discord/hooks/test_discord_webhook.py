@@ -107,7 +107,3 @@ class TestDiscordWebhookHook(unittest.TestCase):
         expected_message = 'Discord message length must be 2000 or fewer characters'
         with self.assertRaisesRegex(AirflowException, expected_message):
             hook._build_discord_payload()
-
-
-if __name__ == '__main__':
-    unittest.main()

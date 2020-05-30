@@ -43,6 +43,13 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
     if you provide ``{"connections_prefix": "/airflow/connections"}`` and request conn_id ``smtp_default``.
     And if ssm path is ``/airflow/variables/hello``, this would be accessible
     if you provide ``{"variables_prefix": "/airflow/variables"}`` and request conn_id ``hello``.
+
+    :param connections_prefix: Specifies the prefix of the secret to read to get Connections.
+    :type connections_prefix: str
+    :param variables_prefix: Specifies the prefix of the secret to read to get Variables.
+    :type variables_prefix: str
+    :param profile_name: The name of a profile to use. If not given, then the default profile is used.
+    :type profile_name: str
     """
 
     def __init__(
@@ -52,10 +59,11 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         profile_name: Optional[str] = None,
         **kwargs
     ):
+        super().__init__(**kwargs)
         self.connections_prefix = connections_prefix.rstrip("/")
         self.variables_prefix = variables_prefix.rstrip('/')
         self.profile_name = profile_name
-        super().__init__(**kwargs)
+        self.kwargs = kwargs
 
     @cached_property
     def client(self):
@@ -63,7 +71,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         Create a SSM client
         """
         session = boto3.Session(profile_name=self.profile_name)
-        return session.client("ssm")
+        return session.client("ssm", **self.kwargs)
 
     def get_conn_uri(self, conn_id: str) -> Optional[str]:
         """
@@ -72,7 +80,6 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: connection id
         :type conn_id: str
         """
-
         return self._get_secret(self.connections_prefix, conn_id)
 
     def get_variable(self, key: str) -> Optional[str]:

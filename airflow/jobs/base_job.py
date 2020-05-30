@@ -81,7 +81,7 @@ class BaseJob(Base, LoggingMixin):
             *args, **kwargs):
         self.hostname = get_hostname()
         self.executor = executor or ExecutorLoader.get_default_executor()
-        self.executor_class = executor.__class__.__name__
+        self.executor_class = self.executor.__class__.__name__
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
         if heartrate is not None:
@@ -147,7 +147,7 @@ class BaseJob(Base, LoggingMixin):
         Callback that is called during heartbeat. This method should be overwritten.
         """
 
-    def heartbeat(self):
+    def heartbeat(self, only_if_necessary: bool = False):
         """
         Heartbeats update the job's entry in the database with a timestamp
         for the latest_heartbeat and allows for the job to be killed
@@ -165,7 +165,18 @@ class BaseJob(Base, LoggingMixin):
         will sleep 50 seconds to complete the 60 seconds and keep a steady
         heart rate. If you go over 60 seconds before calling it, it won't
         sleep at all.
+
+        :param only_if_necessary: If the heartbeat is not yet due then do
+            nothing (don't update column, don't call ``heartbeat_callback``)
+        :type only_if_necessary: boolean
         """
+        seconds_remaining = 0
+        if self.latest_heartbeat:
+            seconds_remaining = self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
+
+        if seconds_remaining > 0 and only_if_necessary:
+            return
+
         previous_heartbeat = self.latest_heartbeat
 
         try:
@@ -215,9 +226,7 @@ class BaseJob(Base, LoggingMixin):
             self.state = State.RUNNING
             session.add(self)
             session.commit()
-            id_ = self.id
             make_transient(self)
-            self.id = id_
 
             try:
                 self._execute()
@@ -271,6 +280,7 @@ class BaseJob(Base, LoggingMixin):
                         TI.dag_id == DR.dag_id,
                         TI.execution_date == DR.execution_date))
                 .filter(
+                    # pylint: disable=comparison-with-callable
                     DR.state == State.RUNNING,
                     DR.run_id.notlike(f"{DagRunType.BACKFILL_JOB.value}__%"),
                     TI.state.in_(resettable_states))).all()
@@ -283,7 +293,7 @@ class BaseJob(Base, LoggingMixin):
             if ti.key not in queued_tis and ti.key not in running_tis:
                 tis_to_reset.append(ti)
 
-        if len(tis_to_reset) == 0:
+        if not tis_to_reset:
             return []
 
         def query(result, items):
@@ -306,8 +316,7 @@ class BaseJob(Base, LoggingMixin):
                                              [],
                                              self.max_tis_per_query)
 
-        task_instance_str = '\n\t'.join(
-            [repr(x) for x in reset_tis])
+        task_instance_str = '\n\t'.join([repr(x) for x in reset_tis])
         session.commit()
 
         self.log.info(

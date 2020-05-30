@@ -57,7 +57,7 @@ markComment: >
 limitPerRun: 30
 
 # Limit to only `issues` or `pulls`
-# only: issues
+only: pulls
 
 # Optionally, specify configuration settings that are specific to just 'issues' or 'pulls':
 # pulls:

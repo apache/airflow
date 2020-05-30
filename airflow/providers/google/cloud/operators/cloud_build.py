@@ -16,10 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Operators that integrat with Google Cloud Build service."""
+import json
 import re
 from copy import deepcopy
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, Optional, Union
 from urllib.parse import unquote, urlparse
+
+import yaml
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -39,9 +42,10 @@ class BuildProcessor:
     * It is possible to provide the source as the URL address instead dict.
 
     :param body: The request body.
-        See: https://cloud.google.com/cloud-build/docs/api/reference/rest/Shared.Types/Build
+        See: https://cloud.google.com/cloud-build/docs/api/reference/rest/v1/projects.builds
     :type body: dict
     """
+
     def __init__(self, body: Dict) -> None:
         self.body = deepcopy(body)
 
@@ -90,8 +94,9 @@ class BuildProcessor:
         :return: the body.
         :type: dict
         """
-        self._verify_source()
-        self._reformat_source()
+        if 'source' in self.body:
+            self._verify_source()
+            self._reformat_source()
         return self.body
 
     @staticmethod
@@ -162,9 +167,10 @@ class CloudBuildCreateOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudBuildCreateOperator`
 
-    :param body: The request body.
-        See: https://cloud.google.com/cloud-build/docs/api/reference/rest/Shared.Types/Build
-    :type body: dict
+    :param body: The build config with instructions to perform with CloudBuild.
+        Can be a dictionary or path to a file type like YAML or JSON.
+        See: https://cloud.google.com/cloud-build/docs/api/reference/rest/v1/projects.builds
+    :type body: dict or string
     :param project_id: ID of the Google Cloud project if None then
         default project_id is used.
     :type project_id: str
@@ -175,20 +181,33 @@ class CloudBuildCreateOperator(BaseOperator):
     """
 
     template_fields = ("body", "gcp_conn_id", "api_version")  # type: Iterable[str]
+    template_ext = ['.yml', '.yaml', '.json']
 
     @apply_defaults
     def __init__(self,
-                 body: dict,
+                 body: Union[dict, str],
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = "google_cloud_default",
                  api_version: str = "v1",
                  *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.body = body
+        # Not template fields to keep original value
+        self.body_raw = body
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self._validate_inputs()
+
+    def prepare_template(self) -> None:
+        # if no file is specified, skip
+        if not isinstance(self.body_raw, str):
+            return
+        with open(self.body_raw, 'r') as file:
+            if any(self.body_raw.endswith(ext) for ext in ['.yaml', '.yml']):
+                self.body = yaml.load(file.read(), Loader=yaml.FullLoader)
+            if self.body_raw.endswith('.json'):
+                self.body = json.loads(file.read())
 
     def _validate_inputs(self):
         if not self.body:

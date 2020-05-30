@@ -39,7 +39,12 @@
     <div class="alert alert-warning">
       <p>The scheduler does not appear to be running.
       {% if scheduler_job %}
-      Last heartbeat was received <time title="{{ scheduler_job.latest_heartbeat.isoformat() }}" datetime="{{ scheduler_job.latest_heartbeat.isoformat() }}">{{ macros.datetime_diff_for_humans(scheduler_job.latest_heartbeat) }}</time>.
+      Last heartbeat was received
+      <time class="scheduler-last-heartbeat"
+        title="{{ scheduler_job.latest_heartbeat.isoformat() }}"
+        datetime="{{ scheduler_job.latest_heartbeat.isoformat() }}"
+        data-datetime-convert="false"
+      >{{ macros.datetime_diff_for_humans(scheduler_job.latest_heartbeat) }}</time>.
       {% endif %}
       </p>
       <p>The DAGs list may not update, and new tasks will not be scheduled.</p>
@@ -52,6 +57,10 @@
 
   <script type="text/javascript">
     // below variables are used in base.js
+    var Airflow = {
+      serverTimezone: '{{ server_timezone }}',
+      defaultUITimezone: '{{ default_ui_timezone }}'
+    };
     var hostName = '{{ hostname }}';
     var csrfToken = '{{ csrf_token() }}';
     $("time[title]").tooltip()
@@ -62,6 +71,7 @@
   <script src="{{ url_for_asset('moment.js') }}" type="text/javascript"></script>
   <script src="{{ url_for_asset('base.js') }}" type="text/javascript"></script>
   <script src="{{ url_for_asset('bootstrap-datetimepicker.min.js') }}" type="text/javascript"></script>
+  <script src="{{ url_for_asset('bootstrap3-typeahead.min.js') }}"></script>
 
   {% if analytics_tool is defined and analytics_tool %}
     {% include "analytics/" + analytics_tool + ".html" %}

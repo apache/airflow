@@ -71,7 +71,7 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
     :param replica_cluster_id: (optional) The ID for replica cluster for the new instance.
     :type replica_cluster_zone: str
     :param replica_cluster_zone: (optional)  The zone for replica cluster.
-    :type instance_type: enums.IntEnum
+    :type instance_type: enum.IntEnum
     :param instance_type: (optional) The type of the instance.
     :type instance_display_name: str
     :param instance_display_name: (optional) Human-readable name of the instance. Defaults
@@ -81,7 +81,7 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
         with the instance.
     :type cluster_nodes: int
     :param cluster_nodes: (optional) Number of nodes for cluster.
-    :type cluster_storage_type: enums.IntEnum
+    :type cluster_storage_type: enum.IntEnum
     :param cluster_storage_type: (optional) The type of storage.
     :type timeout: int
     :param timeout: (optional) timeout (in seconds) for instance creation.

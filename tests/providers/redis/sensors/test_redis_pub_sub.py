@@ -120,7 +120,3 @@ class TestRedisPubSubSensor(unittest.TestCase):
         result = sensor.poke(self.mock_context)
         self.assertFalse(result)
         self.assertTrue(self.mock_context['ti'].method_calls == [], "context calls should be same")
-
-
-if __name__ == '__main__':
-    unittest.main()

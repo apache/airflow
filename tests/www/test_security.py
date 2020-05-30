@@ -22,13 +22,13 @@ from unittest import mock
 
 from flask import Flask
 from flask_appbuilder import SQLA, AppBuilder, Model, expose, has_access
-from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.views import BaseView, ModelView
 from sqlalchemy import Column, Date, Float, Integer, String
 
 from airflow.exceptions import AirflowException
 from airflow.www.security import AirflowSecurityManager
+from airflow.www.utils import CustomSQLAInterface
 from tests.test_utils.mock_security_manager import MockSecurityManager
 
 READ_WRITE = {'can_dag_read', 'can_dag_edit'}
@@ -51,7 +51,7 @@ class SomeModel(Model):
 
 
 class SomeModelView(ModelView):
-    datamodel = SQLAInterface(SomeModel)
+    datamodel = CustomSQLAInterface(SomeModel)
     base_permissions = ['can_list', 'can_show', 'can_add', 'can_edit', 'can_delete']
     list_columns = ['field_string', 'field_integer', 'field_float', 'field_date']
 

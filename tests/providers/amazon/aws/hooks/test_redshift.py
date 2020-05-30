@@ -53,8 +53,8 @@ class TestRedshiftHook(unittest.TestCase):
     @mock_redshift
     def test_get_client_type_returns_a_boto3_client_of_the_requested_type(self):
         self._create_clusters()
-        hook = AwsBaseHook(aws_conn_id='aws_default')
-        client_from_hook = hook.get_client_type('redshift')
+        hook = AwsBaseHook(aws_conn_id='aws_default', client_type='redshift')
+        client_from_hook = hook.get_conn()
 
         clusters = client_from_hook.describe_clusters()['Clusters']
         self.assertEqual(len(clusters), 2)
@@ -104,7 +104,3 @@ class TestRedshiftHook(unittest.TestCase):
         hook = RedshiftHook(aws_conn_id='aws_default')
         status = hook.cluster_status('test_cluster')
         self.assertEqual(status, 'available')
-
-
-if __name__ == '__main__':
-    unittest.main()

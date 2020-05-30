@@ -51,11 +51,11 @@ class TestGCSToS3Operator(unittest.TestCase):
                                    bucket=GCS_BUCKET,
                                    prefix=PREFIX,
                                    delimiter=DELIMITER,
-                                   dest_aws_conn_id=None,
+                                   dest_aws_conn_id="aws_default",
                                    dest_s3_key=S3_BUCKET,
                                    replace=False)
         # create dest bucket
-        hook = S3Hook(aws_conn_id=None)
+        hook = S3Hook(aws_conn_id='airflow_gcs_test')
         bucket = hook.get_bucket('bucket')
         bucket.create()
         bucket.put_object(Key=MOCK_FILES[0], Body=b'testing')
@@ -81,11 +81,11 @@ class TestGCSToS3Operator(unittest.TestCase):
                                    bucket=GCS_BUCKET,
                                    prefix=PREFIX,
                                    delimiter=DELIMITER,
-                                   dest_aws_conn_id=None,
+                                   dest_aws_conn_id="aws_default",
                                    dest_s3_key=S3_BUCKET,
                                    replace=False)
         # create dest bucket with all the files
-        hook = S3Hook(aws_conn_id=None)
+        hook = S3Hook(aws_conn_id='airflow_gcs_test')
         bucket = hook.get_bucket('bucket')
         bucket.create()
         for mock_file in MOCK_FILES:
@@ -112,11 +112,11 @@ class TestGCSToS3Operator(unittest.TestCase):
                                    bucket=GCS_BUCKET,
                                    prefix=PREFIX,
                                    delimiter=DELIMITER,
-                                   dest_aws_conn_id=None,
+                                   dest_aws_conn_id="aws_default",
                                    dest_s3_key=S3_BUCKET,
                                    replace=False)
         # create dest bucket without files
-        hook = S3Hook(aws_conn_id=None)
+        hook = S3Hook(aws_conn_id='airflow_gcs_test')
         bucket = hook.get_bucket('bucket')
         bucket.create()
 
@@ -141,11 +141,11 @@ class TestGCSToS3Operator(unittest.TestCase):
                                    bucket=GCS_BUCKET,
                                    prefix=PREFIX,
                                    delimiter=DELIMITER,
-                                   dest_aws_conn_id=None,
+                                   dest_aws_conn_id="aws_default",
                                    dest_s3_key=S3_BUCKET,
                                    replace=True)
         # create dest bucket with all the files
-        hook = S3Hook(aws_conn_id=None)
+        hook = S3Hook(aws_conn_id='airflow_gcs_test')
         bucket = hook.get_bucket('bucket')
         bucket.create()
         for mock_file in MOCK_FILES:
@@ -172,11 +172,11 @@ class TestGCSToS3Operator(unittest.TestCase):
                                    bucket=GCS_BUCKET,
                                    prefix=PREFIX,
                                    delimiter=DELIMITER,
-                                   dest_aws_conn_id=None,
+                                   dest_aws_conn_id="aws_default",
                                    dest_s3_key=S3_BUCKET,
                                    replace=True)
         # create dest bucket with just two files (the first two files in MOCK_FILES)
-        hook = S3Hook(aws_conn_id=None)
+        hook = S3Hook(aws_conn_id='airflow_gcs_test')
         bucket = hook.get_bucket('bucket')
         bucket.create()
         for mock_file in MOCK_FILES[:2]:

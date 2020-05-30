@@ -108,6 +108,8 @@ All operators are in the following packages:
 
   airflow/providers/email/operators/index
 
+  airflow/providers/exasol/operators/index
+
   airflow/providers/ftp/sensors/index
 
   airflow/providers/google/ads/operators/index
@@ -247,6 +249,10 @@ All hooks are in the following packages:
 
   airflow/providers/elasticsearch/hooks/index
 
+  airflow/providers/exasol/hooks/index
+
+  airflow/providers/facebook/ads/hooks/index
+
   airflow/providers/ftp/hooks/index
 
   airflow/providers/google/ads/hooks/index
@@ -351,10 +357,21 @@ persisted in the database.
 
   airflow/models/index
 
+.. _pythonapi:exceptions:
+
+Exceptions
+----------
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  airflow/exceptions/index
 
 Secrets Backends
 ----------------
-Airflow uses relies on secrets backends to retrieve :class:`~airflow.models.connection.Connection` objects.
+Airflow relies on secrets backends to retrieve :class:`~airflow.models.connection.Connection` objects.
 All secrets backends derive from :class:`~airflow.secrets.BaseSecretsBackend`.
 
 .. toctree::

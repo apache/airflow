@@ -81,7 +81,7 @@ with models.DAG(
     )
 
     create_tag_template_field_result2 = BashOperator(
-        task_id="create_tag_template_field_result", bash_command="echo create_tag_template_field_result"
+        task_id="create_tag_template_field_result2", bash_command="echo create_tag_template_field_result"
     )
 
     # Delete

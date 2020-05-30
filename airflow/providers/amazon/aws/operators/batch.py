@@ -30,11 +30,11 @@ from typing import Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClient
+from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClientHook
 from airflow.utils.decorators import apply_defaults
 
 
-class AwsBatchOperator(BaseOperator, AwsBatchClient):
+class AwsBatchOperator(BaseOperator, AwsBatchClientHook):
     """
     Execute a job on AWS Batch
 
@@ -116,7 +116,7 @@ class AwsBatchOperator(BaseOperator, AwsBatchClient):
     ):  # pylint: disable=too-many-arguments
 
         BaseOperator.__init__(self, **kwargs)
-        AwsBatchClient.__init__(
+        AwsBatchClientHook.__init__(
             self,
             max_retries=max_retries,
             status_retries=status_retries,
@@ -175,7 +175,7 @@ class AwsBatchOperator(BaseOperator, AwsBatchClient):
             self.log.info("AWS Batch job (%s) started: %s", self.job_id, response)
 
         except Exception as e:
-            self.log.info("AWS Batch job (%s) failed submission", self.job_id)
+            self.log.error("AWS Batch job (%s) failed submission", self.job_id)
             raise AirflowException(e)
 
     def monitor_job(self, context: Dict):  # pylint: disable=unused-argument
@@ -194,5 +194,5 @@ class AwsBatchOperator(BaseOperator, AwsBatchClient):
             self.log.info("AWS Batch job (%s) succeeded", self.job_id)
 
         except Exception as e:
-            self.log.info("AWS Batch job (%s) failed monitoring", self.job_id)
+            self.log.error("AWS Batch job (%s) failed monitoring", self.job_id)
             raise AirflowException(e)

@@ -16,6 +16,7 @@
     under the License.
 
 
+.. _executor:CeleryExecutor:
 
 Celery Executor
 ===============
@@ -36,7 +37,7 @@ Here are a few imperative requirements for your workers:
   met in that context. For example, if you use the ``HiveOperator``,
   the hive CLI needs to be installed on that box, or if you use the
   ``MySqlOperator``, the required Python library needs to be available in
-  the ``PYTHONPATH`` somehow
+  the :envvar:`PYTHONPATH` somehow
 - The worker needs to have access to its ``DAGS_FOLDER``, and you need to
   synchronize the filesystems by your own means. A common setup would be to
   store your ``DAGS_FOLDER`` in a Git repository and sync it across machines using
@@ -82,6 +83,7 @@ Some caveats:
 
 - Make sure to use a database backed result backend
 - Make sure to set a visibility timeout in ``[celery_broker_transport_options]`` that exceeds the ETA of your longest running task
+- Make sure to set umask in ``[worker_umask]`` to set permissions for newly created files by workers.
 - Tasks can consume resources. Make sure your worker has enough resources to run ``worker_concurrency`` tasks
 - Queue names are limited to 256 characters, but each broker backend might have its own restrictions
 

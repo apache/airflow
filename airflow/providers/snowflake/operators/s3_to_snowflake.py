@@ -25,7 +25,7 @@ from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.utils.decorators import apply_defaults
 
 
-class S3ToSnowflakeTransfer(BaseOperator):
+class S3ToSnowflakeTransferOperator(BaseOperator):
     """
     Executes an COPY command to load files from s3 to Snowflake
 
@@ -51,7 +51,7 @@ class S3ToSnowflakeTransfer(BaseOperator):
                  table,
                  stage,
                  file_format,
-                 schema,
+                 schema,  # TODO: shouldn't be required, rely on session/user defaults
                  columns_array=None,
                  autocommit=True,
                  snowflake_conn_id='snowflake_default',

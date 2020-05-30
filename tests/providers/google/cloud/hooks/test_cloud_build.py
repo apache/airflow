@@ -131,7 +131,7 @@ class TestCloudBuildHookWithPassedProjectId(unittest.TestCase):
         execute_mock = mock.Mock(**{"side_effect": [TEST_WAITING_OPERATION, TEST_ERROR_OPERATION]})
         service_mock.operations.return_value.get.return_value.execute = execute_mock
         with self.assertRaisesRegex(AirflowException, "error"):
-            self.hook.create_build(body={})
+            self.hook.create_build(body={})  # pylint: disable=no-value-for-parameter
 
 
 class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
@@ -173,7 +173,7 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
 
         service_mock.operations.return_value.get.return_value.execute.return_value = TEST_DONE_OPERATION
 
-        result = self.hook.create_build(body={})
+        result = self.hook.create_build(body={})  # pylint: disable=no-value-for-parameter
 
         service_mock.projects.return_value.builds.return_value.create.assert_called_once_with(
             body={}, projectId='example-project'
@@ -204,7 +204,7 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
         )
         service_mock.operations.return_value.get.return_value.execute = execute_mock
 
-        result = self.hook.create_build(body={})
+        result = self.hook.create_build(body={})  # pylint: disable=no-value-for-parameter
 
         self.assertEqual(result, TEST_BUILD)
 
@@ -225,7 +225,7 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
         execute_mock = mock.Mock(**{"side_effect": [TEST_WAITING_OPERATION, TEST_ERROR_OPERATION]})
         service_mock.operations.return_value.get.return_value.execute = execute_mock
         with self.assertRaisesRegex(AirflowException, "error"):
-            self.hook.create_build(body={})
+            self.hook.create_build(body={})  # pylint: disable=no-value-for-parameter
 
 
 class TestCloudBuildHookWithoutProjectId(unittest.TestCase):
@@ -256,7 +256,7 @@ class TestCloudBuildHookWithoutProjectId(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_create_build(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException) as e:
-            self.hook.create_build(body={})
+            self.hook.create_build(body={})  # pylint: disable=no-value-for-parameter
 
         self.assertEqual(
             "The project id must be passed either as keyword project_id parameter or as project_id extra in "

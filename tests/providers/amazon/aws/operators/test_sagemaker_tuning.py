@@ -153,7 +153,3 @@ class TestSageMakerTuningOperator(unittest.TestCase):
                                     'ResponseMetadata':
                                     {'HTTPStatusCode': 404}}
         self.assertRaises(AirflowException, self.sagemaker.execute, None)
-
-
-if __name__ == '__main__':
-    unittest.main()

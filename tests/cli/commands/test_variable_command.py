@@ -16,13 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import io
 import os
-import unittest
+import tempfile
+import unittest.mock
+from contextlib import redirect_stdout
 
 from airflow import models
 from airflow.cli import cli_parser
 from airflow.cli.commands import variable_command
 from airflow.models import Variable
+from tests.test_utils.db import clear_db_variables
 
 
 class TestCliVariables(unittest.TestCase):
@@ -31,58 +35,40 @@ class TestCliVariables(unittest.TestCase):
         cls.dagbag = models.DagBag(include_examples=True)
         cls.parser = cli_parser.get_parser()
 
-    def test_variables(self):
-        # Checks if all subcommands are properly received
+    def setUp(self):
+        clear_db_variables()
+
+    def tearDown(self):
+        clear_db_variables()
+
+    def test_variables_set(self):
+        """Test variable_set command"""
         variable_command.variables_set(self.parser.parse_args([
-            'variables', 'set', 'foo', '{"foo":"bar"}']))
-        variable_command.variables_get(self.parser.parse_args([
-            'variables', 'get', 'foo']))
-        variable_command.variables_get(self.parser.parse_args([
-            'variables', 'get', 'baz', '--default', 'bar']))
-        variable_command.variables_list(self.parser.parse_args([
-            'variables', 'list']))
-        variable_command.variables_delete(self.parser.parse_args([
-            'variables', 'delete', 'bar']))
-        variable_command.variables_import(self.parser.parse_args([
-            'variables', 'import', os.devnull]))
-        variable_command.variables_export(self.parser.parse_args([
-            'variables', 'export', os.devnull]))
+            'variables', 'set', 'foo', 'bar']))
+        self.assertIsNotNone(Variable.get("foo"))
+        self.assertRaises(KeyError, Variable.get, "foo1")
 
-        variable_command.variables_set(self.parser.parse_args([
-            'variables', 'set', 'bar', 'original']))
-        # First export
-        variable_command.variables_export(self.parser.parse_args([
-            'variables', 'export', 'variables1.json']))
+    def test_variables_get(self):
+        Variable.set('foo', {'foo': 'bar'}, serialize_json=True)
 
-        first_exp = open('variables1.json', 'r')
+        with redirect_stdout(io.StringIO()) as stdout:
+            variable_command.variables_get(self.parser.parse_args([
+                'variables', 'get', 'foo']))
+            self.assertEqual('{\n  "foo": "bar"\n}\n', stdout.getvalue())
 
-        variable_command.variables_set(self.parser.parse_args([
-            'variables', 'set', 'bar', 'updated']))
-        variable_command.variables_set(self.parser.parse_args([
-            'variables', 'set', 'foo', '{"foo":"oops"}']))
-        variable_command.variables_delete(self.parser.parse_args([
-            'variables', 'delete', 'foo']))
-        # First import
-        variable_command.variables_import(self.parser.parse_args([
-            'variables', 'import', 'variables1.json']))
+    def test_get_variable_default_value(self):
+        with redirect_stdout(io.StringIO()) as stdout:
+            variable_command.variables_get(self.parser.parse_args([
+                'variables', 'get', 'baz', '--default', 'bar']))
+            self.assertEqual("bar\n", stdout.getvalue())
 
-        self.assertEqual('original', Variable.get('bar'))
-        self.assertEqual('{\n  "foo": "bar"\n}', Variable.get('foo'))
-        # Second export
-        variable_command.variables_export(self.parser.parse_args([
-            'variables', 'export', 'variables2.json']))
+    def test_get_variable_missing_variable(self):
+        with self.assertRaises(SystemExit):
+            variable_command.variables_get(self.parser.parse_args([
+                'variables', 'get', 'no-existing-VAR']))
 
-        second_exp = open('variables2.json', 'r')
-        self.assertEqual(first_exp.read(), second_exp.read())
-        second_exp.close()
-        first_exp.close()
-        # Second import
-        variable_command.variables_import(self.parser.parse_args([
-            'variables', 'import', 'variables2.json']))
-
-        self.assertEqual('original', Variable.get('bar'))
-        self.assertEqual('{\n  "foo": "bar"\n}', Variable.get('foo'))
-
+    def test_variables_set_different_types(self):
+        """Test storage of various data types"""
         # Set a dict
         variable_command.variables_set(self.parser.parse_args([
             'variables', 'set', 'dict', '{"foo": "oops"}']))
@@ -110,9 +96,9 @@ class TestCliVariables(unittest.TestCase):
 
         # Export and then import
         variable_command.variables_export(self.parser.parse_args([
-            'variables', 'export', 'variables3.json']))
+            'variables', 'export', 'variables_types.json']))
         variable_command.variables_import(self.parser.parse_args([
-            'variables', 'import', 'variables3.json']))
+            'variables', 'import', 'variables_types.json']))
 
         # Assert value
         self.assertEqual({'foo': 'oops'}, Variable.get('dict', deserialize_json=True))
@@ -124,6 +110,66 @@ class TestCliVariables(unittest.TestCase):
         self.assertEqual(False, Variable.get('false', deserialize_json=True))
         self.assertEqual(None, Variable.get('null', deserialize_json=True))
 
-        os.remove('variables1.json')
-        os.remove('variables2.json')
-        os.remove('variables3.json')
+        os.remove('variables_types.json')
+
+    def test_variables_list(self):
+        """Test variable_list command"""
+        # Test command is received
+        variable_command.variables_list(self.parser.parse_args([
+            'variables', 'list']))
+
+    def test_variables_delete(self):
+        """Test variable_delete command"""
+        variable_command.variables_set(self.parser.parse_args([
+            'variables', 'set', 'foo', 'bar']))
+        variable_command.variables_delete(self.parser.parse_args([
+            'variables', 'delete', 'foo']))
+        self.assertRaises(KeyError, Variable.get, "foo")
+
+    def test_variables_import(self):
+        """Test variables_import command"""
+        variable_command.variables_import(self.parser.parse_args([
+            'variables', 'import', os.devnull]))
+
+    def test_variables_export(self):
+        """Test variables_export command"""
+        variable_command.variables_export(self.parser.parse_args([
+            'variables', 'export', os.devnull]))
+
+    def test_variables_isolation(self):
+        """Test isolation of variables"""
+        tmp1 = tempfile.NamedTemporaryFile(delete=True)
+        tmp2 = tempfile.NamedTemporaryFile(delete=True)
+
+        # First export
+        variable_command.variables_set(self.parser.parse_args([
+            'variables', 'set', 'foo', '{"foo":"bar"}']))
+        variable_command.variables_set(self.parser.parse_args([
+            'variables', 'set', 'bar', 'original']))
+        variable_command.variables_export(self.parser.parse_args([
+            'variables', 'export', tmp1.name]))
+
+        first_exp = open(tmp1.name, 'r')
+
+        variable_command.variables_set(self.parser.parse_args([
+            'variables', 'set', 'bar', 'updated']))
+        variable_command.variables_set(self.parser.parse_args([
+            'variables', 'set', 'foo', '{"foo":"oops"}']))
+        variable_command.variables_delete(self.parser.parse_args([
+            'variables', 'delete', 'foo']))
+        variable_command.variables_import(self.parser.parse_args([
+            'variables', 'import', tmp1.name]))
+
+        self.assertEqual('original', Variable.get('bar'))
+        self.assertEqual('{\n  "foo": "bar"\n}', Variable.get('foo'))
+
+        # Second export
+        variable_command.variables_export(self.parser.parse_args([
+            'variables', 'export', tmp2.name]))
+
+        second_exp = open(tmp2.name, 'r')
+        self.assertEqual(first_exp.read(), second_exp.read())
+
+        # Clean up files
+        second_exp.close()
+        first_exp.close()

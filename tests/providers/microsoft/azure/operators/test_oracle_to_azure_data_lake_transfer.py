@@ -25,7 +25,7 @@ import unicodecsv as csv
 from mock import MagicMock
 
 from airflow.providers.microsoft.azure.operators.oracle_to_azure_data_lake_transfer import (
-    OracleToAzureDataLakeTransfer,
+    OracleToAzureDataLakeTransferOperator,
 )
 
 
@@ -52,7 +52,7 @@ class TestOracleToAzureDataLakeTransfer(unittest.TestCase):
         mock_cursor.description = cursor_description
         mock_cursor.__iter__.return_value = cursor_rows
 
-        op = OracleToAzureDataLakeTransfer(
+        op = OracleToAzureDataLakeTransferOperator(
             task_id=task_id,
             filename=filename,
             oracle_conn_id=oracle_conn_id,
@@ -107,7 +107,7 @@ class TestOracleToAzureDataLakeTransfer(unittest.TestCase):
         mock_oracle_conn.cursor().return_value = cursor_mock
         mock_oracle_hook.get_conn().return_value = mock_oracle_conn
 
-        op = OracleToAzureDataLakeTransfer(
+        op = OracleToAzureDataLakeTransferOperator(
             task_id=task_id,
             filename=filename,
             oracle_conn_id=oracle_conn_id,
@@ -123,7 +123,3 @@ class TestOracleToAzureDataLakeTransfer(unittest.TestCase):
         mock_oracle_hook.assert_called_once_with(oracle_conn_id=oracle_conn_id)
         mock_data_lake_hook.assert_called_once_with(
             azure_data_lake_conn_id=azure_data_lake_conn_id)
-
-
-if __name__ == '__main__':
-    unittest.main()

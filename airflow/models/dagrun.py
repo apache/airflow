@@ -30,7 +30,7 @@ from airflow.models.base import ID_LEN, Base
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
-from airflow.ti_deps.dependencies import SCHEDULEABLE_STATES
+from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
@@ -317,13 +317,14 @@ class DagRun(Base, LoggingMixin):
         duration = (timezone.utcnow() - start_dttm)
         Stats.timing("dagrun.dependency-check.{}".format(self.dag_id), duration)
 
-        leaf_tis = [ti for ti in tis if ti.task_id in {t.task_id for t in dag.leaves}]
+        leaf_task_ids = {t.task_id for t in dag.leaves}
+        leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids]
 
         # if all roots finished and at least one failed, the run failed
         if not unfinished_tasks and any(
             leaf_ti.state in {State.FAILED, State.UPSTREAM_FAILED} for leaf_ti in leaf_tis
         ):
-            self.log.info('Marking run %s failed', self)
+            self.log.error('Marking run %s failed', self)
             self.set_state(State.FAILED)
             dag.handle_callback(self, success=False, reason='task_failure',
                                 session=session)
@@ -339,7 +340,7 @@ class DagRun(Base, LoggingMixin):
         # if *all tasks* are deadlocked, the run failed
         elif (unfinished_tasks and none_depends_on_past and
               none_task_concurrency and not are_runnable_tasks):
-            self.log.info('Deadlock; marking run %s failed', self)
+            self.log.error('Deadlock; marking run %s failed', self)
             self.set_state(State.FAILED)
             dag.handle_callback(self, success=False, reason='all_tasks_deadlocked',
                                 session=session)

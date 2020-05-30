@@ -83,7 +83,3 @@ class TestSegmentTrackEventOperator(unittest.TestCase):
             event=event,
             properties=properties,
         )
-
-
-if __name__ == '__main__':
-    unittest.main()

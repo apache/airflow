@@ -20,7 +20,7 @@ import unittest
 from collections import OrderedDict
 from unittest.mock import Mock, PropertyMock, patch
 
-from airflow.providers.apache.hive.operators.mssql_to_hive import MsSqlToHiveTransfer
+from airflow.providers.apache.hive.operators.mssql_to_hive import MsSqlToHiveTransferOperator
 
 try:
     import pymssql
@@ -41,25 +41,25 @@ class TestMsSqlToHiveTransfer(unittest.TestCase):
 
     # pylint: disable=c-extension-no-member
     def test_type_map_binary(self):
-        mapped_type = MsSqlToHiveTransfer(
+        mapped_type = MsSqlToHiveTransferOperator(
             **self.kwargs).type_map(pymssql.BINARY.value)  # pylint: disable=c-extension-no-member
 
         self.assertEqual(mapped_type, 'INT')
 
     def test_type_map_decimal(self):
-        mapped_type = MsSqlToHiveTransfer(
+        mapped_type = MsSqlToHiveTransferOperator(
             **self.kwargs).type_map(pymssql.DECIMAL.value)  # pylint: disable=c-extension-no-member
 
         self.assertEqual(mapped_type, 'FLOAT')
 
     def test_type_map_number(self):
-        mapped_type = MsSqlToHiveTransfer(
+        mapped_type = MsSqlToHiveTransferOperator(
             **self.kwargs).type_map(pymssql.NUMBER.value)  # pylint: disable=c-extension-no-member
 
         self.assertEqual(mapped_type, 'INT')
 
     def test_type_map_string(self):
-        mapped_type = MsSqlToHiveTransfer(**self.kwargs).type_map(None)
+        mapped_type = MsSqlToHiveTransferOperator(**self.kwargs).type_map(None)
 
         self.assertEqual(mapped_type, 'STRING')
 
@@ -74,7 +74,7 @@ class TestMsSqlToHiveTransfer(unittest.TestCase):
         mock_mssql_hook_cursor = mock_mssql_hook_get_conn.return_value.cursor.return_value.__enter__
         mock_mssql_hook_cursor.return_value.description = [('te', 'st')]
 
-        mssql_to_hive_transfer = MsSqlToHiveTransfer(**self.kwargs)
+        mssql_to_hive_transfer = MsSqlToHiveTransferOperator(**self.kwargs)
         mssql_to_hive_transfer.execute(context={})
 
         mock_mssql_hook_cursor.return_value.execute.assert_called_once_with(mssql_to_hive_transfer.sql)
@@ -105,7 +105,7 @@ class TestMsSqlToHiveTransfer(unittest.TestCase):
         mock_mssql_hook_cursor = mock_mssql_hook_get_conn.return_value.cursor.return_value.__enter__
         mock_mssql_hook_cursor.return_value.description = [('', '')]
 
-        mssql_to_hive_transfer = MsSqlToHiveTransfer(**self.kwargs)
+        mssql_to_hive_transfer = MsSqlToHiveTransferOperator(**self.kwargs)
         mssql_to_hive_transfer.execute(context={})
 
         field_dict = OrderedDict()

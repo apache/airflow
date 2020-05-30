@@ -102,10 +102,16 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
     def convert_type(self, value, schema_type):
         """
         Takes a value from MySQLdb, and converts it to a value that's safe for
-        JSON/Google Cloud Storage/BigQuery. Dates are converted to UTC seconds.
-        Decimals are converted to floats. Binary type fields are encoded with base64,
-        as imported BYTES data must be base64-encoded according to Bigquery SQL
-        date type documentation: https://cloud.google.com/bigquery/data-types
+        JSON/Google Cloud Storage/BigQuery.
+
+        * Datetimes are converted to UTC seconds.
+        * Decimals are converted to floats.
+        * Dates are converted to ISO formatted string if given schema_type is
+          DATE, or UTC seconds otherwise.
+        * Binary type fields are converted to integer if given schema_type is
+          INTEGER, or encoded with base64 otherwise. Imported BYTES data must
+          be base64-encoded according to BigQuery documentation:
+          https://cloud.google.com/bigquery/data-types
 
         :param value: MySQLdb column value
         :type value: Any
@@ -114,12 +120,20 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
         """
         if value is None:
             return value
-        if isinstance(value, (datetime, date)):
-            return calendar.timegm(value.timetuple())
-        if isinstance(value, timedelta):
-            return value.total_seconds()
-        if isinstance(value, Decimal):
-            return float(value)
-        if isinstance(value, bytes) or schema_type == "BYTES":
-            return base64.standard_b64encode(value).decode('ascii')
+        if isinstance(value, datetime):
+            value = calendar.timegm(value.timetuple())
+        elif isinstance(value, timedelta):
+            value = value.total_seconds()
+        elif isinstance(value, Decimal):
+            value = float(value)
+        elif isinstance(value, date):
+            if schema_type == "DATE":
+                value = value.isoformat()
+            else:
+                value = calendar.timegm(value.timetuple())
+        elif isinstance(value, bytes):
+            if schema_type == "INTEGER":
+                value = int.from_bytes(value, "big")
+            else:
+                value = base64.standard_b64encode(value).decode('ascii')
         return value

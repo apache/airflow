@@ -74,7 +74,3 @@ class TestDynamoDBHook(unittest.TestCase):
         table.meta.client.get_waiter(
             'table_exists').wait(TableName='test_airflow')
         self.assertEqual(table.item_count, 10)
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -22,7 +22,7 @@ import argparse
 import json
 import os
 import textwrap
-from argparse import ArgumentError, RawTextHelpFormatter
+from argparse import Action, ArgumentError, RawTextHelpFormatter
 from typing import Callable, Dict, Iterable, List, NamedTuple, Set, Union
 
 from tabulate import tabulate_formats
@@ -31,6 +31,7 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.utils.cli import ColorMode
 from airflow.utils.helpers import partition
 from airflow.utils.module_loading import import_string
 from airflow.utils.timezone import parse as parsedate
@@ -73,21 +74,29 @@ class DefaultHelpParser(argparse.ArgumentParser):
         self.exit(2, f'\n{self.prog} command error: {message}, see help above.\n')
 
 
+# Used in Arg to enable `None' as a distinct value from "not passed"
+_UNSET = object()
+
+
 class Arg:
     """Class to keep information about command line argument"""
-    # pylint: disable=redefined-builtin
-    def __init__(self, flags=None, help=None, action=None, default=None, nargs=None,
-                 type=None, choices=None, required=None, metavar=None):
+    # pylint: disable=redefined-builtin,unused-argument
+    def __init__(self, flags=_UNSET, help=_UNSET, action=_UNSET, default=_UNSET, nargs=_UNSET, type=_UNSET,
+                 choices=_UNSET, required=_UNSET, metavar=_UNSET):
         self.flags = flags
-        self.help = help
-        self.action = action
-        self.default = default
-        self.nargs = nargs
-        self.type = type
-        self.choices = choices
-        self.required = required
-        self.metavar = metavar
-    # pylint: enable=redefined-builtin
+        self.kwargs = {}
+        for k, v in locals().items():
+            if v is _UNSET:
+                continue
+            if k in ("self", "flags"):
+                continue
+
+            self.kwargs[k] = v
+    # pylint: enable=redefined-builtin,unused-argument
+
+    def add_to_parser(self, parser: argparse.ArgumentParser):
+        """Add this argument to an ArgumentParser"""
+        parser.add_argument(*self.flags, **self.kwargs)
 
 
 # Shared
@@ -152,7 +161,12 @@ ARG_OUTPUT = Arg(
         "the tabulate module (https://pypi.org/project/tabulate/). "
     ),
     choices=tabulate_formats,
-    default="fancy_grid")
+    default="plain")
+ARG_COLOR = Arg(
+    ('--color',),
+    help="Do emit colored output (default: auto)",
+    choices={ColorMode.ON, ColorMode.OFF, ColorMode.AUTO},
+    default=ColorMode.AUTO)
 
 # list_dag_runs
 ARG_NO_BACKFILL = Arg(
@@ -232,6 +246,36 @@ ARG_RUN_BACKWARDS = Arg(
         "recent day first.  if there are tasks that depend_on_past "
         "this option will throw an exception"),
     action="store_true")
+# test_dag
+ARG_SHOW_DAGRUN = Arg(
+    ("--show-dagrun", ),
+    help=(
+        "After completing the backfill, shows the diagram for current DAG Run.\n"
+        "\n"
+        "The diagram is in DOT language\n"),
+    action='store_true')
+ARG_IMGCAT_DAGRUN = Arg(
+    ("--imgcat-dagrun", ),
+    help=(
+        "After completing the dag run, prints a diagram on the screen for the "
+        "current DAG Run using the imgcat tool.\n"
+        "\n"
+        "For more information, see: https://www.iterm2.com/documentation-images.html"
+    ),
+    action='store_true')
+ARG_SAVE_DAGRUN = Arg(
+    ("--save-dagrun", ),
+    help=(
+        "After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n"
+        "\n"
+        "The file format is determined by the file extension. For more information about supported "
+        "format, see: https://www.graphviz.org/doc/info/output.html\n"
+        "\n"
+        "If you want to create a PNG file then you should execute the following command:\n"
+        "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.png\n"
+        "\n"
+        "If you want to create a DOT file then you should execute the following command:\n"
+        "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.dot\n"))
 
 # list_tasks
 ARG_TREE = Arg(
@@ -404,6 +448,12 @@ ARG_JOB_ID = Arg(
 ARG_CFG_PATH = Arg(
     ("--cfg-path",),
     help="Path to config file to use instead of airflow.cfg")
+ARG_MIGRATION_TIMEOUT = Arg(
+    ("-t", "--migration-wait-timeout"),
+    help="timeout to wait for db to migrate ",
+    type=int,
+    default=0,
+)
 
 # webserver
 ARG_PORT = Arg(
@@ -486,6 +536,10 @@ ARG_CELERY_HOSTNAME = Arg(
     ("-H", "--celery-hostname"),
     help=("Set the hostname of celery worker "
           "if you have multiple workers on a single machine"))
+ARG_UMASK = Arg(
+    ("-u", "--umask"),
+    help="Set the umask of celery worker in daemon mode",
+    default=conf.get('celery', 'worker_umask'))
 
 # flower
 ARG_BROKER_API = Arg(("-a", "--broker-api"), help="Broker API")
@@ -528,6 +582,10 @@ ARG_CONN_ID = Arg(
     ('conn_id',),
     help='Connection id, required to add/delete a connection',
     type=str)
+ARG_CONN_ID_FILTER = Arg(
+    ('--conn-id',),
+    help='If passed, only items with the specified connection ID will be displayed',
+    type=str)
 ARG_CONN_URI = Arg(
     ('--conn-uri',),
     help='Connection URI, required to add a connection without conn_type',
@@ -560,44 +618,52 @@ ARG_CONN_EXTRA = Arg(
     ('--conn-extra',),
     help='Connection `Extra` field, optional when adding a connection',
     type=str)
-
+ARG_INCLUDE_SECRETS = Arg(
+    ('--include-secrets',),
+    help=(
+        "If passed, the connection in the secret backend will also be displayed."
+        "To use this option you must pass `--conn_id` option."
+        ""
+    ),
+    action="store_true",
+    default=False)
 # users
 ARG_USERNAME = Arg(
-    ('--username',),
+    ('-u', '--username'),
     help='Username of the user',
     required=True,
     type=str)
 ARG_USERNAME_OPTIONAL = Arg(
-    ('--username',),
+    ('-u', '--username'),
     help='Username of the user',
     type=str)
 ARG_FIRSTNAME = Arg(
-    ('--firstname',),
+    ('-f', '--firstname'),
     help='First name of the user',
     required=True,
     type=str)
 ARG_LASTNAME = Arg(
-    ('--lastname',),
+    ('-l', '--lastname'),
     help='Last name of the user',
     required=True,
     type=str)
 ARG_ROLE = Arg(
-    ('--role',),
+    ('-r', '--role'),
     help='Role of the user. Existing roles include Admin, '
          'User, Op, Viewer, and Public',
     required=True,
     type=str,)
 ARG_EMAIL = Arg(
-    ('--email',),
+    ('-e', '--email'),
     help='Email of the user',
     required=True,
     type=str)
 ARG_EMAIL_OPTIONAL = Arg(
-    ('--email',),
+    ('-e', '--email'),
     help='Email of the user',
     type=str)
 ARG_PASSWORD = Arg(
-    ('--password',),
+    ('-p', '--password'),
     help='Password of the user, required to create a user '
          'without --use-random-password',
     type=str)
@@ -648,6 +714,22 @@ ARG_SKIP_SERVE_LOGS = Arg(
     help="Don't start the serve logs process along with the workers",
     action="store_true")
 
+# info
+ARG_ANONYMIZE = Arg(
+    ('--anonymize',),
+    help=(
+        'Minimize any personal identifiable information. '
+        'Use it when sharing output with others.'
+    ),
+    action='store_true'
+)
+ARG_FILE_IO = Arg(
+    ('--file-io',),
+    help=(
+        'Send output to file.io service and returns link.'
+    ),
+    action='store_true'
+)
 
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE, ARG_CONN_HOST, ARG_CONN_LOGIN, ARG_CONN_PASSWORD, ARG_CONN_SCHEMA, ARG_CONN_PORT
@@ -762,10 +844,12 @@ DAGS_COMMANDS = (
         ),
     ),
     ActionCommand(
-        func=lazy_load_command('airflow.cli.commands.dag_command.dag_test'),
         name='test',
         help="Execute one run of a DAG",
-        args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR),
+        func=lazy_load_command('airflow.cli.commands.dag_command.dag_test'),
+        args=(
+            ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_SHOW_DAGRUN, ARG_IMGCAT_DAGRUN, ARG_SAVE_DAGRUN
+        ),
     ),
 )
 TASKS_COMMANDS = (
@@ -921,6 +1005,12 @@ DB_COMMANDS = (
         args=(),
     ),
     ActionCommand(
+        name="check-migrations",
+        help="Check if migration have finished (or continually check until timeout)",
+        func=lazy_load_command('airflow.cli.commands.db_command.check_migrations'),
+        args=(ARG_MIGRATION_TIMEOUT,),
+    ),
+    ActionCommand(
         name='reset',
         help="Burn down and rebuild the metadata database",
         func=lazy_load_command('airflow.cli.commands.db_command.resetdb'),
@@ -950,7 +1040,7 @@ CONNECTIONS_COMMANDS = (
         name='list',
         help='List connections',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_list'),
-        args=(ARG_OUTPUT,),
+        args=(ARG_OUTPUT, ARG_CONN_ID_FILTER, ARG_INCLUDE_SECRETS),
     ),
     ActionCommand(
         name='add',
@@ -1026,6 +1116,35 @@ ROLES_COMMANDS = (
         args=(ARG_ROLES,),
     ),
 )
+
+CELERY_COMMANDS = (
+    ActionCommand(
+        name='worker',
+        help="Start a Celery worker node",
+        func=lazy_load_command('airflow.cli.commands.celery_command.worker'),
+        args=(
+            ARG_DO_PICKLE, ARG_QUEUES, ARG_CONCURRENCY, ARG_CELERY_HOSTNAME, ARG_PID, ARG_DAEMON,
+            ARG_UMASK, ARG_STDOUT, ARG_STDERR, ARG_LOG_FILE, ARG_AUTOSCALE, ARG_SKIP_SERVE_LOGS
+        ),
+    ),
+    ActionCommand(
+        name='flower',
+        help="Start a Celery Flower",
+        func=lazy_load_command('airflow.cli.commands.celery_command.flower'),
+        args=(
+            ARG_FLOWER_HOSTNAME, ARG_FLOWER_PORT, ARG_FLOWER_CONF, ARG_FLOWER_URL_PREFIX,
+            ARG_FLOWER_BASIC_AUTH, ARG_BROKER_API, ARG_PID, ARG_DAEMON, ARG_STDOUT, ARG_STDERR,
+            ARG_LOG_FILE
+        ),
+    ),
+    ActionCommand(
+        name='stop',
+        help="Stop the Celery worker gracefully",
+        func=lazy_load_command('airflow.cli.commands.celery_command.stop_worker'),
+        args=(),
+    )
+)
+
 airflow_commands: List[CLICommand] = [
     GroupCommand(
         name='dags',
@@ -1118,7 +1237,13 @@ airflow_commands: List[CLICommand] = [
         name='config',
         help='Show current application configuration',
         func=lazy_load_command('airflow.cli.commands.config_command.show_config'),
-        args=(),
+        args=(ARG_COLOR, ),
+    ),
+    ActionCommand(
+        name='info',
+        help='Show information about current Airflow and environment',
+        func=lazy_load_command('airflow.cli.commands.info_command.show_info'),
+        args=(ARG_ANONYMIZE, ARG_FILE_IO, ),
     ),
     GroupCommand(
         name="celery",
@@ -1126,33 +1251,7 @@ airflow_commands: List[CLICommand] = [
             'Start celery components. Works only when using CeleryExecutor. For more information, see '
             'https://airflow.readthedocs.io/en/stable/executor/celery.html'
         ),
-        subcommands=(
-            ActionCommand(
-                name='worker',
-                help="Start a Celery worker node",
-                func=lazy_load_command('airflow.cli.commands.celery_command.worker'),
-                args=(
-                    ARG_DO_PICKLE, ARG_QUEUES, ARG_CONCURRENCY, ARG_CELERY_HOSTNAME, ARG_PID, ARG_DAEMON,
-                    ARG_STDOUT, ARG_STDERR, ARG_LOG_FILE, ARG_AUTOSCALE, ARG_SKIP_SERVE_LOGS
-                ),
-            ),
-            ActionCommand(
-                name='flower',
-                help="Start a Celery Flower",
-                func=lazy_load_command('airflow.cli.commands.celery_command.flower'),
-                args=(
-                    ARG_FLOWER_HOSTNAME, ARG_FLOWER_PORT, ARG_FLOWER_CONF, ARG_FLOWER_URL_PREFIX,
-                    ARG_FLOWER_BASIC_AUTH, ARG_BROKER_API, ARG_PID, ARG_DAEMON, ARG_STDOUT, ARG_STDERR,
-                    ARG_LOG_FILE
-                ),
-            ),
-            ActionCommand(
-                name='stop',
-                help="Stop the Celery worker gracefully",
-                func=lazy_load_command('airflow.cli.commands.celery_command.stop_worker'),
-                args=(),
-            )
-        )
+        subcommands=CELERY_COMMANDS
     )
 ]
 ALL_COMMANDS_DICT: Dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
@@ -1161,11 +1260,44 @@ DAG_CLI_COMMANDS: Set[str] = {
 }
 
 
+class AirflowHelpFormatter(argparse.HelpFormatter):
+    """
+    Custom help formatter to display help message.
+
+    It displays simple commands and groups of commands in separate sections.
+    """
+    def _format_action(self, action: Action):
+        if isinstance(action, argparse._SubParsersAction):  # pylint: disable=protected-access
+            parts = []
+            subactions = action._get_subactions()  # pylint: disable=protected-access
+            action_subcommnads, group_subcommnands = partition(
+                lambda d: isinstance(ALL_COMMANDS_DICT[d.dest], GroupCommand), subactions
+            )
+            parts.append("\n")
+            parts.append('%*s%s:\n' % (self._current_indent, '', "Groups"))
+            self._indent()
+            for subaction in group_subcommnands:
+                parts.append(self._format_action(subaction))
+            self._dedent()
+
+            parts.append("\n")
+            parts.append('%*s%s:\n' % (self._current_indent, '', "Commands"))
+            self._indent()
+
+            for subaction in action_subcommnads:
+                parts.append(self._format_action(subaction))
+            self._dedent()
+
+            # return a single string
+            return self._join_parts(parts)
+
+        return super()._format_action(action)
+
+
 def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
     """Creates and returns command line argument parser"""
-    parser = DefaultHelpParser(prog="airflow")
-    subparsers = parser.add_subparsers(
-        help='sub-command help', dest='subcommand')
+    parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
+    subparsers = parser.add_subparsers(dest='subcommand')
     subparsers.required = True
 
     subparser_list = DAG_CLI_COMMANDS if dag_parser else ALL_COMMANDS_DICT.keys()
@@ -1209,10 +1341,7 @@ def _add_command(
 
 def _add_action_command(sub: ActionCommand, sub_proc: argparse.ArgumentParser) -> None:
     for arg in _sort_args(sub.args):
-        kwargs = {
-            k: v for k, v in vars(arg).items() if k != 'flags' and v
-        }
-        sub_proc.add_argument(*arg.flags, **kwargs)
+        arg.add_to_parser(sub_proc)
     sub_proc.set_defaults(func=sub.func)
 
 

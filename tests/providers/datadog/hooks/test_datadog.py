@@ -133,7 +133,3 @@ class TestDatadogHook(unittest.TestCase):
             device_name=DEVICE_NAME,
             source_type_name=self.hook.source_type_name,
         )
-
-
-if __name__ == '__main__':
-    unittest.main()

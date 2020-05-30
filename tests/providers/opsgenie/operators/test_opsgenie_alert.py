@@ -115,7 +115,3 @@ class TestOpsgenieAlertOperator(unittest.TestCase):
         self.assertEqual(self._config['priority'], operator.priority)
         self.assertEqual(self._config['user'], operator.user)
         self.assertEqual(self._config['note'], operator.note)
-
-
-if __name__ == '__main__':
-    unittest.main()

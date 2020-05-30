@@ -55,7 +55,3 @@ class TestSegmentHook(unittest.TestCase):
     def test_on_error(self):
         with self.assertRaises(AirflowException):
             self.test_hook.on_error('error', ['items'])
-
-
-if __name__ == '__main__':
-    unittest.main()

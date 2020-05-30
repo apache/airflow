@@ -32,14 +32,13 @@ import google.auth
 import google.auth.credentials
 import google.oauth2.service_account
 import google_auth_httplib2
-import httplib2
 import tenacity
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
 from google.api_core.gapic_v1.client_info import ClientInfo
 from google.auth import _cloud_sdk
 from google.auth.environment_vars import CREDENTIALS
 from googleapiclient.errors import HttpError
-from googleapiclient.http import set_user_agent
+from googleapiclient.http import MediaIoBaseDownload, build_http, set_user_agent
 
 from airflow import version
 from airflow.exceptions import AirflowException
@@ -213,7 +212,7 @@ class GoogleBaseHook(BaseHook):
         service hook connection.
         """
         credentials = self._get_credentials()
-        http = httplib2.Http()
+        http = build_http()
         http = set_user_agent(http, "airflow/" + version.version)
         authed_http = google_auth_httplib2.AuthorizedHttp(credentials, http=http)
         return authed_http
@@ -250,7 +249,19 @@ class GoogleBaseHook(BaseHook):
         :return: the number of times each API request should be retried
         :rtype: int
         """
-        return self._get_field('num_retries') or 5
+        field_value = self._get_field('num_retries', default=5)
+        if field_value is None:
+            return 5
+        if isinstance(field_value, str) and field_value.strip() == '':
+            return 5
+        try:
+            return int(field_value)
+        except ValueError:
+            raise AirflowException(
+                f"The num_retries field should be a integer. "
+                f"Current value: \"{field_value}\" (type: {type(field_value)}). "
+                f"Please check the connection configuration."
+            )
 
     @property
     def client_info(self) -> ClientInfo:
@@ -444,3 +455,23 @@ class GoogleBaseHook(BaseHook):
                         creds_content["refresh_token"],
                     ])
             yield
+
+    @staticmethod
+    def download_content_from_request(file_handle, request, chunk_size):
+        """
+        Download media resources.
+        Note that  the Python file object is compatible with io.Base and can be used with this class also.
+
+        :param file_handle: io.Base or file object. The stream in which to write the downloaded
+            bytes.
+        :type file_handle: io.Base or file object
+        :param request: googleapiclient.http.HttpRequest, the media request to perform in chunks.
+        :type request: Dict
+        :param chunk_size: int, File will be downloaded in chunks of this many bytes.
+        :type chunk_size: int
+        """
+        downloader = MediaIoBaseDownload(file_handle, request, chunksize=chunk_size)
+        done = False
+        while done is False:
+            _, done = downloader.next_chunk()
+        file_handle.flush()

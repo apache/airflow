@@ -43,7 +43,7 @@ class TestWasbBlobSensor(unittest.TestCase):
 
     def test_init(self):
         sensor = WasbBlobSensor(
-            task_id='wasb_sensor',
+            task_id='wasb_sensor_1',
             dag=self.dag,
             **self._config
         )
@@ -54,7 +54,7 @@ class TestWasbBlobSensor(unittest.TestCase):
         self.assertEqual(sensor.timeout, self._config['timeout'])
 
         sensor = WasbBlobSensor(
-            task_id='wasb_sensor',
+            task_id='wasb_sensor_2',
             dag=self.dag,
             check_options={'timeout': 2},
             **self._config
@@ -94,7 +94,7 @@ class TestWasbPrefixSensor(unittest.TestCase):
 
     def test_init(self):
         sensor = WasbPrefixSensor(
-            task_id='wasb_sensor',
+            task_id='wasb_sensor_1',
             dag=self.dag,
             **self._config
         )
@@ -105,7 +105,7 @@ class TestWasbPrefixSensor(unittest.TestCase):
         self.assertEqual(sensor.timeout, self._config['timeout'])
 
         sensor = WasbPrefixSensor(
-            task_id='wasb_sensor',
+            task_id='wasb_sensor_2',
             dag=self.dag,
             check_options={'timeout': 2},
             **self._config
@@ -126,7 +126,3 @@ class TestWasbPrefixSensor(unittest.TestCase):
         mock_instance.check_for_prefix.assert_called_once_with(
             'container', 'prefix', timeout=2
         )
-
-
-if __name__ == '__main__':
-    unittest.main()

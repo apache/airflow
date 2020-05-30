@@ -27,17 +27,16 @@ from tabulate import tabulate
 
 from airflow import models
 from airflow.exceptions import (
-    AirflowException, DagConcurrencyLimitReached, NoAvailablePoolSlot, PoolNotFound,
+    AirflowException, BackfillUnfinished, DagConcurrencyLimitReached, NoAvailablePoolSlot, PoolNotFound,
     TaskConcurrencyLimitReached,
 )
-from airflow.executors.local_executor import LocalExecutor
-from airflow.executors.sequential_executor import SequentialExecutor
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKeyType
 from airflow.ti_deps.dep_context import DepContext
-from airflow.ti_deps.dependencies import BACKFILL_QUEUED_DEPS
+from airflow.ti_deps.dependencies_deps import BACKFILL_QUEUED_DEPS
 from airflow.utils import timezone
 from airflow.utils.configuration import tmp_configuration_copy
 from airflow.utils.session import provide_session
@@ -255,7 +254,8 @@ class BackfillJob(BaseJob):
         executor = self.executor
 
         # TODO: query all instead of refresh from db
-        for key, state in list(executor.get_event_buffer().items()):
+        for key, value in list(executor.get_event_buffer().items()):
+            state, info = value
             if key not in running:
                 self.log.warning(
                     "%s state %s not in running=%s",
@@ -272,7 +272,7 @@ class BackfillJob(BaseJob):
                 if ti.state == State.RUNNING or ti.state == State.QUEUED:
                     msg = ("Executor reports task instance {} finished ({}) "
                            "although the task says its {}. Was the task "
-                           "killed externally?".format(ti, state, ti.state))
+                           "killed externally? Info: {}".format(ti, state, ti.state, info))
                     self.log.error(msg)
                     ti.handle_failure(msg)
 
@@ -502,7 +502,9 @@ class BackfillJob(BaseJob):
                         session.merge(ti)
 
                         cfg_path = None
-                        if executor.__class__ in (LocalExecutor, SequentialExecutor):
+                        if self.executor_class in (
+                            ExecutorLoader.LOCAL_EXECUTOR, ExecutorLoader.SEQUENTIAL_EXECUTOR
+                        ):
                             cfg_path = tmp_configuration_copy()
 
                         executor.queue_task_instance(
@@ -773,13 +775,9 @@ class BackfillJob(BaseJob):
         # picklin'
         pickle_id = None
 
-        try:
-            from airflow.executors.dask_executor import DaskExecutor
-        except ImportError:
-            DaskExecutor = None
-
-        if not self.donot_pickle and \
-                self.executor.__class__ not in (LocalExecutor, SequentialExecutor, DaskExecutor):
+        if not self.donot_pickle and self.executor_class not in (
+            ExecutorLoader.LOCAL_EXECUTOR, ExecutorLoader.SEQUENTIAL_EXECUTOR, ExecutorLoader.DASK_EXECUTOR,
+        ):
             pickle = DagPickle(self.dag)
             session.add(pickle)
             session.commit()
@@ -808,7 +806,7 @@ class BackfillJob(BaseJob):
                 )
                 err = self._collect_errors(ti_status=ti_status, session=session)
                 if err:
-                    raise AirflowException(err)
+                    raise BackfillUnfinished(err, ti_status)
 
                 if remaining_dates > 0:
                     self.log.info(

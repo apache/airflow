@@ -19,8 +19,9 @@
 # shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-export EXIT_CODE=0
-export DISABLED_INTEGRATIONS=""
+EXIT_CODE=0
+
+DISABLED_INTEGRATIONS=""
 
 function check_integration {
     INTEGRATION_NAME=$1
@@ -65,7 +66,7 @@ function check_integration {
         echo
         echo "${LAST_CHECK_RESULT}"
         echo
-        export EXIT_CODE=${RES}
+        EXIT_CODE=${RES}
     fi
     echo "-----------------------------------------------------------------------------------------------"
 }
@@ -114,7 +115,7 @@ function check_db_connection {
         echo
         echo "${LAST_CHECK_RESULT}"
         echo
-        export EXIT_CODE=${RES}
+        EXIT_CODE=${RES}
     fi
     echo "-----------------------------------------------------------------------------------------------"
 }
@@ -122,10 +123,17 @@ function check_db_connection {
 function check_mysql_logs {
     MAX_CHECK=${1:=60}
     # Wait until mysql is ready!
-    MYSQL_CONTAINER=$(docker ps -qf "name=mysql")
+    MYSQL_CONTAINER=$(docker ps -q -f "name=mysql" -f "volume=/dev/urandom")
     if [[ -z ${MYSQL_CONTAINER} ]]; then
         echo
         echo "ERROR! MYSQL container is not started. Exiting!"
+        echo
+        exit 1
+    elif [[ "${MYSQL_CONTAINER}" = *$'\n'* ]]; then
+        echo
+        echo "ERROR! pattern match multiple MYSQL containers. Exiting! Container ids as below:"
+        echo
+        echo "${MYSQL_CONTAINER}"
         echo
         exit 1
     fi
@@ -167,7 +175,7 @@ function check_mysql_logs {
     done
 }
 
-function resetdb() {
+function resetdb_if_requested() {
     if [[ ${DB_RESET:="false"} == "true" ]]; then
         if [[ ${RUN_AIRFLOW_1_10} == "true" ]]; then
                 airflow resetdb -y
@@ -175,7 +183,14 @@ function resetdb() {
                 airflow db reset -y
         fi
     fi
+    return $?
 }
+
+function check_docker_client_server_version_compatibility() {
+    docker version || exit 1
+}
+
+check_docker_client_server_version_compatibility
 
 if [[ -n ${BACKEND:=} ]]; then
     echo "==============================================================================================="
@@ -188,8 +203,8 @@ if [[ -n ${BACKEND:=} ]]; then
     fi
 
     check_db_connection 5
-
     set -e
+
     if [[ ${EXIT_CODE} == 0 ]]; then
         echo "==============================================================================================="
         echo "             Backend database is sane"
@@ -210,15 +225,16 @@ check_integration rabbitmq "nc -zvv rabbitmq 5672" 20
 check_integration cassandra "nc -zvv cassandra 9042" 20
 check_integration openldap "nc -zvv openldap 389" 20
 
-resetdb
-
 if [[ ${EXIT_CODE} != 0 ]]; then
     echo
     echo "Error: some of the CI environment failed to initialize!"
     echo
-    exit ${EXIT_CODE}
+    # Fixed exit code on initialization
+    # If the environment fails to initialize it is re-started several times
+    exit 254
 fi
 
+resetdb_if_requested
 
 if [[ ${DISABLED_INTEGRATIONS} != "" ]]; then
     echo
@@ -227,3 +243,5 @@ if [[ ${DISABLED_INTEGRATIONS} != "" ]]; then
     echo "Enable them via --integration <INTEGRATION_NAME> flags (you can use 'all' for all)"
     echo
 fi
+
+exit 0

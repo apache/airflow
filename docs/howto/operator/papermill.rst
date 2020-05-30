@@ -50,7 +50,7 @@ supports S3, GCS, Azure and Local. HDFS is *not* supported.
 Example DAG
 '''''''''''
 
-Use the :class:`~airflow.contrib.operators.papermill_operator.PapermillOperator`
+Use the :class:`~airflow.providers.papermill.operators.papermill.PapermillOperator`
 to execute a jupyter notebook:
 
 .. exampleinclude:: ../../../airflow/providers/papermill/example_dags/example_papermill.py

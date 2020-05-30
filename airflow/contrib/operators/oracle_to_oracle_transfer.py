@@ -20,9 +20,25 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.oracle.operators.oracle_to_oracle_transfer import OracleToOracleTransfer  # noqa
+from airflow.providers.oracle.operators.oracle_to_oracle_transfer import OracleToOracleTransferOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.oracle.operators.oracle_to_oracle_transfer`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class OracleToOracleTransfer(OracleToOracleTransferOperator):
+    """
+    This class is deprecated.
+    Please use:
+    `airflow.providers.oracle.operators.oracle_to_oracle_transfer.OracleToOracleTransferOperator`."""
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.oracle.operators.oracle_to_oracle_transfer.OracleToOracleTransferOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

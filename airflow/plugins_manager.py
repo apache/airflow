@@ -33,7 +33,7 @@ from airflow import settings
 
 log = logging.getLogger(__name__)
 
-import_errors = {}
+import_errors: Dict[str, str] = {}
 
 plugins = None  # type: Optional[List[AirflowPlugin]]
 
@@ -135,19 +135,25 @@ def load_entrypoint_plugins():
     Load and register plugins AirflowPlugin subclasses from the entrypoints.
     The entry_point group should be 'airflow.plugins'.
     """
+    global import_errors  # pylint: disable=global-statement
     global plugins  # pylint: disable=global-statement
 
     entry_points = pkg_resources.iter_entry_points('airflow.plugins')
 
     log.debug("Loading plugins from entrypoints")
 
-    for entry_point in entry_points:
+    for entry_point in entry_points:  # pylint: disable=too-many-nested-blocks
         log.debug('Importing entry_point plugin %s', entry_point.name)
-        plugin_obj = entry_point.load()
-        if is_valid_plugin(plugin_obj):
-            if callable(getattr(plugin_obj, 'on_load', None)):
-                plugin_obj.on_load()
-                plugins.append(plugin_obj)
+        try:
+            plugin_class = entry_point.load()
+            if is_valid_plugin(plugin_class):
+                plugin_instance = plugin_class()
+                if callable(getattr(plugin_instance, 'on_load', None)):
+                    plugin_instance.on_load()
+                    plugins.append(plugin_instance)
+        except Exception as e:  # pylint: disable=broad-except
+            log.exception("Failed to import plugin %s", entry_point.name)
+            import_errors[entry_point.module_name] = str(e)
 
 
 def load_plugins_from_plugin_directory():
@@ -177,9 +183,10 @@ def load_plugins_from_plugin_directory():
                 mod = importlib.util.module_from_spec(spec)
                 sys.modules[spec.name] = mod
                 loader.exec_module(mod)
-                for obj in list(mod.__dict__.values()):
-                    if is_valid_plugin(obj):
-                        plugins.append(obj)
+                for mod_attr_value in list(mod.__dict__.values()):
+                    if is_valid_plugin(mod_attr_value):
+                        plugin_instance = mod_attr_value()
+                        plugins.append(plugin_instance)
             except Exception as e:  # pylint: disable=broad-except
                 log.exception(e)
                 path = filepath or str(f)
