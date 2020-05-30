@@ -1512,7 +1512,7 @@ class SchedulerJob(BaseJob):
                     full_filepath=simple_dag.full_filepath,
                     task_instance=ti,
                     msg=f"Executor reports task instance finished ({state}) although the "
-                        f"task says its {ti.state} (Info: {info}). Was the task killed externally?"
+                        f"task says its {ti.state}. (Info: {info}) Was the task killed externally?"
                 )
 
     def _execute(self):
