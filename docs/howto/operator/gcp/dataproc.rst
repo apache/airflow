@@ -48,7 +48,7 @@ A cluster configuration can look as followed:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
-    :dedent: 4
+    :dedent: 0
     :start-after: [START how_to_cloud_dataproc_create_cluster]
     :end-before: [END how_to_cloud_dataproc_create_cluster]
 
@@ -57,7 +57,7 @@ With this configuration we can create the cluster:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
-    :dedent: 4
+    :dedent: 0
     :start-after: [START how_to_cloud_dataproc_create_cluster_operator]
     :end-before: [END how_to_cloud_dataproc_create_cluster_operator]
 
@@ -71,7 +71,7 @@ An example of a new cluster config and the updateMask:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
-    :dedent: 4
+    :dedent: 0
     :start-after: [START how_to_cloud_dataproc_updatemask_cluster_operator]
     :end-before: [END how_to_cloud_dataproc_updatemask_cluster_operator]
 
@@ -80,7 +80,7 @@ To update a cluster you can use:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
-    :dedent: 4
+    :dedent: 0
     :start-after: [START how_to_cloud_dataproc_update_cluster_operator]
     :end-before: [END how_to_cloud_dataproc_update_cluster_operator]
 
@@ -93,7 +93,7 @@ To delete a cluster you can use:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
-    :dedent: 4
+    :dedent: 0
     :start-after: [START how_to_cloud_dataproc_delete_cluster_operator]
     :end-before: [END how_to_cloud_dataproc_delete_cluster_operator]
 
@@ -112,7 +112,7 @@ The job configuration can be submitted by using:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
-    :dedent: 4
+    :dedent: 0
     :start-after: [START how_to_cloud_dataproc_submit_job_to_cluster_operator]
     :end-before: [END how_to_cloud_dataproc_submit_job_to_cluster_operator]
 
@@ -127,7 +127,7 @@ Example of the configuration for a PySpark Job:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
-    :dedent: 4
+    :dedent: 0
     :start-after: [START how_to_cloud_dataproc_pyspark_config]
     :end-before: [END how_to_cloud_dataproc_pyspark_config]
 
@@ -135,7 +135,7 @@ Example of the configuration for a SparkSQl Job:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
-    :dedent: 4
+    :dedent: 0
     :start-after: [START how_to_cloud_dataproc_sparksql_config]
     :end-before: [END how_to_cloud_dataproc_sparksql_config]
 
@@ -143,7 +143,7 @@ Example of the configuration for a Spark Job:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
-    :dedent: 4
+    :dedent: 0
     :start-after: [START how_to_cloud_dataproc_spark_config]
     :end-before: [END how_to_cloud_dataproc_spark_config]
 
@@ -151,7 +151,7 @@ Example of the configuration for a Hive Job:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
-    :dedent: 4
+    :dedent: 0
     :start-after: [START how_to_cloud_dataproc_hive_config]
     :end-before: [END how_to_cloud_dataproc_hive_config]
 
@@ -159,7 +159,7 @@ Example of the configuration for a Hadoop Job:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
-    :dedent: 4
+    :dedent: 0
     :start-after: [START how_to_cloud_dataproc_hadoop_config]
     :end-before: [END how_to_cloud_dataproc_hadoop_config]
 
@@ -167,7 +167,7 @@ Example of the configuration for a Pig Job:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
-    :dedent: 4
+    :dedent: 0
     :start-after: [START how_to_cloud_dataproc_pig_config]
     :end-before: [END how_to_cloud_dataproc_pig_config]
 
@@ -176,7 +176,7 @@ Example of the configuration for a SparkR:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
-    :dedent: 4
+    :dedent: 0
     :start-after: [START how_to_cloud_dataproc_sparkr_config]
     :end-before: [END how_to_cloud_dataproc_sparkr_config]
 
