@@ -182,6 +182,13 @@ ARG_LIMIT = Arg(
     ("--limit",),
     help="Return a limited number of records")
 
+# next_execution
+ARG_NUM_EXECUTIONS = Arg(
+    ("-n", "--num-executions"),
+    default=1,
+    type=int,
+    help="The number of next execution datetimes to show")
+
 # backfill
 ARG_MARK_SUCCESS = Arg(
     ("-m", "--mark-success"),
@@ -793,9 +800,10 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name='next_execution',
-        help="Get the next execution datetime of a DAG",
+        help="Get the next execution datetimes of a DAG. It returns one execution unless the "
+             "num-executions option is given",
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_next_execution'),
-        args=(ARG_DAG_ID, ARG_SUBDIR),
+        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_NUM_EXECUTIONS),
     ),
     ActionCommand(
         name='pause',
