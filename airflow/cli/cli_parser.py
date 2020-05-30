@@ -852,7 +852,7 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name='test',
-        help="Execute one run of a DAG",
+        help="Execute one single DagRun for a given DAG and execution date, using the DebugExecutor.",
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_test'),
         args=(
             ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_SHOW_DAGRUN, ARG_IMGCAT_DAGRUN, ARG_SAVE_DAGRUN
@@ -1235,7 +1235,7 @@ airflow_commands: List[CLICommand] = [
     ActionCommand(
         name='rotate_fernet_key',
         func=lazy_load_command('airflow.cli.commands.rotate_fernet_key_command.rotate_fernet_key'),
-        help='Rotate all encrypted connection credentials and variables',
+        help='Rotate encrypted connection credentials and variables',
         description=(
             'Rotate all encrypted connection credentials and variables; see '
             'https://airflow.readthedocs.io/en/stable/howto/secure-connections.html'
