@@ -23,7 +23,7 @@ import json
 import os
 import textwrap
 from argparse import Action, ArgumentError, RawTextHelpFormatter
-from typing import Callable, Dict, Iterable, List, NamedTuple, Set, Union
+from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Union
 
 from tabulate import tabulate_formats
 
@@ -722,7 +722,7 @@ class ActionCommand(NamedTuple):
     help: str
     func: Callable
     args: Iterable[Arg]
-    description: str = ''
+    description: Optional[str] = None
 
 
 class GroupCommand(NamedTuple):
@@ -730,7 +730,7 @@ class GroupCommand(NamedTuple):
     name: str
     help: str
     subcommands: Iterable
-    description: str = ''
+    description: Optional[str] = None
 
 
 CLICommand = Union[ActionCommand, GroupCommand]
@@ -1347,11 +1347,8 @@ def _add_command(
     subparsers: argparse._SubParsersAction,  # pylint: disable=protected-access
     sub: CLICommand
 ) -> None:
-    description = sub.description
-    if not description:
-        description = sub.help
     sub_proc = subparsers.add_parser(
-        sub.name, help=sub.help, description=description,
+        sub.name, help=sub.help, description=sub.description or sub.help,
     )
     sub_proc.formatter_class = RawTextHelpFormatter
 
