@@ -6,7 +6,6 @@
 ./airflow/lineage/backend/atlas/typedefs.py
 ./airflow/lineage/datasets.py
 ./airflow/logging_config.py
-./airflow/macros/hive.py
 ./airflow/migrations/env.py
 ./airflow/models/base.py
 ./airflow/models/connection.py

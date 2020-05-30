@@ -49,9 +49,10 @@ def max_partition(
     from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
     if '.' in table:
         schema, table = table.split('.')
-    hh = HiveMetastoreHook(metastore_conn_id=metastore_conn_id)
-    return hh.max_partition(
-        schema=schema, table_name=table, field=field, filter_map=filter_map)
+    hive_metastore_hook = HiveMetastoreHook(metastore_conn_id=metastore_conn_id)
+    return hive_metastore_hook.max_partition(
+        schema=schema, table_name=table, field=field, filter_map=filter_map
+    )
 
 
 def _closest_date(target_dt, date_list, before_target=None):
@@ -68,15 +69,15 @@ def _closest_date(target_dt, date_list, before_target=None):
     :returns: The closest date
     :rtype: datetime.date or None
     """
-    fb = lambda d: target_dt - d if d <= target_dt else datetime.timedelta.max
-    fa = lambda d: d - target_dt if d >= target_dt else datetime.timedelta.max
+    date_diff_before = lambda d: target_dt - d if d <= target_dt else datetime.timedelta.max
+    date_diff_after = lambda d: d - target_dt if d >= target_dt else datetime.timedelta.max
     fnone = lambda d: target_dt - d if d < target_dt else d - target_dt
     if before_target is None:
         return min(date_list, key=fnone).date()
     if before_target:
-        return min(date_list, key=fb).date()
+        return min(date_list, key=date_diff_before).date()
     else:
-        return min(date_list, key=fa).date()
+        return min(date_list, key=date_diff_after).date()
 
 
 def closest_ds_partition(
@@ -106,8 +107,8 @@ def closest_ds_partition(
     from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
     if '.' in table:
         schema, table = table.split('.')
-    hh = HiveMetastoreHook(metastore_conn_id=metastore_conn_id)
-    partitions = hh.get_partitions(schema=schema, table_name=table)
+    hive_metastore_hook = HiveMetastoreHook(metastore_conn_id=metastore_conn_id)
+    partitions = hive_metastore_hook.get_partitions(schema=schema, table_name=table)
     if not partitions:
         return None
     part_vals = [list(p.values())[0] for p in partitions]
