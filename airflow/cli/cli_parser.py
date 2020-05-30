@@ -1337,8 +1337,11 @@ def _add_command(
     subparsers: argparse._SubParsersAction,  # pylint: disable=protected-access
     sub: CLICommand
 ) -> None:
+    description = sub.description
+    if not description:
+        description = sub.help
     sub_proc = subparsers.add_parser(
-        sub.name, help=sub.help, description=sub.description,
+        sub.name, help=sub.help, description=description,
     )
     sub_proc.formatter_class = RawTextHelpFormatter
 
