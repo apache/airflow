@@ -259,8 +259,6 @@ ARG_IMGCAT_DAGRUN = Arg(
     help=(
         "After completing the dag run, prints a diagram on the screen for the "
         "current DAG Run using the imgcat tool.\n"
-        "\n"
-        "For more information, see: https://www.iterm2.com/documentation-images.html"
     ),
     action='store_true')
 ARG_SAVE_DAGRUN = Arg(
@@ -268,14 +266,7 @@ ARG_SAVE_DAGRUN = Arg(
     help=(
         "After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n"
         "\n"
-        "The file format is determined by the file extension. For more information about supported "
-        "format, see: https://www.graphviz.org/doc/info/output.html\n"
-        "\n"
-        "If you want to create a PNG file then you should execute the following command:\n"
-        "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.png\n"
-        "\n"
-        "If you want to create a DOT file then you should execute the following command:\n"
-        "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.dot\n"))
+    ))
 
 # list_tasks
 ARG_TREE = Arg(
@@ -818,7 +809,8 @@ DAGS_COMMANDS = (
         help="Displays DAG's tasks with their dependencies",
         description=("The --imgcat option only works in iTerm.\n"
                      "\n"
-                     "For more information, see: https://www.iterm2.com/documentation-images.html"
+                     "For more information, see: https://www.iterm2.com/documentation-images.html\n"
+                     "\n"
                      "The --save option saves the result to the indicated file.\n"
                      "\n"
                      "The file format is determined by the file extension. "
@@ -853,6 +845,24 @@ DAGS_COMMANDS = (
     ActionCommand(
         name='test',
         help="Execute one single DagRun for a given DAG and execution date, using the DebugExecutor.",
+        description=("Execute one single DagRun for a given DAG and execution date, "
+                     "using the DebugExecutor.\n"
+                     "\n"
+                     "The --imgcat-dagrun option only works in iTerm.\n"
+                     "\n"
+                     "For more information, see: https://www.iterm2.com/documentation-images.html\n"
+                     "\n"
+                     "If --save-dagrun is used, then, after completing the backfill, saves the diagram "
+                     "for current DAG Run to the indicated file.\n"
+                     "The file format is determined by the file extension. "
+                     "For more information about supported format, "
+                     "see: https://www.graphviz.org/doc/info/output.html\n"
+                     "\n"
+                     "If you want to create a PNG file then you should execute the following command:\n"
+                     "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.png\n"
+                     "\n"
+                     "If you want to create a DOT file then you should execute the following command:\n"
+                     "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.dot\n"),
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_test'),
         args=(
             ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_SHOW_DAGRUN, ARG_IMGCAT_DAGRUN, ARG_SAVE_DAGRUN
