@@ -742,6 +742,7 @@ class ActionCommand(NamedTuple):
     help: str
     func: Callable
     args: Iterable[Arg]
+    description: str = ''
 
 
 class GroupCommand(NamedTuple):
@@ -749,6 +750,7 @@ class GroupCommand(NamedTuple):
     name: str
     help: str
     subcommands: Iterable
+    description: str = ''
 
 
 CLICommand = Union[ActionCommand, GroupCommand]
@@ -769,7 +771,8 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name='list_runs',
-        help=(
+        help="List dag runs given a DAG id.",
+        description=(
             "List dag runs given a DAG id. If state option is given, it will only search for all the "
             "dagruns with the given state. If no_backfill option is given, it will filter out all "
             "backfill dagruns for given dag id. If start_date is given, it will filter out all the "
@@ -829,7 +832,8 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name='backfill',
-        help=(
+        help="Run subsections of a DAG for a specified date range.",
+        description=(
             "Run subsections of a DAG for a specified date range. If reset_dag_run option is used, "
             "backfill will first prompt users whether airflow should clear all the previous dag_run and "
             "task_instances within the backfill date range. If rerun_failed_tasks is used, backfill "
@@ -1327,7 +1331,7 @@ def _add_command(
     sub: CLICommand
 ) -> None:
     sub_proc = subparsers.add_parser(
-        sub.name, help=sub.help
+        sub.name, help=sub.help, description=sub.description,
     )
     sub_proc.formatter_class = RawTextHelpFormatter
 
