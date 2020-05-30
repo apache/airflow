@@ -96,7 +96,7 @@ Docker in WSL 2
 
 .. image:: images/docker_wsl_integration.png
     :align: left
-    :alt: Disk space OSX
+    :alt: Docker WSL2 integration
 
 - **WSL 2 Filesystem Performane** :
     Accessing the host Windows filesystem incurs a performance penalty,
