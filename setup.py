@@ -279,7 +279,7 @@ hdfs = [
 ]
 hive = [
     'hmsclient>=0.1.0',
-    'pyhive>=0.6.0',
+    'pyhive[hive]>=0.6.0',
 ]
 jdbc = [
     'JPype1==0.7.1',
