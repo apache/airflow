@@ -98,26 +98,26 @@ Docker in WSL 2
     :align: left
     :alt: Docker WSL2 integration
 
-- **WSL 2 Filesystem Performane** :
+- **WSL 2 Filesystem Performance** :
     Accessing the host Windows filesystem incurs a performance penalty,
     it is therefore recommended to do development on the Linux filesystem.
-    E.g. Run "`cd ~`" and create a development folder in your Linux distro home
-    and git pull the Airflow repo there. 
+    E.g. Run ``cd ~`` and create a development folder in your Linux distro home
+    and git pull the Airflow repo there.
 
-- **WSL 2 Memory Usage** : 
+- **WSL 2 Memory Usage** :
     WSL 2 can consume a lot of memory under the process name "Vmmem". To reclaim
     the memory after development you can:
-      * On the Linux distro clear cached memory: `sudo sysctl -w vm.drop_caches=3`
+      * On the Linux distro clear cached memory: ``sudo sysctl -w vm.drop_caches=3``
       * If no longer using Docker you can quit Docker Desktop
         (right click system try icon and select "Quit Docker Desktop")
       * If no longer using WSL you can shut it down on the Windows Host
-        with the following command: `wsl --shutdown`
+        with the following command: ``wsl --shutdown``
 
 - **Developing in WSL 2** :
     You can use all the standard Linux command line utilities to develop on WSL 2.
     Further VS Code supports developing in Windows but remotely executing in WSL.
     If VS Code is installed on the Windows host system then in the WSL Linux Distro
-    you can run "`code .`" in the root directory of you Airflow repo to launch VS Code.
+    you can run ``code .`` in the root directory of you Airflow repo to launch VS Code.
 
 Docker Images Used by Breeze
 ----------------------------
@@ -192,7 +192,7 @@ On macOS, 2GB of RAM are available for your Docker containers by default, but mo
 (4GB should be comfortable). For details see
 `Docker for Mac - Advanced tab <https://docs.docker.com/v17.12/docker-for-mac/#advanced-tab>`_.
 
-On Windows WSL 2 expect the Linux Disto and Docker containers to use 7 - 8 GB of RAM. 
+On Windows WSL 2 expect the Linux Disto and Docker containers to use 7 - 8 GB of RAM.
 
 Airflow Directory Structure inside Docker
 -----------------------------------------
