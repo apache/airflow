@@ -89,7 +89,7 @@ Docker in WSL 2
     Install Docker Desktop for Windows. For Windows Home follow the
     `Docker Windows Home Installation Guide <https://docs.docker.com/docker-for-windows/install-windows-home>`_.
     For Windows Pro, Enterprise, or Education follow the
-    `Docker Windows Installtion Guide <https://docs.docker.com/docker-for-windows/install/>`_.
+    `Docker Windows Installation Guide <https://docs.docker.com/docker-for-windows/install/>`_.
 
 - **Docker setting** :
     WSL integration needs to be enabled
