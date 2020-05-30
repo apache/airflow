@@ -39,11 +39,19 @@ function in_container_script_end() {
     #shellcheck disable=2181
     EXIT_CODE=$?
     if [[ ${EXIT_CODE} != 0 ]]; then
+        if [[ -n ${OUT_FILE:=} ]]; then
+            echo "  ERROR ENCOUNTERED!"
+            echo
+            echo "  Output:"
+            echo
+            cat "${OUT_FILE}"
+            echo "###########################################################################################"
+        fi
         echo "###########################################################################################"
         echo "                   EXITING ${0} WITH STATUS CODE ${EXIT_CODE}"
         echo "###########################################################################################"
-
     fi
+
     if [[ ${VERBOSE_COMMANDS} == "true" ]]; then
         set +x
     fi
@@ -85,8 +93,8 @@ function in_container_cleanup_pycache() {
 #
 function in_container_fix_ownership() {
     set +o pipefail
-    sudo find . -user root \
-    | sudo xargs chown -v "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference >/dev/null 2>&1
+    sudo find . -user root -print0 \
+    | sudo xargs --null chown -v "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference >/dev/null 2>&1
     set -o pipefail
 }
 
@@ -254,7 +262,7 @@ function send_kubernetes_logs_to_file_io() {
 
 function install_released_airflow_version() {
     pip uninstall -y apache-airflow || true
-    find /root/airflow/ -type f -print0 | xargs rm -f --
+    find /root/airflow/ -type f -print0 | xargs -0 rm -f --
     if [[ ${1} == "1.10.2" || ${1} == "1.10.1" ]]; then
         export SLUGIFY_USES_TEXT_UNIDECODE=yes
     fi
