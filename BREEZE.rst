@@ -100,7 +100,7 @@ Docker in WSL 2
 
 - **WSL 2 Filesystem Performane** :
     Accessing the host Windows filesystem incurs a performance penalty,
-    it is therefore reccomended to do development on the Linux filesystem.
+    it is therefore recommended to do development on the Linux filesystem.
     E.g. Run "`cd ~`" and create a development folder in your Linux distro home
     and git pull the Airflow repo there. 
 
