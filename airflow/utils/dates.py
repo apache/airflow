@@ -24,6 +24,7 @@ from dateutil.relativedelta import relativedelta  # noqa: F401 for doctest  # py
 from airflow.utils import timezone
 
 cron_presets = {
+    '@minutely': '* * * * *',
     '@hourly': '0 * * * *',
     '@daily': '0 0 * * *',
     '@weekly': '0 0 * * 0',

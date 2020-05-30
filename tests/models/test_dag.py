@@ -1316,12 +1316,14 @@ class TestDag(unittest.TestCase):
 
     @parameterized.expand([
         (None, None),
+        ("@once", None),
+        ("@minutely", "* * * * *"),
+        ("@hourly", "0 * * * *"),
         ("@daily", "0 0 * * *"),
         ("@weekly", "0 0 * * 0"),
         ("@monthly", "0 0 1 * *"),
         ("@quarterly", "0 0 1 */3 *"),
         ("@yearly", "0 0 1 1 *"),
-        ("@once", None),
         (datetime.timedelta(days=1), datetime.timedelta(days=1)),
     ])
     def test_normalized_schedule_interval(
