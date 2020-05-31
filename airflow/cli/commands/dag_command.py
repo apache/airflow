@@ -275,7 +275,7 @@ def dag_next_execution(args):
     dag = get_dag(args.subdir, args.dag_id)
 
     if dag.get_is_paused():
-        print("[INFO] Please be reminded this DAG is PAUSED now.")
+        print("[INFO] Please be reminded this DAG is PAUSED now.", file=sys.stderr)
 
     if args.num_executions <= 0:
         print(None)
