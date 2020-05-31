@@ -405,10 +405,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         # of exit code in the log, as it may differ.
         if returncode or (self._is_kubernetes and self._spark_exit_code != 0):
             # double check by spark driver pod status (blocking function)
-            self._start_k8s_pod_status_tracking()
-            self.log.info("The final status of spark driver pod on K8s is %s", self._spark_exit_code)
+            spark_driver_pod_status = self._start_k8s_pod_status_tracking()
+            self.log.info("The final status of spark driver pod on K8s is %s", spark_driver_pod_status)
 
-            if self._spark_exit_code != 0:
+            if spark_driver_pod_status != 'Succeeded':
                 raise AirflowException(
                     "Cannot execute: {}. Error code is: {}.".format(
                         self._mask_cmd(spark_submit_cmd), returncode
@@ -603,7 +603,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         # it is possible that the log stream will be interrupted and lost 'Exit Code'.
         # Therefore we use a simple retry mechanism and try to get pod phase status.
         # Keep polling as long as the driver is processing
-        while self._spark_exit_code not in ["Succeeded", "Failed", "Unknown"]:
+        spark_driver_pod_status = None
+        while spark_driver_pod_status not in ["Succeeded", "Failed", "Unknown"]:
 
             # Sleep for n seconds as we do not want to spam the cluster
             time.sleep(self._status_poll_interval)
@@ -617,17 +618,14 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     self._connection['namespace'],
                     async_req=False,
                     pretty=True).status.phase
-                if phase_status == 'Succeeded':
-                    self._spark_exit_code = 0
-                else:
-                    self._spark_exit_code = phase_status
+                spark_driver_pod_status = phase_status
 
             except kube_client.ApiException as e:
-                self._spark_exit_code = 'Unknown'
+                spark_driver_pod_status = 'Unknown'
                 self.log.error("Exception when attempting to poll status of spark driver pod on K8s")
                 self.log.exception(e)
 
-            self.log.debug("Status of spark driver pod on K8s is %s", self._spark_exit_code)
+            self.log.debug("Status of spark driver pod on K8s is %s", spark_driver_pod_status)
 
     def _build_spark_driver_kill_command(self):
         """
