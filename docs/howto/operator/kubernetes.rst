@@ -22,7 +22,46 @@
 KubernetesPodOperator
 =====================
 
-The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`:
+The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` allows
+you to create and run Pods on a Kubernetes cluster.
+
+How does this operator work?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TODO: include a definition of how the operator works, highlight dependency management gains, language agnosticism,
+and a quick overview of a k8s pod
+Go through the lifecycle of the pod in the context of a single task being executed on Airflow:
+start, monitor, end, delete (if specified). Mention where the pods can be run (in Airflow cluster if already
+hosted on k8s or a different one if kube config is available)
+
+Reference content from:
+- https://cloud.google.com/composer/docs/how-to/using/using-kubernetes-pod-operator
+- https://www.astronomer.io/docs/kubepodoperator/
+- https://medium.com/bluecore-engineering/were-all-using-airflow-wrong-and-how-to-fix-it-a56f14cb0753
+
+How to define Configurations (ConfigMaps and Secrets)?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TODO: define general best practices from here: https://kubernetes.io/docs/concepts/configuration/overview/
+Have examples with `airflow.kubernetes.secret.Secret` and `airflow.kubernetes.volume.Volume`
+
+Difference between ``KubernetesPodOperator`` and Kubernetes object spec
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TODO: Have a definition of the KubernetesPodOperator and have the equivalent YAML spec to point out
+the similarities and differences
+Bonus include a JSON equivalent as well
+
+How to use private images (container registry)?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TODO: mention ECR, GCR, Quay, as options for image source and how to set up secret in Airflow to access a
+registry other than Docker Hub
+Reference content from: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+Include simple example of a private registry image with the secret
+
+How does XCom work?
+^^^^^^^^^^^^^^^^^^^
+TODO: walk through workflow of pushing and pulling from operator
+Reference content from: https://www.aylakhan.tech/?p=725
+Include example of this in action (already one in the GKE example which we can borrow)
+
 
 * Launches a Docker image as a Kubernetes Pod to execute an individual Airflow
   task via a Kubernetes API request, using the
