@@ -626,6 +626,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 self.log.exception(e)
 
             self.log.debug("Status of spark driver pod on K8s is %s", spark_driver_pod_status)
+        return spark_driver_pod_status
 
     def _build_spark_driver_kill_command(self):
         """
