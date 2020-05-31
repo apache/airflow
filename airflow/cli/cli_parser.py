@@ -101,11 +101,13 @@ class Arg:
 
 def positive_int(value):
     """Define a positive int type for an argument."""
-    value = int(value)
-    if value > 0:
-        return value
-    else:
-        raise argparse.ArgumentTypeError(f"invalid positive int value: '{value}'")
+    try:
+        value = int(value)
+        if value > 0:
+            return value
+    except ValueError:
+        pass
+    raise argparse.ArgumentTypeError(f"invalid positive int value: '{value}'")
 
 
 # Shared
