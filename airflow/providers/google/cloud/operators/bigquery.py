@@ -28,6 +28,7 @@ from typing import Any, Dict, Iterable, List, Optional, SupportsAbs, Union
 
 import attr
 from google.api_core.exceptions import Conflict
+from google.api_core.retry import exponential_sleep_generator
 from google.cloud.bigquery import TableReference
 
 from airflow.exceptions import AirflowException
@@ -1645,7 +1646,9 @@ class BigQueryInsertJobOperator(BaseOperator):
                 job_id=self.job_id,
             )
             # Get existing job and wait for it to be ready
-            while not job.done():
-                sleep(10)
+            for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
+                sleep(time_to_wait)
                 job.reload()
+                if job.done():
+                    break
         return job.job_id

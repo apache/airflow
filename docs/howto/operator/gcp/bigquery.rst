@@ -267,6 +267,11 @@ proper query job configuration.
 For more information on types of BigQuery job please check
 `documentation <https://cloud.google.com/bigquery/docs/reference/v2/jobs>`__.
 
+Additionally you can use ``job_id`` parameter of
+:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator` to improve
+idempotency. If this parameter is not passed then uuid will be used as ``job_id``. If provided then
+operator will try to submit a new job with this ``job_id```. If there's already a job with such ``job_id``
+then it will reattach to the existing job.
 
 Validate data
 ^^^^^^^^^^^^^
