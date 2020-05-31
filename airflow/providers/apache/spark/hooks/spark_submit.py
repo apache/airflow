@@ -624,6 +624,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             except kube_client.ApiException as e:
                 self.log.error("Exception when attempting to poll status of spark driver pod on K8s")
                 self.log.exception(e)
+                # deal with ModuleNotFoundError: No module named 'kubernetes'
+                break
 
     def _build_spark_driver_kill_command(self):
         """
