@@ -175,9 +175,9 @@ class TestCli(TestCase):
             with self.assertRaises(SystemExit):
                 parser.parse_args([*cmd_args, '--help'])
 
-    def test_positive_int_type(self):
-        self.assertEqual(1, cli_parser.positive_int_type('1'))
+    def test_positive_int(self):
+        self.assertEqual(1, cli_parser.positive_int('1'))
 
         with self.assertRaises(argparse.ArgumentTypeError):
-            cli_parser.positive_int_type('0')
-            cli_parser.positive_int_type('-1')
+            cli_parser.positive_int('0')
+            cli_parser.positive_int('-1')

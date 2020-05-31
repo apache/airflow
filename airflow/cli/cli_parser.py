@@ -99,7 +99,7 @@ class Arg:
         parser.add_argument(*self.flags, **self.kwargs)
 
 
-def positive_int_type(value):
+def positive_int(value):
     """Define a positive int type for an argument."""
     value = int(value)
     if value > 0:
@@ -195,7 +195,7 @@ ARG_LIMIT = Arg(
 ARG_NUM_EXECUTIONS = Arg(
     ("-n", "--num-executions"),
     default=1,
-    type=positive_int_type,
+    type=positive_int,
     help="The number of next execution datetimes to show")
 
 # backfill
