@@ -404,11 +404,16 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         # Check spark-submit return code. In Kubernetes mode, also check the value
         # of exit code in the log, as it may differ.
         if returncode or (self._is_kubernetes and self._spark_exit_code != 0):
-            raise AirflowException(
-                "Cannot execute: {}. Error code is: {}.".format(
-                    self._mask_cmd(spark_submit_cmd), returncode
+            # double check by spark driver pod status (blocking function)
+            self._start_k8s_pod_status_tracking()
+            self.log.info("The final status of spark driver pod on K8s is %s", self._spark_exit_code)
+
+            if self._spark_exit_code != 0:
+                raise AirflowException(
+                    "Cannot execute: {}. Error code is: {}.".format(
+                        self._mask_cmd(spark_submit_cmd), returncode
+                    )
                 )
-            )
 
         self.log.debug("Should track driver: %s", self._should_track_driver_status)
 
@@ -566,6 +571,63 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                         "Failed to poll for the driver status {} times: returncode = {}"
                         .format(max_missed_job_status_reports, returncode)
                     )
+
+    def _start_k8s_pod_status_tracking(self):
+        """
+        Polls the driver based on self._kubernetes_driver_pod to get the status.
+        Finish successfully when the status is Succeeded.
+        Finish failed when the status is Failed/Unknown.
+
+        Pod phase(https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/)
+
+        Here are the possible values for phase:
+
+        Pending
+            The Pod has been accepted by the Kubernetes system, but one or more of the Container images
+            has not been created. This includes time before being scheduled as well as time spent
+            downloading images over the network, which could take a while.
+        Running
+            The Pod has been bound to a node, and all of the Containers have been created.
+            At least one Container is still running, or is in the process of starting or restarting.
+        Succeeded
+            All Containers in the Pod have terminated in success, and will not be restarted.
+        Failed
+            All Containers in the Pod have terminated, and at least one Container has terminated in failure
+            That is, the Container either exited with non-zero status or was terminated by the system.
+        Unknown
+            For some reason the state of the Pod could not be obtained,
+            typically due to an error in communicating with the host of the Pod.
+        """
+
+        # When your Kubernetes cluster is not performing well or get too old resource version exception
+        # it is possible that the log stream will be interrupted and lost 'Exit Code'.
+        # Therefore we use a simple retry mechanism and try to get pod phase status.
+        # Keep polling as long as the driver is processing
+        while self._spark_exit_code not in ["Succeeded", "Failed", "Unknown"]:
+
+            # Sleep for n seconds as we do not want to spam the cluster
+            time.sleep(self._status_poll_interval)
+
+            self.log.debug("polling status of spark driver pod with id %s", self._kubernetes_driver_pod)
+
+            try:
+                client = kube_client.get_kube_client()
+                phase_status = client.read_namespaced_pod(
+                    self._kubernetes_driver_pod,
+                    self._connection['namespace'],
+                    async_req=False,
+                    pretty=True).status.phase
+                if phase_status == 'Succeeded':
+                    self._spark_exit_code = 0
+                else:
+                    self._spark_exit_code = phase_status
+
+            except kube_client.ApiException as e:
+                self._spark_exit_code = 'Unknown'
+                self.log.error("Exception when attempting to poll status of spark driver pod on K8s")
+                self.log.exception(e)
+
+            self.log.debug("Status of spark driver pod on K8s is %s", self._spark_exit_code)
 
     def _build_spark_driver_kill_command(self):
         """
