@@ -352,58 +352,78 @@ class TestBaseOperatorMethods(unittest.TestCase):
         self.assertEqual(task4.get_outlet_defs(), [inlet, outlet, extra])
 
 
-@pytest.fixture(scope="class")
-def test_dag_bag():
-    return DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False)
+class CustomOp(DummyOperator):
+    template_fields = ("field", "field2")
+
+    @apply_defaults
+    def __init__(self, field=None, field2=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.field = field
+        self.field2 = field2
+
+    def execute(self, context):
+        self.field = None
 
 
 class TestXComArgsRelationsAreResolved:
-    def test_upstream_is_set_when_template_field_is_xcomarg(
-        self, test_dag_bag  # pylint: disable=redefined-outer-name
-    ):
-        dag: DAG = test_dag_bag.get_dag("xcomargs_test_1")
-        op1, op2 = sorted(dag.tasks, key=lambda t: t.task_id)
+    def test_setattr_performs_no_custom_action_at_execute_time(self):
+        op = CustomOp(task_id="test_task")
+        op.lock_for_execution()
+
+        with mock.patch(
+            "airflow.models.baseoperator.BaseOperator.set_xcomargs_dependencies"
+        ) as method_mock:
+            op.execute({})
+        assert method_mock.call_count == 0
+
+    def test_upstream_is_set_when_template_field_is_xcomarg(self):
+        with DAG("xcomargs_test", default_args={"start_date": datetime.today()}):
+            op1 = DummyOperator(task_id="op1")
+            op2 = CustomOp(task_id="op2", field=op1.output)
 
         assert op1 in op2.upstream_list
         assert op2 in op1.downstream_list
 
-    def test_set_xcomargs_dependencies_works_recursively(
-        self, test_dag_bag  # pylint: disable=redefined-outer-name
-    ):
-        dag: DAG = test_dag_bag.get_dag("xcomargs_test_2")
-        op1, op2, op3, op4 = sorted(dag.tasks, key=lambda t: t.task_id)
+    def test_set_xcomargs_dependencies_works_recursively(self):
+        with DAG("xcomargs_test", default_args={"start_date": datetime.today()}):
+            op1 = DummyOperator(task_id="op1")
+            op2 = DummyOperator(task_id="op2")
+            op3 = CustomOp(task_id="op3", field=[op1.output, op2.output])
+            op4 = CustomOp(task_id="op4", field={"op1": op1.output, "op2": op2.output})
 
         assert op1 in op3.upstream_list
         assert op2 in op3.upstream_list
         assert op1 in op4.upstream_list
         assert op2 in op4.upstream_list
 
-    def test_set_xcomargs_dependencies_works_when_set_after_init(
-        self, test_dag_bag  # pylint: disable=redefined-outer-name
-    ):
-        dag: DAG = test_dag_bag.get_dag("xcomargs_test_3")
-        op1, op2, _ = sorted(dag.tasks, key=lambda t: t.task_id)
+    def test_set_xcomargs_dependencies_works_when_set_after_init(self):
+        with DAG(dag_id='xcomargs_test', default_args={"start_date": datetime.today()}):
+            op1 = DummyOperator(task_id="op1")
+            op2 = CustomOp(task_id="op2")
+            op2.field = op1.output  # value is set after init
 
         assert op1 in op2.upstream_list
 
-    def test_set_xcomargs_dependencies_no_error_when_outside_dag(self):
-        class CustomOp(DummyOperator):
-            template_fields = ("field",)
+    def test_set_xcomargs_dependencies_error_when_outside_dag(self):
+        with pytest.raises(AirflowException):
+            op1 = DummyOperator(task_id="op1")
+            CustomOp(task_id="op2", field=op1.output)
 
-            @apply_defaults
-            def __init__(self, field, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.field = field
+    def test_set_xcomargs_dependencies_when_creating_dagbag(self):
+        dag_bag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False)
+        dag_id = "xcomargs_test_1"
+        dag: DAG = dag_bag.get_dag(dag_id)
+        op1, op2, op3 = sorted(dag.tasks, key=lambda t: t.task_id)
 
-        op1 = DummyOperator(task_id="op1")
-        CustomOp(task_id="op2", field=op1.output)
+        assert op1 in op2.upstream_list
+        assert op2 in op3.upstream_list
 
-    def test_set_xcomargs_dependencies_when_creating_dagbag_with_serialization(
-        self, test_dag_bag  # pylint: disable=redefined-outer-name
-    ):
+    def test_set_xcomargs_dependencies_when_creating_dagbag_with_serialization(self):
         # Persist DAG
-        dag_id = "xcomargs_test_3"
-        for dag in test_dag_bag.dags.values():
+        dag_bag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False)
+
+        dag_id = "xcomargs_test_2"
+        for dag in dag_bag.dags.values():
             if dag.dag_id == dag_id:
                 SDM.write_dag(dag)
 

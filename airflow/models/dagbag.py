@@ -321,7 +321,6 @@ class DagBag(BaseDagBag, LoggingMixin):
 
         for task in dag.tasks:
             settings.policy(task)
-            task.set_xcomargs_dependencies()
 
         subdags = dag.subdags
 

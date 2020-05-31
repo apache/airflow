@@ -971,6 +971,7 @@ class TaskInstance(Base, LoggingMixin):
                 context = self.get_template_context()
 
                 task_copy = copy.copy(task)
+                task_copy.lock_for_execution()
 
                 # Sensors in `poke` mode can block execution of DAGs when running
                 # with single process executor, thus we change the mode to`reschedule`

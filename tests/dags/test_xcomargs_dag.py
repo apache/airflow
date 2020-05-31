@@ -45,19 +45,14 @@ def dummy(*args, **kwargs):
     return "pass"
 
 
-with DAG("xcomargs_test_1", default_args={"start_date": datetime.today()}) as dag1:
+with DAG(dag_id='xcomargs_test_1', default_args={"start_date": datetime.today()}) as dag1:
     op1 = DummyOperator(task_id="op1")
-    CustomOp(task_id="op2", field=op1.output)
+    op2 = CustomOp(task_id="op2", field=op1.output)
+    op3 = CustomOp(task_id="op3")
+    op3.field = op2.output
 
 
-with DAG("xcomargs_test_2", default_args={"start_date": datetime.today()}) as dag2:
-    op1 = DummyOperator(task_id="op1")
-    op2 = DummyOperator(task_id="op2")
-    CustomOp(task_id="op3", field=[op1.output, op2.output])
-    CustomOp(task_id="op4", field={"op1": op1.output, "op2": op2.output})
-
-
-with DAG(dag_id='xcomargs_test_3', default_args={"start_date": datetime.today()}) as dag3:
+with DAG(dag_id='xcomargs_test_2', default_args={"start_date": datetime.today()}) as dag2:
     op1 = DummyOperator(task_id="op1")
     op2 = CustomOp(task_id="op2", field=op1.output)
     op3 = CustomOp(task_id="op3")

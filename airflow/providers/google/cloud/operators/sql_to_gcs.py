@@ -31,7 +31,7 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils.decorators import apply_defaults
 
 
-class BaseSQLToGCSOperator(BaseOperator, metaclass=abc.ABCMeta):
+class BaseSQLToGCSOperator(BaseOperator):
     """
     :param sql: The SQL to execute.
     :type sql: str
