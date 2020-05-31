@@ -57,7 +57,7 @@ With this configuration we can create the cluster:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
-    :dedent: 0
+    :dedent: 4
     :start-after: [START how_to_cloud_dataproc_create_cluster_operator]
     :end-before: [END how_to_cloud_dataproc_create_cluster_operator]
 
@@ -80,7 +80,7 @@ To update a cluster you can use:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
-    :dedent: 0
+    :dedent: 4
     :start-after: [START how_to_cloud_dataproc_update_cluster_operator]
     :end-before: [END how_to_cloud_dataproc_update_cluster_operator]
 
@@ -93,7 +93,7 @@ To delete a cluster you can use:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
-    :dedent: 0
+    :dedent: 4
     :start-after: [START how_to_cloud_dataproc_delete_cluster_operator]
     :end-before: [END how_to_cloud_dataproc_delete_cluster_operator]
 
@@ -112,7 +112,7 @@ The job configuration can be submitted by using:
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
-    :dedent: 0
+    :dedent: 4
     :start-after: [START how_to_cloud_dataproc_submit_job_to_cluster_operator]
     :end-before: [END how_to_cloud_dataproc_submit_job_to_cluster_operator]
 
