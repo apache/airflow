@@ -99,6 +99,15 @@ class Arg:
         parser.add_argument(*self.flags, **self.kwargs)
 
 
+def positive_int_type(value):
+    """Define a positive int type for an argument."""
+    value = int(value)
+    if value > 0:
+        return value
+    else:
+        raise argparse.ArgumentTypeError(f"invalid positive int value: '{value}'")
+
+
 # Shared
 ARG_DAG_ID = Arg(
     ("dag_id",),
@@ -186,7 +195,7 @@ ARG_LIMIT = Arg(
 ARG_NUM_EXECUTIONS = Arg(
     ("-n", "--num-executions"),
     default=1,
-    type=int,
+    type=positive_int_type,
     help="The number of next execution datetimes to show")
 
 # backfill

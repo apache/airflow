@@ -259,18 +259,6 @@ class TestCliDags(unittest.TestCase):
             # It prints `None` in such cases
             self.assertIn("None", out)
 
-        # Test invalid num-executions
-        for i in ['0', '-1']:
-            args = self.parser.parse_args(['dags',
-                                           'next_execution',
-                                           dag_ids[0],
-                                           '--num-executions',
-                                           i])
-            with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
-                dag_command.dag_next_execution(args)
-                out = temp_stdout.getvalue()
-                self.assertIn("None", out)
-
         # The details below is determined by the schedule_interval of example DAGs
         now = DEFAULT_DATE
         expected_output = [str(now + timedelta(days=1)),

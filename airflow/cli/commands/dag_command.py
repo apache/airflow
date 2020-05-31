@@ -277,10 +277,6 @@ def dag_next_execution(args):
     if dag.get_is_paused():
         print("[INFO] Please be reminded this DAG is PAUSED now.", file=sys.stderr)
 
-    if args.num_executions <= 0:
-        print(None)
-        return
-
     latest_execution_date = dag.get_latest_execution_date()
     if latest_execution_date:
         next_execution_dttm = dag.following_schedule(latest_execution_date)
