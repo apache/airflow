@@ -1355,7 +1355,7 @@ def _add_action_command(sub: ActionCommand, sub_proc: argparse.ArgumentParser) -
 
 def _add_group_command(sub: GroupCommand, sub_proc: argparse.ArgumentParser) -> None:
     subcommands = sub.subcommands
-    sub_subparsers = sub_proc.add_subparsers(dest="subcommand", metavar="COMMNAD")
+    sub_subparsers = sub_proc.add_subparsers(dest="subcommand", metavar="COMMAND")
     sub_subparsers.required = True
 
     for command in sorted(subcommands, key=lambda x: x.name):
