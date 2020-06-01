@@ -216,7 +216,7 @@ set -u
 
 if [[ "${CI}" == "true" ]]; then
     CI_ARGS=(
-        "--verbosity=2"
+        "--verbosity=0"
         "--strict-markers"
         "--instafail"
         "--durations=100"
@@ -248,14 +248,14 @@ elif [[ ${ONLY_RUN_LONG_RUNNING_TESTS:=""} == "true" ]]; then
     CI_ARGS+=(
         "-m" "long_running"
         "--include-long-running"
-        "--verbosity=2"
+        "--verbosity=1"
         "--reruns" "3"
         "--timeout" "90")
 elif [[ ${ONLY_RUN_QUARANTINED_TESTS:=""} == "true" ]]; then
     CI_ARGS+=(
         "-m" "quarantined"
         "--include-quarantined"
-        "--verbosity=2"
+        "--verbosity=1"
         "--reruns" "3"
         "--timeout" "90")
 fi
