@@ -1914,7 +1914,7 @@ components:
 
     # Common data type
     ScheduleInterval:
-      allOf:
+      oneOf:
         - $ref: '#/components/schemas/TimeDelta'
         - $ref: '#/components/schemas/RelativeDelta'
         - $ref: '#/components/schemas/CronExpression'
