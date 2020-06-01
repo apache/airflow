@@ -68,7 +68,7 @@ class TestHive2SambaOperator(TestHiveEnvironment):
     def test_hive2samba(self, mock_hive_server_hook, mock_temp_dir):
         mock_temp_dir.return_value = "tst"
 
-        samba_hook = MockSambaHook()
+        samba_hook = MockSambaHook(self.kwargs['samba_conn_id'])
         samba_hook.upload = MagicMock()
 
         with patch('airflow.providers.apache.hive.operators.hive_to_samba.SambaHook',

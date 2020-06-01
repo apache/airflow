@@ -27,6 +27,9 @@ class MockDBConnection:
         self.readline = mock.MagicMock(
             side_effect=[line.encode() for line in output])
 
+    def status(self, *args, **kwargs):
+        return True
+
 
 class MockStdOut:
     def __init__(self, *args, **kwargs):
